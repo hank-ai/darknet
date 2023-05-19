@@ -3,7 +3,6 @@
 *.dSYM
 *.csv
 *.out
-*.png
 *.so
 *.exe
 *.dll
@@ -52,11 +51,9 @@ Thumbs.db
 *.swp
 
 # IDE generated #
-.vs/
-.vscode/
-
-# Managed by CMake
-src/version.h
+.vs
+.vscode
+*.kdev4
 
 # Build artifacts
 lib/
