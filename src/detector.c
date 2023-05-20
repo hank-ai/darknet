@@ -2062,7 +2062,11 @@ void run_detector(int argc, char **argv)
         free_list_contents_kvp(options);
         free_list(options);
     }
-    else printf(" There isn't such command: %s", argv[2]);
+    else
+    {
+        printf("Invalid Darknet command: %s %s\n", argv[1], argv[2]);
+        darknet_fatal_error("invalid Darknet command", DARKNET_LOC);
+    }
 
     if (gpus && gpu_list && ngpus > 1) free(gpus);
 }

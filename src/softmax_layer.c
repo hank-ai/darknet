@@ -420,7 +420,7 @@ void forward_contrastive_layer(contrastive_layer l, network_state state)
         const int max_contr_size = (l.max_boxes*l.batch)*(l.max_boxes*l.batch);
         if (max_contr_size < contr_size) {
             printf(" Error: too large number of bboxes: contr_size = %d > max_contr_size  = %d \n", contr_size, max_contr_size);
-            exit(0);
+            darknet_fatal_error("too many bounding boxes", DARKNET_LOC);
         }
         int *labels = NULL;
         if (contr_size > 2) {

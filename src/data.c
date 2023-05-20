@@ -19,7 +19,7 @@ list *get_paths(char *filename)
 {
     char *path;
     FILE *file = fopen(filename, "r");
-    if(!file) file_error(filename);
+    if(!file) file_error(filename, DARKNET_LOC);
     list *lines = make_list();
     while((path=fgetl(file))){
         list_insert(lines, path);
@@ -200,7 +200,7 @@ box_label *read_boxes(char *filename, int *n)
     FILE *file = fopen(filename, "r");
     if (!file) {
         printf("Can't open label file. (This can be normal only if you use MSCOCO): %s \n", filename);
-        //file_error(filename);
+        //file_error(filename, DARKNET_LOC);
         FILE* fw = fopen("bad.list", "a");
         fwrite(filename, sizeof(char), strlen(filename), fw);
         char *new_line = "\n";
@@ -1383,12 +1383,10 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
     //assert(use_mixup < 2);
     if (use_mixup == 2) {
-        printf("\n cutmix=1 - isn't supported for Detector \n");
-        exit(0);
+        darknet_fatal_error("cutmix=1 is not supported for Detector", DARKNET_LOC);
     }
     if (use_mixup == 3 || use_mixup == 4) {
-        printf("\n mosaic=1 - compile Darknet with OpenCV for using mosaic=1 \n");
-        exit(0);
+        darknet_fatal_error("mosaic=1 requires that Darknet be compiled with OpenCV", DARKNET_LOC);
     }
     int mixup = use_mixup ? random_gen() % 2 : 0;
     //printf("\n mixup = %d \n", mixup);
@@ -2081,7 +2079,7 @@ data load_cifar10_data(char *filename)
     d.y = y;
 
     FILE *fp = fopen(filename, "rb");
-    if(!fp) file_error(filename);
+    if(!fp) file_error(filename, DARKNET_LOC);
     for(i = 0; i < 10000; ++i){
         unsigned char bytes[3073];
         fread(bytes, 1, 3073, fp);
@@ -2145,7 +2143,7 @@ data load_all_cifar10()
         char buff[256];
         sprintf(buff, "data/cifar/cifar-10-batches-bin/data_batch_%d.bin", b+1);
         FILE *fp = fopen(buff, "rb");
-        if(!fp) file_error(buff);
+        if(!fp) file_error(buff, DARKNET_LOC);
         for(i = 0; i < 10000; ++i){
             unsigned char bytes[3073];
             fread(bytes, 1, 3073, fp);
@@ -2171,7 +2169,7 @@ data load_go(char *filename)
     matrix y = make_matrix(3363059, 361);
     int row, col;
 
-    if(!fp) file_error(filename);
+    if(!fp) file_error(filename, DARKNET_LOC);
     char *label;
     int count = 0;
     while((label = fgetl(fp))){

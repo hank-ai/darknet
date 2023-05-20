@@ -3,6 +3,7 @@
 #include "darknet.h"
 #include "list.h"
 
+#include <errno.h>
 #include <stdio.h>
 #include <time.h>
 #include <stdbool.h>
@@ -51,7 +52,7 @@ void replace_image_to_label(const char* input_path, char* output_path);
 void malloc_error(const size_t size, const char * const filename, const char * const funcname, const int line);
 void calloc_error(const size_t size, const char * const filename, const char * const funcname, const int line);
 void realloc_error(const size_t size, const char * const filename, const char * const funcname, const int line);
-void file_error(const char * const s);
+void file_error(const char * const s, const char * const filename, const char * const funcname, const int line);
 void strip(char *s);
 void strip_args(char *s);
 void strip_char(char *s, char bad);

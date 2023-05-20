@@ -1551,7 +1551,7 @@ extern "C" void add_3_arrays_activate(float *a1, float *a2, float *a3, size_t si
     const int num_blocks = get_number_of_blocks(size, block_size);
     if (!(a == LOGISTIC || a == TANH || a == LEAKY || a == LINEAR)) {
         printf(" add_3_arrays_activate() doesn't support activation %d, it supports only LOGISTIC and TANH \n", a);
-        exit(EXIT_FAILURE);
+        darknet_fatal_error("invalid support activation", DARKNET_LOC);
     }
     add_3_arrays_activate_kernel << <num_blocks, block_size, 0, get_cuda_stream() >> >(a1, a2, a3, size, a, dst);
 }
@@ -1590,7 +1590,7 @@ extern "C" void activate_and_mult(float *a1, float *a2, size_t size, ACTIVATION 
     const int num_blocks = get_number_of_blocks(size, block_size);
     if (!(a == TANH || a == LEAKY || a == LINEAR)) {
         printf(" activat_and_mult() doesn't support activation %d, it supports only TANH \n", a);
-        exit(EXIT_FAILURE);
+        darknet_fatal_error("invalid support activation", DARKNET_LOC);
     }
     activate_and_mult_kernel << <num_blocks, block_size, 0, get_cuda_stream() >> >(a1, a2, size, a, dst);
 }

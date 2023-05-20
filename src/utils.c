@@ -65,7 +65,7 @@ int *read_map(char *filename)
     int *map = 0;
     char *str;
     FILE *file = fopen(filename, "r");
-    if(!file) file_error(filename);
+    if(!file) file_error(filename, DARKNET_LOC);
     while((str=fgetl(file))){
         ++n;
         map = (int*)xrealloc(map, n * sizeof(int));
@@ -348,6 +348,14 @@ void log_backtrace()
 void darknet_fatal_error(const char * const msg, const char * const filename, const char * const funcname, const int line)
 {
     fprintf(stderr, "Darknet error location: %s, %s(), line #%d\n", filename, funcname, line);
+
+    if (errno == 0)
+    {
+        // replace the "success" message with something that we're not likely to produce ourself,
+        // just so the perror() text message displayed to the user doesn't look so strange
+        errno = -1;
+    }
+
     perror(msg);
     log_backtrace();
     exit(EXIT_FAILURE);
@@ -372,25 +380,25 @@ const char * size_to_IEC_string(const size_t size)
 void malloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
     fprintf(stderr, "Failed to malloc %s\n", size_to_IEC_string(size));
-    error("Malloc error - possibly out of CPU RAM", filename, funcname, line);
+    darknet_fatal_error("Malloc error - possibly out of CPU RAM", filename, funcname, line);
 }
 
 void calloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
     fprintf(stderr, "Failed to calloc %s\n", size_to_IEC_string(size));
-    error("Calloc error - possibly out of CPU RAM", filename, funcname, line);
+    darknet_fatal_error("Calloc error - possibly out of CPU RAM", filename, funcname, line);
 }
 
 void realloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
     fprintf(stderr, "Failed to realloc %s\n", size_to_IEC_string(size));
-    error("Realloc error - possibly out of CPU RAM", filename, funcname, line);
+    darknet_fatal_error("Realloc error - possibly out of CPU RAM", filename, funcname, line);
 }
 
-void file_error(const char * const s)
+void file_error(const char * const s, const char * const filename, const char * const funcname, const int line)
 {
-    fprintf(stderr, "Couldn't open file: %s\n", s);
-    exit(EXIT_FAILURE);
+    fprintf(stderr, "Failed to open file %s\n", s);
+    darknet_fatal_error("file error", filename, funcname, line);
 }
 
 list *split_str(char *s, char delim)
@@ -1085,7 +1093,8 @@ unsigned long custom_hash(char *str)
     return hash;
 }
 
-bool is_live_stream(const char * path){
+bool is_live_stream(const char * path)
+{
     const char *url_schema = "://";
     return (NULL != strstr(path, url_schema));
 }
