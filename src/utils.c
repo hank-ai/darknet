@@ -345,7 +345,7 @@ void log_backtrace()
 #endif
 }
 
-void error(const char * const msg, const char * const filename, const char * const funcname, const int line)
+void darknet_fatal_error(const char * const msg, const char * const filename, const char * const funcname, const int line)
 {
     fprintf(stderr, "Darknet error location: %s, %s(), line #%d\n", filename, funcname, line);
     perror(msg);
@@ -497,7 +497,7 @@ int read_int(int fd)
 void write_int(int fd, int n)
 {
     int next = write(fd, &n, sizeof(int));
-    if(next <= 0) error("read failed", DARKNET_LOC);
+    if(next <= 0) darknet_fatal_error("read failed", DARKNET_LOC);
 }
 
 int read_all_fail(int fd, char *buffer, size_t bytes)
@@ -527,7 +527,7 @@ void read_all(int fd, char *buffer, size_t bytes)
     size_t n = 0;
     while(n < bytes){
         int next = read(fd, buffer + n, bytes-n);
-        if(next <= 0) error("read failed", DARKNET_LOC);
+        if(next <= 0) darknet_fatal_error("read failed", DARKNET_LOC);
         n += next;
     }
 }
@@ -537,7 +537,7 @@ void write_all(int fd, char *buffer, size_t bytes)
     size_t n = 0;
     while(n < bytes){
         size_t next = write(fd, buffer + n, bytes-n);
-        if(next <= 0) error("write failed", DARKNET_LOC);
+        if(next <= 0) darknet_fatal_error("write failed", DARKNET_LOC);
         n += next;
     }
 }

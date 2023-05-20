@@ -21,7 +21,7 @@ LIB_API void free_ptrs(void **ptrs, int n);
 LIB_API void top_k(float *a, int n, int k, int *index);
 
 /* The "location" is the file, function, and line as defined by the DARKNET_LOC macro.
- * This is then printed when error() is called to terminate the instance of darknet.
+ * This is then printed when darknet_fatal_error() is called to terminate the instance of darknet.
  */
 void *xmalloc_location(const size_t size, const char * const filename, const char * const funcname, const int line);
 void *xcalloc_location(const size_t nmemb, const size_t size, const char * const filename, const char * const funcname, const int line);
@@ -31,7 +31,7 @@ void *xrealloc_location(void *ptr, const size_t size, const char * const filenam
 #define xcalloc(m, s)   xcalloc_location(m, s, DARKNET_LOC)
 #define xrealloc(p, s)  xrealloc_location(p, s, DARKNET_LOC)
 
-void error(const char * const msg, const char * const filename, const char * const funcname, const int line);
+void darknet_fatal_error(const char * const msg, const char * const filename, const char * const funcname, const int line);
 
 double what_time_is_it_now();
 int *read_map(char *filename);
