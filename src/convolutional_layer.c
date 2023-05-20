@@ -400,7 +400,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
     }
 
     if (!found_conv_algorithm) {
-        darknet_fatal_error("cuDNN did not find BWD-filter algo for convolution");
+        darknet_fatal_error("cuDNN did not find BWD-filter algo for convolution", DARKNET_LOC);
     }
     //printf(" cuDNN BWD-filter algo: %d \n", l->bf_algo);
 
