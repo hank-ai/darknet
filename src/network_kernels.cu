@@ -222,7 +222,7 @@ void backward_network_gpu(network net, network_state state)
             int state_input_nan_inf = is_nan_or_inf(state.input, l.outputs * l.batch);
             printf("\n i - %d  is_nan_or_inf(s.delta) = %d \n", i, state_delta_nan_inf);
             printf(" i - %d  is_nan_or_inf(s.input) = %d \n", i, state_input_nan_inf);
-            if (state_delta_nan_inf || state_input_nan_inf) { printf(" found "); getchar(); }
+            if (state_delta_nan_inf || state_input_nan_inf) { printf(" found "); getzzzchar(); }
         }
         */
     }

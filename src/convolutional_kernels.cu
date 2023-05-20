@@ -351,7 +351,7 @@ void forward_convolutional_layer_gpu(convolutional_layer l, network_state state)
                     im2col_align_ongpu(state.input + i*l.c*l.h*l.w, l.c, l.h, l.w, l.size, l.stride, l.pad, l.align_workspace_gpu, l.bit_align);
                     //cudaDeviceSynchronize();
                     //stop_timer_and_show_name("im2col_align_ongpu");
-                    //getchar();
+                    //getzzzchar();
 
                     // should be optimized
                     //start_timer();
@@ -383,7 +383,7 @@ void forward_convolutional_layer_gpu(convolutional_layer l, network_state state)
                 //}
                 //cudaDeviceSynchronize();
                 //check_error(status);
-                //getchar();
+                //getzzzchar();
             }
 
 
@@ -533,11 +533,11 @@ void forward_convolutional_layer_gpu(convolutional_layer l, network_state state)
         /*
         int input_nan_inf = is_nan_or_inf(state.input, l.inputs * l.batch);
         printf("\n is_nan_or_inf(state.input) = %d \n", input_nan_inf);
-        if (input_nan_inf) getchar();
+        if (input_nan_inf) getzzzchar();
 
         int weights_nan_inf = is_nan_or_inf(l.weights_gpu, l.nweights);
         printf("\n is_nan_or_inf(l.weights_gpu) = %d \n", weights_nan_inf);
-        if (weights_nan_inf) getchar();
+        if (weights_nan_inf) getzzzchar();
         */
 
         CHECK_CUDNN(cudnnConvolutionForward(cudnn_handle(),

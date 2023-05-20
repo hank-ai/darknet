@@ -151,12 +151,11 @@ contrastive_layer make_contrastive_layer(int batch, int w, int h, int c, int cla
         l.truths = yolo_layer->truths;
         if (l.embedding_size != yolo_layer->embedding_size) {
             printf(" Error: [contrastive] embedding_size=%d isn't equal to [yolo] embedding_size=%d. They should use the same [convolutional] layer \n", l.embedding_size, yolo_layer->embedding_size);
-            getchar();
-            exit(0);
+            darknet_fatal_error("mismatch between [contrastive] embedding size and [yolo] embedding size", DARKNET_LOC);
         }
         if (l.inputs % (l.n*l.h*l.w) != 0) {
             printf(" Warning: filters= number in the previous (embedding) layer isn't divisable by number of anchors %d \n", l.n);
-            getchar();
+            darknet_fatal_error("filters are not divisible by the number of anchors", DARKNET_LOC);
         }
     }
     else {

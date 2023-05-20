@@ -330,9 +330,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
     }
 
     if (!found_conv_algorithm) {
-        printf(" Error: cuDNN isn't found FWD algo for convolution.\n");
-        getchar();
-        exit(0);
+        darknet_fatal_error("cuDNN did not find FWD algo for convolution", DARKNET_LOC);
     }
     //printf(" cuDNN FWD algo: %d, time = %f ms \n", l->fw_algo, min_time);
 
@@ -367,9 +365,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
     }
 
     if (!found_conv_algorithm) {
-        printf(" Error: cuDNN isn't found BWD-data algo for convolution.\n");
-        getchar();
-        exit(0);
+        darknet_fatal_error("cuDNN did not find BWD-data algo for convolution", DARKNET_LOC);
     }
     //printf(" cuDNN BWD-data algo: %d \n", l->bd_algo);
 
@@ -404,9 +400,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
     }
 
     if (!found_conv_algorithm) {
-        printf(" Error: cuDNN isn't found BWD-filter algo for convolution.\n");
-        getchar();
-        exit(0);
+        darknet_fatal_error("cuDNN did not find BWD-filter algo for convolution");
     }
     //printf(" cuDNN BWD-filter algo: %d \n", l->bf_algo);
 
@@ -550,8 +544,7 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
 
     if (l.share_layer) {
         if (l.size != l.share_layer->size || l.nweights != l.share_layer->nweights || l.c != l.share_layer->c || l.n != l.share_layer->n) {
-            printf(" Layer size, nweights, channels or filters don't match for the share_layer");
-            getchar();
+            darknet_fatal_error("Layer size, nweights, channels or filters don't match for the share_layer", DARKNET_LOC);
         }
 
         l.weights = l.share_layer->weights;

@@ -207,8 +207,7 @@ box_label *read_boxes(char *filename, int *n)
         fwrite(new_line, sizeof(char), strlen(new_line), fw);
         fclose(fw);
         if (check_mistakes) {
-            printf("\n Error in read_boxes() \n");
-            getchar();
+            darknet_fatal_error("Error while read bounding boxes", DARKNET_LOC);
         }
 
         *n = 0;
@@ -1063,7 +1062,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
     }
     if (use_mixup == 3 && letter_box) {
         //printf("\n Combination: letter_box=1 & mosaic=1 - isn't supported, use only 1 of these parameters \n");
-        //if (check_mistakes) getchar();
+        //if (check_mistakes) getzzzchar();
         //exit(0);
     }
     if (random_gen() % 2 == 0) use_mixup = 0;
@@ -1558,8 +1557,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
                     show_image(sized, buff);
                     wait_until_press_key_cv();
                 }
-                printf("\nYou use flag -show_imgs, so will be saved aug_...jpg images. Press Enter: \n");
-                //getchar();
+                printf("\nYou use flag -show_imgs, so will be saved aug_...jpg images.\n");
             }
 
             free_image(orig);

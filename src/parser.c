@@ -383,9 +383,7 @@ contrastive_layer parse_contrastive(list *options, size_params params)
     if (yolo_layer_id < 0) yolo_layer_id = params.index + yolo_layer_id;
     if(yolo_layer_id != 0) yolo_layer = params.net.layers + yolo_layer_id;
     if (yolo_layer->type != YOLO) {
-        printf(" Error: [contrastive] layer should point to the [yolo] layer instead of %d layer! \n", yolo_layer_id);
-        getchar();
-        exit(0);
+        darknet_fatal_error("[contrastive] layer does not point to [yolo] layer", DARKNET_LOC);
     }
 
     contrastive_layer layer = make_contrastive_layer(params.batch, params.w, params.h, params.c, classes, params.inputs, yolo_layer);
@@ -532,7 +530,7 @@ layer parse_yolo(list *options, size_params params)
         printf(" embedding_size = %d \n", l.embedding_size);
         if (le.n % l.n != 0) {
             printf(" Warning: filters=%d number in embedding_layer=%d isn't divisable by number of anchors %d \n", le.n, embedding_layer_id, l.n);
-            getchar();
+            darknet_fatal_error("number of filters is not divisible by the number of anchors", DARKNET_LOC);
         }
     }
 
@@ -936,8 +934,7 @@ layer parse_shortcut(list *options, size_params params, network net)
     else if (strcmp(weights_type_str, "per_channel") == 0) weights_type = PER_CHANNEL;
     else if (strcmp(weights_type_str, "none") != 0) {
         printf("Error: Incorrect weights_type = %s \n Use one of: none, per_feature, per_channel \n", weights_type_str);
-        getchar();
-        exit(0);
+        darknet_fatal_error("incorrect weights type", DARKNET_LOC);
     }
 
     char *weights_normalization_str = option_find_str_quiet(options, "weights_normalization", "none");
@@ -946,8 +943,7 @@ layer parse_shortcut(list *options, size_params params, network net)
     else if (strcmp(weights_normalization_str, "softmax") == 0) weights_normalization = SOFTMAX_NORMALIZATION;
     else if (strcmp(weights_type_str, "none") != 0) {
         printf("Error: Incorrect weights_normalization = %s \n Use one of: none, relu, softmax \n", weights_normalization_str);
-        getchar();
-        exit(0);
+        darknet_fatal_error("incorrect weights normalization", DARKNET_LOC);
     }
 
     char *l = option_find(options, "from");

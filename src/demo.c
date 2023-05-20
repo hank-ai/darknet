@@ -201,8 +201,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 
     if (l.classes != demo_classes) {
         printf("\n Parameters don't match: in cfg-file classes=%d, in data-file classes=%d \n", l.classes, demo_classes);
-        getchar();
-        exit(0);
+        darknet_fatal_error("number of classes in .cfg and .data does not match", DARKNET_LOC);
     }
 
     flag_exit = 0;

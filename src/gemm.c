@@ -298,7 +298,7 @@ void gemm_nn_custom_bin_mean(int M, int N, int K, float ALPHA_UNUSED,
 
     free(count_arr);
 
-    //getchar();
+    //getzzzchar();
 }
 */
 

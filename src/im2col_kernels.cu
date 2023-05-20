@@ -1800,7 +1800,7 @@ void gemm_nn_custom_bin_mean_transposed_gpu(int M, int N, int K,
             shortcut_in_gpu, shortcut_out_gpu);
 
         //cudaDeviceSynchronize();
-        //getchar();
+        //getzzzchar();
     }
     else
 #endif  //# CUDART_VERSION >= 10000
