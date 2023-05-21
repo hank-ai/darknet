@@ -1439,30 +1439,30 @@ void copy_weights_net(network net_train, network *net_map)
     for (k = 0; k < net_train.n; ++k) {
         layer *l = &(net_train.layers[k]);
         layer tmp_layer;
-        copy_cudnn_descriptors(net_map->layers[k], &tmp_layer);
+        copy_cudnn_descriptors(net_train.layers[k], &tmp_layer);
         net_map->layers[k] = net_train.layers[k];
-        copy_cudnn_descriptors(tmp_layer, &net_map->layers[k]);
+        copy_cudnn_descriptors(tmp_layer, &net_train.layers[k]);
 
         if (l->type == CRNN) {
             layer tmp_input_layer, tmp_self_layer, tmp_output_layer;
-            copy_cudnn_descriptors(*net_map->layers[k].input_layer, &tmp_input_layer);
-            copy_cudnn_descriptors(*net_map->layers[k].self_layer, &tmp_self_layer);
-            copy_cudnn_descriptors(*net_map->layers[k].output_layer, &tmp_output_layer);
+            copy_cudnn_descriptors(*net_train.layers[k].input_layer, &tmp_input_layer);
+            copy_cudnn_descriptors(*net_train.layers[k].self_layer, &tmp_self_layer);
+            copy_cudnn_descriptors(*net_train.layers[k].output_layer, &tmp_output_layer);
             net_map->layers[k].input_layer = net_train.layers[k].input_layer;
             net_map->layers[k].self_layer = net_train.layers[k].self_layer;
             net_map->layers[k].output_layer = net_train.layers[k].output_layer;
             //net_map->layers[k].output_gpu = net_map->layers[k].output_layer->output_gpu;  // already copied out of if()
 
-            copy_cudnn_descriptors(tmp_input_layer, net_map->layers[k].input_layer);
-            copy_cudnn_descriptors(tmp_self_layer, net_map->layers[k].self_layer);
-            copy_cudnn_descriptors(tmp_output_layer, net_map->layers[k].output_layer);
+            copy_cudnn_descriptors(tmp_input_layer, net_train.layers[k].input_layer);
+            copy_cudnn_descriptors(tmp_self_layer, net_train.layers[k].self_layer);
+            copy_cudnn_descriptors(tmp_output_layer, net_train.layers[k].output_layer);
         }
         else if(l->input_layer) // for AntiAliasing
         {
             layer tmp_input_layer;
-            copy_cudnn_descriptors(*net_map->layers[k].input_layer, &tmp_input_layer);
+            copy_cudnn_descriptors(*net_train.layers[k].input_layer, &tmp_input_layer);
             net_map->layers[k].input_layer = net_train.layers[k].input_layer;
-            copy_cudnn_descriptors(tmp_input_layer, net_map->layers[k].input_layer);
+            copy_cudnn_descriptors(tmp_input_layer, net_train.layers[k].input_layer);
         }
         net_map->layers[k].batch = 1;
         net_map->layers[k].steps = 1;
