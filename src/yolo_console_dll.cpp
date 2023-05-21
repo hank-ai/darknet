@@ -353,9 +353,9 @@ int main(int argc, char *argv[])
 
                 if (filename == "zed_camera" || file_ext == "svo") {
                     std::cout << "ZED 3D Camera " << zed.open(init_params) << std::endl;
-                    if (!zed.isOpened()) {
-                        std::cout << " Error: ZED Camera should be connected to USB 3.0. And ZED_SDK should be installed. \n";
-                        darknet_fatal_error("ZED camera not ready or invalid", DARKNET_LOC);
+                    if (!zed.isOpened())
+                    {
+                        darknet_fatal_error(DARKNET_LOC, "ZED Camera should be connected to USB 3.0. And ZED_SDK should be installed.");
                     }
                     cur_frame = zed_capture_rgb(zed);
                     use_zed_camera = true;

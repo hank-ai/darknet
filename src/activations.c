@@ -323,7 +323,7 @@ float gradient(float x, ACTIVATION a)
         case NORM_CHAN_SOFTMAX_MAXVAL:
             //...
         case NORM_CHAN_SOFTMAX:
-            darknet_fatal_error("should be used custom NORM_CHAN or NORM_CHAN_SOFTMAX-function for gradient", DARKNET_LOC);
+            darknet_fatal_error(DARKNET_LOC, "should be used custom NORM_CHAN or NORM_CHAN_SOFTMAX-function for gradient");
         case ELU:
             return elu_gradient(x);
         case SELU:

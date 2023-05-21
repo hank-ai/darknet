@@ -206,8 +206,9 @@ box_label *read_boxes(char *filename, int *n)
         char *new_line = "\n";
         fwrite(new_line, sizeof(char), strlen(new_line), fw);
         fclose(fw);
-        if (check_mistakes) {
-            darknet_fatal_error("Error while read bounding boxes", DARKNET_LOC);
+        if (check_mistakes)
+        {
+            darknet_fatal_error(DARKNET_LOC, "mistakes found while reading bounding boxes (%s)", filename);
         }
 
         *n = 0;
@@ -1382,11 +1383,13 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
     else random_paths = get_random_paths_custom(paths, n, m, contrastive);
 
     //assert(use_mixup < 2);
-    if (use_mixup == 2) {
-        darknet_fatal_error("cutmix=1 is not supported for Detector", DARKNET_LOC);
+    if (use_mixup == 2)
+    {
+        darknet_fatal_error(DARKNET_LOC, "cutmix=1 is not supported for Detector");
     }
-    if (use_mixup == 3 || use_mixup == 4) {
-        darknet_fatal_error("mosaic=1 requires that Darknet be compiled with OpenCV", DARKNET_LOC);
+    if (use_mixup == 3 || use_mixup == 4)
+    {
+        darknet_fatal_error(DARKNET_LOC, "use of mosaic=1 in .cfg file requires that Darknet be compiled with OpenCV");
     }
     int mixup = use_mixup ? random_gen() % 2 : 0;
     //printf("\n mixup = %d \n", mixup);
@@ -1613,7 +1616,10 @@ pthread_t load_data_in_thread(load_args args)
     pthread_t thread;
     struct load_args* ptr = (load_args*)xcalloc(1, sizeof(struct load_args));
     *ptr = args;
-    if(pthread_create(&thread, 0, load_thread, ptr)) darknet_fatal_error("Thread creation failed", DARKNET_LOC);
+    if(pthread_create(&thread, 0, load_thread, ptr))
+    {
+        darknet_fatal_error(DARKNET_LOC, "thread creation failed");
+    }
     return thread;
 }
 
@@ -1670,7 +1676,10 @@ void *load_threads(void *ptr)
         for (i = 0; i < args.threads; ++i) {
             int* ptr = (int*)xcalloc(1, sizeof(int));
             *ptr = i;
-            if (pthread_create(&threads[i], 0, run_thread_loop, ptr)) darknet_fatal_error("Thread creation failed", DARKNET_LOC);
+            if (pthread_create(&threads[i], 0, run_thread_loop, ptr))
+            {
+                darknet_fatal_error(DARKNET_LOC, "Thread creation failed");
+            }
         }
     }
 
@@ -1734,7 +1743,10 @@ pthread_t load_data(load_args args)
     pthread_t thread;
     struct load_args* ptr = (load_args*)xcalloc(1, sizeof(struct load_args));
     *ptr = args;
-    if(pthread_create(&thread, 0, load_threads, ptr)) darknet_fatal_error("Thread creation failed", DARKNET_LOC);
+    if(pthread_create(&thread, 0, load_threads, ptr))
+    {
+        darknet_fatal_error(DARKNET_LOC, "Thread creation failed");
+    }
     return thread;
 }
 

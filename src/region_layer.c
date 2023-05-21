@@ -304,9 +304,9 @@ void forward_region_layer(const region_layer l, network_state state)
         for(t = 0; t < l.max_boxes; ++t){
             box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
             int class_id = state.truth[t * l.truth_size + b*l.truths + 4];
-            if (class_id >= l.classes) {
-                printf("\n Warning: in txt-labels class_id=%d >= classes=%d in cfg-file. In txt-labels class_id should be [from 0 to %d] \n", class_id, l.classes, l.classes-1);
-                darknet_fatal_error("mismatch between the labels and the classes", DARKNET_LOC);
+            if (class_id >= l.classes)
+            {
+                darknet_fatal_error(DARKNET_LOC, "in txt-labels class_id=%d >= classes=%d in cfg file. In txt labels class_id should be [from 0 to %d]", class_id, l.classes, l.classes-1);
             }
 
             if(!truth.x) break; // continue;

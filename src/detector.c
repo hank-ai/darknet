@@ -33,11 +33,11 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     network net_map;
     if (calc_map) {
         FILE* valid_file = fopen(valid_images, "r");
-        if (!valid_file) {
-            printf("\n Error: There is no %s file for mAP calculation!\n Don't use -map flag.\n Or set valid=%s in your %s file. \n", valid_images, train_images, datacfg);
-            darknet_fatal_error("cannot perform mAP calculations", DARKNET_LOC);
+        if (!valid_file)
+        {
+            darknet_fatal_error(DARKNET_LOC, "There is no %s file for mAP calculation! Don't use -map flag. Or set valid=%s in %s.", valid_images, train_images, datacfg);
         }
-        else fclose(valid_file);
+        fclose(valid_file);
 
         cuda_set_device(gpus[0]);
         printf(" Prepare additional network for mAP calculation...\n");
@@ -56,7 +56,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
                 name_list, names_size, net_classes, cfgfile);
             if (net_classes > names_size)
             {
-                darknet_fatal_error("mismatched classes", DARKNET_LOC);
+                darknet_fatal_error(DARKNET_LOC, "mismatched number of classes");
             }
         }
         free_ptrs((void**)names, net_map.layers[net_map.n - 1].classes);
@@ -92,8 +92,9 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     network net = nets[0];
 
     const int actual_batch_size = net.batch * net.subdivisions;
-    if (actual_batch_size == 1) {
-        darknet_fatal_error("batch size should not be set to 1 for training", DARKNET_LOC);
+    if (actual_batch_size == 1)
+    {
+        darknet_fatal_error(DARKNET_LOC, "batch size should not be set to 1 for training");
     }
     else if (actual_batch_size < 8) {
         printf("\n Warning: You set batch=%d lower than 64! It is recommended to set batch=64 subdivision=64 \n", actual_batch_size);
@@ -970,12 +971,11 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
         fuse_conv_batchnorm(net);
         calculate_binary_weights(net);
     }
-    if (net.layers[net.n - 1].classes != names_size) {
-        printf("\n Error: in the file %s number of names %d that isn't equal to classes=%d in the file %s \n",
-            name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
-        darknet_fatal_error("mismatched classes and names", DARKNET_LOC);
+    if (net.layers[net.n - 1].classes != names_size)
+    {
+        darknet_fatal_error(DARKNET_LOC, "in the file %s number of names %d is not equal to classes=%d in the file %s", name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
     }
-    srand(time(0));
+    srand(time(0)); /// @todo Why are we doing this here?
     printf("\n calculation mAP (mean average precision)...\n");
 
     list *plist = get_paths(valid_images);
@@ -1644,10 +1644,10 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
             name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
         if (net.layers[net.n - 1].classes > names_size)
         {
-            darknet_fatal_error("names and classes do not match", DARKNET_LOC);
+            darknet_fatal_error(DARKNET_LOC, "number of names and classes do not match");
         }
     }
-    srand(2222222);
+    srand(2222222); /// @todo Why is this being done this way here?
     char buff[256];
     char *input = buff;
     char *json_buf = NULL;
@@ -1655,8 +1655,9 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     FILE* json_file = NULL;
     if (outfile) {
         json_file = fopen(outfile, "wb");
-        if(!json_file) {
-            darknet_fatal_error("fopen failed", DARKNET_LOC);
+        if(!json_file)
+        {
+            file_error(outfile, DARKNET_LOC);
         }
         char *tmp = "[\n";
         fwrite(tmp, sizeof(char), strlen(tmp), json_file);
@@ -1818,7 +1819,7 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
             name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
         if (net.layers[net.n - 1].classes > names_size)
         {
-            darknet_fatal_error("names and classes do not match", DARKNET_LOC);
+            darknet_fatal_error(DARKNET_LOC, "number of names and classes do not match");
         }
     }
 
@@ -1962,7 +1963,7 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 #else // defined(OPENCV) && defined(GPU)
 void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, int dont_show, int it_num, int letter_box, int benchmark_layers)
 {
-    darknet_fatal_error("detector draw cannot be used without OpenCV and CUDA", DARKNET_LOC);
+    darknet_fatal_error(DARKNET_LOC, "detector draw cannot be used without OpenCV and CUDA");
 }
 #endif // defined(OPENCV) && defined(GPU)
 
@@ -2064,8 +2065,7 @@ void run_detector(int argc, char **argv)
     }
     else
     {
-        printf("Invalid Darknet command: %s %s\n", argv[1], argv[2]);
-        darknet_fatal_error("invalid Darknet command", DARKNET_LOC);
+        darknet_fatal_error(DARKNET_LOC, "invalid Darknet command: %s %s", argv[1], argv[2]);
     }
 
     if (gpus && gpu_list && ngpus > 1) free(gpus);

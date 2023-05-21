@@ -182,7 +182,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 #ifdef WIN32
         printf("Check that you have copied file opencv_ffmpeg340_64.dll to the same directory where is darknet.exe \n");
 #endif
-        darknet_fatal_error("Couldn't connect to webcam.", DARKNET_LOC);
+        darknet_fatal_error(DARKNET_LOC, "failed to connect to webcam (%d, %s)", cam_index, filename);
     }
 
     layer l = net.layers[net.n-1];
@@ -199,17 +199,17 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
         }
     }
 
-    if (l.classes != demo_classes) {
-        printf("\n Parameters don't match: in cfg-file classes=%d, in data-file classes=%d \n", l.classes, demo_classes);
-        darknet_fatal_error("number of classes in .cfg and .data does not match", DARKNET_LOC);
+    if (l.classes != demo_classes)
+    {
+        darknet_fatal_error(DARKNET_LOC, "mismatch between classes=%d vs %d in .cfg and .data", l.classes, demo_classes);
     }
 
     flag_exit = 0;
 
     custom_thread_t fetch_thread = NULL;
     custom_thread_t detect_thread = NULL;
-    if (custom_create_thread(&fetch_thread, 0, fetch_in_thread, 0)) darknet_fatal_error("Thread creation failed", DARKNET_LOC);
-    if (custom_create_thread(&detect_thread, 0, detect_in_thread, 0)) darknet_fatal_error("Thread creation failed", DARKNET_LOC);
+    if (custom_create_thread(&fetch_thread, 0, fetch_in_thread, 0)) darknet_fatal_error(DARKNET_LOC, "fetch thread creation failed");
+    if (custom_create_thread(&detect_thread, 0, detect_in_thread, 0)) darknet_fatal_error(DARKNET_LOC, "detect thread creation failed");
 
     fetch_in_thread_sync(0); //fetch_in_thread(0);
     det_img = in_img;
@@ -268,8 +268,8 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
             detection *local_dets = dets;
             this_thread_yield();
 
-            if (!benchmark) custom_atomic_store_int(&run_fetch_in_thread, 1); // if (custom_create_thread(&fetch_thread, 0, fetch_in_thread, 0)) darknet_fatal_error("Thread creation failed", DARKNET_LOC);
-            custom_atomic_store_int(&run_detect_in_thread, 1); // if (custom_create_thread(&detect_thread, 0, detect_in_thread, 0)) darknet_fatal_error("Thread creation failed", DARKNET_LOC);
+            if (!benchmark) custom_atomic_store_int(&run_fetch_in_thread, 1); // if (custom_create_thread(&fetch_thread, 0, fetch_in_thread, 0)) darknet_fatal_error(DARKNET_LOC, "Thread creation failed");
+            custom_atomic_store_int(&run_detect_in_thread, 1); // if (custom_create_thread(&detect_thread, 0, detect_in_thread, 0)) darknet_fatal_error(DARKNET_LOC, "Thread creation failed");
 
             //if (nms) do_nms_obj(local_dets, local_nboxes, l.classes, nms);    // bad results
             if (nms) {

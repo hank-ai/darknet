@@ -442,7 +442,11 @@ pthread_t train_network_in_thread(network net, data d, float *err)
     ptr->net = net;
     ptr->d = d;
     ptr->err = err;
-    if(pthread_create(&thread, 0, train_thread, ptr)) darknet_fatal_error("Thread creation failed", DARKNET_LOC);
+    if(pthread_create(&thread, 0, train_thread, ptr))
+    {
+        darknet_fatal_error(DARKNET_LOC, "training thread creation failed");
+    }
+
     return thread;
 }
 
@@ -616,7 +620,12 @@ pthread_t sync_layer_in_thread(network *nets, int n, int j)
     ptr->nets = nets;
     ptr->n = n;
     ptr->j = j;
-    if(pthread_create(&thread, 0, sync_layer_thread, ptr)) darknet_fatal_error("Thread creation failed", DARKNET_LOC);
+
+    if(pthread_create(&thread, 0, sync_layer_thread, ptr))
+    {
+        darknet_fatal_error(DARKNET_LOC, "sync layer thread creation failed");
+    }
+
     return thread;
 }
 

@@ -71,9 +71,9 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
     char topk_buff[10];
     sprintf(topk_buff, "top%d", topk_data);
     layer l = net.layers[net.n - 1];
-    if (classes != l.outputs && (l.type == SOFTMAX || l.type == COST)) {
-        printf("\n Error: num of filters = %d in the last conv-layer in cfg-file doesn't match to classes = %d in data-file \n", l.outputs, classes);
-        darknet_fatal_error("invalid number of filters", DARKNET_LOC);
+    if (classes != l.outputs && (l.type == SOFTMAX || l.type == COST))
+    {
+        darknet_fatal_error(DARKNET_LOC, "num of filters = %d in the last conv-layer in cfg-file doesn't match to classes = %d in data-file", l.outputs, classes);
     }
 
     char **labels = get_labels(label_list);
@@ -841,9 +841,9 @@ void predict_classifier(char *datacfg, char *cfgfile, char *weightfile, char *fi
     int classes = option_find_int(options, "classes", 2);
     printf(" classes = %d, output in cfg = %d \n", classes, net.layers[net.n - 1].c);
     layer l = net.layers[net.n - 1];
-    if (classes != l.outputs && (l.type == SOFTMAX || l.type == COST)) {
-        printf("\n Error: num of filters = %d in the last conv-layer in cfg-file doesn't match to classes = %d in data-file \n", l.outputs, classes);
-        darknet_fatal_error("invalid number of filters", DARKNET_LOC);
+    if (classes != l.outputs && (l.type == SOFTMAX || l.type == COST))
+    {
+        darknet_fatal_error(DARKNET_LOC, "num of filters = %d in the last conv-layer in cfg-file doesn't match to classes = %d in data-file", l.outputs, classes);
     }
     if (top == 0) top = option_find_int(options, "top", 1);
     if (top > classes) top = classes;
@@ -1040,6 +1040,11 @@ void threat_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_i
         cap = get_capture_webcam(cam_index);
     }
 
+    if(!cap)
+    {
+        darknet_fatal_error(DARKNET_LOC, "failed to connect to webcam (%d, %s)", cam_index, filename);
+    }
+
     int classes = option_find_int(options, "classes", 2);
     int top = option_find_int(options, "top", 1);
     if (top > classes) top = classes;
@@ -1049,7 +1054,6 @@ void threat_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_i
 
     int* indexes = (int*)xcalloc(top, sizeof(int));
 
-    if(!cap) darknet_fatal_error("Couldn't connect to webcam.", DARKNET_LOC);
     create_window_cv("Threat", 0, 512, 512);
     float fps = 0;
     int i;
@@ -1179,6 +1183,11 @@ void gun_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_inde
         cap = get_capture_webcam(cam_index);
     }
 
+    if(!cap)
+    {
+        darknet_fatal_error(DARKNET_LOC, "failed to connect to webcam (%d, %s)", cam_index, filename);
+    }
+
     int classes = option_find_int(options, "classes", 2);
     int top = option_find_int(options, "top", 1);
     if (top > classes) top = classes;
@@ -1188,7 +1197,6 @@ void gun_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_inde
 
     int* indexes = (int*)xcalloc(top, sizeof(int));
 
-    if(!cap) darknet_fatal_error("Couldn't connect to webcam.", DARKNET_LOC);
     cvNamedWindow("Threat Detection", CV_WINDOW_NORMAL);
     cvResizeWindow("Threat Detection", 512, 512);
     float fps = 0;
@@ -1263,6 +1271,11 @@ void demo_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_ind
         cap = get_capture_webcam(cam_index);
     }
 
+    if(!cap)
+    {
+        darknet_fatal_error(DARKNET_LOC, "failed to connect to webcam (%d, %s)", cam_index, filename);
+    }
+
     int classes = option_find_int(options, "classes", 2);
     int top = option_find_int(options, "top", 1);
     if (top > classes) top = classes;
@@ -1272,7 +1285,6 @@ void demo_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_ind
 
     int* indexes = (int*)xcalloc(top, sizeof(int));
 
-    if(!cap) darknet_fatal_error("Couldn't connect to webcam.", DARKNET_LOC);
     if (!benchmark) create_window_cv("Classifier", 0, 512, 512);
     float fps = 0;
     int i;

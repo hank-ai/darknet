@@ -542,7 +542,7 @@ extern "C" void gradient_array_ongpu(float *x, int n, ACTIVATION a, float *delta
     else if (a == RELU6) gradient_array_relu6_kernel << <num_blocks, BLOCK, 0, get_cuda_stream() >> >(x, n, delta);
     //else if (a == NORM_CHAN) gradient_array_relu_kernel << <num_blocks, BLOCK, 0, get_cuda_stream() >> >(x, n, delta);
     else if (a == NORM_CHAN_SOFTMAX || a == NORM_CHAN) {
-        darknet_fatal_error("should be used custom NORM_CHAN_SOFTMAX-function for gradient", DARKNET_LOC);
+        darknet_fatal_error(DARKNET_LOC, "should be used custom NORM_CHAN_SOFTMAX-function for gradient");
     }
     else if (a == SELU) gradient_array_selu_kernel << <num_blocks, BLOCK, 0, get_cuda_stream() >> >(x, n, delta);
     else if (a == GELU) gradient_array_gelu_kernel << <num_blocks, BLOCK, 0, get_cuda_stream() >> >(x, n, delta);

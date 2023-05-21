@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdarg.h>
 #ifndef _USE_MATH_DEFINES
 #define _USE_MATH_DEFINES
 #endif
@@ -329,12 +330,13 @@ void top_k(float *a, int n, int k, int *index)
 
 void log_backtrace()
 {
+    /// @todo Would be nice to log the stack trace on Windows as well.
 #ifndef WIN32
     void * buffer[50];
     int count = backtrace(buffer, sizeof(buffer));
     char **symbols = backtrace_symbols(buffer, count);
 
-    fprintf(stderr, "backtrace (%d entries)\n", count);
+    fprintf(stderr, "backtrace (%d entries):\n", count);
 
     for (int idx = 0; idx < count; idx ++)
     {
@@ -345,19 +347,34 @@ void log_backtrace()
 #endif
 }
 
-void darknet_fatal_error(const char * const msg, const char * const filename, const char * const funcname, const int line)
-{
-    fprintf(stderr, "Darknet error location: %s, %s(), line #%d\n", filename, funcname, line);
 
-    if (errno == 0)
+void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...)
+{
+    fprintf(stderr, "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
+    fprintf(stderr, "* A fatal error has been detected.  Darknet will now exit.\n");
+
+    if (errno != 0)
     {
-        // replace the "success" message with something that we're not likely to produce ourself,
-        // just so the perror() text message displayed to the user doesn't look so strange
-        errno = -1;
+        char buffer[50];
+        sprintf(buffer, "* Errno %d", errno);
+        perror(buffer);
     }
 
-    perror(msg);
+    fprintf(stderr, "* Error location: %s, %s(), line #%d\n", filename, funcname, line);
+    fprintf(stderr, "* Error message:  ");
+
+    va_list args;
+    va_start(args, msg);
+    vfprintf(stderr, msg, args);
+    va_end(args);
+
+    // the vfprintf() message is not newline-terminated so we need to take care of that before we print anything else
+    fprintf(stderr, "\n");
+    fprintf(stderr, "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
+
+
     log_backtrace();
+
     exit(EXIT_FAILURE);
 }
 
@@ -368,7 +385,8 @@ const char * size_to_IEC_string(const size_t size)
     const float MiB = 1024 * KiB;
     const float GiB = 1024 * MiB;
 
-    static char buffer[25];
+    static char buffer[25]; /// @todo not thread safe, but low priority since this is used when Darknet is exiting due to an error
+
     if (size < KiB)         sprintf(buffer, "%ld bytes", size);
     else if (size < MiB)    sprintf(buffer, "%1.1f KiB", bytes / KiB);
     else if (size < GiB)    sprintf(buffer, "%1.1f MiB", bytes / MiB);
@@ -379,26 +397,22 @@ const char * size_to_IEC_string(const size_t size)
 
 void malloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
-    fprintf(stderr, "Failed to malloc %s\n", size_to_IEC_string(size));
-    darknet_fatal_error("Malloc error - possibly out of CPU RAM", filename, funcname, line);
+    darknet_fatal_error(filename, funcname, line, "failed to malloc %s", size_to_IEC_string(size));
 }
 
 void calloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
-    fprintf(stderr, "Failed to calloc %s\n", size_to_IEC_string(size));
-    darknet_fatal_error("Calloc error - possibly out of CPU RAM", filename, funcname, line);
+    darknet_fatal_error(filename, funcname, line, "failed to calloc %s", size_to_IEC_string(size));
 }
 
 void realloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
-    fprintf(stderr, "Failed to realloc %s\n", size_to_IEC_string(size));
-    darknet_fatal_error("Realloc error - possibly out of CPU RAM", filename, funcname, line);
+    darknet_fatal_error(filename, funcname, line, "failed to realloc %s", size_to_IEC_string(size));
 }
 
 void file_error(const char * const s, const char * const filename, const char * const funcname, const int line)
 {
-    fprintf(stderr, "Failed to open file %s\n", s);
-    darknet_fatal_error("file error", filename, funcname, line);
+    darknet_fatal_error(filename, funcname, line, "failed to open %s", s);
 }
 
 list *split_str(char *s, char delim)
@@ -505,7 +519,10 @@ int read_int(int fd)
 void write_int(int fd, int n)
 {
     int next = write(fd, &n, sizeof(int));
-    if(next <= 0) darknet_fatal_error("read failed", DARKNET_LOC);
+    if(next <= 0)
+    {
+        darknet_fatal_error(DARKNET_LOC, "write failed");
+    }
 }
 
 int read_all_fail(int fd, char *buffer, size_t bytes)
@@ -535,7 +552,10 @@ void read_all(int fd, char *buffer, size_t bytes)
     size_t n = 0;
     while(n < bytes){
         int next = read(fd, buffer + n, bytes-n);
-        if(next <= 0) darknet_fatal_error("read failed", DARKNET_LOC);
+        if(next <= 0)
+        {
+            darknet_fatal_error(DARKNET_LOC, "read failed");
+        }
         n += next;
     }
 }
@@ -545,7 +565,10 @@ void write_all(int fd, char *buffer, size_t bytes)
     size_t n = 0;
     while(n < bytes){
         size_t next = write(fd, buffer + n, bytes-n);
-        if(next <= 0) darknet_fatal_error("write failed", DARKNET_LOC);
+        if(next <= 0)
+        {
+            darknet_fatal_error(DARKNET_LOC, "write failed");
+        }
         n += next;
     }
 }

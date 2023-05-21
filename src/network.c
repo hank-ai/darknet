@@ -637,9 +637,10 @@ int resize_network(network *net, int w, int h)
             resize_normalization_layer(&l, w, h);
         }else if(l.type == COST){
             resize_cost_layer(&l, inputs);
-        }else{
-            fprintf(stderr, "Resizing type %d \n", (int)l.type);
-            darknet_fatal_error("Cannot resize this type of layer", DARKNET_LOC);
+        }
+        else
+        {
+            darknet_fatal_error(DARKNET_LOC, "cannot resize layer type #%d", (int)l.type);
         }
         if(l.workspace_size > workspace_size) workspace_size = l.workspace_size;
         inputs = l.outputs;

@@ -781,8 +781,9 @@ int check_prob(detection det, float thresh)
 
 int check_classes_id(detection det1, detection det2, float thresh)
 {
-    if (det1.classes != det2.classes) {
-        darknet_fatal_error("number of classes does not match", DARKNET_LOC);
+    if (det1.classes != det2.classes)
+    {
+        darknet_fatal_error(DARKNET_LOC, "number of classes (%d and %d) does not match", det1.classes, det2.classes);
     }
 
     int det1_id = -1;

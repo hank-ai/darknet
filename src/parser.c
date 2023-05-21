@@ -159,7 +159,11 @@ local_layer parse_local(list *options, size_params params)
     w = params.w;
     c = params.c;
     batch=params.batch;
-    if(!(h && w && c)) darknet_fatal_error("Layer before local layer must output image.", DARKNET_LOC);
+
+    if(!(h && w && c))
+    {
+        darknet_fatal_error(DARKNET_LOC, "layer before local layer must output image");
+    }
 
     local_layer layer = make_local_layer(batch,h,w,c,n,size,stride,pad,activation);
 
@@ -205,7 +209,10 @@ convolutional_layer parse_convolutional(list *options, size_params params)
     w = params.w;
     c = params.c;
     batch=params.batch;
-    if(!(h && w && c)) darknet_fatal_error("Layer before convolutional layer must output image.", DARKNET_LOC);
+    if(!(h && w && c))
+    {
+        darknet_fatal_error(DARKNET_LOC, "layer before convolutional layer must output image");
+    }
     int batch_normalize = option_find_int_quiet(options, "batch_normalize", 0);
     int cbn = option_find_int_quiet(options, "cbn", 0);
     if (cbn) batch_normalize = 2;
@@ -216,14 +223,14 @@ convolutional_layer parse_convolutional(list *options, size_params params)
     int rotate = option_find_int_quiet(options, "rotate", 0);
     int stretch = option_find_int_quiet(options, "stretch", 0);
     int stretch_sway = option_find_int_quiet(options, "stretch_sway", 0);
-    if ((sway + rotate + stretch + stretch_sway) > 1) {
-        printf(" Error: should be used only 1 param: sway=1, rotate=1 or stretch=1 in the [convolutional] layer \n");
-        darknet_fatal_error("invalid parameter in [convolutional] layer", DARKNET_LOC);
+    if ((sway + rotate + stretch + stretch_sway) > 1)
+    {
+        darknet_fatal_error(DARKNET_LOC, "[convolutional] layer can only set one of sway=1, rotate=1, or stretch=1");
     }
     int deform = sway || rotate || stretch || stretch_sway;
-    if (deform && size == 1) {
-        printf(" Error: params (sway=1, rotate=1 or stretch=1) should be used only with size >=3 in the [convolutional] layer \n");
-        darknet_fatal_error("invalid parameter in [convolutional] layer", DARKNET_LOC);
+    if (deform && size == 1)
+    {
+        darknet_fatal_error(DARKNET_LOC, "[convolutional] layer sway, rotate, or stretch must only be used with size >= 3");
     }
 
     convolutional_layer layer = make_convolutional_layer(batch,1,h,w,c,n,groups,size,stride_x,stride_y,dilation,padding,activation, batch_normalize, binary, xnor, params.net.adam, use_bin_output, params.index, antialiasing, share_layer, assisted_excitation, deform, params.train);
@@ -382,8 +389,9 @@ contrastive_layer parse_contrastive(list *options, size_params params)
     int yolo_layer_id = option_find_int_quiet(options, "yolo_layer", 0);
     if (yolo_layer_id < 0) yolo_layer_id = params.index + yolo_layer_id;
     if(yolo_layer_id != 0) yolo_layer = params.net.layers + yolo_layer_id;
-    if (yolo_layer->type != YOLO) {
-        darknet_fatal_error("[contrastive] layer does not point to [yolo] layer", DARKNET_LOC);
+    if (yolo_layer->type != YOLO)
+    {
+        darknet_fatal_error(DARKNET_LOC, "[contrastive] layer does not point to [yolo] layer");
     }
 
     contrastive_layer layer = make_contrastive_layer(params.batch, params.w, params.h, params.c, classes, params.inputs, yolo_layer);
@@ -423,9 +431,9 @@ float *get_classes_multipliers(char *cpc, const int classes, const float max_del
     if (cpc) {
         int classes_counters = classes;
         int *counters_per_class = parse_yolo_mask(cpc, &classes_counters);
-        if (classes_counters != classes) {
-            printf(" number of values in counters_per_class = %d doesn't match with classes = %d \n", classes_counters, classes);
-            darknet_fatal_error("invalid parameter", DARKNET_LOC);
+        if (classes_counters != classes)
+        {
+            darknet_fatal_error(DARKNET_LOC, "number of values in counters_per_class=%d doesn't match classes=%d", classes_counters, classes);
         }
         float max_counter = 0;
         int i;
@@ -455,9 +463,9 @@ layer parse_yolo(list *options, size_params params)
     int *mask = parse_yolo_mask(a, &num);
     int max_boxes = option_find_int_quiet(options, "max", 200);
     layer l = make_yolo_layer(params.batch, params.w, params.h, num, total, mask, classes, max_boxes);
-    if (l.outputs != params.inputs) {
-        printf("Error: l.outputs == params.inputs \n");
-        darknet_fatal_error("filters in [convolutional] layer does not match classes or mask in [yolo] layer", DARKNET_LOC);
+    if (l.outputs != params.inputs)
+    {
+        darknet_fatal_error(DARKNET_LOC, "filters in [convolutional] layer (%d) does not match classes or mask in [yolo] layer (%d)", params.inputs, l.outputs);
     }
     //assert(l.outputs == params.inputs);
 
@@ -527,9 +535,9 @@ layer parse_yolo(list *options, size_params params)
         l.embedding_output = (float*)xcalloc(le.batch * le.outputs, sizeof(float));
         l.embedding_size = le.n / l.n;
         printf(" embedding_size = %d \n", l.embedding_size);
-        if (le.n % l.n != 0) {
-            printf(" Warning: filters=%d number in embedding_layer=%d isn't divisable by number of anchors %d \n", le.n, embedding_layer_id, l.n);
-            darknet_fatal_error("number of filters is not divisible by the number of anchors", DARKNET_LOC);
+        if (le.n % l.n != 0)
+        {
+            darknet_fatal_error(DARKNET_LOC, "filters=%d number in embedding_layer=%d isn't divisable by number of anchors %d", le.n, embedding_layer_id, l.n);
         }
     }
 
@@ -588,9 +596,9 @@ layer parse_gaussian_yolo(list *options, size_params params) // Gaussian_YOLOv3
     char *a = option_find_str(options, "mask", 0);
     int *mask = parse_gaussian_yolo_mask(a, &num);
     layer l = make_gaussian_yolo_layer(params.batch, params.w, params.h, num, total, mask, classes, max_boxes);
-    if (l.outputs != params.inputs) {
-        printf("Error: l.outputs == params.inputs \n");
-        darknet_fatal_error("filters in [convolutional] layer does not match classes or mask in [Gaussian_yolo] layer", DARKNET_LOC);
+    if (l.outputs != params.inputs)
+    {
+        darknet_fatal_error(DARKNET_LOC, "filters in [convolutional] layer does not match classes or mask in [Gaussian_yolo] layer", params.inputs, l.outputs);
     }
     //assert(l.outputs == params.inputs);
     l.max_delta = option_find_float_quiet(options, "max_delta", FLT_MAX);   // set 10
@@ -678,9 +686,9 @@ layer parse_region(list *options, size_params params)
     int max_boxes = option_find_int_quiet(options, "max", 200);
 
     layer l = make_region_layer(params.batch, params.w, params.h, num, classes, coords, max_boxes);
-    if (l.outputs != params.inputs) {
-        printf("Error: l.outputs == params.inputs \n");
-        darknet_fatal_error("filters in [convolutional] layer does not match classes or mask in [region] layer", DARKNET_LOC);
+    if (l.outputs != params.inputs)
+    {
+        darknet_fatal_error(DARKNET_LOC, "filters in [convolutional] layer does not match classes or mask in [region] layer (%d vs %d)", l.outputs, params.inputs);
     }
     //assert(l.outputs == params.inputs);
 
@@ -776,7 +784,10 @@ crop_layer parse_crop(list *options, size_params params)
     w = params.w;
     c = params.c;
     batch=params.batch;
-    if(!(h && w && c)) darknet_fatal_error("Layer before crop layer must output image.", DARKNET_LOC);
+    if(!(h && w && c))
+    {
+        darknet_fatal_error(DARKNET_LOC, "layer before crop layer must output image");
+    }
 
     int noadjust = option_find_int_quiet(options, "noadjust",0);
 
@@ -796,7 +807,10 @@ layer parse_reorg(list *options, size_params params)
     w = params.w;
     c = params.c;
     batch=params.batch;
-    if(!(h && w && c)) darknet_fatal_error("Layer before reorg layer must output image.", DARKNET_LOC);
+    if(!(h && w && c))
+    {
+        darknet_fatal_error(DARKNET_LOC, "layer before reorg layer must output image");
+    }
 
     layer layer = make_reorg_layer(batch,w,h,c,stride,reverse);
     return layer;
@@ -813,7 +827,10 @@ layer parse_reorg_old(list *options, size_params params)
     w = params.w;
     c = params.c;
     batch = params.batch;
-    if (!(h && w && c)) darknet_fatal_error("Layer before reorg layer must output image.", DARKNET_LOC);
+    if (!(h && w && c))
+    {
+        darknet_fatal_error(DARKNET_LOC, "layer before reorg layer must output image");
+    }
 
     layer layer = make_reorg_old_layer(batch, w, h, c, stride, reverse);
     return layer;
@@ -836,7 +853,10 @@ maxpool_layer parse_local_avgpool(list *options, size_params params)
     w = params.w;
     c = params.c;
     batch = params.batch;
-    if (!(h && w && c)) darknet_fatal_error("Layer before [local_avgpool] layer must output image.", DARKNET_LOC);
+    if (!(h && w && c))
+    {
+        darknet_fatal_error(DARKNET_LOC, "layer before [local_avgpool] layer must output image");
+    }
 
     maxpool_layer layer = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, params.train);
     return layer;
@@ -859,7 +879,10 @@ maxpool_layer parse_maxpool(list *options, size_params params)
     w = params.w;
     c = params.c;
     batch=params.batch;
-    if(!(h && w && c)) darknet_fatal_error("Layer before [maxpool] layer must output image.", DARKNET_LOC);
+    if(!(h && w && c))
+    {
+        darknet_fatal_error(DARKNET_LOC, "layer before [maxpool] layer must output image");
+    }
 
     maxpool_layer layer = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, params.train);
     layer.maxpool_zero_nonmax = option_find_int_quiet(options, "maxpool_zero_nonmax", 0);
@@ -873,7 +896,10 @@ avgpool_layer parse_avgpool(list *options, size_params params)
     h = params.h;
     c = params.c;
     batch=params.batch;
-    if(!(h && w && c)) darknet_fatal_error("Layer before avgpool layer must output image.", DARKNET_LOC);
+    if(!(h && w && c))
+    {
+        darknet_fatal_error(DARKNET_LOC, "layer before avgpool layer must output image");
+    }
 
     avgpool_layer layer = make_avgpool_layer(batch,w,h,c);
     return layer;
@@ -929,23 +955,26 @@ layer parse_shortcut(list *options, size_params params, network net)
     WEIGHTS_TYPE_T weights_type = NO_WEIGHTS;
     if(strcmp(weights_type_str, "per_feature") == 0 || strcmp(weights_type_str, "per_layer") == 0) weights_type = PER_FEATURE;
     else if (strcmp(weights_type_str, "per_channel") == 0) weights_type = PER_CHANNEL;
-    else if (strcmp(weights_type_str, "none") != 0) {
-        printf("Error: Incorrect weights_type = %s \n Use one of: none, per_feature, per_channel \n", weights_type_str);
-        darknet_fatal_error("incorrect weights type", DARKNET_LOC);
+    else if (strcmp(weights_type_str, "none") != 0)
+    {
+        darknet_fatal_error(DARKNET_LOC, "incorrect weights_type=%s, use one of: none, per_feature, or per_channel", weights_type_str);
     }
 
     char *weights_normalization_str = option_find_str_quiet(options, "weights_normalization", "none");
     WEIGHTS_NORMALIZATION_T weights_normalization = NO_NORMALIZATION;
     if (strcmp(weights_normalization_str, "relu") == 0 || strcmp(weights_normalization_str, "avg_relu") == 0) weights_normalization = RELU_NORMALIZATION;
     else if (strcmp(weights_normalization_str, "softmax") == 0) weights_normalization = SOFTMAX_NORMALIZATION;
-    else if (strcmp(weights_type_str, "none") != 0) {
-        printf("Error: Incorrect weights_normalization = %s \n Use one of: none, relu, softmax \n", weights_normalization_str);
-        darknet_fatal_error("incorrect weights normalization", DARKNET_LOC);
+    else if (strcmp(weights_type_str, "none") != 0)
+    {
+        darknet_fatal_error(DARKNET_LOC, "incorrect weights_normalization=%s, use one of: none, relu, or softmax", weights_normalization_str);
     }
 
     char *l = option_find(options, "from");
     int len = strlen(l);
-    if (!l) darknet_fatal_error("Route Layer must specify input layers: from = ...", DARKNET_LOC);
+    if (!l)
+    {
+        darknet_fatal_error(DARKNET_LOC, "route Layer must specify input layers: from = ...");
+    }
     int n = 1;
     int i;
     for (i = 0; i < len; ++i) {
@@ -1077,7 +1106,10 @@ layer parse_upsample(list *options, size_params params, network net)
 route_layer parse_route(list *options, size_params params)
 {
     char *l = option_find(options, "layers");
-    if(!l) darknet_fatal_error("Route Layer must specify input layers", DARKNET_LOC);
+    if(!l)
+    {
+        darknet_fatal_error(DARKNET_LOC, "route layer must specify input layers");
+    }
     int len = strlen(l);
     int n = 1;
     int i;
@@ -1219,8 +1251,9 @@ void parse_net_options(list *options, network *net)
     net->contrastive_jit_flip = option_find_int_quiet(options, "contrastive_jit_flip", 0);
     net->contrastive_color = option_find_int_quiet(options, "contrastive_color", 0);
     net->unsupervised = option_find_int_quiet(options, "unsupervised", 0);
-    if (net->contrastive && mini_batch < 2) {
-        darknet_fatal_error("mini_batch size (batch/subdivisions) should be higher than 1 for Contrastive loss", DARKNET_LOC);
+    if (net->contrastive && mini_batch < 2)
+    {
+        darknet_fatal_error(DARKNET_LOC, "mini_batch size (batch/subdivisions) should be higher than 1 for contrastive loss");
     }
     net->label_smooth_eps = option_find_float_quiet(options, "label_smooth_eps", 0.0f);
     net->resize_step = option_find_float_quiet(options, "resize_step", 32);
@@ -1235,7 +1268,10 @@ void parse_net_options(list *options, network *net)
     net->hue = option_find_float_quiet(options, "hue", 0);
     net->power = option_find_float_quiet(options, "power", 4);
 
-    if(!net->inputs && !(net->h && net->w && net->c)) darknet_fatal_error("No input parameters supplied", DARKNET_LOC);
+    if(!net->inputs && !(net->h && net->w && net->c))
+    {
+        darknet_fatal_error(DARKNET_LOC, "no input parameters supplied");
+    }
 
     char *policy_s = option_find_str(options, "policy", "constant");
     net->policy = get_policy(policy_s);
@@ -1259,7 +1295,10 @@ void parse_net_options(list *options, network *net)
         char *l = option_find(options, "steps");
         char *p = option_find(options, "scales");
         char *s = option_find(options, "seq_scales");
-        if(net->policy == STEPS && (!l || !p)) darknet_fatal_error("STEPS policy must have steps and scales in cfg file", DARKNET_LOC);
+        if(net->policy == STEPS && (!l || !p))
+        {
+            darknet_fatal_error(DARKNET_LOC, "STEPS policy must have steps and scales in cfg file");
+        }
 
         if (l) {
             int len = strlen(l);
@@ -1353,7 +1392,10 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 {
     list *sections = read_cfg(filename);
     node *n = sections->front;
-    if(!n) darknet_fatal_error("Config file has no sections", DARKNET_LOC);
+    if(!n)
+    {
+        darknet_fatal_error(DARKNET_LOC, "config file has no sections");
+    }
     network net = make_network(sections->size - 1);
     net.gpu_index = gpu_index;
     size_params params;
@@ -1363,7 +1405,10 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 
     section *s = (section *)n->val;
     list *options = s->options;
-    if(!is_network(s)) darknet_fatal_error("First section must be [net] or [network]", DARKNET_LOC);
+    if(!is_network(s))
+    {
+        darknet_fatal_error(DARKNET_LOC, "first section must be [net] or [network]");
+    }
     parse_net_options(options, &net);
 
 #ifdef GPU

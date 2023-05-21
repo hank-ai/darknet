@@ -240,8 +240,9 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
     //CHECK_CUDNN(cudnnSetConvolutionMathType(l->convDesc, CUDNN_TENSOR_OP_MATH_ALLOW_CONVERSION)); // reduces the speed of regular and group convolution
 #endif
 #else   //if(CUDNN_MAJOR >= 7)
-    if (l->groups > 1) {
-        darknet_fatal_error("CUDNN < 7 doesn't support groups, please upgrade!", DARKNET_LOC);
+    if (l->groups > 1)
+    {
+        darknet_fatal_error(DARKNET_LOC, "CUDNN < 7 doesn't support groups, please upgrade!");
     }
 #endif
 
@@ -329,8 +330,9 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
         }
     }
 
-    if (!found_conv_algorithm) {
-        darknet_fatal_error("cuDNN did not find FWD algo for convolution", DARKNET_LOC);
+    if (!found_conv_algorithm)
+    {
+        darknet_fatal_error(DARKNET_LOC, "cuDNN did not find FWD algo for convolution");
     }
     //printf(" cuDNN FWD algo: %d, time = %f ms \n", l->fw_algo, min_time);
 
@@ -364,8 +366,9 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
         }
     }
 
-    if (!found_conv_algorithm) {
-        darknet_fatal_error("cuDNN did not find BWD-data algo for convolution", DARKNET_LOC);
+    if (!found_conv_algorithm)
+    {
+        darknet_fatal_error(DARKNET_LOC, "cuDNN did not find BWD-data algo for convolution");
     }
     //printf(" cuDNN BWD-data algo: %d \n", l->bd_algo);
 
@@ -399,8 +402,9 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
         }
     }
 
-    if (!found_conv_algorithm) {
-        darknet_fatal_error("cuDNN did not find BWD-filter algo for convolution", DARKNET_LOC);
+    if (!found_conv_algorithm)
+    {
+        darknet_fatal_error(DARKNET_LOC, "cuDNN did not find BWD-filter algo for convolution");
     }
     //printf(" cuDNN BWD-filter algo: %d \n", l->bf_algo);
 
@@ -543,8 +547,9 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
     l.nweights = (c / groups) * n * size * size;
 
     if (l.share_layer) {
-        if (l.size != l.share_layer->size || l.nweights != l.share_layer->nweights || l.c != l.share_layer->c || l.n != l.share_layer->n) {
-            darknet_fatal_error("Layer size, nweights, channels or filters don't match for the share_layer", DARKNET_LOC);
+        if (l.size != l.share_layer->size || l.nweights != l.share_layer->nweights || l.c != l.share_layer->c || l.n != l.share_layer->n)
+        {
+            darknet_fatal_error(DARKNET_LOC, "Layer size, nweights, channels or filters don't match for the share_layer");
         }
 
         l.weights = l.share_layer->weights;

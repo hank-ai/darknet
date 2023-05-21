@@ -593,9 +593,9 @@ float find_sim(size_t i, size_t j, contrastive_params *contrast_p, int contrast_
     for (z = 0; z < contrast_p_size; ++z) {
         if (contrast_p[z].i == i && contrast_p[z].j == j) break;
     }
-    if (z == contrast_p_size) {
-        printf(" Error: find_sim(): sim isn't found: i = %d, j = %d, z = %d \n", i, j, z);
-        darknet_fatal_error("sim not found", DARKNET_LOC);
+    if (z == contrast_p_size)
+    {
+        darknet_fatal_error(DARKNET_LOC, "sim not found: i=%d, j=%d, z=%d", i, j, z);
     }
 
     return contrast_p[z].sim;
@@ -607,9 +607,9 @@ float find_P_constrastive(size_t i, size_t j, contrastive_params *contrast_p, in
     for (z = 0; z < contrast_p_size; ++z) {
         if (contrast_p[z].i == i && contrast_p[z].j == j) break;
     }
-    if (z == contrast_p_size) {
-        printf(" Error: find_P_constrastive(): P isn't found: i = %d, j = %d, z = %d \n", i, j, z);
-        darknet_fatal_error("P not found", DARKNET_LOC);
+    if (z == contrast_p_size)
+    {
+        darknet_fatal_error(DARKNET_LOC, "P not found: i=%d, j=%d, z=%d", i, j, z);
     }
 
     return contrast_p[z].P;
@@ -647,9 +647,9 @@ float P_constrastive_f_det(size_t il, int *labels, float **z, unsigned int featu
 // num_of_samples = 2 * loaded_images = mini_batch_size
 float P_constrastive_f(size_t i, size_t l, int *labels, float **z, unsigned int feature_size, float temperature, contrastive_params *contrast_p, int contrast_p_size)
 {
-    if (i == l) {
-        fprintf(stderr, " Error: in P_constrastive must be i != l, while i = %d, l = %d \n", i, l);
-        darknet_fatal_error("invalid P", DARKNET_LOC);
+    if (i == l)
+    {
+        darknet_fatal_error(DARKNET_LOC, "P_constrastive must be i != l, while i = %d, l = %d", i, l);
     }
 
     const float sim = find_sim(i, l, contrast_p, contrast_p_size); // cosine_similarity(z[i], z[l], feature_size);
@@ -683,9 +683,9 @@ void grad_contrastive_loss_positive_f(size_t i, int *class_ids, int *labels, siz
     for (j = 0; j < num_of_samples; ++j) {
         if (labels[i] == labels[j] && labels[i] >= 0) N++;
     }
-    if (N == 0 || temperature == 0 || vec_len == 0) {
-        fprintf(stderr, " Error: N == 0 || temperature == 0 || vec_len == 0. N=%f, temperature=%f, vec_len=%f, labels[i] = %d \n", N, temperature, vec_len, labels[i]);
-        darknet_fatal_error("invalid parameter", DARKNET_LOC);
+    if (N == 0 || temperature == 0 || vec_len == 0)
+    {
+        darknet_fatal_error(DARKNET_LOC, "N == 0 || temperature == 0 || vec_len == 0. N=%f, temperature=%f, vec_len=%f, labels[i] = %d", N, temperature, vec_len, labels[i]);
     }
     const float mult = 1 / ((N - 1) * temperature * vec_len);
 
@@ -727,9 +727,9 @@ void grad_contrastive_loss_negative_f(size_t i, int *class_ids, int *labels, siz
     for (j = 0; j < num_of_samples; ++j) {
         if (labels[i] == labels[j] && labels[i] >= 0) N++;
     }
-    if (N == 0 || temperature == 0 || vec_len == 0) {
-        fprintf(stderr, " Error: N == 0 || temperature == 0 || vec_len == 0. N=%f, temperature=%f, vec_len=%f, labels[i] = %d \n", N, temperature, vec_len, labels[i]);
-        darknet_fatal_error("invalid parameter", DARKNET_LOC);
+    if (N == 0 || temperature == 0 || vec_len == 0)
+    {
+        darknet_fatal_error(DARKNET_LOC, "N == 0 || temperature == 0 || vec_len == 0. N=%f, temperature=%f, vec_len=%f, labels[i] = %d", N, temperature, vec_len, labels[i]);
     }
     const float mult = 1 / ((N - 1) * temperature * vec_len);
 
@@ -777,9 +777,9 @@ void grad_contrastive_loss_negative_f(size_t i, int *class_ids, int *labels, siz
 // num_of_samples = 2 * loaded_images = mini_batch_size
 float P_constrastive(size_t i, size_t l, int *labels, size_t num_of_samples, float **z, unsigned int feature_size, float temperature, float *cos_sim, float *exp_cos_sim)
 {
-    if (i == l) {
-        fprintf(stderr, " Error: in P_constrastive must be i != l, while i = %d, l = %d \n", i, l);
-        darknet_fatal_error("invalid parameter", DARKNET_LOC);
+    if (i == l)
+    {
+        darknet_fatal_error(DARKNET_LOC, "P_constrastive must be i != l, while i=%d, l=%d", i, l);
     }
 
     //const float sim = cos_sim[i*num_of_samples + l]; // cosine_similarity(z[i], z[l], feature_size);
@@ -814,9 +814,9 @@ void grad_contrastive_loss_positive(size_t i, int *labels, size_t num_of_samples
     for (j = 0; j < num_of_samples; ++j) {
         if (labels[i] == labels[j]) N++;
     }
-    if (N == 0 || temperature == 0 || vec_len == 0) {
-        fprintf(stderr, " Error: N == 0 || temperature == 0 || vec_len == 0. N=%f, temperature=%f, vec_len=%f \n", N, temperature, vec_len);
-        darknet_fatal_error("invalid parameter", DARKNET_LOC);
+    if (N == 0 || temperature == 0 || vec_len == 0)
+    {
+        darknet_fatal_error(DARKNET_LOC, "N == 0 || temperature == 0 || vec_len == 0. N=%f, temperature=%f, vec_len=%f", N, temperature, vec_len);
     }
     const float mult = 1 / ((N - 1) * temperature * vec_len);
 
@@ -854,9 +854,9 @@ void grad_contrastive_loss_negative(size_t i, int *labels, size_t num_of_samples
     for (j = 0; j < num_of_samples; ++j) {
         if (labels[i] == labels[j]) N++;
     }
-    if (N == 0 || temperature == 0 || vec_len == 0) {
-        fprintf(stderr, " Error: N == 0 || temperature == 0 || vec_len == 0. N=%f, temperature=%f, vec_len=%f \n", N, temperature, vec_len);
-        darknet_fatal_error("invalid parameter", DARKNET_LOC);
+    if (N == 0 || temperature == 0 || vec_len == 0)
+    {
+        darknet_fatal_error(DARKNET_LOC, "N == 0 || temperature == 0 || vec_len == 0. N=%f, temperature=%f, vec_len=%f", N, temperature, vec_len);
     }
     const float mult = 1 / ((N - 1) * temperature * vec_len);
 

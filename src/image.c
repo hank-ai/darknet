@@ -1498,8 +1498,9 @@ image load_image_stb(char *filename, int channels)
         char *new_line = "\n";
         fwrite(new_line, sizeof(char), strlen(new_line), fw);
         fclose(fw);
-        if (check_mistakes) {
-            darknet_fatal_error("failed to load image", DARKNET_LOC);
+        if (check_mistakes)
+        {
+            darknet_fatal_error(DARKNET_LOC, "failed to load image %s", filename);
         }
         return make_image(10, 10, 3);
         //exit(EXIT_FAILURE);

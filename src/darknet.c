@@ -454,9 +454,9 @@ int main(int argc, char **argv)
         return 0;
     }
     gpu_index = find_int_arg(argc, argv, "-i", 0);
-    if(find_arg(argc, argv, "-nogpu")) {
-        gpu_index = -1;
-        darknet_fatal_error("Darknet does not support the -nogpu flag. If you want to use CPU please compile Darknet with GPU=0", DARKNET_LOC);
+    if(find_arg(argc, argv, "-nogpu"))
+    {
+        darknet_fatal_error(DARKNET_LOC, "Darknet does not support the -nogpu flag. If you want to use CPU please compile Darknet with GPU=0");
     }
 
 #ifndef GPU
@@ -552,9 +552,9 @@ int main(int argc, char **argv)
         visualize(argv[2], (argc > 3) ? argv[3] : 0);
     } else if (0 == strcmp(argv[1], "imtest")){
         test_resize(argv[2]);
-    } else {
-        fprintf(stderr, "Invalid Darknet command name: %s\n", argv[1]);
-        darknet_fatal_error("Invalid Darknet command", DARKNET_LOC);
+    } else
+    {
+        darknet_fatal_error(DARKNET_LOC, "Invalid Darknet command name: %s", argv[1]);
     }
     return 0;
 }

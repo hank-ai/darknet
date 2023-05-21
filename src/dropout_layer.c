@@ -17,9 +17,9 @@ dropout_layer make_dropout_layer(int batch, int inputs, float probability, int d
         l.out_h = l.h = h;
         l.out_c = l.c = c;
 
-        if (l.w <= 0 || l.h <= 0 || l.c <= 0) {
-            printf(" Error: DropBlock - there must be positive values for: l.w=%d, l.h=%d, l.c=%d \n", l.w, l.h, l.c);
-            darknet_fatal_error("invalid DropBlock", DARKNET_LOC);
+        if (l.w <= 0 || l.h <= 0 || l.c <= 0)
+        {
+            darknet_fatal_error(DARKNET_LOC, "DropBlock invalid parameters for l.w=%d, l.h=%d, l.c=%d", l.w, l.h, l.c);
         }
     }
     l.inputs = inputs;
