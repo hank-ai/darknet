@@ -350,13 +350,20 @@ void log_backtrace()
 
 void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...)
 {
-    fprintf(stderr, "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
-    fprintf(stderr, "* A fatal error has been detected.  Darknet will now exit.\n");
+    const int saved_errno = errno;
 
-    if (errno != 0)
+    fflush(NULL); // flush *all* open output streams
+
+    fprintf(stderr,
+        "\n"
+        "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n"
+        "* A fatal error has been detected.  Darknet will now exit.\n");
+
+    if (saved_errno != 0)
     {
         char buffer[50];
-        sprintf(buffer, "* Errno %d", errno);
+        sprintf(buffer, "* Errno %d", saved_errno);
+        errno = saved_errno;
         perror(buffer);
     }
 
@@ -369,8 +376,9 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
     va_end(args);
 
     // the vfprintf() message is not newline-terminated so we need to take care of that before we print anything else
-    fprintf(stderr, "\n");
-    fprintf(stderr, "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
+    fprintf(stderr,
+        "\n"
+        "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
 
 
     log_backtrace();

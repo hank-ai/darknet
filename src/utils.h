@@ -32,6 +32,7 @@ void *xrealloc_location(void *ptr, const size_t size, const char * const filenam
 #define xcalloc(m, s)   xcalloc_location(m, s, DARKNET_LOC)
 #define xrealloc(p, s)  xrealloc_location(p, s, DARKNET_LOC)
 
+/// Calling this function ends the application.  This function will @em never return control back to the caller.  @see @ref DARKNET_LOC
 void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...);
 
 double what_time_is_it_now();
