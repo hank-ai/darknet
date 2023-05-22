@@ -72,7 +72,8 @@ void check_error_extended(cudaError_t status, const char * const filename, const
 {
     if (status != cudaSuccess)
     {
-        printf("CUDA status error: file: %s: func: %s() line: %d\n", filename, funcname, line);
+        fflush(NULL);
+        printf("\nCUDA status error: file: %s, %s(), line #%d\n", filename, funcname, line);
         check_error(status, filename, funcname, line);
     }
 
@@ -85,7 +86,8 @@ void check_error_extended(cudaError_t status, const char * const filename, const
         status = cudaDeviceSynchronize();
         if (status != cudaSuccess)
         {
-            printf("CUDA status = cudaDeviceSynchronize() error: file: %s: func: %s() line: %d\n", filename, funcname, line);
+            fflush(NULL);
+            printf("\nCUDA status = cudaDeviceSynchronize() error: %s, %s(), line #%d\n", filename, funcname, line);
         }
     }
     check_error(status, filename, funcname, line);
@@ -120,8 +122,10 @@ cudaStream_t get_cuda_stream() {
 #else
         cudaError_t status = cudaStreamCreate(&streamsArray[i]);
 #endif
-        if (status != cudaSuccess) {
-            printf(" cudaStreamCreate error: %d \n", status);
+        if (status != cudaSuccess)
+        {
+            fflush(NULL);
+            printf("\ncudaStreamCreate error: %d\n", status);
             const char *s = cudaGetErrorString(status);
             printf("CUDA Error: %s\n", s);
             status = cudaStreamCreateWithFlags(&streamsArray[i], cudaStreamNonBlocking);    // cudaStreamDefault
