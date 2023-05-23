@@ -1,5 +1,6 @@
 #include "darknet.h"
 #include <time.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <stdio.h>
 #if defined(_MSC_VER) && defined(_DEBUG)
@@ -429,6 +430,17 @@ void visualize(char *cfgfile, char *weightfile)
 #endif
 }
 
+
+void darknet_signal_handler(int sig)
+{
+    #ifdef WIN32
+    darknet_fatal_error(DARKNET_LOC, "signal handler invoked for signal #%d", sig);
+    #else
+    darknet_fatal_error(DARKNET_LOC, "signal handler invoked for signal #%d (%s)", sig, strsignal(sig));
+    #endif
+}
+
+
 int main(int argc, char **argv)
 {
 #ifdef _DEBUG
@@ -438,6 +450,21 @@ int main(int argc, char **argv)
 
 #ifdef DEBUG
     printf(" DEBUG=1 \n");
+#endif
+
+    signal(SIGINT   , darknet_signal_handler);  // 2: CTRL+C
+    signal(SIGILL   , darknet_signal_handler);  // 4: illegal instruction
+    signal(SIGABRT  , darknet_signal_handler);  // 6: abort()
+    signal(SIGFPE   , darknet_signal_handler);  // 8: floating point exception
+    signal(SIGSEGV  , darknet_signal_handler);  // 11: segfault
+    signal(SIGTERM  , darknet_signal_handler);  // 15: terminate
+#ifdef WIN32
+    signal(SIGBREAK , darknet_signal_handler);  // Break is different than CTRL+C on Windows
+#else
+    signal(SIGHUP   , darknet_signal_handler);  // 1: hangup
+    signal(SIGQUIT  , darknet_signal_handler);  // 3: quit
+    signal(SIGUSR1  , darknet_signal_handler);  // 10: user-defined
+    signal(SIGUSR2  , darknet_signal_handler);  // 12: user-defined
 #endif
 
 	int i;

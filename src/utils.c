@@ -380,7 +380,6 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
         "\n"
         "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
 
-
     log_backtrace();
 
     exit(EXIT_FAILURE);
@@ -420,7 +419,7 @@ void realloc_error(const size_t size, const char * const filename, const char * 
 
 void file_error(const char * const s, const char * const filename, const char * const funcname, const int line)
 {
-    darknet_fatal_error(filename, funcname, line, "failed to open %s", s);
+    darknet_fatal_error(filename, funcname, line, "failed to open the file \"%s\"", s);
 }
 
 list *split_str(char *s, char delim)
