@@ -652,31 +652,45 @@ int resize_network(network *net, int w, int h)
         }
         //if(l.type == AVGPOOL) break;
     }
+
+    printf("Allocating workspace to transfer between CPU and GPU:  %s\n", size_to_IEC_string(workspace_size));
 #ifdef GPU
     const int size = get_network_input_size(*net) * net->batch;
-    if(gpu_index >= 0){
-        printf(" try to allocate additional workspace_size = %1.2f MB \n", (float)workspace_size / 1000000);
+    if(gpu_index >= 0)
+    {
         net->workspace = cuda_make_array(0, workspace_size/sizeof(float) + 1);
         net->input_state_gpu = cuda_make_array(0, size);
         if (cudaSuccess == cudaHostAlloc(&net->input_pinned_cpu, size * sizeof(float), cudaHostRegisterMapped))
+        {
             net->input_pinned_cpu_flag = 1;
-        else {
-            cudaGetLastError(); // reset CUDA-error
+        }
+        else
+        {
+            cudaError_t status = cudaGetLastError(); // reset CUDA-error
+            printf("CUDA error #%d (%s, %s)\n", status, cudaGetErrorName(status), cudaGetErrorString(status));
             net->input_pinned_cpu = (float*)xcalloc(size, sizeof(float));
             net->input_pinned_cpu_flag = 0;
         }
-        printf(" CUDA allocate done! \n");
-    }else {
+    }
+    else
+    {
         free(net->workspace);
         net->workspace = (float*)xcalloc(1, workspace_size);
         if(!net->input_pinned_cpu_flag)
+        {
             net->input_pinned_cpu = (float*)xrealloc(net->input_pinned_cpu, size * sizeof(float));
+        }
     }
 #else
     free(net->workspace);
     net->workspace = (float*)xcalloc(1, workspace_size);
 #endif
-    //fprintf(stderr, " Done!\n");
+    if (net->workspace == NULL)
+    {
+        darknet_fatal_error(DARKNET_LOC, "failed to allocate workspace (%d)", workspace_size);
+    }
+    printf("Workspace begins at %p\n", net->workspace);
+
     return 0;
 }
 
@@ -762,7 +776,10 @@ float *network_predict_ptr(network *net, float *input)
 float *network_predict(network net, float *input)
 {
 #ifdef GPU
-    if(gpu_index >= 0)  return network_predict_gpu(net, input);
+    if(gpu_index >= 0)
+    {
+        return network_predict_gpu(net, input);
+    }
 #endif
 
     network_state state = {0};

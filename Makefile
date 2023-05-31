@@ -182,7 +182,7 @@ $(OBJDIR)%.o: %.cpp $(DEPS)
 	$(CPP) -std=c++11 $(COMMON) $(CFLAGS) -c $< -o $@
 
 $(OBJDIR)%.o: %.cu $(DEPS)
-	$(NVCC) $(ARCH) $(COMMON) --compiler-options "$(CFLAGS)" -c $< -o $@
+	$(NVCC) $(ARCH) $(COMMON) --default-stream legacy --compiler-options "$(CFLAGS)" -c $< -o $@
 
 $(OBJDIR):
 	mkdir -p $(OBJDIR)

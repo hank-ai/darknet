@@ -84,7 +84,12 @@ image float_to_image_scaled(int w, int h, int c, float *data);
 image float_to_image(int w, int h, int c, float *data);
 image copy_image(image p);
 void copy_image_inplace(image src, image dst);
-image load_image(char *filename, int w, int h, int c);
+
+/** Load the given image.  If both @p desired_width and @p desired_height have been set, then the image will be resized
+ * to match those dimensions.  Otherwise, specify @p 0 (zero) to leave the image dimensions unchanged.
+ */
+image load_image(char * filename, int desired_width, int desired_height, int channels);
+
 image load_image_stb_resize(char *filename, int w, int h, int c);
 //LIB_API image load_image_color(char *filename, int w, int h);
 image **load_alphabet();

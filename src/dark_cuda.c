@@ -54,27 +54,27 @@ void *cuda_get_context()
     return (void *)pctx;
 }
 
-void check_error(cudaError_t status, const char * const filename, const char * const funcname, const int line)
+void check_cuda_error(cudaError_t status, const char * const filename, const char * const funcname, const int line)
 {
     if (status != cudaSuccess)
     {
-        darknet_fatal_error(filename, funcname, line, "current CUDA error: status=%d, %s", status, cudaGetErrorString(status));
+        darknet_fatal_error(filename, funcname, line, "current CUDA error: status=%d %s: %s", status, cudaGetErrorName(status), cudaGetErrorString(status));
     }
 
     status = cudaGetLastError();
     if (status != cudaSuccess)
     {
-        darknet_fatal_error(filename, funcname, line, "most recent CUDA error: status=%d, %s", status, cudaGetErrorString(status));
+        darknet_fatal_error(filename, funcname, line, "most recent CUDA error: status=%d %s: %s", status, cudaGetErrorName(status), cudaGetErrorString(status));
     }
 }
 
-void check_error_extended(cudaError_t status, const char * const filename, const char * const funcname, const int line)
+void check_cuda_error_extended(cudaError_t status, const char * const filename, const char * const funcname, const int line)
 {
     if (status != cudaSuccess)
     {
         fflush(NULL);
-        printf("\nCUDA status error: file: %s, %s(), line #%d\n", filename, funcname, line);
-        check_error(status, filename, funcname, line);
+        printf("\nCUDA status error: %s, %s(), line #%d\n", filename, funcname, line);
+        check_cuda_error(status, filename, funcname, line);
     }
 
 #if defined(DEBUG) || defined(CUDA_DEBUG)
@@ -90,7 +90,7 @@ void check_error_extended(cudaError_t status, const char * const filename, const
             printf("\nCUDA status = cudaDeviceSynchronize() error: %s, %s(), line #%d\n", filename, funcname, line);
         }
     }
-    check_error(status, filename, funcname, line);
+    check_cuda_error(status, filename, funcname, line);
 }
 
 dim3 cuda_gridsize(size_t n){
@@ -202,17 +202,22 @@ void cudnn_check_error(cudnnStatus_t status, const char * const filename, const 
 
 void cudnn_check_error_extended(cudnnStatus_t status, const char * const filename, const char * const function, const int line)
 {
-    if (status != CUDNN_STATUS_SUCCESS) {
-        printf("\n cuDNN status Error in: file: %s function: %s() line: %d\n", filename, function, line);
+    if (status != CUDNN_STATUS_SUCCESS)
+    {
+        fflush(NULL);
+        printf("\ncuDNN status error in %s, %s(), line #%d\n", filename, function, line);
         cudnn_check_error(status, filename, function, line);
     }
 #if defined(DEBUG) || defined(CUDA_DEBUG)
     cuda_debug_sync = 1;
 #endif
-    if (cuda_debug_sync) {
-        cudaError_t status = cudaDeviceSynchronize();
+    if (cuda_debug_sync)
+    {
+        status = cudaDeviceSynchronize();
         if (status != CUDNN_STATUS_SUCCESS)
-            printf("\n cudaError_t status = cudaDeviceSynchronize() Error in: file: %s function: %s() line: %d\n", filename, function, line);
+        {
+            printf("\ncudaDeviceSynchronize() error in %s, %s(), line #%d\n", filename, function, line);
+        }
     }
     cudnn_check_error(status, filename, function, line);
 }
@@ -227,7 +232,8 @@ void cublas_check_error(cublasStatus_t status)
 #if defined(DEBUG) || defined(CUDA_DEBUG)
     cudaDeviceSynchronize();
 #endif
-    if (cuda_debug_sync) {
+    if (cuda_debug_sync)
+    {
         cudaDeviceSynchronize();
     }
     if (status != CUBLAS_STATUS_SUCCESS) {
@@ -243,10 +249,13 @@ void cublas_check_error_extended(cublasStatus_t status, const char * const filen
 #if defined(DEBUG) || defined(CUDA_DEBUG)
     cuda_debug_sync = 1;
 #endif
-    if (cuda_debug_sync) {
-        cudaError_t status = cudaDeviceSynchronize();
-      if (status != CUDA_SUCCESS)
-          printf("\n cudaError_t status = cudaDeviceSynchronize() Error in: file: %s function: %s() line: %d\n", filename, function, line);
+    if (cuda_debug_sync)
+    {
+        status = cudaDeviceSynchronize();
+        if (status != CUDA_SUCCESS)
+        {
+            printf("\n cudaError_t status = cudaDeviceSynchronize() Error in: file: %s function: %s() line: %d\n", filename, function, line);
+        }
     }
     cublas_check_error(status);
 }
@@ -480,22 +489,24 @@ float *cuda_make_array_pinned(float *x, size_t n)
 
 float *cuda_make_array(float *x, size_t n)
 {
-    float *x_gpu;
-    size_t size = sizeof(float)*n;
+    const size_t size = n * sizeof(float);
+//    printf("allocating CUDA memory: %d floats (%s)\n", n, size_to_IEC_string(size));
+
+    float * x_gpu = NULL;
     cudaError_t status = cudaMalloc((void **)&x_gpu, size);
-    //cudaError_t status = cudaMallocManaged((void **)&x_gpu, size, cudaMemAttachGlobal);
-    //status = cudaMemAdvise(x_gpu, size, cudaMemAdviseSetPreferredLocation, cudaCpuDeviceId);
-    if (status != cudaSuccess) fprintf(stderr, " Try to set subdivisions=64 in your cfg-file. \n");
+    if (status != cudaSuccess || !x_gpu)
+    {
+        darknet_fatal_error(DARKNET_LOC, "CUDA memory allocation failed (%s).\nIf possible, try to set subdivisions=... higher in your cfg file.", size_to_IEC_string(size));
+    }
     CHECK_CUDA(status);
-    if(x){
-        //status = cudaMemcpy(x_gpu, x, size, cudaMemcpyHostToDevice);
+
+    if (x)
+    {
+//        status = cudaMemcpy(x_gpu, x, size, cudaMemcpyHostToDevice);
         status = cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyDefault, get_cuda_stream());
         CHECK_CUDA(status);
     }
-    if(!x_gpu)
-    {
-        darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed");
-    }
+
     return x_gpu;
 }
 
@@ -512,7 +523,7 @@ void **cuda_make_array_pointers(void **x, size_t n)
     }
     if (!x_gpu)
     {
-        darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed");
+        darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed (%s)", size_to_IEC_string(size));
     }
     return x_gpu;
 }
@@ -567,7 +578,7 @@ int *cuda_make_int_array_new_api(int *x, size_t n)
 	}
 	if (!x_gpu)
     {
-        darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed");
+        darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed (%s)", size_to_IEC_string(size));
     }
 	return x_gpu;
 }
@@ -588,8 +599,9 @@ void cuda_free_host(float *x_cpu)
 
 void cuda_push_array(float *x_gpu, float *x, size_t n)
 {
-    size_t size = sizeof(float)*n;
-    //cudaError_t status = cudaMemcpy(x_gpu, x, size, cudaMemcpyHostToDevice);
+    const size_t size = n * sizeof(float);
+//    printf("cuda_push_array(): src=%p, dst=%p, n=%d, total_size=%d (%s)\n", x, x_gpu, n, size, size_to_IEC_string(size));
+//    cudaError_t status = cudaMemcpy(x_gpu, x, size, cudaMemcpyHostToDevice);
     cudaError_t status = cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyHostToDevice, get_cuda_stream());
     CHECK_CUDA(status);
 }
@@ -608,7 +620,7 @@ void cuda_pull_array_async(float *x_gpu, float *x, size_t n)
 {
     size_t size = sizeof(float)*n;
     cudaError_t status = cudaMemcpyAsync(x, x_gpu, size, cudaMemcpyDefault, get_cuda_stream());
-    check_error(status, DARKNET_LOC);
+    check_cuda_error(status, DARKNET_LOC);
     //cudaStreamSynchronize(get_cuda_stream());
 }
 

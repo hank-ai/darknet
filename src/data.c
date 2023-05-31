@@ -1596,18 +1596,28 @@ void *load_thread(void *ptr)
             a.hue, a.saturation, a.exposure, a.mini_batch, a.track, a.augment_speed, a.letter_box, a.mosaic_bound, a.contrastive, a.contrastive_jit_flip, a.contrastive_color, a.show_imgs);
     } else if (a.type == SWAG_DATA){
         *a.d = load_data_swag(a.paths, a.n, a.classes, a.jitter);
-    } else if (a.type == COMPARE_DATA){
+    }
+    else if (a.type == COMPARE_DATA)
+    {
         *a.d = load_data_compare(a.n, a.paths, a.m, a.classes, a.w, a.h);
-    } else if (a.type == IMAGE_DATA){
+    }
+    else if (a.type == IMAGE_DATA)
+    {
         *(a.im) = load_image(a.path, 0, 0, a.c);
         *(a.resized) = resize_image(*(a.im), a.w, a.h);
-    }else if (a.type == LETTERBOX_DATA) {
+    }
+    else if (a.type == LETTERBOX_DATA)
+    {
         *(a.im) = load_image(a.path, 0, 0, a.c);
         *(a.resized) = letterbox_image(*(a.im), a.w, a.h);
-    } else if (a.type == TAG_DATA){
+    }
+    else if (a.type == TAG_DATA)
+    {
         *a.d = load_data_tag(a.paths, a.n, a.m, a.classes, a.flip, a.min, a.max, a.w, a.h, a.angle, a.aspect, a.hue, a.saturation, a.exposure);
     }
+
     free(ptr);
+
     return 0;
 }
 

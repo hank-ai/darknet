@@ -581,7 +581,7 @@ int main(int argc, char **argv)
         test_resize(argv[2]);
     } else
     {
-        darknet_fatal_error(DARKNET_LOC, "Invalid Darknet command name: %s", argv[1]);
+        darknet_fatal_error(DARKNET_LOC, "invalid Darknet command: %s", argv[1]);
     }
     return 0;
 }

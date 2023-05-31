@@ -392,7 +392,7 @@ const char * size_to_IEC_string(const size_t size)
     const float MiB = 1024 * KiB;
     const float GiB = 1024 * MiB;
 
-    static char buffer[25]; /// @todo not thread safe, but low priority since this is used when Darknet is exiting due to an error
+    static char buffer[25]; /// @todo not thread safe
 
     if (size < KiB)         sprintf(buffer, "%ld bytes", size);
     else if (size < MiB)    sprintf(buffer, "%1.1f KiB", bytes / KiB);

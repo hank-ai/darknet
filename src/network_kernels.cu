@@ -62,48 +62,62 @@ void forward_network_gpu(network net, network_state state)
     static time_benchmark_layers *avg_time_per_layer = NULL;
     static time_benchmark_layers *sorted_avg_time_per_layer = NULL;
     double start_time, end_time;
-    if (net.benchmark_layers) {
-        if (!avg_time_per_layer) {
+    if (net.benchmark_layers)
+    {
+        if (!avg_time_per_layer)
+        {
             avg_time_per_layer = (time_benchmark_layers *)calloc(net.n, sizeof(time_benchmark_layers));
             sorted_avg_time_per_layer = (time_benchmark_layers *)calloc(net.n, sizeof(time_benchmark_layers));
         }
-        cudaDeviceSynchronize();
+        /// @todo in previous versions we did not CHECK_CUDA here -- was that intentional?
+        CHECK_CUDA(cudaDeviceSynchronize()); // was this removed in CUDA 11.6+?
     }
 
-    //printf("\n");
     state.workspace = net.workspace;
     int i;
-    for(i = 0; i < net.n; ++i){
+    for(i = 0; i < net.n; ++i)
+    {
         state.index = i;
         layer l = net.layers[i];
-        if(l.delta_gpu && state.train){
+//      printf("i=%d/%d: %s\n", i + 1, net.n, get_layer_string(l.type));
+
+        if(l.delta_gpu && state.train)
+        {
             fill_ongpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
         }
 
-        if (net.benchmark_layers) {
+        if (net.benchmark_layers)
+        {
             start_time = get_time_point();
         }
 
         l.forward_gpu(l, state);
 
-        if (net.benchmark_layers) {
+        if (net.benchmark_layers)
+        {
             CHECK_CUDA(cudaDeviceSynchronize());
             end_time = get_time_point();
             const double took_time = (end_time - start_time) / 1000;
             const double alpha = 0.9;
-            if (avg_time_per_layer[i].time == 0) {
+            if (avg_time_per_layer[i].time == 0)
+            {
                 avg_time_per_layer[i].layer_id = i;
                 avg_time_per_layer[i].layer_type = l.type;
                 avg_time_per_layer[i].time = took_time;
             }
-            else avg_time_per_layer[i].time = avg_time_per_layer[i].time * alpha + took_time * (1 - alpha);
+            else
+            {
+                avg_time_per_layer[i].time = avg_time_per_layer[i].time * alpha + took_time * (1 - alpha);
+            }
 
             sorted_avg_time_per_layer[i] = avg_time_per_layer[i];
             printf("\n fw-layer %d - type: %d - %lf ms - avg_time %lf ms \n", i, l.type, took_time, avg_time_per_layer[i].time);
         }
 
         if(net.wait_stream)
+        {
             cudaStreamSynchronize(get_cuda_stream());
+        }
         state.input = l.output_gpu;
         //cudaDeviceSynchronize();
 
@@ -136,17 +150,16 @@ void forward_network_gpu(network net, network_state state)
 */
     }
 
-    if (net.benchmark_layers) {
+    if (net.benchmark_layers)
+    {
         printf("\n\nSorted by time (forward):\n");
         qsort(sorted_avg_time_per_layer, net.n, sizeof(time_benchmark_layers), time_comparator);
-        for (i = 0; i < net.n; ++i) {
+        for (i = 0; i < net.n; ++i)
+        {
             //printf("layer %d - type: %d - avg_time %lf ms \n", avg_time_per_layer[i].layer_id, avg_time_per_layer[i].layer_type, avg_time_per_layer[i].time);
             printf("%d - fw-sort-layer %d - type: %d - avg_time %lf ms \n", i, sorted_avg_time_per_layer[i].layer_id, sorted_avg_time_per_layer[i].layer_type, sorted_avg_time_per_layer[i].time);
         }
     }
-
-    //cudaStreamSynchronize(get_cuda_stream());   // sync CUDA-functions
-    //cudaDeviceSynchronize();
 }
 
 void backward_network_gpu(network net, network_state state)
@@ -376,7 +389,7 @@ float train_network_datum_gpu(network net, float *x, float *y)
         float scale = (get_current_iteration(net) / ((float)net.max_batches));
         //scale = sin(scale * M_PI);
         net.learning_rate = net.adversarial_lr * scale;
-        layer l = net.layers[net.n - 1];
+//        layer l = net.layers[net.n - 1];
         int y_size = get_network_output_size(net)*net.batch;
         if (net.layers[net.n - 1].truths) y_size = net.layers[net.n - 1].truths*net.batch;
         float *truth_cpu = (float *)xcalloc(y_size, sizeof(float));
@@ -702,7 +715,9 @@ float *get_network_output_gpu(network net)
 float *network_predict_gpu(network net, float *input)
 {
     if (net.gpu_index != cuda_get_device())
+    {
         cuda_set_device(net.gpu_index);
+    }
     int size = get_network_input_size(net) * net.batch;
     network_state state;
     state.index = 0;
@@ -717,11 +732,15 @@ float *network_predict_gpu(network net, float *input)
     //cudaGraphExec_t instance = (cudaGraphExec_t)net.cuda_graph_exec;
     static cudaGraphExec_t instance;
 
-    if ((*net.cuda_graph_ready) == 0) {
+    if ((*net.cuda_graph_ready) == 0)
+    {
         static cudaGraph_t graph;
-        if (net.use_cuda_graph == 1) {
-            int i;
-            for (i = 0; i < 16; ++i) switch_stream(i);
+        if (net.use_cuda_graph == 1)
+        {
+            for (int i = 0; i < 16; ++i)
+            {
+                switch_stream(i);
+            }
 
             cudaStream_t stream0 = switch_stream(0);
             CHECK_CUDA(cudaDeviceSynchronize());
@@ -733,7 +752,8 @@ float *network_predict_gpu(network net, float *input)
         cuda_push_array(state.input, net.input_pinned_cpu, size);
         forward_network_gpu(net, state);
 
-        if (net.use_cuda_graph == 1) {
+        if (net.use_cuda_graph == 1)
+        {
             cudaStream_t stream0 = switch_stream(0);
             CHECK_CUDA(cudaStreamEndCapture(stream0, &graph));
             CHECK_CUDA(cudaGraphInstantiate(&instance, graph, NULL, NULL, 0));
@@ -741,9 +761,11 @@ float *network_predict_gpu(network net, float *input)
             printf(" graph is captured... \n");
             CHECK_CUDA(cudaDeviceSynchronize());
         }
+
         CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));
     }
-    else {
+    else
+    {
         cudaStream_t stream0 = switch_stream(0);
         //printf(" cudaGraphLaunch \n");
         CHECK_CUDA( cudaGraphLaunch(instance, stream0) );

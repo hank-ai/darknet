@@ -54,19 +54,30 @@ extern int gpu_index;
 #ifdef __cplusplus
 extern "C" {
 #endif // __cplusplus
-    void check_error(cudaError_t status, const char * const filename, const char * const funcname, const int line);
-    void check_error_extended(cudaError_t status, const char * const filename, const char * const funcname, const int line);
+    void check_cuda_error(cudaError_t status, const char * const filename, const char * const funcname, const int line);
+    void check_cuda_error_extended(cudaError_t status, const char * const filename, const char * const funcname, const int line);
     void cublas_check_error_extended(cublasStatus_t status, const char * const filename, const char * const funcname, const int line);
-#define CHECK_CUDA(X) check_error_extended(X, __FILE__, __func__, __LINE__ );
+#define CHECK_CUDA(X) check_cuda_error_extended(X, __FILE__, __func__, __LINE__ );
 #define CHECK_CUBLAS(X) cublas_check_error_extended(X, __FILE__, __func__, __LINE__ );
 
     cublasHandle_t blas_handle();
     void free_pinned_memory();
     void pre_allocate_pinned_memory(size_t size);
+
     float *cuda_make_array_pinned_preallocated(float *x, size_t n);
+
     float *cuda_make_array_pinned(float *x, size_t n);
+
+    /** Allocate memory on the GPU.  If @p x is not null, then copy the given floats from the host pointer.
+     *
+     * @returns a pointer to the CUDA memory allocation.
+     *
+     * @warning The copy is asynchronous and may not have finished when this function returns!
+     */
     float *cuda_make_array(float *x, size_t n);
+
     void **cuda_make_array_pointers(void **x, size_t n);
+
     int *cuda_make_int_array(size_t n);
 	int *cuda_make_int_array_new_api(int *x, size_t n);
     void cuda_push_array(float *x_gpu, float *x, size_t n);

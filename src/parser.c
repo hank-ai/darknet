@@ -1802,8 +1802,8 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
     net.outputs = get_network_output_size(net);
     net.output = get_network_output(net);
     avg_outputs = avg_outputs / avg_counter;
-    fprintf(stderr, "Total BFLOPS %5.3f \n", bflops);
-    fprintf(stderr, "avg_outputs = %d \n", avg_outputs);
+    printf("Total BFLOPS %5.3f \n", bflops);
+    printf("avg_outputs = %d \n", avg_outputs);
 #ifdef GPU
     get_cuda_stream();
     //get_cuda_memcpy_stream();
@@ -1826,25 +1826,39 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
             *net.max_output16_size = max_outputs;
             CHECK_CUDA(cudaMalloc((void **)net.output16_gpu, *net.max_output16_size * sizeof(short))); //sizeof(half)
         }
-        if (workspace_size) {
-            fprintf(stderr, " Allocate additional workspace_size = %1.2f MB \n", (float)workspace_size/1000000);
+
+        if (workspace_size)
+        {
+            printf("Allocating workspace to transfer between CPU and GPU:  %s\n", size_to_IEC_string(workspace_size));
+
             net.workspace = cuda_make_array(0, workspace_size / sizeof(float) + 1);
         }
-        else {
+        else
+        {
+            printf("Allocating workspace:  %s\n", size_to_IEC_string(workspace_size));
             net.workspace = (float*)xcalloc(1, workspace_size);
         }
     }
 #else
-        if (workspace_size) {
+        if (workspace_size)
+        {
+            printf("Allocating workspace:  %s\n", size_to_IEC_string(workspace_size));
             net.workspace = (float*)xcalloc(1, workspace_size);
         }
 #endif
 
     LAYER_TYPE lt = net.layers[net.n - 1].type;
-    if ((net.w % 32 != 0 || net.h % 32 != 0) && (lt == YOLO || lt == REGION || lt == DETECTION)) {
-        printf("\n Warning: width=%d and height=%d in cfg-file must be divisible by 32 for default networks Yolo v1/v2/v3!!! \n\n",
-            net.w, net.h);
+    if (lt == YOLO || lt == REGION || lt == DETECTION)
+    {
+        if (net.w % 32 != 0 ||
+            net.h % 32 != 0 ||
+            net.w < 32      ||
+            net.h < 32      )
+        {
+            darknet_fatal_error(DARKNET_LOC, "width=%d and height=%d in cfg file must be divisible by 32 for YOLO networks", net.w, net.h);
+        }
     }
+
     return net;
 }
 

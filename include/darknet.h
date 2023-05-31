@@ -216,7 +216,7 @@ typedef struct update_args {
 
 // layer.h
 struct layer {
-    LAYER_TYPE type;
+    LAYER_TYPE type; ///< @see @ref get_layer_string()
     ACTIVATION activation;
     ACTIVATION lstm_activation;
     COST_TYPE cost_type;
@@ -811,7 +811,7 @@ typedef struct network {
     float *output_gpu;
 
     float *input_state_gpu;
-    float *input_pinned_cpu;
+    float *input_pinned_cpu;	///< memory allocated using @p cudaHostAlloc() which is used to transfer between the GPU and CPU
     int input_pinned_cpu_flag;
 
     float **input_gpu;
@@ -934,12 +934,38 @@ typedef struct data {
     box **boxes;
 } data;
 
-// data.h
-typedef enum {
-    CLASSIFICATION_DATA, DETECTION_DATA, CAPTCHA_DATA, REGION_DATA, IMAGE_DATA, COMPARE_DATA, WRITING_DATA, SWAG_DATA, TAG_DATA, OLD_CLASSIFICATION_DATA, STUDY_DATA, DET_DATA, SUPER_DATA, LETTERBOX_DATA, REGRESSION_DATA, SEGMENTATION_DATA, INSTANCE_DATA, ISEG_DATA
+
+/** Things that we can do on a secondary thread.
+ * @see @ref load_thread()
+ * @see @ref load_args.type
+ */
+typedef enum
+{
+	CLASSIFICATION_DATA,
+	DETECTION_DATA,
+	CAPTCHA_DATA,
+	REGION_DATA,
+	IMAGE_DATA, ///< causes @ref load_image() and @ref resize_image() to be called
+	COMPARE_DATA,
+	WRITING_DATA,
+	SWAG_DATA,
+	TAG_DATA,
+	OLD_CLASSIFICATION_DATA,
+	STUDY_DATA,
+	DET_DATA,
+	SUPER_DATA,
+	LETTERBOX_DATA,
+	REGRESSION_DATA,
+	SEGMENTATION_DATA,
+	INSTANCE_DATA,
+	ISEG_DATA
 } data_type;
 
-// data.h
+
+/** Used when a secondary thread is created to load things, such as images.
+ * @see @ref load_image()
+ * @see @ref data_type
+ */
 typedef struct load_args {
     int threads;
     char **paths;
@@ -990,6 +1016,7 @@ typedef struct load_args {
     data_type type;
     tree *hierarchy;
 } load_args;
+
 
 // data.h
 typedef struct box_label {

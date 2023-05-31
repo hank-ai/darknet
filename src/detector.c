@@ -45,15 +45,17 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
         net_map.benchmark_layers = benchmark_layers;
         const int net_classes = net_map.layers[net_map.n - 1].classes;
 
-        int k;  // free memory unnecessary arrays
-        for (k = 0; k < net_map.n - 1; ++k) free_layer_custom(net_map.layers[k], 1);
+        for (int k = 0; k < net_map.n - 1; ++k)
+        {
+            free_layer_custom(net_map.layers[k], 1);
+        }
 
         char *name_list = option_find_str(options, "names", "data/names.list");
         int names_size = 0;
         char **names = get_labels_custom(name_list, &names_size);
-        if (net_classes != names_size) {
-            printf("\n Error: in the file %s number of names %d that isn't equal to classes=%d in the file %s \n",
-                name_list, names_size, net_classes, cfgfile);
+        if (net_classes != names_size)
+        {
+            printf("\n Error: in the file %s number of names %d that isn't equal to classes=%d in the file %s \n", name_list, names_size, net_classes, cfgfile);
             if (net_classes > names_size)
             {
                 darknet_fatal_error(DARKNET_LOC, "mismatched number of classes");
@@ -71,8 +73,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
     srand(time(0));
     int seed = rand();
-    int k;
-    for (k = 0; k < ngpus; ++k) {
+    for (int k = 0; k < ngpus; ++k) {
         srand(seed);
 #ifdef GPU
         cuda_set_device(gpus[k]);
@@ -105,11 +106,13 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     data train, buffer;
 
     layer l = net.layers[net.n - 1];
-    for (k = 0; k < net.n; ++k) {
+    for (int k = 0; k < net.n; ++k)
+    {
         layer lk = net.layers[k];
-        if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
+        if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
+        {
             l = lk;
-            printf(" Detection layer: %d - type = %d \n", k, l.type);
+            printf("Detection layer #%d is type %d (%s)\n", k, l.type, get_layer_string(l.type));
         }
     }
 
@@ -221,14 +224,17 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
             args.w = dim_w;
             args.h = dim_h;
 
-            int k;
-            if (net.dynamic_minibatch) {
-                for (k = 0; k < ngpus; ++k) {
+            if (net.dynamic_minibatch)
+            {
+                for (int k = 0; k < ngpus; ++k)
+                {
                     (*nets[k].seen) = init_b * net.subdivisions * get_current_iteration(net); // remove this line, when you will save to weights-file both: seen & cur_iteration
                     nets[k].batch = dim_b;
                     int j;
                     for (j = 0; j < nets[k].n; ++j)
+                    {
                         nets[k].layers[j].batch = dim_b;
+                    }
                 }
                 net.batch = dim_b;
                 imgs = net.batch * net.subdivisions * ngpus;
@@ -243,7 +249,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
             free_data(train);
             load_thread = load_data(args);
 
-            for (k = 0; k < ngpus; ++k) {
+            for (int k = 0; k < ngpus; ++k)
+            {
                 resize_network(nets + k, dim_w, dim_h);
             }
             net = nets[0];
@@ -328,19 +335,23 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
         fflush(stdout);
 
         int draw_precision = 0;
-        if (calc_map && (iteration >= next_map_calc || iteration == net.max_batches)) {
-            if (l.random) {
+
+        // This is where we decide if we have to do the mAP% calculations.
+        if (calc_map && (iteration >= next_map_calc || iteration == net.max_batches))
+        {
+            if (l.random)
+            {
                 printf("Resizing to initial size: %d x %d ", init_w, init_h);
                 args.w = init_w;
                 args.h = init_h;
-                int k;
-                if (net.dynamic_minibatch) {
-                    for (k = 0; k < ngpus; ++k) {
-                        for (k = 0; k < ngpus; ++k) {
-                            nets[k].batch = init_b;
-                            int j;
-                            for (j = 0; j < nets[k].n; ++j)
-                                nets[k].layers[j].batch = init_b;
+                if (net.dynamic_minibatch)
+                {
+                    for (int k = 0; k < ngpus; ++k)
+                    {
+                        nets[k].batch = init_b;
+                        for (int j = 0; j < nets[k].n; ++j)
+                        {
+                            nets[k].layers[j].batch = init_b;
                         }
                     }
                     net.batch = init_b;
@@ -352,12 +363,14 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
                 free_data(train);
                 train = buffer;
                 load_thread = load_data(args);
-                for (k = 0; k < ngpus; ++k) {
+                for (int k = 0; k < ngpus; ++k)
+                {
                     resize_network(nets + k, init_w, init_h);
                 }
                 net = nets[0];
             }
 
+            /// @todo copy the weights...?
             copy_weights_net(net, &net_map);
 
             // combine Training and Validation networks
@@ -366,7 +379,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
             iter_map = iteration;
             mean_average_precision = validate_detector_map(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);// &net_combined);
             printf("\n mean_average_precision (mAP@%0.2f) = %f \n", iou_thresh, mean_average_precision);
-            if (mean_average_precision >= best_map) {
+            if (mean_average_precision >= best_map)
+            {
                 best_map = mean_average_precision;
                 printf("New best mAP!\n");
                 char buff[256];
@@ -375,16 +389,25 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
             }
 
             draw_precision = 1;
+
+            // done doing mAP% calculation
         }
+
         time_remaining = ((net.max_batches - iteration) / ngpus)*(what_time_is_it_now() - time + load_time) / 60 / 60;
         // set initial value, even if resume training from 10000 iteration
         if (avg_time < 0) avg_time = time_remaining;
         else avg_time = alpha_time * time_remaining + (1 -  alpha_time) * avg_time;
 #ifdef OPENCV
-        if (net.contrastive) {
+        if (net.contrastive)
+        {
             float cur_con_acc = -1;
-            for (k = 0; k < net.n; ++k)
-                if (net.layers[k].type == CONTRASTIVE) cur_con_acc = *net.layers[k].loss;
+            for (int k = 0; k < net.n; ++k)
+            {
+                if (net.layers[k].type == CONTRASTIVE)
+                {
+                    cur_con_acc = *net.layers[k].loss;
+                }
+            }
             if (cur_con_acc >= 0) avg_contrastive_acc = avg_contrastive_acc*0.99 + cur_con_acc * 0.01;
             printf("  avg_contrastive_acc = %f \n", avg_contrastive_acc);
         }
@@ -449,11 +472,15 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     free_list_contents_kvp(options);
     free_list(options);
 
-    for (k = 0; k < ngpus; ++k) free_network(nets[k]);
+    for (int k = 0; k < ngpus; ++k)
+    {
+        free_network(nets[k]);
+    }
     free(nets);
     //free_network(net);
 
-    if (calc_map) {
+    if (calc_map)
+    {
         net_map.n = 0;
         free_network(net_map);
     }
@@ -671,9 +698,10 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
     int k;
     for (k = 0; k < net.n; ++k) {
         layer lk = net.layers[k];
-        if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
+        if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
+        {
             l = lk;
-            printf(" Detection layer: %d - type = %d \n", k, l.type);
+            printf("Detection layer #%d is type %d (%s)\n", k, l.type, get_layer_string(l.type));
         }
     }
     int classes = l.classes;
@@ -955,16 +983,19 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 
     network net;
     //int initial_batch;
-    if (existing_net) {
+    if (existing_net)
+    {
         char *train_images = option_find_str(options, "train", "data/train.txt");
         valid_images = option_find_str(options, "valid", train_images);
         net = *existing_net;
         remember_network_recurrent_state(*existing_net);
         free_network_recurrent_state(*existing_net);
     }
-    else {
+    else
+    {
         net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
-        if (weightfile) {
+        if (weightfile)
+        {
             load_weights(&net, weightfile);
         }
         //set_batch_network(&net, 1);
@@ -975,40 +1006,47 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     {
         darknet_fatal_error(DARKNET_LOC, "in the file %s number of names %d is not equal to classes=%d in the file %s", name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
     }
-    srand(time(0)); /// @todo Why are we doing this here?
-    printf("\n calculation mAP (mean average precision)...\n");
+    srand(time(0)); /// @todo Why are we doing this here?  every time we do the mAP% calculation?
+    printf("\n calculating mAP (mean average precision)...\n");
 
     list *plist = get_paths(valid_images);
     char **paths = (char **)list_to_array(plist);
 
     list *plist_dif = NULL;
     char **paths_dif = NULL;
-    if (difficult_valid_images) {
+    if (difficult_valid_images)
+    {
         plist_dif = get_paths(difficult_valid_images);
         paths_dif = (char **)list_to_array(plist_dif);
     }
 
     layer l = net.layers[net.n - 1];
-    int k;
-    for (k = 0; k < net.n; ++k) {
+    for (int k = 0; k < net.n; ++k)
+    {
         layer lk = net.layers[k];
-        if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
+        if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
+        {
             l = lk;
-            printf(" Detection layer: %d - type = %d \n", k, l.type);
+            printf("Detection layer #%d is type %d (%s)\n", k, l.type, get_layer_string(l.type));
         }
     }
     int classes = l.classes;
 
-    int m = plist->size;
-    int i = 0;
-    int t;
+    const int number_of_validation_images = plist->size;
+//    int i = 0;
+//    int t;
 
     const float thresh = .005;
     const float nms = .45;
     //const float iou_thresh = 0.5;
 
     int nthreads = 4;
-    if (m < 4) nthreads = m;
+    if (number_of_validation_images < 4)
+    {
+        nthreads = number_of_validation_images;
+    }
+    printf("using %d threads for mAP%% calculations\n", nthreads);
+
     image* val = (image*)xcalloc(nthreads, sizeof(image));
     image* val_resized = (image*)xcalloc(nthreads, sizeof(image));
     image* buf = (image*)xcalloc(nthreads, sizeof(image));
@@ -1020,8 +1058,14 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     args.h = net.h;
     args.c = net.c;
     letter_box = net.letter_box;
-    if (letter_box) args.type = LETTERBOX_DATA;
-    else args.type = IMAGE_DATA;
+    if (letter_box)
+    {
+        args.type = LETTERBOX_DATA;
+    }
+    else
+    {
+        args.type = IMAGE_DATA;
+    }
 
     //const float thresh_calc_avg_iou = 0.24;
     float avg_iou = 0;
@@ -1039,27 +1083,36 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     int *tp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
     int *fp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
 
-    for (t = 0; t < nthreads; ++t) {
-        args.path = paths[i + t];
+    for (int t = 0; t < nthreads; ++t)
+    {
+        args.path = paths[t];
         args.im = &buf[t];
         args.resized = &buf_resized[t];
         thr[t] = load_data_in_thread(args);
     }
     time_t start = time(0);
-    for (i = nthreads; i < m + nthreads; i += nthreads) {
-        fprintf(stderr, "\r%d", i);
-        for (t = 0; t < nthreads && (i + t - nthreads) < m; ++t) {
+    for (int i = nthreads; i < number_of_validation_images + nthreads; i += nthreads)
+    {
+		printf("\r%d", i);
+
+        // wait until the 4 threads have finished loading in their image
+        for (int t = 0; t < nthreads && (i + t - nthreads) < number_of_validation_images; ++t)
+        {
             pthread_join(thr[t], 0);
             val[t] = buf[t];
             val_resized[t] = buf_resized[t];
         }
-        for (t = 0; t < nthreads && (i + t) < m; ++t) {
+
+        for (int t = 0; t < nthreads && (i + t) < number_of_validation_images; ++t)
+        {
             args.path = paths[i + t];
             args.im = &buf[t];
             args.resized = &buf_resized[t];
             thr[t] = load_data_in_thread(args);
         }
-        for (t = 0; t < nthreads && i + t - nthreads < m; ++t) {
+
+        for (int t = 0; t < nthreads && i + t - nthreads < number_of_validation_images; ++t)
+        {
             const int image_index = i + t - nthreads;
             char *path = paths[image_index];
             char *id = basecfg(path);
@@ -1069,16 +1122,25 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
             int nboxes = 0;
             float hier_thresh = 0;
             detection *dets;
-            if (args.type == LETTERBOX_DATA) {
+            if (args.type == LETTERBOX_DATA)
+            {
                 dets = get_network_boxes(&net, val[t].w, val[t].h, thresh, hier_thresh, 0, 1, &nboxes, letter_box);
             }
-            else {
+            else
+            {
                 dets = get_network_boxes(&net, 1, 1, thresh, hier_thresh, 0, 0, &nboxes, letter_box);
             }
             //detection *dets = get_network_boxes(&net, val[t].w, val[t].h, thresh, hier_thresh, 0, 1, &nboxes, letter_box); // for letter_box=1
-            if (nms) {
-                if (l.nms_kind == DEFAULT_NMS) do_nms_sort(dets, nboxes, l.classes, nms);
-                else diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
+            if (nms)
+            {
+                if (l.nms_kind == DEFAULT_NMS)
+                {
+                    do_nms_sort(dets, nboxes, l.classes, nms);
+                }
+                else
+                {
+                    diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
+                }
             }
 
             //if (l.embedding_size) set_track_id(dets, nboxes, thresh, l.sim_thresh, l.track_ciou_norm, l.track_history_size, l.dets_for_track, l.dets_for_show);
@@ -1087,8 +1149,8 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
             replace_image_to_label(path, labelpath);
             int num_labels = 0;
             box_label *truth = read_boxes(labelpath, &num_labels);
-            int j;
-            for (j = 0; j < num_labels; ++j) {
+            for (int j = 0; j < num_labels; ++j)
+            {
                 truth_classes_count[truth[j].id]++;
             }
 
@@ -1107,13 +1169,13 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 
             const int checkpoint_detections_count = detections_count;
 
-            int i;
-            for (i = 0; i < nboxes; ++i) {
-
-                int class_id;
-                for (class_id = 0; class_id < classes; ++class_id) {
+            for (int i = 0; i < nboxes; ++i)
+            {
+                for (int class_id = 0; class_id < classes; ++class_id)
+                {
                     float prob = dets[i].prob[class_id];
-                    if (prob > 0) {
+                    if (prob > 0.0f)
+                    {
                         detections_count++;
                         detections = (box_prob*)xrealloc(detections, detections_count * sizeof(box_prob));
                         detections[detections_count - 1].b = dets[i].bbox;
@@ -1131,8 +1193,10 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
                             //printf(" IoU = %f, prob = %f, class_id = %d, truth[j].id = %d \n",
                             //    box_iou(dets[i].bbox, t), prob, class_id, truth[j].id);
                             float current_iou = box_iou(dets[i].bbox, t);
-                            if (current_iou > iou_thresh && class_id == truth[j].id) {
-                                if (current_iou > max_iou) {
+                            if (current_iou > iou_thresh && class_id == truth[j].id)
+                            {
+                                if (current_iou > max_iou)
+                                {
                                     max_iou = current_iou;
                                     truth_index = unique_truth_count + j;
                                 }
@@ -1140,16 +1204,20 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
                         }
 
                         // best IoU
-                        if (truth_index > -1) {
+                        if (truth_index > -1)
+                        {
                             detections[detections_count - 1].truth_flag = 1;
                             detections[detections_count - 1].unique_truth_index = truth_index;
                         }
-                        else {
+                        else
+                        {
                             // if object is difficult then remove detection
-                            for (j = 0; j < num_labels_dif; ++j) {
+                            for (j = 0; j < num_labels_dif; ++j)
+                            {
                                 box t = { truth_dif[j].x, truth_dif[j].y, truth_dif[j].w, truth_dif[j].h };
                                 float current_iou = box_iou(dets[i].bbox, t);
-                                if (current_iou > iou_thresh && class_id == truth_dif[j].id) {
+                                if (current_iou > iou_thresh && class_id == truth_dif[j].id)
+                                {
                                     --detections_count;
                                     break;
                                 }
@@ -1157,21 +1225,27 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
                         }
 
                         // calc avg IoU, true-positives, false-positives for required Threshold
-                        if (prob > thresh_calc_avg_iou) {
-                            int z, found = 0;
-                            for (z = checkpoint_detections_count; z < detections_count - 1; ++z) {
-                                if (detections[z].unique_truth_index == truth_index) {
-                                    found = 1; break;
+                        if (prob > thresh_calc_avg_iou)
+                        {
+                            int found = 0;
+                            for (int z = checkpoint_detections_count; z < detections_count - 1; ++z)
+                            {
+                                if (detections[z].unique_truth_index == truth_index)
+                                {
+                                    found = 1;
+                                    break;
                                 }
                             }
 
-                            if (truth_index > -1 && found == 0) {
+                            if (truth_index > -1 && found == 0)
+                            {
                                 avg_iou += max_iou;
                                 ++tp_for_thresh;
                                 avg_iou_per_class[class_id] += max_iou;
                                 tp_for_thresh_per_class[class_id]++;
                             }
-                            else{
+                            else
+                            {
                                 fp_for_thresh++;
                                 fp_for_thresh_per_class[class_id]++;
                             }
@@ -1205,12 +1279,16 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     //}
 
     if ((tp_for_thresh + fp_for_thresh) > 0)
+    {
         avg_iou = avg_iou / (tp_for_thresh + fp_for_thresh);
+    }
 
-    int class_id;
-    for(class_id = 0; class_id < classes; class_id++){
+    for(int class_id = 0; class_id < classes; class_id++)
+    {
         if ((tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id]) > 0)
+        {
             avg_iou_per_class[class_id] = avg_iou_per_class[class_id] / (tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id]);
+        }
     }
 
     // SORT(detections)
@@ -1225,27 +1303,32 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 
     // for PR-curve
     pr_t** pr = (pr_t**)xcalloc(classes, sizeof(pr_t*));
-    for (i = 0; i < classes; ++i) {
+    for (int i = 0; i < classes; ++i)
+    {
         pr[i] = (pr_t*)xcalloc(detections_count, sizeof(pr_t));
     }
     printf("\n detections_count = %d, unique_truth_count = %d  \n", detections_count, unique_truth_count);
 
 
     int* detection_per_class_count = (int*)xcalloc(classes, sizeof(int));
-    for (j = 0; j < detections_count; ++j) {
+    for (j = 0; j < detections_count; ++j)
+    {
         detection_per_class_count[detections[j].class_id]++;
     }
 
     int* truth_flags = (int*)xcalloc(unique_truth_count, sizeof(int));
 
-    int rank;
-    for (rank = 0; rank < detections_count; ++rank) {
+    for (int rank = 0; rank < detections_count; ++rank)
+    {
         if (rank % 100 == 0)
+        {
             printf(" rank = %d of ranks = %d \r", rank, detections_count);
+        }
 
-        if (rank > 0) {
-            int class_id;
-            for (class_id = 0; class_id < classes; ++class_id) {
+        if (rank > 0)
+        {
+            for (int class_id = 0; class_id < classes; ++class_id)
+            {
                 pr[class_id][rank].tp = pr[class_id][rank - 1].tp;
                 pr[class_id][rank].fp = pr[class_id][rank - 1].fp;
             }
@@ -1254,33 +1337,51 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
         box_prob d = detections[rank];
         pr[d.class_id][rank].prob = d.p;
         // if (detected && isn't detected before)
-        if (d.truth_flag == 1) {
+        if (d.truth_flag == 1)
+        {
             if (truth_flags[d.unique_truth_index] == 0)
             {
                 truth_flags[d.unique_truth_index] = 1;
                 pr[d.class_id][rank].tp++;    // true-positive
             } else
+            {
                 pr[d.class_id][rank].fp++;
+            }
         }
-        else {
+        else
+        {
             pr[d.class_id][rank].fp++;    // false-positive
         }
 
-        for (i = 0; i < classes; ++i)
+        for (int i = 0; i < classes; ++i)
         {
             const int tp = pr[i][rank].tp;
             const int fp = pr[i][rank].fp;
             const int fn = truth_classes_count[i] - tp;    // false-negative = objects - true-positive
             pr[i][rank].fn = fn;
 
-            if ((tp + fp) > 0) pr[i][rank].precision = (double)tp / (double)(tp + fp);
-            else pr[i][rank].precision = 0;
+            if ((tp + fp) > 0)
+            {
+                pr[i][rank].precision = (double)tp / (double)(tp + fp);
+            }
+            else
+            {
+                pr[i][rank].precision = 0;
+            }
 
-            if ((tp + fn) > 0) pr[i][rank].recall = (double)tp / (double)(tp + fn);
-            else pr[i][rank].recall = 0;
+            if ((tp + fn) > 0)
+            {
+                pr[i][rank].recall = (double)tp / (double)(tp + fn);
+            }
+            else
+            {
+                pr[i][rank].recall = 0;
+            }
 
-            if (rank == (detections_count - 1) && detection_per_class_count[i] != (tp + fp)) {    // check for last rank
-                    printf(" class_id: %d - detections = %d, tp+fp = %d, tp = %d, fp = %d \n", i, detection_per_class_count[i], tp+fp, tp, fp);
+            if (rank == (detections_count - 1) && detection_per_class_count[i] != (tp + fp))
+            {
+                // check for last rank
+                printf(" class_id: %d - detections = %d, tp+fp = %d, tp = %d, fp = %d \n", i, detection_per_class_count[i], tp+fp, tp, fp);
             }
         }
     }
@@ -1289,7 +1390,8 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 
     double mean_average_precision = 0;
 
-    for (i = 0; i < classes; ++i) {
+    for (int i = 0; i < classes; ++i)
+    {
         double avg_precision = 0;
 
         // MS COCO - uses 101-Recall-points on PR-chart.
@@ -1302,12 +1404,13 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
         {
             double last_recall = pr[i][detections_count - 1].recall;
             double last_precision = pr[i][detections_count - 1].precision;
-            for (rank = detections_count - 2; rank >= 0; --rank)
+            for (int rank = detections_count - 2; rank >= 0; --rank)
             {
                 double delta_recall = last_recall - pr[i][rank].recall;
                 last_recall = pr[i][rank].recall;
 
-                if (pr[i][rank].precision > last_precision) {
+                if (pr[i][rank].precision > last_precision)
+                {
                     last_precision = pr[i][rank].precision;
                 }
 
@@ -1321,14 +1424,18 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
         else
         {
             int point;
-            for (point = 0; point < map_points; ++point) {
+            for (point = 0; point < map_points; ++point)
+            {
                 double cur_recall = point * 1.0 / (map_points-1);
                 double cur_precision = 0;
                 double cur_prob = 0;
-                for (rank = 0; rank < detections_count; ++rank)
+                for (int rank = 0; rank < detections_count; ++rank)
                 {
-                    if (pr[i][rank].recall >= cur_recall) {    // > or >=
-                        if (pr[i][rank].precision > cur_precision) {
+                    if (pr[i][rank].recall >= cur_recall)
+                    {
+                        // > or >=
+                        if (pr[i][rank].precision > cur_precision)
+                        {
                             cur_precision = pr[i][rank].precision;
                             cur_prob = pr[i][rank].prob;
                         }
@@ -1341,8 +1448,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
             avg_precision = avg_precision / map_points;
         }
 
-        printf("class_id = %d, name = %s, ap = %2.2f%%   \t (TP = %d, FP = %d) \n",
-            i, names[i], avg_precision * 100, tp_for_thresh_per_class[i], fp_for_thresh_per_class[i]);
+        printf("class_id = %d, name = %s, ap = %2.2f%%   \t (TP = %d, FP = %d) \n", i, names[i], avg_precision * 100, tp_for_thresh_per_class[i], fp_for_thresh_per_class[i]);
 
         float class_precision = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)fp_for_thresh_per_class[i]);
         float class_recall = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)(truth_classes_count[i] - tp_for_thresh_per_class[i]));
@@ -1354,20 +1460,25 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     const float cur_precision = (float)tp_for_thresh / ((float)tp_for_thresh + (float)fp_for_thresh);
     const float cur_recall = (float)tp_for_thresh / ((float)tp_for_thresh + (float)(unique_truth_count - tp_for_thresh));
     const float f1_score = 2.F * cur_precision * cur_recall / (cur_precision + cur_recall);
-    printf("\n for conf_thresh = %1.2f, precision = %1.2f, recall = %1.2f, F1-score = %1.2f \n",
-        thresh_calc_avg_iou, cur_precision, cur_recall, f1_score);
+    printf("\n for conf_thresh = %1.2f, precision = %1.2f, recall = %1.2f, F1-score = %1.2f \n", thresh_calc_avg_iou, cur_precision, cur_recall, f1_score);
 
-    printf(" for conf_thresh = %0.2f, TP = %d, FP = %d, FN = %d, average IoU = %2.2f %% \n",
-        thresh_calc_avg_iou, tp_for_thresh, fp_for_thresh, unique_truth_count - tp_for_thresh, avg_iou * 100);
+    printf(" for conf_thresh = %0.2f, TP = %d, FP = %d, FN = %d, average IoU = %2.2f %% \n", thresh_calc_avg_iou, tp_for_thresh, fp_for_thresh, unique_truth_count - tp_for_thresh, avg_iou * 100);
 
     mean_average_precision = mean_average_precision / classes;
     printf("\n IoU threshold = %2.0f %%, ", iou_thresh * 100);
-    if (map_points) printf("used %d Recall-points \n", map_points);
-    else printf("used Area-Under-Curve for each unique Recall \n");
+    if (map_points)
+    {
+        printf("used %d Recall-points \n", map_points);
+    }
+    else
+    {
+        printf("used Area-Under-Curve for each unique Recall \n");
+    }
 
     printf(" mean average precision (mAP@%0.2f) = %f, or %2.2f %% \n", iou_thresh, mean_average_precision, mean_average_precision * 100);
 
-    for (i = 0; i < classes; ++i) {
+    for (int i = 0; i < classes; ++i)
+    {
         free(pr[i]);
     }
     free(pr);
@@ -1378,7 +1489,8 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     free(paths_dif);
     free_list_contents(plist);
     free_list(plist);
-    if (plist_dif) {
+    if (plist_dif)
+    {
         free_list_contents(plist_dif);
         free_list(plist_dif);
     }
@@ -1391,27 +1503,33 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     printf(" `-points 101` for MS COCO \n");
     printf(" `-points 11` for PascalVOC 2007 (uncomment `difficult` in voc.data) \n");
     printf(" `-points 0` (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset\n");
-    if (reinforcement_fd != NULL) fclose(reinforcement_fd);
+    if (reinforcement_fd != NULL)
+    {
+        fclose(reinforcement_fd);
+    }
 
     // free memory
     free_ptrs((void**)names, net.layers[net.n - 1].classes);
     free_list_contents_kvp(options);
     free_list(options);
 
-    if (existing_net) {
+    if (existing_net)
+    {
         //set_batch_network(&net, initial_batch);
         //free_network_recurrent_state(*existing_net);
         restore_network_recurrent_state(*existing_net);
         //randomize_network_recurrent_state(*existing_net);
     }
-    else {
+    else
+    {
         free_network(net);
     }
-    if (val) free(val);
-    if (val_resized) free(val_resized);
-    if (thr) free(thr);
-    if (buf) free(buf);
-    if (buf_resized) free(buf_resized);
+
+    free(val);
+    free(val_resized);
+    free(thr);
+    free(buf);
+    free(buf_resized);
 
     return mean_average_precision;
 }
@@ -1685,12 +1803,13 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
         else sized = resize_image(im, net.w, net.h);
 
         layer l = net.layers[net.n - 1];
-        int k;
-        for (k = 0; k < net.n; ++k) {
+        for (int k = 0; k < net.n; ++k)
+        {
             layer lk = net.layers[k];
-            if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
+            if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
+            {
                 l = lk;
-                printf(" Detection layer: %d - type = %d \n", k, l.type);
+                printf("Detection layer #%d is type %d (%s)\n", k, l.type, get_layer_string(l.type));
             }
         }
 
@@ -1855,9 +1974,10 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
         int k;
         for (k = 0; k < net.n; ++k) {
             layer lk = net.layers[k];
-            if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION) {
+            if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
+            {
                 l = lk;
-                printf(" Detection layer: %d - type = %d \n", k, l.type);
+                printf("Detection layer #%d is type %d (%s)\n", k, l.type, get_layer_string(l.type));
             }
         }
 

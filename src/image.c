@@ -795,6 +795,7 @@ image make_image(int w, int h, int c)
 {
     image out = make_empty_image(w,h,c);
     out.data = (float*)xcalloc(h * w * c, sizeof(float));
+
     return out;
 }
 
@@ -1533,17 +1534,17 @@ image load_image_stb_resize(char *filename, int w, int h, int c)
     return out;
 }
 
-image load_image(char *filename, int w, int h, int c)
+image load_image(char * filename, int desired_width, int desired_height, int channels)
 {
 #ifdef OPENCV
-    //image out = load_image_stb(filename, c);
-    image out = load_image_cv(filename, c);
+    image out = load_image_cv(filename, channels);
 #else
-    image out = load_image_stb(filename, c);    // without OpenCV
-#endif  // OPENCV
+    image out = load_image_stb(filename, channels); // without OpenCV
+#endif
 
-    if((h && w) && (h != out.h || w != out.w)){
-        image resized = resize_image(out, w, h);
+    if (desired_height > 0 && desired_width > 0 && (desired_height != out.h || desired_width != out.w))
+    {
+        image resized = resize_image(out, desired_width, desired_height);
         free_image(out);
         out = resized;
     }

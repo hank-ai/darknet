@@ -160,7 +160,9 @@ extern "C" image load_image_cv(char *filename, int channels)
 {
     cv::Mat mat = load_image_mat(filename, channels);
 
-    if (mat.empty()) {
+    if (mat.empty())
+    {
+        /// @todo why create an image?  shouldn't this be a fatal error?
         return make_image(10, 10, channels);
     }
     return mat_to_image(mat);
@@ -1139,20 +1141,24 @@ extern "C" void draw_train_loss(char *windows_name, mat_cv* img_src, int img_siz
         }
 
         // precision
-        if (draw_precision) {
+        if (draw_precision)
+        {
             static float old_precision = 0;
             static float max_precision = 0;
             static int iteration_old = 0;
             static int text_iteration_old = 0;
             if (iteration_old == 0)
+            {
                 cv::putText(img, accuracy_name, cv::Point(10, 12), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 0, 0), 1, CV_AA);
+            }
 
-	        if (iteration_old != 0){
-            	    cv::line(img,
-                        cv::Point(img_offset + draw_size * (float)iteration_old / max_batches, draw_size * (1 - old_precision)),
-                        cv::Point(img_offset + draw_size * (float)current_batch / max_batches, draw_size * (1 - precision)),
-                        CV_RGB(255, 0, 0), 1, 8, 0);
-	        }
+            if (iteration_old != 0)
+            {
+                cv::line(img,
+                    cv::Point(img_offset + draw_size * (float)iteration_old / max_batches, draw_size * (1 - old_precision)),
+                    cv::Point(img_offset + draw_size * (float)current_batch / max_batches, draw_size * (1 - precision)),
+                    CV_RGB(255, 0, 0), 1, 8, 0);
+            }
 
             sprintf(char_buff, "%2.1f%% ", precision * 100);
             cv::putText(img, char_buff, cv::Point(10, 28), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 255, 255), 5, CV_AA);
