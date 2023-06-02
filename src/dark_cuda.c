@@ -213,8 +213,8 @@ void cudnn_check_error_extended(cudnnStatus_t status, const char * const filenam
 #endif
     if (cuda_debug_sync)
     {
-        status = cudaDeviceSynchronize();
-        if (status != CUDNN_STATUS_SUCCESS)
+        cudaError_t cuda_status = cudaDeviceSynchronize();
+        if (cuda_status != CUDA_SUCCESS)
         {
             printf("\ncudaDeviceSynchronize() error in %s, %s(), line #%d\n", filename, function, line);
         }
@@ -243,7 +243,8 @@ void cublas_check_error(cublasStatus_t status)
 
 void cublas_check_error_extended(cublasStatus_t status, const char * const filename, const char * const function, const int line)
 {
-    if (status != CUBLAS_STATUS_SUCCESS) {
+    if (status != CUBLAS_STATUS_SUCCESS)
+    {
       printf("\n cuBLAS status Error in: file: %s function: %s() line: %d\n", filename, function, line);
     }
 #if defined(DEBUG) || defined(CUDA_DEBUG)
@@ -251,10 +252,10 @@ void cublas_check_error_extended(cublasStatus_t status, const char * const filen
 #endif
     if (cuda_debug_sync)
     {
-        status = cudaDeviceSynchronize();
-        if (status != CUDA_SUCCESS)
+        cudaError_t cuda_status = cudaDeviceSynchronize();
+        if (cuda_status != CUDA_SUCCESS)
         {
-            printf("\n cudaError_t status = cudaDeviceSynchronize() Error in: file: %s function: %s() line: %d\n", filename, function, line);
+            printf("\ncudaDeviceSynchronize() Error in: file: %s function: %s() line: %d\n", filename, function, line);
         }
     }
     cublas_check_error(status);

@@ -45,6 +45,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
         net_map.benchmark_layers = benchmark_layers;
         const int net_classes = net_map.layers[net_map.n - 1].classes;
 
+        // free memory unnecessary arrays
         for (int k = 0; k < net_map.n - 1; ++k)
         {
             free_layer_custom(net_map.layers[k], 1);
@@ -73,7 +74,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
     srand(time(0));
     int seed = rand();
-    for (int k = 0; k < ngpus; ++k) {
+    for (int k = 0; k < ngpus; ++k)
+    {
         srand(seed);
 #ifdef GPU
         cuda_set_device(gpus[k]);
@@ -695,8 +697,8 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
     char **paths = (char **)list_to_array(plist);
 
     layer l = net.layers[net.n - 1];
-    int k;
-    for (k = 0; k < net.n; ++k) {
+    for (int k = 0; k < net.n; ++k)
+    {
         layer lk = net.layers[k];
         if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
         {
@@ -1033,12 +1035,8 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     int classes = l.classes;
 
     const int number_of_validation_images = plist->size;
-//    int i = 0;
-//    int t;
-
-    const float thresh = .005;
-    const float nms = .45;
-    //const float iou_thresh = 0.5;
+    const float thresh = 0.005f;
+    const float nms = 0.45f;
 
     int nthreads = 4;
     if (number_of_validation_images < 4)
@@ -1757,9 +1755,9 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     net.benchmark_layers = benchmark_layers;
     fuse_conv_batchnorm(net);
     calculate_binary_weights(net);
-    if (net.layers[net.n - 1].classes != names_size) {
-        printf("\n Error: in the file %s number of names %d that isn't equal to classes=%d in the file %s \n",
-            name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
+    if (net.layers[net.n - 1].classes != names_size)
+    {
+        printf("\n Error: in the file %s number of names %d that isn't equal to classes=%d in the file %s \n", name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
         if (net.layers[net.n - 1].classes > names_size)
         {
             darknet_fatal_error(DARKNET_LOC, "number of names and classes do not match");
@@ -1933,9 +1931,9 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
     net.benchmark_layers = benchmark_layers;
     //fuse_conv_batchnorm(net);
     //calculate_binary_weights(net);
-    if (net.layers[net.n - 1].classes != names_size) {
-        printf("\n Error: in the file %s number of names %d that isn't equal to classes=%d in the file %s \n",
-            name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
+    if (net.layers[net.n - 1].classes != names_size)
+    {
+        printf("\n Error: in the file %s number of names %d that isn't equal to classes=%d in the file %s \n", name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
         if (net.layers[net.n - 1].classes > names_size)
         {
             darknet_fatal_error(DARKNET_LOC, "number of names and classes do not match");
