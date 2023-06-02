@@ -312,11 +312,23 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
         int calc_map_for_each = 1 * train_images_num / (net.batch * net.subdivisions);  // calculate mAP for each epoch (used to be every 4 epochs)
         calc_map_for_each = fmax(calc_map_for_each, 100);
         int next_map_calc = iter_map + calc_map_for_each;
-        next_map_calc = fmax(next_map_calc, net.burn_in);
-        //next_map_calc = fmax(next_map_calc, 400);
-        if (calc_map) {
-            printf("\n (next mAP calculation at %d iterations) ", next_map_calc);
-            if (mean_average_precision > 0) printf("\n Last accuracy mAP@%0.2f = %2.2f %%, best = %2.2f %% ", iou_thresh, mean_average_precision * 100, best_map * 100);
+        if (loss > 2.0f)
+        {
+            // If the loss happens to be low (2.0 or less) then we'll allow the mAP% calculations through.  This means
+            // that if you start training a network with pre-existing weights, we can almost immediately generate the
+            // chart.png without having to wait until burn_in has been reached.  (Usually, burn_in is at 1000.)
+            //
+            // Otherwise, if the loss is > 2.0 then we force next_map_calc to wait until burn_in has been reached.
+            next_map_calc = fmax(next_map_calc, net.burn_in);
+        }
+
+        if (calc_map)
+        {
+            printf("\n(next mAP calculation will be at iterations #%d)", next_map_calc);
+            if (mean_average_precision > 0)
+            {
+                printf("\n Last accuracy mAP@%0.2f = %2.2f %%, best = %2.2f %% ", iou_thresh, mean_average_precision * 100, best_map * 100);
+            }
         }
 
         #ifndef WIN32
@@ -1091,7 +1103,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     time_t start = time(0);
     for (int i = nthreads; i < number_of_validation_images + nthreads; i += nthreads)
     {
-		printf("\r%d", i);
+        printf("\r%d", i);
 
         // wait until the 4 threads have finished loading in their image
         for (int t = 0; t < nthreads && (i + t - nthreads) < number_of_validation_images; ++t)
