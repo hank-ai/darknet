@@ -1489,22 +1489,19 @@ image load_image_stb(char *filename, int channels)
 {
     int w, h, c;
     unsigned char *data = stbi_load(filename, &w, &h, &c, channels);
-    if (!data) {
-        char shrinked_filename[1024];
-        if (strlen(filename) >= 1024) sprintf(shrinked_filename, "name is too long");
-        else sprintf(shrinked_filename, "%s", filename);
-        fprintf(stderr, "Cannot load image \"%s\"\nSTB Reason: %s\n", shrinked_filename, stbi_failure_reason());
-        FILE* fw = fopen("bad.list", "a");
-        fwrite(shrinked_filename, sizeof(char), strlen(shrinked_filename), fw);
-        char *new_line = "\n";
-        fwrite(new_line, sizeof(char), strlen(new_line), fw);
-        fclose(fw);
-        if (check_mistakes)
+    if (!data)
+    {
+        char short_filename[1024];
+        if (strlen(filename) >= 1024)
         {
-            darknet_fatal_error(DARKNET_LOC, "failed to load image %s", filename);
+            sprintf(short_filename, "name is too long");
         }
-        return make_image(10, 10, 3);
-        //exit(EXIT_FAILURE);
+        else
+        {
+            sprintf(short_filename, "%s", filename);
+        }
+
+        darknet_fatal_error(DARKNET_LOC, "failed to load image: STB=%s filename=\"%s\"", stbi_failure_reason(), short_filename);
     }
     if(channels) c = channels;
     int i,j,k;

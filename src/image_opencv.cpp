@@ -100,36 +100,47 @@ extern "C" {
 
 extern "C" mat_cv *load_image_mat_cv(const char *filename, int flag)
 {
-    cv::Mat *mat_ptr = NULL;
-    try {
+    try
+    {
         cv::Mat mat = cv::imread(filename, flag);
         if (mat.empty())
         {
-            std::string shrinked_filename = filename;
-            if (shrinked_filename.length() > 1024) {
-                shrinked_filename.resize(1024);
-                shrinked_filename = std::string("name is too long: ") + shrinked_filename;
+            std::string short_filename = filename;
+            if (short_filename.length() > 1024)
+            {
+                short_filename.resize(1024);
+                short_filename = std::string("image filename is too long: ") + short_filename;
             }
-            cerr << "Cannot load image " << shrinked_filename << std::endl;
-            std::ofstream bad_list("bad.list", std::ios::out | std::ios::app);
-            bad_list << shrinked_filename << std::endl;
-            //if (check_mistakes) getzzzchar();
-            return NULL;
+            darknet_fatal_error(DARKNET_LOC, "failed to load image file \"%s\"", short_filename.c_str());
         }
-        cv::Mat dst;
-        if (mat.channels() == 3) cv::cvtColor(mat, dst, cv::COLOR_RGB2BGR);
-        else if (mat.channels() == 4) cv::cvtColor(mat, dst, cv::COLOR_RGBA2BGRA);
-        else dst = mat;
 
-        mat_ptr = new cv::Mat(dst);
+        cv::Mat dst;
+        if (mat.channels() == 3)
+        {
+            cv::cvtColor(mat, dst, cv::COLOR_RGB2BGR);
+        }
+        else if (mat.channels() == 4)
+        {
+            cv::cvtColor(mat, dst, cv::COLOR_RGBA2BGRA);
+        }
+        else
+        {
+            dst = mat;
+        }
+
+        /// @todo Why are we doing it this way?  This causes us to copy the image data a 2nd time for every image we have to load
+        cv::Mat *mat_ptr = new cv::Mat(dst);
 
         return (mat_cv *)mat_ptr;
     }
-    catch (...) {
-        cerr << "OpenCV exception: load_image_mat_cv \n";
+    catch (const std::exception & e)
+    {
+        darknet_fatal_error(DARKNET_LOC, "exception caught while loading image %s: %s", filename, e.what());
     }
-    if (mat_ptr) delete mat_ptr;
-    return NULL;
+    catch (...)
+    {
+        darknet_fatal_error(DARKNET_LOC, "unknown exception while loading image %s", filename);
+    }
 }
 // ----------------------------------------
 
