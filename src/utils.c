@@ -27,6 +27,8 @@
 #pragma warning(disable: 4996)
 #endif
 
+bool darknet_must_exit = false;
+
 void *xmalloc_location(const size_t size, const char * const filename, const char * const funcname, const int line) {
     void *ptr=malloc(size);
     if(!ptr) {
@@ -348,39 +350,56 @@ void log_backtrace()
 }
 
 
+/* When things start going wrong, it isn't unusual for multiple threads to exit at the same time.  Multiple calls to
+ * darknet_fatal_error() results in overlapping messages, or we may not understand exactly which call was the first
+ * one to cause the original error.  To prevent this confusion, we use a mutex lock and will allow a single thread
+ * at a time to call into darknet_fatal_error().
+ */
+pthread_mutex_t darknet_fatal_error_critical_section = PTHREAD_MUTEX_INITIALIZER;
+
 void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...)
 {
     const int saved_errno = errno;
 
-    fflush(NULL); // flush *all* open output streams
+    pthread_mutex_lock(&darknet_fatal_error_critical_section);
 
-    fprintf(stderr,
-        "\n"
-        "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n"
-        "* A fatal error has been detected.  Darknet will now exit.\n");
-
-    if (saved_errno != 0)
+    // only log the message and the rest of the information if this is the first call into darknet_fatal_error()
+    if (darknet_must_exit == false)
     {
-        char buffer[50];
-        sprintf(buffer, "* Errno %d", saved_errno);
-        errno = saved_errno;
-        perror(buffer);
+        darknet_must_exit = true;
+
+        fflush(NULL); // flush *all* open output streams
+
+        fprintf(stderr,
+            "\n"
+            "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n"
+            "* A fatal error has been detected.  Darknet will now exit.\n");
+
+        if (saved_errno != 0)
+        {
+            char buffer[50];
+            sprintf(buffer, "* Errno %d", saved_errno);
+            errno = saved_errno;
+            perror(buffer);
+        }
+
+        fprintf(stderr, "* Error location: %s, %s(), line #%d\n", filename, funcname, line);
+        fprintf(stderr, "* Error message:  ");
+
+        va_list args;
+        va_start(args, msg);
+        vfprintf(stderr, msg, args);
+        va_end(args);
+
+        // the vfprintf() message is not newline-terminated so we need to take care of that before we print anything else
+        fprintf(stderr,
+            "\n"
+            "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
+
+        log_backtrace();
     }
 
-    fprintf(stderr, "* Error location: %s, %s(), line #%d\n", filename, funcname, line);
-    fprintf(stderr, "* Error message:  ");
-
-    va_list args;
-    va_start(args, msg);
-    vfprintf(stderr, msg, args);
-    va_end(args);
-
-    // the vfprintf() message is not newline-terminated so we need to take care of that before we print anything else
-    fprintf(stderr,
-        "\n"
-        "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
-
-    log_backtrace();
+    pthread_mutex_unlock(&darknet_fatal_error_critical_section);
 
     exit(EXIT_FAILURE);
 }
