@@ -83,12 +83,27 @@ void option_insert(list *l, char *key, char *val)
 
 void option_unused(list *l)
 {
+    kvp * previous_kvp = NULL;
+
     node *n = l->front;
-    while(n){
+    while(n)
+    {
         kvp *p = (kvp *)n->val;
-        if(!p->used){
-            fprintf(stderr, "Unused field: '%s = %s'\n", p->key, p->val);
+        if (!p->used)
+        {
+            if (previous_kvp)
+            {
+                // attempt to give some context as to where the error is happening in the .cfg file
+                fprintf(stderr,
+                        "\n"
+                        "Last option was: %s=%s\n"
+                        "Unused option is %s=%s\n",
+                        previous_kvp->key, previous_kvp->val,
+                        p->key, p->val);
+            }
+            darknet_fatal_error(DARKNET_LOC, "invalid, unused, or unrecognized option: %s=%s", p->key, p->val);
         }
+        previous_kvp = p;
         n = n->next;
     }
 }

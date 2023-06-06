@@ -1595,8 +1595,10 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
             l.backward_gpu = empty_func;
 #endif
             fprintf(stderr, "empty \n");
-        }else{
-            fprintf(stderr, "Type not recognized: %s\n", s->type);
+        }
+        else
+        {
+            darknet_fatal_error(DARKNET_LOC, "layer type not recognized: \"%s\"", s->type);
         }
 
         // calculate receptive field
