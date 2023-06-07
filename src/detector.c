@@ -124,6 +124,13 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     int train_images_num = plist->size;
     char **paths = (char **)list_to_array(plist);
 
+    const int calc_map_for_each = fmax(100, train_images_num / (net.batch * net.subdivisions));  // calculate mAP for each epoch (used to be every 4 epochs)
+    printf("mAP calculations will be every %d iterations\n", calc_map_for_each);
+
+    // normally we save the weights every 10K, unless max batches is <= 10K in which case we save every 1K
+    const int how_often_we_save_weights = (net.max_batches <= 10000 ? 1000 : 10000);
+    printf("weights will be saved every %d iterations\n", how_often_we_save_weights);
+
     const int init_w = net.w;
     const int init_h = net.h;
     const int init_b = net.batch;
@@ -198,7 +205,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     double time_remaining, avg_time = -1, alpha_time = 0.01;
 
     //while(i*imgs < N*120){
-    while (get_current_iteration(net) < net.max_batches) {
+    while (get_current_iteration(net) < net.max_batches && darknet_must_exit == false)
+    {
         if (l.random && count++ % 10 == 0) {
             float rand_coef = 1.4;
             if (l.random != 1.0) rand_coef = l.random;
@@ -307,20 +315,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
         avg_loss = avg_loss*.9 + loss*.1;
 
         const int iteration = get_current_iteration(net);
-        //i = get_current_batch(net);
 
-        int calc_map_for_each = 1 * train_images_num / (net.batch * net.subdivisions);  // calculate mAP for each epoch (used to be every 4 epochs)
-        calc_map_for_each = fmax(calc_map_for_each, 100);
-        int next_map_calc = iter_map + calc_map_for_each;
-        if (loss > 2.0f)
-        {
-            // If the loss happens to be low (2.0 or less) then we'll allow the mAP% calculations through.  This means
-            // that if you start training a network with pre-existing weights, we can almost immediately generate the
-            // chart.png without having to wait until burn_in has been reached.  (Usually, burn_in is at 1000.)
-            //
-            // Otherwise, if the loss is > 2.0 then we force next_map_calc to wait until burn_in has been reached.
-            next_map_calc = fmax(next_map_calc, net.burn_in);
-        }
+        const int next_map_calc = fmax(net.burn_in, iter_map + calc_map_for_each);
 
         if (calc_map)
         {
@@ -428,10 +424,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
         draw_train_loss(windows_name, img, img_size, avg_loss, max_img_loss, iteration, net.max_batches, mean_average_precision, draw_precision, "mAP%", avg_contrastive_acc / 100, dont_show, mjpeg_port, avg_time);
 #endif    // OPENCV
 
-        //if (i % 1000 == 0 || (i < 1000 && i % 100 == 0)) {
-        //if (i % 100 == 0) {
-        if ((iteration >= (iter_save + 10000) || iteration % 10000 == 0) ||
-            (iteration >= (iter_save + 1000) || iteration % 1000 == 0) && net.max_batches < 10000)
+        if (iteration >= iter_save + how_often_we_save_weights || (iteration % how_often_we_save_weights) == 0)
         {
             iter_save = iteration;
 #ifdef GPU
