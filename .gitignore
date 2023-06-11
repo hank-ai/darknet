@@ -42,6 +42,7 @@ build/Makefile
 */vcpkg-manifest-install.log
 build.log
 __pycache__/
+html/
 
 # OS Generated #
 .DS_Store*
