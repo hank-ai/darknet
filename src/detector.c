@@ -1048,7 +1048,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     {
         nthreads = number_of_validation_images;
     }
-    printf("using %d threads for mAP%% calculations\n", nthreads);
+    printf("using %d threads to load %d validation images for mAP%% calculations\n", nthreads, number_of_validation_images);
 
     image* val = (image*)xcalloc(nthreads, sizeof(image));
     image* val_resized = (image*)xcalloc(nthreads, sizeof(image));
@@ -1096,7 +1096,8 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     time_t start = time(0);
     for (int i = nthreads; i < number_of_validation_images + nthreads; i += nthreads)
     {
-        printf("\r%d", i);
+        const int percentage = roundl(100.0 * (i - nthreads) / number_of_validation_images);
+        printf("\rprocessing #%d (%d%%)", (i - nthreads), percentage);
         fflush(stdout);
 
         // wait until the 4 threads have finished loading in their image
