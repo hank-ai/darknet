@@ -1,5 +1,8 @@
 # Yolo v4, v3 and v2 for Windows and Linux
 
+![darknet and hank.ai logos](artwork/darknet_and_hank_ai_logos.png)
+* [Hank.ai and Darknet/YOLO](https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/)
+
 ## (neural networks for object detection)
 
 * Paper **YOLOv7**: https://arxiv.org/abs/2207.02696
