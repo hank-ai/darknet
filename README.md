@@ -2,6 +2,8 @@
 
 ![darknet and hank.ai logos](artwork/darknet_and_hank_ai_logos.png)
 * [Hank.ai and Darknet/YOLO](https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/)
+* Read the FAQ:  https://www.ccoderun.ca/programming/darknet_faq/
+* Join the Darknet/YOLO discord:  https://discord.gg/zSq8rtW
 
 ## (neural networks for object detection)
 
