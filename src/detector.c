@@ -1097,6 +1097,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     for (int i = nthreads; i < number_of_validation_images + nthreads; i += nthreads)
     {
         printf("\r%d", i);
+        fflush(stdout);
 
         // wait until the 4 threads have finished loading in their image
         for (int t = 0; t < nthreads && (i + t - nthreads) < number_of_validation_images; ++t)
