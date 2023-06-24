@@ -864,7 +864,6 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
         fseek(fp, -2, SEEK_CUR);
 #endif
         fprintf(fp, "\n]\n");
-        fclose(fp);
     }
 
     if (fp) fclose(fp);
@@ -1947,7 +1946,7 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
         }
     }
 
-    srand(2222222);
+    srand(2222222); /// @todo why??
     char buff[256];
     char *input = buff;
 
