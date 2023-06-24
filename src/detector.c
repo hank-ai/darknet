@@ -320,7 +320,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
         if (calc_map)
         {
-            printf("\n(next mAP calculation will be at iterations #%d)", next_map_calc);
+            printf("\n(next mAP calculation will be at iteration #%d)", next_map_calc);
             if (mean_average_precision > 0)
             {
                 printf("\n Last accuracy mAP@%0.2f = %2.2f %%, best = %2.2f %% ", iou_thresh, mean_average_precision * 100, best_map * 100);
@@ -1042,8 +1042,8 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     const float thresh = 0.005f;
     const float nms = 0.45f;
 
-    int nthreads = 4;
-    if (number_of_validation_images < 4)
+    int nthreads = 4; /// @todo how many cores do we have available?
+    if (number_of_validation_images < nthreads)
     {
         nthreads = number_of_validation_images;
     }
