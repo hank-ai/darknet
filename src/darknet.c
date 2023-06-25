@@ -443,6 +443,9 @@ void darknet_signal_handler(int sig)
 
 int main(int argc, char **argv)
 {
+	setvbuf(stdout, NULL, _IONBF, 0);
+	setvbuf(stderr, NULL, _IONBF, 0);
+
 #ifdef _DEBUG
 	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
     printf(" _DEBUG is used \n");
