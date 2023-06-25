@@ -12,6 +12,7 @@
 #include "dark_cuda.h"
 #include "blas.h"
 #include "connected_layer.h"
+#include "darknet_utils.h"
 
 
 extern void predict_classifier(char *datacfg, char *cfgfile, char *weightfile, char *filename, int top);
@@ -476,10 +477,20 @@ int main(int argc, char **argv)
 		strip_args(argv[i]);
 	}
 
-    //test_resize("data/bad.jpg");
-    //test_box();
-    //test_convolutional_layer();
-    if(argc < 2){
+	if (find_arg(argc, argv, "-colour") ||
+		find_arg(argc, argv, "-color"))
+	{
+		colour_is_enabled = true;
+	}
+
+	if (find_arg(argc, argv, "-nocolour") ||
+		find_arg(argc, argv, "-nocolor"))
+	{
+		colour_is_enabled = false;
+	}
+
+    if(argc < 2)
+	{
         fprintf(stderr, "usage: %s <function>\n", argv[0]);
         return 0;
     }

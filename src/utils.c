@@ -59,7 +59,12 @@ double what_time_is_it_now()
     if (gettimeofday(&time, NULL)) {
         return 0;
     }
-    return (double)time.tv_sec + (double)time.tv_usec * .000001;
+
+	/* tv_usec is in microseconds, so 1/1000000 seconds.
+	 * We're converting the time into a double.
+	 */
+
+	return (double)time.tv_sec + (double)time.tv_usec * 0.000001;
 }
 
 int *read_map(char *filename)
@@ -131,7 +136,7 @@ int find_int_arg(int argc, char **argv, char *arg, int def)
         if(0==strcmp(argv[i], arg)){
             def = atoi(argv[i+1]);
             del_arg(argc, argv, i);
-            del_arg(argc, argv, i);
+            del_arg(argc, argv, i); /// @todo should this be i+1?
             break;
         }
     }
@@ -146,7 +151,7 @@ float find_float_arg(int argc, char **argv, char *arg, float def)
         if(0==strcmp(argv[i], arg)){
             def = atof(argv[i+1]);
             del_arg(argc, argv, i);
-            del_arg(argc, argv, i);
+            del_arg(argc, argv, i); /// @todo should this be i+1?
             break;
         }
     }
@@ -161,7 +166,7 @@ char *find_char_arg(int argc, char **argv, char *arg, char *def)
         if(0==strcmp(argv[i], arg)){
             def = argv[i+1];
             del_arg(argc, argv, i);
-            del_arg(argc, argv, i);
+            del_arg(argc, argv, i); /// @todo should this be i+1?
             break;
         }
     }
@@ -368,8 +373,6 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
     {
         darknet_must_exit = true;
 
-        fflush(NULL); // flush *all* open output streams
-
         fprintf(stderr,
             "\n"
             "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n"
@@ -401,7 +404,8 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 
     pthread_mutex_unlock(&darknet_fatal_error_critical_section);
 
-    exit(EXIT_FAILURE);
+	abort();
+//    exit(EXIT_FAILURE);
 }
 
 const char * size_to_IEC_string(const size_t size)

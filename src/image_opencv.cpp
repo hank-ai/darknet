@@ -3,6 +3,7 @@
 
 #ifdef OPENCV
 #include "utils.h"
+#include "darknet_utils.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -1185,7 +1186,7 @@ extern "C" void draw_train_loss(char *windows_name, mat_cv* img_src, int img_siz
             old_precision = precision;
             iteration_old = current_batch;
         }
-        sprintf(char_buff, "current avg loss = %2.4f    iteration = %d    approx. time left = %2.2f hours", avg_loss, current_batch, time_remaining);
+        sprintf(char_buff, "current avg loss = %2.4f    iteration = %d    approx. time left = %s", avg_loss, current_batch, format_time_remaining(60.0 * 60.0 * time_remaining).c_str());
         pt1.x = 15, pt1.y = draw_size + 18;
         pt2.x = pt1.x + 800, pt2.y = pt1.y + 20;
         cv::rectangle(img, pt1, pt2, CV_RGB(255, 255, 255), CV_FILLED, 8, 0);

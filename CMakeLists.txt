@@ -382,6 +382,7 @@ file(GLOB sources "${CMAKE_CURRENT_LIST_DIR}/src/*.c")
 list(APPEND sources
   ${CMAKE_CURRENT_LIST_DIR}/src/http_stream.cpp
   ${CMAKE_CURRENT_LIST_DIR}/src/image_opencv.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/src/darknet_utils.cpp
 )
 #remove darknet.c file which is necessary only for the executable, not for the lib
 list(REMOVE_ITEM sources

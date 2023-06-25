@@ -43,7 +43,11 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 /// Convert the given size to a human-readable string.  This uses 1024 as a divider, so 1 KiB == 1024 bytes.
 const char * size_to_IEC_string(const size_t size);
 
+/** Convert the current time -- as seconds -- into a double.  Precision is microseconds (10^-6).
+ * It takes 1000 microseconds to make 1 millisecond.
+ */
 double what_time_is_it_now();
+
 int *read_map(char *filename);
 void shuffle(void *arr, size_t n, size_t size);
 void sorta_shuffle(void *arr, size_t n, size_t size, size_t sections);
