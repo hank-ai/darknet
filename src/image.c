@@ -21,7 +21,6 @@
 #endif
 
 extern int check_mistakes;
-//int windows = 0;
 
 float colors[6][3] = { {1,0,1}, {0,0,1},{0,1,1},{0,1,0},{1,1,0},{1,0,0} };
 
@@ -1027,7 +1026,7 @@ image resize_max(image im, int max)
         w = (w * max) / h;
         h = max;
     }
-    if(w == im.w && h == im.h) return im;
+    if(w == im.w && h == im.h) return copy_image(im);
     image resized = resize_image(im, w, h);
     return resized;
 }
@@ -1043,7 +1042,7 @@ image resize_min(image im, int min)
         w = (w * min) / h;
         h = min;
     }
-    if(w == im.w && h == im.h) return im;
+    if(w == im.w && h == im.h) return copy_image(im);
     image resized = resize_image(im, w, h);
     return resized;
 }
