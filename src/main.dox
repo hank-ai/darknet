@@ -18,4 +18,16 @@ The Doxygen pages below are meant to assist software developers in understanding
 @li @ref main()
 @li @ref darknet_fatal_error()
 
+@p darknet_utils.h:
+@li @ref display_loaded_images()
+@li @ref display_iteration_summary()
+@li @ref display_last_accuracy()
+
+@p darknet_utils.hpp:
+@li @ref format_time()
+@li @ref format_time_remaining()
+@li @ref format_loss()
+@li @ref format_map_accuracy()
+@li @ref in_colour()
+
 */
