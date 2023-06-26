@@ -8,6 +8,7 @@
 #include "box.h"
 #include "demo.h"
 #include "option_list.h"
+#include "darknet_utils.h"
 
 #ifndef __COMPAR_FN_T
 #define __COMPAR_FN_T
@@ -68,15 +69,15 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     srand(time(0));
     char *base = basecfg(cfgfile);
     printf("%s\n", base);
-    float avg_loss = -1;
-    float avg_contrastive_acc = 0;
+    float avg_loss = -1.0f;
+    float avg_contrastive_acc = 0.0f;
     network* nets = (network*)xcalloc(ngpus, sizeof(network));
 
-    srand(time(0));
+    srand(time(0)); /// @todo
     int seed = rand();
     for (int k = 0; k < ngpus; ++k)
     {
-        srand(seed);
+        srand(seed); /// @todo
 #ifdef GPU
         cuda_set_device(gpus[k]);
 #endif
@@ -202,11 +203,14 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     pthread_t load_thread = load_data(args);
 
     int count = 0;
-    double time_remaining, avg_time = -1, alpha_time = 0.01;
+    double time_remaining_in_hours = 0.0;
+	double avg_time_in_hours = -1.0;
+	double alpha_time = 0.01;
 
-    //while(i*imgs < N*120){
     while (get_current_iteration(net) < net.max_batches && darknet_must_exit == false)
     {
+		printf("\n"); // we're starting a new iteration
+
         if (l.random && count++ % 10 == 0) {
             float rand_coef = 1.4;
             if (l.random != 1.0) rand_coef = l.random;
@@ -294,12 +298,14 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
         */
 
         const double load_time = (what_time_is_it_now() - time);
-        printf("Loaded: %lf seconds", load_time);
-        if (load_time > 0.1 && avg_loss > 0) printf(" - performance bottleneck on CPU or Disk HDD/SSD");
-        printf("\n");
+		display_loaded_images(args.n, load_time); // "loaded %d images in %s\n"
+		if (load_time > 0.1 && avg_loss > 0)
+		{
+			display_warning_msg("Performance bottleneck detected.  Slow CPU or hard drive?\n");
+		}
 
         time = what_time_is_it_now();
-        float loss = 0;
+        float loss = 0.0f;
 #ifdef GPU
         if (ngpus == 1) {
             int wait_key = (dont_show) ? 0 : 1;
@@ -318,31 +324,32 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
         const int next_map_calc = fmax(net.burn_in, iter_map + calc_map_for_each);
 
-        if (calc_map)
-        {
-            printf("\n(next mAP calculation will be at iterations #%d)", next_map_calc);
-            if (mean_average_precision > 0)
-            {
-                printf("\n Last accuracy mAP@%0.2f = %2.2f %%, best = %2.2f %% ", iou_thresh, mean_average_precision * 100, best_map * 100);
-            }
-        }
+		if (calc_map)
+		{
+			printf("-> next mAP calculation will be at iteration #%d\n", next_map_calc);
+			if (mean_average_precision > 0)
+			{
+				// "-> last accuracy mAP@0.50=42.67%, best=78.32%"
+				display_last_accuracy(iou_thresh, mean_average_precision, best_map);
+			}
+		}
 
-        #ifndef WIN32
-        if (mean_average_precision > 0.0) {
-            printf("\033]2;%d/%d: loss=%0.1f map=%0.2f best=%0.2f hours left=%0.1f\007", iteration, net.max_batches, loss, mean_average_precision, best_map, avg_time);
-        }
-        else {
-            printf("\033]2;%d/%d: loss=%0.1f hours left=%0.1f\007", iteration, net.max_batches, loss, avg_time);
-        }
-        #endif
+		update_console_title(iteration, net.max_batches, loss, mean_average_precision, best_map, avg_time_in_hours * 60 * 60);
 
-        if (net.cudnn_half) {
-            if (iteration < net.burn_in * 3) fprintf(stderr, "\n Tensor Cores are disabled until the first %d iterations are reached.\n", 3 * net.burn_in);
-            else fprintf(stderr, "\n Tensor Cores are used.\n");
-            fflush(stderr);
-        }
-        printf("\n %d: %f, %f avg loss, %f rate, %lf seconds, %d images, %f hours left\n", iteration, loss, avg_loss, get_current_rate(net), (what_time_is_it_now() - time), iteration*imgs, avg_time);
-        fflush(stdout);
+        if (net.cudnn_half)
+		{
+			if (iteration < net.burn_in * 3)
+			{
+				printf("Tensor Cores are disabled until the first %d iterations are reached.\n", 3 * net.burn_in);
+			}
+			else
+			{
+				printf("Tensor Cores are used.\n");
+			}
+		}
+
+		// 5989: loss=0.444, avg loss=0.329, rate=0.000026, 64.424 milliseconds, 383296 images, time remaining=7 seconds
+		display_iteration_summary(iteration, loss, avg_loss, get_current_rate(net), (what_time_is_it_now() - time), iteration * imgs, avg_time_in_hours * 60 * 60);
 
         int draw_precision = 0;
 
@@ -403,10 +410,17 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
             // done doing mAP% calculation
         }
 
-        time_remaining = ((net.max_batches - iteration) / ngpus)*(what_time_is_it_now() - time + load_time) / 60 / 60;
-        // set initial value, even if resume training from 10000 iteration
-        if (avg_time < 0) avg_time = time_remaining;
-        else avg_time = alpha_time * time_remaining + (1 -  alpha_time) * avg_time;
+		time_remaining_in_hours = ((net.max_batches - iteration) / ngpus)*(what_time_is_it_now() - time + load_time) / 60 / 60;
+		// set initial value, even if resume training from 10000 iteration
+		if (avg_time_in_hours < 0.0)
+		{
+			avg_time_in_hours = time_remaining_in_hours;
+		}
+		else
+		{
+			avg_time_in_hours = alpha_time * time_remaining_in_hours + (1 -  alpha_time) * avg_time_in_hours;
+		}
+
 #ifdef OPENCV
         if (net.contrastive)
         {
@@ -421,7 +435,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
             if (cur_con_acc >= 0) avg_contrastive_acc = avg_contrastive_acc*0.99 + cur_con_acc * 0.01;
             printf("  avg_contrastive_acc = %f \n", avg_contrastive_acc);
         }
-        draw_train_loss(windows_name, img, img_size, avg_loss, max_img_loss, iteration, net.max_batches, mean_average_precision, draw_precision, "mAP%", avg_contrastive_acc / 100, dont_show, mjpeg_port, avg_time);
+        draw_train_loss(windows_name, img, img_size, avg_loss, max_img_loss, iteration, net.max_batches, mean_average_precision, draw_precision, "mAP%", avg_contrastive_acc / 100, dont_show, mjpeg_port, avg_time_in_hours);
 #endif    // OPENCV
 
         if (iteration >= iter_save + how_often_we_save_weights || (iteration % how_often_we_save_weights) == 0)
@@ -1042,8 +1056,8 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     const float thresh = 0.005f;
     const float nms = 0.45f;
 
-    int nthreads = 4;
-    if (number_of_validation_images < 4)
+    int nthreads = 4; /// @todo how many cores do we have available?
+    if (number_of_validation_images < nthreads)
     {
         nthreads = number_of_validation_images;
     }
@@ -1097,7 +1111,6 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
     {
         const int percentage = roundl(100.0 * (i - nthreads) / number_of_validation_images);
         printf("\rprocessing #%d (%d%%)", (i - nthreads), percentage);
-        fflush(stdout);
 
         // wait until the 4 threads have finished loading in their image
         for (int t = 0; t < nthreads && (i + t - nthreads) < number_of_validation_images; ++t)

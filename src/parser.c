@@ -2316,7 +2316,6 @@ void load_weights_upto(network *net, char *filename, int cutoff)
     }
 #endif
     fprintf(stderr, "Loading weights from %s...", filename);
-    fflush(stdout);
     FILE *fp = fopen(filename, "rb");
     if(!fp) file_error(filename, DARKNET_LOC);
 
