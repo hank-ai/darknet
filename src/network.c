@@ -434,7 +434,7 @@ float train_network_waitkey(network net, data d, int wait_key)
 
     if (net.ema_alpha && (*net.cur_iteration) >= ema_start_point)
     {
-        int ema_period = (net.max_batches - ema_start_point - 1000) * (1.0 - net.ema_alpha);
+        //int ema_period = (net.max_batches - ema_start_point - 1000) * (1.0 - net.ema_alpha);
         int ema_apply_point = net.max_batches - 1000;
 
         if (!is_ema_initialized(net))
@@ -662,7 +662,7 @@ int resize_network(network *net, int w, int h)
     {
         net->workspace = cuda_make_array(0, workspace_size/sizeof(float) + 1);
         net->input_state_gpu = cuda_make_array(0, size);
-        if (cudaSuccess == cudaHostAlloc(&net->input_pinned_cpu, size * sizeof(float), cudaHostRegisterMapped))
+        if (cudaSuccess == cudaHostAlloc((void**)&net->input_pinned_cpu, size * sizeof(float), cudaHostRegisterMapped))
         {
             net->input_pinned_cpu_flag = 1;
         }

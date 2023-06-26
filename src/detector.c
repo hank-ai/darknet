@@ -635,7 +635,7 @@ static void eliminate_bdd(char *buf, char *a)
             {
                 if (a[++n] == '\0')
                 {
-                    for (k; buf[k + n] != '\0'; k++)
+                    for (; buf[k + n] != '\0'; k++)
                     {
                         buf[k] = buf[k + n];
                     }
@@ -755,9 +755,9 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
         if (!outfile) outfile = "kitti_results";
         printf("%s\n", outfile);
         snprintf(buff, 1024, "%s/%s", prefix, outfile);
-        int mkd = make_directory(buff, 0777);
+        /* int mkd = */ make_directory(buff, 0777);
         snprintf(buff2, 1024, "%s/%s/data", prefix, outfile);
-        int mkd2 = make_directory(buff2, 0777);
+        /*int mkd2 = */ make_directory(buff2, 0777);
         kitti = 1;
     }
     else if (0 == strcmp(type, "imagenet")) {
@@ -1445,7 +1445,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
             {
                 double cur_recall = point * 1.0 / (map_points-1);
                 double cur_precision = 0;
-                double cur_prob = 0;
+                //double cur_prob = 0;
                 for (int rank = 0; rank < detections_count; ++rank)
                 {
                     if (pr[i][rank].recall >= cur_recall)
@@ -1454,7 +1454,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
                         if (pr[i][rank].precision > cur_precision)
                         {
                             cur_precision = pr[i][rank].precision;
-                            cur_prob = pr[i][rank].prob;
+                            //cur_prob = pr[i][rank].prob;
                         }
                     }
                 }
@@ -1467,8 +1467,8 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 
         printf("class_id = %d, name = %s, ap = %2.2f%%   \t (TP = %d, FP = %d) \n", i, names[i], avg_precision * 100, tp_for_thresh_per_class[i], fp_for_thresh_per_class[i]);
 
-        float class_precision = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)fp_for_thresh_per_class[i]);
-        float class_recall = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)(truth_classes_count[i] - tp_for_thresh_per_class[i]));
+        // float class_precision = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)fp_for_thresh_per_class[i]);
+        // float class_recall = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)(truth_classes_count[i] - tp_for_thresh_per_class[i]));
         //printf("Precision = %1.2f, Recall = %1.2f, avg IOU = %2.2f%% \n\n", class_precision, class_recall, avg_iou_per_class[i]);
 
         mean_average_precision += avg_precision;
@@ -2030,7 +2030,7 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
             float avg_loss = get_network_cost(net);
             draw_train_loss(windows_name, img, img_size, avg_loss, max_img_loss, iteration, it_num, 0, 0, "mAP%", 0, dont_show, 0, 0);
 
-            float inv_loss = 1.0 / max_val_cmp(0.01, avg_loss);
+            //float inv_loss = 1.0 / max_val_cmp(0.01, avg_loss);
             //net.learning_rate = *lr_set * inv_loss;
 
             if (*boxonly) {

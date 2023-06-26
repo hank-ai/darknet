@@ -1351,17 +1351,17 @@ __global__ void gemm_nn_custom_bin_mean_transposed_tensor_kernel(int M, int N, i
 
                     // wmma::bmma_sync(c_frag, a_frag, b_frag, c_frag);
                     int32_t c_val[8];  // 8 x 32 threads = 256
-                    #pragma UNROLL
+                    #pragma unroll
                     for (int local_j = 0; local_j < 8; ++local_j)
                     {
                         uint32_t b_val_cur = __shfl_custom(b_val, local_j * 4 + k_d);
                         c_val[local_j] = __popc(xor_int32(a_val, b_val_cur));
                     }
 
-                    #pragma UNROLL
+                    #pragma unroll
                     for (int local_j = 0; local_j < 8; ++local_j)
                     {
-                        #pragma UNROLL
+                        #pragma unroll
                         for (int local_k = 0; local_k < 4; ++local_k) {
                             accum_c_val[local_j + c_x*8] += __shfl_custom(c_val[local_j], i_d * 4 + local_k);
                         }
@@ -1386,7 +1386,7 @@ __global__ void gemm_nn_custom_bin_mean_transposed_tensor_kernel(int M, int N, i
             {
                 int j_d = lane_id % WMMA_N;
                 {
-                    #pragma UNROLL
+                    #pragma unroll
                     for (int i_d = lane_id / WMMA_N; i_d < WMMA_M; i_d += WMMA_M / 2)
                     {
                         int count = C_s[warp_id*WMMA_M*WMMA_N + i_d*WMMA_N + j_d + WMMA_M*WMMA_N*32*c_x];

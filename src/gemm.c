@@ -1,3 +1,9 @@
+#ifdef __GNUC__
+// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#pragma GCC diagnostic ignored "-Wstrict-aliasing"
+#endif
+
 #include "gemm.h"
 #include "utils.h"
 #include "im2col.h"
@@ -1075,7 +1081,7 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
                 for (x = 0; x < w-8; x+=8)
                 {
                     int const output_index = fil*w*h + y*w + x;
-                    float sum = 0;
+                    //float sum = 0;
                     __m256 sum256 = _mm256_set1_ps(0);
 
                     for (chan = 0; chan < c; ++chan) {

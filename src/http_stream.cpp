@@ -1,3 +1,8 @@
+#ifdef __GNUC__
+// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#endif
+
 #define _XOPEN_SOURCE
 #include "image.h"
 #include "http_stream.h"
@@ -250,7 +255,7 @@ public:
                     //"Content-Type: multipart/x-mixed-replace; boundary=boundary\r\n"
                     "\r\n", 0);
                 _write(client, "[\n", 0);   // open JSON array
-                int n = _write(client, outputbuf, outlen);
+                /*int n = */ _write(client, outputbuf, outlen);
                 cerr << "JSON_sender: new client " << client << endl;
             }
             else // existing client, just stream pix
@@ -508,7 +513,7 @@ public:
                 }
 
                 char head[400];
-                sprintf(head, "--mjpegstream\r\nContent-Type: image/jpeg\r\nContent-Length: %zu\r\n\r\n", outlen);
+                sprintf(head, "--mjpegstream\r\nContent-Type: image/jpeg\r\nContent-Length: %d\r\n\r\n", outlen);
                 _write(s, head, 0);
                 int n = _write(s, (char*)(&outbuf[0]), outlen);
                 cerr << "known client: " << s << ", sent = " << n << ", must be sent outlen = " << outlen << endl;
@@ -864,7 +869,7 @@ void set_track_id(detection *new_dets, int new_dets_num, float thresh, float sim
     // copy detections from queue of vectors to the one vector
     std::vector<detection_t> old_dets;
     for (std::vector<detection_t> &v : old_dets_dq) {
-        for (int i = 0; i < v.size(); ++i) {
+        for (size_t i = 0; i < v.size(); ++i) {
             old_dets.push_back(v[i]);
         }
     }
@@ -891,7 +896,7 @@ void set_track_id(detection *new_dets, int new_dets_num, float thresh, float sim
     std::vector<int> track_idx(new_track_id, 1);
 
     // match objects
-    for (int index = 0; index < new_dets_num*old_dets.size(); ++index) {
+    for (size_t index = 0; index < new_dets_num*old_dets.size(); ++index) {
         const int new_id = sim_det[index].new_id;
         const int old_id = sim_det[index].old_id;
         const int track_id = old_dets[old_id].track_id;

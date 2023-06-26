@@ -199,8 +199,8 @@ contrastive_layer make_contrastive_layer(int batch, int w, int h, int c, int cla
     printf(" max_contr_size = %d MB \n", max_contr_size / (1024*1024));
     l.contrast_p_gpu = (contrastive_params *)cuda_make_array(NULL, max_contr_size);
 #endif
-    fprintf(stderr, "contrastive %4d x%4d x%4d x emb_size %4d x batch: %4d  classes = %4d, step = %4d \n", w, h, l.n, l.embedding_size, batch, l.classes, step);
-    if(l.detection) fprintf(stderr, "detection \n");
+    printf("contrastive %4d x%4d x%4d x emb_size %4d x batch: %4d  classes = %4d, step = %4lu\n", w, h, l.n, l.embedding_size, batch, l.classes, step);
+    if(l.detection) printf("detection\n");
     return l;
 }
 
@@ -240,7 +240,7 @@ void forward_contrastive_layer(contrastive_layer l, network_state state)
                 for (w = 0; w < l.w; ++w)
                 {
                     // find truth with max prob (only 1 label even if mosaic is used)
-                    float max_truth = 0;
+                    //float max_truth = 0;
                     int n;
                     for (n = 0; n < l.classes; ++n) {
                         const float truth_prob = state.truth[b*l.classes + n];
@@ -249,7 +249,7 @@ void forward_contrastive_layer(contrastive_layer l, network_state state)
                         if (truth_prob > truth_thresh)
                         {
                             //printf(" truth_prob = %f, max_truth = %f, n = %d; ", truth_prob, max_truth, n);
-                            max_truth = truth_prob;
+                            //max_truth = truth_prob;
                             l.labels[b] = n;
                         }
                     }

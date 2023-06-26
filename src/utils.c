@@ -606,12 +606,26 @@ void write_all(int fd, char *buffer, size_t bytes)
 
 char *copy_string(char *s)
 {
-    if(!s) {
-        return NULL;
-    }
-    char* copy = (char*)xmalloc(strlen(s) + 1);
-    strncpy(copy, s, strlen(s)+1);
-    return copy;
+	if(!s)
+	{
+		return NULL;
+	}
+
+	char* copy = (char*)xmalloc(strlen(s) + 1);
+
+/// @todo 2023-06-26 For now I'd rather ignore this warning than to try and mess with this old code and risk breaking things.
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+
+	strncpy(copy, s, strlen(s)+1);
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
+	return copy;
 }
 
 list *parse_csv_line(char *line)
@@ -1140,8 +1154,20 @@ unsigned long custom_hash(char *str)
     unsigned long hash = 5381;
     int c;
 
+/// @todo 2023-06-26 For now I'd rather ignore this warning than to try and mess with this old code and risk breaking things.
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wparentheses"
+#endif
+
     while (c = *str++)
+	{
         hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+	}
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
 
     return hash;
 }

@@ -65,14 +65,14 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
     l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
 
     free(l.output);
-    if (cudaSuccess == cudaHostAlloc(&l.output, batch*l.outputs*sizeof(float), cudaHostRegisterMapped)) l.output_pinned = 1;
+    if (cudaSuccess == cudaHostAlloc((void**)&l.output, batch*l.outputs*sizeof(float), cudaHostRegisterMapped)) l.output_pinned = 1;
     else {
         cudaGetLastError(); // reset CUDA-error
         l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
     }
 
     free(l.delta);
-    if (cudaSuccess == cudaHostAlloc(&l.delta, batch*l.outputs*sizeof(float), cudaHostRegisterMapped)) l.delta_pinned = 1;
+    if (cudaSuccess == cudaHostAlloc((void**)&l.delta, batch*l.outputs*sizeof(float), cudaHostRegisterMapped)) l.delta_pinned = 1;
     else {
         cudaGetLastError(); // reset CUDA-error
         l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
@@ -103,7 +103,7 @@ void resize_yolo_layer(layer *l, int w, int h)
 #ifdef GPU
     if (l->output_pinned) {
         CHECK_CUDA(cudaFreeHost(l->output));
-        if (cudaSuccess != cudaHostAlloc(&l->output, l->batch*l->outputs * sizeof(float), cudaHostRegisterMapped)) {
+        if (cudaSuccess != cudaHostAlloc((void**)&l->output, l->batch*l->outputs * sizeof(float), cudaHostRegisterMapped)) {
             cudaGetLastError(); // reset CUDA-error
             l->output = (float*)xcalloc(l->batch * l->outputs, sizeof(float));
             l->output_pinned = 0;
@@ -112,7 +112,7 @@ void resize_yolo_layer(layer *l, int w, int h)
 
     if (l->delta_pinned) {
         CHECK_CUDA(cudaFreeHost(l->delta));
-        if (cudaSuccess != cudaHostAlloc(&l->delta, l->batch*l->outputs * sizeof(float), cudaHostRegisterMapped)) {
+        if (cudaSuccess != cudaHostAlloc((void**)&l->delta, l->batch*l->outputs * sizeof(float), cudaHostRegisterMapped)) {
             cudaGetLastError(); // reset CUDA-error
             l->delta = (float*)xcalloc(l->batch * l->outputs, sizeof(float));
             l->delta_pinned = 0;
@@ -423,7 +423,7 @@ void *process_batch(void* ptr)
                     const int stride = l.w * l.h;
                     box pred = get_yolo_box(l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.w * l.h, l.new_coords);
                     float best_match_iou = 0;
-                    int best_match_t = 0;
+                    //int best_match_t = 0;
                     float best_iou = 0;
                     int best_t = 0;
                     for (t = 0; t < l.max_boxes; ++t) {
@@ -433,7 +433,7 @@ void *process_batch(void* ptr)
                         if (class_id >= l.classes || class_id < 0) {
                             printf("\n Warning: in txt-labels class_id=%d >= classes=%d in cfg-file. In txt-labels class_id should be [from 0 to %d] \n", class_id, l.classes, l.classes - 1);
                             printf("\n truth.x = %f, truth.y = %f, truth.w = %f, truth.h = %f, class_id = %d \n", truth.x, truth.y, truth.w, truth.h, class_id);
-                            if (check_mistakes) getchar();
+                            if (check_mistakes) getchar(); /// @todo replace with call to fatal error
                             continue; // if label contains class_id more than number of classes in the cfg-file and class_id check garbage value
                         }
 
@@ -444,7 +444,7 @@ void *process_batch(void* ptr)
                         float iou = box_iou(pred, truth);
                         if (iou > best_match_iou && class_id_match == 1) {
                             best_match_iou = iou;
-                            best_match_t = t;
+                            //best_match_t = t;
                         }
                         if (iou > best_iou) {
                             best_iou = iou;
@@ -665,7 +665,7 @@ void forward_yolo_layer(const layer l, network_state state)
 {
     //int i, j, b, t, n;
     memcpy(l.output, state.input, l.outputs*l.batch * sizeof(float));
-    int b, n;
+    int b;
 
 #ifndef GPU
     for (b = 0; b < l.batch; ++b) {
@@ -693,18 +693,18 @@ void forward_yolo_layer(const layer l, network_state state)
     for (i = 0; i < l.batch * l.w*l.h*l.n; ++i) l.class_ids[i] = -1;
     //float avg_iou = 0;
     float tot_iou = 0;
-    float tot_giou = 0;
-    float tot_diou = 0;
-    float tot_ciou = 0;
+    //float tot_giou = 0;
+    //float tot_diou = 0;
+    //float tot_ciou = 0;
     float tot_iou_loss = 0;
     float tot_giou_loss = 0;
-    float tot_diou_loss = 0;
-    float tot_ciou_loss = 0;
-    float recall = 0;
-    float recall75 = 0;
-    float avg_cat = 0;
-    float avg_obj = 0;
-    float avg_anyobj = 0;
+    //float tot_diou_loss = 0;
+    //float tot_ciou_loss = 0;
+    //float recall = 0;
+    //float recall75 = 0;
+    //float avg_cat = 0;
+    //float avg_obj = 0;
+    //float avg_anyobj = 0;
     int count = 0;
     int class_count = 0;
     *(l.cost) = 0;

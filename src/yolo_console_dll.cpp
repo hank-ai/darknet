@@ -1,3 +1,9 @@
+#ifdef __GNUC__
+// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
+#pragma GCC diagnostic ignored "-Wsign-compare"
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
+
 #include <iostream>
 #include <iomanip>
 #include <string>

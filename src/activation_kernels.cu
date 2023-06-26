@@ -260,7 +260,7 @@ __global__ void activate_array_mish_kernel(float *x, int n, float *activation_in
 {
     int i = (blockIdx.x + blockIdx.y*gridDim.x) * blockDim.x + threadIdx.x;
     if (i < n) {
-        const float MISH_THRESHOLD = 20;
+        //const float MISH_THRESHOLD = 20;
         float x_val = x[i];
         if (activation_input) activation_input[i] = x_val;    // store value before activation
         //output_gpu[i] = x_val * tanh_activate_kernel(logf(1 + expf(x_val)));

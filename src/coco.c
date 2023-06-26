@@ -245,7 +245,7 @@ void validate_coco_recall(char *cfgfile, char *weightfile)
     fprintf(stderr, "Learning Rate: %g, Momentum: %g, Decay: %g\n", net.learning_rate, net.momentum, net.decay);
     srand(time(0));
 
-    char *base = "results/comp4_det_test_";
+    //char *base = "results/comp4_det_test_";
     list* plist = get_paths("data/voc/test/2007_test.txt");
     char **paths = (char **)list_to_array(plist);
 

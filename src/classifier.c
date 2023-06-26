@@ -142,7 +142,7 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
     int iter_topk = get_current_batch(net);
     float topk = 0;
 
-    int count = 0;
+    //int count = 0;
     double start, time_remaining, avg_time = -1, alpha_time = 0.01;
     start = what_time_is_it_now();
 
@@ -850,7 +850,7 @@ void predict_classifier(char *datacfg, char *cfgfile, char *weightfile, char *fi
 
     int i = 0;
     char **names = get_labels(name_list);
-    clock_t time;
+    //clock_t time;
     int* indexes = (int*)xcalloc(top, sizeof(int));
     char buff[256];
     char *input = buff;
@@ -1294,7 +1294,7 @@ void demo_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_ind
     int frame_counter = 0;
 
     while(1){
-        struct timeval tval_before, tval_after, tval_result;
+        struct timeval tval_before;
         gettimeofday(&tval_before, NULL);
 
         //image in = get_image_from_stream(cap);

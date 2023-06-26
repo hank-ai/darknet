@@ -1,3 +1,8 @@
+#ifdef __GNUC__
+// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
+#pragma GCC diagnostic ignored "-Wswitch"
+#endif
+
 #include "activations.h"
 
 #include <math.h>
@@ -77,6 +82,7 @@ ACTIVATION get_activation(char *s)
 float activate(float x, ACTIVATION a)
 {
     switch(a){
+		/// @todo what about other values like RELUG, SWISH, etc?
         case LINEAR:
             return linear_activate(x);
         case LOGISTIC:
@@ -308,6 +314,7 @@ void gradient_array_normalize_channels(float *x, const int n, int batch, int cha
 float gradient(float x, ACTIVATION a)
 {
     switch(a){
+		/// @todo what about other values like SWISH, etc?
         case LINEAR:
             return linear_gradient(x);
         case LOGISTIC:

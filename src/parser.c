@@ -441,7 +441,19 @@ float *get_classes_multipliers(char *cpc, const int classes, const float max_del
             if (counters_per_class[i] < 1) counters_per_class[i] = 1;
             if (max_counter < counters_per_class[i]) max_counter = counters_per_class[i];
         }
+
+/// @todo
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Walloc-size-larger-than="
+#endif
+
         classes_multipliers = (float *)calloc(classes_counters, sizeof(float));
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
         for (i = 0; i < classes_counters; ++i) {
             classes_multipliers[i] = max_counter / counters_per_class[i];
             if(classes_multipliers[i] > max_delta) classes_multipliers[i] = max_delta;
@@ -1813,7 +1825,7 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
     {
         int size = get_network_input_size(net) * net.batch;
         net.input_state_gpu = cuda_make_array(0, size);
-        if (cudaSuccess == cudaHostAlloc(&net.input_pinned_cpu, size * sizeof(float), cudaHostRegisterMapped)) net.input_pinned_cpu_flag = 1;
+        if (cudaSuccess == cudaHostAlloc((void**)&net.input_pinned_cpu, size * sizeof(float), cudaHostRegisterMapped)) net.input_pinned_cpu_flag = 1;
         else {
             cudaGetLastError(); // reset CUDA-error
             net.input_pinned_cpu = (float*)xcalloc(size, sizeof(float));
@@ -1959,7 +1971,7 @@ void save_implicit_weights(layer l, FILE *fp)
         //printf("\n pull_implicit_layer \n");
     }
 #endif
-    int i;
+    //int i;
     //if(l.weight_updates) for (i = 0; i < l.nweights; ++i) printf(" %f, ", l.weight_updates[i]);
     //printf(" l.nweights = %d - update \n", l.nweights);
     //for (i = 0; i < l.nweights; ++i) printf(" %f, ", l.weights[i]);

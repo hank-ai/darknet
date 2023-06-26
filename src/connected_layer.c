@@ -1,3 +1,8 @@
+#ifdef __GNUC__
+// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
+#pragma GCC diagnostic ignored "-Wunused-variable"
+#endif
+
 #include "connected_layer.h"
 #include "batchnorm_layer.h"
 #include "convolutional_layer.h"
@@ -343,7 +348,7 @@ void forward_connected_layer_gpu(connected_layer l, network_state state)
     float * b = l.weights_gpu;
     float * c = l.output_gpu;
 #ifdef CUDNN
-    float one = 1;    // alpha[0], beta[0]
+    //float one = 1;    // alpha[0], beta[0]
     float alpha = 1, beta = 0;
 
     CHECK_CUDNN(cudnnConvolutionForward(cudnn_handle(),

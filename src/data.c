@@ -401,6 +401,12 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
         id = boxes[i].id;
         int track_id = boxes[i].track_id;
 
+/// @todo Search for getchar() in the lines below and turn all of these to calls into darknet_fatal_error()
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wformat-overflow"
+#endif
+
         // not detect small objects
         //if ((w < 0.001F || h < 0.001F)) continue;
         // if truth (box for object) is smaller than 1x1 pix
@@ -419,6 +425,7 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
             ++sub;
             continue;
         }
+
         if (x == 999999 || y == 999999) {
             printf("\n Wrong annotation: x = 0, y = 0, < 0 or > 1, file: %s \n", labelpath);
             sprintf(buff, "echo %s \"Wrong annotation: x = 0 or y = 0\" >> bad_label.list", labelpath);
@@ -449,7 +456,12 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
             h = 1;
             if (check_mistakes) getchar();
         }
-        if (x == 0) x += lowest_w;
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
+
+		if (x == 0) x += lowest_w;
         if (y == 0) y += lowest_h;
 
         truth[(i-sub)*truth_size +0] = x;
@@ -1087,7 +1099,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
     d.X.vals = (float**)xcalloc(d.X.rows, sizeof(float*));
     d.X.cols = h*w*c;
 
-    float r1 = 0, r2 = 0, r3 = 0, r4 = 0, r_scale = 0;
+    float r1 = 0, r2 = 0, r3 = 0, r4 = 0;
     float resize_r1 = 0, resize_r2 = 0;
     float dhue = 0, dsat = 0, dexp = 0, flip = 0, blur = 0;
     int augmentation_calculated = 0, gaussian_noise = 0;
@@ -1148,8 +1160,6 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
                     flip = use_flip ? random_gen() % 2 : 0;
                 }
-
-                r_scale = random_float();
 
                 if (!contrastive || contrastive_color || i % 2 == 0)
                 {
@@ -1294,9 +1304,9 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
                 const int bot_shift = min_val_cmp(h - cut_y[i], max_val_cmp(0, (-pbot*h / oh)));
 
 
-                int k, x, y;
-                for (k = 0; k < c; ++k) {
-                    for (y = 0; y < h; ++y) {
+                //int k, x, y;
+                for (int k = 0; k < c; ++k) {
+                    for (int y = 0; y < h; ++y) {
                         int j = y*w + k*w*h;
                         if (i_mixup == 0 && y < cut_y[i]) {
                             int j_src = (w - cut_x[i] - right_shift) + (y + h - cut_y[i] - bot_shift)*w + k*w*h;

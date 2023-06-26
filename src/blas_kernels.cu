@@ -1083,7 +1083,7 @@ __global__ void backward_shortcut_multilayer_kernel(int size, int src_outputs, i
         int add_outputs = outputs_of_layers_gpu[i];
         if (src_i < add_outputs) {
             int add_index = add_outputs*src_b + src_i;
-            int out_index = id;
+            //int out_index = id;
 
             float *layer_delta = layers_delta_gpu[i];
             if (weights_gpu) {
@@ -1126,9 +1126,9 @@ __global__ void backward_shortcut_multilayer_kernel(int size, int src_outputs, i
 extern "C" void backward_shortcut_multilayer_gpu(int src_outputs, int batch, int n, int *outputs_of_layers_gpu,
     float **layers_delta_gpu, float *delta_out, float *delta_in, float *weights_gpu, float *weight_updates_gpu, int nweights, float *in, float **layers_output_gpu, WEIGHTS_NORMALIZATION_T weights_normalization)
 {
-    const int layer_step = nweights / (n + 1);    // 1 or l.c or (l.c * l.h * l.w)
-    int step = 0;
-    if (nweights > 0) step = src_outputs / layer_step; // (l.c * l.h * l.w) or (l.w*l.h) or 1
+    //const int layer_step = nweights / (n + 1);    // 1 or l.c or (l.c * l.h * l.w)
+    //int step = 0;
+    //if (nweights > 0) step = src_outputs / layer_step; // (l.c * l.h * l.w) or (l.w*l.h) or 1
     //printf(" nweights = %d, n = %d, layer_step = %d, step = %d \n", nweights, n, layer_step, step);
 
     //printf(" src_outputs = %d, batch = %d, n = %d \n", src_outputs, batch, n);
@@ -1732,8 +1732,8 @@ __global__  void smooth_rotate_weights_kernel(const float *src_weight_gpu, float
     const int kernel_area = kernel_size * kernel_size;
     const int i = index * kernel_area;
 
-    const int stage_step = (nweights / kernel_area) / 4;  // 4 stages
-    const int stage_id = index / stage_step;
+    //const int stage_step = (nweights / kernel_area) / 4;  // 4 stages
+    //const int stage_id = index / stage_step;
 
     // nweights = (c / groups) * n * size * size;
     // kernel_area = size*size

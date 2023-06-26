@@ -1337,7 +1337,7 @@ void forward_convolutional_layer(convolutional_layer l, network_state state)
                         //size_t ldb_align = 256; // 256 bit for AVX2
                         int ldb_align = l.lda_align;
                         size_t new_ldb = k + (ldb_align - k%ldb_align);
-                        size_t t_intput_size = binary_transpose_align_input(k, n, state.workspace, &l.t_bit_input, ldb_align, l.bit_align);
+                        /*size_t t_intput_size = */ binary_transpose_align_input(k, n, state.workspace, &l.t_bit_input, ldb_align, l.bit_align);
 
                         // 5x times faster than gemm()-float32
                         gemm_nn_custom_bin_mean_transposed(m, n, k, 1, (unsigned char*)l.align_bit_weights, new_ldb, (unsigned char*)l.t_bit_input, new_ldb, c, n, l.mean_arr);

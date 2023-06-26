@@ -204,7 +204,7 @@ void backward_shortcut_multilayer_cpu(int size, int src_outputs, int batch, int 
             int add_outputs = outputs_of_layers[i];
             if (src_i < add_outputs) {
                 int add_index = add_outputs*src_b + src_i;
-                int out_index = id;
+                //int out_index = id;
 
                 float *layer_delta = layers_delta[i];
                 if (weights) {
