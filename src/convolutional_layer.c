@@ -892,9 +892,13 @@ void test_convolutional_layer()
 void resize_convolutional_layer(convolutional_layer *l, int w, int h)
 {
     int total_batch = l->batch*l->steps;
-    //int old_w = l->w;
-    //int old_h = l->h;
-    l->w = w;
+
+#ifdef GPU
+	int old_w = l->w;
+	int old_h = l->h;
+#endif
+
+	l->w = w;
     l->h = h;
     int out_w = convolutional_out_width(*l);
     int out_h = convolutional_out_height(*l);
