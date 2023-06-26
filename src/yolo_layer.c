@@ -665,11 +665,11 @@ void forward_yolo_layer(const layer l, network_state state)
 {
     //int i, j, b, t, n;
     memcpy(l.output, state.input, l.outputs*l.batch * sizeof(float));
-    int b;
+    //int b;
 
 #ifndef GPU
-    for (b = 0; b < l.batch; ++b) {
-        for (n = 0; n < l.n; ++n) {
+    for (int b = 0; b < l.batch; ++b) {
+        for (int n = 0; n < l.n; ++n) {
             int bbox_index = entry_index(l, b, n*l.w*l.h, 0);
             if (l.new_coords) {
                 //activate_array(l.output + bbox_index, 4 * l.w*l.h, LOGISTIC);    // x,y,w,h
@@ -715,7 +715,7 @@ void forward_yolo_layer(const layer l, network_state state)
 
     struct train_yolo_args* yolo_args = (train_yolo_args*)xcalloc(l.batch, sizeof(struct train_yolo_args));
 
-    for (b = 0; b < l.batch; b++)
+    for (int b = 0; b < l.batch; b++)
     {
         yolo_args[b].l = l;
         yolo_args[b].state = state;
@@ -733,7 +733,7 @@ void forward_yolo_layer(const layer l, network_state state)
         }
     }
 
-    for (b = 0; b < l.batch; b++)
+    for (int b = 0; b < l.batch; b++)
     {
         pthread_join(threads[b], 0);
 
@@ -878,11 +878,11 @@ void forward_yolo_layer(const layer l, network_state state)
         memcpy(no_iou_loss_delta, l.delta, l.batch * l.outputs * sizeof(float));
 
 
-        int j, n;
-        for (b = 0; b < l.batch; ++b) {
-            for (j = 0; j < l.h; ++j) {
-                for (i = 0; i < l.w; ++i) {
-                    for (n = 0; n < l.n; ++n) {
+        //int j, n;
+        for (int b = 0; b < l.batch; ++b) {
+            for (int j = 0; j < l.h; ++j) {
+                for (int i = 0; i < l.w; ++i) {
+                    for (int n = 0; n < l.n; ++n) {
                         int index = entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
                         no_iou_loss_delta[index + 0 * stride] = 0;
                         no_iou_loss_delta[index + 1 * stride] = 0;

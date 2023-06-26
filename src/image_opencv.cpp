@@ -1,3 +1,8 @@
+#ifdef __GNUC__
+// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
+#pragma GCC diagnostic ignored "-Wunused-function"
+#endif
+
 #include "image_opencv.h"
 #include <iostream>
 
