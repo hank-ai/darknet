@@ -137,10 +137,9 @@ std::string format_loss(const double & loss)
 {
 	EColour colour = EColour::kNormal;
 
-	if (loss < 0.0			||
-		loss >= 1000.0		||
-		std::isinf(loss)	||
-		std::isnan(loss)	)
+	if (loss < 0.0		||
+		loss >= 1000.0	||
+		std::isfinite(loss) == false)
 	{
 		colour = EColour::kBrightRed;
 	}
@@ -169,9 +168,7 @@ std::string format_map_accuracy(const float & accuracy)
 {
 	EColour colour = EColour::kNormal;
 
-	if (accuracy < 0.5f			||
-		std::isinf(accuracy)	||
-		std::isnan(accuracy)	)
+	if (accuracy < 0.5f || std::isfinite(accuracy) == false)
 	{
 		colour = EColour::kBrightRed;
 	}
@@ -258,7 +255,7 @@ void update_console_title(const int iteration, const int max_batches, const floa
 	// doing this requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
 	if (colour_is_enabled)
 	{
-		if (current_map > 0.0f && std::isnormal(current_map))
+		if (std::isfinite(current_map) && current_map > 0.0f)
 		{
 			printf("\033]2;%d/%d: loss=%0.1f map=%0.2f best=%0.2f time=%s\007", iteration, max_batches, loss, current_map, best_map, format_time_remaining(seconds_remaining).c_str());
 		}
