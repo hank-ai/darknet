@@ -137,7 +137,10 @@ std::string format_loss(const double & loss)
 {
 	EColour colour = EColour::kNormal;
 
-	if (loss < 0.0 || loss >= 1000.0 || std::isnan(loss))
+	if (loss < 0.0			||
+		loss >= 1000.0		||
+		std::isinf(loss)	||
+		std::isnan(loss)	)
 	{
 		colour = EColour::kBrightRed;
 	}
@@ -166,7 +169,9 @@ std::string format_map_accuracy(const float & accuracy)
 {
 	EColour colour = EColour::kNormal;
 
-	if (accuracy < 0.0 || accuracy < 0.5f || std::isnan(accuracy))
+	if (accuracy < 0.5f			||
+		std::isinf(accuracy)	||
+		std::isnan(accuracy)	)
 	{
 		colour = EColour::kBrightRed;
 	}
