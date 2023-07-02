@@ -70,7 +70,7 @@ There are many options available when running `build.ps1`.  For example:
 
 ## Vcpkg
 
-This solution can be used from both Linux and Windows, but is much more common on Windows.  You can use vcpkg to install old versions of Darknet.  The newer versions of Darknet are not available via vcpkg.
+This solution can be used from both Linux and Windows, but is much more common on Windows.  You can use [vcpkg](https://github.com/microsoft/vcpkg) to install old versions of Darknet.  The newer versions of Darknet are not available via vcpkg.
 
 # Using Darknet
 
@@ -91,7 +91,9 @@ This is not the full list of all commands supported by Darknet.  See [the previo
 
 ## Training
 
-The simplest way to annotate and train is with the use of [DarkMark](https://github.com/stephanecharette/DarkMark) to create all of the necessary files.  If you'd rather manually train a network:
+The simplest way to annotate and train is with the use of [DarkMark](https://github.com/stephanecharette/DarkMark) to create all of the necessary files.
+
+If you'd rather manually setup the various files to train a custom network:
 
 * Create a new folder where the files will be stored.  For this example, a neural network will be created to detect animals, so the following directory is created:  `~/nn/animals/`.
 * Copy one of the Darknet configuration files you'd like to use as a template.  For example, see `cfg/yolov4-tiny.cfg`.  Place this in the folder you created.  For this example, we now have `~/nn/animals/animals.cfg`.
@@ -113,8 +115,8 @@ The simplest way to annotate and train is with the use of [DarkMark](https://git
     backup = /home/username/nn/animals
 ~~~
 
-* Create a folder where you'll store your images and annotations.  For example, this could be `~/nn/animals/dataset`.  Each image will need a coresponding `.txt` file which describes the annotations for that image.
-* Create the "train" and "valid" text files named in the `.data` file.  These two text files need to individually list all of the images which Darknet must use to train and for validation when calculating the mAP%.  Exactly one image per line.
+* Create a folder where you'll store your images and annotations.  For example, this could be `~/nn/animals/dataset`.  Each image will need a coresponding `.txt` file which describes the annotations for that image.  The format of the `.txt` annotation files is very specific.  You cannot create these files by hand since each annotation needs to contain the exact coordinates for the annotation.  See [DarkMark](https://github.com/stephanecharette/DarkMark) or other similar software to annotate your images.
+* Create the "train" and "valid" text files named in the `.data` file.  These two text files need to individually list all of the images which Darknet must use to train and for validation when calculating the mAP%.  Exactly one image per line.  The path and filenames may be relative or absolute.
 * Modify your `.cfg` file with a text editor.
   * Make sure that `batch=64`.
   * Note the subdivisions.  Depending on the network dimensions and the amount of memory available on your GPU, you may need to increase the subdivisions.  The best value to use is `1` so start with that.
@@ -126,14 +128,15 @@ The simplest way to annotate and train is with the use of [DarkMark](https://git
   * Start training!  Run the following commands:
 ~~~
     cd ~/nn/animals/
-    ~/src/darknet/darknet detector -map -dont_show train ~/nn/animals/animals.data ~/nn/animals/animals.cfg
+    ~/src/darknet/darknet detector -map -dont_show train animals.data animals.cfg
 ~~~
 
 Be patient.  The best weights will be stored in `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file after the first hundred iterations.
 
 # Other Tools and Links
 
-* To manage your Darknet/YOLO projects, annotate images, and generate the necessary files to train with Darknet, [see DarkMark](https://github.com/stephanecharette/DarkMark).
-* For an alternative CLI to Darknet, to use image tiling, or for object tracking in your videos, [see DarkHelp](https://github.com/stephanecharette/DarkHelp).
+* To manage your Darknet/YOLO projects, annotate images, verify your annotations, and generate the necessary files to train with Darknet, [see DarkMark](https://github.com/stephanecharette/DarkMark).
+* For a robust alternative CLI to Darknet, to use image tiling, for object tracking in your videos, or for a commercial C++ API to Darknet, [see DarkHelp](https://github.com/stephanecharette/DarkHelp).
 * See if [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/) can help answer your questions.
 * See the many tutorial and example videos on [Stéphane's YouTube channel](https://www.youtube.com/c/StephaneCharette/videos)
+* If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/zSq8rtW).
