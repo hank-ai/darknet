@@ -60,7 +60,7 @@ Typical solution for Windows.  You will need to have the usual build tools insta
     Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process
     md c:\src
     cd c:\src
-    git clone https://github.com/hank-ai/darknet.git
+    git clone https://github.com/hank-ai/darknet
     cd darknet
     ./build.ps1
 
@@ -86,30 +86,32 @@ This is not the full list of all commands supported by Darknet.  See [the previo
 * JSON and MJPEG server:  `darknet detector demo animals.data animals.cfg animals_best.weights test50.mp4 -json_port 8070 -mjpeg_port 8090 -ext_output`
 * Running on a specific GPU:  `darknet detector demo animals.data animals.cfg animals_best.weights -i 1 test.mp4`
 * To check accuracy mAP@IoU=50:  `darknet detector map animals.data animals.cfg animals_best.weights`
-* To check accuracy mAP@IoU=75:  `darknet detector map animals.data animals.cfg animals_best.weights -oiu_thresh 0.75`
-* To train:  `darknet detector -map -dont_show train animals.data animals.cfg`
+* To check accuracy mAP@IoU=75:  `darknet detector map animals.data animals.cfg animals_best.weights -iou_thresh 0.75`
+* To train:  `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below
 
 ## Training
 
-The simplest way to annotate and train is with the use of DarkMark to create all of the necessary files.  If you'd rather manually train a network:
+The simplest way to annotate and train is with the use of [DarkMark](https://github.com/stephanecharette/DarkMark) to create all of the necessary files.  If you'd rather manually train a network:
 
 * Create a new folder where the files will be stored.  For this example, a neural network will be created to detect animals, so the following directory is created:  `~/nn/animals/`.
 * Copy one of the Darknet configuration files you'd like to use as a template.  For example, see `cfg/yolov4-tiny.cfg`.  Place this in the folder you created.  For this example, we now have `~/nn/animals/animals.cfg`.
 * Create a `animals.names` text file in the same folder where you placed the configuration file.  For this example, we now have `~/nn/animals/animals.cfg`.
 * Edit the `animals.names` file with your text editor.  List the classes you want to use.  You need to have exactly 1 entry per line, with no blank lines and no comments.  For this example, the `.names` file will contain:
-
+~~~
     dog
     cat
     bird
     horse
+~~~
 
 * Create a `animals.data` text file in the same folder.  For this example, the `.data` file will contain:
-
+~~~
     classes = 4
     train = /home/username/nn/animals/animals_train.txt
     valid = /home/username/nn/animals/animals_valid.txt
     names = /home/username/nn/animals/animals.names
     backup = /home/username/nn/animals
+~~~
 
 * Create a folder where you'll store your images and annotations.  For example, this could be `~/nn/animals/dataset`.  Each image will need a coresponding `.txt` file which describes the annotations for that image.
 * Create the "train" and "valid" text files named in the `.data` file.  These two text files need to individually list all of the images which Darknet must use to train and for validation when calculating the mAP%.  Exactly one image per line.
@@ -122,13 +124,16 @@ The simplest way to annotate and train is with the use of DarkMark to create all
   * Search for all instances of the line `classes=...` and modify it with the number of classes in your `.names` file.  For this example, we'd use `classes=4`.
   * Search for all instances of the line `filters=...` in the `[convolutional]` section **prior** to each `[yolo]` section.  The value to use is (number_of_classes + 5) * 3.  Meaning for this example, (4 + 5) * 3 = 27.  So we'd use `filters=27` on the appropriate line.
   * Start training!  Run the following commands:
-
+~~~
     cd ~/nn/animals/
     ~/src/darknet/darknet detector -map -dont_show train ~/nn/animals/animals.data ~/nn/animals/animals.cfg
+~~~
 
 Be patient.  The best weights will be stored in `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file after the first hundred iterations.
 
-# Other Tools
+# Other Tools and Links
 
-* To manage your Darknet/YOLO projects, annotate images, and generate the necessary files to train with Darknet, [see DarkMark](https://github.com/stephanecharette/DarkMark)
-* For an alternative CLI to Darknet, to use image tiling, or for object tracking in your videos, [see DarkHelp](https://github.com/stephanecharette/DarkHelp)
+* To manage your Darknet/YOLO projects, annotate images, and generate the necessary files to train with Darknet, [see DarkMark](https://github.com/stephanecharette/DarkMark).
+* For an alternative CLI to Darknet, to use image tiling, or for object tracking in your videos, [see DarkHelp](https://github.com/stephanecharette/DarkHelp).
+* See if [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/) can help answer your questions.
+* See the many tutorial and example videos on [Stéphane's YouTube channel](https://www.youtube.com/c/StephaneCharette/videos)
