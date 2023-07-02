@@ -78,6 +78,7 @@ This solution can be used from both Linux and Windows, but is much more common o
 
 This is not the full list of all commands supported by Darknet.  See [the previous readme](README_previous.md) for additional details and examples.
 
+* Run a single image:  `darknet detector test animals.data animals.cfg animals_best.weights dog.jpg`
 * Output coordinates:  `darknet detector test animals.data animals.cfg animals_best.weights -ext_output dog.jpg`
 * Working with videos:  `darknet detector demo animals.data animals.cfg animals_best.weights -ext_output test.mp4`
 * Reading from a webcam:  `darknet detector demo animals.data animals.cfg animals_best.weights -c 0`
