@@ -92,6 +92,11 @@ image load_image(char * filename, int desired_width, int desired_height, int cha
 
 image load_image_stb_resize(char *filename, int w, int h, int c);
 //LIB_API image load_image_color(char *filename, int w, int h);
+
+/** To create the labels shown on the images, Darknet has tiny images of each character in the ASCII table.
+ * And multiple sizes of each one.  This is the function that loads all of these into memory.  See the images
+ * in the @p data/labels/ directory.
+ */
 image **load_alphabet();
 
 //float get_pixel(image m, int x, int y, int c);

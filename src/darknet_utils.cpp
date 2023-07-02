@@ -267,3 +267,21 @@ void update_console_title(const int iteration, const int max_batches, const floa
 
 	return;
 }
+
+
+bool file_exists(const char * const filename)
+{
+	bool result = false;
+
+	if (filename != nullptr)
+	{
+		FILE * file = std::fopen(filename, "rb");
+		if (file)
+		{
+			std::fclose(file);
+			result = true;
+		}
+	}
+
+	return result;
+}

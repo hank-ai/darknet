@@ -125,14 +125,14 @@ If you'd rather manually setup the various files to train a custom network:
   * Note `steps=...`.  This should be set to 80% and 90% of `max_batches`.  For this example we'd use `steps=6400,7200`.
   * Note `width=...` and `height=...`.  These are the network dimensions.  The FAQ explains [how to calculate the best size to use](https://www.ccoderun.ca/programming/darknet_faq/#optimal_network_size).
   * Search for all instances of the line `classes=...` and modify it with the number of classes in your `.names` file.  For this example, we'd use `classes=4`.
-  * Search for all instances of the line `filters=...` in the `[convolutional]` section **prior** to each `[yolo]` section.  The value to use is (number_of_classes + 5) * 3.  Meaning for this example, (4 + 5) * 3 = 27.  So we'd use `filters=27` on the appropriate line.
-  * Start training!  Run the following commands:
+  * Search for all instances of the line `filters=...` in the `[convolutional]` section **prior** to each `[yolo]` section.  The value to use is (number_of_classes + 5) * 3.  Meaning for this example, (4 + 5) * 3 = 27.  So we'd use `filters=27` on the appropriate lines.
+* Start training!  Run the following commands:
 ~~~
     cd ~/nn/animals/
     ~/src/darknet/darknet detector -map -dont_show train animals.data animals.cfg
 ~~~
 
-Be patient.  The best weights will be stored in `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file after the first hundred iterations.
+Be patient.  The best weights will be stored in `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file after the first hundred iterations have completed.
 
 # Other Tools and Links
 

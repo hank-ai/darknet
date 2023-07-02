@@ -54,6 +54,8 @@ void display_warning_msg(const char * const msg);
 /// Use VT100/ANSI codes to update the console title during training.
 void update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const double seconds_remaining);
 
+/// Determine if a filename exists.
+bool file_exists(const char * const filename);
 
 #ifdef __cplusplus
 }
