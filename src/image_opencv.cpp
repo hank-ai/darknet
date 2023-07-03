@@ -1006,62 +1006,93 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
 mat_cv* draw_initial_train_chart(char *windows_name, float max_img_loss, int max_batches, int number_of_lines, int img_size, int dont_show, char* chart_path)
 {
 	// the room that we need to reserve on the left and the bottom of the image to draw the axis and various other information
-	int img_offset = 60;
-	int draw_size = img_size - img_offset;
-	cv::Mat *img_ptr = new cv::Mat(img_size, img_size, CV_8UC3, CV_RGB(255, 255, 255));
-	cv::Mat &img = *img_ptr;
-	cv::Point pt1, pt2, pt_text;
+	const int img_offset = 60;
+
+	// the size of the "grid" drawing area, which should be 1000 - 60 = 940x940
+	const int draw_size = img_size - img_offset;
+
+	cv::Mat * img_ptr = new cv::Mat(img_size, img_size, CV_8UC3, CV_RGB(255, 255, 255));
+	cv::Mat & img = *img_ptr;
+
+	cv::Point pt1;
+	cv::Point pt2;
+	cv::Point pt_text;
 	char char_buff[400];
 
 	try
 	{
-		// load chart from file
-		if (chart_path != NULL && chart_path[0] != '\0')
+		// If we have the previous chart.png file, we should use the grid from that.  Not sure what chart_path is supposed to be for,
+		// but from what I can tell that is normally NULL.
+		//
+		// The filename "chart.png" -- without a path -- is hard-coded as the filename where the chart gets
+		// updated in update_train_loss_chart(), so try that path and see if the image can be loaded.
+
+		std::string filename = "chart.png";
+		if (chart_path != nullptr && chart_path[0] != '\0')
 		{
-			*img_ptr = cv::imread(chart_path);
+			filename = chart_path;
 		}
-		else
+		if (file_exists(filename.c_str()))
 		{
-			// draw new chart
-
-			// vertical lines
-			pt1.x = img_offset;
-			pt2.x = img_size;
-			pt_text.x = 30;
-			for (int i = 1; i <= number_of_lines; ++i)
+			cv::Mat tmp = cv::imread(filename);
+			if (tmp.size() == cv::Size(img_size, img_size))
 			{
-				pt1.y = pt2.y = (float)i * draw_size / number_of_lines;
-				cv::line(img, pt1, pt2, CV_RGB(224, 224, 224));
-				if (i % 10 == 0)
-				{
-					sprintf(char_buff, "%2.1f", max_img_loss*(number_of_lines - i) / number_of_lines);
-					pt_text.y = pt1.y + 3;
+				// the image was read, and it is the correct size!
 
-					cv::putText(img, char_buff, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
-					cv::line(img, pt1, pt2, CV_RGB(128, 128, 128));
-				}
-			}
-			// horizontal lines
-			pt1.y = draw_size; pt2.y = 0, pt_text.y = draw_size + 15;
-			for (int i = 0; i <= number_of_lines; ++i)
-			{
-				pt1.x = pt2.x = img_offset + (float)i * draw_size / number_of_lines;
-				cv::line(img, pt1, pt2, CV_RGB(224, 224, 224));
-				if (i % 10 == 0)
-				{
-					sprintf(char_buff, "%d", max_batches * i / number_of_lines);
-					pt_text.x = pt1.x - 20;
-					cv::putText(img, char_buff, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
-					cv::line(img, pt1, pt2, CV_RGB(128, 128, 128));
-				}
-			}
+				// convert the previous image to greyscale, and then back to 3-channel BGR
+				cv::cvtColor(tmp, tmp, cv::COLOR_BGR2GRAY);
+				cv::cvtColor(tmp, tmp, cv::COLOR_GRAY2BGR);
 
-			cv::putText(img, "Loss", cv::Point(10, 60), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 255), 1, CV_AA);
-			cv::putText(img, "Iteration number", cv::Point(draw_size / 2, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
-			char max_batches_buff[100];
-			sprintf(max_batches_buff, "max_batches = %d", max_batches);
-			cv::putText(img, max_batches_buff, cv::Point(draw_size - 125, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, CV_AA);
+				// lighten (fade) the old grid information
+				cv::Mat lighter;
+				const double percent = 0.25 * 255.0; // how much lighter to make the image (0.25 = 25%)
+				tmp.convertTo(lighter, -1, 1, percent);
+
+				// the grid starts at (60, 0) and extends for "draw_size" (940) pixels to the bottom right
+				const cv::Rect r(img_offset, 0, draw_size, draw_size);
+				lighter(r).copyTo(img(r));
+			}
 		}
+
+		// draw new chart
+
+		// vertical lines
+		pt1.x = img_offset;
+		pt2.x = img_size;
+		pt_text.x = 30;
+		for (int i = 1; i <= number_of_lines; ++i)
+		{
+			pt1.y = pt2.y = (float)i * draw_size / number_of_lines;
+			cv::line(img, pt1, pt2, CV_RGB(224, 224, 224));
+			if (i % 10 == 0)
+			{
+				sprintf(char_buff, "%2.1f", max_img_loss*(number_of_lines - i) / number_of_lines);
+				pt_text.y = pt1.y + 3;
+
+				cv::putText(img, char_buff, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
+				cv::line(img, pt1, pt2, CV_RGB(128, 128, 128));
+			}
+		}
+		// horizontal lines
+		pt1.y = draw_size; pt2.y = 0, pt_text.y = draw_size + 15;
+		for (int i = 0; i <= number_of_lines; ++i)
+		{
+			pt1.x = pt2.x = img_offset + (float)i * draw_size / number_of_lines;
+			cv::line(img, pt1, pt2, CV_RGB(224, 224, 224));
+			if (i % 10 == 0)
+			{
+				sprintf(char_buff, "%d", max_batches * i / number_of_lines);
+				pt_text.x = pt1.x - 20;
+				cv::putText(img, char_buff, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
+				cv::line(img, pt1, pt2, CV_RGB(128, 128, 128));
+			}
+		}
+
+		cv::putText(img, "Loss", cv::Point(10, 60), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 255), 1, CV_AA);
+		cv::putText(img, "Iteration number", cv::Point(draw_size / 2, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
+		char max_batches_buff[100];
+		sprintf(max_batches_buff, "max_batches = %d", max_batches);
+		cv::putText(img, max_batches_buff, cv::Point(draw_size - 125, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, CV_AA);
 
 		if (!dont_show)
 		{
