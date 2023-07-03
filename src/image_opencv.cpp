@@ -26,6 +26,7 @@ extern "C" void resize_window_cv(char const* window_name, int width, int height)
 #include <cstdio>
 #include <cstdlib>
 #include <cmath>
+#include <ctime>
 #include <string>
 #include <vector>
 #include <fstream>
@@ -968,15 +969,15 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
 				//cvSaveImage(image_name, copy_img, 0);
 				//cvResetImageROI(copy_img);
 
-				cv::rectangle(*show_img, pt1, pt2, color, width, 8, 0);
+				cv::rectangle(*show_img, pt1, pt2, color, width);
 				if (ext_output)
 					printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
 					(float)left, (float)top, b.w*show_img->cols, b.h*show_img->rows);
 				else
 					printf("\n");
 
-				cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, width, 8, 0);
-				cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, CV_FILLED, 8, 0);    // filled
+				cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, width);
+				cv::rectangle(*show_img, pt_text_bg1, pt_text_bg2, color, CV_FILLED);    // filled
 				cv::Scalar black_color = CV_RGB(0, 0, 0);
 				cv::putText(*show_img, labelstr, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, black_color, 2 * font_size, CV_AA);
 				// cv::FONT_HERSHEY_COMPLEX_SMALL, cv::FONT_HERSHEY_SIMPLEX
@@ -1002,59 +1003,69 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
 // ====================================================================
 
 
-mat_cv* draw_train_chart(char *windows_name, float max_img_loss, int max_batches, int number_of_lines, int img_size, int dont_show, char* chart_path)
+mat_cv* draw_initial_train_chart(char *windows_name, float max_img_loss, int max_batches, int number_of_lines, int img_size, int dont_show, char* chart_path)
 {
+	// the room that we need to reserve on the left and the bottom of the image to draw the axis and various other information
 	int img_offset = 60;
 	int draw_size = img_size - img_offset;
 	cv::Mat *img_ptr = new cv::Mat(img_size, img_size, CV_8UC3, CV_RGB(255, 255, 255));
 	cv::Mat &img = *img_ptr;
 	cv::Point pt1, pt2, pt_text;
+	char char_buff[400];
 
-	try {
+	try
+	{
 		// load chart from file
-		if (chart_path != NULL && chart_path[0] != '\0') {
+		if (chart_path != NULL && chart_path[0] != '\0')
+		{
 			*img_ptr = cv::imread(chart_path);
 		}
-		else {
+		else
+		{
 			// draw new chart
-			char char_buff[100];
-			int i;
+
 			// vertical lines
-			pt1.x = img_offset; pt2.x = img_size, pt_text.x = 30;
-			for (i = 1; i <= number_of_lines; ++i) {
+			pt1.x = img_offset;
+			pt2.x = img_size;
+			pt_text.x = 30;
+			for (int i = 1; i <= number_of_lines; ++i)
+			{
 				pt1.y = pt2.y = (float)i * draw_size / number_of_lines;
-				cv::line(img, pt1, pt2, CV_RGB(224, 224, 224), 1, 8, 0);
-				if (i % 10 == 0) {
+				cv::line(img, pt1, pt2, CV_RGB(224, 224, 224));
+				if (i % 10 == 0)
+				{
 					sprintf(char_buff, "%2.1f", max_img_loss*(number_of_lines - i) / number_of_lines);
 					pt_text.y = pt1.y + 3;
 
 					cv::putText(img, char_buff, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
-					cv::line(img, pt1, pt2, CV_RGB(128, 128, 128), 1, 8, 0);
+					cv::line(img, pt1, pt2, CV_RGB(128, 128, 128));
 				}
 			}
 			// horizontal lines
 			pt1.y = draw_size; pt2.y = 0, pt_text.y = draw_size + 15;
-			for (i = 0; i <= number_of_lines; ++i) {
+			for (int i = 0; i <= number_of_lines; ++i)
+			{
 				pt1.x = pt2.x = img_offset + (float)i * draw_size / number_of_lines;
-				cv::line(img, pt1, pt2, CV_RGB(224, 224, 224), 1, 8, 0);
-				if (i % 10 == 0) {
+				cv::line(img, pt1, pt2, CV_RGB(224, 224, 224));
+				if (i % 10 == 0)
+				{
 					sprintf(char_buff, "%d", max_batches * i / number_of_lines);
 					pt_text.x = pt1.x - 20;
 					cv::putText(img, char_buff, pt_text, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
-					cv::line(img, pt1, pt2, CV_RGB(128, 128, 128), 1, 8, 0);
+					cv::line(img, pt1, pt2, CV_RGB(128, 128, 128));
 				}
 			}
 
 			cv::putText(img, "Loss", cv::Point(10, 60), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 255), 1, CV_AA);
 			cv::putText(img, "Iteration number", cv::Point(draw_size / 2, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
 			char max_batches_buff[100];
-			sprintf(max_batches_buff, "in cfg max_batches=%d", max_batches);
-			cv::putText(img, max_batches_buff, cv::Point(draw_size - 195, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
-			cv::putText(img, "Press 's' to save : chart.png", cv::Point(5, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, CV_AA);
+			sprintf(max_batches_buff, "max_batches = %d", max_batches);
+			cv::putText(img, max_batches_buff, cv::Point(draw_size - 125, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, CV_AA);
 		}
 
-		if (!dont_show) {
-			printf(" If error occurs - run training with flag: -dont_show \n");
+		if (!dont_show)
+		{
+			printf("If an error occurs, add the flag -dont_show to supress the GUI window.\n");
 			cv::namedWindow(windows_name, cv::WINDOW_NORMAL);
 			cv::moveWindow(windows_name, 0, 0);
 			cv::resizeWindow(windows_name, img_size, img_size);
@@ -1075,33 +1086,54 @@ mat_cv* draw_train_chart(char *windows_name, float max_img_loss, int max_batches
 }
 
 
-void draw_train_loss(char *windows_name, mat_cv* img_src, int img_size, float avg_loss, float max_img_loss, int current_batch, int max_batches,
+void update_train_loss_chart(char *windows_name, mat_cv* img_src, int img_size, float avg_loss, float max_img_loss, int current_batch, int max_batches,
 	float precision, int draw_precision, char *accuracy_name, float contr_acc, int dont_show, int mjpeg_port, double time_remaining)
 {
-	try {
-		cv::Mat &img = *(cv::Mat*)img_src;
-		int img_offset = 60;
-		int draw_size = img_size - img_offset;
-		char char_buff[100];
-		cv::Point pt1, pt2;
+	/** @note This is called at @em every iteration to update the chart, but the output file isn't saved to disk every time.
+	 *
+	 * @note In some parts of the code, this is called at the @em end of the iteration, once the batch number (iteration)
+	 * has already been updated.  So the very first time through, the @p "current_batch" is already set to @p 1, not @p 0.
+	 * In othe parts, this is called at the start of the iteration, so the first time through the @p "current_batch" is zero.
+	 */
+
+	try
+	{
+		cv::Mat & img = *reinterpret_cast<cv::Mat*>(img_src);
+
+		char char_buff[400];
+
+		// Offset describes how much space (in pixels) is reserved to draw the axis details
+		// at the left side and bottom side of the image.
+		const int img_offset = 60;
+
+		// 1000 - 60 gives us a grid area of 940x940
+		const int draw_size = img_size - img_offset;
+
+		// draw the blue "loss" point
+		cv::Point pt1;
 		pt1.x = img_offset + draw_size * (float)current_batch / max_batches;
 		pt1.y = draw_size * (1 - avg_loss / max_img_loss);
-		if (pt1.y < 0) pt1.y = 1;
-		cv::circle(img, pt1, 1, CV_RGB(0, 0, 255), CV_FILLED, 8, 0);
+		if (pt1.y < 0)
+		{
+			pt1.y = 1;
+		}
+		cv::circle(img, pt1, 1, CV_RGB(0, 0, 255));
 
 		// contrastive accuracy
-		if (contr_acc >= 0) {
-			static float old_contr_acc = 0;
+		if (contr_acc >= 0.0f)
+		{
+			static float old_contr_acc = 0.0f;
 
-			if (current_batch > 0) {
+			if (current_batch > 0)
+			{
 				cv::line(img,
 					cv::Point(img_offset + draw_size * (float)(current_batch - 1) / max_batches, draw_size * (1 - old_contr_acc)),
 					cv::Point(img_offset + draw_size * (float)current_batch / max_batches, draw_size * (1 - contr_acc)),
-					CV_RGB(0, 150, 70), 1, 8, 0);
+					CV_RGB(0, 150, 70));
 			}
 			old_contr_acc = contr_acc;
 
-			sprintf(char_buff, "C:%2.1f%% ", contr_acc * 100);
+			sprintf(char_buff, "C:%2.1f%% ", contr_acc * 100.0f);
 			cv::putText(img, char_buff, cv::Point(1, 45), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 255, 255), 5, CV_AA);
 			cv::putText(img, char_buff, cv::Point(1, 45), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 150, 70), 1, CV_AA);
 		}
@@ -1109,12 +1141,15 @@ void draw_train_loss(char *windows_name, mat_cv* img_src, int img_size, float av
 		// precision
 		if (draw_precision)
 		{
-			static float old_precision = 0;
-			static float max_precision = 0;
+			static float old_precision = 0.0f;
+			static float max_precision = 0.0f;
 			static int iteration_old = 0;
 			static int text_iteration_old = 0;
+
 			if (iteration_old == 0)
 			{
+				/// @todo why is this not done above in @ref draw_initial_train_chart()
+				// where "accuracy_name" is "mAP%"
 				cv::putText(img, accuracy_name, cv::Point(10, 12), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 0, 0), 1, CV_AA);
 			}
 
@@ -1123,46 +1158,74 @@ void draw_train_loss(char *windows_name, mat_cv* img_src, int img_size, float av
 				cv::line(img,
 					cv::Point(img_offset + draw_size * (float)iteration_old / max_batches, draw_size * (1 - old_precision)),
 					cv::Point(img_offset + draw_size * (float)current_batch / max_batches, draw_size * (1 - precision)),
-					CV_RGB(255, 0, 0), 1, 8, 0);
+					CV_RGB(255, 0, 0));
 			}
 
-			sprintf(char_buff, "%2.1f%% ", precision * 100);
+			sprintf(char_buff, "%2.1f%% ", precision * 100.0f);
 			cv::putText(img, char_buff, cv::Point(10, 28), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 255, 255), 5, CV_AA);
 			cv::putText(img, char_buff, cv::Point(10, 28), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, CV_AA);
 
-			if ((std::fabs(old_precision - precision) > 0.1)  || (max_precision < precision) || (current_batch - text_iteration_old) >= max_batches / 10) {
+			// decide if the mAP% value has changed enough that we need to re-label it on the chart
+			if ((std::fabs(old_precision - precision) > 0.1) ||
+				(max_precision < precision) ||
+				(current_batch - text_iteration_old) >= max_batches / 10)
+			{
 				text_iteration_old = current_batch;
 				max_precision = std::max(max_precision, precision);
-				sprintf(char_buff, "%2.0f%% ", precision * 100);
+				sprintf(char_buff, "%2.0f%% ", precision * 100.0f);
 				cv::putText(img, char_buff, cv::Point(pt1.x - 30, draw_size * (1 - precision) + 15), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 255, 255), 5, CV_AA);
 				cv::putText(img, char_buff, cv::Point(pt1.x - 30, draw_size * (1 - precision) + 15), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, CV_AA);
 			}
 			old_precision = precision;
 			iteration_old = current_batch;
 		}
-		sprintf(char_buff, "current avg loss = %2.4f    iteration = %d    approx. time left = %s", avg_loss, current_batch, format_time_remaining(60.0 * 60.0 * time_remaining).c_str());
-		pt1.x = 15, pt1.y = draw_size + 18;
-		pt2.x = pt1.x + 800, pt2.y = pt1.y + 20;
-		cv::rectangle(img, pt1, pt2, CV_RGB(255, 255, 255), CV_FILLED, 8, 0);
+
+		// draw the text at the bottom of the chart
+		sprintf(char_buff, "loss = %2.4f      iteration = %d      time remaining = %s", avg_loss, current_batch, format_time_remaining(60.0 * 60.0 * time_remaining).c_str());
+		pt1.x = 15;
+		pt1.y = draw_size + 18;
+		cv::Point pt2;
+		pt2.x = pt1.x + 850;
+		pt2.y = pt1.y + 20;
+		cv::rectangle(img, pt1, pt2, CV_RGB(255, 255, 255), CV_FILLED); // fill it with white to clear out the previous text
 		pt1.y += 15;
 		cv::putText(img, char_buff, pt1, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 100), 1, CV_AA);
 
+		// draw the timestamp in the lower left
+		static std::time_t previous_time = 0;
+		std::time_t current_time = std::time(nullptr);
+		if (previous_time != current_time / 10 || current_batch >= (max_batches - 1))
+		{
+			std::tm * tm = std::localtime(&current_time);
+			std::strftime(char_buff, sizeof(char_buff), "%Y-%m-%d %H:%M:%S %Z", tm);
+			pt1.x = 5;
+			pt1.y = img_size - 20;
+			pt2.x = pt1.x + 250;
+			pt2.y = pt1.y + 15;
+			cv::rectangle(img, pt1, pt2, CV_RGB(255, 255, 255), CV_FILLED); // fill it with white to clear out the previous text
+			pt1.x = 15;
+			pt1.y = img_size - 10;
+			cv::putText(img, char_buff, pt1, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, CV_AA);
+			previous_time = current_time / 10; // only update the timestamp every 10 seconds
+		}
+
 		int k = 0;
-		if (!dont_show) {
+		if (!dont_show)
+		{
 			cv::imshow(windows_name, img);
 			k = cv::waitKey(20);
 		}
 		static int old_batch = 0;
-		if (k == 's' || current_batch == (max_batches - 1) || (current_batch / 100 > old_batch / 100)) {
+		if (k == 's' || current_batch <= 1 || current_batch >= (max_batches - 1) || (current_batch / 100 > old_batch / 100))
+		{
 			old_batch = current_batch;
 			save_mat_png(img, "chart.png");
-			save_mat_png(img, windows_name);
-			cv::putText(img, "- Saved", cv::Point(260, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 0, 0), 1, CV_AA);
 		}
-		else
-			cv::putText(img, "- Saved", cv::Point(260, img_size - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(255, 255, 255), 1, CV_AA);
 
-		if (mjpeg_port > 0) send_mjpeg((mat_cv *)&img, mjpeg_port, 500000, 70);
+		if (mjpeg_port > 0)
+		{
+			send_mjpeg((mat_cv *)&img, mjpeg_port, 500000, 70);
+		}
 	}
 	catch (const std::exception & e)
 	{
@@ -1521,7 +1584,7 @@ void show_acnhors(int number_of_boxes, int num_of_clusters, float *rel_width_hei
 		int red_id = (cluster_idx * (uint64_t)123 + 55) % 255;
 		int green_id = (cluster_idx * (uint64_t)321 + 33) % 255;
 		int blue_id = (cluster_idx * (uint64_t)11 + 99) % 255;
-		cv::circle(img, pt, 1, CV_RGB(red_id, green_id, blue_id), CV_FILLED, 8, 0);
+		cv::circle(img, pt, 1, CV_RGB(red_id, green_id, blue_id), CV_FILLED);
 		//if(pt.x > img_size || pt.y > img_size) printf("\n pt.x = %d, pt.y = %d \n", pt.x, pt.y);
 	}
 
@@ -1530,7 +1593,7 @@ void show_acnhors(int number_of_boxes, int num_of_clusters, float *rel_width_hei
 		pt1.x = pt1.y = 0;
 		pt2.x = centers.at<float>(j, 0) * img_size / width;
 		pt2.y = centers.at<float>(j, 1) * img_size / height;
-		cv::rectangle(img, pt1, pt2, CV_RGB(255, 255, 255), 1, 8, 0);
+		cv::rectangle(img, pt1, pt2, CV_RGB(255, 255, 255), 1);
 	}
 	save_mat_png(img, "cloud.png");
 	cv::imshow("clusters", img);

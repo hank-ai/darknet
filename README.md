@@ -132,7 +132,7 @@ If you'd rather manually setup the various files to train a custom network:
     ~/src/darknet/darknet detector -map -dont_show train animals.data animals.cfg
 ~~~
 
-Be patient.  The best weights will be stored in `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file after the first hundred iterations have completed.
+Be patient.  The best weights will be stored in `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file.
 
 # Other Tools and Links
 

@@ -295,7 +295,6 @@ image **load_alphabet()
 }
 
 
-
 // Creates array of detections with prob > thresh and fills best_class for them
 detection_with_class* get_actual_detections(detection *dets, int dets_num, float thresh, int* selected_detections_num, char **names)
 {

@@ -17,6 +17,7 @@ The Doxygen pages below are meant to assist software developers in understanding
 
 @li @ref main()
 @li @ref darknet_fatal_error()
+@li @ref update_train_loss_chart()
 
 @p darknet_utils.h:
 @li @ref display_loaded_images()
