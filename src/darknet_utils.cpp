@@ -1,9 +1,19 @@
 #include "darknet_utils.hpp"
+#include "Chart.hpp"
+#include "image.h"
+
 #include <iomanip>
 #include <sstream>
 #include <string>
 #include <cstdio>
 #include <cmath>
+
+
+std::vector<std::string> class_names;
+
+#ifdef OPENCV
+std::vector<cv::Scalar> class_colours;
+#endif
 
 
 /** @todo Colour not yet supported on Windows.  On recent editions of Windows see @p SetConsoleMode() and
@@ -67,6 +77,52 @@ std::string in_colour(const EColour colour, const std::string & msg)
 	}
 
 	return msg;
+}
+
+
+void remember_class_names(char ** names, const int count)
+{
+	if (static_cast<size_t>(count) == class_names.size())
+	{
+		// assume this is a redundant call and we already know all of the class names and colours
+		return;
+	}
+
+	printf("\nRemembering %d class%s:\n", count, (count == 1 ? "" : "es"));
+
+	class_names.clear();
+	class_names.reserve(count);
+
+	#ifdef OPENCV
+	class_colours.clear();
+	class_colours.reserve(count);
+	#endif
+
+	for (int idx = 0; idx < count; idx ++)
+	{
+		const std::string name = names[idx];
+		if (name.find_first_not_of(" \t\r\n") == std::string::npos)
+		{
+			display_error_msg("The .names file appears to contain a blank line.\n");
+		}
+
+		class_names.push_back(name);
+
+		#ifdef OPENCV
+		const int offset = idx * 123457 % count;
+		const int r = std::min(255.0f, std::round(256.0f * get_color(2, offset, count)));
+		const int g = std::min(255.0f, std::round(256.0f * get_color(1, offset, count)));
+		const int b = std::min(255.0f, std::round(256.0f * get_color(0, offset, count)));
+
+		class_colours.push_back(CV_RGB(r, g, b));
+
+		printf("-> class #%d (%s) will use colour #%02X%02X%02X\n", idx, names[idx], r, g, b);
+		#endif
+	}
+
+	printf("\n");
+
+	return;
 }
 
 
@@ -284,4 +340,96 @@ bool file_exists(const char * const filename)
 	}
 
 	return result;
+}
+
+
+std::string text_to_simple_label(std::string txt)
+{
+	// first we convert unknown characters to whitespace
+	size_t pos = 0;
+	while (true)
+	{
+		pos = txt.find_first_not_of(
+			" "
+			"0123456789"
+			"abcdefghijklmnopqrstuvwxyz"
+			"ABCDEFGHIJKLMNOPQRSTUVWXYZ", pos);
+		if (pos == std::string::npos)
+		{
+			break;
+		}
+		txt[pos] = ' ';
+	}
+
+	// then we merge consecutive spaces together
+	pos = 0;
+	while (true)
+	{
+		pos = txt.find("  ", pos);
+		if (pos == std::string::npos)
+		{
+			break;
+		}
+		txt.erase(pos, 1);
+	}
+
+	// finally we convert any remaining whitespace to underscore so it can be used to create filenames without spaces
+	pos = 0;
+	while (true)
+	{
+		pos = txt.find(' ', pos);
+		if (pos == std::string::npos)
+		{
+			break;
+		}
+		txt[pos] = '_';
+	}
+
+	return txt;
+}
+
+
+void initialize_new_charts(const int max_batches, const float max_img_loss)
+{
+	training_chart = Chart("", max_batches, max_img_loss);
+
+	more_charts.clear();
+
+	for (size_t idx = 0; idx < class_names.size(); idx ++)
+	{
+		Chart chart(class_names[idx], max_batches, max_img_loss);
+		chart.map_colour = class_colours[idx];
+
+		more_charts.push_back(chart);
+	}
+
+	return;
+}
+
+
+void update_loss_in_new_charts(const int current_iteration, const float loss, const double hours_remaining, const bool dont_show)
+{
+	training_chart.update_save_and_display(current_iteration, loss, hours_remaining, dont_show);
+
+	for (auto & chart : more_charts)
+	{
+		chart.update_save_and_display(current_iteration, loss, hours_remaining, true);
+	}
+
+	return;
+}
+
+
+void update_accuracy_in_new_charts(const int class_index, const float accuracy)
+{
+	if (class_index < 0)
+	{
+		training_chart.update_accuracy(accuracy);
+	}
+	else if (static_cast<size_t>(class_index) < more_charts.size())
+	{
+		more_charts[class_index].update_accuracy(accuracy);
+	}
+
+	return;
 }

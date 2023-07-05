@@ -12,6 +12,20 @@
 
 #include "darknet_utils.h"
 #include <string>
+#include <vector>
+
+#ifdef OPENCV
+#include <opencv2/opencv.hpp>
+#endif
+
+
+/// The names stored in the .names file.  @see @ref remember_class_names()
+extern std::vector<std::string> class_names;
+
+#ifdef OPENCV
+/// The colour to use for each class.  @see @ref remember_class_names()
+extern std::vector<cv::Scalar> class_colours;
+#endif
 
 
 std::string in_colour(const EColour colour, const int i);
@@ -37,3 +51,9 @@ std::string format_loss(const double & loss);
 
 /// Format the mAP% accuracy with ANSI colours.
 std::string format_map_accuracy(const float & accuracy);
+
+
+/** Convert the given text to plain alphanumeric ASCII string.  Remove whitespace, keep just alphanumeric and underscore.
+ * Good to use as a base for a filename.
+ */
+std::string text_to_simple_label(std::string txt);

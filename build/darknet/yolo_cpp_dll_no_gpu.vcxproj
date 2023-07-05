@@ -198,6 +198,7 @@
     <ClCompile Include="..\..\src\image.c" />
     <ClCompile Include="..\..\src\image_opencv.cpp" />
     <ClCompile Include="..\..\src\darknet_utils.cpp" />
+    <ClCompile Include="..\..\src\Chart.cpp" />
     <ClCompile Include="..\..\src\layer.c" />
     <ClCompile Include="..\..\src\list.c" />
     <ClCompile Include="..\..\src\local_layer.c" />
@@ -265,6 +266,7 @@
     <ClInclude Include="..\..\src\image.h" />
     <ClInclude Include="..\..\src\image_opencv.h" />
     <ClInclude Include="..\..\src\darknet_utils.hpp" />
+    <ClInclude Include="..\..\src\Chart.hpp" />
     <ClInclude Include="..\..\src\layer.h" />
     <ClInclude Include="..\..\src\list.h" />
     <ClInclude Include="..\..\src\local_layer.h" />

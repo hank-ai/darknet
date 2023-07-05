@@ -41,6 +41,12 @@ extern bool colour_is_enabled;
 /// Array of text strings with the VT100/ANSI escape codes needed to display colour output.
 extern const char * const ansi_colours[kMax];
 
+/** Remember all of the entries in the .names file, so we don't have to keep re-loading it or passing it around.
+ * @see @ref class_names
+ * @see @ref class_colours
+ */
+void remember_class_names(char ** names, const int count);
+
 void display_loaded_images(const int images, const double time);
 void display_iteration_summary(const int iteration, const float loss, const float avg_loss, const float rate, const double time, const int images, const double avg_time);
 void display_last_accuracy(const float iou_thresh, const float mean_average_precision, const float best_map);
@@ -56,6 +62,14 @@ void update_console_title(const int iteration, const int max_batches, const floa
 
 /// Determine if a filename exists.
 bool file_exists(const char * const filename);
+
+/// Setup the new C++ charts.  This is called once just prior to starting training.  @see @ref Chart
+void initialize_new_charts(const int max_batches, const float max_img_loss);
+
+/// Update the new C++ charts with the given loss and mAP% accuracy value.  This is called at every iteration.  @see @ref Chart
+void update_loss_in_new_charts(const int current_iteration, const float loss, const double hours_remaining, const bool dont_show);
+
+void update_accuracy_in_new_charts(const int class_index, const float accuracy);
 
 #ifdef __cplusplus
 }

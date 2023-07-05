@@ -37,7 +37,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	char *backup_directory = option_find_str(options, "backup", "/backup/");
 
 	network net_map;
-	if (calc_map) {
+	if (calc_map)
+	{
 		FILE* valid_file = fopen(valid_images, "r");
 		if (!valid_file)
 		{
@@ -46,7 +47,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		fclose(valid_file);
 
 		cuda_set_device(gpus[0]);
-		printf(" Prepare additional network for mAP calculation...\n");
+		printf("Prepare additional network for mAP calculation...\n");
 		net_map = parse_network_cfg_custom(cfgfile, 1, 1);
 		net_map.benchmark_layers = benchmark_layers;
 		const int net_classes = net_map.layers[net_map.n - 1].classes;
@@ -62,18 +63,17 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		char **names = get_labels_custom(name_list, &names_size);
 		if (net_classes != names_size)
 		{
-			printf("\n Error: in the file %s number of names %d that isn't equal to classes=%d in the file %s \n", name_list, names_size, net_classes, cfgfile);
-			if (net_classes > names_size)
-			{
-				darknet_fatal_error(DARKNET_LOC, "mismatched number of classes");
-			}
+			darknet_fatal_error(DARKNET_LOC, "In the file %s, the number of names %d does not match classes=%d in the file %s", name_list, names_size, net_classes, cfgfile);
 		}
+
+		remember_class_names(names, names_size);
+
 		free_ptrs((void**)names, net_map.layers[net_map.n - 1].classes);
 	}
 
 	srand(time(0));
 	char *base = basecfg(cfgfile);
-	printf("%s\n", base);
+
 	float avg_loss = -1.0f;
 	float avg_contrastive_acc = 0.0f;
 	network* nets = (network*)xcalloc(ngpus, sizeof(network));
@@ -105,8 +105,9 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	{
 		darknet_fatal_error(DARKNET_LOC, "batch size should not be set to 1 for training");
 	}
-	else if (actual_batch_size < 8) {
-		printf("\n Warning: You set batch=%d lower than 64! It is recommended to set batch=64 subdivision=64 \n", actual_batch_size);
+	else if (actual_batch_size < 32)
+	{
+		display_warning_msg("Warning: batch=... is set quite low!  It is recommended to set batch=64.\n");
 	}
 
 	int imgs = net.batch * net.subdivisions * ngpus;
@@ -188,13 +189,19 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	//args.threads = 12 * ngpus;    // Ryzen 7 2700X (16 logical cores)
 
 	// This is where we draw the initial blank chart.  That chart is then updated by update_train_loss_chart() at every iteration.
-	mat_cv* img = NULL;
+#if USE_OLD_CHARTS
+	mat_cv* old_chart_img_unused = NULL;
 	float max_img_loss = net.max_chart_loss;
 	int number_of_lines = 100;
 	int img_size = 1000;
 	char windows_name[100];
 	sprintf(windows_name, "chart_%s.png", base);
-	img = draw_initial_train_chart(windows_name, max_img_loss, net.max_batches, number_of_lines, img_size, dont_show, chart_path);
+	old_chart_img_unused = draw_initial_train_chart(windows_name, max_img_loss, net.max_batches, number_of_lines, img_size, dont_show, chart_path);
+#else
+	// use the new C++ training charts
+	initialize_new_charts(net.max_batches, net.max_chart_loss);
+#endif
+
 #endif    //OPENCV
 	if (net.contrastive && args.threads > net.batch/2) args.threads = net.batch / 2;
 	if (net.track)
@@ -359,7 +366,9 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		// 5989: loss=0.444, avg loss=0.329, rate=0.000026, 64.424 milliseconds, 383296 images, time remaining=7 seconds
 		display_iteration_summary(iteration, loss, avg_loss, get_current_rate(net), (what_time_is_it_now() - time), iteration * imgs, avg_time_in_hours * 60 * 60);
 
+#if USE_OLD_CHARTS
 		int draw_precision = 0;
+#endif
 
 		// This is where we decide if we have to do the mAP% calculations.
 		if (calc_map && (iteration >= next_map_calc || iteration == net.max_batches))
@@ -413,7 +422,11 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 				save_weights(net, buff);
 			}
 
+#if USE_OLD_CHARTS
 			draw_precision = 1;
+#else
+			update_accuracy_in_new_charts(-1, mean_average_precision);
+#endif
 
 			// done doing mAP% calculation
 		}
@@ -445,7 +458,12 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		}
 
 		// this is where we draw the chart while training
+#if USE_OLD_CHARTS
 		update_train_loss_chart(windows_name, img, img_size, avg_loss, max_img_loss, iteration, net.max_batches, mean_average_precision, draw_precision, "mAP%", avg_contrastive_acc / 100, dont_show, mjpeg_port, avg_time_in_hours);
+#else
+		update_loss_in_new_charts(iteration, avg_loss, avg_time_in_hours, dont_show);
+#endif
+
 #endif    // OPENCV
 
 		if (iteration >= iter_save + how_often_we_save_weights || (iteration % how_often_we_save_weights) == 0)
@@ -459,7 +477,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			save_weights(net, buff);
 		}
 
-		if (iteration >= (iter_save_last + 100) || (iteration % 100 == 0 && iteration > 1)) {
+		if (iteration >= (iter_save_last + 100) || (iteration % 100 == 0 && iteration > 1))
+		{
 			iter_save_last = iteration;
 #ifdef GPU
 			if (ngpus != 1) sync_nets(nets, ngpus, 0);
@@ -475,17 +494,22 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			}
 		}
 		free_data(train);
-	}
+
+	} // end of training loop
+
 #ifdef GPU
 	if (ngpus != 1) sync_nets(nets, ngpus, 0);
 #endif
 	char buff[256];
 	sprintf(buff, "%s/%s_final.weights", backup_directory, base);
 	save_weights(net, buff);
-	printf("If you want to train from the beginning, then use flag in the end of training command: -clear \n");
+
+	printf("If you want to re-start training, then use the flag \"-clear\" in the training command.\n");
 
 #ifdef OPENCV
+#if USE_OLD_CHARTS
 	release_mat(&img);
+#endif
 	destroy_all_windows_cv();
 #endif
 
@@ -1336,7 +1360,6 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	}
 	printf("\n detections_count = %d, unique_truth_count = %d  \n", detections_count, unique_truth_count);
 
-
 	int* detection_per_class_count = (int*)xcalloc(classes, sizeof(int));
 	for (j = 0; j < detections_count; ++j)
 	{
@@ -1476,6 +1499,9 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		}
 
 		printf("class_id = %d, name = %s, ap = %2.2f%%   \t (TP = %d, FP = %d) \n", i, names[i], avg_precision * 100, tp_for_thresh_per_class[i], fp_for_thresh_per_class[i]);
+
+		// send the result of this class to the C++ side of things so we can include it the right chart
+		update_accuracy_in_new_charts(i, avg_precision);
 
 		// float class_precision = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)fp_for_thresh_per_class[i]);
 		// float class_recall = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)(truth_classes_count[i] - tp_for_thresh_per_class[i]));
@@ -1950,6 +1976,8 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 	int names_size = 0;
 	char **names = get_labels_custom(name_list, &names_size); //get_labels(name_list);
 
+	remember_class_names(names, names_size);
+
 	image **alphabet = load_alphabet();
 	network net = parse_network_cfg(cfgfile);// parse_network_cfg_custom(cfgfile, 1, 1); // set batch=1
 	net.adversarial = 1;
@@ -1962,11 +1990,7 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 	//calculate_binary_weights(net);
 	if (net.layers[net.n - 1].classes != names_size)
 	{
-		printf("\n Error: in the file %s number of names %d that isn't equal to classes=%d in the file %s \n", name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
-		if (net.layers[net.n - 1].classes > names_size)
-		{
-			darknet_fatal_error(DARKNET_LOC, "number of names and classes do not match");
-		}
+		darknet_fatal_error(DARKNET_LOC, "number of names in %s (%d) does not match classes=%d in %s", name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
 	}
 
 	srand(2222222); /// @todo why??
@@ -2032,8 +2056,7 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 		sprintf(windows_name, "chart_%s.png", base);
 		img = draw_initial_train_chart(windows_name, max_img_loss, it_num, number_of_lines, img_size, dont_show, NULL);
 
-		int iteration;
-		for (iteration = 0; iteration < it_num; ++iteration)
+		for (int iteration = 0; iteration < it_num; ++iteration)
 		{
 			forward_backward_network_gpu(net, X, truth_cpu);
 
