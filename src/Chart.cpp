@@ -1,6 +1,7 @@
 #include "Chart.hpp"
 #include "darknet_utils.hpp"
 
+#ifdef OPENCV
 
 Chart training_chart;
 
@@ -368,3 +369,5 @@ Chart & Chart::update_save_and_display(const int current_iteration, const float 
 
 	return *this;
 }
+
+#endif
