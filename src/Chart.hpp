@@ -27,6 +27,9 @@ class Chart final
 		/// Destructor.
 		~Chart();
 
+		/// Determines if the chart has been initialized.
+		bool empty() const;
+
 		Chart & initialize();
 		Chart & save_to_disk();
 

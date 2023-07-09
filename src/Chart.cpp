@@ -65,6 +65,12 @@ Chart::~Chart()
 }
 
 
+bool Chart::empty() const
+{
+	return mat.empty();
+}
+
+
 Chart & Chart::initialize()
 {
 	mat = cv::Mat(dimensions, CV_8UC3, CV_RGB(255, 255, 255));
@@ -196,7 +202,7 @@ Chart & Chart::update_loss(const int current_iteration, const float loss)
 	cv::Point p;
 	p.x = std::max(1.0f, std::round(grid_size.width * current_iteration / max_batches));
 	p.y = std::max(0.0f, std::round(grid_size.height * (1.0f - loss / max_chart_loss)));
-	cv::circle(grid, p, 1, CV_RGB(0, 0, 255));
+	cv::circle(grid, p, 1, CV_RGB(0, 0, 255), 1, cv::LINE_AA);
 
 	previous_loss_iteration = current_iteration;
 	previous_loss_value = loss;
@@ -222,11 +228,19 @@ Chart & Chart::update_accuracy(const int current_iteration, const float accuracy
 	const cv::Size grid_size = grid.size();
 
 	// draw the red mAP% line
-	if (previous_map_iteration > 0.0f || previous_map_value > 0.0f)
+	if (current_iteration > 0.0f && accuracy >= 0.0f)
 	{
+		if (previous_map_iteration <= 0.0f && previous_map_value <= 0.0f)
+		{
+			// this is the very first mAP% entry, so "inherit" the current mAP% values
+			previous_map_iteration = current_iteration;
+			previous_map_value = accuracy;
+		}
+
 		cv::Point p1(std::round(grid_size.width * previous_map_iteration / max_batches), std::round(grid_size.height * (1.0f - previous_map_value)));
 		cv::Point p2(std::max(1.0f, std::round(grid_size.width * current_iteration / max_batches)), std::round(grid_size.height * (1.0f - accuracy)));
-		cv::line(grid, p1, p2, map_colour);
+		cv::line(grid, p1, p2, map_colour, 2, cv::LINE_AA);
+		cv::circle(grid, p2, 3, map_colour, 2, cv::LINE_AA);
 
 		// decide if the mAP% value has changed enough that we need to re-label it on the chart
 		if ((std::fabs(previous_map_value - accuracy) > 0.1) ||
@@ -285,9 +299,14 @@ Chart & Chart::update_bottom_text(const double hours_remaining)
 	else
 	{
 		ss << std::fixed << std::setprecision(4) << previous_map_value;
+
+		if (max_map_value > 0.0f)
+		{
+			ss << ", best=" << max_map_value;
+		}
 	}
 	p1 = cv::Point(150, grid_size.height + 20);
-	p2 = cv::Point(p1.x + 150, p1.y + 20);
+	p2 = cv::Point(p1.x + 250, p1.y + 20);
 	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // clear out previous text
 	p1.y += 15;
 	cv::putText(mat, ss.str(), p1, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, cv::LINE_AA);

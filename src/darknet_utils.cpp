@@ -409,11 +409,14 @@ void initialize_new_charts(const int max_batches, const float max_img_loss)
 
 void update_loss_in_new_charts(const int current_iteration, const float loss, const double hours_remaining, const bool dont_show)
 {
-	training_chart.update_save_and_display(current_iteration, loss, hours_remaining, dont_show);
-
-	for (auto & chart : more_charts)
+	if (training_chart.empty() == false)
 	{
-		chart.update_save_and_display(current_iteration, loss, hours_remaining, true);
+		training_chart.update_save_and_display(current_iteration, loss, hours_remaining, dont_show);
+
+		for (auto & chart : more_charts)
+		{
+			chart.update_save_and_display(current_iteration, loss, hours_remaining, true);
+		}
 	}
 
 	return;
@@ -422,13 +425,16 @@ void update_loss_in_new_charts(const int current_iteration, const float loss, co
 
 void update_accuracy_in_new_charts(const int class_index, const float accuracy)
 {
-	if (class_index < 0)
+	if (training_chart.empty() == false)
 	{
-		training_chart.update_accuracy(accuracy);
-	}
-	else if (static_cast<size_t>(class_index) < more_charts.size())
-	{
-		more_charts[class_index].update_accuracy(accuracy);
+		if (class_index < 0)
+		{
+			training_chart.update_accuracy(accuracy);
+		}
+		else if (static_cast<size_t>(class_index) < more_charts.size())
+		{
+			more_charts[class_index].update_accuracy(accuracy);
+		}
 	}
 
 	return;
