@@ -391,6 +391,8 @@ std::string text_to_simple_label(std::string txt)
 
 void initialize_new_charts(const int max_batches, const float max_img_loss)
 {
+	#ifdef OPENCV
+
 	training_chart = Chart("", max_batches, max_img_loss);
 
 	more_charts.clear();
@@ -402,6 +404,7 @@ void initialize_new_charts(const int max_batches, const float max_img_loss)
 
 		more_charts.push_back(chart);
 	}
+	#endif
 
 	return;
 }
@@ -409,6 +412,8 @@ void initialize_new_charts(const int max_batches, const float max_img_loss)
 
 void update_loss_in_new_charts(const int current_iteration, const float loss, const double hours_remaining, const bool dont_show)
 {
+	#ifdef OPENCV
+
 	if (training_chart.empty() == false)
 	{
 		training_chart.update_save_and_display(current_iteration, loss, hours_remaining, dont_show);
@@ -419,12 +424,16 @@ void update_loss_in_new_charts(const int current_iteration, const float loss, co
 		}
 	}
 
+	#endif
+
 	return;
 }
 
 
 void update_accuracy_in_new_charts(const int class_index, const float accuracy)
 {
+	#ifdef OPENCV
+
 	if (training_chart.empty() == false)
 	{
 		if (class_index < 0)
@@ -436,6 +445,8 @@ void update_accuracy_in_new_charts(const int class_index, const float accuracy)
 			more_charts[class_index].update_accuracy(accuracy);
 		}
 	}
+
+	#endif
 
 	return;
 }
