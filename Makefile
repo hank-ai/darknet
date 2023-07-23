@@ -17,10 +17,11 @@ ZED_CAMERA_v2_8=0
 USE_CPP=0
 DEBUG=0
 
-ARCH= -gencode arch=compute_35,code=sm_35 \
-      -gencode arch=compute_50,code=[sm_50,compute_50] \
-      -gencode arch=compute_52,code=[sm_52,compute_52] \
-	    -gencode arch=compute_61,code=[sm_61,compute_61]
+ARCH= \
+	-gencode arch=compute_35,code=sm_35 \
+	-gencode arch=compute_50,code=[sm_50,compute_50] \
+	-gencode arch=compute_52,code=[sm_52,compute_52] \
+	-gencode arch=compute_61,code=[sm_61,compute_61]
 
 OS := $(shell uname)
 
@@ -79,7 +80,8 @@ OPTS=-Ofast
 LDFLAGS= -lm -pthread
 COMMON= -Iinclude/ -I3rdparty/stb/include
 CFLAGS=-Wall -Wfatal-errors -Wno-unused-result -Wno-unknown-pragmas -fPIC -rdynamic
-# -Werror
+
+COMMON+= -DDARKNET_VERSION=\"$(shell git describe --long --abbrev=8 --dirty --always --tags)\"
 
 ifeq ($(DEBUG), 1)
 #OPTS= -O0 -g

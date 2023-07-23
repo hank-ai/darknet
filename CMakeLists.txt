@@ -1,11 +1,8 @@
 cmake_minimum_required(VERSION 3.18)
 include(CMakeDependentOption)
 
-set(Darknet_MAJOR_VERSION 0)
-set(Darknet_MINOR_VERSION 2)
-set(Darknet_PATCH_VERSION 5)
-set(Darknet_TWEAK_VERSION 4)
-set(Darknet_VERSION ${Darknet_MAJOR_VERSION}.${Darknet_MINOR_VERSION}.${Darknet_PATCH_VERSION}.${Darknet_TWEAK_VERSION})
+execute_process(COMMAND git describe --tags --dirty OUTPUT_VARIABLE Darknet_VERSION OUTPUT_STRIP_TRAILING_WHITESPACE)
+add_compile_definitions(DARKNET_VERSION="${Darknet_VERSION}")
 
 message("Darknet_VERSION: ${Darknet_VERSION}")
 

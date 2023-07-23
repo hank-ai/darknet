@@ -22,6 +22,9 @@
 #include <execinfo.h>
 #endif
 
+#ifndef DARKNET_VERSION
+#define DARKNET_VERSION "v1.99-unknown"
+#endif
 
 #ifndef USE_CMAKE_LIBS
 #pragma warning(disable: 4996)
@@ -399,7 +402,7 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 			"\n"
 			"* Version %s built on %s %s\n"
 			"* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n",
-			"v1.99-55-g1cb173eb", __DATE__, __TIME__);
+			DARKNET_VERSION, __DATE__, __TIME__);
 
 		log_backtrace();
 	}
