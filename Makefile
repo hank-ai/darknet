@@ -81,7 +81,7 @@ LDFLAGS= -lm -pthread
 COMMON= -Iinclude/ -I3rdparty/stb/include
 CFLAGS=-Wall -Wfatal-errors -Wno-unused-result -Wno-unknown-pragmas -fPIC -rdynamic
 
-COMMON+= -DDARKNET_VERSION=\"$(shell git describe --long --abbrev=8 --dirty --always --tags)\"
+COMMON+= -DDARKNET_GIT_VERSION=\"$(shell git describe --long --abbrev=8 --dirty --always --tags)\"
 
 ifeq ($(DEBUG), 1)
 #OPTS= -O0 -g
