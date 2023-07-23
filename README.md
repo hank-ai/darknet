@@ -141,3 +141,20 @@ Be patient.  The best weights will be stored in `animals_best.weights`.  And the
 * See if [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/) can help answer your questions.
 * See the many tutorial and example videos on [Stéphane's YouTube channel](https://www.youtube.com/c/StephaneCharette/videos)
 * If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/zSq8rtW).
+
+# Roadmap
+
+## Short-term goals
+
+* convert Darknet to C++ (g++)
+* remove solutions and Makefile
+* remove STB
+* make OpenCV non-optional
+* re-write CMakeLists.txt to use the new CUDA detection and build out-of-source
+* have better version number output
+
+## Long-term goals
+
+* fix CUDA/CUDNN issues with all GPUs
+* look into adding support for non-NVIDIA GPUs
+
