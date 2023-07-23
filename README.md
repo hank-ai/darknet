@@ -144,17 +144,23 @@ Be patient.  The best weights will be stored in `animals_best.weights`.  And the
 
 # Roadmap
 
+Last updated 2023-07-23:
+
 ## Short-term goals
 
-* convert Darknet to C++ (g++)
-* remove solutions and Makefile
-* remove STB
+* convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
+* remove old solutions and Makefile
 * make OpenCV non-optional
+* remove STB
 * re-write CMakeLists.txt to use the new CUDA detection and build out-of-source
 * have better version number output
+
+## Mid-term goals
+
+* better use of `cv::Mat` instead of the custom `image` structure in C
+* on-going code cleanup
 
 ## Long-term goals
 
 * fix CUDA/CUDNN issues with all GPUs
 * look into adding support for non-NVIDIA GPUs
-
