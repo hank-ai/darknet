@@ -91,7 +91,7 @@ Assuming the previous step was successful, now we need to clone Darknet and buil
 > Advanced users:
 > Note that the output of the cmake command in the previous step is a "normal" Visual Studio solution file, darknet.sln.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio or VS Code.
 
-Once building has finished, you should now have a darknet.exe file you can run from the command-line.
+Once building has finished, you should now have a `darknet.exe` file you can run from the command-line.
 
 # Using Darknet
 
@@ -165,23 +165,23 @@ Be patient.  The best weights will be stored in `animals_best.weights`.  And the
 
 # Roadmap
 
-Last updated 2023-07-23:
+Last updated 2023-07-24:
 
 ## Short-term goals
 
-* convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
-* remove old solutions and Makefile
-* make OpenCV non-optional
-* remove STB
-* re-write CMakeLists.txt to use the new CUDA detection and build out-of-source
-* have better version number output
+* [ ] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
+* [ ] remove old solutions and Makefile
+* [ ] make OpenCV non-optional
+* [ ] remove STB
+* [ ] re-write CMakeLists.txt to use the new CUDA detection and build out-of-source
+* [ ] have better version number output
 
 ## Mid-term goals
 
-* better use of `cv::Mat` instead of the custom `image` structure in C
-* on-going code cleanup
+* [ ] better use of `cv::Mat` instead of the custom `image` structure in C
+* [ ] on-going code cleanup
 
 ## Long-term goals
 
-* fix CUDA/CUDNN issues with all GPUs
-* look into adding support for non-NVIDIA GPUs
+* [ ] fix CUDA/CUDNN issues with all GPUs
+* [ ] look into adding support for non-NVIDIA GPUs
