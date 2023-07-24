@@ -21,22 +21,74 @@ YOLOv7 surpasses all known object detectors in both speed and accuracy in the ra
 
 # Building
 
-Not all build solutions make sense for all platforms.  Choose the **one** that works best for you.
+The various build methods available in the past have been merged together into a single unified solution.  Darknet now requires OpenCV, and uses CMake to generate the necessary project files.  ==Beware if you are following old tutorials with more complicated build steps, or build steps that don't match what is in this readme.==
 
-## Makefile
+## Linux CMake Method
 
-Typical solution for Linux.  This is described here in the FAQ:  https://www.ccoderun.ca/programming/darknet_faq/#how_to_build_on_linux
+These instructions assume a system running Ubuntu 22.04.
 
     sudo apt-get install build-essential git libopencv-dev
     mkdir ~/src
     cd ~/src
     git clone https://github.com/hank-ai/darknet
     cd darknet
-    # edit Makefile to set LIBSO=1, and possibly other flags
-    make
+    mkdir build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release ..
+    make -j4
     sudo cp libdarknet.so /usr/local/lib/
     sudo cp include/darknet.h /usr/local/include/
     sudo ldconfig
+
+## Windows CMake Method
+
+These instructions assume a brand new installation of Windows 11 22H2.
+
+Open a normal `cmd.exe` command prompt window and run the following commands:
+
+    winget install Git.Git
+    winget install Kitware.CMake
+    winget install Microsoft.VisualStudio.2022.Community
+
+At this point we need to modify the Visual Studio installation to include support for C++ applications:
+
+- click on the "Windows Start" menu and run "Visual Studio Installer"
+- click on `Modify`
+- select `Desktop Development With C++`
+- click on `Modify` in the bottom-right corner, and then click on `Yes`
+
+Once everything is downloaded and installed, click on the "Windows Start" menu again and select `Developer Command Prompt for VS 2022`.
+
+> Advanced users:  Instead of running the `Developer Command Prompt`, you can run a normal command prompt or ssh into the device and manually run `"\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`.
+
+Run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
+
+    cd c:\
+    mkdir c:\src
+    cd c:\src
+    git clone https://github.com/microsoft/vcpkg
+    cd vcpkg
+    bootstrap-vcpkg.bat
+    vcpkg.exe integrate install
+    vcpkg.exe integrate powershell
+    vcpkg.exe install opencv[contrib,core,dnn,ffmpeg,jpeg,png,quirc,tiff,webp]:x64-windows
+
+Be patient at this step.  This will take a long time to run.  It needs to download and build many things.
+
+Assuming the previous step was successful, now we need to clone Darknet and build it.  During this step we also need to tell CMake where OpenCV was built by vcpkg in the previous steps:
+
+    cd c:\src
+    git clone https://github.com/hank-ai/darknet.git
+    cd darknet
+    mkdir build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/src/vcpkg/scripts/buildsystems/vcpkg.cmake ..
+    msbuild.exe /property:Platform=x64;Configuration=Release /target:Build -maxCpuCount -verbosity:normal -detailedSummary darknet.sln
+
+> Advanced users:  Note that the output of the cmake command in the previous step is a "normal" Visual Studio solution file, darknet.sln.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio or VS Code.
+
+Once building has finished, you should now have a darknet.exe file you can run from the command-line.
+
 
 When using this solution, see the flags in the first few lines of `Makefile`.  It is important to set these flags correctly.  If you want to use your CUDA-capable GPU, then you must also set the `ARCH=` flag, and have CUDA and CUDNN correctly installed.
 
