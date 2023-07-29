@@ -38,5 +38,6 @@ SET (CMAKE_POSITION_INDEPENDENT_CODE ON)	# equivalent to -fpic (position indepen
 INCLUDE_DIRECTORIES (3rdparty/stb/include/) # TODO remove
 
 
+ADD_SUBDIRECTORY (doc)
 ADD_SUBDIRECTORY (cfg)
 ADD_SUBDIRECTORY (src)
