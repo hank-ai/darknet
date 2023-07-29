@@ -1,7 +1,6 @@
 #pragma once
 
-#include <stdlib.h>
-#include "darknet.h"
+#include "darknet_internal.hpp"
 
 #ifdef GPU
 #include "dark_cuda.h"

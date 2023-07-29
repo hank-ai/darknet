@@ -15,6 +15,7 @@
 #include "connected_layer.hpp"
 #include "darknet_utils.hpp"
 #include "convolutional_layer.hpp"
+#include "darknet_version.h"
 
 
 extern void predict_classifier(char *datacfg, char *cfgfile, char *weightfile, char *filename, int top);
@@ -594,7 +595,12 @@ int main(int argc, char **argv)
 		visualize(argv[2], (argc > 3) ? argv[3] : 0);
 	} else if (0 == strcmp(argv[1], "imtest")){
 		test_resize(argv[2]);
-	} else
+	}
+	else if (0 == strcmp(argv[1], "version"))
+	{
+		std::cout << "Darknet " << DARKNET_VERSION_STRING << std::endl;
+	}
+	else
 	{
 		darknet_fatal_error(DARKNET_LOC, "invalid Darknet command: %s", argv[1]);
 	}

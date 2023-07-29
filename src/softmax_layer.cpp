@@ -10,6 +10,7 @@
 #include <stdio.h>
 #include <assert.h>
 
+/// @todo what is this?
 #define SECRET_NUM -1234
 
 void softmax_tree(float *input, int batch, int inputs, float temp, tree *hierarchy, float *output)

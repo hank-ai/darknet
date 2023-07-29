@@ -1,5 +1,4 @@
-#ifndef DARKNET_API
-#define DARKNET_API
+#pragma once
 
 #if defined(_MSC_VER) && _MSC_VER < 1900
 #define inline __inline
@@ -32,6 +31,7 @@
 #endif
 #endif
 
+/// @todo what is this?
 #define SECRET_NUM -1234
 
 typedef enum { UNUSED_DEF_VAL } UNUSED_ENUM_TYPE;
@@ -1144,4 +1144,3 @@ LIB_API void init_cpu();
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
-#endif  // DARKNET_API

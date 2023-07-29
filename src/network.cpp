@@ -174,7 +174,7 @@ float get_current_rate(network net)
             }
             rate = net.learning_rate_min +
                 0.5*(net.learning_rate - net.learning_rate_min)
-                * (1. + cos((float)(batch_num - last_iteration_start)*3.14159265 / cycle_size));
+                * (1. + cos((float)(batch_num - last_iteration_start) * M_PI / cycle_size));
 
             return rate;
         }

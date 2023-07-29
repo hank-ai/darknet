@@ -3,15 +3,7 @@
 #pragma GCC diagnostic ignored "-Wswitch"
 #endif
 
-#include "box.hpp"
-#include "utils.hpp"
-#include <stdio.h>
-#include <math.h>
-#include <stdlib.h>
-
-#ifndef M_PI
-#define M_PI 3.141592
-#endif
+#include "darknet_internal.hpp"
 
 box float_to_box(float *f)
 {

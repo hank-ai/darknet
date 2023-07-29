@@ -3,6 +3,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 
+#include "darknet_version.h"
 #include "activation_layer.hpp"
 #include "activations.hpp"
 //#include "assert.h"
@@ -2071,9 +2072,10 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
     FILE *fp = fopen(filename, "wb");
     if(!fp) file_error(filename, DARKNET_LOC);
 
-    int major = MAJOR_VERSION;
-    int minor = MINOR_VERSION;
-    int revision = PATCH_VERSION;
+    const int major = DARKNET_WEIGHTS_VERSION_MAJOR;
+    const int minor = DARKNET_WEIGHTS_VERSION_MINOR;
+    const int revision = DARKNET_WEIGHTS_VERSION_PATCH;
+
     fwrite(&major, sizeof(int), 1, fp);
     fwrite(&minor, sizeof(int), 1, fp);
     fwrite(&revision, sizeof(int), 1, fp);

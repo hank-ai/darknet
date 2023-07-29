@@ -11,7 +11,7 @@
 #include "cost_layer.hpp"
 #include "crnn_layer.hpp"
 #include "crop_layer.hpp"
-#include "deconvolutional_layer.h"
+//#include "deconvolutional_layer.h"
 #include "detection_layer.hpp"
 #include "dropout_layer.hpp"
 #include "gaussian_yolo_layer.hpp"

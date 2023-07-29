@@ -16,10 +16,6 @@
 #include <string.h>
 #include <stdlib.h>
 
-#ifndef M_PI
-#define M_PI 3.141592 /// @todo
-#endif
-
 extern int check_mistakes;
 
 layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)

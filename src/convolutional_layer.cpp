@@ -1441,11 +1441,11 @@ void assisted_excitation_forward(convolutional_layer l, network_state state)
     // calculate alpha
     //const float alpha = (1 + cos(3.141592 * iteration_num)) / (2 * state.net.max_batches);
     //const float alpha = (1 + cos(3.141592 * epoch)) / (2 * state.net.max_batches);
-    float alpha = (1 + cos(3.141592 * iteration_num / state.net.max_batches));
+    float alpha = (1 + cos(M_PI * iteration_num / state.net.max_batches));
 
     if (l.assisted_excitation > 1) {
         if (iteration_num > l.assisted_excitation) alpha = 0;
-        else alpha = (1 + cos(3.141592 * iteration_num / l.assisted_excitation));
+        else alpha = (1 + cos(M_PI * iteration_num / l.assisted_excitation));
     }
 
     //printf("\n epoch = %f, alpha = %f, seen = %d, max_batches = %d, train_images_num = %d \n",
