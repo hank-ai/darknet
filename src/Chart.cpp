@@ -241,7 +241,7 @@ Chart & Chart::update_accuracy(const int current_iteration, const float accuracy
 		cv::Point p1(std::round(grid_size.width * previous_map_iteration / max_batches), std::round(grid_size.height * (1.0f - previous_map_value)));
 		cv::Point p2(std::max(1.0f, std::round(grid_size.width * current_iteration / max_batches)), std::round(grid_size.height * (1.0f - accuracy)));
 		cv::line(grid, p1, p2, map_colour, 2, cv::LINE_AA);
-		cv::circle(grid, p2, 3, map_colour, 2, cv::LINE_AA);
+		cv::circle(grid, p2, 2, map_colour, 2, cv::LINE_AA);
 
 		// decide if the mAP% value has changed enough that we need to re-label it on the chart
 		if ((std::fabs(previous_map_value - accuracy) > 0.1) ||
