@@ -1,6 +1,9 @@
 # Darknet Object Detection Framework and YOLO
 
 ![darknet and hank.ai logos](artwork/darknet_and_hank_ai_logos.png)
+
+Darknet is an open source neural network framework written in C, C++, and CUDA.  YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection system, which runs in the Darknet framework.
+
 * Read how [Hank.ai is helping the Darknet/YOLO community](https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/)
 * Read the Darknet/YOLO FAQ:  https://www.ccoderun.ca/programming/darknet_faq/
 * Join the Darknet/YOLO discord server:  https://discord.gg/zSq8rtW
@@ -37,10 +40,8 @@ These instructions assume a system running Ubuntu 22.04.
     mkdir build
     cd build
     cmake -DCMAKE_BUILD_TYPE=Release ..
-    make -j4
-    sudo cp libdarknet.so /usr/local/lib/
-    sudo cp include/darknet.h /usr/local/include/
-    sudo ldconfig
+    make -j4 package
+    sudo dpkg -i darknet*.deb
 
 ## Windows CMake Method
 
@@ -169,12 +170,16 @@ Last updated 2023-07-24:
 
 ## Short-term goals
 
-* [ ] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
-* [ ] remove old solutions and Makefile
+* [X] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
+* [ ] re-enable CUDA/GPU code
+* [ ] re-enable AVX
+* [ ] look into old zed camera support
+* [X] remove old solutions and Makefile
 * [ ] make OpenCV non-optional
 * [ ] remove STB
-* [ ] re-write CMakeLists.txt to use the new CUDA detection and build out-of-source
-* [ ] have better version number output
+* [ ] re-write CMakeLists.txt to use the new CUDA detection
+* [X] build out-of-source
+* [X] have better version number output
 
 ## Mid-term goals
 
