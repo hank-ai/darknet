@@ -7,9 +7,6 @@
 #include "dark_cuda.hpp"
 #include "darknet_utils.hpp"
 #include <stdio.h>
-#ifndef _USE_MATH_DEFINES
-#define _USE_MATH_DEFINES
-#endif
 #include <math.h>
 
 #ifndef STB_IMAGE_IMPLEMENTATION

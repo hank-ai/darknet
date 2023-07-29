@@ -21,7 +21,7 @@ extern "C" void resize_window_cv(char const* window_name, int width, int height)
 
 #else
 
-#include "utils.h"
+#include "utils.hpp"
 
 #include <cstdio>
 #include <cstdlib>
@@ -79,7 +79,7 @@ extern "C" void resize_window_cv(char const* window_name, int width, int height)
 #endif    // USE_CMAKE_LIBS
 #endif    // CV_VERSION_EPOCH
 
-#include "http_stream.h"
+#include "http_stream.hpp"
 
 #ifndef CV_RGB
 #define CV_RGB(r, g, b) cvScalar( (b), (g), (r), 0 )

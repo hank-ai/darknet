@@ -6,9 +6,6 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdarg.h>
-#ifndef _USE_MATH_DEFINES
-#define _USE_MATH_DEFINES
-#endif
 #include <math.h>
 #include <assert.h>
 #include <float.h>
@@ -407,8 +404,7 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 
 	pthread_mutex_unlock(&darknet_fatal_error_critical_section);
 
-	abort();
-//    exit(EXIT_FAILURE);
+	exit(EXIT_FAILURE);
 }
 
 const char * size_to_IEC_string(const size_t size)

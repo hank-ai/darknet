@@ -9,10 +9,11 @@
 #endif
 
 #include <iostream>
+#include <string>
 
-#include <cmath>
 #include <cassert>
 #include <cfloat>
+#include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -24,6 +25,3 @@
 #include "utils.hpp"
 
 #include "darknet_layers.hpp"
-
-
-

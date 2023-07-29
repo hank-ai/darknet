@@ -166,11 +166,12 @@ Be patient.  The best weights will be stored in `animals_best.weights`.  And the
 
 # Roadmap
 
-Last updated 2023-07-24:
+Last updated 2023-07-29:
 
 ## Short-term goals
 
 * [X] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
+* [ ] build darknet library
 * [ ] re-enable CUDA/GPU code
 * [ ] re-enable AVX
 * [ ] look into old zed camera support

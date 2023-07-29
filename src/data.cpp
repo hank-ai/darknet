@@ -1059,7 +1059,7 @@ void blend_truth_mosaic(float *new_truth, int boxes, int truth_size, float *old_
 
 #ifdef OPENCV
 
-#include "http_stream.h"
+#include "http_stream.hpp"
 
 data load_data_detection(int n, char **paths, int m, int w, int h, int c, int boxes, int truth_size, int classes, int use_flip, int use_gaussian_noise, int use_blur, int use_mixup,
     float jitter, float resize, float hue, float saturation, float exposure, int mini_batch, int track, int augment_speed, int letter_box, int mosaic_bound, int contrastive, int contrastive_jit_flip, int contrastive_color, int show_imgs)
