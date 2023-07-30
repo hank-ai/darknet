@@ -17,6 +17,7 @@ INCLUDE (CM_version.cmake)
 
 PROJECT (Darknet LANGUAGES C CXX CUDA VERSION ${DARKNET_VERSION_SHORT})
 
+INCLUDE (CMakeDependentOption)
 INCLUDE (CM_misc.cmake)
 INCLUDE (CM_dependencies.cmake)
 INCLUDE (CM_source.cmake)

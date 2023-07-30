@@ -25,6 +25,11 @@ IF (UNIX)
 ENDIF ()
 
 
+# TODO: https://learn.microsoft.com/en-us/cpp/build/reference/fp-specify-floating-point-behavior?view=msvc-170
+# TODO: https://stackoverflow.com/questions/36501542/what-is-gcc-clang-equivalent-of-fp-model-fast-1-in-icc
+# TODO: -ffast-math and -funsafe-math-optimizations
+
+
 # With old compilers (or Windows only?) it used to be necessary to define
 # this prior to #including cmath.  Not sure if this is still required.
 ADD_COMPILE_DEFINITIONS (_USE_MATH_DEFINES)
