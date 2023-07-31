@@ -176,9 +176,11 @@ Last updated 2023-07-29:
 ## Short-term goals
 
 * [X] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
-* [ ] build darknet library
+* [ ] fix Windows build
+* [ ] fix ARM build
+* [X] build darknet library
 * [ ] re-enable CUDA/GPU code
-* [ ] re-enable AVX
+* [X] re-enable AVX
 * [ ] look into old zed camera support
 * [X] remove old solutions and Makefile
 * [ ] make OpenCV non-optional
