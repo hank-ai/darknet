@@ -1,7 +1,8 @@
 # Darknet object detection framework
 
 
-CMAKE_MINIMUM_REQUIRED( VERSION 3.20)
+# add_compile_definitions() requires 3.12
+CMAKE_MINIMUM_REQUIRED( VERSION 3.12)
 
 
 SET (CMAKE_CXX_STANDARD 17)

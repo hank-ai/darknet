@@ -32,7 +32,7 @@ The various build methods available in the past have been merged together into a
 
 These instructions assume a system running Ubuntu 22.04.
 
-    sudo apt-get install build-essential git libopencv-dev
+    sudo apt-get install build-essential git libopencv-dev cmake
     mkdir ~/src
     cd ~/src
     git clone https://github.com/hank-ai/darknet
@@ -42,6 +42,11 @@ These instructions assume a system running Ubuntu 22.04.
     cmake -DCMAKE_BUILD_TYPE=Release ..
     make -j4 package
     sudo dpkg -i darknet*.deb
+
+If you are using an older version of Ubuntu, you may need to upgrade cmake.  Instead of installing cmake via `sudo apt-get`, you may need to run this:
+
+    sudo apt-get purge cmake
+    sudo snap install cmake --classic
 
 ## Windows CMake Method
 
