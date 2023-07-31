@@ -41,12 +41,22 @@ These instructions assume a system running Ubuntu 22.04.
     cd build
     cmake -DCMAKE_BUILD_TYPE=Release ..
     make -j4 package
-    sudo dpkg -i darknet*.deb
+    sudo dpkg -i darknet-VERSION.deb
 
-If you are using an older version of Ubuntu, you may need to upgrade cmake.  Instead of installing cmake via `sudo apt-get`, you may need to run this:
+If you are using an older version of CMake, such as the one with Ubuntu 18.04, then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu 18.04 can be done with the following:
 
     sudo apt-get purge cmake
     sudo snap install cmake --classic
+
+If you are using a distro that uses RPM files instead of DEB files, see the relevant lines in `CM_package.cmake`.  Prior to running `make -j4 package` you'll need to edit these two lines:
+
+    SET (CPACK_GENERATOR "DEB")
+    # SET (CPACK_GENERATOR "RPM")
+
+For distros such as Centos and OpenSUSE, you'll need to switch those two lines in `CM_package.cmake` to be:
+
+    # SET (CPACK_GENERATOR "DEB")
+    SET (CPACK_GENERATOR "RPM")
 
 ## Windows CMake Method
 
@@ -84,7 +94,7 @@ Run the following commands to install Microsoft VCPKG, which will then be used t
 
 Be patient at this step.  This will take a long time to run.  It needs to download and build many things.
 
-Assuming the previous step was successful, now we need to clone Darknet and build it.  During this step we also need to tell CMake where OpenCV was built by vcpkg in the previous steps:
+Once the previous steps finishes successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where OpenCV was built by vcpkg in the previous steps:
 
     cd c:\src
     git clone https://github.com/hank-ai/darknet.git
