@@ -27,9 +27,12 @@ SET_TARGET_PROPERTIES (darknetlib PROPERTIES OUTPUT_NAME "darknet")
 SET_TARGET_PROPERTIES (darknetlib PROPERTIES PUBLIC_HEADER "darknet.h;darknet_version.h")
 TARGET_LINK_LIBRARIES (darknetlib PRIVATE ${DARKNET_LINK_LIBS})
 
-ADD_EXECUTABLE (darknetcli ${APPSRC})
+# would like to have the CLI link against the darknet library, but this fails on Windows:
+#		fatal error LNK1149: output filename matches input filename 'C:\src\darknet\build\src\Release\darknet.lib'
+# so for now we'll simply re-link all the objects into the CLI
+ADD_EXECUTABLE (darknetcli ${APPSRC} $<TARGET_OBJECTS:objlib>)
 SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet")
-TARGET_LINK_LIBRARIES (darknetcli PRIVATE darknetlib ${DARKNET_LINK_LIBS})
+TARGET_LINK_LIBRARIES (darknetcli PRIVATE ${DARKNET_LINK_LIBS})
 
 INSTALL (TARGETS darknetlib LIBRARY DESTINATION lib PUBLIC_HEADER DESTINATION include)
-INSTALL (TARGETS darknetcli DESTINATION bin)
+#INSTALL (TARGETS darknetcli DESTINATION bin)
