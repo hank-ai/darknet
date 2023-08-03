@@ -21,16 +21,15 @@ ENDIF ()
 # compile everything once
 ADD_LIBRARY(objlib OBJECT ${LIBSRC})
 
-# create 2 outputs:  the darknet library, and the ususual CLI
-ADD_LIBRARY (dnlib SHARED $<TARGET_OBJECTS:objlib>)
-SET_TARGET_PROPERTIES (dnlib PROPERTIES OUTPUT_NAME "darknet")
-SET_TARGET_PROPERTIES (dnlib PROPERTIES PUBLIC_HEADER "darknet.h")
-TARGET_LINK_LIBRARIES (dnlib PRIVATE Threads::Threads ${OpenCV_LIBS} ${OpenCV_LINKED_COMPONENTS} OpenMP::OpenMP_CXX OpenMP::OpenMP_C PThreads4W::PThreads4W)
+# create 2 outputs:  the darknet library, and the ususual darknet CLI
+ADD_LIBRARY (darknetlib SHARED $<TARGET_OBJECTS:objlib>)
+SET_TARGET_PROPERTIES (darknetlib PROPERTIES OUTPUT_NAME "darknet")
+SET_TARGET_PROPERTIES (darknetlib PROPERTIES PUBLIC_HEADER "darknet.h;darknet_version.h")
+TARGET_LINK_LIBRARIES (darknetlib PRIVATE ${DARKNET_LINK_LIBS})
 
-ADD_EXECUTABLE (dncli ${APPSRC} $<TARGET_OBJECTS:objlib>)
-SET_TARGET_PROPERTIES (dncli PROPERTIES OUTPUT_NAME "darknet")
-TARGET_LINK_LIBRARIES (dncli PRIVATE Threads::Threads ${OpenCV_LIBS} ${OpenCV_LINKED_COMPONENTS} OpenMP::OpenMP_CXX OpenMP::OpenMP_C PThreads4W::PThreads4W)
+ADD_EXECUTABLE (darknetcli ${APPSRC})
+SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet")
+TARGET_LINK_LIBRARIES (darknetcli PRIVATE darknetlib ${DARKNET_LINK_LIBS})
 
-INSTALL (TARGETS dnlib LIBRARY DESTINATION lib)
-INSTALL (TARGETS dncli DESTINATION bin)
-INSTALL (FILES darknet.h darknet_version.h DESTINATION include)
+INSTALL (TARGETS darknetlib LIBRARY DESTINATION lib PUBLIC_HEADER DESTINATION include)
+INSTALL (TARGETS darknetcli DESTINATION bin)
