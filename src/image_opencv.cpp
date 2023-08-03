@@ -65,6 +65,7 @@ extern "C" void resize_window_cv(char const* window_name, int width, int height)
 
 
 // OpenCV libraries
+#if 0
 #ifndef CV_VERSION_EPOCH
 #define OPENCV_VERSION CVAUX_STR(CV_VERSION_MAJOR)"" CVAUX_STR(CV_VERSION_MINOR)"" CVAUX_STR(CV_VERSION_REVISION) OCV_D
 #ifndef USE_CMAKE_LIBS
@@ -78,6 +79,7 @@ extern "C" void resize_window_cv(char const* window_name, int width, int height)
 #pragma comment(lib, "opencv_highgui" OPENCV_VERSION ".lib")
 #endif    // USE_CMAKE_LIBS
 #endif    // CV_VERSION_EPOCH
+#endif
 
 #include "http_stream.hpp"
 

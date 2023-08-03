@@ -7,7 +7,24 @@ IF (WIN32)
 	ADD_COMPILE_OPTIONS (/permissive-)		# stick to C++ standards (turn off Microsoft-specific extensions)
 	ADD_COMPILE_OPTIONS (/wd4100)			# disable "unreferenced formal parameter"
 	ADD_COMPILE_OPTIONS (/wd4127)			# disable "conditional expression is constant"
-#	ADD_COMPILE_DEFINITIONS (_CRT_SECURE_NO_WARNINGS )	# don't complain about localtime()
+	ADD_COMPILE_OPTIONS (/wd4013)
+	ADD_COMPILE_OPTIONS (/wd4018)
+	ADD_COMPILE_OPTIONS (/wd4028)
+	ADD_COMPILE_OPTIONS (/wd4047)
+	ADD_COMPILE_OPTIONS (/wd4068)
+	ADD_COMPILE_OPTIONS (/wd4090)
+	ADD_COMPILE_OPTIONS (/wd4101)
+	ADD_COMPILE_OPTIONS (/wd4113)
+	ADD_COMPILE_OPTIONS (/wd4133)
+	ADD_COMPILE_OPTIONS (/wd4190)
+	ADD_COMPILE_OPTIONS (/wd4244)
+	ADD_COMPILE_OPTIONS (/wd4267)
+	ADD_COMPILE_OPTIONS (/wd4305)
+	ADD_COMPILE_OPTIONS (/wd4477)
+	ADD_COMPILE_OPTIONS (/wd4996)
+	ADD_COMPILE_OPTIONS (/wd4819)
+	ADD_COMPILE_OPTIONS (/Zc:strictStrings-)
+	ADD_COMPILE_DEFINITIONS (_CRT_SECURE_NO_WARNINGS )	# don't complain about localtime()
 #	SET (CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
 ENDIF ()
 
@@ -34,8 +51,8 @@ ENDIF ()
 # this prior to #including cmath.  Not sure if this is still required.
 ADD_COMPILE_DEFINITIONS (_USE_MATH_DEFINES)
 
-
 SET (BUILD_SHARED_LIBS TRUE)
+SET (CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)	# automatically create a module definition (.def) file with all global symbols
 SET (CMAKE_ENABLE_EXPORTS TRUE)				# equivalent to -rdynamic (to get the backtrace when something goes wrong)
 SET (CMAKE_POSITION_INDEPENDENT_CODE ON)	# equivalent to -fpic (position independent code)
 

@@ -4,7 +4,7 @@
 #include <winsock2.h>
 #include <stdint.h>
 #include <time.h>
-#include "darknet.h"
+#include "../darknet.h"
 
 #define CLOCK_REALTIME (1)
 #define BILLION (1E9)

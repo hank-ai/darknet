@@ -5,7 +5,7 @@
 #endif
 
 #if __cplusplus < 201703L
-#error "The darknet project requires C++17 or newer."
+//#error "The darknet project requires C++17 or newer."
 #endif
 
 #include <iostream>
