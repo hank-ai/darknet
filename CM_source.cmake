@@ -58,9 +58,6 @@ SET (CMAKE_ENABLE_EXPORTS TRUE)				# equivalent to -rdynamic (to get the backtra
 SET (CMAKE_POSITION_INDEPENDENT_CODE ON)	# equivalent to -fpic (position independent code)
 
 
-INCLUDE_DIRECTORIES (3rdparty/stb/include/) # TODO remove
-
-
 ADD_SUBDIRECTORY (doc)
 ADD_SUBDIRECTORY (cfg)
 ADD_SUBDIRECTORY (src)

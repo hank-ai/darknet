@@ -166,10 +166,8 @@ matrix load_image_augment_paths(char **paths, int n, int use_flip, int min, int 
 
     for(i = 0; i < n; ++i){
         int size = w > h ? w : h;
-        image im;
         const int img_index = (contrastive) ? (i / 2) : i;
-        if(dontuse_opencv) im = load_image_stb_resize(paths[img_index], 0, 0, 3);
-        else im = load_image_color(paths[img_index], 0, 0);
+        image im = load_image_color(paths[img_index], 0, 0);
 
         image crop = random_augment_image(im, angle, aspect, min, max, size);
         int flip = use_flip ? random_gen() % 2 : 0;

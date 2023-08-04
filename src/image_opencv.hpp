@@ -58,6 +58,8 @@ image mat_to_image(cv::Mat mat);
 
 image mat_to_image_cv(mat_cv *mat);
 
+cv::Mat image_to_mat(image img);
+
 // Window
 void create_window_cv(char const* window_name, int full_screen, int width, int height);
 void resize_window_cv(char const* window_name, int width, int height);

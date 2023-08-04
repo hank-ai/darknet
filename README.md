@@ -203,7 +203,7 @@ Last updated 2023-07-29:
 * [ ] look into old zed camera support
 * [X] remove old solutions and Makefile
 * [ ] make OpenCV non-optional
-* [ ] remove STB
+* [X] remove STB
 * [ ] re-write CMakeLists.txt to use the new CUDA detection
 * [ ] remove old "alphabet" code, and delete the 700+ images in data/labels
 * [X] build out-of-source

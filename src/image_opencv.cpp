@@ -97,9 +97,6 @@ extern "C" void resize_window_cv(char const* window_name, int width, int height)
 
 extern "C" {
 
-image mat_to_image(cv::Mat mat);
-cv::Mat image_to_mat(image img);
-
 mat_cv * load_image_mat_cv(const char * const filename, int flag)
 {
 	cv::Mat * mat = nullptr;
@@ -244,17 +241,21 @@ cv::Mat image_to_mat(image img)
 	int channels = img.c;
 	int width = img.w;
 	int height = img.h;
-	cv::Mat mat = cv::Mat(height, width, CV_8UC(channels));
+	cv::Mat mat(height, width, CV_8UC(channels));
 	int step = mat.step;
 
-	for (int y = 0; y < img.h; ++y) {
-		for (int x = 0; x < img.w; ++x) {
-			for (int c = 0; c < img.c; ++c) {
+	for (int y = 0; y < img.h; ++y)
+	{
+		for (int x = 0; x < img.w; ++x)
+		{
+			for (int c = 0; c < img.c; ++c)
+			{
 				float val = img.data[c*img.h*img.w + y*img.w + x];
 				mat.data[y*step + x*img.c + c] = (unsigned char)(val * 255);
 			}
 		}
 	}
+
 	return mat;
 }
 // ----------------------------------------
@@ -814,22 +815,25 @@ void consume_frame(cap_cv *cap)
 // ====================================================================
 
 
-extern int stbi_write_png(char const *filename, int w, int h, int comp, const void  *data, int stride_in_bytes);
-extern int stbi_write_jpg(char const *filename, int x, int y, int comp, const void  *data, int quality);
-
-void save_mat_png(cv::Mat img_src, const char *name)
+void save_mat_png(cv::Mat mat, const char *name)
 {
-	cv::Mat img_rgb;
-	if (img_src.channels() >= 3) cv::cvtColor(img_src, img_rgb, cv::COLOR_RGB2BGR);
-	stbi_write_png(name, img_rgb.cols, img_rgb.rows, 3, (char *)img_rgb.data, 0);
+	/// @todo merge with @ref save_image_png()
+	const bool success = cv::imwrite(name, mat, {cv::ImwriteFlags::IMWRITE_PNG_COMPRESSION, 9});
+	if (not success)
+	{
+		darknet_fatal_error(DARKNET_LOC, "failed to save the image %s", name);
+	}
 }
 
 
-void save_mat_jpg(cv::Mat img_src, const char *name)
+void save_mat_jpg(cv::Mat mat, const char *name)
 {
-	cv::Mat img_rgb;
-	if (img_src.channels() >= 3) cv::cvtColor(img_src, img_rgb, cv::COLOR_RGB2BGR);
-	stbi_write_jpg(name, img_rgb.cols, img_rgb.rows, 3, (char *)img_rgb.data, 80);
+	/// @todo merge with @ref save_image_jpg()
+	const bool success = cv::imwrite(name, mat, {cv::ImwriteFlags::IMWRITE_JPEG_QUALITY, 75});
+	if (not success)
+	{
+		darknet_fatal_error(DARKNET_LOC, "failed to save the image %s", name);
+	}
 }
 
 
