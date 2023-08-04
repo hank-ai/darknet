@@ -193,9 +193,11 @@ Last updated 2023-07-29:
 ## Short-term goals
 
 * [X] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
-* [ ] fix Windows build
-* [ ] fix ARM build
+* [X] fix Windows build
+* [ ] fix ARM build (Jetson devices)
+* [ ] clean up .hpp files
 * [X] build darknet library
+* [X] re-enable labels on predictions ("alphabet" code)
 * [ ] re-enable CUDA/GPU code
 * [X] re-enable AVX
 * [ ] look into old zed camera support
@@ -203,6 +205,7 @@ Last updated 2023-07-29:
 * [ ] make OpenCV non-optional
 * [ ] remove STB
 * [ ] re-write CMakeLists.txt to use the new CUDA detection
+* [ ] remove old "alphabet" code, and delete the 700+ images in data/labels
 * [X] build out-of-source
 * [X] have better version number output
 

@@ -118,6 +118,35 @@ image get_label(image **characters, char *string, int size)
 	return b;
 }
 
+image get_opencv_label(const std::string & str, const int area)
+{
+	/// @todo what are the performance implications of LINE_AA over LINE_4 or LINE_8?
+	const auto font_lines		= cv::LineTypes::LINE_AA;
+	const auto font_face		= cv::HersheyFonts::FONT_HERSHEY_PLAIN;
+	const auto font_thickness	= 1;
+	auto font_scale				= 0.0;
+	auto text_size				= cv::Size(0, 0);
+
+	// try and find a decent font size to use based on the size of the object
+	for (font_scale = 2.0; font_scale > 0.6; font_scale -= 0.1)
+	{
+		text_size = cv::getTextSize(str, font_face, font_scale, font_thickness, nullptr);
+		if (text_size.area() < area / 4)
+		{
+			// looks like this might be a good font scale to use for this object
+			break;
+		}
+
+		// otherwise, try a smaller font scale
+	}
+
+	cv::Mat mat(text_size.height + 8, text_size.width + 4, CV_8UC3, cv::Scalar(255, 255, 255));
+
+	cv::putText(mat, str, {2, text_size.height + 3}, font_face, font_scale, {0, 0, 0}, font_thickness, font_lines);
+
+	return mat_to_image(mat);
+}
+
 image get_label_v3(image **characters, char *string, int size)
 {
 	size = size / 10;
@@ -426,6 +455,7 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
 			draw_box_width(im, left, top, right, bot, width, red, green, blue); // 3 channels RGB
 		}
 
+#ifdef USE_OLD_ALPHABET
 		if (alphabet)
 		{
 			char labelstr[4096] = { 0 };
@@ -447,6 +477,25 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
 			draw_weighted_label(im, top + width, left, label, rgb, 0.7);
 			free_image(label);
 		}
+#else
+		const std::string class_name = names[selected_detections[i].best_class];
+		const float confidence = selected_detections[i].det.prob[selected_detections[i].best_class];
+		std::stringstream ss;
+		ss << class_name << " " << std::fixed << std::setprecision(2) << confidence;
+
+		// if there are multiple predictions for this object, include all the names
+		for (int j = 0; j < classes; ++j)
+		{
+			if (selected_detections[i].det.prob[j] > thresh && j != selected_detections[i].best_class)
+			{
+				ss << ", " << names[j];
+			}
+		}
+
+		image label = get_opencv_label(ss.str(), (right - left) * (bot - top));
+		draw_weighted_label(im, top + width, left, label, rgb, 0.7);
+		free_image(label);
+#endif
 
 		if (selected_detections[i].det.mask)
 		{
@@ -464,6 +513,8 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
 
 void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes)
 {
+	// wrong function!  see draw_detections_v3() instead!
+
 	int i;
 
 	for(i = 0; i < num; ++i){

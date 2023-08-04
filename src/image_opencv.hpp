@@ -3,6 +3,8 @@
 #include "image.hpp"
 #include "matrix.hpp"
 
+#include <opencv2/opencv.hpp>
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -51,6 +53,8 @@ int get_height_mat(mat_cv *mat);
 
 /// Frees the @p cv::Mat object allocated in @ref load_image_mat_cv().
 void release_mat(mat_cv **mat);
+
+image mat_to_image(cv::Mat mat);
 
 image mat_to_image_cv(mat_cv *mat);
 
