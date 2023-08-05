@@ -58,6 +58,18 @@ For distros such as Centos and OpenSUSE, you'll need to switch those two lines i
     # SET (CPACK_GENERATOR "DEB")
     SET (CPACK_GENERATOR "RPM")
 
+To install the package, use the usual package manager.  For example:
+
+    sudo dpkg -i darknet-1.99.84-Linux.deb
+
+Installing the package will copy the following files:
+
+* `/usr/bin/darknet` is the usual Darknet executable.  Run `darknet version` from the CLI to confirm it is installed correctly.
+* `/usr/include/darknet.h` is the Darknet API for C, C++, and Python developers.
+* `/usr/include/darknet_version.h` contains version information for developers.
+* `/usr/lib/libdarknet.so` is the library to link against for C, C++, and Python developers.
+* `/opt/darknet/cfg/...` is where all the `.cfg` templates are stored.
+
 ## Windows CMake Method
 
 These instructions assume a brand new installation of Windows 11 22H2.
@@ -188,7 +200,7 @@ Be patient.  The best weights will be stored in `animals_best.weights`.  And the
 
 # Roadmap
 
-Last updated 2023-07-29:
+Last updated 2023-08-04:
 
 ## Short-term goals
 
