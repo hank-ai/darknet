@@ -58,7 +58,7 @@ For distros such as Centos and OpenSUSE, you'll need to switch those two lines i
     # SET (CPACK_GENERATOR "DEB")
     SET (CPACK_GENERATOR "RPM")
 
-To install the package, use the usual package manager.  For example:
+To install the package, use the usual package manager for your distribution.  For example, on Debian-based systems such as Ubuntu:
 
     sudo dpkg -i darknet-1.99.84-Linux.deb
 
@@ -78,6 +78,7 @@ Open a normal `cmd.exe` command prompt window and run the following commands:
 
     winget install Git.Git
     winget install Kitware.CMake
+    winget install nsis.nsis
     winget install Microsoft.VisualStudio.2022.Community
 
 At this point we need to modify the Visual Studio installation to include support for C++ applications:
@@ -126,7 +127,16 @@ Once the previous steps have finished successfully, you need to clone Darknet an
 > Advanced users:
 > Note that the output of the cmake command in the previous step is a "normal" Visual Studio solution file, darknet.sln.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio or VS Code.
 
-Once building has finished, you should now have a `darknet.exe` file you can run from the command-line.
+Once building has finished, create an installation package:
+
+    msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
+
+This will create a `darknet-VERSION.exe` file.  Installing this will:
+
+* Create a directory call `Darknet`, such as `C:/Program Files/Darknet/`.
+* Install the `darknet.exe` CLI application.
+* Install the neccesary `.dll`, `.lib` and `.h` files to use `darknet.dll` from another application.
+* Install the template `.cfg` files.
 
 # Using Darknet
 
@@ -134,7 +144,8 @@ Once building has finished, you should now have a `darknet.exe` file you can run
 
 This is not the full list of all commands supported by Darknet.  See [the previous readme](README_previous.md) for additional details and examples.
 
-* Run a single image:  `darknet detector test animals.data animals.cfg animals_best.weights dog.jpg`
+* Check the version:  `darknet version`
+* Predict using an image:  `darknet detector test animals.data animals.cfg animals_best.weights dog.jpg`
 * Output coordinates:  `darknet detector test animals.data animals.cfg animals_best.weights -ext_output dog.jpg`
 * Working with videos:  `darknet detector demo animals.data animals.cfg animals_best.weights -ext_output test.mp4`
 * Reading from a webcam:  `darknet detector demo animals.data animals.cfg animals_best.weights -c 0`
@@ -144,7 +155,7 @@ This is not the full list of all commands supported by Darknet.  See [the previo
 * Running on a specific GPU:  `darknet detector demo animals.data animals.cfg animals_best.weights -i 1 test.mp4`
 * To check accuracy mAP@IoU=50:  `darknet detector map animals.data animals.cfg animals_best.weights`
 * To check accuracy mAP@IoU=75:  `darknet detector map animals.data animals.cfg animals_best.weights -iou_thresh 0.75`
-* To train:  `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below
+* Train a new network:  `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below
 
 ## Training
 
