@@ -9,7 +9,7 @@ ENDIF ()
 
 
 # Rename several old pre-v2.x files and directories if they exist so they don't get used by mistake.
-FOREACH (filename darknet libdarknet.so obj uselib build.log build_release build_debug vcpkg_installed)
+FOREACH (filename darknet libdarknet.so obj uselib build.log build_release build_debug vcpkg_installed CMakeFiles)
 	IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/${filename}")
 		FILE (RENAME "${CMAKE_CURRENT_SOURCE_DIR}/${filename}" "${CMAKE_CURRENT_SOURCE_DIR}/old_${filename}")
 	ENDIF ()

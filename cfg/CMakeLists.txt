@@ -4,4 +4,8 @@
 FILE (GLOB CFG *.cfg)
 LIST (SORT CFG)
 
-INSTALL (FILES ${CFG} DESTINATION /opt/darknet/cfg/)
+IF (UNIX)
+	INSTALL (FILES ${CFG} DESTINATION /opt/darknet/cfg/)
+ELSE ()
+	INSTALL (FILES ${CFG} DESTINATION cfg/)
+ENDIF ()
