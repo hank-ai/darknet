@@ -2,7 +2,8 @@
 
 
 # add_compile_definitions() requires 3.12
-CMAKE_MINIMUM_REQUIRED( VERSION 3.12)
+# runtime_dependencies requires 3.21 (windows only)
+CMAKE_MINIMUM_REQUIRED (VERSION 3.12)
 
 
 SET (CMAKE_CXX_STANDARD 17)

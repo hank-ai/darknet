@@ -35,4 +35,19 @@ SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet")
 TARGET_LINK_LIBRARIES (darknetcli PRIVATE ${DARKNET_LINK_LIBS})
 
 INSTALL (TARGETS darknetlib LIBRARY DESTINATION lib PUBLIC_HEADER DESTINATION include)
-INSTALL (TARGETS darknetcli DESTINATION bin)
+
+IF (WIN32)
+	# more complicated install for Windows so we also get the .DLL files copied over from vcpkg
+	# https://stackoverflow.com/a/72088102/13022
+	INSTALL (TARGETS darknetcli
+		DESTINATION bin
+		RUNTIME_DEPENDENCIES
+			PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-" "wpaxholder" "HvsiFileTrust" "PdmUtilities"
+			POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
+			DIRECTORIES ${CMAKE_BINARY_DIR}/bin
+		RUNTIME DESTINATION bin
+		)
+ELSE ()
+	# non-Windows simple installation
+	INSTALL (TARGETS darknetcli DESTINATION bin)
+ENDIF ()

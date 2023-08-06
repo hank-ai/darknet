@@ -103,16 +103,10 @@ Run the following commands to install Microsoft VCPKG, which will then be used t
     bootstrap-vcpkg.bat
     .\vcpkg.exe integrate install
     .\vcpkg.exe integrate powershell
-	.\vcpkg.exe install opencv[default-features,contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows
+	.\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows
 	.\vcpkg.exe install pthreads:x64-windows
 
 Be patient at this step.  This will take a long time to run.  It needs to download and build many things.  Note there are many other optional modules you may want to add.  Run `.\vcpkg.exe search opencv` to see the full list.
-
-Even though Darknet does not use Tesseract, building OpenCV this way with vcpkg on Windows includes support for Tesseract.  To prevent errors when Darknet attempts to include OpenCV, run the following additional command:
-
-    .\vcpkg.exe install tesseract:x64-windows
-
-(TODO:  confirm that tesseract really is needed -- maybe remove default-features?)
 
 Once the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where OpenCV was built by vcpkg in the previous steps:
 
@@ -134,7 +128,7 @@ Once building has finished, create an installation package:
 This will create a `darknet-VERSION.exe` file.  Installing this will:
 
 * Create a directory call `Darknet`, such as `C:/Program Files/Darknet/`.
-* Install the `darknet.exe` CLI application.
+* Install the `darknet.exe` CLI application, as well as required `.dll` files
 * Install the neccesary `.dll`, `.lib` and `.h` files to use `darknet.dll` from another application.
 * Install the template `.cfg` files.
 
