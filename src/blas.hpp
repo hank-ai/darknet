@@ -3,8 +3,8 @@
 #include "darknet_internal.hpp"
 
 #ifdef GPU
-#include "dark_cuda.h"
-#include "tree.h"
+#include "dark_cuda.hpp"
+#include "tree.hpp"
 #endif
 
 #ifdef __cplusplus

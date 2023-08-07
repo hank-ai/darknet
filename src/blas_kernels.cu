@@ -4,10 +4,10 @@
 #include <assert.h>
 #include <float.h>
 
-#include "blas.h"
-#include "dark_cuda.h"
-#include "utils.h"
-#include "tree.h"
+#include "blas.hpp"
+#include "dark_cuda.hpp"
+#include "utils.hpp"
+#include "tree.hpp"
 
 __inline__ __device__
 float warpAllReduceSum(float val) {

@@ -70,6 +70,8 @@ Installing the package will copy the following files:
 * `/usr/lib/libdarknet.so` is the library to link against for C, C++, and Python developers.
 * `/opt/darknet/cfg/...` is where all the `.cfg` templates are stored.
 
+You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run this to test:  `darknet version`.
+
 ## Windows CMake Method
 
 These instructions assume a brand new installation of Windows 11 22H2.
@@ -91,6 +93,7 @@ At this point we need to modify the Visual Studio installation to include suppor
 Once everything is downloaded and installed, click on the "Windows Start" menu again and select `Developer Command Prompt for VS 2022`.
 
 > Advanced users:
+>
 > Instead of running the `Developer Command Prompt`, you can run a normal command prompt or ssh into the device and manually run `"\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`.
 
 Run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
@@ -103,12 +106,11 @@ Run the following commands to install Microsoft VCPKG, which will then be used t
     bootstrap-vcpkg.bat
     .\vcpkg.exe integrate install
     .\vcpkg.exe integrate powershell
-	.\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows
-	.\vcpkg.exe install pthreads:x64-windows
+    .\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows pthreads:x64-windows
 
-Be patient at this step.  This will take a long time to run.  It needs to download and build many things.  Note there are many other optional modules you may want to add.  Run `.\vcpkg.exe search opencv` to see the full list.
+Be patient at this last step as it should take a long time to run.  It needs to download and build many things.  Note there are many other optional modules you may want to add.  Run `.\vcpkg.exe search opencv` to see the full list.
 
-Once the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where OpenCV was built by vcpkg in the previous steps:
+Once the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies:
 
     cd c:\src
     git clone https://github.com/hank-ai/darknet.git
@@ -119,7 +121,8 @@ Once the previous steps have finished successfully, you need to clone Darknet an
     msbuild.exe /property:Platform=x64;Configuration=Release /target:Build -maxCpuCount -verbosity:normal -detailedSummary darknet.sln
 
 > Advanced users:
-> Note that the output of the cmake command in the previous step is a "normal" Visual Studio solution file, darknet.sln.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio or VS Code.
+>
+> Note that the output of the `cmake` command in the previous step is a "normal" Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio or VS Code.
 
 Once building has finished, create an installation package:
 
@@ -129,8 +132,10 @@ This will create a `darknet-VERSION.exe` file.  Installing this will:
 
 * Create a directory call `Darknet`, such as `C:/Program Files/Darknet/`.
 * Install the `darknet.exe` CLI application, as well as required `.dll` files
-* Install the neccesary `.dll`, `.lib` and `.h` files to use `darknet.dll` from another application.
+* Install the neccesary Darknet `.dll`, `.lib` and `.h` files to use `darknet.dll` from another application.
 * Install the template `.cfg` files.
+
+You are now done!  Darknet has been built and installed into `C:/Program Files/Darknet/`.  Run this to test:  `C:/Program Files/Darknet/bin/darknet.exe version`.
 
 # Using Darknet
 
