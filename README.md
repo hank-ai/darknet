@@ -2,17 +2,21 @@
 
 ![darknet and hank.ai logos](artwork/darknet_and_hank_ai_logos.png)
 
-Darknet is an open source neural network framework written in C, C++, and CUDA.  YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection system, which runs in the Darknet framework.
+Darknet is an open source neural network framework written in C, C++, and CUDA.
+
+YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection system, which runs in the Darknet framework.
 
 * Read how [Hank.ai is helping the Darknet/YOLO community](https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/)
-* Read the Darknet/YOLO FAQ:  https://www.ccoderun.ca/programming/darknet_faq/
+* See the Darknet/YOLO web site:  https://darknetcv.ai/
+* Please read through the Darknet/YOLO FAQ:  https://www.ccoderun.ca/programming/darknet_faq/
 * Join the Darknet/YOLO discord server:  https://discord.gg/zSq8rtW
 
 # Papers
 
-* Paper **YOLOv7**: https://arxiv.org/abs/2207.02696
-* Paper **Scaled-YOLOv4**: https://openaccess.thecvf.com/content/CVPR2021/html/Wang_Scaled-YOLOv4_Scaling_Cross_Stage_Partial_Network_CVPR_2021_paper.html
-* Paper **YOLOv4**: https://arxiv.org/abs/2004.10934
+* Paper **YOLOv7**:  https://arxiv.org/abs/2207.02696
+* Paper **Scaled-YOLOv4**:  https://openaccess.thecvf.com/content/CVPR2021/html/Wang_Scaled-YOLOv4_Scaling_Cross_Stage_Partial_Network_CVPR_2021_paper.html
+* Paper **YOLOv4**:  https://arxiv.org/abs/2004.10934
+* Paper **YOLOv3**:  https://arxiv.org/abs/1804.02767
 
 # General Information
 
