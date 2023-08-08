@@ -2,6 +2,7 @@
 #include "parser.hpp"
 #include "blas.hpp"
 #include "utils.hpp"
+#include "image.hpp"
 
 // ./darknet nightmare cfg/extractor.recon.cfg ~/trained/yolo-coco.conv frame6.png -reconstruct -iters 500 -i 3 -lambda .1 -rate .01 -smooth 2
 

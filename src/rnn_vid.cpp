@@ -3,6 +3,9 @@
 #include "utils.hpp"
 #include "parser.hpp"
 #include "blas.hpp"
+#include "image.hpp"
+#include "data.hpp"
+
 
 #ifdef OPENCV
 void reconstruct_picture(network net, float *features, image recon, image update, float rate, float momentum, float lambda, int smooth_size, int iters);

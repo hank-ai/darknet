@@ -6,6 +6,7 @@
 #include "utils.hpp"
 #include "parser.hpp"
 #include "box.hpp"
+#include "data.hpp"
 
 void train_compare(char *cfgfile, char *weightfile)
 {

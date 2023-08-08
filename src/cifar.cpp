@@ -3,6 +3,9 @@
 #include "parser.hpp"
 #include "option_list.hpp"
 #include "blas.hpp"
+#include "data.hpp"
+#include "image.hpp"
+
 
 void train_cifar(char *cfgfile, char *weightfile)
 {

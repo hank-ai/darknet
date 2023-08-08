@@ -1,12 +1,13 @@
-#ifndef HTTP_STREAM_H
-#define HTTP_STREAM_H
+#pragma once
+
 #include "darknet.h"
+
+#include "image.hpp"
+#include <cstdint>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "image.hpp"
-#include <stdint.h>
 
 void send_json(detection *dets, int nboxes, int classes, char **names, long long int frame_id, int port, int timeout);
 
@@ -33,5 +34,3 @@ void this_thread_yield();
 #ifdef __cplusplus
 }
 #endif
-
-#endif // HTTP_STREAM_H

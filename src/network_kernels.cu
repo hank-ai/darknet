@@ -1,46 +1,29 @@
-#include "dark_cuda.h"
+#include "dark_cuda.hpp"
 
-#include <stdio.h>
-#include <time.h>
-#include <assert.h>
+#include <cstdio>
+#include <ctime>
+#include <cassert>
 
-#include "network.h"
-#include "image.h"
-#include "data.h"
-#include "utils.h"
-#include "parser.h"
+#include "network.hpp"
+#include "data.hpp"
+#include "blas.hpp"
+#include "utils.hpp"
 
-#include "crop_layer.h"
-#include "connected_layer.h"
-#include "rnn_layer.h"
-#include "gru_layer.h"
-#include "crnn_layer.h"
-#include "detection_layer.h"
-#include "region_layer.h"
-#include "convolutional_layer.h"
-#include "activation_layer.h"
-#include "maxpool_layer.h"
-#include "reorg_layer.h"
-#include "avgpool_layer.h"
-#include "normalization_layer.h"
-#include "batchnorm_layer.h"
-#include "cost_layer.h"
-#include "local_layer.h"
-#include "softmax_layer.h"
-#include "dropout_layer.h"
-#include "route_layer.h"
-#include "shortcut_layer.h"
-#include "blas.h"
+extern "C"
+{
+	int64_t get_current_iteration(network net);
+	int get_network_input_size(network net);
+	int get_sequence_value(network net);
+	float get_current_rate(network net);
+	int get_current_batch(network net);
+	int get_network_output_size(network net);
+	float get_network_cost(network net);
+	float train_network(network net, data d);
+	void show_image(image p, const char *name);
+	void resize_window_cv(char const* window_name, int width, int height);
+	int wait_key_cv(int delay);
+}
 
-//#ifdef OPENCV
-//#include <opencv2/highgui/highgui_c.h>
-//#endif
-
-#include "http_stream.h"
-
-float * get_network_output_gpu_layer(network net, int i);
-float * get_network_delta_gpu_layer(network net, int i);
-float * get_network_output_gpu(network net);
 
 typedef struct time_benchmark_layers {
     float time;

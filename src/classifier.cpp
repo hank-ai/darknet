@@ -5,7 +5,10 @@
 #include "blas.hpp"
 #include "assert.h"
 #include "classifier.hpp"
+#include "data.hpp"
+#include "image.hpp"
 #include "dark_cuda.hpp"
+
 #ifdef WIN32
 #include <time.h>
 #include "gettimeofday.h"

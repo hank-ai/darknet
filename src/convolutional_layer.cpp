@@ -1,3 +1,4 @@
+#include "image.hpp"
 #include "convolutional_layer.hpp"
 #include "utils.hpp"
 #include "batchnorm_layer.hpp"
@@ -6,8 +7,8 @@
 #include "blas.hpp"
 #include "gemm.hpp"
 #include "box.hpp"
-#include <stdio.h>
-#include <time.h>
+#include <cstdio>
+#include <ctime>
 
 #ifdef AI2
 #include "xnor_layer.hpp"

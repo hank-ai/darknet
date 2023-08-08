@@ -1,21 +1,28 @@
 # Darknet object detection framework
 
 
-INCLUDE (CheckLanguage)
+# ==========
+# == CUDA ==
+# ==========
 CHECK_LANGUAGE (CUDA)
 IF (CMAKE_CUDA_COMPILER)
-	MESSAGE (STATUS "CUDA detected. Darknet willl use the GPU.")
+	MESSAGE (STATUS "CUDA detected. Darknet will use the GPU.")
 	ENABLE_LANGUAGE (CUDA)
-#	SET (CMAKE_CUDA_STANDARD 17)
-#	SET (CMAKE_CUDA_STANDARD_REQUIRED ON)
-#	SET (DARKNET_USE_CUDA ON)
-	SET (DARKNET_CUDA_ARCHITECTURES "35;50;52;61")
-#	ADD_COMPILE_DEFINITIONS (GPU) # TODO rename this to DARKNET_USE_GPU or DARKNET_USE_CUDA?
+	FIND_PACKAGE(CUDAToolkit)
+	ADD_COMPILE_DEFINITIONS (GPU) # TODO rename this to DARKNET_USE_GPU or DARKNET_USE_CUDA?
+	SET (CMAKE_CUDA_STANDARD 14)
+	SET (CMAKE_CUDA_STANDARD_REQUIRED ON)
+	SET (DARKNET_CUDA_ARCHITECTURES "86") #"35;50;52;60") # TODO
+	SET (DARKNET_USE_CUDA ON)
+	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} CUDA::cudart CUDA::cuda_driver CUDA::cublas CUDA::curand)
 ELSE ()
 	MESSAGE (WARNING "CUDA not found. Darknet will be CPU-only.")
 ENDIF ()
 
 
+# ========================
+# == Intel/AMD Hardware ==
+# ========================
 IF (CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86" OR
 	CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_32" OR
 	CMAKE_HOST_SYSTEM_PROCESSOR MATCHES "x86_64" OR
@@ -28,6 +35,9 @@ ELSE ()
 ENDIF ()
 
 
+# ===============
+# == GCC/Clang ==
+# ===============
 IF (CMAKE_COMPILER_IS_GNUCC OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "Clang")
 	SET (COMPILER_IS_GNU_OR_CLANG TRUE)
 ELSE ()
@@ -35,16 +45,21 @@ ELSE ()
 ENDIF ()
 
 
+# =============
+# == Threads ==
+# =============
 FIND_PACKAGE (Threads REQUIRED)
 MESSAGE (STATUS "Found Threads ${Threads_VERSION}")
 SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} Threads::Threads)
-
 IF (WIN32)
 	FIND_PACKAGE (PThreads4W REQUIRED)
 	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} PThreads4W::PThreads4W)
 ENDIF ()
 
 
+# ============
+# == OpenCV ==
+# ============
 FIND_PACKAGE (OpenCV CONFIG REQUIRED)
 MESSAGE (STATUS "Found OpenCV ${OpenCV_VERSION}")
 INCLUDE_DIRECTORIES (${OpenCV_INCLUDE_DIRS})
@@ -52,6 +67,9 @@ ADD_COMPILE_DEFINITIONS (OPENCV) # TODO remove this once OpenCV is no longer opt
 SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${OpenCV_LIBS})
 
 
+# ============
+# == OpenMP ==
+# ============
 FIND_PACKAGE (OpenMP QUIET) # optional
 IF (NOT OPENMP_FOUND)
 	MESSAGE (WARNING "OpenMP not found. Building Darknet without support for OpenMP.")
@@ -65,6 +83,9 @@ ELSE ()
 ENDIF ()
 
 
+# ===============
+# == AVX & SSE ==
+# ===============
 CMAKE_DEPENDENT_OPTION (ENABLE_SSE_AND_AVX "Enable AVX and SSE optimizations (Intel and AMD only)" ON "COMPILER_IS_GNU_OR_CLANG;HARDWARE_IS_X86" OFF)
 IF (NOT ENABLE_SSE_AND_AVX)
 	MESSAGE (WARNING "AVX and SSE optimizations are disabled.")

@@ -1,6 +1,7 @@
 #include "network.hpp"
 #include "utils.hpp"
 #include "parser.hpp"
+#include "data.hpp"
 
 void fix_data_captcha(data d, int mask)
 {

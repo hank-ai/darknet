@@ -2,6 +2,8 @@
 #include "cost_layer.hpp"
 #include "utils.hpp"
 #include "parser.hpp"
+#include "data.hpp"
+#include "image.hpp"
 
 
 void train_super(char *cfgfile, char *weightfile)

@@ -184,7 +184,7 @@ float get_current_rate(network net)
     }
 }
 
-const char * const get_layer_string(LAYER_TYPE a)
+char * get_layer_string(LAYER_TYPE a)
 {
     switch(a){
         case CONVOLUTIONAL:

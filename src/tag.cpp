@@ -1,6 +1,7 @@
 #include "network.hpp"
 #include "utils.hpp"
 #include "parser.hpp"
+#include "data.hpp"
 
 void train_tag(char *cfgfile, char *weightfile, int clear)
 {

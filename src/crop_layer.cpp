@@ -1,4 +1,5 @@
 #include "utils.hpp"
+#include "image.hpp"
 #include "crop_layer.hpp"
 #include "dark_cuda.hpp"
 #include <stdio.h>

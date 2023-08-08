@@ -2,10 +2,12 @@
 #include <curand.h>
 #include <cublas_v2.h>
 
-#include "maxpool_layer.h"
-#include "convolutional_layer.h"
-#include "blas.h"
-#include "dark_cuda.h"
+#include <cfloat>
+
+#include "maxpool_layer.hpp"
+#include "convolutional_layer.hpp"
+#include "blas.hpp"
+#include "dark_cuda.hpp"
 
 __global__ void forward_maxpool_depth_layer_kernel(int n, int w, int h, int c, int out_c, int batch, float *input, float *output, int *indexes)
 {

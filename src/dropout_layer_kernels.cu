@@ -3,14 +3,19 @@
 #include <cublas_v2.h>
 #include <cstring>
 
-#include "dropout_layer.h"
-#include "dark_cuda.h"
-#include "utils.h"
-#include "blas.h"
+#include "dropout_layer.hpp"
+//#include "utils.hpp"
+//#include "blas.hpp"
+extern "C"
+{
+	void fill_ongpu(int N, float ALPHA, float * X, int INCX);
+	int64_t get_current_iteration(network net);
+}
 
-#include "image_opencv.h"
-#include "image.h"
+//#include "image_opencv.hpp"
+//#include "image.hpp"
 
+#include "dark_cuda.hpp"
 
 __global__ void dropblock_fast_kernel(float *rand, float prob, int w, int h, int spatial, int filters, int batch, int block_size, float *drop_blocks_scale, float *output)
 {

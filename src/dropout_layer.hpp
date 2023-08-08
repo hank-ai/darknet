@@ -1,7 +1,8 @@
 #pragma once
 
 #include "layer.hpp"
-#include "network.hpp"
+//#include "network.hpp"
+#include "darknet.h"
 
 typedef layer dropout_layer;
 

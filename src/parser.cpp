@@ -41,6 +41,7 @@
 #include "yolo_layer.hpp"
 #include "gaussian_yolo_layer.hpp"
 #include "representation_layer.hpp"
+#include "image.hpp"
 
 void empty_func(dropout_layer l, network_state state) {
     //l.output_gpu = state.input;

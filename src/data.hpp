@@ -1,15 +1,15 @@
 #pragma once
 
-#include <pthread.h>
+//#include <pthread.h>
 
 #include "darknet.h"
 #include "matrix.hpp"
 #include "list.hpp"
-#include "image.hpp"
+#include "tree.hpp"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "tree.hpp"
 
 static inline float distance_from_edge(int x, int max)
 {
@@ -117,7 +117,7 @@ data concat_data(data d1, data d2);
 data concat_datas(data *d, int n);
 void fill_truth(char *path, char **labels, int k, float *truth);
 void fill_truth_smooth(char *path, char **labels, int k, float *truth, float label_smooth_eps);
+
 #ifdef __cplusplus
 }
-
 #endif

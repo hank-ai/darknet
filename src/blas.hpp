@@ -1,7 +1,5 @@
 #pragma once
 
-#include "darknet_internal.hpp"
-
 #ifdef GPU
 #include "dark_cuda.hpp"
 #include "tree.hpp"

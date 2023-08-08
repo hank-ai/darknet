@@ -1,5 +1,5 @@
-#ifndef IMAGE_H
-#define IMAGE_H
+#pragma once
+
 #include "darknet.h"
 
 #include <stdlib.h>
@@ -116,6 +116,4 @@ image get_image_layer(image m, int l);
 void test_resize(char *filename);
 #ifdef __cplusplus
 }
-#endif
-
 #endif

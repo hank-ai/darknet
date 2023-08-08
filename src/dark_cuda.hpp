@@ -15,7 +15,9 @@ extern int gpu_index;
 
 #ifdef GPU
 
+/// @todo What is this?  See where it is used in all the .cu files.
 #define BLOCK 512
+
 #define FULL_MASK 0xffffffff
 #define WARP_SIZE 32
 #define BLOCK_TRANSPOSE32 256

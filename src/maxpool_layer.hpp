@@ -1,9 +1,9 @@
 #pragma once
 
-#include "image.hpp"
+//#include "image.hpp"
 #include "dark_cuda.hpp"
-#include "layer.hpp"
-#include "network.hpp"
+//#include "layer.hpp"
+//#include "network.hpp"
 
 typedef layer maxpool_layer;
 

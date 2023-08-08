@@ -1,6 +1,7 @@
 #include "network.hpp"
 #include "utils.hpp"
 #include "parser.hpp"
+#include "data.hpp"
 
 char *dice_labels[] = {"face1","face2","face3","face4","face5","face6"};
 

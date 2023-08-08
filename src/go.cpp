@@ -3,6 +3,7 @@
 #include "parser.hpp"
 #include "option_list.hpp"
 #include "blas.hpp"
+#include "image.hpp"
 
 
 int inverted = 1;

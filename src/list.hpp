@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 typedef struct node{
     void *val;
     struct node *next;
@@ -12,9 +16,6 @@ typedef struct list{
     node *back;
 } list;
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 list *make_list();
 int list_find(list *l, void *val);
 

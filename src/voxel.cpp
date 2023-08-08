@@ -2,6 +2,9 @@
 #include "cost_layer.hpp"
 #include "utils.hpp"
 #include "parser.hpp"
+#include "image.hpp"
+#include "data.hpp"
+
 
 void extract_voxel(char *lfile, char *rfile, char *prefix)
 {

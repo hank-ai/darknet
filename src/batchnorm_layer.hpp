@@ -1,8 +1,8 @@
 #pragma once
 
-#include "image.hpp"
+//#include "image.hpp"
 #include "layer.hpp"
-#include "network.hpp"
+//#include "network.hpp"
 
 #ifdef __cplusplus
 extern "C" {

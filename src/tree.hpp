@@ -1,5 +1,5 @@
-#ifndef TREE_H
-#define TREE_H
+#pragma once
+
 #include "darknet.h"
 
 //typedef struct{
@@ -26,5 +26,4 @@ float get_hierarchy_probability(float *x, tree *hier, int c);
 
 #ifdef __cplusplus
 }
-#endif
 #endif

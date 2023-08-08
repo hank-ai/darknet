@@ -14,6 +14,8 @@
 #include "demo.hpp"
 #include "option_list.hpp"
 #include "darknet_utils.hpp"
+#include "data.hpp"
+
 
 #ifndef __COMPAR_FN_T
 #define __COMPAR_FN_T

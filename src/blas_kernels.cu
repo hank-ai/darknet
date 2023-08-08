@@ -2,7 +2,7 @@
 #include <curand.h>
 #include <cublas_v2.h>
 #include <assert.h>
-#include <float.h>
+#include <cfloat>
 
 #include "blas.hpp"
 #include "dark_cuda.hpp"

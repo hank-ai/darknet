@@ -16,6 +16,7 @@
 #include "darknet_utils.hpp"
 #include "convolutional_layer.hpp"
 #include "darknet_version.h"
+#include "image.hpp"
 
 
 extern void predict_classifier(char *datacfg, char *cfgfile, char *weightfile, char *filename, int top);

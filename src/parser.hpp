@@ -1,6 +1,6 @@
 #pragma once
 
-#include "network.hpp"
+//#include "network.hpp"
 
 #ifdef __cplusplus
 extern "C" {

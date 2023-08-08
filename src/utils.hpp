@@ -1,7 +1,6 @@
-#ifndef UTILS_H
-#define UTILS_H
-#include "darknet.h"
+#pragma once
 
+#include "darknet.h"
 #include "list.hpp"
 
 #include <errno.h>
@@ -125,6 +124,4 @@ bool is_live_stream(const char * path);
 
 #ifdef __cplusplus
 }
-#endif
-
 #endif

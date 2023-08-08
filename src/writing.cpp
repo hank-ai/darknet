@@ -1,6 +1,8 @@
 #include "network.hpp"
 #include "utils.hpp"
 #include "parser.hpp"
+#include "image.hpp"
+#include "data.hpp"
 
 void train_writing(char *cfgfile, char *weightfile)
 {
