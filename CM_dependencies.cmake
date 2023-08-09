@@ -20,6 +20,20 @@ ELSE ()
 ENDIF ()
 
 
+# ===========
+# == cuDNN ==
+# ===========
+FIND_LIBRARY (CUDNN cudnn OPTIONAL QUIET)
+IF (NOT DARKNET_USE_CUDA OR NOT CUDNN_FOUND)
+	MESSAGE (STATUS "Skipping cuDNN")
+ELSE ()
+	MESSAGE (STATUS "Enabling cuDNN")
+	ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
+#	ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
+	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${CUDNN})
+ENDIF ()
+
+
 # ========================
 # == Intel/AMD Hardware ==
 # ========================

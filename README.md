@@ -224,7 +224,11 @@ Last updated 2023-08-04:
 * [ ] clean up .hpp files
 * [X] build darknet library
 * [X] re-enable labels on predictions ("alphabet" code)
-* [ ] re-enable CUDA/GPU code
+* [X] re-enable CUDA/GPU code
+* [ ] re-enable CUDNN
+* [ ] re-enable CUDNN half
+* [ ] do not hard-code the CUDA architecture
+* [ ] better CUDA version information
 * [X] re-enable AVX
 * [ ] look into old zed camera support
 * [X] remove old solutions and Makefile
