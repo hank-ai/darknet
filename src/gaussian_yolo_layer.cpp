@@ -11,10 +11,10 @@
 #include "dark_cuda.hpp"
 #include "utils.hpp"
 
-#include <stdio.h>
-#include <assert.h>
-#include <string.h>
-#include <stdlib.h>
+#include <cstdio>
+#include <cassert>
+#include <cstring>
+#include <cstdlib>
 #include <cfloat>
 
 extern int check_mistakes;
@@ -155,7 +155,7 @@ box get_gaussian_yolo_box(float *x, float *biases, int n, int index, int i, int 
 
 static inline float fix_nan_inf(float val)
 {
-    if (isnan(val) || isinf(val)) val = 0;
+    if (std::isnan(val) || std::isinf(val)) val = 0;
     return val;
 }
 
