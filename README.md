@@ -1,3 +1,20 @@
+# Table of Contents
+
+* [Darknet Object Detection Framework and YOLO](#darknet-object-detection-framework-and-yolo)
+* [Papers](#papers)
+* [General Information](#general-information)
+* [Building](#building)
+	* [Linux CMake Method](#linux-cmake-method)
+	* [Windows CMake Method](#windows-cmake-method)
+* [Using Darknet](#using-darknet)
+	* [CLI](#cli)
+	* [Training](#training)
+* [Other Tools and Links](#other-tools-and-links)
+* [Roadmap](#roadmap)
+	* [Short-term goals](#short-term-goals)
+	* [Mid-term goals](#mid-term-goals)
+	* [Long-term goals](#long-term-goals)
+
 # Darknet Object Detection Framework and YOLO
 
 ![darknet and hank.ai logos](artwork/darknet_and_hank_ai_logos.png)
@@ -135,7 +152,7 @@ Once the previous steps have finished successfully, you need to clone Darknet an
 
 > Advanced users:
 >
-> Note that the output of the `cmake` command in the previous step is a "normal" Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio or VS Code.
+> Note that the output of the `cmake` command in the previous step is a normal Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio or VS Code.
 
 Once building has finished, create an installation package:
 
