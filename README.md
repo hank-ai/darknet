@@ -30,6 +30,9 @@ YOLOv7 surpasses all known object detectors in both speed and accuracy in the ra
 
 The various build methods available in the past have been merged together into a single unified solution.  Darknet now requires OpenCV, and uses CMake to generate the necessary project files.
 
+* [Linux](#linux-cmake-method)
+* [Windows](#windows-cmake-method)
+
 **Beware if you are following old tutorials with more complicated build steps, or build steps that don't match what is in this readme.**  The new build steps as described below started in August 2023.
 
 ## Linux CMake Method
@@ -52,17 +55,19 @@ If you are using an older version of CMake, such as the one with Ubuntu 18.04, t
     sudo apt-get purge cmake
     sudo snap install cmake --classic
 
-If you are using a distro that uses RPM files instead of DEB files, see the relevant lines in `CM_package.cmake`.  Prior to running `make -j4 package` you'll need to edit these two lines:
+> Advanced users:
+>
+> If you want to build a RPM installation file instead of a DEB file, see the relevant lines in `CM_package.cmake`.  Prior to running `make -j4 package` you'll need to edit these two lines:
 
     SET (CPACK_GENERATOR "DEB")
     # SET (CPACK_GENERATOR "RPM")
 
-For distros such as Centos and OpenSUSE, you'll need to switch those two lines in `CM_package.cmake` to be:
+> For distros such as Centos and OpenSUSE, you'll need to switch those two lines in `CM_package.cmake` to be:
 
     # SET (CPACK_GENERATOR "DEB")
     SET (CPACK_GENERATOR "RPM")
 
-To install the package, use the usual package manager for your distribution.  For example, on Debian-based systems such as Ubuntu:
+To install the installation package, use the usual package manager for your distribution.  For example, on Debian-based systems such as Ubuntu:
 
     sudo dpkg -i darknet-1.99.84-Linux.deb
 
@@ -98,7 +103,7 @@ Once everything is downloaded and installed, click on the "Windows Start" menu a
 
 > Advanced users:
 >
-> Instead of running the `Developer Command Prompt`, you can run a normal command prompt or ssh into the device and manually run `"\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`.
+> Instead of running the `Developer Command Prompt`, you can use a normal command prompt or ssh into the device and manually run `"\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`.
 
 Run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
 
@@ -112,7 +117,11 @@ Run the following commands to install Microsoft VCPKG, which will then be used t
     .\vcpkg.exe integrate powershell
     .\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows pthreads:x64-windows
 
-Be patient at this last step as it should take a long time to run.  It needs to download and build many things.  Note there are many other optional modules you may want to add.  Run `.\vcpkg.exe search opencv` to see the full list.
+Be patient at this last step as it can take a long time to run.  It needs to download and build many things.
+
+> Advanced users:
+>
+> Note there are many other optional modules you may want to add when building OpenCV.  Run `.\vcpkg.exe search opencv` to see the full list.
 
 Once the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies:
 
