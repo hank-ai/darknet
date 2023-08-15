@@ -1,13 +1,11 @@
 ---
 name: Feature request
-about: Suggest an idea for this project
+about: Suggest a new feature for this project
 title: ''
-labels: Feature-request
-assignees: ''
+labels: enhancement
+assignees: stephanecharette
 
 ---
 
-For Feature-request:
-    * describe your feature as detailed as possible
-    * provide link to the paper and/or source code if it exist
-    * attach chart/table with comparison that shows improvement
+Please describe the feature as detailed as possible.
+Provide links to the paper or source code if it exist.
