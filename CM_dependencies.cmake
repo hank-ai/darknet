@@ -12,7 +12,34 @@ IF (CMAKE_CUDA_COMPILER)
 	ADD_COMPILE_DEFINITIONS (GPU) # TODO rename this to DARKNET_USE_GPU or DARKNET_USE_CUDA?
 	SET (CMAKE_CUDA_STANDARD 14)
 	SET (CMAKE_CUDA_STANDARD_REQUIRED ON)
-	SET (DARKNET_CUDA_ARCHITECTURES "86") #"35;50;52;60") # TODO
+	#
+	# Best to use "native" as the architecture, as this will use whatever GPU is installed.
+	# But if desired, the exact major architecture index can also be specified.  For example:
+	#
+	# (note that some of these are no longer supported in recent versions of CUDA)
+	#
+	#	20: GeForce 400, 500, 600, GT-630
+	#	30: GeForce 700, GT 730, 740, 760, 770
+	#	35: Tesla K40
+	#	37: Tesla K80
+	#	50: Tesla Quadro M
+	#	52: Quadro M6000, GeForce 900, 970, 980, Titan X
+	#	53: Tegra Jetson TX1, X1, Drive CX, Drive PX, Jetson Nano
+	#	60: Quadro GP100, Tesla P100, DGX-1
+	#	61: GTX 1080, 1070, 1060, 1050, 1030, 1010, GP108 Titan Xp, Tesla P40, Tesla P4, Drive PX2
+	#	62: Drive PX2, Tegra Jetson TX2
+	#	70: DGX-1 Volta, Tesla V100, GTX 1180 GV104, Titan V, Quadro VG100
+	#	72: Jetson AGX Xavier, AGX Pegasus, Jetson Xavier NX
+	#	75: GTX RTX Turing, GTX 1660, RTX 2060, RTX 2070, RTX 2080, Titan RTX, Quadro RTX 4000, 5000, 6000, 8000, T1000, T2000, Tesla T4, XNOR Tensor Cores
+	#	80: A100, GA100, DGX-A100, RTX 3080 (?)
+	#	86: Tesla GA10x, RTX Ampere, RTX 3050, 3070, 3080, 3090, GA102, GA107, RTX A2000, A3000, A4000, A5000, A6000, A40, GA106, RTX 3060, GA104, A10, A16, A40, A2 Tensor
+	#	87: Jetson AGX Orin, Drive AGX Orin
+	#	89: RTX 4090, 4080, 6000, Tesla L40
+	#	90: H100, GH100
+	#
+#	SET (DARKNET_CUDA_ARCHITECTURES "86")
+#	SET (DARKNET_CUDA_ARCHITECTURES "75;80;86")
+	SET (DARKNET_CUDA_ARCHITECTURES "native")
 	SET (DARKNET_USE_CUDA ON)
 	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} CUDA::cudart CUDA::cuda_driver CUDA::cublas CUDA::curand)
 ELSE ()

@@ -4,7 +4,8 @@
 # add_compile_definitions() requires 3.12
 # CUDA detection requires 3.18
 # runtime_dependencies requires 3.21 (windows only)
-CMAKE_MINIMUM_REQUIRED (VERSION 3.18)
+# cuda_architectures auto detection requires 3.24
+CMAKE_MINIMUM_REQUIRED (VERSION 3.24)
 
 
 SET (CMAKE_CXX_STANDARD 17)

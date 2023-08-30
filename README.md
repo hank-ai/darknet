@@ -264,7 +264,7 @@ Be patient.  The best weights will be stored in `animals_best.weights`.  And the
 
 # Roadmap
 
-Last updated 2023-08-29:
+Last updated 2023-08-30:
 
 ## Short-term goals
 
@@ -277,7 +277,7 @@ Last updated 2023-08-29:
 * [X] re-enable CUDA/GPU code
 * [ ] re-enable CUDNN
 * [ ] re-enable CUDNN half
-* [ ] do not hard-code the CUDA architecture
+* [X] do not hard-code the CUDA architecture
 * [X] better CUDA version information
 * [X] re-enable AVX
 * [ ] look into old zed camera support
