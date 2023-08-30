@@ -54,6 +54,13 @@ The various build methods available in the past have been merged together into a
 
 ## Linux CMake Method
 
+* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
+	* Visit https://developer.nvidia.com/cuda-downloads to download and install CUDA.
+	* Visit https://developer.nvidia.com/rdp/cudnn-download or https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#cudnn-package-manager-installation-overview to download and install cuDNN.
+	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
+		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
+		* Remember to re-build Darknet.
+
 These instructions assume a system running Ubuntu 22.04.
 
     sudo apt-get install build-essential git libopencv-dev cmake
@@ -140,7 +147,14 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 >
 > Note there are many other optional modules you may want to add when building OpenCV.  Run `.\vcpkg.exe search opencv` to see the full list.
 
-Once the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies:
+* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
+	* Visit https://developer.nvidia.com/cuda-downloads to download and install CUDA.
+	* Visit https://developer.nvidia.com/rdp/cudnn-download or https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#download-windows to download and install cuDNN.
+	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
+		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
+		* Remember to re-build Darknet.
+
+Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies:
 
     cd c:\src
     git clone https://github.com/hank-ai/darknet.git
@@ -154,18 +168,28 @@ Once the previous steps have finished successfully, you need to clone Darknet an
 >
 > Note that the output of the `cmake` command in the previous step is a normal Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio or VS Code.
 
-Once building has finished, create an installation package:
+If you want, you can stop here.  You should now have this file you can run:  `C:\src\Darknet\build\src\Release\Darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src\Release\Darknet.exe version`.
+
+To properly package up Darknet, the libraries, the include files, and the necessary DLLs, create the NSIS installation package like this:
 
     msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 
-This will create a `darknet-VERSION.exe` file.  Installing this will:
+This will create a `darknet-VERSION.exe` file in the `build` directory.
 
-* Create a directory call `Darknet`, such as `C:/Program Files/Darknet/`.
+> If you get an error about some missing CUDA DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
+>
+>     `copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\*.dll" src\Release\`
+>
+> Once the files have been copied, re-run the last command to generate the NSIS installation package.
+
+Installing the NSIS installation package will:
+
+* Create a directory called `Darknet`, such as `C:\Program Files\Darknet\`.
 * Install the `darknet.exe` CLI application, as well as required `.dll` files
 * Install the neccesary Darknet `.dll`, `.lib` and `.h` files to use `darknet.dll` from another application.
 * Install the template `.cfg` files.
 
-You are now done!  Darknet has been built and installed into `C:/Program Files/Darknet/`.  Run this to test:  `C:/Program Files/Darknet/bin/darknet.exe version`.
+You are now done!  Darknet has been built and installed into `C:\Program Files\Darknet\`.  Run this to test:  `C:\Program Files\Darknet\bin\darknet.exe version`.
 
 # Using Darknet
 
@@ -240,7 +264,7 @@ Be patient.  The best weights will be stored in `animals_best.weights`.  And the
 
 # Roadmap
 
-Last updated 2023-08-04:
+Last updated 2023-08-29:
 
 ## Short-term goals
 
@@ -254,13 +278,14 @@ Last updated 2023-08-04:
 * [ ] re-enable CUDNN
 * [ ] re-enable CUDNN half
 * [ ] do not hard-code the CUDA architecture
-* [ ] better CUDA version information
+* [X] better CUDA version information
 * [X] re-enable AVX
 * [ ] look into old zed camera support
 * [X] remove old solutions and Makefile
 * [ ] make OpenCV non-optional
 * [X] remove STB
-* [ ] re-write CMakeLists.txt to use the new CUDA detection
+* [X] re-write CMakeLists.txt to use the new CUDA detection
+* [ ] re-write darknet.h
 * [ ] remove old "alphabet" code, and delete the 700+ images in data/labels
 * [X] build out-of-source
 * [X] have better version number output

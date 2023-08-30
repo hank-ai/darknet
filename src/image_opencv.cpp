@@ -6,6 +6,7 @@
 #include "image_opencv.hpp"
 #include "darknet_utils.hpp"
 #include <iostream>
+#include <ciso646>
 
 #ifndef OPENCV
 

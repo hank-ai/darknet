@@ -1,6 +1,7 @@
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
+
 #include "image.hpp"
 #include "utils.hpp"
 #include "blas.hpp"
@@ -8,6 +9,7 @@
 #include "darknet_utils.hpp"
 #include <stdio.h>
 #include <math.h>
+#include <ciso646>
 
 extern int check_mistakes;
 
