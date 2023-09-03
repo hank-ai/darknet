@@ -8,6 +8,7 @@
 #include "data.hpp"
 #include "blas.hpp"
 #include "utils.hpp"
+#include "convolutional_layer.hpp"
 
 extern "C"
 {
@@ -23,7 +24,6 @@ extern "C"
 	void resize_window_cv(char const* window_name, int width, int height);
 	int wait_key_cv(int delay);
 }
-
 
 typedef struct time_benchmark_layers {
     float time;
