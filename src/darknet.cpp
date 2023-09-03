@@ -516,10 +516,6 @@ int main(int argc, char **argv)
 	show_cuda_cudnn_info();
 	cuda_debug_sync = find_arg(argc, argv, "-cuda_debug_sync");
 
-#ifdef CUDNN_HALF
-	printf(" CUDNN_HALF=1 \n");
-#endif  // CUDNN_HALF
-
 #endif  // GPU
 
 	errno = 0;

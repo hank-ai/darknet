@@ -663,7 +663,7 @@ void show_cuda_cudnn_info()
 		<< std::endl;
 
 #ifndef CUDNN
-	std::cout << "Not using cuDNN." << std::endl;
+	std::cout << "cuDNN is DISABLED" << std::endl;
 #else
 	size_t cudnn_version = cudnnGetCudartVersion();
 	int cudnn_version_major = 0;
@@ -677,12 +677,12 @@ void show_cuda_cudnn_info()
 		<< " (v" << cudnn_version_major
 		<< "." << cudnn_version_minor
 		<< "." << cudnn_version_patch
-		<< ")"
-		<< std::endl;
+		<< "), "
+		<< "use of half-size floats is ";
 #ifndef CUDNN_HALF
-	std::cout << "Not using cuDNN half-size (16-bit) float." << std::endl;
+	std::cout << "DISABLED" << std::endl;
 #else
-	std::cout << "cuDNN half-size (16-bit) float is enabled." << std::endl;
+	std::cout << "ENABLED" << std::endl;
 #endif
 #endif
 
