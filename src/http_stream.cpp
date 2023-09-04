@@ -4,8 +4,8 @@
 #endif
 
 #define _XOPEN_SOURCE
-#include "image.h"
-#include "http_stream.h"
+#include "image.hpp"
+#include "http_stream.hpp"
 
 //
 // a single-threaded, multi client(using select), debug webserver - streaming out mjpg.
@@ -60,7 +60,7 @@ static int close_socket(SOCKET s) {
     return result;
 }
 #else   // _WIN32 - else: nix
-#include "darkunistd.h"
+#include "darkunistd.hpp"
 #include <fcntl.h>
 #include <sys/time.h>
 #include <sys/types.h>
@@ -586,7 +586,7 @@ int send_http_post_request(char *http_post_host, int server_port, const char *vi
 #endif
 
 //#define CPPHTTPLIB_OPENSSL_SUPPORT
-#include "httplib.h"
+#include "httplib.hpp"
 
 // https://webhook.site/
 // https://github.com/yhirose/cpp-httplib
@@ -768,8 +768,8 @@ void total_time() {}
 #include <deque>
 #include <vector>
 #include <iostream>
-#include "blas.h"
-#include "utils.h"
+#include "blas.hpp"
+#include "utils.hpp"
 
 struct similarity_detections_t {
     int old_id, new_id;

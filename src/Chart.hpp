@@ -46,7 +46,7 @@ class Chart final
 		Chart & update_bottom_text(const double hours_remaining);
 
 		/** This is the full image of the chart.  It is created by @ref initialize() and kept up-to-date by
-		 * @ref update_loss_and_accuracy() at the end of each iteration.
+		 * @ref update_loss() and @ref update_accuracy() at the end of each iteration.
 		 */
 		cv::Mat mat;
 

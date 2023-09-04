@@ -2,16 +2,24 @@
 #include <curand.h>
 #include <cublas_v2.h>
 
-#include "convolutional_layer.h"
-#include "batchnorm_layer.h"
-#include "gemm.h"
-#include "blas.h"
-#include "im2col.h"
-#include "col2im.h"
-#include "utils.h"
-#include "dark_cuda.h"
-#include "box.h"
+#include "convolutional_layer.hpp"
+#include "batchnorm_layer.hpp"
+#include "gemm.hpp"
+#include "blas.hpp"
+#include "im2col.hpp"
+#include "col2im.hpp"
+#include "dark_cuda.hpp"
+#include "box.hpp"
 
+extern "C"
+{
+	int64_t get_current_iteration(network net);
+	image float_to_image(int w, int h, int c, float *data);
+	void show_image_cv(image p, const char *name);
+	image float_to_image_scaled(int w, int h, int c, float *data);
+	int wait_key_cv(int delay);
+	int wait_until_press_key_cv();
+}
 
 __global__ void binarize_kernel(float *x, int n, float *binary)
 {

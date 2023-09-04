@@ -2,10 +2,12 @@
 #include <cuda_runtime.h>
 #include <curand.h>
 #include <cublas_v2.h>
-#include <float.h>
 
-#include "activations.h"
-#include "dark_cuda.h"
+//#include <float.h>
+#include <cfloat>
+
+#include "activations.hpp"
+#include "dark_cuda.hpp"
 
 __device__ float lhtan_activate_kernel(float x)
 {

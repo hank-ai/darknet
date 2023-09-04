@@ -1,13 +1,14 @@
+// GOOD
 #include <cuda_runtime.h>
 #include <curand.h>
 #include <cublas_v2.h>
-#include <stdint.h>
 
-#include "im2col.h"
-#include "dark_cuda.h"
+#include <cstdint>
+#include <cstdio>
+#include <cassert>
 
-#include <stdio.h>
-#include <assert.h>
+#include "im2col.hpp"
+#include "dark_cuda.hpp"
 
 
 template<typename T1, typename T2>

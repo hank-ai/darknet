@@ -1,6 +1,6 @@
 #include "darknet_utils.hpp"
 #include "Chart.hpp"
-#include "image.h"
+#include "image.hpp"
 
 #include <iomanip>
 #include <sstream>

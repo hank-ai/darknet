@@ -2,10 +2,10 @@
 #include <curand.h>
 #include <cublas_v2.h>
 
-#include "crop_layer.h"
-#include "utils.h"
-#include "dark_cuda.h"
-#include "image.h"
+#include "crop_layer.hpp"
+//#include "utils.hpp"
+#include "dark_cuda.hpp"
+//#include "image.hpp"
 
 __device__ float get_pixel_kernel(float *image, int w, int h, int x, int y, int c)
 {

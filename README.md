@@ -1,15 +1,39 @@
+# Table of Contents
+
+* [Darknet Object Detection Framework and YOLO](#darknet-object-detection-framework-and-yolo)
+* [Papers](#papers)
+* [General Information](#general-information)
+* [Building](#building)
+	* [Linux CMake Method](#linux-cmake-method)
+	* [Windows CMake Method](#windows-cmake-method)
+* [Using Darknet](#using-darknet)
+	* [CLI](#cli)
+	* [Training](#training)
+* [Other Tools and Links](#other-tools-and-links)
+* [Roadmap](#roadmap)
+	* [Short-term goals](#short-term-goals)
+	* [Mid-term goals](#mid-term-goals)
+	* [Long-term goals](#long-term-goals)
+
 # Darknet Object Detection Framework and YOLO
 
 ![darknet and hank.ai logos](artwork/darknet_and_hank_ai_logos.png)
+
+Darknet is an open source neural network framework written in C, C++, and CUDA.
+
+YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection system, which runs in the Darknet framework.
+
 * Read how [Hank.ai is helping the Darknet/YOLO community](https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/)
-* Read the Darknet/YOLO FAQ:  https://www.ccoderun.ca/programming/darknet_faq/
+* See the Darknet/YOLO web site:  https://darknetcv.ai/
+* Please read through the Darknet/YOLO FAQ:  https://www.ccoderun.ca/programming/darknet_faq/
 * Join the Darknet/YOLO discord server:  https://discord.gg/zSq8rtW
 
 # Papers
 
-* Paper **YOLOv7**: https://arxiv.org/abs/2207.02696
-* Paper **Scaled-YOLOv4**: https://openaccess.thecvf.com/content/CVPR2021/html/Wang_Scaled-YOLOv4_Scaling_Cross_Stage_Partial_Network_CVPR_2021_paper.html
-* Paper **YOLOv4**: https://arxiv.org/abs/2004.10934
+* Paper **YOLOv7**:  https://arxiv.org/abs/2207.02696
+* Paper **Scaled-YOLOv4**:  https://openaccess.thecvf.com/content/CVPR2021/html/Wang_Scaled-YOLOv4_Scaling_Cross_Stage_Partial_Network_CVPR_2021_paper.html
+* Paper **YOLOv4**:  https://arxiv.org/abs/2004.10934
+* Paper **YOLOv3**:  https://arxiv.org/abs/1804.02767
 
 # General Information
 
@@ -21,56 +45,155 @@ YOLOv7 surpasses all known object detectors in both speed and accuracy in the ra
 
 # Building
 
-Not all build solutions make sense for all platforms.  Choose the **one** that works best for you.
+The various build methods available in the past have been merged together into a single unified solution.  Darknet now requires OpenCV, and uses CMake to generate the necessary project files.
 
-## Makefile
+* [Linux](#linux-cmake-method)
+* [Windows](#windows-cmake-method)
 
-Typical solution for Linux.  This is described here in the FAQ:  https://www.ccoderun.ca/programming/darknet_faq/#how_to_build_on_linux
+**Beware if you are following old tutorials with more complicated build steps, or build steps that don't match what is in this readme.**  The new build steps as described below started in August 2023.
 
-    sudo apt-get install build-essential git libopencv-dev
+## Linux CMake Method
+
+* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
+	* Visit https://developer.nvidia.com/cuda-downloads to download and install CUDA.
+	* Visit https://developer.nvidia.com/rdp/cudnn-download or https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#cudnn-package-manager-installation-overview to download and install cuDNN.
+	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
+		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
+		* Remember to re-build Darknet.
+
+These instructions assume a system running Ubuntu 22.04.
+
+    sudo apt-get install build-essential git libopencv-dev cmake
     mkdir ~/src
     cd ~/src
     git clone https://github.com/hank-ai/darknet
     cd darknet
-    # edit Makefile to set LIBSO=1, and possibly other flags
-    make
-    sudo cp libdarknet.so /usr/local/lib/
-    sudo cp include/darknet.h /usr/local/include/
-    sudo ldconfig
+    mkdir build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release ..
+    make -j4 package
+    sudo dpkg -i darknet-VERSION.deb
 
-When using this solution, see the flags in the first few lines of `Makefile`.  It is important to set these flags correctly.  If you want to use your CUDA-capable GPU, then you must also set the `ARCH=` flag, and have CUDA and CUDNN correctly installed.
+If you are using an older version of CMake, such as the one with Ubuntu 18.04, then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu 18.04 can be done with the following:
 
-## CMake
+    sudo apt-get purge cmake
+    sudo snap install cmake --classic
 
-This solution works for all platforms.  You need to have the usual build tools installed, including `cmake`, `git`, and both C and C++ compilers.
+> Advanced users:
+>
+> If you want to build a RPM installation file instead of a DEB file, see the relevant lines in `CM_package.cmake`.  Prior to running `make -j4 package` you'll need to edit these two lines:
 
-    mkdir ~/src
-    cd ~/src
-    git clone https://github.com/hank-ai/darknet
-    cd darknet
-    mkdir build_release
-    cd build_release
-    cmake ..
-    cmake --build . --target install --parallel 8
+    SET (CPACK_GENERATOR "DEB")
+    # SET (CPACK_GENERATOR "RPM")
 
-## Powershell
+> For distros such as Centos and OpenSUSE, you'll need to switch those two lines in `CM_package.cmake` to be:
 
-Typical solution for Windows.  You will need to have the usual build tools installed.  This is described here in the FAQ:  https://www.ccoderun.ca/programming/darknet_faq/#how_to_build_on_windows
+    # SET (CPACK_GENERATOR "DEB")
+    SET (CPACK_GENERATOR "RPM")
 
-    Set-ExecutionPolicy -ExecutionPolicy Unrestricted -Scope Process
-    md c:\src
+To install the installation package, use the usual package manager for your distribution.  For example, on Debian-based systems such as Ubuntu:
+
+    sudo dpkg -i darknet-1.99.84-Linux.deb
+
+Installing the package will copy the following files:
+
+* `/usr/bin/darknet` is the usual Darknet executable.  Run `darknet version` from the CLI to confirm it is installed correctly.
+* `/usr/include/darknet.h` is the Darknet API for C, C++, and Python developers.
+* `/usr/include/darknet_version.h` contains version information for developers.
+* `/usr/lib/libdarknet.so` is the library to link against for C, C++, and Python developers.
+* `/opt/darknet/cfg/...` is where all the `.cfg` templates are stored.
+
+You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run this to test:  `darknet version`.
+
+## Windows CMake Method
+
+These instructions assume a brand new installation of Windows 11 22H2.
+
+Open a normal `cmd.exe` command prompt window and run the following commands:
+
+    winget install Git.Git
+    winget install Kitware.CMake
+    winget install nsis.nsis
+    winget install Microsoft.VisualStudio.2022.Community
+
+At this point we need to modify the Visual Studio installation to include support for C++ applications:
+
+* click on the "Windows Start" menu and run "Visual Studio Installer"
+* click on `Modify`
+* select `Desktop Development With C++`
+* click on `Modify` in the bottom-right corner, and then click on `Yes`
+
+Once everything is downloaded and installed, click on the "Windows Start" menu again and select `Developer Command Prompt for VS 2022`.
+
+> Advanced users:
+>
+> Instead of running the `Developer Command Prompt`, you can use a normal command prompt or ssh into the device and manually run `"\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`.
+
+Run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
+
+    cd c:\
+    mkdir c:\src
     cd c:\src
-    git clone https://github.com/hank-ai/darknet
+    git clone https://github.com/microsoft/vcpkg
+    cd vcpkg
+    bootstrap-vcpkg.bat
+    .\vcpkg.exe integrate install
+    .\vcpkg.exe integrate powershell
+    .\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows pthreads:x64-windows
+
+Be patient at this last step as it can take a long time to run.  It needs to download and build many things.
+
+> Advanced users:
+>
+> Note there are many other optional modules you may want to add when building OpenCV.  Run `.\vcpkg.exe search opencv` to see the full list.
+
+* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
+	* Visit https://developer.nvidia.com/cuda-downloads to download and install CUDA.
+	* Visit https://developer.nvidia.com/rdp/cudnn-download or https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#download-windows to download and install cuDNN.
+	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
+		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
+		* Remember to re-build Darknet.
+
+Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies:
+
+    cd c:\src
+    git clone https://github.com/hank-ai/darknet.git
     cd darknet
-    ./build.ps1
+    mkdir build
+    cd build
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/src/vcpkg/scripts/buildsystems/vcpkg.cmake ..
+    msbuild.exe /property:Platform=x64;Configuration=Release /target:Build -maxCpuCount -verbosity:normal -detailedSummary darknet.sln
 
-There are many options available when running `build.ps1`.  For example:
+> Advanced users:
+>
+> Note that the output of the `cmake` command in the previous step is a normal Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio or VS Code.
 
-    ./build.ps1 -UseVCPKG -EnableOPENCV -EnableCUDA -EnableCUDNN
+If you want, you can stop here.  You should now have this file you can run:  `C:\src\Darknet\build\src\Release\Darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src\Release\Darknet.exe version`.
 
-## Vcpkg
+To properly package up Darknet, the libraries, the include files, and the necessary DLLs, create the NSIS installation package like this:
 
-This solution can be used from both Linux and Windows, but is much more common on Windows.  You can use [vcpkg](https://github.com/microsoft/vcpkg) to install old versions of Darknet.  The newer versions of Darknet are not available via vcpkg.
+    msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
+
+This will create a `darknet-VERSION.exe` file in the `build` directory.
+
+> If you get an error about some missing CUDA DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
+>
+>     copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\*.dll" src\Release\
+>
+> Similarly, if you get an error about CUDNN, then manually copy the CUDNN `.dll` file into the same output directory.  For example:
+>
+>     copy "c:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll" src\Release
+> 
+> Once the files have been copied, re-run the last command to generate the NSIS installation package.
+
+Installing the NSIS installation package will:
+
+* Create a directory called `Darknet`, such as `C:\Program Files\Darknet\`.
+* Install the `darknet.exe` CLI application, as well as required `.dll` files
+* Install the neccesary Darknet `.dll`, `.lib` and `.h` files to use `darknet.dll` from another application.
+* Install the template `.cfg` files.
+
+You are now done!  Darknet has been built and installed into `C:\Program Files\Darknet\`.  Run this to test:  `C:\Program Files\Darknet\bin\darknet.exe version`.
 
 # Using Darknet
 
@@ -78,7 +201,8 @@ This solution can be used from both Linux and Windows, but is much more common o
 
 This is not the full list of all commands supported by Darknet.  See [the previous readme](README_previous.md) for additional details and examples.
 
-* Run a single image:  `darknet detector test animals.data animals.cfg animals_best.weights dog.jpg`
+* Check the version:  `darknet version`
+* Predict using an image:  `darknet detector test animals.data animals.cfg animals_best.weights dog.jpg`
 * Output coordinates:  `darknet detector test animals.data animals.cfg animals_best.weights -ext_output dog.jpg`
 * Working with videos:  `darknet detector demo animals.data animals.cfg animals_best.weights -ext_output test.mp4`
 * Reading from a webcam:  `darknet detector demo animals.data animals.cfg animals_best.weights -c 0`
@@ -88,7 +212,7 @@ This is not the full list of all commands supported by Darknet.  See [the previo
 * Running on a specific GPU:  `darknet detector demo animals.data animals.cfg animals_best.weights -i 1 test.mp4`
 * To check accuracy mAP@IoU=50:  `darknet detector map animals.data animals.cfg animals_best.weights`
 * To check accuracy mAP@IoU=75:  `darknet detector map animals.data animals.cfg animals_best.weights -iou_thresh 0.75`
-* To train:  `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below
+* Train a new network:  `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below
 
 ## Training
 
@@ -144,23 +268,38 @@ Be patient.  The best weights will be stored in `animals_best.weights`.  And the
 
 # Roadmap
 
-Last updated 2023-07-23:
+Last updated 2023-08-30:
 
 ## Short-term goals
 
-* convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
-* remove old solutions and Makefile
-* make OpenCV non-optional
-* remove STB
-* re-write CMakeLists.txt to use the new CUDA detection and build out-of-source
-* have better version number output
+* [X] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
+* [X] fix Windows build
+* [ ] fix ARM build (Jetson devices)
+* [ ] clean up .hpp files
+* [X] build darknet library
+* [X] re-enable labels on predictions ("alphabet" code)
+* [X] re-enable CUDA/GPU code
+* [X] re-enable CUDNN
+* [X] re-enable CUDNN half
+* [X] do not hard-code the CUDA architecture
+* [X] better CUDA version information
+* [X] re-enable AVX
+* [ ] look into old zed camera support
+* [X] remove old solutions and Makefile
+* [ ] make OpenCV non-optional
+* [X] remove STB
+* [X] re-write CMakeLists.txt to use the new CUDA detection
+* [ ] re-write darknet.h
+* [ ] remove old "alphabet" code, and delete the 700+ images in data/labels
+* [X] build out-of-source
+* [X] have better version number output
 
 ## Mid-term goals
 
-* better use of `cv::Mat` instead of the custom `image` structure in C
-* on-going code cleanup
+* [ ] better use of `cv::Mat` instead of the custom `image` structure in C
+* [ ] on-going code cleanup
 
 ## Long-term goals
 
-* fix CUDA/CUDNN issues with all GPUs
-* look into adding support for non-NVIDIA GPUs
+* [ ] fix CUDA/CUDNN issues with all GPUs
+* [ ] look into adding support for non-NVIDIA GPUs
