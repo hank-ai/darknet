@@ -52,14 +52,39 @@ ENDIF ()
 # == cuDNN ==
 # ===========
 IF (DARKNET_USE_CUDA)
-	FIND_LIBRARY (CUDNN cudnn OPTIONAL QUIET)
-	IF (NOT CUDNN)
-		MESSAGE (STATUS "Skipping cuDNN")
+	IF (WIN32)
+		# If installed according to the NVIDIA instructions, CUDNN should look like this:
+		#		C:\Program Files\NVIDIA\CUDNN\v8.x\...
+		# The .dll is named:
+		#		C:\Program Files\NVIDIA\CUDNN\v8.x\cudnn64_8.dll
+		# And the header should look like:
+		#		C:\Program Files\NVIDIA\CUDNN\v8.x\include\cudnn.h
+		#
+		SET (CUDNN_DIR "C:/Program Files/NVIDIA/CUDNN/v8.x")
+		SET (CUDNN_DLL "${CUDNN_DIR}/bin/cudnn64_8.dll")
+		SET (CUDNN_LIB "${CUDNN_DIR}/lib/x64/cudnn.lib")
+		SET (CUDNN_HEADER "${CUDNN_DIR}/include/cudnn.h")
+		IF (EXISTS ${CUDNN_DLL} AND EXISTS ${CUDNN_LIB} AND EXISTS ${CUDNN_HEADER})
+			MESSAGE (STATUS "cuDNN found at ${CUDNN_DIR}")
+			INCLUDE_DIRECTORIES (${CUDNN_DIR}/include/)
+			ADD_COMPILE_DEFINITIONS (ABC_123_TESTING)
+			ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
+			ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
+			SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${CUDNN_LIB})
+		ELSE ()
+			MESSAGE (WARNING "Did not find cuDNN at ${CUDNN_DIR}")
+		ENDIF ()
 	ELSE ()
-		MESSAGE (STATUS "Enabling cuDNN")
-		ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
-		ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
-		SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${CUDNN})
+		# Should be slightly easier to deal with on Linux if it was installed correctly.
+		FIND_LIBRARY (CUDNN cudnn OPTIONAL QUIET)
+		IF (NOT CUDNN)
+			MESSAGE (STATUS "Skipping cuDNN")
+		ELSE ()
+			MESSAGE (STATUS "Enabling cuDNN")
+			ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
+			ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
+			SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${CUDNN})
+		ENDIF ()
 	ENDIF ()
 ENDIF ()
 
