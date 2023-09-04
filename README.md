@@ -290,7 +290,7 @@ Last updated 2023-08-30:
 * [X] remove STB
 * [X] re-write CMakeLists.txt to use the new CUDA detection
 * [ ] re-write darknet.h
-* [ ] remove old "alphabet" code, and delete the 700+ images in data/labels
+* [X] remove old "alphabet" code, and delete the 700+ images in data/labels
 * [X] build out-of-source
 * [X] have better version number output
 

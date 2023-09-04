@@ -1758,9 +1758,9 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	int names_size = 0;
 	char **names = get_labels_custom(name_list, &names_size); //get_labels(name_list);
 
-	image **alphabet = load_alphabet();
 	network net = parse_network_cfg_custom(cfgfile, 1, 1); // set batch=1
-	if (weightfile) {
+	if (weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
 	if (net.letter_box) letter_box = 1;
@@ -1842,7 +1842,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 			if (l.nms_kind == DEFAULT_NMS) do_nms_sort(dets, nboxes, l.classes, nms);
 			else diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
 		}
-		draw_detections_v3(im, dets, nboxes, thresh, names, alphabet, l.classes, ext_output);
+		draw_detections_v3(im, dets, nboxes, thresh, names, l.classes, ext_output);
 		save_image(im, "predictions");
 		if (!dont_show) {
 			show_image(im, "predictions");
@@ -1909,16 +1909,6 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	free_list_contents_kvp(options);
 	free_list(options);
 
-	int i;
-	const int nsize = 8;
-	for (j = 0; j < nsize; ++j) {
-		for (i = 32; i < 127; ++i) {
-			free_image(alphabet[j][i]);
-		}
-		free(alphabet[j]);
-	}
-	free(alphabet);
-
 	free_network(net);
 }
 
@@ -1935,7 +1925,6 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 
 	remember_class_names(names, names_size);
 
-	image **alphabet = load_alphabet();
 	network net = parse_network_cfg(cfgfile);// parse_network_cfg_custom(cfgfile, 1, 1); // set batch=1
 	net.adversarial = 1;
 	set_batch_network(&net, 1);
@@ -2048,7 +2037,7 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 			if (l.nms_kind == DEFAULT_NMS) do_nms_sort(dets, nboxes, l.classes, nms);
 			else diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
 		}
-		draw_detections_v3(sized, dets, nboxes, thresh, names, alphabet, l.classes, 1);
+		draw_detections_v3(sized, dets, nboxes, thresh, names, l.classes, 1);
 		save_image(sized, "pre_predictions");
 		if (!dont_show) {
 			show_image(sized, "pre_predictions");
@@ -2074,16 +2063,6 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 	free_ptrs((void**)names, net.layers[net.n - 1].classes);
 	free_list_contents_kvp(options);
 	free_list(options);
-
-	int i;
-	const int nsize = 8;
-	for (j = 0; j < nsize; ++j) {
-		for (i = 32; i < 127; ++i) {
-			free_image(alphabet[j][i]);
-		}
-		free(alphabet[j]);
-	}
-	free(alphabet);
 
 	free_network(net);
 }

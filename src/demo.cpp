@@ -20,7 +20,7 @@
 #include "http_stream.hpp"
 
 static char **demo_names;
-static image **demo_alphabet;
+//static image **demo_alphabet;
 static int demo_classes;
 
 static int nboxes = 0;
@@ -149,10 +149,8 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
     letter_box = letter_box_in;
     in_img = det_img = show_img = NULL;
     //skip = frame_skip;
-    image **alphabet = load_alphabet();
     int delay = frame_skip;
     demo_names = names;
-    demo_alphabet = alphabet;
     demo_classes = classes;
     demo_thresh = thresh;
     demo_ext_output = ext_output;
@@ -301,7 +299,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
                 }
             }
 
-            if (!benchmark && !dontdraw_bbox) draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes, demo_ext_output);
+            if (!benchmark && !dontdraw_bbox) draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_classes, demo_ext_output);
             free_detections(local_dets, local_nboxes);
 
             printf("\nFPS:%.1f \t AVG_FPS:%.1f\n", fps, avg_fps);
@@ -413,14 +411,6 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 
     free_ptrs((void **)names, net.layers[net.n - 1].classes);
 
-    const int nsize = 8;
-    for (j = 0; j < nsize; ++j) {
-        for (i = 32; i < 127; ++i) {
-            free_image(alphabet[j][i]);
-        }
-        free(alphabet[j]);
-    }
-    free(alphabet);
     free_network(net);
     //cudaProfilerStop();
 }

@@ -284,36 +284,6 @@ void draw_bbox(image a, box bbox, int w, float r, float g, float b)
 	}
 }
 
-image **load_alphabet()
-{
-	// image sizes zero through 7...
-	const int nsize = 8;
-	image** alphabets = (image**)xcalloc(nsize, sizeof(image*));
-	for (int j = 0; j < nsize; ++j)
-	{
-		// every ASCII character from 32 (space) to 127...
-		alphabets[j] = (image*)xcalloc(128, sizeof(image));
-		for (int i = 32; i < 127; ++i)
-		{
-			char buff[256];
-			sprintf(buff, "data/labels/%d_%d.png", i, j);
-
-			if (file_exists(buff))
-			{
-				alphabets[j][i] = load_image_color(buff, 0, 0);
-			}
-			else
-			{
-				// we won't be able to draw the labels, but everything else in Darknet should be OK to keep running
-				alphabets[j][i] = make_image(0, 0, 3);
-			}
-		}
-	}
-
-	return alphabets;
-}
-
-
 // Creates array of detections with prob > thresh and fills best_class for them
 detection_with_class* get_actual_detections(detection *dets, int dets_num, float thresh, int* selected_detections_num, char **names)
 {
@@ -358,7 +328,7 @@ int compare_by_probs(const void *a_ptr, const void *b_ptr) {
 	return delta < 0 ? -1 : delta > 0 ? 1 : 0;
 }
 
-void draw_detections_v3(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
+void draw_detections_v3(image im, detection *dets, int num, float thresh, char **names, int classes, int ext_output)
 {
 	static int frame_id = 0;
 	frame_id++;
@@ -448,29 +418,6 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
 			draw_box_width(im, left, top, right, bot, width, red, green, blue); // 3 channels RGB
 		}
 
-#ifdef USE_OLD_ALPHABET
-		if (alphabet)
-		{
-			char labelstr[4096] = { 0 };
-			strcat(labelstr, names[selected_detections[i].best_class]);
-			char prob_str[10];
-			sprintf(prob_str, ": %.2f", selected_detections[i].det.prob[selected_detections[i].best_class]);
-			strcat(labelstr, prob_str);
-
-			for (int j = 0; j < classes; ++j)
-			{
-				if (selected_detections[i].det.prob[j] > thresh && j != selected_detections[i].best_class)
-				{
-					strcat(labelstr, ", ");
-					strcat(labelstr, names[j]);
-				}
-			}
-			image label = get_label_v3(alphabet, labelstr, (im.h*.02));
-			//draw_label(im, top + width, left, label, rgb);
-			draw_weighted_label(im, top + width, left, label, rgb, 0.7);
-			free_image(label);
-		}
-#else
 		const std::string class_name = names[selected_detections[i].best_class];
 		const float confidence = selected_detections[i].det.prob[selected_detections[i].best_class];
 		std::stringstream ss;
@@ -488,7 +435,6 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
 		image label = get_opencv_label(ss.str(), (right - left) * (bot - top));
 		draw_weighted_label(im, top + width, left, label, rgb, 0.7);
 		free_image(label);
-#endif
 
 		if (selected_detections[i].det.mask)
 		{
@@ -504,7 +450,7 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
 	free(selected_detections);
 }
 
-void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **alphabet, int classes)
+void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, int classes)
 {
 	// wrong function!  see draw_detections_v3() instead!
 
@@ -525,9 +471,9 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 
 			int width = im.h * .012;
 
-			if(0){
+			if(0)
+			{
 				width = pow(prob, 1./2.)*10+1;
-				alphabet = 0;
 			}
 
 			int offset = class_id*123457 % classes;
@@ -559,10 +505,11 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 
 			printf("\n");
 			draw_box_width(im, left, top, right, bot, width, red, green, blue);
-			if (alphabet) {
-				image label = get_label(alphabet, names[class_id], (im.h*.03)/10);
-				draw_label(im, top + width, left, label, rgb);
-			}
+//			if (alphabet)
+//			{
+//				image label = get_label(alphabet, names[class_id], (im.h*.03)/10);
+//				draw_label(im, top + width, left, label, rgb);
+//			}
 		}
 	}
 }

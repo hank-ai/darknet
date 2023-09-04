@@ -32,10 +32,10 @@ void draw_weighted_label(image a, int r, int c, image label, const float *rgb, c
 void write_label(image a, int r, int c, image *characters, char *string, float *rgb);
 
 /// This is still called from a few isolated places, but you're probably looking for @ref draw_detections_v3().
-void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, image **labels, int classes);
+void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, int classes);
 
 /// This is the function that is called to draw annotations on an image.
-void draw_detections_v3(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output);
+void draw_detections_v3(image im, detection *dets, int num, float thresh, char **names, int classes, int ext_output);
 
 image image_distance(image a, image b);
 void scale_image(image m, float s);
@@ -97,12 +97,6 @@ image load_image(char * filename, int desired_width, int desired_height, int cha
 
 image load_image_stb_resize(char *filename, int w, int h, int c);
 //LIB_API image load_image_color(char *filename, int w, int h);
-
-/** To create the labels shown on the images, Darknet has tiny images of each character in the ASCII table.
- * And multiple sizes of each one.  This is the function that loads all of these into memory.  See the images
- * in the @p data/labels/ directory.
- */
-image **load_alphabet();
 
 //float get_pixel(image m, int x, int y, int c);
 //float get_pixel_extend(image m, int x, int y, int c);

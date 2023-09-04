@@ -857,7 +857,7 @@ void save_cv_jpg(mat_cv *img_src, const char *name)
 // ====================================================================
 
 
-void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, image **alphabet, int classes, int ext_output)
+void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, int classes, int ext_output)
 {
 	try
 	{
@@ -893,13 +893,9 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
 					}
 				}
 			}
-			if (class_id >= 0) {
+			if (class_id >= 0)
+			{
 				int width = std::max(1.0f, show_img->rows * .002f);
-
-				//if(0){
-				//width = pow(prob, 1./2.)*10+1;
-				//alphabet = 0;
-				//}
 
 				//printf("%d %s: %.0f%%\n", i, names[class_id], prob*100);
 				int offset = class_id * 123457 % classes;
