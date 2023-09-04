@@ -126,63 +126,67 @@ void remember_class_names(char ** names, const int count)
 }
 
 
-std::string format_time(const double & t)
+std::string format_time(const double & seconds_remaing)
 {
 	std::stringstream ss;
 	ss << std::fixed << std::setprecision(3);
 
-	if (t >= 0.5)
+	if (seconds_remaing >= 0.5)
 	{
-		ss << t << " seconds";
+		ss << seconds_remaing << " seconds";
 	}
-	else if (t >= 0.005)
+	else if (seconds_remaing >= 0.005)
 	{
-		ss << (t * 1000.0) << " milliseconds";
+		ss << (seconds_remaing * 1000.0) << " milliseconds";
 	}
 	else
 	{
-		ss << (t * 1000000.0) << " microseconds";
+		ss << (seconds_remaing * 1000000.0) << " microseconds";
 	}
 
 	return ss.str();
 }
 
 
-std::string format_time_remaining(const double & t)
+std::string format_time_remaining(const float & seconds_remaining)
 {
-	const double seconds	= 1.0;
-	const double minutes	= 60.0 * seconds;
-	const double hours		= 60.0 * minutes;
-	const double days		= 24.0 * hours;
-	const double weeks		= 7.0 * days;
+	const float seconds	= 1.0;
+	const float minutes	= 60.0 * seconds;
+	const float hours	= 60.0 * minutes;
+	const float days	= 24.0 * hours;
+	const float weeks	= 7.0 * days;
 
 	std::stringstream ss;
-	ss << std::fixed << std::setprecision(1);
+	ss << std::fixed << std::setprecision(0);
 
-	if (t < 0)
+	if (seconds_remaining < 0.0f or seconds_remaining >= 4.0f * weeks)
 	{
 		ss << "unknown";
 	}
-	else if (t >= 2 * weeks)
+	else if (seconds_remaining >= 2.0f * weeks)
 	{
-		ss << (t / weeks) << " weeks";
+		ss << (seconds_remaining / weeks) << " weeks";
 	}
-	else if (t >= 1.5 * days)
+	else if (seconds_remaining >= 2.0f * days)
 	{
-		ss << (t / days) << " days";
+		ss << (seconds_remaining / days) << " days";
 	}
-	else if (t >= 1.5 * hours)
+	else if (seconds_remaining >= 2.0f * hours)
 	{
-		ss << (t / hours) << " hours";
+		ss << (seconds_remaining / hours) << " hours";
 	}
-	else if (t >= 1.5 * minutes)
+	else if (seconds_remaining >= 2.0f * minutes)
 	{
-		ss << (t / minutes) << " minutes";
+		ss << (seconds_remaining / minutes) << " minutes";
 	}
 	else
 	{
-		const int secs = static_cast<int>(round(t));
-		ss << secs << " second" << (secs == 1 ? "" : "s");
+		const int secs = std::round(seconds_remaining);
+		ss << secs << " second";
+		if (secs != 1)
+		{
+			ss << "s";
+		}
 	}
 
 	return ss.str();
@@ -257,7 +261,7 @@ void display_loaded_images(const int images, const double time)
 }
 
 
-void display_iteration_summary(const int iteration, const float loss, const float avg_loss, const float rate, const double time, const int images, const double avg_time)
+void display_iteration_summary(const int iteration, const float loss, const float avg_loss, const float rate, const double time, const int images, const float seconds_remaining)
 {
 	printf("%s: loss=%s, avg loss=%s, rate=%f, %s, %d images, time remaining=%s\n",
 			in_colour(EColour::kBrightWhite, iteration)	.c_str(),
@@ -266,7 +270,7 @@ void display_iteration_summary(const int iteration, const float loss, const floa
 			rate,
 			format_time(time)							.c_str(),
 			images,
-			format_time_remaining(avg_time)				.c_str()
+			format_time_remaining(seconds_remaining)	.c_str()
 			);
 
 	return;
@@ -306,7 +310,7 @@ void display_warning_msg(const char * const msg)
 }
 
 
-void update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const double seconds_remaining)
+void update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const float seconds_remaining)
 {
 	// doing this requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
 	if (colour_is_enabled)
@@ -410,17 +414,17 @@ void initialize_new_charts(const int max_batches, const float max_img_loss)
 }
 
 
-void update_loss_in_new_charts(const int current_iteration, const float loss, const double hours_remaining, const bool dont_show)
+void update_loss_in_new_charts(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show)
 {
 	#ifdef OPENCV
 
 	if (training_chart.empty() == false)
 	{
-		training_chart.update_save_and_display(current_iteration, loss, hours_remaining, dont_show);
+		training_chart.update_save_and_display(current_iteration, loss, seconds_remaining, dont_show);
 
 		for (auto & chart : more_charts)
 		{
-			chart.update_save_and_display(current_iteration, loss, hours_remaining, true);
+			chart.update_save_and_display(current_iteration, loss, seconds_remaining, true);
 		}
 	}
 

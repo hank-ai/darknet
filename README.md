@@ -74,7 +74,7 @@ These instructions assume a system running Ubuntu 22.04.
     make -j4 package
     sudo dpkg -i darknet-VERSION.deb
 
-If you are using an older version of CMake, such as the one with Ubuntu 18.04, then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu 18.04 can be done with the following:
+If you are using an older version of CMake, such as the one with Ubuntu 18.04 or 20.04, then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu can be done with the following commands:
 
     sudo apt-get purge cmake
     sudo snap install cmake --classic
@@ -93,7 +93,7 @@ If you are using an older version of CMake, such as the one with Ubuntu 18.04, t
 
 To install the installation package, use the usual package manager for your distribution.  For example, on Debian-based systems such as Ubuntu:
 
-    sudo dpkg -i darknet-1.99.84-Linux.deb
+    sudo dpkg -i darknet-2.0.1-Linux.deb
 
 Installing the package will copy the following files:
 
@@ -182,8 +182,8 @@ This will create a `darknet-VERSION.exe` file in the `build` directory.
 >
 > Similarly, if you get an error about CUDNN, then manually copy the CUDNN `.dll` file into the same output directory.  For example:
 >
->     copy "c:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll" src\Release
-> 
+>     copy "C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll" src\Release\
+>
 > Once the files have been copied, re-run the last command to generate the NSIS installation package.
 
 Installing the NSIS installation package will:

@@ -38,11 +38,11 @@ std::string in_colour(const EColour colour, const std::string & msg);
  * @p epoch with milliseconds and microseconds as decimals.  This function will format one of these @p double using the
  * most intelligent unit necessary.
  */
-std::string format_time(const double & t);
+std::string format_time(const double & seconds_remaining);
 
 
 /// Format the time remaining using simple-to-read text.  The time must be in @em seconds.
-std::string format_time_remaining(const double & t);
+std::string format_time_remaining(const float & seconds_remaining);
 
 
 /// Format the loss combined with ANSI colours.

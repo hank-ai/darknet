@@ -191,18 +191,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	//args.threads = 12 * ngpus;    // Ryzen 7 2700X (16 logical cores)
 
 	// This is where we draw the initial blank chart.  That chart is then updated by update_train_loss_chart() at every iteration.
-#if USE_OLD_CHARTS
-	mat_cv* old_chart_img_unused = NULL;
-	float max_img_loss = net.max_chart_loss;
-	int number_of_lines = 100;
-	int img_size = 1000;
-	char windows_name[100];
-	sprintf(windows_name, "chart_%s.png", base);
-	old_chart_img_unused = draw_initial_train_chart(windows_name, max_img_loss, net.max_batches, number_of_lines, img_size, dont_show, chart_path);
-#else
-	// use the new C++ training charts
 	initialize_new_charts(net.max_batches, net.max_chart_loss);
-#endif
 
 #endif    //OPENCV
 	if (net.contrastive && args.threads > net.batch/2) args.threads = net.batch / 2;
@@ -220,15 +209,18 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	pthread_t load_thread = load_data(args);
 
 	int count = 0;
-	double time_remaining_in_hours = 0.0;
-	double avg_time_in_hours = -1.0;
-	double alpha_time = 0.01;
 
+	const std::time_t start_of_training = std::time(nullptr);
+
+	// ***************************************
+	// THIS is the start of the training loop!
+	// ***************************************
 	while (get_current_iteration(net) < net.max_batches && darknet_must_exit == false)
 	{
-		printf("\n"); // we're starting a new iteration
+		std::cout << std::endl; // we're starting a new iteration
 
-		if (l.random && count++ % 10 == 0) {
+		if (l.random && count++ % 10 == 0)
+		{
 			float rand_coef = 1.4;
 			if (l.random != 1.0) rand_coef = l.random;
 			printf("Resizing, random_coef = %.2f \n", rand_coef);
@@ -273,7 +265,9 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 				printf("\n %d x %d  (batch = %d) \n", dim_w, dim_h, net.batch);
 			}
 			else
+			{
 				printf("\n %d x %d \n", dim_w, dim_h);
+			}
 
 			pthread_join(load_thread, 0);
 			train = buffer;
@@ -289,30 +283,13 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		double time = what_time_is_it_now();
 		pthread_join(load_thread, 0);
 		train = buffer;
-		if (net.track) {
+		if (net.track)
+		{
 			net.sequential_subdivisions = get_current_seq_subdivisions(net);
 			args.threads = net.sequential_subdivisions * ngpus;
 			printf(" sequential_subdivisions = %d, sequence = %d \n", net.sequential_subdivisions, get_sequence_value(net));
 		}
 		load_thread = load_data(args);
-		//wait_key_cv(500);
-
-		/*
-		int k;
-		for(k = 0; k < l.max_boxes; ++k){
-		box b = float_to_box(train.y.vals[10] + 1 + k*5);
-		if(!b.x) break;
-		printf("loaded: %f %f %f %f\n", b.x, b.y, b.w, b.h);
-		}
-		image im = float_to_image(448, 448, 3, train.X.vals[10]);
-		int k;
-		for(k = 0; k < l.max_boxes; ++k){
-		box b = float_to_box(train.y.vals[10] + 1 + k*5);
-		printf("%d %d %d %d\n", truth.x, truth.y, truth.w, truth.h);
-		draw_bbox(im, b, 8, 1,0,0);
-		}
-		save_image(im, "truth11");
-		*/
 
 		const double load_time = (what_time_is_it_now() - time);
 		display_loaded_images(args.n, load_time); // "loaded %d images in %s\n"
@@ -324,11 +301,13 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		time = what_time_is_it_now();
 		float loss = 0.0f;
 #ifdef GPU
-		if (ngpus == 1) {
+		if (ngpus == 1)
+		{
 			int wait_key = (dont_show) ? 0 : 1;
 			loss = train_network_waitkey(net, train, wait_key);
 		}
-		else {
+		else
+		{
 			loss = train_networks(nets, ngpus, train, 4);
 		}
 #else
@@ -343,7 +322,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
 		if (calc_map)
 		{
-			printf("-> next mAP calculation will be at iteration #%d\n", next_map_calc);
+			std::cout << "-> next mAP calculation will be at iteration #" << next_map_calc << std::endl;
 			if (mean_average_precision > 0)
 			{
 				// "-> last accuracy mAP@0.50=42.67%, best=78.32%"
@@ -351,26 +330,24 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			}
 		}
 
-		update_console_title(iteration, net.max_batches, loss, mean_average_precision, best_map, avg_time_in_hours * 60 * 60);
+		const std::time_t now			= std::time(nullptr);
+		const float elapsed_seconds		= now - start_of_training;
+		const float current_iter		= get_current_iteration(net);
+		const float iters_per_second	= current_iter / elapsed_seconds;
+		const float seconds_remaining	= (net.max_batches - current_iter) / iters_per_second;
+
+		update_console_title(iteration, net.max_batches, loss, mean_average_precision, best_map, /* avg_time_in_hours * 60 * 60 */ seconds_remaining);
 
 		if (net.cudnn_half)
 		{
 			if (iteration < net.burn_in * 3)
 			{
-				printf("Tensor Cores are disabled until the first %d iterations are reached.\n", 3 * net.burn_in);
-			}
-			else
-			{
-				printf("Tensor Cores are used.\n");
+				std::cout << "Tensor Cores are disabled until iteration #" << (3 * net.burn_in) << "." << std::endl;
 			}
 		}
 
 		// 5989: loss=0.444, avg loss=0.329, rate=0.000026, 64.424 milliseconds, 383296 images, time remaining=7 seconds
-		display_iteration_summary(iteration, loss, avg_loss, get_current_rate(net), (what_time_is_it_now() - time), iteration * imgs, avg_time_in_hours * 60 * 60);
-
-#if USE_OLD_CHARTS
-		int draw_precision = 0;
-#endif
+		display_iteration_summary(iteration, loss, avg_loss, get_current_rate(net), (what_time_is_it_now() - time), iteration * imgs, /* avg_time_in_hours * 60 * 60 */ seconds_remaining);
 
 		// This is where we decide if we have to do the mAP% calculations.
 		if (calc_map && (iteration >= next_map_calc || iteration == net.max_batches))
@@ -424,24 +401,9 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 				save_weights(net, buff);
 			}
 
-#if USE_OLD_CHARTS
-			draw_precision = 1;
-#else
 			update_accuracy_in_new_charts(-1, mean_average_precision);
-#endif
 
 			// done doing mAP% calculation
-		}
-
-		time_remaining_in_hours = ((net.max_batches - iteration) / ngpus)*(what_time_is_it_now() - time + load_time) / 60 / 60;
-		// set initial value, even if resume training from 10000 iteration
-		if (avg_time_in_hours < 0.0)
-		{
-			avg_time_in_hours = time_remaining_in_hours;
-		}
-		else
-		{
-			avg_time_in_hours = alpha_time * time_remaining_in_hours + (1 -  alpha_time) * avg_time_in_hours;
 		}
 
 #ifdef OPENCV
@@ -460,11 +422,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		}
 
 		// this is where we draw the chart while training
-#if USE_OLD_CHARTS
-		update_train_loss_chart(windows_name, img, img_size, avg_loss, max_img_loss, iteration, net.max_batches, mean_average_precision, draw_precision, "mAP%", avg_contrastive_acc / 100, dont_show, mjpeg_port, avg_time_in_hours);
-#else
-		update_loss_in_new_charts(iteration, avg_loss, avg_time_in_hours, dont_show);
-#endif
+		update_loss_in_new_charts(iteration, avg_loss, seconds_remaining, dont_show);
 
 #endif    // OPENCV
 
@@ -509,9 +467,6 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	printf("If you want to re-start training, then use the flag \"-clear\" in the training command.\n");
 
 #ifdef OPENCV
-#if USE_OLD_CHARTS
-	release_mat(&img);
-#endif
 	destroy_all_windows_cv();
 #endif
 

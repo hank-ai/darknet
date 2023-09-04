@@ -266,7 +266,7 @@ Chart & Chart::update_accuracy(const int current_iteration, const float accuracy
 }
 
 
-Chart & Chart::update_bottom_text(const double hours_remaining)
+Chart & Chart::update_bottom_text(const float seconds_remaining)
 {
 	// draw the text at the bottom of the chart
 
@@ -313,7 +313,7 @@ Chart & Chart::update_bottom_text(const double hours_remaining)
 	cv::putText(mat, ss.str(), p1, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, cv::LINE_AA);
 
 	// grey TIME REMAINING=...
-	std::string txt = "time remaining=" + format_time_remaining(60.0 * 60.0 * hours_remaining);
+	std::string txt = "time remaining=" + format_time_remaining(seconds_remaining);
 	p1 = cv::Point(mat.cols - 250, grid_size.height + 20);
 	p2 = cv::Point(mat.cols, p1.y + 20);
 	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // clear out previous text
@@ -349,7 +349,7 @@ Chart & Chart::update_bottom_text(const double hours_remaining)
 }
 
 
-Chart & Chart::update_save_and_display(const int current_iteration, const float loss, const double hours_remaining, const bool dont_show)
+Chart & Chart::update_save_and_display(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show)
 {
 	update_loss(current_iteration, loss);
 
@@ -370,7 +370,7 @@ Chart & Chart::update_save_and_display(const int current_iteration, const float 
 
 	if (need_to_update)
 	{
-		update_bottom_text(hours_remaining);
+		update_bottom_text(seconds_remaining);
 		last_update_timestamp = current_time;
 	}
 

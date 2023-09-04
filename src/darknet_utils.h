@@ -48,7 +48,7 @@ extern const char * const ansi_colours[kMax];
 void remember_class_names(char ** names, const int count);
 
 void display_loaded_images(const int images, const double time);
-void display_iteration_summary(const int iteration, const float loss, const float avg_loss, const float rate, const double time, const int images, const double avg_time);
+void display_iteration_summary(const int iteration, const float loss, const float avg_loss, const float rate, const double time, const int images, const float seconds_remaining);
 void display_last_accuracy(const float iou_thresh, const float mean_average_precision, const float best_map);
 
 /// Display the given message in bright red (if colour is enabled).
@@ -58,7 +58,7 @@ void display_error_msg(const char * const msg);
 void display_warning_msg(const char * const msg);
 
 /// Use VT100/ANSI codes to update the console title during training.
-void update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const double seconds_remaining);
+void update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const float seconds_remaining);
 
 /// Determine if a filename exists.
 bool file_exists(const char * const filename);
@@ -67,7 +67,7 @@ bool file_exists(const char * const filename);
 void initialize_new_charts(const int max_batches, const float max_img_loss);
 
 /// Update the new C++ charts with the given loss and mAP% accuracy value.  This is called at every iteration.  @see @ref Chart
-void update_loss_in_new_charts(const int current_iteration, const float loss, const double hours_remaining, const bool dont_show);
+void update_loss_in_new_charts(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show);
 
 void update_accuracy_in_new_charts(const int class_index, const float accuracy);
 
