@@ -7,6 +7,7 @@
 #include <string>
 #include <cstdio>
 #include <cmath>
+#include <ciso646>
 
 
 std::vector<std::string> class_names;
