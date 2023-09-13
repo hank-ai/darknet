@@ -54,6 +54,8 @@ The various build methods available in the past have been merged together into a
 
 ## Linux CMake Method
 
+[![Darknet build tutorial for Linux](doc/linux_build_thumbnail.jpg)](https://www.youtube.com/watch?v=WTT1s8JjLFk)
+
 * Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
 	* Visit https://developer.nvidia.com/cuda-downloads to download and install CUDA.
 	* Visit https://developer.nvidia.com/rdp/cudnn-download or https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#cudnn-package-manager-installation-overview to download and install cuDNN.
