@@ -45,7 +45,7 @@ YOLOv7 surpasses all known object detectors in both speed and accuracy in the ra
 
 # Building
 
-The various build methods available in the past have been merged together into a single unified solution.  Darknet now requires OpenCV, and uses CMake to generate the necessary project files.
+The various build methods available in the past have been merged together into a single unified solution.  Darknet requires OpenCV, and uses CMake to generate the necessary project files.
 
 * [Linux](#linux-cmake-method)
 * [Windows](#windows-cmake-method)
@@ -255,7 +255,7 @@ If you'd rather manually setup the various files to train a custom network:
 * Start training!  Run the following commands:
 ~~~
     cd ~/nn/animals/
-    ~/src/darknet/darknet detector -map -dont_show train animals.data animals.cfg
+    darknet detector -map -dont_show train animals.data animals.cfg
 ~~~
 
 Be patient.  The best weights will be stored in `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file.
@@ -277,6 +277,7 @@ Last updated 2023-08-30:
 * [X] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
 * [X] fix Windows build
 * [ ] fix ARM build (Jetson devices)
+* [ ] fix Python support
 * [ ] clean up .hpp files
 * [X] build darknet library
 * [X] re-enable labels on predictions ("alphabet" code)
