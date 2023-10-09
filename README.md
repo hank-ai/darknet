@@ -155,6 +155,7 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
 		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
 		* Remember to re-build Darknet.
+	* CUDA **must** be installed **after** Visual Studio.  If you upgrade Visual Studio, remember to re-install CUDA.
 
 Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies:
 
