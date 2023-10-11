@@ -56,7 +56,7 @@ IF (DARKNET_USE_CUDA)
 		# If installed according to the NVIDIA instructions, CUDNN should look like this:
 		#		C:\Program Files\NVIDIA\CUDNN\v8.x\...
 		# The .dll is named:
-		#		C:\Program Files\NVIDIA\CUDNN\v8.x\cudnn64_8.dll
+		#		C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll
 		# And the header should look like:
 		#		C:\Program Files\NVIDIA\CUDNN\v8.x\include\cudnn.h
 		#
