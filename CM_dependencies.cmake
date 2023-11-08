@@ -1,18 +1,23 @@
 # Darknet object detection framework
 
-
 # ==========
 # == CUDA ==
 # ==========
-CHECK_LANGUAGE (CUDA)
-IF (CMAKE_CUDA_COMPILER)
-	MESSAGE (STATUS "CUDA detected. Darknet will use the GPU.")
-	ENABLE_LANGUAGE (CUDA)
-	FIND_PACKAGE(CUDAToolkit)
-	INCLUDE_DIRECTORIES (${CUDAToolkit_CUPTI_INCLUDE_DIR})
-	ADD_COMPILE_DEFINITIONS (GPU) # TODO rename this to DARKNET_USE_GPU or DARKNET_USE_CUDA?
-	SET (CMAKE_CUDA_STANDARD 14)
-	SET (CMAKE_CUDA_STANDARD_REQUIRED ON)
+CHECK_LANGUAGE(CUDA)
+IF(CMAKE_CUDA_COMPILER)
+    MESSAGE(STATUS "CUDA detected. Darknet will use the GPU.")
+    ENABLE_LANGUAGE(CUDA)
+    FIND_PACKAGE(CUDAToolkit)
+    INCLUDE_DIRECTORIES(${CUDAToolkit_INCLUDE_DIRS})
+    ADD_COMPILE_DEFINITIONS(GPU) # TODO: Rename to DARKNET_USE_GPU or DARKNET_USE_CUDA
+    SET(CMAKE_CUDA_STANDARD 14)
+    SET(CMAKE_CUDA_STANDARD_REQUIRED ON)
+    SET(DARKNET_CUDA_ARCHITECTURES "native") # Adjust as needed
+    SET(DARKNET_USE_CUDA ON)
+    SET(DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} CUDA::cudart CUDA::cuda_driver CUDA::cublas CUDA::curand)
+ELSE()
+    MESSAGE(WARNING "CUDA not found. Darknet will be CPU-only.")
+ENDIF()
 	#
 	# Best to use "native" as the architecture, as this will use whatever GPU is installed.
 	# But if desired, the exact major architecture index can also be specified.  For example:
@@ -38,55 +43,25 @@ IF (CMAKE_CUDA_COMPILER)
 	#	89: RTX 4090, 4080, 6000, Tesla L40
 	#	90: H100, GH100
 	#
-#	SET (DARKNET_CUDA_ARCHITECTURES "86")
-#	SET (DARKNET_CUDA_ARCHITECTURES "75;80;86")
-	SET (DARKNET_CUDA_ARCHITECTURES "native")
-	SET (DARKNET_USE_CUDA ON)
-	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} CUDA::cudart CUDA::cuda_driver CUDA::cublas CUDA::curand)
-ELSE ()
-	MESSAGE (WARNING "CUDA not found. Darknet will be CPU-only.")
-ENDIF ()
-
-
 # ===========
 # == cuDNN ==
 # ===========
-IF (DARKNET_USE_CUDA)
-	IF (WIN32)
-		# If installed according to the NVIDIA instructions, CUDNN should look like this:
-		#		C:\Program Files\NVIDIA\CUDNN\v8.x\...
-		# The .dll is named:
-		#		C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll
-		# And the header should look like:
-		#		C:\Program Files\NVIDIA\CUDNN\v8.x\include\cudnn.h
-		#
-		SET (CUDNN_DIR "C:/Program Files/NVIDIA/CUDNN/v8.x")
-		SET (CUDNN_DLL "${CUDNN_DIR}/bin/cudnn64_8.dll")
-		SET (CUDNN_LIB "${CUDNN_DIR}/lib/x64/cudnn.lib")
-		SET (CUDNN_HEADER "${CUDNN_DIR}/include/cudnn.h")
-		IF (EXISTS ${CUDNN_DLL} AND EXISTS ${CUDNN_LIB} AND EXISTS ${CUDNN_HEADER})
-			MESSAGE (STATUS "cuDNN found at ${CUDNN_DIR}")
-			INCLUDE_DIRECTORIES (${CUDNN_DIR}/include/)
-			ADD_COMPILE_DEFINITIONS (ABC_123_TESTING)
-			ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
-			ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
-			SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${CUDNN_LIB})
-		ELSE ()
-			MESSAGE (WARNING "Did not find cuDNN at ${CUDNN_DIR}")
-		ENDIF ()
-	ELSE ()
-		# Should be slightly easier to deal with on Linux if it was installed correctly.
-		FIND_LIBRARY (CUDNN cudnn OPTIONAL QUIET)
-		IF (NOT CUDNN)
-			MESSAGE (STATUS "Skipping cuDNN")
-		ELSE ()
-			MESSAGE (STATUS "Enabling cuDNN")
-			ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
-			ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
-			SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${CUDNN})
-		ENDIF ()
-	ENDIF ()
-ENDIF ()
+IF(DARKNET_USE_CUDA)
+    # Automatically detect cuDNN
+    FIND_PATH(CUDNN_INCLUDE cudnn.h HINTS ${CUDAToolkit_INCLUDE_DIRS} PATH_SUFFIXES cuda include)
+    FIND_LIBRARY(CUDNN_LIBRARY NAMES cudnn HINTS ${CUDAToolkit_LIBRARY_DIR} PATH_SUFFIXES lib lib64 x64)
+
+    IF(CUDNN_INCLUDE AND CUDNN_LIBRARY)
+        MESSAGE(STATUS "cuDNN found.")
+        INCLUDE_DIRECTORIES(${CUDNN_INCLUDE})
+        ADD_COMPILE_DEFINITIONS(CUDNN) # TODO: Rename this to DARKNET_USE_CUDNN
+        ADD_COMPILE_DEFINITIONS(CUDNN_HALF)
+        SET(DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${CUDNN_LIBRARY})
+    ELSE()
+        MESSAGE(WARNING "cuDNN not found.")
+    ENDIF()
+ENDIF()
+
 
 
 # ========================
