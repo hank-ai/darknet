@@ -390,7 +390,7 @@ int main(int argc, char *argv[])
 #ifdef CV_VERSION_EPOCH // OpenCV 2.x
                     output_video.open(out_videofile, CV_FOURCC('D', 'I', 'V', 'X'), std::max(35, video_fps), frame_size, true);
 #else
-                    output_video.open(out_videofile, cv::VideoWriter::fourcc('D', 'I', 'V', 'X'), std::max(35, video_fps), frame_size, true);
+                    output_video.open(out_videofile, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), std::max(35, video_fps), frame_size, true);
 #endif
 
                 struct detection_data_t {

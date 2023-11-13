@@ -8,3 +8,5 @@ src/darknet_version.h
 .vscode
 *.kdev4
 
+*.weights
+
