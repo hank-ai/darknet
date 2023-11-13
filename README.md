@@ -3,6 +3,7 @@
 * [Darknet Object Detection Framework and YOLO](#darknet-object-detection-framework-and-yolo)
 * [Papers](#papers)
 * [General Information](#general-information)
+* [MSCOCO Pre-trained Weights](#mscoco-pre-trained-weights)
 * [Building](#building)
 	* [Linux CMake Method](#linux-cmake-method)
 	* [Windows CMake Method](#windows-cmake-method)
@@ -42,6 +43,27 @@ YOLOv7 is more accurate and faster than YOLOv5 by **120% FPS**, than YOLOX by **
 YOLOv7 surpasses all known object detectors in both speed and accuracy in the range from 5 FPS to 160 FPS and has the highest accuracy 56.8% AP among all known real-time object detectors with 30 FPS or higher on GPU V100, batch=1.
 
 ![comparison](https://user-images.githubusercontent.com/4096485/179425274-f55a36d4-8450-4471-816b-8c105841effd.jpg)
+
+# MSCOCO Pre-trained Weights
+
+Several popular versions of YOLO were pre-trained for convenience on the [MSCOCO dataset](https://cocodataset.org/).  This dataset has 80 classes, which can be seen [in the text file `cfg/coco.names`](cfg/coco.names).
+
+The pre-trained weights can be downloaded from several different locations, and are also available for download from this repo:
+
+* YOLOv2, November 2016
+  * [YOLOv2-tiny](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807469361)
+  * [YOLOv2-full](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807478865)
+* YOLOv3, May 2018
+  * [YOLOv3-tiny](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807479419)
+  * [YOLOv3-full](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807480139)
+* YOLOv4, May 2020
+  * [YOLOv4-tiny](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807480542)
+  * [YOLOv4-full](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807481315)
+* YOLOv7, August 2022
+  * [YOLOv7-tiny](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807483279)
+  * [YOLOv7-full](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807483787)
+
+The MSCOCO pre-trained weights are provided for demo-purpose only.  People are expected to [train their own networks](#training).
 
 # Building
 
@@ -204,8 +226,16 @@ You are now done!  Darknet has been built and installed into `C:\Program Files\D
 
 This is not the full list of all commands supported by Darknet.  See [the previous readme](README_previous.md) for additional details and examples.
 
+You'll need to have a `.weights` file to run most of these commands.  You can either train your own network (highly recommended!) or [download the MSCOCO pre-trained `.weights` files](#mscoco-pre-trained-weights).
+
 * Check the version:  `darknet version`
 * Predict using an image:  `darknet detector test animals.data animals.cfg animals_best.weights dog.jpg`
+* Download YOLOv4-tiny weights and predict using a sample image in the `artwork` directory:
+```sh
+    cd src/darknet/
+    wget https://github.com/hank-ai/darknet/releases/download/v2.0/yolov4-tiny.weights`
+    darknet detector test cfg/coco.data cfg/yolov4-tiny.cfg yolov4-tiny.weights artwork/dog.jpg
+```
 * Output coordinates:  `darknet detector test animals.data animals.cfg animals_best.weights -ext_output dog.jpg`
 * Working with videos:  `darknet detector demo animals.data animals.cfg animals_best.weights -ext_output test.mp4`
 * Reading from a webcam:  `darknet detector demo animals.data animals.cfg animals_best.weights -c 0`
