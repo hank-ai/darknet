@@ -710,6 +710,15 @@ void save_image_png(image im, const char *name)
 
 	cv::Mat mat = image_to_mat(im);
 
+	if (mat.channels() == 3)
+	{
+		cv::cvtColor(mat, mat, cv::COLOR_RGB2BGR);
+	}
+	else if (mat.channels() == 4)
+	{
+		cv::cvtColor(mat, mat, cv::COLOR_RGBA2BGR);
+	}
+
 	const bool success = cv::imwrite(filename, mat, {cv::ImwriteFlags::IMWRITE_PNG_COMPRESSION, 9});
 	if (not success)
 	{
@@ -725,6 +734,15 @@ void save_image_jpg(image im, const char *name)
 	filename += ".jpg";
 
 	cv::Mat mat = image_to_mat(im);
+
+	if (mat.channels() == 3)
+	{
+		cv::cvtColor(mat, mat, cv::COLOR_RGB2BGR);
+	}
+	else if (mat.channels() == 4)
+	{
+		cv::cvtColor(mat, mat, cv::COLOR_RGBA2BGR);
+	}
 
 	const bool success = cv::imwrite(filename, mat, {cv::ImwriteFlags::IMWRITE_JPEG_QUALITY, 75});
 	if (not success)

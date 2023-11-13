@@ -1838,18 +1838,29 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 
 		int nboxes = 0;
 		detection *dets = get_network_boxes(&net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letter_box);
-		if (nms) {
-			if (l.nms_kind == DEFAULT_NMS) do_nms_sort(dets, nboxes, l.classes, nms);
-			else diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
+		if (nms)
+		{
+			if (l.nms_kind == DEFAULT_NMS)
+			{
+				do_nms_sort(dets, nboxes, l.classes, nms);
+			}
+			else
+			{
+				diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
+			}
 		}
+
 		draw_detections_v3(im, dets, nboxes, thresh, names, l.classes, ext_output);
 		save_image(im, "predictions");
-		if (!dont_show) {
+		if (!dont_show)
+		{
 			show_image(im, "predictions");
 		}
 
-		if (json_file) {
-			if (json_buf) {
+		if (json_file)
+		{
+			if (json_buf)
+			{
 				char *tmp = ", \n";
 				fwrite(tmp, sizeof(char), strlen(tmp), json_file);
 			}

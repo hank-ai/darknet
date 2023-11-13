@@ -46,7 +46,7 @@ YOLOv7 surpasses all known object detectors in both speed and accuracy in the ra
 
 # MSCOCO Pre-trained Weights
 
-Several popular versions of YOLO were pre-trained for convenience on the [MSCOCO dataset](https://cocodataset.org/).  This dataset has 80 classes, which can be seen [in the text file `cfg/coco.names`](cfg/coco.names).
+Several popular versions of YOLO were pre-trained for convenience on the [MSCOCO dataset](https://cocodataset.org/).  This dataset has 80 classes, which can be seen in the text file [`cfg/coco.names`](cfg/coco.names).
 
 The pre-trained weights can be downloaded from several different locations, and are also available for download from this repo:
 
@@ -233,7 +233,7 @@ You'll need to have a `.weights` file to run most of these commands.  You can ei
 * Download YOLOv4-tiny weights and predict using a sample image in the `artwork` directory:
 ```sh
     cd src/darknet/
-    wget https://github.com/hank-ai/darknet/releases/download/v2.0/yolov4-tiny.weights`
+    wget --no-clobber https://github.com/hank-ai/darknet/releases/download/v2.0/yolov4-tiny.weights
     darknet detector test cfg/coco.data cfg/yolov4-tiny.cfg yolov4-tiny.weights artwork/dog.jpg
 ```
 * Output coordinates:  `darknet detector test animals.data animals.cfg animals_best.weights -ext_output dog.jpg`
