@@ -273,14 +273,14 @@ If you'd rather manually setup the various files to train a custom network:
     backup = /home/username/nn/animals
 ~~~
 
-* Create a folder where you'll store your images and annotations.  For example, this could be `~/nn/animals/dataset`.  Each image will need a coresponding `.txt` file which describes the annotations for that image.  The format of the `.txt` annotation files is very specific.  You cannot create these files by hand since each annotation needs to contain the exact coordinates for the annotation.  See [DarkMark](https://github.com/stephanecharette/DarkMark) or other similar software to annotate your images.
+* Create a folder where you'll store your images and annotations.  For example, this could be `~/nn/animals/dataset`.  Each image will need a coresponding `.txt` file which describes the annotations for that image.  The format of the `.txt` annotation files is very specific.  You cannot create these files by hand since each annotation needs to contain the exact coordinates for the annotation.  See [DarkMark](https://github.com/stephanecharette/DarkMark) or other similar software to annotate your images.  The YOLO annotation format is described in the [Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#darknet_annotations).
 * Create the "train" and "valid" text files named in the `.data` file.  These two text files need to individually list all of the images which Darknet must use to train and for validation when calculating the mAP%.  Exactly one image per line.  The path and filenames may be relative or absolute.
 * Modify your `.cfg` file with a text editor.
   * Make sure that `batch=64`.
-  * Note the subdivisions.  Depending on the network dimensions and the amount of memory available on your GPU, you may need to increase the subdivisions.  The best value to use is `1` so start with that.
+  * Note the subdivisions.  Depending on the network dimensions and the amount of memory available on your GPU, you may need to increase the subdivisions.  The best value to use is `1` so start with that.  See the [Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#cuda_out_of_memory) if `1` doesn't work for you.
   * Note `max_batches=...`.  A good value to use when starting out is 2000 x the number of classes.  For this example, we have 4 animals, so 4 * 2000 = 8000.  For this example, we'll use `max_batches=8000`.
-  * Note `steps=...`.  This should be set to 80% and 90% of `max_batches`.  For this example we'd use `steps=6400,7200`.
-  * Note `width=...` and `height=...`.  These are the network dimensions.  The FAQ explains [how to calculate the best size to use](https://www.ccoderun.ca/programming/darknet_faq/#optimal_network_size).
+  * Note `steps=...`.  This should be set to 80% and 90% of `max_batches`.  For this example we'd use `steps=6400,7200` since `max_batches` was set to 8000.
+  * Note `width=...` and `height=...`.  These are the network dimensions.  The Darknet/YOLO FAQ explains [how to calculate the best size to use](https://www.ccoderun.ca/programming/darknet_faq/#optimal_network_size).
   * Search for all instances of the line `classes=...` and modify it with the number of classes in your `.names` file.  For this example, we'd use `classes=4`.
   * Search for all instances of the line `filters=...` in the `[convolutional]` section **prior** to each `[yolo]` section.  The value to use is (number_of_classes + 5) * 3.  Meaning for this example, (4 + 5) * 3 = 27.  So we'd use `filters=27` on the appropriate lines.
 * Start training!  Run the following commands:
@@ -289,19 +289,19 @@ If you'd rather manually setup the various files to train a custom network:
     darknet detector -map -dont_show train animals.data animals.cfg
 ~~~
 
-Be patient.  The best weights will be stored in `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file.
+Be patient.  The best weights will be saved as `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file.
 
 # Other Tools and Links
 
 * To manage your Darknet/YOLO projects, annotate images, verify your annotations, and generate the necessary files to train with Darknet, [see DarkMark](https://github.com/stephanecharette/DarkMark).
-* For a robust alternative CLI to Darknet, to use image tiling, for object tracking in your videos, or for a commercial C++ API to Darknet, [see DarkHelp](https://github.com/stephanecharette/DarkHelp).
+* For a robust alternative CLI to Darknet, to use image tiling, for object tracking in your videos, or for a robust C++ API that can easily be used in commercial applications, [see DarkHelp](https://github.com/stephanecharette/DarkHelp).
 * See if [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/) can help answer your questions.
 * See the many tutorial and example videos on [Stéphane's YouTube channel](https://www.youtube.com/c/StephaneCharette/videos)
 * If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/zSq8rtW).
 
 # Roadmap
 
-Last updated 2023-08-30:
+Last updated 2023-11-17:
 
 ## Short-term goals
 
@@ -310,6 +310,7 @@ Last updated 2023-08-30:
 * [ ] fix ARM build (Jetson devices)
 * [ ] fix Python support
 * [ ] clean up .hpp files
+* [ ] re-write darknet.h
 * [X] build darknet library
 * [X] re-enable labels on predictions ("alphabet" code)
 * [X] re-enable CUDA/GPU code
@@ -321,9 +322,9 @@ Last updated 2023-08-30:
 * [ ] look into old zed camera support
 * [X] remove old solutions and Makefile
 * [ ] make OpenCV non-optional
+* [ ] better and more consistent command line parsing
 * [X] remove STB
 * [X] re-write CMakeLists.txt to use the new CUDA detection
-* [ ] re-write darknet.h
 * [X] remove old "alphabet" code, and delete the 700+ images in data/labels
 * [X] build out-of-source
 * [X] have better version number output
