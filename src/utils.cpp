@@ -19,6 +19,7 @@
 #endif
 
 #include "darknet_version.h"
+#include "darknet_format_and_colour.hpp"
 
 #ifndef USE_CMAKE_LIBS
 #pragma warning(disable: 4996)
@@ -372,8 +373,8 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 
 		fprintf(stderr,
 			"\n"
-			"* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n"
-			"* A fatal error has been detected.  Darknet will now exit.\n");
+			"* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
+//			"* A fatal error has been detected.  Darknet will now exit.\n");
 
 		if (saved_errno != 0)
 		{
@@ -384,7 +385,7 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 		}
 
 		fprintf(stderr, "* Error location: %s, %s(), line #%d\n", filename, funcname, line);
-		fprintf(stderr, "* Error message:  ");
+		fprintf(stderr, "* Error message:  %s", Darknet::in_colour(Darknet::EColour::kBrightRed).c_str());
 
 		va_list args;
 		va_start(args, msg);
@@ -393,9 +394,10 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 
 		// the vfprintf() message is not newline-terminated so we need to take care of that before we print anything else
 		fprintf(stderr,
-			"\n"
+			"%s\n"
 			"* Version %s built on %s %s\n"
 			"* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n",
+			Darknet::in_colour(Darknet::EColour::kNormal).c_str(),
 			DARKNET_VERSION_STRING, __DATE__, __TIME__);
 
 		log_backtrace();

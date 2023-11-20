@@ -1,5 +1,7 @@
 #include "Chart.hpp"
 #include "darknet_utils.hpp"
+#include <filesystem>
+
 
 #ifdef OPENCV
 
@@ -49,7 +51,7 @@ Chart::Chart(const std::string & name, const size_t max_batch, const float max_l
 	}
 	else
 	{
-		filename = "chart_" + text_to_simple_label(title) + ".png";
+		filename = "chart_" + Darknet::text_to_simple_label(title) + ".png";
 	}
 
 	initialize();
@@ -83,7 +85,7 @@ Chart & Chart::initialize()
 	std::string txt;
 
 	// If we have the previous chart.png file, we should import the grid from that file.
-	if (file_exists(filename.c_str()))
+	if (std::filesystem::exists(filename))
 	{
 		cv::Mat tmp = cv::imread(filename);
 		if (tmp.size() == dimensions)
@@ -313,7 +315,7 @@ Chart & Chart::update_bottom_text(const float seconds_remaining)
 	cv::putText(mat, ss.str(), p1, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, cv::LINE_AA);
 
 	// grey TIME REMAINING=...
-	std::string txt = "time remaining=" + format_time_remaining(seconds_remaining);
+	std::string txt = "time remaining=" + Darknet::format_time_remaining(seconds_remaining);
 	p1 = cv::Point(mat.cols - 250, grid_size.height + 20);
 	p2 = cv::Point(mat.cols, p1.y + 20);
 	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // clear out previous text

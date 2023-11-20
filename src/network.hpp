@@ -1,5 +1,7 @@
 // Oh boy, why am I about to do this....
 
+// ^ That comment was the very first commit to the original Darknet repo by Joseph Redmon on Nov 4, 2013.
+
 #pragma once
 
 #include "darknet.h"

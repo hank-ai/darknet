@@ -9,9 +9,7 @@ int gpu_index = 0;
 
 #ifdef GPU
 
-#include "dark_cuda.hpp"
-#include "utils.hpp"
-#include "blas.hpp"
+#include "darknet_internal.hpp"
 #include <stdlib.h>
 #include <time.h>
 #include <cuda.h>
@@ -35,7 +33,10 @@ void cuda_set_device(int n)
 {
 	gpu_index = n;
 	cudaError_t status = cudaSetDevice(n);
-	if(status != cudaSuccess) CHECK_CUDA(status);
+	if (status != cudaSuccess)
+	{
+		CHECK_CUDA(status);
+	}
 }
 
 int cuda_get_device()
@@ -657,9 +658,16 @@ void show_cuda_cudnn_info()
 	int cuda_driver_minor	= (cuda_driver_version - cuda_driver_major * 1000) / 10;
 
 	std::cout
-		<< "CUDA "
-		<< "runtime version " << cuda_runtime_version << " (v" << cuda_runtime_major << "." << cuda_runtime_minor << "), "
-		<< "driver version " << cuda_driver_version << " (v" << cuda_driver_major << "." << cuda_driver_minor << ")"
+		<< "CUDA runtime version " << cuda_runtime_version
+		<< " ("
+		<< Darknet::in_colour(Darknet::EColour::kBrightWhite) << "v" << cuda_runtime_major << "." << cuda_runtime_minor
+		<< Darknet::in_colour(Darknet::EColour::kNormal)
+		<< "), "
+		<< "driver version " << cuda_driver_version
+		<< " ("
+		<< Darknet::in_colour(Darknet::EColour::kBrightWhite) << "v" << cuda_driver_major << "." << cuda_driver_minor
+		<< Darknet::in_colour(Darknet::EColour::kNormal)
+		<< ")"
 		<< std::endl;
 
 #ifndef CUDNN
@@ -674,21 +682,28 @@ void show_cuda_cudnn_info()
 	cudnnGetProperty(PATCH_LEVEL, &cudnn_version_patch);
 	std::cout
 		<< "cuDNN version " << cudnn_version
-		<< " (v" << cudnn_version_major
+		<< " ("
+		<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
+		<< "v" << cudnn_version_major
 		<< "." << cudnn_version_minor
 		<< "." << cudnn_version_patch
+		<< Darknet::in_colour(Darknet::EColour::kNormal)
 		<< "), "
 		<< "use of half-size floats is ";
 #ifndef CUDNN_HALF
-	std::cout << "DISABLED" << std::endl;
+	std::cout << Darknet::in_colour(Darknet::EColour::kBrightRed, "DISABLED") << std::endl;
 #else
-	std::cout << "ENABLED" << std::endl;
+	std::cout << Darknet::in_colour(Darknet::EColour::kBrightWhite, "ENABLED") << std::endl;
 #endif
 #endif
 
 	if (device_count < 1)
 	{
-		std::cout << "=> no CUDA devices (count=" << device_count << ")" << std::endl;
+		std::cout
+			<< "=> "
+			<< Darknet::in_colour(Darknet::EColour::kBrightRed, "no CUDA devices")
+			<< " (count=" << device_count << ")"
+			<< std::endl;
 	}
 	else
 	{
@@ -697,9 +712,9 @@ void show_cuda_cudnn_info()
 			cudaDeviceProp prop;
 			cudaGetDeviceProperties(&prop, idx);
 			std::cout
-				<< "=> " << prop.name
+				<< "=> " << idx << ": " << Darknet::in_colour(Darknet::EColour::kBrightGreen, prop.name)
 				<< " [#" << prop.major << "." << prop.minor << "]"
-				<< ", " << size_to_IEC_string(prop.totalGlobalMem)
+				<< ", " << Darknet::in_colour(Darknet::EColour::kYellow, size_to_IEC_string(prop.totalGlobalMem))
 				<< std::endl;
 		}
 	}

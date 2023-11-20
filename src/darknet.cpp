@@ -1,7 +1,4 @@
-#include <time.h>
 #include <signal.h>
-#include <stdlib.h>
-#include <stdio.h>
 
 #if defined(_MSC_VER) && defined(_DEBUG)
 #include <crtdbg.h>
@@ -15,8 +12,9 @@
 #include "connected_layer.hpp"
 #include "darknet_utils.hpp"
 #include "convolutional_layer.hpp"
-#include "darknet_version.h"
 #include "image.hpp"
+
+#include "darknet_internal.hpp"
 
 
 extern void predict_classifier(char *datacfg, char *cfgfile, char *weightfile, char *filename, int top);
@@ -447,159 +445,118 @@ void darknet_signal_handler(int sig)
 
 int main(int argc, char **argv)
 {
-	setvbuf(stdout, NULL, _IONBF, 0);
-	setvbuf(stderr, NULL, _IONBF, 0);
+	try
+	{
+		// disable console IO buffering since we're still mixing old printf() calls with std::cout
+		std::setvbuf(stdout, NULL, _IONBF, 0);
+		std::setvbuf(stderr, NULL, _IONBF, 0);
 
-#ifdef _DEBUG
-	_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-	printf(" _DEBUG is used \n");
-#endif
-
-#ifdef DEBUG
-	printf(" DEBUG=1 \n");
-#endif
-
-	signal(SIGINT   , darknet_signal_handler);  // 2: CTRL+C
-	signal(SIGILL   , darknet_signal_handler);  // 4: illegal instruction
-	signal(SIGABRT  , darknet_signal_handler);  // 6: abort()
-	signal(SIGFPE   , darknet_signal_handler);  // 8: floating point exception
-	signal(SIGSEGV  , darknet_signal_handler);  // 11: segfault
-	signal(SIGTERM  , darknet_signal_handler);  // 15: terminate
+		signal(SIGINT   , darknet_signal_handler);  // 2: CTRL+C
+		signal(SIGILL   , darknet_signal_handler);  // 4: illegal instruction
+		signal(SIGABRT  , darknet_signal_handler);  // 6: abort()
+		signal(SIGFPE   , darknet_signal_handler);  // 8: floating point exception
+		signal(SIGSEGV  , darknet_signal_handler);  // 11: segfault
+		signal(SIGTERM  , darknet_signal_handler);  // 15: terminate
 #ifdef WIN32
-	signal(SIGBREAK , darknet_signal_handler);  // Break is different than CTRL+C on Windows
+		signal(SIGBREAK , darknet_signal_handler);  // Break is different than CTRL+C on Windows
 #else
-	signal(SIGHUP   , darknet_signal_handler);  // 1: hangup
-	signal(SIGQUIT  , darknet_signal_handler);  // 3: quit
-	signal(SIGUSR1  , darknet_signal_handler);  // 10: user-defined
-	signal(SIGUSR2  , darknet_signal_handler);  // 12: user-defined
-#endif
+		signal(SIGHUP   , darknet_signal_handler);  // 1: hangup
+		signal(SIGQUIT  , darknet_signal_handler);  // 3: quit
+		signal(SIGUSR1  , darknet_signal_handler);  // 10: user-defined
+		signal(SIGUSR2  , darknet_signal_handler);  // 12: user-defined
+		#endif
 
-	int i;
-	for (i = 0; i < argc; ++i) {
-		if (!argv[i]) continue;
-		strip_args(argv[i]);
-	}
+		// process the args before printing anything so we can handle "-colour" and "-nocolour" correctly
+		Darknet::cfg_and_state.process_arguments(argc, argv);
 
-	if (find_arg(argc, argv, "-colour") ||
-		find_arg(argc, argv, "-color"))
-	{
-		colour_is_enabled = true;
-	}
+		#ifdef _DEBUG
+		_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
+		Darknet::display_warning_msg("_DEBUG is used\n");
+		#endif
 
-	if (find_arg(argc, argv, "-nocolour") ||
-		find_arg(argc, argv, "-nocolor"))
-	{
-		colour_is_enabled = false;
-	}
+		#ifdef DEBUG
+		Darknet::display_warning_msg("DEBUG=1 is enabled\n");
+		#endif
 
-	if(argc < 2)
-	{
-		fprintf(stderr, "usage: %s <function>\n", argv[0]);
-		return 0;
-	}
-	gpu_index = find_int_arg(argc, argv, "-i", 0);
-	if(find_arg(argc, argv, "-nogpu"))
-	{
-		darknet_fatal_error(DARKNET_LOC, "Darknet does not support the -nogpu flag. If you want to use CPU please compile Darknet with GPU=0");
-	}
+		errno = 0;
+
+		std::cout << "Darknet " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
+
+		gpu_index = find_int_arg(argc, argv, "-i", 0);
 
 #ifndef GPU
-	gpu_index = -1;
-	printf(" GPU isn't used \n");
-	init_cpu();
+		gpu_index = -1;
+		Darknet::display_warning_msg("Darknet is compiled to only use the CPU.");
+		std::cout << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << ".") << std::endl;
+		init_cpu();
 #else   // GPU
-	if(gpu_index >= 0){
-		cuda_set_device(gpu_index);
-		CHECK_CUDA(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
+		if(gpu_index >= 0)
+		{
+			cuda_set_device(gpu_index);
+			CHECK_CUDA(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
+		}
+
+		show_cuda_cudnn_info();
+		cuda_debug_sync = find_arg(argc, argv, "-cuda_debug_sync");
+#endif
+
+		show_opencv_info();
+
+		errno = 0;
+
+		if (Darknet::cfg_and_state.command.empty())					{ Darknet::display_usage();			}
+		else if (Darknet::cfg_and_state.command == "3d")			{ composite_3d		(argv[2], argv[3], argv[4], (argc > 5) ? atof(argv[5]) : 0); }
+		else if (Darknet::cfg_and_state.command == "art")			{ run_art			(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "average")		{ average			(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "captcha")		{ run_captcha		(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "cifar")			{ run_cifar			(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "classify")		{ predict_classifier("cfg/imagenet1k.data", argv[2], argv[3], argv[4], 5); }
+		else if (Darknet::cfg_and_state.command == "classifier")	{ run_classifier	(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "coco")			{ run_coco			(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "compare")		{ run_compare		(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "denormalize")	{ denormalize_net	(argv[2], argv[3], argv[4]); }
+		else if (Darknet::cfg_and_state.command == "detector")		{ run_detector		(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "dice")			{ run_dice			(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "imtest")		{ test_resize		(argv[2]);		}
+		else if (Darknet::cfg_and_state.command == "go")			{ run_go			(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "help")			{ Darknet::display_usage();			}
+		else if (Darknet::cfg_and_state.command == "nightmare")		{ run_nightmare		(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "normalize")		{ normalize_net		(argv[2], argv[3], argv[4]); }
+		else if (Darknet::cfg_and_state.command == "oneoff")		{ oneoff			(argv[2], argv[3], argv[4]); }
+		else if (Darknet::cfg_and_state.command == "ops")			{ operations		(argv[2]); }
+		else if (Darknet::cfg_and_state.command == "partial")		{ partial			(argv[2], argv[3], argv[4], atoi(argv[5])); }
+		else if (Darknet::cfg_and_state.command == "rescale")		{ rescale_net		(argv[2], argv[3], argv[4]); }
+		else if (Darknet::cfg_and_state.command == "reset")			{ reset_normalize_net(argv[2], argv[3], argv[4]); }
+		else if (Darknet::cfg_and_state.command == "rgbgr")			{ rgbgr_net			(argv[2], argv[3], argv[4]); }
+		else if (Darknet::cfg_and_state.command == "rnn")			{ run_char_rnn		(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "speed")			{ speed				(argv[2], (argc > 3 && argv[3]) ? atoi(argv[3]) : 0); }
+		else if (Darknet::cfg_and_state.command == "statistics")	{ statistics_net	(argv[2], argv[3]); }
+		else if (Darknet::cfg_and_state.command == "super")			{ run_super			(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "tag")			{ run_tag			(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "test")			{ test_resize		(argv[2]);		}
+		else if (Darknet::cfg_and_state.command == "version")		{ /* nothing else to do, we've already displayed the version information */ }
+		else if (Darknet::cfg_and_state.command == "vid")			{ run_vid_rnn		(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "visualize")		{ visualize			(argv[2], (argc > 3) ? argv[3] : 0); }
+		else if (Darknet::cfg_and_state.command == "voxel")			{ run_voxel			(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "writing")		{ run_writing		(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "yolo")			{ run_yolo			(argc, argv);	}
+		else if (Darknet::cfg_and_state.command == "detect")
+		{
+			float thresh = find_float_arg(argc, argv, "-thresh", .24);
+			int ext_output = find_arg(argc, argv, "-ext_output");
+			char *filename = (argc > 4) ? argv[4]: 0;
+			test_detector("cfg/coco.data", argv[2], argv[3], filename, thresh, 0.5, 0, ext_output, 0, NULL, 0, 0);
+		}
+		else
+		{
+			throw std::invalid_argument("invalid command (run \"" + Darknet::cfg_and_state.argv[0] + " help\" for a list of possible commands)");
+		}
 	}
-
-	show_cuda_cudnn_info();
-	cuda_debug_sync = find_arg(argc, argv, "-cuda_debug_sync");
-
-#endif  // GPU
-
-	errno = 0;
-	show_opencv_info();
-
-	if (0 == strcmp(argv[1], "average")){
-		average(argc, argv);
-	} else if (0 == strcmp(argv[1], "yolo")){
-		run_yolo(argc, argv);
-	} else if (0 == strcmp(argv[1], "voxel")){
-		run_voxel(argc, argv);
-	} else if (0 == strcmp(argv[1], "super")){
-		run_super(argc, argv);
-	} else if (0 == strcmp(argv[1], "detector")){
-		run_detector(argc, argv);
-	} else if (0 == strcmp(argv[1], "detect")){
-		float thresh = find_float_arg(argc, argv, "-thresh", .24);
-		int ext_output = find_arg(argc, argv, "-ext_output");
-		char *filename = (argc > 4) ? argv[4]: 0;
-		test_detector("cfg/coco.data", argv[2], argv[3], filename, thresh, 0.5, 0, ext_output, 0, NULL, 0, 0);
-	} else if (0 == strcmp(argv[1], "cifar")){
-		run_cifar(argc, argv);
-	} else if (0 == strcmp(argv[1], "go")){
-		run_go(argc, argv);
-	} else if (0 == strcmp(argv[1], "rnn")){
-		run_char_rnn(argc, argv);
-	} else if (0 == strcmp(argv[1], "vid")){
-		run_vid_rnn(argc, argv);
-	} else if (0 == strcmp(argv[1], "coco")){
-		run_coco(argc, argv);
-	} else if (0 == strcmp(argv[1], "classify")){
-		predict_classifier("cfg/imagenet1k.data", argv[2], argv[3], argv[4], 5);
-	} else if (0 == strcmp(argv[1], "classifier")){
-		run_classifier(argc, argv);
-	} else if (0 == strcmp(argv[1], "art")){
-		run_art(argc, argv);
-	} else if (0 == strcmp(argv[1], "tag")){
-		run_tag(argc, argv);
-	} else if (0 == strcmp(argv[1], "compare")){
-		run_compare(argc, argv);
-	} else if (0 == strcmp(argv[1], "dice")){
-		run_dice(argc, argv);
-	} else if (0 == strcmp(argv[1], "writing")){
-		run_writing(argc, argv);
-	} else if (0 == strcmp(argv[1], "3d")){
-		composite_3d(argv[2], argv[3], argv[4], (argc > 5) ? atof(argv[5]) : 0);
-	} else if (0 == strcmp(argv[1], "test")){
-		test_resize(argv[2]);
-	} else if (0 == strcmp(argv[1], "captcha")){
-		run_captcha(argc, argv);
-	} else if (0 == strcmp(argv[1], "nightmare")){
-		run_nightmare(argc, argv);
-	} else if (0 == strcmp(argv[1], "rgbgr")){
-		rgbgr_net(argv[2], argv[3], argv[4]);
-	} else if (0 == strcmp(argv[1], "reset")){
-		reset_normalize_net(argv[2], argv[3], argv[4]);
-	} else if (0 == strcmp(argv[1], "denormalize")){
-		denormalize_net(argv[2], argv[3], argv[4]);
-	} else if (0 == strcmp(argv[1], "statistics")){
-		statistics_net(argv[2], argv[3]);
-	} else if (0 == strcmp(argv[1], "normalize")){
-		normalize_net(argv[2], argv[3], argv[4]);
-	} else if (0 == strcmp(argv[1], "rescale")){
-		rescale_net(argv[2], argv[3], argv[4]);
-	} else if (0 == strcmp(argv[1], "ops")){
-		operations(argv[2]);
-	} else if (0 == strcmp(argv[1], "speed")){
-		speed(argv[2], (argc > 3 && argv[3]) ? atoi(argv[3]) : 0);
-	} else if (0 == strcmp(argv[1], "oneoff")){
-		oneoff(argv[2], argv[3], argv[4]);
-	} else if (0 == strcmp(argv[1], "partial")){
-		partial(argv[2], argv[3], argv[4], atoi(argv[5]));
-	} else if (0 == strcmp(argv[1], "visualize")){
-		visualize(argv[2], (argc > 3) ? argv[3] : 0);
-	} else if (0 == strcmp(argv[1], "imtest")){
-		test_resize(argv[2]);
-	}
-	else if (0 == strcmp(argv[1], "version"))
+	catch (const std::exception & e)
 	{
-		std::cout << "Darknet " << DARKNET_VERSION_STRING << std::endl;
+		std::cout << std::endl << "Exception: " << Darknet::in_colour(Darknet::EColour::kBrightRed, e.what()) << std::endl;
+		darknet_fatal_error(DARKNET_LOC, e.what());
 	}
-	else
-	{
-		darknet_fatal_error(DARKNET_LOC, "invalid Darknet command: %s", argv[1]);
-	}
+
 	return 0;
 }

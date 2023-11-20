@@ -1,59 +1,40 @@
 #pragma once
 
 /** @file
- * This is the C++ side of the new Darknet utility functions.  See @p darknet_utils.h for the @p "C" interface.
+ * Collection of helper and utility functions for Darknet.
  */
 
 
-#ifndef __cplusplus
-#error Attempting to include the C++ header file from within C code.
-#endif
+#include "darknet_internal.hpp"
 
 
-#include "darknet_utils.h"
-#include <string>
-#include <vector>
+namespace Darknet
+{
+	/// The names stored in the .names file.  @see @ref remember_class_names()
+	extern std::vector<std::string> class_names;
 
-#ifdef OPENCV
-#include <opencv2/opencv.hpp>
-#endif
+	/// The colour to use for each class.  @see @ref remember_class_names()
+	extern std::vector<cv::Scalar> class_colours;
 
+	/** Convert the given text to plain alphanumeric ASCII string.  Remove whitespace, keep just alphanumeric and underscore.
+	 * Good to use as a base for a filename.
+	 */
+	std::string text_to_simple_label(std::string txt);
 
-/// The names stored in the .names file.  @see @ref remember_class_names()
-extern std::vector<std::string> class_names;
+	/** Remember all of the entries in the .names file, so we don't have to keep re-loading it or passing it around.
+	 * @see @ref class_names
+	 * @see @ref class_colours
+	 */
+	void remember_class_names(char ** names, const int count);
 
-#ifdef OPENCV
-/// The colour to use for each class.  @see @ref remember_class_names()
-extern std::vector<cv::Scalar> class_colours;
-#endif
+	/// Use VT100/ANSI codes to update the console title during training.
+	void update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const float seconds_remaining);
 
+	/// Setup the new C++ charts.  This is called once just prior to starting training.  @see @ref Chart
+	void initialize_new_charts(const int max_batches, const float max_img_loss);
 
-std::string in_colour(const EColour colour, const int i);
-std::string in_colour(const EColour colour, const float f);
-std::string in_colour(const EColour colour, const double d);
-std::string in_colour(const EColour colour, const std::string & msg);
+	/// Update the new C++ charts with the given loss and mAP% accuracy value.  This is called at every iteration.  @see @ref Chart
+	void update_loss_in_new_charts(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show);
 
-
-/** The time used by Darknet is a double, generated from @ref what_time_is_it_now().  It is the number of seconds since
- * @p epoch with milliseconds and microseconds as decimals.  This function will format one of these @p double using the
- * most intelligent unit necessary.
- */
-std::string format_time(const double & seconds_remaining);
-
-
-/// Format the time remaining using simple-to-read text.  The time must be in @em seconds.
-std::string format_time_remaining(const float & seconds_remaining);
-
-
-/// Format the loss combined with ANSI colours.
-std::string format_loss(const double & loss);
-
-
-/// Format the mAP% accuracy with ANSI colours.
-std::string format_map_accuracy(const float & accuracy);
-
-
-/** Convert the given text to plain alphanumeric ASCII string.  Remove whitespace, keep just alphanumeric and underscore.
- * Good to use as a base for a filename.
- */
-std::string text_to_simple_label(std::string txt);
+	void update_accuracy_in_new_charts(const int class_index, const float accuracy);
+}

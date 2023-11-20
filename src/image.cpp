@@ -480,13 +480,7 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 			float red = get_color(2,offset,classes);
 			float green = get_color(1,offset,classes);
 			float blue = get_color(0,offset,classes);
-			float rgb[3];
 
-			//width = prob*20+2;
-
-			rgb[0] = red;
-			rgb[1] = green;
-			rgb[2] = blue;
 			box b = boxes[i];
 
 			int left  = (b.x-b.w/2.)*im.w;

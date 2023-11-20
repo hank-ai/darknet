@@ -10,13 +10,11 @@
 #include <ciso646>
 
 
-std::vector<std::string> class_names;
-
-#ifdef OPENCV
-std::vector<cv::Scalar> class_colours;
-#endif
+std::vector<std::string> Darknet::class_names;
+std::vector<cv::Scalar> Darknet::class_colours;
 
 
+#if 0
 /** @todo Colour not yet supported on Windows.  On recent editions of Windows see @p SetConsoleMode() and
  * @p ENABLE_VIRTUAL_TERMINAL_PROCESSING, though I think this is only with newer versions of Windows 10.
  * Looks like this can also be enabled globally in the registry.  In @p [HKEY_CURRENT_USER/Console]
@@ -28,60 +26,10 @@ bool colour_is_enabled = false;
 #else
 bool colour_is_enabled = true;
 #endif
+#endif
 
 
-const char * const ansi_colours[kMax] =
-{
-	"\033[0m",		// EColour::kNormal
-	"\033[0;30m",	// EColour::kBlack
-	"\033[0;31m",	// EColour::kRed
-	"\033[0;32m",	// EColour::kGreen
-	"\033[0;33m",	// EColour::kBrown
-	"\033[0;34m",	// EColour::kBlue
-	"\033[0;35m",	// EColour::kMagenta
-	"\033[0;36m",	// EColour::kCyan
-	"\033[0;37m",	// EColour::kLightGrey
-	"\033[1;30m",	// EColour::kDarkGrey
-	"\033[1;31m",	// EColour::kBrightRed
-	"\033[1;32m",	// EColour::kBrightGreen
-	"\033[1;33m",	// EColour::kYellow
-	"\033[1;34m",	// EColour::kBrightBlue
-	"\033[1;35m",	// EColour::kBrightMagenta
-	"\033[1;36m",	// EColour::kBrightCyan
-	"\033[1;37m"	// EColour::kBrightWhite
-};
-
-
-std::string in_colour(const EColour colour, const int i)
-{
-	return in_colour(colour, std::to_string(i));
-}
-
-
-std::string in_colour(const EColour colour, const float f)
-{
-	return in_colour(colour, std::to_string(f));
-}
-
-
-std::string in_colour(const EColour colour, const double d)
-{
-	return in_colour(colour, std::to_string(d));
-}
-
-
-std::string in_colour(const EColour colour, const std::string & msg)
-{
-	if (colour_is_enabled)
-	{
-		return ansi_colours[colour] + msg + ansi_colours[EColour::kNormal];
-	}
-
-	return msg;
-}
-
-
-void remember_class_names(char ** names, const int count)
+void Darknet::remember_class_names(char ** names, const int count)
 {
 	if (static_cast<size_t>(count) == class_names.size())
 	{
@@ -94,10 +42,8 @@ void remember_class_names(char ** names, const int count)
 	class_names.clear();
 	class_names.reserve(count);
 
-	#ifdef OPENCV
 	class_colours.clear();
 	class_colours.reserve(count);
-	#endif
 
 	for (int idx = 0; idx < count; idx ++)
 	{
@@ -109,7 +55,6 @@ void remember_class_names(char ** names, const int count)
 
 		class_names.push_back(name);
 
-		#ifdef OPENCV
 		const int offset = idx * 123457 % count;
 		const int r = std::min(255.0f, std::round(256.0f * get_color(2, offset, count)));
 		const int g = std::min(255.0f, std::round(256.0f * get_color(1, offset, count)));
@@ -118,7 +63,6 @@ void remember_class_names(char ** names, const int count)
 		class_colours.push_back(CV_RGB(r, g, b));
 
 		printf("-> class #%d (%s) will use colour #%02X%02X%02X\n", idx, names[idx], r, g, b);
-		#endif
 	}
 
 	printf("\n");
@@ -127,7 +71,7 @@ void remember_class_names(char ** names, const int count)
 }
 
 
-std::string format_time(const double & seconds_remaing)
+std::string Darknet::format_time(const double & seconds_remaing)
 {
 	std::stringstream ss;
 	ss << std::fixed << std::setprecision(3);
@@ -149,7 +93,7 @@ std::string format_time(const double & seconds_remaing)
 }
 
 
-std::string format_time_remaining(const float & seconds_remaining)
+std::string Darknet::format_time_remaining(const float & seconds_remaining)
 {
 	const float seconds	= 1.0;
 	const float minutes	= 60.0 * seconds;
@@ -194,7 +138,7 @@ std::string format_time_remaining(const float & seconds_remaining)
 }
 
 
-std::string format_loss(const double & loss)
+std::string Darknet::format_loss(const double & loss)
 {
 	EColour colour = EColour::kNormal;
 
@@ -225,7 +169,7 @@ std::string format_loss(const double & loss)
 }
 
 
-std::string format_map_accuracy(const float & accuracy)
+std::string Darknet::format_map_accuracy(const float & accuracy)
 {
 	EColour colour = EColour::kNormal;
 
@@ -254,7 +198,7 @@ std::string format_map_accuracy(const float & accuracy)
 }
 
 
-void display_loaded_images(const int images, const double time)
+void Darknet::display_loaded_images(const int images, const double time)
 {
 	printf("loaded %d images in %s\n", images, format_time(time).c_str());
 
@@ -262,7 +206,7 @@ void display_loaded_images(const int images, const double time)
 }
 
 
-void display_iteration_summary(const int iteration, const float loss, const float avg_loss, const float rate, const double time, const int images, const float seconds_remaining)
+void Darknet::display_iteration_summary(const int iteration, const float loss, const float avg_loss, const float rate, const double time, const int images, const float seconds_remaining)
 {
 	printf("%s: loss=%s, avg loss=%s, rate=%f, %s, %d images, time remaining=%s\n",
 			in_colour(EColour::kBrightWhite, iteration)	.c_str(),
@@ -278,7 +222,7 @@ void display_iteration_summary(const int iteration, const float loss, const floa
 }
 
 
-void display_last_accuracy(const float iou_thresh, const float mean_average_precision, const float best_map)
+void Darknet::display_last_accuracy(const float iou_thresh, const float mean_average_precision, const float best_map)
 {
 	printf("-> last accuracy mAP@%0.2f=%s, best=%s\n",
 			iou_thresh,
@@ -289,32 +233,32 @@ void display_last_accuracy(const float iou_thresh, const float mean_average_prec
 }
 
 
-void display_error_msg(const char * const msg)
+void Darknet::display_error_msg(const std::string & msg)
 {
-	if (msg != nullptr)
+	if (not msg.empty())
 	{
-		printf("%s", in_colour(EColour::kBrightRed, msg).c_str());
+		std::cout << in_colour(EColour::kBrightRed, msg);
 	}
 
 	return;
 }
 
 
-void display_warning_msg(const char * const msg)
+void Darknet::display_warning_msg(const std::string & msg)
 {
-	if (msg != nullptr)
+	if (not msg.empty())
 	{
-		printf("%s", in_colour(EColour::kYellow, msg).c_str());
+		std::cout << in_colour(EColour::kYellow, msg);
 	}
 
 	return;
 }
 
 
-void update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const float seconds_remaining)
+void Darknet::update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const float seconds_remaining)
 {
 	// doing this requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
-	if (colour_is_enabled)
+	if (cfg_and_state.colour_is_enabled)
 	{
 		if (std::isfinite(current_map) && current_map > 0.0f)
 		{
@@ -330,25 +274,7 @@ void update_console_title(const int iteration, const int max_batches, const floa
 }
 
 
-bool file_exists(const char * const filename)
-{
-	bool result = false;
-
-	if (filename != nullptr)
-	{
-		FILE * file = std::fopen(filename, "rb");
-		if (file)
-		{
-			std::fclose(file);
-			result = true;
-		}
-	}
-
-	return result;
-}
-
-
-std::string text_to_simple_label(std::string txt)
+std::string Darknet::text_to_simple_label(std::string txt)
 {
 	// first we convert unknown characters to whitespace
 	size_t pos = 0;
@@ -394,10 +320,8 @@ std::string text_to_simple_label(std::string txt)
 }
 
 
-void initialize_new_charts(const int max_batches, const float max_img_loss)
+void Darknet::initialize_new_charts(const int max_batches, const float max_img_loss)
 {
-	#ifdef OPENCV
-
 	training_chart = Chart("", max_batches, max_img_loss);
 
 	more_charts.clear();
@@ -409,16 +333,13 @@ void initialize_new_charts(const int max_batches, const float max_img_loss)
 
 		more_charts.push_back(chart);
 	}
-	#endif
 
 	return;
 }
 
 
-void update_loss_in_new_charts(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show)
+void Darknet::update_loss_in_new_charts(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show)
 {
-	#ifdef OPENCV
-
 	if (training_chart.empty() == false)
 	{
 		training_chart.update_save_and_display(current_iteration, loss, seconds_remaining, dont_show);
@@ -429,16 +350,12 @@ void update_loss_in_new_charts(const int current_iteration, const float loss, co
 		}
 	}
 
-	#endif
-
 	return;
 }
 
 
-void update_accuracy_in_new_charts(const int class_index, const float accuracy)
+void Darknet::update_accuracy_in_new_charts(const int class_index, const float accuracy)
 {
-	#ifdef OPENCV
-
 	if (training_chart.empty() == false)
 	{
 		if (class_index < 0)
@@ -450,8 +367,6 @@ void update_accuracy_in_new_charts(const int class_index, const float accuracy)
 			more_charts[class_index].update_accuracy(accuracy);
 		}
 	}
-
-	#endif
 
 	return;
 }

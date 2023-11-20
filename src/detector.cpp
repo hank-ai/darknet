@@ -68,7 +68,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			darknet_fatal_error(DARKNET_LOC, "In the file %s, the number of names %d does not match classes=%d in the file %s", name_list, names_size, net_classes, cfgfile);
 		}
 
-		remember_class_names(names, names_size);
+		Darknet::remember_class_names(names, names_size);
 
 		free_ptrs((void**)names, net_map.layers[net_map.n - 1].classes);
 	}
@@ -109,7 +109,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	}
 	else if (actual_batch_size < 32)
 	{
-		display_warning_msg("Warning: batch=... is set quite low!  It is recommended to set batch=64.\n");
+		Darknet::display_warning_msg("Warning: batch=... is set quite low!  It is recommended to set batch=64.\n");
 	}
 
 	int imgs = net.batch * net.subdivisions * ngpus;
@@ -191,7 +191,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	//args.threads = 12 * ngpus;    // Ryzen 7 2700X (16 logical cores)
 
 	// This is where we draw the initial blank chart.  That chart is then updated by update_train_loss_chart() at every iteration.
-	initialize_new_charts(net.max_batches, net.max_chart_loss);
+	Darknet::initialize_new_charts(net.max_batches, net.max_chart_loss);
 
 #endif    //OPENCV
 	if (net.contrastive && args.threads > net.batch/2) args.threads = net.batch / 2;
@@ -292,10 +292,10 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		load_thread = load_data(args);
 
 		const double load_time = (what_time_is_it_now() - time);
-		display_loaded_images(args.n, load_time); // "loaded %d images in %s\n"
+		Darknet::display_loaded_images(args.n, load_time); // "loaded %d images in %s\n"
 		if (load_time > 0.1 && avg_loss > 0)
 		{
-			display_warning_msg("Performance bottleneck detected.  Slow CPU or hard drive?\n");
+			Darknet::display_warning_msg("Performance bottleneck detected.  Slow CPU or hard drive?\n");
 		}
 
 		time = what_time_is_it_now();
@@ -326,7 +326,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			if (mean_average_precision > 0)
 			{
 				// "-> last accuracy mAP@0.50=42.67%, best=78.32%"
-				display_last_accuracy(iou_thresh, mean_average_precision, best_map);
+				Darknet::display_last_accuracy(iou_thresh, mean_average_precision, best_map);
 			}
 		}
 
@@ -336,7 +336,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		const float iters_per_second	= current_iter / elapsed_seconds;
 		const float seconds_remaining	= (net.max_batches - current_iter) / iters_per_second;
 
-		update_console_title(iteration, net.max_batches, loss, mean_average_precision, best_map, /* avg_time_in_hours * 60 * 60 */ seconds_remaining);
+		Darknet::update_console_title(iteration, net.max_batches, loss, mean_average_precision, best_map, /* avg_time_in_hours * 60 * 60 */ seconds_remaining);
 
 		if (net.cudnn_half)
 		{
@@ -347,7 +347,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		}
 
 		// 5989: loss=0.444, avg loss=0.329, rate=0.000026, 64.424 milliseconds, 383296 images, time remaining=7 seconds
-		display_iteration_summary(iteration, loss, avg_loss, get_current_rate(net), (what_time_is_it_now() - time), iteration * imgs, /* avg_time_in_hours * 60 * 60 */ seconds_remaining);
+		Darknet::display_iteration_summary(iteration, loss, avg_loss, get_current_rate(net), (what_time_is_it_now() - time), iteration * imgs, /* avg_time_in_hours * 60 * 60 */ seconds_remaining);
 
 		// This is where we decide if we have to do the mAP% calculations.
 		if (calc_map && (iteration >= next_map_calc || iteration == net.max_batches))
@@ -401,7 +401,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 				save_weights(net, buff);
 			}
 
-			update_accuracy_in_new_charts(-1, mean_average_precision);
+			Darknet::update_accuracy_in_new_charts(-1, mean_average_precision);
 
 			// done doing mAP% calculation
 		}
@@ -422,7 +422,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		}
 
 		// this is where we draw the chart while training
-		update_loss_in_new_charts(iteration, avg_loss, seconds_remaining, dont_show);
+		Darknet::update_loss_in_new_charts(iteration, avg_loss, seconds_remaining, dont_show);
 
 #endif    // OPENCV
 
@@ -1458,7 +1458,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		printf("class_id = %d, name = %s, ap = %2.2f%%   \t (TP = %d, FP = %d) \n", i, names[i], avg_precision * 100, tp_for_thresh_per_class[i], fp_for_thresh_per_class[i]);
 
 		// send the result of this class to the C++ side of things so we can include it the right chart
-		update_accuracy_in_new_charts(i, avg_precision);
+		Darknet::update_accuracy_in_new_charts(i, avg_precision);
 
 		// float class_precision = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)fp_for_thresh_per_class[i]);
 		// float class_recall = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)(truth_classes_count[i] - tp_for_thresh_per_class[i]));
@@ -1934,7 +1934,7 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 	int names_size = 0;
 	char **names = get_labels_custom(name_list, &names_size); //get_labels(name_list);
 
-	remember_class_names(names, names_size);
+	Darknet::remember_class_names(names, names_size);
 
 	network net = parse_network_cfg(cfgfile);// parse_network_cfg_custom(cfgfile, 1, 1); // set batch=1
 	net.adversarial = 1;
@@ -1954,8 +1954,7 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 	char buff[256];
 	char *input = buff;
 
-	int j;
-	float nms = .45;    // 0.4F
+	float nms = 0.45f;    // 0.4F
 	while (1) {
 		if (filename) {
 			strncpy(input, filename, 256);
@@ -2119,7 +2118,8 @@ void run_detector(int argc, char **argv)
 	int ext_output = find_arg(argc, argv, "-ext_output");
 	int save_labels = find_arg(argc, argv, "-save_labels");
 	char* chart_path = find_char_arg(argc, argv, "-chart", 0);
-	if (argc < 4) {
+	if (argc < 4)
+	{
 		fprintf(stderr, "usage: %s %s [train/test/valid/demo/map] [data] [cfg] [weights (optional)]\n", argv[0], argv[1]);
 		return;
 	}
@@ -2127,21 +2127,25 @@ void run_detector(int argc, char **argv)
 	int *gpus = 0;
 	int gpu = 0;
 	int ngpus = 0;
-	if (gpu_list) {
+	if (gpu_list)
+	{
 		printf("%s\n", gpu_list);
 		int len = (int)strlen(gpu_list);
 		ngpus = 1;
 		int i;
-		for (i = 0; i < len; ++i) {
+		for (i = 0; i < len; ++i)
+		{
 			if (gpu_list[i] == ',') ++ngpus;
 		}
 		gpus = (int*)xcalloc(ngpus, sizeof(int));
-		for (i = 0; i < ngpus; ++i) {
+		for (i = 0; i < ngpus; ++i)
+		{
 			gpus[i] = atoi(gpu_list);
 			gpu_list = strchr(gpu_list, ',') + 1;
 		}
 	}
-	else {
+	else
+	{
 		gpu = gpu_index;
 		gpus = &gpu;
 		ngpus = 1;
@@ -2192,5 +2196,9 @@ void run_detector(int argc, char **argv)
 		darknet_fatal_error(DARKNET_LOC, "invalid Darknet command: %s %s", argv[1], argv[2]);
 	}
 
-	if (gpus && gpu_list && ngpus > 1) free(gpus);
+	/// @todo why only do this if ngpus > 1?  Is this a bug?  Should it be zero?
+	if (gpus && gpu_list && ngpus > 1)
+	{
+		free(gpus);
+	}
 }

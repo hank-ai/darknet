@@ -33,6 +33,7 @@ extern "C" void resize_window_cv(char const* window_name, int width, int height)
 #include <fstream>
 #include <algorithm>
 #include <atomic>
+#include <filesystem>
 
 #include <opencv2/core/version.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
@@ -1035,7 +1036,8 @@ mat_cv* draw_initial_train_chart(char *windows_name, float max_img_loss, int max
 		{
 			filename = chart_path;
 		}
-		if (file_exists(filename.c_str()))
+
+		if (std::filesystem::exists(filename))
 		{
 			cv::Mat tmp = cv::imread(filename);
 			if (tmp.size() == cv::Size(img_size, img_size))
@@ -1215,7 +1217,7 @@ void update_train_loss_chart(char *windows_name, mat_cv* img_src, int img_size, 
 		}
 
 		// draw the text at the bottom of the chart
-		sprintf(char_buff, "loss = %2.4f      iteration = %d      time remaining = %s", avg_loss, current_batch, format_time_remaining(60.0 * 60.0 * time_remaining).c_str());
+		sprintf(char_buff, "loss = %2.4f      iteration = %d      time remaining = %s", avg_loss, current_batch, Darknet::format_time_remaining(60.0 * 60.0 * time_remaining).c_str());
 		pt1.x = 15;
 		pt1.y = draw_size + 18;
 		cv::Point pt2;
@@ -1638,7 +1640,12 @@ void show_acnhors(int number_of_boxes, int num_of_clusters, float *rel_width_hei
 
 void show_opencv_info()
 {
-	std::cout << "OpenCV version: " << CV_VERSION_MAJOR << "." << CV_VERSION_MINOR << "." << CVAUX_STR(CV_VERSION_REVISION) OCV_D << std::endl;
+	std::cout
+		<< "OpenCV "
+		<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
+		<< "v" << CV_VERSION_MAJOR << "." << CV_VERSION_MINOR << "." << CVAUX_STR(CV_VERSION_REVISION) OCV_D
+		<< Darknet::in_colour(Darknet::EColour::kNormal)
+		<< std::endl;
 }
 
 }   // extern "C"
