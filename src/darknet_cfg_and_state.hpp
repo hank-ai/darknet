@@ -33,6 +33,12 @@ namespace Darknet
 			 */
 			bool is_set(const std::string arg, const bool default_value = false);
 
+			/** This bool gets set by @ref darknet_fatal_error() when a thread determines and Darknet must exit.  This causes
+			 * training to finish early, and also prevents Darknet from logging any more (misleading) errors that happen on
+			 * additional threads.
+			 */
+			bool must_immediately_exit;
+
 			/// When @p -dont_show has been set, this value will be set to @p false.
 			bool is_shown;
 

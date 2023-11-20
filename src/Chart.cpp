@@ -385,7 +385,7 @@ Chart & Chart::update_save_and_display(const int current_iteration, const float 
 	if (need_to_update && dont_show == false)
 	{
 		cv::imshow(title, mat);
-		cv::waitKey(20);
+		cv::waitKey(10);
 	}
 
 	return *this;

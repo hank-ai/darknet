@@ -21,17 +21,18 @@ Darknet::CfgAndState::~CfgAndState()
 
 Darknet::CfgAndState & Darknet::CfgAndState::reset()
 {
-	is_shown			= true;
-	colour_is_enabled	= true;
-	argv				.clear();
-	args				.clear();
-	command				.clear();
-	function			.clear();
-	filenames			.clear();
-	cfg_filename		.clear();
-	data_filename		.clear();
-	names_filename		.clear();
-	weights_filename	.clear();
+	must_immediately_exit	= false;
+	is_shown				= true;
+	colour_is_enabled		= true;
+	argv					.clear();
+	args					.clear();
+	command					.clear();
+	function				.clear();
+	filenames				.clear();
+	cfg_filename			.clear();
+	data_filename			.clear();
+	names_filename			.clear();
+	weights_filename		.clear();
 
 	return *this;
 }

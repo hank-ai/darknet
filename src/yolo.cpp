@@ -7,6 +7,8 @@
 #include "demo.hpp"
 #include "data.hpp"
 
+#include "darknet_internal.hpp"
+
 char *voc_names[] = {"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"};
 
 void train_yolo(char *cfgfile, char *weightfile)
@@ -344,7 +346,8 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
 
 void run_yolo(int argc, char **argv)
 {
-	int dont_show = find_arg(argc, argv, "-dont_show");
+	int dont_show = (Darknet::cfg_and_state.is_shown ? 1 : 0);
+//	int dont_show = find_arg(argc, argv, "-dont_show");
 	int mjpeg_port = find_int_arg(argc, argv, "-mjpeg_port", -1);
 	int json_port = find_int_arg(argc, argv, "-json_port", -1);
 	char *out_filename = find_char_arg(argc, argv, "-out_filename", 0);

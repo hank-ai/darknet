@@ -25,7 +25,6 @@
 #pragma warning(disable: 4996)
 #endif
 
-bool darknet_must_exit = false;
 
 void *xmalloc_location(const size_t size, const char * const filename, const char * const funcname, const int line) {
 	void *ptr=malloc(size);
@@ -367,9 +366,9 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 	pthread_mutex_lock(&darknet_fatal_error_critical_section);
 
 	// only log the message and the rest of the information if this is the first call into darknet_fatal_error()
-	if (darknet_must_exit == false)
+	if (Darknet::cfg_and_state.must_immediately_exit == false)
 	{
-		darknet_must_exit = true;
+		Darknet::cfg_and_state.must_immediately_exit = true;
 
 		fprintf(stderr,
 			"\n"

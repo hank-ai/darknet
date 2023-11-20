@@ -9,6 +9,8 @@
 #include "image.hpp"
 #include "dark_cuda.hpp"
 
+#include "darknet_internal.hpp"
+
 #ifdef WIN32
 #include <time.h>
 #include "gettimeofday.h"
@@ -1402,7 +1404,8 @@ void run_classifier(int argc, char **argv)
 		ngpus = 1;
 	}
 
-	int dont_show = find_arg(argc, argv, "-dont_show");
+	int dont_show = (Darknet::cfg_and_state.is_shown ? 1 : 0);
+//	int dont_show = find_arg(argc, argv, "-dont_show");
 	int benchmark = find_arg(argc, argv, "-benchmark");
 	int benchmark_layers = find_arg(argc, argv, "-benchmark_layers");
 	if (benchmark_layers) benchmark = 1;

@@ -215,9 +215,11 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	// ***************************************
 	// THIS is the start of the training loop!
 	// ***************************************
-	while (get_current_iteration(net) < net.max_batches && darknet_must_exit == false)
+	while (get_current_iteration(net) < net.max_batches && Darknet::cfg_and_state.must_immediately_exit == false)
 	{
-		std::cout << std::endl; // we're starting a new iteration
+		// we're starting a new iteration
+		std::cout << std::endl;
+		errno = 0;
 
 		if (l.random && count++ % 10 == 0)
 		{
@@ -233,7 +235,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			int max_dim_h = roundl(rand_coef*init_h / net.resize_step + 1) * net.resize_step;
 
 			// at the beginning (check if enough memory) and at the end (calc rolling mean/variance)
-			if (avg_loss < 0 || get_current_iteration(net) > net.max_batches - 100) {
+			if (avg_loss < 0 || get_current_iteration(net) > net.max_batches - 100)
+			{
 				dim_w = max_dim_w;
 				dim_h = max_dim_h;
 			}
@@ -2085,7 +2088,8 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 
 void run_detector(int argc, char **argv)
 {
-	int dont_show = find_arg(argc, argv, "-dont_show");
+	int dont_show = (Darknet::cfg_and_state.is_shown ? 1 : 0);
+//	int dont_show = find_arg(argc, argv, "-dont_show");
 	int benchmark = find_arg(argc, argv, "-benchmark");
 	int benchmark_layers = find_arg(argc, argv, "-benchmark_layers");
 	//if (benchmark_layers) benchmark = 1;
