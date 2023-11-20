@@ -134,7 +134,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 
 		ArgsAndParms args_and_parms	= *iter;
 		args_and_parms.arg_index	= idx;
-		args[str]					= args_and_parms;
+		args[iter->name]			= args_and_parms;
 
 		if (args_and_parms.type == ArgsAndParms::EType::kCommand)
 		{
