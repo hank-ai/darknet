@@ -14,6 +14,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <ciso646>
 
 namespace Darknet
 {
