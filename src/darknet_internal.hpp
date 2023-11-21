@@ -4,10 +4,6 @@
 #error "The darknet project requires the use of a C++ compiler."
 #endif
 
-#if __cplusplus < 201703L
-#error "The darknet project requires C++17 or newer."
-#endif
-
 #include <filesystem>
 #include <iostream>
 #include <map>
