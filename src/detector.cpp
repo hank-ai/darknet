@@ -2165,10 +2165,15 @@ void run_detector(int argc, char **argv)
 	char * weights	= nullptr;
 	char * input_fn	= nullptr; // if we're passing in an image for example
 
-	if (not Darknet::cfg_and_state.data_filename	.empty())	{ datacfg	= const_cast<char*>(Darknet::cfg_and_state.data_filename	.string()	.c_str()); }
-	if (not Darknet::cfg_and_state.cfg_filename		.empty())	{ cfg		= const_cast<char*>(Darknet::cfg_and_state.cfg_filename		.string()	.c_str()); }
-	if (not Darknet::cfg_and_state.weights_filename	.empty())	{ weights	= const_cast<char*>(Darknet::cfg_and_state.weights_filename	.string()	.c_str()); }
-	if (Darknet::cfg_and_state.filenames.size() > 3)			{ input_fn	= const_cast<char*>(Darknet::cfg_and_state.filenames[3]					.c_str()); }
+	std::string fn1 = Darknet::cfg_and_state.data_filename		.string();
+	std::string fn2 = Darknet::cfg_and_state.cfg_filename		.string();
+	std::string fn3 = Darknet::cfg_and_state.weights_filename	.string();
+	std::string fn4 = (Darknet::cfg_and_state.filenames.size() > 3 ? Darknet::cfg_and_state.filenames[3] : "");
+
+	if (not Darknet::cfg_and_state.data_filename	.empty())	{ datacfg	= const_cast<char*>(fn1.c_str()); }
+	if (not Darknet::cfg_and_state.cfg_filename		.empty())	{ cfg		= const_cast<char*>(fn2.c_str()); }
+	if (not Darknet::cfg_and_state.weights_filename	.empty())	{ weights	= const_cast<char*>(fn3.c_str()); }
+	if (Darknet::cfg_and_state.filenames.size() > 3)			{ input_fn	= const_cast<char*>(fn4.c_str()); }
 
 	if		(Darknet::cfg_and_state.function == "test"			) { test_detector(datacfg, cfg, weights, input_fn, thresh, hier_thresh, dont_show, ext_output, save_labels, outfile, letter_box, benchmark_layers); }
 	else if (Darknet::cfg_and_state.function == "train"			) { train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, mjpeg_port, show_imgs, benchmark_layers, chart_path); }
