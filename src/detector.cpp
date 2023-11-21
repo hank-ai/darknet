@@ -33,6 +33,10 @@ static int coco_ids[] = { 1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,
 
 void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, char* chart_path)
 {
+//	const std::filesystem::path & datacfg		= Darknet::cfg_and_state.data_filename;
+//	const std::filesystem::path & cfgfile		= Darknet::cfg_and_state.cfg_filename;
+//	const std::filesystem::path & weightfile	= Darknet::cfg_and_state.weights_filename;
+
 	list *options = read_data_cfg(datacfg);
 	char *train_images = option_find_str(options, "train", "data/train.txt");
 	char *valid_images = option_find_str(options, "valid", train_images);
@@ -90,16 +94,18 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 #endif
 		nets[k] = parse_network_cfg(cfgfile);
 		nets[k].benchmark_layers = benchmark_layers;
-		if (weightfile) {
+		if (weightfile)
+		{
 			load_weights(&nets[k], weightfile);
 		}
-		if (clear) {
+		if (clear)
+		{
 			*nets[k].seen = 0;
 			*nets[k].cur_iteration = 0;
 		}
 		nets[k].learning_rate *= ngpus;
 	}
-	srand(time(0));
+	srand(time(0));	/// @todo why again?
 	network net = nets[0];
 
 	const int actual_batch_size = net.batch * net.subdivisions;
@@ -215,7 +221,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	// ***************************************
 	// THIS is the start of the training loop!
 	// ***************************************
-	while (get_current_iteration(net) < net.max_batches && Darknet::cfg_and_state.must_immediately_exit == false)
+
+	while (get_current_iteration(net) < net.max_batches and Darknet::cfg_and_state.must_immediately_exit == false)
 	{
 		// we're starting a new iteration
 		std::cout << std::endl;
@@ -2096,7 +2103,6 @@ void run_detector(int argc, char **argv)
 	if (benchmark) dont_show = 1;
 	int show = find_arg(argc, argv, "-show");
 	int letter_box = find_arg(argc, argv, "-letter_box");
-	int calc_map = find_arg(argc, argv, "-map");
 	int map_points = find_int_arg(argc, argv, "-points", 0);
 	check_mistakes = find_arg(argc, argv, "-check_mistakes");
 	int show_imgs = find_arg(argc, argv, "-show_imgs");
@@ -2155,41 +2161,38 @@ void run_detector(int argc, char **argv)
 		ngpus = 1;
 	}
 
-	int clear = find_arg(argc, argv, "-clear");
+	int clear		= Darknet::cfg_and_state.is_set("clear"	) ? 1 : 0;
+	int calc_map	= Darknet::cfg_and_state.is_set("map"	) ? 1 : 0;
 
-	char *datacfg = argv[3];
-	char *cfg = argv[4];
-	char *weights = (argc > 5) ? argv[5] : 0;
-	if (weights)
-		if (strlen(weights) > 0)
-			if (weights[strlen(weights) - 1] == 0x0d) weights[strlen(weights) - 1] = 0;
-	char *filename = (argc > 6) ? argv[6] : 0;
-	if (0 == strcmp(argv[2], "test")) test_detector(datacfg, cfg, weights, filename, thresh, hier_thresh, dont_show, ext_output, save_labels, outfile, letter_box, benchmark_layers);
-	else if (0 == strcmp(argv[2], "train")) train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, mjpeg_port, show_imgs, benchmark_layers, chart_path);
-	else if (0 == strcmp(argv[2], "valid")) validate_detector(datacfg, cfg, weights, outfile);
-	else if (0 == strcmp(argv[2], "recall")) validate_detector_recall(datacfg, cfg, weights);
-	else if (0 == strcmp(argv[2], "map")) validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL);
-	else if (0 == strcmp(argv[2], "calc_anchors")) calc_anchors(datacfg, num_of_clusters, width, height, show);
-	else if (0 == strcmp(argv[2], "draw"))
-	{
-		int it_num = 100;
-		draw_object(datacfg, cfg, weights, filename, thresh, dont_show, it_num, letter_box, benchmark_layers);
-	}
-	else if (0 == strcmp(argv[2], "demo"))
+	/// @todo get rid of the old C-style filename access and use std::filesystem::path within the functions so we're passing these around as char* parms
+	char * datacfg	= nullptr;
+	char * cfg		= nullptr;
+	char * weights	= nullptr;
+	char * input_fn	= nullptr; // if we're passing in an image for example
+
+	if (not Darknet::cfg_and_state.data_filename	.empty())	{ datacfg	= const_cast<char*>(Darknet::cfg_and_state.data_filename	.c_str()); }
+	if (not Darknet::cfg_and_state.cfg_filename		.empty())	{ cfg		= const_cast<char*>(Darknet::cfg_and_state.cfg_filename		.c_str()); }
+	if (not Darknet::cfg_and_state.weights_filename	.empty())	{ weights	= const_cast<char*>(Darknet::cfg_and_state.weights_filename	.c_str()); }
+	if (Darknet::cfg_and_state.filenames.size() > 3)			{ input_fn	= const_cast<char*>(Darknet::cfg_and_state.filenames[3]		.c_str()); }
+
+	if		(Darknet::cfg_and_state.function == "test"			) { test_detector(datacfg, cfg, weights, input_fn, thresh, hier_thresh, dont_show, ext_output, save_labels, outfile, letter_box, benchmark_layers); }
+	else if (Darknet::cfg_and_state.function == "train"			) { train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, mjpeg_port, show_imgs, benchmark_layers, chart_path); }
+	else if (Darknet::cfg_and_state.function == "valid"			) { validate_detector(datacfg, cfg, weights, outfile); }
+	else if (Darknet::cfg_and_state.function == "recall"		) { validate_detector_recall(datacfg, cfg, weights); }
+	else if (Darknet::cfg_and_state.function == "map"			) { validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL); }
+	else if (Darknet::cfg_and_state.function == "calc_anchors"	) { calc_anchors(datacfg, num_of_clusters, width, height, show); }
+	else if (Darknet::cfg_and_state.function == "draw"			) { draw_object(datacfg, cfg, weights, input_fn, thresh, dont_show, 100, letter_box, benchmark_layers); }
+	else if (Darknet::cfg_and_state.function == "demo"			)
 	{
 		list *options = read_data_cfg(datacfg);
 		int classes = option_find_int(options, "classes", 20);
 		char *name_list = option_find_str(options, "names", "data/names.list");
 		char **names = get_labels(name_list);
-		if (filename)
+		if (input_fn)
 		{
-			if (strlen(filename) > 0)
+			if (strlen(input_fn) > 0)
 			{
-				if (filename[strlen(filename) - 1] == 0x0d) filename[strlen(filename) - 1] = 0;
-				{
-					demo(cfg, weights, thresh, hier_thresh, cam_index, filename, names, classes, avgframes, frame_skip, prefix, out_filename,
-						mjpeg_port, dontdraw_bbox, json_port, dont_show, ext_output, letter_box, time_limit_sec, http_post_host, benchmark, benchmark_layers);
-				}
+				demo(cfg, weights, thresh, hier_thresh, cam_index, input_fn, names, classes, avgframes, frame_skip, prefix, out_filename, mjpeg_port, dontdraw_bbox, json_port, dont_show, ext_output, letter_box, time_limit_sec, http_post_host, benchmark, benchmark_layers);
 			}
 		}
 		free_list_contents_kvp(options);
@@ -2197,7 +2200,7 @@ void run_detector(int argc, char **argv)
 	}
 	else
 	{
-		darknet_fatal_error(DARKNET_LOC, "invalid Darknet command: %s %s", argv[1], argv[2]);
+		darknet_fatal_error(DARKNET_LOC, "invalid Darknet command: %s %s", Darknet::cfg_and_state.command.c_str(), Darknet::cfg_and_state.function.c_str());
 	}
 
 	/// @todo why only do this if ngpus > 1?  Is this a bug?  Should it be zero?

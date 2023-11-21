@@ -133,7 +133,7 @@ int find_int_arg(int argc, char **argv, const char * const arg, int def)
 		if(0==strcmp(argv[i], arg)){
 			def = atoi(argv[i+1]);
 			del_arg(argc, argv, i);
-			del_arg(argc, argv, i); /// @todo should this be i+1?
+			del_arg(argc, argv, i);
 			break;
 		}
 	}
@@ -148,7 +148,7 @@ float find_float_arg(int argc, char **argv, const char * const arg, float def)
 		if(0==strcmp(argv[i], arg)){
 			def = atof(argv[i+1]);
 			del_arg(argc, argv, i);
-			del_arg(argc, argv, i); /// @todo should this be i+1?
+			del_arg(argc, argv, i);
 			break;
 		}
 	}
@@ -163,7 +163,7 @@ char *find_char_arg(int argc, char **argv, char *arg, char *def)
 		if(0==strcmp(argv[i], arg)){
 			def = argv[i+1];
 			del_arg(argc, argv, i);
-			del_arg(argc, argv, i); /// @todo should this be i+1?
+			del_arg(argc, argv, i);
 			break;
 		}
 	}

@@ -14,21 +14,6 @@ std::vector<std::string> Darknet::class_names;
 std::vector<cv::Scalar> Darknet::class_colours;
 
 
-#if 0
-/** @todo Colour not yet supported on Windows.  On recent editions of Windows see @p SetConsoleMode() and
- * @p ENABLE_VIRTUAL_TERMINAL_PROCESSING, though I think this is only with newer versions of Windows 10.
- * Looks like this can also be enabled globally in the registry.  In @p [HKEY_CURRENT_USER/Console]
- * create a key called @p "VirtualTerminalLevel" and set it to @p 1.  Open a new console for the change
- * to take effect.
- */
-#if defined(_MSC_VER) || defined(WIN32)
-bool colour_is_enabled = false;
-#else
-bool colour_is_enabled = true;
-#endif
-#endif
-
-
 void Darknet::remember_class_names(char ** names, const int count)
 {
 	if (static_cast<size_t>(count) == class_names.size())

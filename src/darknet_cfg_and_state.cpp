@@ -149,7 +149,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 			}
 		}
 
-		if (args_and_parms.type == ArgsAndParms::EType::kFunction)
+		if (args_and_parms.type == ArgsAndParms::EType::kFunction and original_arg[0] != '-') // don't mix up func "map" with parm "-map"
 		{
 			if (not cfg_and_state.function.empty())
 			{
