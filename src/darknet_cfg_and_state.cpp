@@ -140,8 +140,16 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 		{
 			if (not cfg_and_state.command.empty())
 			{
-//				throw std::invalid_argument("command \"" + cfg_and_state.command + "\" is already set while processing new command argument \"" + original_arg + "\"");
-				display_warning_msg("command \"" + cfg_and_state.command + "\" is already set while processing new command argument \"" + original_arg + "\"\n");
+				if (cfg_and_state.function.empty())
+				{
+					// we already have a command, so assume this is a function (such as "darknet test" and "darknet detector test")
+					cfg_and_state.function = iter->name;
+				}
+				else
+				{
+//					throw std::invalid_argument("command \"" + cfg_and_state.command + "\" is already set while processing new command argument \"" + original_arg + "\"");
+					display_warning_msg("command \"" + cfg_and_state.command + "\" is already set while processing new command argument \"" + original_arg + "\"\n");
+				}
 			}
 			else
 			{

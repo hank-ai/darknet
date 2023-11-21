@@ -2095,12 +2095,9 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 
 void run_detector(int argc, char **argv)
 {
-	int dont_show = (Darknet::cfg_and_state.is_shown ? 1 : 0);
-//	int dont_show = find_arg(argc, argv, "-dont_show");
 	int benchmark = find_arg(argc, argv, "-benchmark");
 	int benchmark_layers = find_arg(argc, argv, "-benchmark_layers");
 	//if (benchmark_layers) benchmark = 1;
-	if (benchmark) dont_show = 1;
 	int show = find_arg(argc, argv, "-show");
 	int letter_box = find_arg(argc, argv, "-letter_box");
 	int map_points = find_int_arg(argc, argv, "-points", 0);
@@ -2156,8 +2153,10 @@ void run_detector(int argc, char **argv)
 		ngpus = 1;
 	}
 
-	int clear		= Darknet::cfg_and_state.is_set("clear"	) ? 1 : 0;
-	int calc_map	= Darknet::cfg_and_state.is_set("map"	) ? 1 : 0;
+	int clear		= Darknet::cfg_and_state.is_set("clear"	)	? 1 : 0;
+	int calc_map	= Darknet::cfg_and_state.is_set("map"	)	? 1 : 0;
+	int dont_show	= Darknet::cfg_and_state.is_shown			? 0 : 1;
+	if (benchmark) dont_show = 1;
 
 	/// @todo get rid of the old C-style filename access and use std::filesystem::path within the functions so we're not passing these around as char* parms
 	char * datacfg	= nullptr;
