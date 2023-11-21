@@ -504,7 +504,7 @@ int main(int argc, char **argv)
 
 		errno = 0;
 
-		if (Darknet::cfg_and_state.command.empty())					{ Darknet::display_usage();			}
+		if		(Darknet::cfg_and_state.command.empty())			{ Darknet::display_usage();			}
 		else if (Darknet::cfg_and_state.command == "3d")			{ composite_3d		(argv[2], argv[3], argv[4], (argc > 5) ? atof(argv[5]) : 0); }
 		else if (Darknet::cfg_and_state.command == "art")			{ run_art			(argc, argv);	}
 		else if (Darknet::cfg_and_state.command == "average")		{ average			(argc, argv);	}

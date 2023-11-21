@@ -2128,11 +2128,6 @@ void run_detector(int argc, char **argv)
 	int ext_output = find_arg(argc, argv, "-ext_output");
 	int save_labels = find_arg(argc, argv, "-save_labels");
 	char* chart_path = find_char_arg(argc, argv, "-chart", 0);
-	if (argc < 4)
-	{
-		fprintf(stderr, "usage: %s %s [train/test/valid/demo/map] [data] [cfg] [weights (optional)]\n", argv[0], argv[1]);
-		return;
-	}
 	char *gpu_list = find_char_arg(argc, argv, "-gpus", 0);
 	int *gpus = 0;
 	int gpu = 0;
@@ -2164,7 +2159,7 @@ void run_detector(int argc, char **argv)
 	int clear		= Darknet::cfg_and_state.is_set("clear"	) ? 1 : 0;
 	int calc_map	= Darknet::cfg_and_state.is_set("map"	) ? 1 : 0;
 
-	/// @todo get rid of the old C-style filename access and use std::filesystem::path within the functions so we're passing these around as char* parms
+	/// @todo get rid of the old C-style filename access and use std::filesystem::path within the functions so we're not passing these around as char* parms
 	char * datacfg	= nullptr;
 	char * cfg		= nullptr;
 	char * weights	= nullptr;

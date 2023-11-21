@@ -10,8 +10,11 @@
 #include <float.h>
 #include <limits.h>
 #include "darkunistd.hpp"
+
 #ifdef WIN32
 #include "gettimeofday.h"
+#include <dbghelp.h>
+#pragma comment(lib, "DbgHelp.lib")
 #else
 #include <sys/time.h>
 #include <sys/stat.h>
@@ -334,11 +337,38 @@ void top_k(float *a, int n, int k, int *index)
 
 void log_backtrace()
 {
-	/// @todo Would be nice to log the stack trace on Windows as well.
-#ifndef WIN32
-	void * buffer[50];
-	int count = backtrace(buffer, sizeof(buffer));
-	char **symbols = backtrace_symbols(buffer, count);
+	#define MAX_STACK_FRAMES 50
+	void * stack[MAX_STACK_FRAMES];
+	
+#ifdef WIN32
+	auto process = GetCurrentProcess();
+	SymSetOptions(
+		SYMOPT_CASE_INSENSITIVE 		|
+		SYMOPT_FAIL_CRITICAL_ERRORS		|
+		SYMOPT_INCLUDE_32BIT_MODULES	|
+		SYMOPT_NO_PROMPTS				|
+		SYMOPT_UNDNAME					);
+	SymInitialize(process, nullptr, TRUE);
+
+	auto count = CaptureStackBackTrace(0, MAX_STACK_FRAMES, stack, nullptr);
+
+	fprintf(stderr, "backtrace (%d entries):\n", count);
+
+	char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
+	SYMBOL_INFO * symbol = reinterpret_cast<SYMBOL_INFO*>(buffer);
+	symbol->MaxNameLen = MAX_SYM_NAME;
+	symbol->SizeOfStruct = sizeof(SYMBOL_INFO);
+
+	for (auto idx = 0; idx < count; idx ++)
+	{
+		SymFromAddr(process, DWORD64(stack[idx]), 0, symbol);
+		fprintf(stderr, "%d/%d: %s()\n", idx + 1, count, symbol->Name);
+	}
+	SymCleanup(process);
+	CloseHandle(process);
+#else
+	int count = backtrace(stack, MAX_STACK_FRAMES);
+	char **symbols = backtrace_symbols(stack, count);
 
 	fprintf(stderr, "backtrace (%d entries):\n", count);
 
