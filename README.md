@@ -245,9 +245,14 @@ You'll need to have a `.weights` file to run most of these commands.  You can ei
 * Running on a specific GPU:  `darknet detector demo animals.data animals.cfg animals_best.weights -i 1 test.mp4`
 * To check accuracy mAP@IoU=50:  `darknet detector map animals.data animals.cfg animals_best.weights`
 * To check accuracy mAP@IoU=75:  `darknet detector map animals.data animals.cfg animals_best.weights -iou_thresh 0.75`
-* Train a new network:  `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below
+* Train a new network:  `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below)
 
 ## Training
+
+Quick links to relevant sections of the Darknet/YOLO FAQ:
+* [How should I setup my files and directories?](https://www.ccoderun.ca/programming/yolo_faq/#directory_setup)
+* [Which configuration file should I use?](https://www.ccoderun.ca/programming/yolo_faq/#configuration_template)
+* [What command should I use when training my own network?](https://www.ccoderun.ca/programming/yolo_faq/#training_command)
 
 The simplest way to annotate and train is with the use of [DarkMark](https://github.com/stephanecharette/DarkMark) to create all of the necessary files.
 
@@ -256,7 +261,7 @@ If you'd rather manually setup the various files to train a custom network:
 * Create a new folder where the files will be stored.  For this example, a neural network will be created to detect animals, so the following directory is created:  `~/nn/animals/`.
 * Copy one of the Darknet configuration files you'd like to use as a template.  For example, see `cfg/yolov4-tiny.cfg`.  Place this in the folder you created.  For this example, we now have `~/nn/animals/animals.cfg`.
 * Create a `animals.names` text file in the same folder where you placed the configuration file.  For this example, we now have `~/nn/animals/animals.names`.
-* Edit the `animals.names` file with your text editor.  List the classes you want to use.  You need to have exactly 1 entry per line, with no blank lines and no comments.  For this example, the `.names` file will contain:
+* Edit the `animals.names` file with your text editor.  List the classes you want to use.  You need to have exactly 1 entry per line, with no blank lines and no comments.  For this example, the `.names` file will contain exactly 4 lines:
 ~~~
     dog
     cat
@@ -289,7 +294,7 @@ If you'd rather manually setup the various files to train a custom network:
     darknet detector -map -dont_show train animals.data animals.cfg
 ~~~
 
-Be patient.  The best weights will be saved as `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file.
+Be patient.  The best weights will be saved as `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file.  See [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#training_command) for additional parameters you may want to use when training a new network.
 
 # Other Tools and Links
 
