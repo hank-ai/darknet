@@ -33,6 +33,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	data_filename			.clear();
 	names_filename			.clear();
 	weights_filename		.clear();
+	additional_arguments	.clear();
 
 	return *this;
 }
@@ -120,7 +121,8 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 			}
 			else
 			{
-				display_warning_msg("skipped validating argument #" + std::to_string(idx) + " (" + original_arg + ")");
+				additional_arguments.push_back(original_arg);
+				display_warning_msg("skipped validating of argument #" + std::to_string(idx) + " (" + original_arg + ")");
 				std::cout << std::endl;
 				continue;
 			}

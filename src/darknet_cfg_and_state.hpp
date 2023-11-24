@@ -60,6 +60,9 @@ namespace Darknet
 			std::filesystem::path data_filename;
 			std::filesystem::path names_filename;
 			std::filesystem::path weights_filename;
+
+			/// Parameters that were unrecognized.
+			VStr additional_arguments;
 	};
 
 	extern CfgAndState cfg_and_state;
