@@ -2187,6 +2187,11 @@ void run_detector(int argc, char **argv)
 	else if (Darknet::cfg_and_state.function == "draw"			) { draw_object(datacfg, cfg, weights, input_fn, thresh, dont_show, 100, letter_box, benchmark_layers); }
 	else if (Darknet::cfg_and_state.function == "demo"			)
 	{
+		/* Examples:
+		 *
+		 *		darknet detector demo cfg/coco.data cfg/yolov4-tiny.cfg yolov4-tiny.weights http://10.10.201.247:8888/test/
+		 *		darknet detector demo driving.data driving.cfg driving_best.weights http://10.10.201.247:8888/test/
+		 */
 		list *options = read_data_cfg(datacfg);
 		int classes = option_find_int(options, "classes", 20);
 		char *name_list = option_find_str(options, "names", "data/names.list");

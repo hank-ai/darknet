@@ -79,45 +79,56 @@ The various build methods available in the past have been merged together into a
 [![Darknet build tutorial for Linux](doc/linux_build_thumbnail.jpg)](https://www.youtube.com/watch?v=WTT1s8JjLFk)
 
 * Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
-	* Visit https://developer.nvidia.com/cuda-downloads to download and install CUDA.
-	* Visit https://developer.nvidia.com/rdp/cudnn-download or https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#cudnn-package-manager-installation-overview to download and install cuDNN.
+	* Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
+	* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#cudnn-package-manager-installation-overview> to download and install cuDNN.
+	* Once you install CUDA make sure you can run `nvcc` and `nvidia-smi`.  You may have to [modify your `PATH` variable](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#mandatory-actions).
 	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
 		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
 		* Remember to re-build Darknet.
 
 These instructions assume a system running Ubuntu 22.04.
 
-    sudo apt-get install build-essential git libopencv-dev cmake
-    mkdir ~/src
-    cd ~/src
-    git clone https://github.com/hank-ai/darknet
-    cd darknet
-    mkdir build
-    cd build
-    cmake -DCMAKE_BUILD_TYPE=Release ..
-    make -j4 package
-    sudo dpkg -i darknet-VERSION.deb
+```sh
+sudo apt-get install build-essential git libopencv-dev cmake
+mkdir ~/src
+cd ~/src
+git clone https://github.com/hank-ai/darknet
+cd darknet
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+make -j4 package
+sudo dpkg -i darknet-VERSION.deb
+```
 
 If you are using an older version of CMake, such as the one with Ubuntu 18.04 or 20.04, then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu can be done with the following commands:
 
-    sudo apt-get purge cmake
-    sudo snap install cmake --classic
+```sh
+sudo apt-get purge cmake
+sudo snap install cmake --classic
+```
 
 > Advanced users:
 >
 > If you want to build a RPM installation file instead of a DEB file, see the relevant lines in `CM_package.cmake`.  Prior to running `make -j4 package` you'll need to edit these two lines:
 
-    SET (CPACK_GENERATOR "DEB")
-    # SET (CPACK_GENERATOR "RPM")
+```cmake
+SET (CPACK_GENERATOR "DEB")
+# SET (CPACK_GENERATOR "RPM")
+```
 
 > For distros such as Centos and OpenSUSE, you'll need to switch those two lines in `CM_package.cmake` to be:
 
-    # SET (CPACK_GENERATOR "DEB")
-    SET (CPACK_GENERATOR "RPM")
+```cmake
+# SET (CPACK_GENERATOR "DEB")
+SET (CPACK_GENERATOR "RPM")
+```
 
 To install the installation package, use the usual package manager for your distribution.  For example, on Debian-based systems such as Ubuntu:
 
-    sudo dpkg -i darknet-2.0.1-Linux.deb
+```sh
+sudo dpkg -i darknet-2.0.1-Linux.deb
+```
 
 Installing the package will copy the following files:
 
@@ -135,10 +146,12 @@ These instructions assume a brand new installation of Windows 11 22H2.
 
 Open a normal `cmd.exe` command prompt window and run the following commands:
 
-    winget install Git.Git
-    winget install Kitware.CMake
-    winget install nsis.nsis
-    winget install Microsoft.VisualStudio.2022.Community
+```bat
+winget install Git.Git
+winget install Kitware.CMake
+winget install nsis.nsis
+winget install Microsoft.VisualStudio.2022.Community
+```
 
 At this point we need to modify the Visual Studio installation to include support for C++ applications:
 
@@ -155,15 +168,17 @@ Once everything is downloaded and installed, click on the "Windows Start" menu a
 
 Run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
 
-    cd c:\
-    mkdir c:\src
-    cd c:\src
-    git clone https://github.com/microsoft/vcpkg
-    cd vcpkg
-    bootstrap-vcpkg.bat
-    .\vcpkg.exe integrate install
-    .\vcpkg.exe integrate powershell
-    .\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows pthreads:x64-windows
+```bat
+cd c:\
+mkdir c:\src
+cd c:\src
+git clone https://github.com/microsoft/vcpkg
+cd vcpkg
+bootstrap-vcpkg.bat
+.\vcpkg.exe integrate install
+.\vcpkg.exe integrate powershell
+.\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows pthreads:x64-windows
+```
 
 Be patient at this last step as it can take a long time to run.  It needs to download and build many things.
 
@@ -172,8 +187,9 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 > Note there are many other optional modules you may want to add when building OpenCV.  Run `.\vcpkg.exe search opencv` to see the full list.
 
 * Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
-	* Visit https://developer.nvidia.com/cuda-downloads to download and install CUDA.
-	* Visit https://developer.nvidia.com/rdp/cudnn-download or https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#download-windows to download and install cuDNN.
+	* Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
+	* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#download-windows> to download and install cuDNN.
+	* Once you install CUDA make sure you can run `nvcc` and `nvidia-smi`.  You may have to modify your `PATH` variable.
 	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
 		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
 		* Remember to re-build Darknet.
@@ -181,13 +197,16 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 
 Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies:
 
-    cd c:\src
-    git clone https://github.com/hank-ai/darknet.git
-    cd darknet
-    mkdir build
-    cd build
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/src/vcpkg/scripts/buildsystems/vcpkg.cmake ..
-    msbuild.exe /property:Platform=x64;Configuration=Release /target:Build -maxCpuCount -verbosity:normal -detailedSummary darknet.sln
+```bat
+cd c:\src
+git clone https://github.com/hank-ai/darknet.git
+cd darknet
+mkdir build
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/src/vcpkg/scripts/buildsystems/vcpkg.cmake ..
+msbuild.exe /property:Platform=x64;Configuration=Release /target:Build -maxCpuCount -verbosity:normal -detailedSummary darknet.sln
+msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
+```
 
 > Advanced users:
 >
@@ -195,11 +214,7 @@ Once all of the previous steps have finished successfully, you need to clone Dar
 
 If you want, you can stop here.  You should now have this file you can run:  `C:\src\Darknet\build\src\Release\Darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src\Release\Darknet.exe version`.
 
-To properly package up Darknet, the libraries, the include files, and the necessary DLLs, create the NSIS installation package like this:
-
-    msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
-
-This will create a `darknet-VERSION.exe` file in the `build` directory.
+To correctly install Darknet, the libraries, the include files, and the necessary DLLs, run the NSIS installation `.exe` package that was built in the last step.  See the file `darknet-VERSION.exe` in the `build` directory.
 
 > If you get an error about some missing CUDA DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
 >
@@ -232,9 +247,9 @@ You'll need to have a `.weights` file to run most of these commands.  You can ei
 * Predict using an image:  `darknet detector test animals.data animals.cfg animals_best.weights dog.jpg`
 * Download YOLOv4-tiny weights and predict using a sample image in the `artwork` directory:
 ```sh
-    cd src/darknet/
-    wget --no-clobber https://github.com/hank-ai/darknet/releases/download/v2.0/yolov4-tiny.weights
-    darknet detector test cfg/coco.data cfg/yolov4-tiny.cfg yolov4-tiny.weights artwork/dog.jpg
+cd src/darknet/
+wget --no-clobber https://github.com/hank-ai/darknet/releases/download/v2.0/yolov4-tiny.weights
+darknet detector test cfg/coco.data cfg/yolov4-tiny.cfg yolov4-tiny.weights artwork/dog.jpg
 ```
 * Output coordinates:  `darknet detector test animals.data animals.cfg animals_best.weights -ext_output dog.jpg`
 * Working with videos:  `darknet detector demo animals.data animals.cfg animals_best.weights -ext_output test.mp4`
