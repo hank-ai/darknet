@@ -1,6 +1,10 @@
 #include "darknet_cfg_and_state.hpp"
 #include <iostream>
 
+#ifdef WIN32
+#include <Windows.h>
+#endif
+
 
 Darknet::CfgAndState Darknet::cfg_and_state;
 
@@ -188,6 +192,33 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 	{
 		colour_is_enabled = false;
 	}
+
+#ifdef WIN32
+	if (colour_is_enabled)
+	{
+		// enable VT100 and ANSI escape handling in Windows
+		bool success = false;
+		for (auto handle : {STD_OUTPUT_HANDLE, STD_ERROR_HANDLE})
+		{
+			HANDLE std_handle = GetStdHandle(handle);
+			if (std_handle != INVALID_HANDLE_VALUE)
+			{
+				DWORD mode = 0;
+				if (GetConsoleMode(std_handle, &mode))
+				{
+					mode |= ENABLE_PROCESSED_OUTPUT;
+					mode |= ENABLE_VIRTUAL_TERMINAL_PROCESSING;
+					SetConsoleMode(std_handle, mode);
+					success = true;
+				}
+			}
+		}
+		if (not success)
+		{
+			colour_is_enabled = false;
+		}
+	}
+#endif
 
 	return *this;
 }
