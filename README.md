@@ -209,7 +209,7 @@ msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 ```
 
 > Advanced users:
->
+> 
 > Note that the output of the `cmake` command in the previous step is a normal Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio or VS Code.
 
 If you want, you can stop here.  You should now have this file you can run:  `C:\src\Darknet\build\src\Release\Darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src\Release\Darknet.exe version`.
@@ -217,13 +217,13 @@ If you want, you can stop here.  You should now have this file you can run:  `C:
 To correctly install Darknet, the libraries, the include files, and the necessary DLLs, run the NSIS installation `.exe` package that was built in the last step.  See the file `darknet-VERSION.exe` in the `build` directory.
 
 > If you get an error about some missing CUDA DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
->
->     copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\*.dll" src\Release\
->
+```bat
+copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\*.dll" src\Release\
+```
 > Similarly, if you get an error about CUDNN, then manually copy the CUDNN `.dll` file into the same output directory.  For example:
->
->     copy "C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll" src\Release\
->
+```bat
+copy "C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll" src\Release\
+```
 > Once the files have been copied, re-run the last command to generate the NSIS installation package.
 
 Installing the NSIS installation package will:
@@ -241,15 +241,24 @@ You are now done!  Darknet has been built and installed into `C:\Program Files\D
 
 This is not the full list of all commands supported by Darknet.  See [the previous readme](README_previous.md) for additional details and examples.
 
-You'll need to have a `.weights` file to run most of these commands.  You can either train your own network (highly recommended!) or [download the MSCOCO pre-trained `.weights` files](#mscoco-pre-trained-weights).
+> In addition to the Darknet CLI, also note [the DarkHelp project CLI](https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-cli) which provides an alternative CLI to Darknet/YOLO.  The DarkHelp CLI also has several advanced features that are not available directly in Darknet.  You can use both the Darknet CLI and the DarkHelp CLI together, they are not mutually exclusive.
+
+For most of the commands shown below, you'll need the `.weights` file with the corresponding `.names` and `.cfg` files.  You can either [train your own network](#training) (highly recommended!) or [download the MSCOCO pre-trained `.weights` files](#mscoco-pre-trained-weights).  The `.cfg` and `.names` files are in the [cfg](cfg/) directory in the repo.
 
 * Check the version:  `darknet version`
+* Obtain some (very limited!) assitance on some commands to run:  `darknet help`
 * Predict using an image:  `darknet detector test animals.data animals.cfg animals_best.weights dog.jpg`
 * Download YOLOv4-tiny weights and predict using a sample image in the `artwork` directory:
 ```sh
 cd src/darknet/
 wget --no-clobber https://github.com/hank-ai/darknet/releases/download/v2.0/yolov4-tiny.weights
 darknet detector test cfg/coco.data cfg/yolov4-tiny.cfg yolov4-tiny.weights artwork/dog.jpg
+```
+* The equivalent command when using DarkHelp would be:
+```sh
+cd src/darknet/
+DarkHelp cfg/coco.names cfg/yolov4-tiny.cfg yolov4-tiny.weights artwork/dog.jpg
+# The order in which you list the .names, .cfg, and .weights file is not important for DarkHelp.
 ```
 * Output coordinates:  `darknet detector test animals.data animals.cfg animals_best.weights -ext_output dog.jpg`
 * Working with videos:  `darknet detector demo animals.data animals.cfg animals_best.weights -ext_output test.mp4`
@@ -269,7 +278,7 @@ Quick links to relevant sections of the Darknet/YOLO FAQ:
 * [Which configuration file should I use?](https://www.ccoderun.ca/programming/yolo_faq/#configuration_template)
 * [What command should I use when training my own network?](https://www.ccoderun.ca/programming/yolo_faq/#training_command)
 
-The simplest way to annotate and train is with the use of [DarkMark](https://github.com/stephanecharette/DarkMark) to create all of the necessary files.
+The simplest way to annotate and train is with the use of [DarkMark](https://github.com/stephanecharette/DarkMark) to create all of the necessary Darknet files.  This is definitely the recommended way to train a new neural network.
 
 If you'd rather manually setup the various files to train a custom network:
 
@@ -277,21 +286,21 @@ If you'd rather manually setup the various files to train a custom network:
 * Copy one of the Darknet configuration files you'd like to use as a template.  For example, see `cfg/yolov4-tiny.cfg`.  Place this in the folder you created.  For this example, we now have `~/nn/animals/animals.cfg`.
 * Create a `animals.names` text file in the same folder where you placed the configuration file.  For this example, we now have `~/nn/animals/animals.names`.
 * Edit the `animals.names` file with your text editor.  List the classes you want to use.  You need to have exactly 1 entry per line, with no blank lines and no comments.  For this example, the `.names` file will contain exactly 4 lines:
-~~~
-    dog
-    cat
-    bird
-    horse
-~~~
+```txt
+dog
+cat
+bird
+horse
+```
 
 * Create a `animals.data` text file in the same folder.  For this example, the `.data` file will contain:
-~~~
-    classes = 4
-    train = /home/username/nn/animals/animals_train.txt
-    valid = /home/username/nn/animals/animals_valid.txt
-    names = /home/username/nn/animals/animals.names
-    backup = /home/username/nn/animals
-~~~
+```txt
+classes = 4
+train = /home/username/nn/animals/animals_train.txt
+valid = /home/username/nn/animals/animals_valid.txt
+names = /home/username/nn/animals/animals.names
+backup = /home/username/nn/animals
+```
 
 * Create a folder where you'll store your images and annotations.  For example, this could be `~/nn/animals/dataset`.  Each image will need a coresponding `.txt` file which describes the annotations for that image.  The format of the `.txt` annotation files is very specific.  You cannot create these files by hand since each annotation needs to contain the exact coordinates for the annotation.  See [DarkMark](https://github.com/stephanecharette/DarkMark) or other similar software to annotate your images.  The YOLO annotation format is described in the [Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#darknet_annotations).
 * Create the "train" and "valid" text files named in the `.data` file.  These two text files need to individually list all of the images which Darknet must use to train and for validation when calculating the mAP%.  Exactly one image per line.  The path and filenames may be relative or absolute.
@@ -304,10 +313,10 @@ If you'd rather manually setup the various files to train a custom network:
   * Search for all instances of the line `classes=...` and modify it with the number of classes in your `.names` file.  For this example, we'd use `classes=4`.
   * Search for all instances of the line `filters=...` in the `[convolutional]` section **prior** to each `[yolo]` section.  The value to use is (number_of_classes + 5) * 3.  Meaning for this example, (4 + 5) * 3 = 27.  So we'd use `filters=27` on the appropriate lines.
 * Start training!  Run the following commands:
-~~~
-    cd ~/nn/animals/
-    darknet detector -map -dont_show train animals.data animals.cfg
-~~~
+```sh
+cd ~/nn/animals/
+darknet detector -map -dont_show train animals.data animals.cfg
+```
 
 Be patient.  The best weights will be saved as `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file.  See [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#training_command) for additional parameters you may want to use when training a new network.
 
