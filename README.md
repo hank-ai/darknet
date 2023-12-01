@@ -208,23 +208,23 @@ msbuild.exe /property:Platform=x64;Configuration=Release /target:Build -maxCpuCo
 msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 ```
 
+If you get an error about some missing CUDA DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
+```bat
+copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\*.dll" src\Release\
+```
+Similarly, if you get an error about CUDNN, then manually copy the CUDNN `.dll` file into the same output directory.  For example:
+```bat
+copy "C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll" src\Release\
+```
+Once the files have been copied, re-run the last command to generate the NSIS installation package.
+
 > Advanced users:
 > 
-> Note that the output of the `cmake` command in the previous step is a normal Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio or VS Code.
+> Note that the output of the `cmake` command is a normal Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio.
 
 If you want, you can stop here.  You should now have this file you can run:  `C:\src\Darknet\build\src\Release\Darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src\Release\Darknet.exe version`.
 
 To correctly install Darknet, the libraries, the include files, and the necessary DLLs, run the NSIS installation `.exe` package that was built in the last step.  See the file `darknet-VERSION.exe` in the `build` directory.
-
-> If you get an error about some missing CUDA DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
-```bat
-copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\*.dll" src\Release\
-```
-> Similarly, if you get an error about CUDNN, then manually copy the CUDNN `.dll` file into the same output directory.  For example:
-```bat
-copy "C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll" src\Release\
-```
-> Once the files have been copied, re-run the last command to generate the NSIS installation package.
 
 Installing the NSIS installation package will:
 
