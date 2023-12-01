@@ -216,7 +216,10 @@ Similarly, if you get an error about CUDNN, then manually copy the CUDNN `.dll` 
 ```bat
 copy "C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll" src\Release\
 ```
-Once the files have been copied, re-run the last command to generate the NSIS installation package.
+Once the files have been copied, re-run the last `msbuild.exe` command to generate the NSIS installation package:
+```bat
+msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
+```
 
 > Advanced users:
 > 
@@ -224,7 +227,10 @@ Once the files have been copied, re-run the last command to generate the NSIS in
 
 If you want, you can stop here.  You should now have this file you can run:  `C:\src\Darknet\build\src\Release\Darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src\Release\Darknet.exe version`.
 
-To correctly install Darknet, the libraries, the include files, and the necessary DLLs, run the NSIS installation `.exe` package that was built in the last step.  See the file `darknet-VERSION.exe` in the `build` directory.
+To correctly install Darknet, the libraries, the include files, and the necessary DLLs, run the NSIS installation wizard that was built in the last step.  See the file `darknet-VERSION.exe` in the `build` directory.  For example:
+```bat
+darknet-2.0.31-win64.exe
+```
 
 Installing the NSIS installation package will:
 
@@ -233,7 +239,7 @@ Installing the NSIS installation package will:
 * Install the neccesary Darknet `.dll`, `.lib` and `.h` files to use `darknet.dll` from another application.
 * Install the template `.cfg` files.
 
-You are now done!  Darknet has been built and installed into `C:\Program Files\Darknet\`.  Run this to test:  `C:\Program Files\Darknet\bin\darknet.exe version`.
+You are now done!  Once the installation wizard has finished, Darknet will have been installed into `C:\Program Files\Darknet\`.  Run this to test:  `C:\Program Files\Darknet\bin\darknet.exe version`.
 
 # Using Darknet
 
