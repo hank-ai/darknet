@@ -1465,7 +1465,12 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			avg_precision = avg_precision / map_points;
 		}
 
-		printf("class_id = %d, name = %s, ap = %2.2f%%   \t (TP = %d, FP = %d) \n", i, names[i], avg_precision * 100, tp_for_thresh_per_class[i], fp_for_thresh_per_class[i]);
+		float class_precision = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)fp_for_thresh_per_class[i]);
+		float class_recall = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)(truth_classes_count[i] - tp_for_thresh_per_class[i]));
+		int class_fn = truth_classes_count[i] - tp_for_thresh_per_class[i];
+
+		printf("class_id = %d, name = %s, ap = %2.2f%%   \t (TP = %d, FP = %d, FN = %d, Pr = %2.2f, Rc = %2.2f) \n",
+			i, names[i], avg_precision * 100, tp_for_thresh_per_class[i], fp_for_thresh_per_class[i], class_fn, class_precision, class_recall);
 
 		// send the result of this class to the C++ side of things so we can include it the right chart
 		Darknet::update_accuracy_in_new_charts(i, avg_precision);
