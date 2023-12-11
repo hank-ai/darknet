@@ -367,6 +367,8 @@ Last updated 2023-11-17:
 ## Mid-term goals
 
 * [ ] better use of `cv::Mat` instead of the custom `image` structure in C
+* [ ] fix support for 1-channel greyscale images
+* [ ] add support for N-channel images where N > 3 (e.g., images with an additional depth or thermal channel)
 * [ ] on-going code cleanup
 
 ## Long-term goals

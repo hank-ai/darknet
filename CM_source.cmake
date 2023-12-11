@@ -25,12 +25,12 @@ IF (WIN32)
 #	ADD_COMPILE_OPTIONS (/wd4819)
 #	ADD_COMPILE_OPTIONS (/wd4996)
 #	ADD_COMPILE_OPTIONS (/Zc:strictStrings-)
+	ADD_COMPILE_DEFINITIONS (LIB_EXPORTS)
 	ADD_COMPILE_DEFINITIONS (NOMINMAX)
 	ADD_COMPILE_DEFINITIONS (_CRT_SECURE_NO_WARNINGS )	# don't complain about localtime()
-#	SET (CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>" )
 
-	# With old compilers (or Windows only?) it used to be necessary to define
-	# this prior to #including cmath.  Not sure if this is still required.
+	# With old compilers (or Windows only?) it used to be necessary to define this prior to #including cmath.
+	# Not sure if (or why?) this still seems to be required with Visual Studio.
 	ADD_COMPILE_DEFINITIONS (_USE_MATH_DEFINES)
 ENDIF ()
 
@@ -53,7 +53,7 @@ ENDIF ()
 # TODO: -ffast-math and -funsafe-math-optimizations
 
 
-SET (BUILD_SHARED_LIBS TRUE)
+SET (BUILD_SHARED_LIBS TRUE)				# ADD_LIBRARY() will default to shared libs
 SET (CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)	# automatically create a module definition (.def) file with all global symbols
 SET (CMAKE_ENABLE_EXPORTS TRUE)				# equivalent to -rdynamic (to get the backtrace when something goes wrong)
 SET (CMAKE_POSITION_INDEPENDENT_CODE ON)	# equivalent to -fpic (position independent code)

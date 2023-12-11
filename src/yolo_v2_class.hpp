@@ -1,5 +1,17 @@
-#ifndef YOLO_V2_CLASS_HPP
-#define YOLO_V2_CLASS_HPP
+#pragma once
+
+
+/* PLEASE NOTE:
+ *
+ * This file is no longer maintained, and actually had been removed from the more recent versions of Darknet in the
+ * Hank.ai repo.  However, it seems some projects and language bindings still use it.  If you are starting a *NEW*
+ * project or you're looking for the C++ API which is maintained, please use DarkHelp instead of this source file and
+ * library.  You can find more information on the DarkHelp library here:
+ *
+ * - https://www.ccoderun.ca/darkhelp/api/API.html
+ * - https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-c-api
+ */
+
 
 #ifndef LIB_API
 #ifdef LIB_EXPORTS
@@ -52,8 +64,8 @@ struct bbox_t_container {
 
 #ifdef OPENCV
 #include <opencv2/opencv.hpp>            // C++
-#include <opencv2/highgui/highgui_c.h>   // C
-#include <opencv2/imgproc/imgproc_c.h>   // C
+//#include <opencv2/highgui/highgui_c.h>   // C
+//#include <opencv2/imgproc/imgproc_c.h>   // C
 #endif
 
 extern "C" LIB_API int init(const char *configurationFilename, const char *weightsFilename, int gpu, int batch_size);
@@ -551,7 +563,7 @@ class Tracker_optflow {};
 #endif    // defined(TRACK_OPTFLOW) && defined(OPENCV)
 
 
-#ifdef OPENCV
+//#ifdef OPENCV
 
 static cv::Scalar obj_id_to_color(int obj_id) {
     int const colors[6][3] = { { 1,0,1 },{ 0,0,1 },{ 0,1,1 },{ 0,1,0 },{ 1,1,0 },{ 1,0,0 } };
@@ -1046,8 +1058,6 @@ public:
 
 };
 // ----------------------------------------------
-#endif    // OPENCV
+//#endif    // OPENCV
 
 #endif    // __cplusplus
-
-#endif    // YOLO_V2_CLASS_HPP

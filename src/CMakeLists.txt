@@ -22,6 +22,7 @@ LIST (SORT APPSRC)
 # ==
 FILE (GLOB LIBSRC *.cpp)
 LIST (REMOVE_ITEM LIBSRC ${APPSRC})
+LIST (REMOVE_ITEM LIBSRC yolo_v2_class.cpp)
 
 IF (DARKNET_USE_CUDA)
 	FILE (GLOB CUDASRC *.cu)
@@ -38,7 +39,7 @@ LIST (SORT LIBSRC)
 
 
 # ==
-# First thing we do is build an object library so things don't have to be compiled twice.
+# First thing we do is build an object library so things don't have to be compiled multiple times.
 # ==
 ADD_LIBRARY(darknetobjlib OBJECT ${LIBSRC})
 IF (DARKNET_USE_CUDA)
@@ -61,6 +62,18 @@ IF (DARKNET_USE_CUDA)
 ENDIF ()
 TARGET_LINK_LIBRARIES (darknetlib PRIVATE ${DARKNET_LINK_LIBS})
 
+
+# ==
+# The old C++ YOLOv2 library is still used by some projects.  E.g., the original C# wrapper.
+# But as far as I can tell, this library was only ever used on Windows.  Doesn't look like
+# the old Linux Makefile in the AlexeyAB repo ever tried to build this on Linux.
+# ==
+IF (WIN32)
+	ADD_LIBRARY (yolo_v2_class SHARED yolo_v2_class.cpp)
+	SET_TARGET_PROPERTIES (yolo_v2_class PROPERTIES PUBLIC_HEADER "yolo_v2_class.hpp")
+	TARGET_LINK_LIBRARIES (yolo_v2_class PRIVATE ${DARKNET_LINK_LIBS})
+	INSTALL (TARGETS yolo_v2_class LIBRARY DESTINATION lib PUBLIC_HEADER DESTINATION include)
+ENDIF ()
 
 # ==
 # And lastly is the traditional darknet CLI.  I would have liked to have just 1 source file in the CLI and link against
