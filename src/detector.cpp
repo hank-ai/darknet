@@ -1408,7 +1408,6 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	free(truth_flags);
 
 	double mean_average_precision = 0.0;
-	bool must_show_header = true;
 
 	for (int i = 0; i < classes; ++i)
 	{
@@ -1487,43 +1486,16 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		const float specificity		= static_cast<float>(tn)		/ static_cast<float>(tn + fp);
 		const float false_pos_rate	= static_cast<float>(fp)		/ static_cast<float>(tn + fp);
 
-		std::stringstream ss;
-		if (must_show_header)
+		if (i == 0)
 		{
-			ss	<< std::endl
+			std::cout
+				<< std::endl
 				<< std::endl
 				<< "  Id Name             AvgPrecision     TP     FN     FP     TN Accuracy ErrorRate Precision Recall Specificity FalsePosRate" << std::endl
 				<< "  -- ----             ------------ ------ ------ ------ ------ -------- --------- --------- ------ ----------- ------------" << std::endl;
-			must_show_header = false;
 		}
 
-		std::string name = names[i];
-		if (name.length() > 16)
-		{
-			name.erase(15);
-			name += "+";
-		}
-
-		ss	<< "  "
-			<< std::fixed << std::setprecision(4)
-			<< std::right
-			<< std::setw(2) 	<< i														<< " "
-			<< std::left
-			<< std::setw(16)	<< name														<< " "
-			<< std::right
-			<< std::setw(12)	<< (100.0f * avg_precision)									<< " "
-			<< std::setw(6)		<< tp														<< " "
-			<< std::setw(6)		<< fn														<< " "
-			<< std::setw(6)		<< fp														<< " "
-			<< std::setw(6)		<< tn														<< " "
-			<< std::setw(8)		<< (std::isnormal(accuracy		) ? accuracy		: 0.0f)	<< " "
-			<< std::setw(9)		<< (std::isnormal(error_rate	) ? error_rate		: 0.0f)	<< " "
-			<< std::setw(9)		<< (std::isnormal(precision		) ? precision		: 0.0f)	<< " "
-			<< std::setw(6)		<< (std::isnormal(recall		) ? recall			: 0.0f)	<< " "
-			<< std::setw(11)	<< (std::isnormal(specificity	) ? specificity		: 0.0f)	<< " "
-			<< std::setw(12)	<< (std::isnormal(false_pos_rate) ? false_pos_rate	: 0.0f);
-
-		std::cout << ss.str() << std::endl;
+		std::cout << Darknet::format_map_confusion_matrix_values(i, names[i], avg_precision, tp, fn, fp, tn, accuracy, error_rate, precision, recall, specificity, false_pos_rate) << std::endl;
 
 		// send the result of this class to the C++ side of things so we can include it the right chart
 		Darknet::update_accuracy_in_new_charts(i, avg_precision);

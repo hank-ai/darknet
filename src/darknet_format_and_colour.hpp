@@ -51,6 +51,26 @@ namespace Darknet
 	void display_iteration_summary(const int iteration, const float loss, const float avg_loss, const float rate, const double time, const int images, const float seconds_remaining);
 	void display_last_accuracy(const float iou_thresh, const float mean_average_precision, const float best_map);
 
+	std::string format_in_colour(const std::string & str, const EColour & colour, const size_t & len);
+	std::string format_in_colour(const int & i, const EColour & colour, const size_t & len);
+	std::string format_in_colour(const float & f, const EColour & colour, const size_t & len);
+	std::string format_in_colour(const float & f, const size_t & len, const bool inverted = false);
+
+	std::string format_map_confusion_matrix_values(
+			const int class_id,
+			std::string name, // on purpose not by reference since we can end up modifying it
+			const float & average_precision,
+			const int & tp,
+			const int & fn,
+			const int & fp,
+			const int & tn,
+			const float & accuracy,
+			const float & error_rate,
+			const float & precision,
+			const float & recall,
+			const float & specificity,
+			const float & false_pos_rate);
+
 	/// Display the given message in bright red (if colour is enabled).  The message is not linefeed terminated.
 	void display_error_msg(const std::string & msg);
 
