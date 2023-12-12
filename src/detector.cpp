@@ -1093,7 +1093,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	int detections_count = 0;
 	int unique_truth_count = 0;
 
-	/// @todo total number of annotations for each class?
+	/// @todo I think this is TP + FN (where the object actually exists, and we either found it, or missed it)
 	int* truth_classes_count = (int*)xcalloc(classes, sizeof(int));
 
 	// For multi-class precision and recall computation
@@ -1515,7 +1515,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			<< std::setw(6)		<< tp														<< " "
 			<< std::setw(6)		<< fn														<< " "
 			<< std::setw(6)		<< fp														<< " "
-			<< std::setw(6)		<< fn														<< " "
+			<< std::setw(6)		<< tn														<< " "
 			<< std::setw(8)		<< (std::isnormal(accuracy		) ? accuracy		: 0.0f)	<< " "
 			<< std::setw(9)		<< (std::isnormal(error_rate	) ? error_rate		: 0.0f)	<< " "
 			<< std::setw(9)		<< (std::isnormal(precision		) ? precision		: 0.0f)	<< " "
