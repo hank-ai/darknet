@@ -3,6 +3,7 @@
 
 CONFIGURE_FILE (${CMAKE_CURRENT_SOURCE_DIR}/darknet_version.h.in ${CMAKE_CURRENT_SOURCE_DIR}/darknet_version.h)
 
+
 # ==
 # For now we only have 1 source file in the main application.  Keep things simple I guess.
 # ==
@@ -39,20 +40,9 @@ LIST (SORT LIBSRC)
 
 
 # ==
-# First thing we do is build an object library so things don't have to be compiled multiple times.
+# First step is to create the actual darknet library.
 # ==
-ADD_LIBRARY(darknetobjlib OBJECT ${LIBSRC})
-IF (DARKNET_USE_CUDA)
-	SET_TARGET_PROPERTIES (darknetobjlib PROPERTIES CUDA_ARCHITECTURES "${DARKNET_CUDA_ARCHITECTURES}")
-	SET_TARGET_PROPERTIES (darknetobjlib PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)
-	SET_TARGET_PROPERTIES (darknetobjlib PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS OFF)
-ENDIF ()
-
-
-# ==
-# Next step is to create the actual darknet library.
-# ==
-ADD_LIBRARY (darknetlib SHARED $<TARGET_OBJECTS:darknetobjlib>)
+ADD_LIBRARY (darknetlib SHARED ${LIBSRC})
 SET_TARGET_PROPERTIES (darknetlib PROPERTIES OUTPUT_NAME "darknet")
 SET_TARGET_PROPERTIES (darknetlib PROPERTIES PUBLIC_HEADER "darknet.h;darknet_version.h")
 IF (DARKNET_USE_CUDA)
@@ -61,6 +51,7 @@ IF (DARKNET_USE_CUDA)
 	SET_TARGET_PROPERTIES (darknetlib PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS OFF)
 ENDIF ()
 TARGET_LINK_LIBRARIES (darknetlib PRIVATE ${DARKNET_LINK_LIBS})
+INSTALL (TARGETS darknetlib LIBRARY DESTINATION lib PUBLIC_HEADER DESTINATION include)
 
 
 # ==
@@ -75,39 +66,49 @@ IF (WIN32)
 	INSTALL (TARGETS yolo_v2_class LIBRARY DESTINATION lib PUBLIC_HEADER DESTINATION include)
 ENDIF ()
 
+
 # ==
-# And lastly is the traditional darknet CLI.  I would have liked to have just 1 source file in the CLI and link against
-# the darknet library, but this was causing some link errors in Windows:
-#
-#		fatal error LNK1149: output filename matches input filename 'C:\src\darknet\build\src\Release\darknet.lib'
-#
-# So for now we'll simply re-link all the objects into the CLI.  Not perfect, but it gets us past the problem.
+# And lastly is the traditional darknet CLI.
 # ==
-ADD_EXECUTABLE (darknetcli ${APPSRC} $<TARGET_OBJECTS:darknetobjlib>)
-SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet")
+ADD_EXECUTABLE (darknetcli ${APPSRC})
+#SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet") -- this conflicts with "darknet" the library, so instead we'll rename it when it is installed
 IF (DARKNET_USE_CUDA)
 	SET_TARGET_PROPERTIES (darknetcli PROPERTIES CUDA_ARCHITECTURES "${DARKNET_CUDA_ARCHITECTURES}")
 	SET_TARGET_PROPERTIES (darknetcli PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)
 	SET_TARGET_PROPERTIES (darknetcli PROPERTIES CUDA_RESOLVE_DEVICE_SYMBOLS OFF)
 ENDIF ()
-TARGET_LINK_LIBRARIES (darknetcli PRIVATE ${DARKNET_LINK_LIBS})
-
-
-INSTALL (TARGETS darknetlib LIBRARY DESTINATION lib PUBLIC_HEADER DESTINATION include)
-
+TARGET_LINK_LIBRARIES (darknetcli PRIVATE ${DARKNET_LINK_LIBS} darknetlib)
 
 IF (UNIX)
 	# non-Windows simple installation
-	INSTALL (TARGETS darknetcli DESTINATION bin)
+	INSTALL (TARGETS darknetcli DESTINATION bin RENAME darknet)
 ELSE ()
 	# more complicated install for Windows so we also get the .DLL files copied over from vcpkg
 	# https://stackoverflow.com/a/72088102/13022
 	INSTALL (TARGETS darknetcli
 		DESTINATION bin
+		RENAME darknet.exe
 		RUNTIME_DEPENDENCIES
 			PRE_EXCLUDE_REGEXES "api-ms-" "ext-ms-" "wpaxholder" "HvsiFileTrust" "PdmUtilities"
 			POST_EXCLUDE_REGEXES ".*system32/.*\\.dll"
 			DIRECTORIES ${CMAKE_BINARY_DIR}/bin
 		RUNTIME DESTINATION bin
 		)
+ENDIF ()
+
+
+# We use to to have the CLI called "darknet" instead of "darknetcli".  But this conflicted with "darknet" the library
+# target.  It caused strange problems on Windows where the DLL would depend on the .exe file.  To solve this we ended
+# up renaming the CLI from "darknet" to "darknetcli".  However, people with a build environment from before this change
+# was made (2023-12-12) might still have a copy of the _old_ CLI in their build output directory.  If this is the case,
+# to prevent anyone from accidentally using this old CLI, we're going to rename it.
+GET_TARGET_PROPERTY(CLI_OUTPUT_DIR darknetcli BINARY_DIR)
+IF (WIN32)
+	SET (OLD_CLI "${CLI_OUTPUT_DIR}/darknet.exe")
+ELSE ()
+	SET (OLD_CLI "${CLI_OUTPUT_DIR}/darknet")
+ENDIF ()
+IF (EXISTS ${OLD_CLI})
+	MESSAGE(WARNING "An old copy of the CLI was found and will be renamed: ${OLD_CLI}")
+	FILE(RENAME "${OLD_CLI}" "${OLD_CLI}_OLD")
 ENDIF ()

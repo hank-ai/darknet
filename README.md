@@ -140,6 +140,8 @@ Installing the package will copy the following files:
 
 You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run this to test:  `darknet version`.
 
+> If you have `darknetcli` but not `darknet` then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file.  It is during this final installation step that the CLI is renamed to `/usr/bin/darknet`.
+
 ## Windows CMake Method
 
 These instructions assume a brand new installation of Windows 11 22H2.
@@ -225,7 +227,7 @@ msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 >
 > Note that the output of the `cmake` command is a normal Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio.
 
-If you want, you can stop here.  You should now have this file you can run:  `C:\src\Darknet\build\src\Release\Darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src\Release\Darknet.exe version`.
+You should now have this file you can run:  `C:\src\Darknet\build\src\Release\Darknetcli.exe`.  Run this to test:  `C:\src\Darknet\build\src\Release\Darknetcli.exe version`.
 
 To correctly install Darknet, the libraries, the include files, and the necessary DLLs, run the NSIS installation wizard that was built in the last step.  See the file `darknet-VERSION.exe` in the `build` directory.  For example:
 ```bat
@@ -235,17 +237,20 @@ darknet-2.0.31-win64.exe
 Installing the NSIS installation package will:
 
 * Create a directory called `Darknet`, such as `C:\Program Files\Darknet\`.
-* Install the `darknet.exe` CLI application, as well as required `.dll` files
+* Install the CLI application, and at the same time rename it to `darknet.exe`.
+* Install the required 3rd-party `.dll` files, such as those from OpenCV.
 * Install the neccesary Darknet `.dll`, `.lib` and `.h` files to use `darknet.dll` from another application.
 * Install the template `.cfg` files.
 
 You are now done!  Once the installation wizard has finished, Darknet will have been installed into `C:\Program Files\Darknet\`.  Run this to test:  `C:\Program Files\Darknet\bin\darknet.exe version`.
 
+> If you have `darknetcli.exe` but not `darknet.exe` then this means you _did not_ install it, you only built it!  Make sure you go through each step of the NSIS installation wizard.  It is during this final installation step that the CLI is renamed from `Darknetcli.exe` to `Darknet.exe`.
+
 # Using Darknet
 
 ## CLI
 
-This is not the full list of all commands supported by Darknet.  See [the previous readme](README_previous.md) for additional details and examples.
+The following is not the full list of all commands supported by Darknet.  See [the previous readme](README_previous.md) for additional details and examples.
 
 > In addition to the Darknet CLI, also note [the DarkHelp project CLI](https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-cli) which provides an alternative CLI to Darknet/YOLO.  The DarkHelp CLI also has several advanced features that are not available directly in Darknet.  You can use both the Darknet CLI and the DarkHelp CLI together, they are not mutually exclusive.
 
