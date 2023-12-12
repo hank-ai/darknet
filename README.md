@@ -273,7 +273,21 @@ DarkHelp cfg/coco.names cfg/yolov4-tiny.cfg yolov4-tiny.weights artwork/dog.jpg
 * Save results to a video:  `darknet detector demo animals.data animals.cfg animals_best.weights test.mp4 -out_filename res.avi`
 * JSON and MJPEG server:  `darknet detector demo animals.data animals.cfg animals_best.weights test50.mp4 -json_port 8070 -mjpeg_port 8090 -ext_output`
 * Running on a specific GPU:  `darknet detector demo animals.data animals.cfg animals_best.weights -i 1 test.mp4`
-* To check accuracy mAP@IoU=50:  `darknet detector map animals.data animals.cfg animals_best.weights`
+* To check the accuracy of the neural network:
+```sh
+darknet detector map driving.data driving.cfg driving_best.weights
+...
+  Id Name             AvgPrecision     TP     FN     FP     TN Accuracy ErrorRate Precision Recall Specificity FalsePosRate
+  -- ----             ------------ ------ ------ ------ ------ -------- --------- --------- ------ ----------- ------------
+   0 vehicle               91.2495  32648   3903   5826  65129   0.9095    0.0905    0.8486 0.8932      0.9179       0.0821
+   1 motorcycle            80.4499   2936    513    569   5393   0.8850    0.1150    0.8377 0.8513      0.9046       0.0954
+   2 bicycle               89.0912    570    124    104   3548   0.9475    0.0525    0.8457 0.8213      0.9715       0.0285
+   3 person                76.7937   7072   1727   2574  27523   0.8894    0.1106    0.7332 0.8037      0.9145       0.0855
+   4 many vehicles         64.3089   1068    509    733  11288   0.9087    0.0913    0.5930 0.6772      0.9390       0.0610
+   5 green light           86.8118   1969    239    510   4116   0.8904    0.1096    0.7943 0.8918      0.8898       0.1102
+   6 yellow light          82.0390    126     38     30   1239   0.9525    0.0475    0.8077 0.7683      0.9764       0.0236
+   7 red light             94.1033   3449    217    451   4643   0.9237    0.0763    0.8844 0.9408      0.9115       0.0885
+```
 * To check accuracy mAP@IoU=75:  `darknet detector map animals.data animals.cfg animals_best.weights -iou_thresh 0.75`
 * Recalculating anchors is best done in DarkMark, since it will run 100 consecutive times and select the best anchors from all the ones that were calculated.  But if you want to run the old version in Darknet:
 ```sh
