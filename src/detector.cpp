@@ -1093,6 +1093,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	int detections_count = 0;
 	int unique_truth_count = 0;
 
+	/// @todo total number of annotations for each class?
 	int* truth_classes_count = (int*)xcalloc(classes, sizeof(int));
 
 	// For multi-class precision and recall computation
@@ -1320,6 +1321,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	} pr_t;
 
 	// for PR-curve
+	// Note this is a pointer-to-a-pointer.  We don't have just 1 of these per class, but these exist for every detections_count.
 	pr_t** pr = (pr_t**)xcalloc(classes, sizeof(pr_t*));
 	for (int i = 0; i < classes; ++i)
 	{
@@ -1405,11 +1407,12 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 
 	free(truth_flags);
 
-	double mean_average_precision = 0;
+	double mean_average_precision = 0.0;
+	bool must_show_header = true;
 
 	for (int i = 0; i < classes; ++i)
 	{
-		double avg_precision = 0;
+		double avg_precision = 0.0;
 
 		// MS COCO - uses 101-Recall-points on PR-chart.
 		// PascalVOC2007 - uses 11-Recall-points on PR-chart.
@@ -1465,12 +1468,61 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			avg_precision = avg_precision / map_points;
 		}
 
-		float class_precision = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)fp_for_thresh_per_class[i]);
-		float class_recall = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)(truth_classes_count[i] - tp_for_thresh_per_class[i]));
-		int class_fn = truth_classes_count[i] - tp_for_thresh_per_class[i];
+		// Accuracy:							all correct		/ all		= (TP + TN)	/ (TP + TN + FP + FN)
+		// Misclassification (error rate):		all incorrect	/ all		= (FP + FN)	/ (TP + TN + FP + FN)
+		// Precision:							TP / predicted positives	= TP		/ (TP + FP)
+		// Sensitivity aka recall:				TP / all positives			= TP		/ (TP + FN)
+		// Specificity (true negative rate):	TN / all negatives			= TN		/ (TN + FP)
+		// False positive rate:					FP / all negatives			= FP		/ (TN + FP)
 
-		printf("class_id = %d, name = %s, ap = %2.2f%%   \t (TP = %d, FP = %d, FN = %d, Pr = %2.2f, Rc = %2.2f) \n",
-			i, names[i], avg_precision * 100, tp_for_thresh_per_class[i], fp_for_thresh_per_class[i], class_fn, class_precision, class_recall);
+		const int all_detections = detection_per_class_count[i];
+		const int tp = tp_for_thresh_per_class[i];
+		const int fn = truth_classes_count[i] - tp;
+		const int fp = fp_for_thresh_per_class[i];
+		const int tn = all_detections - tp - fn - fp;
+		const float accuracy		= static_cast<float>(tp + tn)	/ static_cast<float>(all_detections);
+		const float error_rate		= static_cast<float>(fp + fn)	/ static_cast<float>(all_detections);
+		const float precision		= static_cast<float>(tp)		/ static_cast<float>(tp + fp);
+		const float recall			= static_cast<float>(tp)		/ static_cast<float>(tp + fn);
+		const float specificity		= static_cast<float>(tn)		/ static_cast<float>(tn + fp);
+		const float false_pos_rate	= static_cast<float>(fp)		/ static_cast<float>(tn + fp);
+
+		std::stringstream ss;
+		if (must_show_header)
+		{
+			ss	<< std::endl
+				<< std::endl
+				<< "  Id Name             AvgPrecision     TP     FN     FP     TN Accuracy ErrorRate Precision Recall Specificity FalsePosRate" << std::endl
+				<< "  -- ----             ------------ ------ ------ ------ ------ -------- --------- --------- ------ ----------- ------------" << std::endl;
+			must_show_header = false;
+		}
+
+		std::string name = names[i];
+		if (name.length() > 16)
+		{
+			name.erase(15);
+			name += "+";
+		}
+
+		ss	<< "  "
+			<< std::fixed << std::setprecision(4) << std::right
+			<< std::setw(2) 	<< i						<< " "
+			<< std::left
+			<< std::setw(16)	<< name						<< " "
+			<< std::right
+			<< std::setw(12)	<< (100.0f * avg_precision) << " "
+			<< std::setw(6)		<< tp						<< " "
+			<< std::setw(6)		<< fn						<< " "
+			<< std::setw(6)		<< fp						<< " "
+			<< std::setw(6)		<< fn						<< " "
+			<< std::setw(8)		<< accuracy					<< " "
+			<< std::setw(9)		<< error_rate				<< " "
+			<< std::setw(9)		<< precision				<< " "
+			<< std::setw(6)		<< recall					<< " "
+			<< std::setw(11)	<< specificity				<< " "
+			<< std::setw(12)	<< false_pos_rate;
+
+		std::cout << ss.str() << std::endl;
 
 		// send the result of this class to the C++ side of things so we can include it the right chart
 		Darknet::update_accuracy_in_new_charts(i, avg_precision);
