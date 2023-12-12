@@ -1581,16 +1581,28 @@ int anchors_data_comparator(const float **pa, const float **pb)
 
 void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int show)
 {
-	printf("\n num_of_clusters = %d, width = %d, height = %d \n", num_of_clusters, width, height);
-	if (width < 0 || height < 0) {
-		printf("Usage: darknet detector calc_anchors data/voc.data -num_of_clusters 9 -width 416 -height 416 \n");
-		printf("Error: set width and height \n");
-		return;
+	/// @todo shouldn't we check the .cfg file instead, and get the anchors, width, and height from there instead of requiring them as parms?
+
+	std::cout
+		<< "Recalculating anchors"
+		<< ", num_of_clusters="	<< num_of_clusters
+		<< ", width="			<< width
+		<< ", height="			<< height
+		<< std::endl;
+
+	if (width < 32 || height < 32 || num_of_clusters <= 0)
+	{
+		std::cout << std::endl << "Usage example: darknet detector calc_anchors animals.data -num_of_clusters 6 -width 320 -height 256" << std::endl;
+		darknet_fatal_error(DARKNET_LOC, "missing or invalid parameter required to recalculate YOLO anchors");
+	}
+
+	if ((width % 32) || (height % 32))
+	{
+		darknet_fatal_error(DARKNET_LOC, "cannot recalculate anchors due to invalid network dimensions (must be divisible by 32)");
 	}
 
 	//float pointsdata[] = { 1,1, 2,2, 6,6, 5,5, 10,10 };
 	float* rel_width_height_array = (float*)xcalloc(1000, sizeof(float));
-
 
 	list *options = read_data_cfg(datacfg);
 	char *train_images = option_find_str(options, "train", "data/train.list");
@@ -2117,7 +2129,7 @@ void run_detector(int argc, char **argv)
 	float hier_thresh = find_float_arg(argc, argv, "-hier", .5);
 	int cam_index = find_int_arg(argc, argv, "-c", 0);
 	int frame_skip = find_int_arg(argc, argv, "-s", 0);
-	int num_of_clusters = find_int_arg(argc, argv, "-num_of_clusters", 5);
+	int num_of_clusters = find_int_arg(argc, argv, "-num_of_clusters", 0);
 	int width = find_int_arg(argc, argv, "-width", -1);
 	int height = find_int_arg(argc, argv, "-height", -1);
 	// extended output in test mode (output of rect bound coords)
@@ -2183,7 +2195,7 @@ void run_detector(int argc, char **argv)
 	else if (Darknet::cfg_and_state.function == "valid"			) { validate_detector(datacfg, cfg, weights, outfile); }
 	else if (Darknet::cfg_and_state.function == "recall"		) { validate_detector_recall(datacfg, cfg, weights); }
 	else if (Darknet::cfg_and_state.function == "map"			) { validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL); }
-	else if (Darknet::cfg_and_state.function == "calc_anchors"	) { calc_anchors(datacfg, num_of_clusters, width, height, show); }
+	else if (Darknet::cfg_and_state.function == "calcanchors"	) { calc_anchors(datacfg, num_of_clusters, width, height, show); }
 	else if (Darknet::cfg_and_state.function == "draw"			) { draw_object(datacfg, cfg, weights, input_fn, thresh, dont_show, 100, letter_box, benchmark_layers); }
 	else if (Darknet::cfg_and_state.function == "demo"			)
 	{

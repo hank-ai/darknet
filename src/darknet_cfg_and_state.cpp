@@ -220,6 +220,28 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 	}
 #endif
 
+#if 0 // for debug purposes, display all arguments
+	std::cout
+		<< "--------------------------------" << std::endl
+		<< "CMD=" << command << std::endl
+		<< "FUN=" << function << std::endl
+		<< "ARG=" << args.size() << std::endl;
+	for (const auto & [key, val] : args)
+	{
+		std::cout
+			<< "IDX=" << val.arg_index
+			<< " NUM=" << val.value
+			<< " KEY=" << key
+			<< " VAL=" << val.name;
+		if (val.name_alternate.empty() == false)
+		{
+			std::cout << " ALT=" << val.name_alternate;
+		}
+		std::cout << std::endl;
+	}
+	std::cout << "--------------------------------" << std::endl;
+#endif
+
 	return *this;
 }
 

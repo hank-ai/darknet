@@ -222,7 +222,7 @@ msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 ```
 
 > Advanced users:
-> 
+>
 > Note that the output of the `cmake` command is a normal Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio.
 
 If you want, you can stop here.  You should now have this file you can run:  `C:\src\Darknet\build\src\Release\Darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src\Release\Darknet.exe version`.
@@ -275,6 +275,10 @@ DarkHelp cfg/coco.names cfg/yolov4-tiny.cfg yolov4-tiny.weights artwork/dog.jpg
 * Running on a specific GPU:  `darknet detector demo animals.data animals.cfg animals_best.weights -i 1 test.mp4`
 * To check accuracy mAP@IoU=50:  `darknet detector map animals.data animals.cfg animals_best.weights`
 * To check accuracy mAP@IoU=75:  `darknet detector map animals.data animals.cfg animals_best.weights -iou_thresh 0.75`
+* Recalculating anchors is best done in DarkMark, since it will run 100 consecutive times and select the best anchors from all the ones that were calculated.  But if you want to run the old version in Darknet:
+```sh
+darknet detector calc_anchors animals.data -num_of_clusters 6 -width 320 -height 256
+```
 * Train a new network:  `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below)
 
 ## Training
