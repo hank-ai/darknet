@@ -1505,22 +1505,23 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		}
 
 		ss	<< "  "
-			<< std::fixed << std::setprecision(4) << std::right
-			<< std::setw(2) 	<< i						<< " "
-			<< std::left
-			<< std::setw(16)	<< name						<< " "
+			<< std::fixed << std::setprecision(4)
 			<< std::right
-			<< std::setw(12)	<< (100.0f * avg_precision) << " "
-			<< std::setw(6)		<< tp						<< " "
-			<< std::setw(6)		<< fn						<< " "
-			<< std::setw(6)		<< fp						<< " "
-			<< std::setw(6)		<< fn						<< " "
-			<< std::setw(8)		<< accuracy					<< " "
-			<< std::setw(9)		<< error_rate				<< " "
-			<< std::setw(9)		<< precision				<< " "
-			<< std::setw(6)		<< recall					<< " "
-			<< std::setw(11)	<< specificity				<< " "
-			<< std::setw(12)	<< false_pos_rate;
+			<< std::setw(2) 	<< i														<< " "
+			<< std::left
+			<< std::setw(16)	<< name														<< " "
+			<< std::right
+			<< std::setw(12)	<< (100.0f * avg_precision)									<< " "
+			<< std::setw(6)		<< tp														<< " "
+			<< std::setw(6)		<< fn														<< " "
+			<< std::setw(6)		<< fp														<< " "
+			<< std::setw(6)		<< fn														<< " "
+			<< std::setw(8)		<< (std::isnormal(accuracy		) ? accuracy		: 0.0f)	<< " "
+			<< std::setw(9)		<< (std::isnormal(error_rate	) ? error_rate		: 0.0f)	<< " "
+			<< std::setw(9)		<< (std::isnormal(precision		) ? precision		: 0.0f)	<< " "
+			<< std::setw(6)		<< (std::isnormal(recall		) ? recall			: 0.0f)	<< " "
+			<< std::setw(11)	<< (std::isnormal(specificity	) ? specificity		: 0.0f)	<< " "
+			<< std::setw(12)	<< (std::isnormal(false_pos_rate) ? false_pos_rate	: 0.0f);
 
 		std::cout << ss.str() << std::endl;
 
