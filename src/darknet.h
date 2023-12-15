@@ -78,8 +78,6 @@ typedef struct metadata metadata;
 struct tree;
 typedef struct tree tree;
 
-extern int gpu_index;
-
 // option_list.h
 typedef struct metadata {
 	int classes;

@@ -1399,7 +1399,7 @@ void run_classifier(int argc, char **argv)
 			gpu_list = strchr(gpu_list, ',')+1;
 		}
 	} else {
-		gpu = gpu_index;
+		gpu = Darknet::cfg_and_state.gpu_index;
 		gpus = &gpu;
 		ngpus = 1;
 	}

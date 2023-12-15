@@ -65,7 +65,7 @@ typedef struct network{
     float hue;
 	int small_object;
 
-    int gpu_index;
+    int gpu_old_index;
     tree *hierarchy;
 
     #ifdef GPU

@@ -63,6 +63,9 @@ namespace Darknet
 
 			/// Parameters that were unrecognized.
 			VStr additional_arguments;
+
+			/// The index of the GPU to use.  @p -1 means no GPU is selected.
+			int gpu_index;
 	};
 
 	extern CfgAndState cfg_and_state;

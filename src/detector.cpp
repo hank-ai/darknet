@@ -2190,7 +2190,7 @@ void run_detector(int argc, char **argv)
 	}
 	else
 	{
-		gpu = gpu_index;
+		gpu = Darknet::cfg_and_state.gpu_index;
 		gpus = &gpu;
 		ngpus = 1;
 	}

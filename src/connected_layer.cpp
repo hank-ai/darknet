@@ -21,7 +21,7 @@ size_t get_connected_workspace_size(layer l)
 #ifdef CUDNN
     return get_convolutional_workspace_size(l);
     /*
-    if (gpu_index >= 0) {
+    if (gpu_old_index >= 0) {
         size_t most = 0;
         size_t s = 0;
         CHECK_CUDNN(cudnnGetConvolutionForwardWorkspaceSize(cudnn_handle(),

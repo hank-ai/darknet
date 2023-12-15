@@ -40,7 +40,7 @@ void average(int argc, char *argv[])
 {
 	char *cfgfile = argv[2];
 	char *outfile = argv[3];
-	gpu_index = -1;
+	Darknet::cfg_and_state.gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	network sum = parse_network_cfg(cfgfile);
 
@@ -111,7 +111,7 @@ void speed(char *cfgfile, int tics)
 
 void operations(char *cfgfile)
 {
-	gpu_index = -1;
+	Darknet::cfg_and_state.gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	int i;
 	long ops = 0;
@@ -149,7 +149,7 @@ void operations(char *cfgfile)
 
 void oneoff(char *cfgfile, char *weightfile, char *outfile)
 {
-	gpu_index = -1;
+	Darknet::cfg_and_state.gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	int oldn = net.layers[net.n - 2].n;
 	int c = net.layers[net.n - 2].c;
@@ -175,7 +175,7 @@ void oneoff(char *cfgfile, char *weightfile, char *outfile)
 
 void partial(char *cfgfile, char *weightfile, char *outfile, int max)
 {
-	gpu_index = -1;
+	Darknet::cfg_and_state.gpu_index = -1;
 	network net = parse_network_cfg_custom(cfgfile, 1, 1);
 	if(weightfile){
 		load_weights_upto(&net, weightfile, max);
@@ -187,7 +187,7 @@ void partial(char *cfgfile, char *weightfile, char *outfile, int max)
 
 void rescale_net(char *cfgfile, char *weightfile, char *outfile)
 {
-	gpu_index = -1;
+	Darknet::cfg_and_state.gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if(weightfile){
 		load_weights(&net, weightfile);
@@ -205,7 +205,7 @@ void rescale_net(char *cfgfile, char *weightfile, char *outfile)
 
 void rgbgr_net(char *cfgfile, char *weightfile, char *outfile)
 {
-	gpu_index = -1;
+	Darknet::cfg_and_state.gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if(weightfile){
 		load_weights(&net, weightfile);
@@ -223,7 +223,7 @@ void rgbgr_net(char *cfgfile, char *weightfile, char *outfile)
 
 void reset_normalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
-	gpu_index = -1;
+	Darknet::cfg_and_state.gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if (weightfile) {
 		load_weights(&net, weightfile);
@@ -274,7 +274,7 @@ layer normalize_layer(layer l, int n)
 
 void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
-	gpu_index = -1;
+	Darknet::cfg_and_state.gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if(weightfile){
 		load_weights(&net, weightfile);
@@ -314,7 +314,7 @@ void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 
 void statistics_net(char *cfgfile, char *weightfile)
 {
-	gpu_index = -1;
+	Darknet::cfg_and_state.gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if (weightfile) {
 		load_weights(&net, weightfile);
@@ -366,7 +366,7 @@ void statistics_net(char *cfgfile, char *weightfile)
 
 void denormalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
-	gpu_index = -1;
+	Darknet::cfg_and_state.gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if (weightfile) {
 		load_weights(&net, weightfile);
@@ -482,17 +482,17 @@ int main(int argc, char **argv)
 
 		std::cout << "Darknet " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
 
-		gpu_index = find_int_arg(argc, argv, "-i", 0);
+		Darknet::cfg_and_state.gpu_index = find_int_arg(argc, argv, "-i", 0);
 
 #ifndef GPU
-		gpu_index = -1;
+		Darknet::cfg_and_state.gpu_index = -1;
 		Darknet::display_warning_msg("Darknet is compiled to only use the CPU.");
 		std::cout << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
 		init_cpu();
 #else   // GPU
-		if(gpu_index >= 0)
+		if (Darknet::cfg_and_state.gpu_index >= 0)
 		{
-			cuda_set_device(gpu_index);
+			cuda_set_device(Darknet::cfg_and_state.gpu_index);
 			CHECK_CUDA(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
 		}
 

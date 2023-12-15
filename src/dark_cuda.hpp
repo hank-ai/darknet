@@ -8,7 +8,7 @@ extern "C" {
 
 
 extern int cuda_debug_sync;
-extern int gpu_index;
+//extern int gpu_old_index;
 #ifdef __cplusplus
 }
 #endif // __cplusplus

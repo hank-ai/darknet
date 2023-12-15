@@ -25,6 +25,7 @@ namespace Darknet
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 
 #include <opencv2/opencv.hpp>
 

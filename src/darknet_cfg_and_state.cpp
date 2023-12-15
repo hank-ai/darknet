@@ -28,6 +28,8 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	must_immediately_exit	= false;
 	is_shown				= true;
 	colour_is_enabled		= true;
+	gpu_index				= -1;
+
 	argv					.clear();
 	args					.clear();
 	command					.clear();

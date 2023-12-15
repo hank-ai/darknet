@@ -2,7 +2,7 @@
 extern "C" {
 #endif
 int cuda_debug_sync = 0;
-int gpu_index = 0;
+//int gpu_old_index = 0;
 #ifdef __cplusplus
 }
 #endif // __cplusplus
@@ -31,7 +31,7 @@ int gpu_index = 0;
 
 void cuda_set_device(int n)
 {
-	gpu_index = n;
+	Darknet::cfg_and_state.gpu_index = n;
 	cudaError_t status = cudaSetDevice(n);
 	if (status != cudaSuccess)
 	{
@@ -562,7 +562,7 @@ int *cuda_make_int_array(size_t n)
 	int *x_gpu;
 	size_t size = sizeof(int)*n;
 	cudaError_t status = cudaMalloc((void **)&x_gpu, size);
-	if(status != cudaSuccess) fprintf(stderr, " Try to set subdivisions=64 in your cfg-file. \n");
+	if(status != cudaSuccess) fprintf(stderr, " Try to set subdivisions=... to a larger value in your cfg-file. \n");
 	CHECK_CUDA(status);
 	return x_gpu;
 }
