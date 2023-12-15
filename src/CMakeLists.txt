@@ -70,8 +70,11 @@ ENDIF ()
 # And lastly is the traditional darknet CLI.
 # ==
 ADD_EXECUTABLE (darknetcli ${APPSRC})
-#SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet") -- this conflicts with "darknet" the library, so instead we'll rename it when it is installed
-SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet")
+IF (WIN32)
+	SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet.exe")
+ELSE ()
+	SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet")
+ENDIF ()
 IF (DARKNET_USE_CUDA)
 	SET_TARGET_PROPERTIES (darknetcli PROPERTIES CUDA_ARCHITECTURES "${DARKNET_CUDA_ARCHITECTURES}")
 	SET_TARGET_PROPERTIES (darknetcli PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)

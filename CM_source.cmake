@@ -25,7 +25,6 @@ IF (WIN32)
 #	ADD_COMPILE_OPTIONS (/wd4819)
 #	ADD_COMPILE_OPTIONS (/wd4996)
 #	ADD_COMPILE_OPTIONS (/Zc:strictStrings-)
-	ADD_COMPILE_DEFINITIONS (LIB_EXPORTS)
 	ADD_COMPILE_DEFINITIONS (NOMINMAX)
 	ADD_COMPILE_DEFINITIONS (_CRT_SECURE_NO_WARNINGS )	# don't complain about localtime()
 
@@ -47,6 +46,8 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-Wno-sign-compare)
 ENDIF ()
 
+# export Darknet's API to darknet.dll (Windows) and darknet.so (Linux)
+ADD_COMPILE_DEFINITIONS (DARKNET_LIB_EXPORTS)
 
 # TODO: https://learn.microsoft.com/en-us/cpp/build/reference/fp-specify-floating-point-behavior?view=msvc-170
 # TODO: https://stackoverflow.com/questions/36501542/what-is-gcc-clang-equivalent-of-fp-model-fast-1-in-icc

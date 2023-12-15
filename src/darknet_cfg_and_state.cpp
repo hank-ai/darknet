@@ -6,7 +6,7 @@
 #endif
 
 
-Darknet::CfgAndState Darknet::cfg_and_state;
+DARKNET_LIB_API Darknet::CfgAndState Darknet::cfg_and_state;
 
 
 Darknet::CfgAndState::CfgAndState()

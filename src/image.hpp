@@ -43,11 +43,8 @@ void scale_image(image m, float s);
 image random_crop_image(image im, int w, int h);
 image random_augment_image(image im, float angle, float aspect, int low, int high, int size);
 void random_distort_image(image im, float hue, float saturation, float exposure);
-//LIB_API image resize_image(image im, int w, int h);
-//LIB_API void copy_image_from_bytes(image im, char *pdata);
 void fill_image(image m, float s);
 void letterbox_image_into(image im, int w, int h, image boxed);
-//LIB_API image letterbox_image(image im, int w, int h);
 // image resize_min(image im, int min);
 image resize_max(image im, int max);
 void translate_image(image m, float s);
@@ -60,7 +57,6 @@ void exposure_image(image im, float sat);
 void distort_image(image im, float hue, float sat, float val);
 void saturate_exposure_image(image im, float sat, float exposure);
 void hsv_to_rgb(image im);
-//LIB_API void rgbgr_image(image im);
 void constrain_image(image im);
 void composite_3d(char *f1, char *f2, char *out, int delta);
 int best_3d_shift_r(image a, image b, int min, int max);
@@ -96,17 +92,11 @@ void copy_image_inplace(image src, image dst);
 image load_image(char * filename, int desired_width, int desired_height, int channels);
 
 image load_image_stb_resize(char *filename, int w, int h, int c);
-//LIB_API image load_image_color(char *filename, int w, int h);
 
-//float get_pixel(image m, int x, int y, int c);
-//float get_pixel_extend(image m, int x, int y, int c);
-//void set_pixel(image m, int x, int y, int c, float val);
-//void add_pixel(image m, int x, int y, int c, float val);
 float bilinear_interpolate(image im, float x, float y, int c);
 
 image get_image_layer(image m, int l);
 
-//LIB_API void free_image(image m);
 void test_resize(char *filename);
 #ifdef __cplusplus
 }

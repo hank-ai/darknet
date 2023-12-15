@@ -25,13 +25,6 @@ float option_find_float(list *l, char *key, float def);
 float option_find_float_quiet(list *l, char *key, float def);
 void option_unused(list *l);
 
-//typedef struct {
-//	int classes;
-//	char **names;
-//} metadata;
-
-//LIB_API metadata get_metadata(char *file);
-
 #ifdef __cplusplus
 }
 #endif
