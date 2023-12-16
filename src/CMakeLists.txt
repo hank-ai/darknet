@@ -42,6 +42,7 @@ LIST (SORT LIBSRC)
 # ==
 # First step is to create the actual darknet library.
 # ==
+MESSAGE(STATUS "Setting up DARKNET LIB")
 ADD_LIBRARY (darknet SHARED ${LIBSRC})
 SET_TARGET_PROPERTIES (darknet PROPERTIES PUBLIC_HEADER "darknet.h;darknet_version.h")
 IF (DARKNET_USE_CUDA)
@@ -59,6 +60,7 @@ INSTALL (TARGETS darknet LIBRARY DESTINATION lib PUBLIC_HEADER DESTINATION inclu
 # the old Linux Makefile ever tried to build this on Linux.
 # ==
 IF (WIN32)
+	MESSAGE(STATUS "Setting up YOLO V2 LIB")
 	ADD_LIBRARY (yolo_v2_class SHARED yolo_v2_class.cpp)
 	SET_TARGET_PROPERTIES (yolo_v2_class PROPERTIES PUBLIC_HEADER "yolo_v2_class.hpp")
 	TARGET_LINK_LIBRARIES (yolo_v2_class PRIVATE ${DARKNET_LINK_LIBS} darknet)
@@ -69,12 +71,9 @@ ENDIF ()
 # ==
 # And lastly is the traditional darknet CLI.
 # ==
+MESSAGE(STATUS "Setting up DARKNET CLI")
 ADD_EXECUTABLE (darknetcli ${APPSRC})
-IF (WIN32)
-	SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet.exe")
-ELSE ()
-	SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet")
-ENDIF ()
+SET_TARGET_PROPERTIES (darknetcli PROPERTIES OUTPUT_NAME "darknet")
 IF (DARKNET_USE_CUDA)
 	SET_TARGET_PROPERTIES (darknetcli PROPERTIES CUDA_ARCHITECTURES "${DARKNET_CUDA_ARCHITECTURES}")
 	SET_TARGET_PROPERTIES (darknetcli PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)

@@ -68,5 +68,5 @@ namespace Darknet
 			int gpu_index;
 	};
 
-	DARKNET_LIB_API extern CfgAndState cfg_and_state;
+	extern CfgAndState cfg_and_state;
 }
