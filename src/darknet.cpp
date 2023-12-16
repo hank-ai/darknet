@@ -486,7 +486,7 @@ int main(int argc, char **argv)
 		cfg_and_state.gpu_index = find_int_arg(argc, argv, "-i", 0);
 
 #ifndef GPU
-		Darknet::cfg_and_state.gpu_index = -1;
+		cfg_and_state.gpu_index = -1;
 		Darknet::display_warning_msg("Darknet is compiled to only use the CPU.");
 		std::cout << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
 		init_cpu();
