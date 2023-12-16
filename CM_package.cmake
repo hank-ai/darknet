@@ -6,7 +6,7 @@
 #
 SET (CPACK_PACKAGE_NAME "darknet")
 SET (CPACK_PACKAGE_HOMEPAGE_URL "https://darknetcv.ai/")
-SET (CPACK_PACKAGE_DESCRIPTION "Darknet Object Detection Framework and YOLO")
+SET (CPACK_PACKAGE_DESCRIPTION "Darknet/YOLO Object Detection Framework")
 SET (CPACK_PACKAGE_CONTACT "Stephane Charette <stephanecharette@gmail.com>")
 SET (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 
@@ -16,11 +16,13 @@ SET (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 # distro that uses RPM files such as Centos or OpenSUSE then you'd likely
 # want to use RPM.
 #
-# And if using Windows, then NSIS is the only option support by CPack.
+# And if using Windows, then NSIS is the only option supported by CPack.
 #
 IF (UNIX)
 	SET (CPACK_GENERATOR "DEB")
-	#SET (CPACK_GENERATOR "RPM")
+#	SET (CPACK_GENERATOR "RPM")
+
+	SET (CPACK_DEBIAN_PACKAGE_SHLIBDEPS "ON")
 ENDIF ()
 
 

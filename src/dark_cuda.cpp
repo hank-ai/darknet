@@ -2,7 +2,6 @@
 extern "C" {
 #endif
 int cuda_debug_sync = 0;
-//int gpu_old_index = 0;
 #ifdef __cplusplus
 }
 #endif // __cplusplus
@@ -10,19 +9,7 @@ int cuda_debug_sync = 0;
 #ifdef GPU
 
 #include "darknet_internal.hpp"
-//#include <stdlib.h>
-//#include <time.h>
 #include <cuda.h>
-//#include <stdio.h>
-//#include <iostream>
-
-//#ifndef USE_CMAKE_LIBS
-//#pragma comment(lib, "cuda.lib")
-
-//#ifdef CUDNN
-//#pragma comment(lib, "cudnn.lib")
-//#endif  // CUDNN
-//#endif  // USE_CMAKE_LIBS
 
 #if defined(CUDNN_HALF) && !defined(CUDNN)
 #error "If you set CUDNN_HALF=1 then you must set CUDNN=1"

@@ -14,8 +14,8 @@ extern "C" {
 
 #define DARKNET_LOC __FILE__, __func__, __LINE__
 
-DARKNET_LIB_API void free_ptrs(void **ptrs, int n);
-DARKNET_LIB_API void top_k(float *a, int n, int k, int *index);
+void free_ptrs(void **ptrs, int n);
+void top_k(float *a, int n, int k, int *index);
 
 /* The "location" is the file, function, and line as defined by the DARKNET_LOC macro.
  * This is then printed when darknet_fatal_error() is called to terminate the instance of darknet.
@@ -51,7 +51,7 @@ void read_all(int fd, char *buffer, size_t bytes);
 void write_all(int fd, char *buffer, size_t bytes);
 int read_all_fail(int fd, char *buffer, size_t bytes);
 int write_all_fail(int fd, char *buffer, size_t bytes);
-DARKNET_LIB_API void find_replace(const char* str, char* orig, char* rep, char* output);
+void find_replace(const char* str, char* orig, char* rep, char* output);
 void replace_image_to_label(const char* input_path, char* output_path);
 void malloc_error(const size_t size, const char * const filename, const char * const funcname, const int line);
 void calloc_error(const size_t size, const char * const filename, const char * const funcname, const int line);

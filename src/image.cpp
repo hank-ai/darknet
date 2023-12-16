@@ -1690,7 +1690,7 @@ void free_image(image m)
 }
 
 // Fast copy data from a contiguous byte array into the image.
-DARKNET_LIB_API void copy_image_from_bytes(image im, char *pdata)
+void copy_image_from_bytes(image im, char *pdata)
 {
 	unsigned char *data = (unsigned char*)pdata;
 	int i, k, j;

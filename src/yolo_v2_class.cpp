@@ -137,7 +137,7 @@ struct detector_gpu_t {
 	unsigned int *track_id;
 };
 
-DARKNET_LIB_API Detector::Detector(std::string cfg_filename, std::string weight_filename, int gpu_id, int batch_size)
+Detector::Detector(std::string cfg_filename, std::string weight_filename, int gpu_id, int batch_size)
 	: cur_gpu_id(gpu_id)
 {
 	wait_stream = 0;
@@ -188,7 +188,7 @@ DARKNET_LIB_API Detector::Detector(std::string cfg_filename, std::string weight_
 }
 
 
-DARKNET_LIB_API Detector::~Detector()
+Detector::~Detector()
 {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	//layer l = detector_gpu.net.layers[detector_gpu.net.n - 1];
@@ -212,21 +212,21 @@ DARKNET_LIB_API Detector::~Detector()
 #endif
 }
 
-DARKNET_LIB_API int Detector::get_net_width() const {
+int Detector::get_net_width() const {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	return detector_gpu.net.w;
 }
-DARKNET_LIB_API int Detector::get_net_height() const {
+int Detector::get_net_height() const {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	return detector_gpu.net.h;
 }
-DARKNET_LIB_API int Detector::get_net_color_depth() const {
+int Detector::get_net_color_depth() const {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	return detector_gpu.net.c;
 }
 
 
-DARKNET_LIB_API std::vector<bbox_t> Detector::detect(std::string image_filename, float thresh, bool use_mean)
+std::vector<bbox_t> Detector::detect(std::string image_filename, float thresh, bool use_mean)
 {
 	std::shared_ptr<image_t> image_ptr(new image_t, [](image_t *img) { if (img->data) free(img->data); delete img; });
 	*image_ptr = load_image(image_filename);
@@ -234,7 +234,7 @@ DARKNET_LIB_API std::vector<bbox_t> Detector::detect(std::string image_filename,
 }
 
 
-DARKNET_LIB_API image_t Detector::load_image(std::string image_filename)
+image_t Detector::load_image(std::string image_filename)
 {
 	image im = load_image_cv(const_cast<char*>(image_filename.c_str()), 3);
 
@@ -248,14 +248,14 @@ DARKNET_LIB_API image_t Detector::load_image(std::string image_filename)
 }
 
 
-DARKNET_LIB_API void Detector::free_image(image_t m)
+void Detector::free_image(image_t m)
 {
 	if (m.data) {
 		free(m.data);
 	}
 }
 
-DARKNET_LIB_API std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
+std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	network &net = detector_gpu.net;
@@ -343,7 +343,7 @@ DARKNET_LIB_API std::vector<bbox_t> Detector::detect(image_t img, float thresh, 
 	return bbox_vec;
 }
 
-DARKNET_LIB_API std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_size, int width, int height, float thresh, bool make_nms)
+std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_size, int width, int height, float thresh, bool make_nms)
 {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	network &net = detector_gpu.net;
@@ -411,7 +411,7 @@ DARKNET_LIB_API std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t i
 	return bbox_vec;
 }
 
-DARKNET_LIB_API std::vector<bbox_t> Detector::tracking_id(std::vector<bbox_t> cur_bbox_vec, bool const change_history,
+std::vector<bbox_t> Detector::tracking_id(std::vector<bbox_t> cur_bbox_vec, bool const change_history,
 	int const frames_story, int const max_dist)
 {
 	detector_gpu_t &det_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());

@@ -46,13 +46,9 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-Wno-sign-compare)
 ENDIF ()
 
-# export Darknet's API to darknet.dll (Windows) and darknet.so (Linux)
-ADD_COMPILE_DEFINITIONS (DARKNET_LIB_EXPORTS)
-
 # TODO: https://learn.microsoft.com/en-us/cpp/build/reference/fp-specify-floating-point-behavior?view=msvc-170
 # TODO: https://stackoverflow.com/questions/36501542/what-is-gcc-clang-equivalent-of-fp-model-fast-1-in-icc
 # TODO: -ffast-math and -funsafe-math-optimizations
-
 
 SET (BUILD_SHARED_LIBS TRUE)				# ADD_LIBRARY() will default to shared libs
 SET (CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)	# automatically create a module definition (.def) file with all global symbols

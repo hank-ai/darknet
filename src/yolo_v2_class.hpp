@@ -17,22 +17,6 @@
 #error "This requires a C++ compiler."
 #endif
 
-
-#ifndef DARKNET_LIB_API
-	// if we're exporting things, which would only be set when we're building darknet itself (see CM_source.cmake)
-	#ifdef DARKNET_LIB_EXPORTS
-		#if defined(_MSC_VER)
-			// Visual Studio (Windows)
-			#define DARKNET_LIB_API __declspec(dllexport)
-		#else
-			// GCC's equivalent (Linux)
-			#define DARKNET_LIB_API __attribute__((visibility("default")))
-		#endif
-	#else
-		#define DARKNET_LIB_API
-	#endif
-#endif
-
 #define C_SHARP_MAX_OBJECTS 1000
 
 struct bbox_t {
@@ -67,16 +51,19 @@ struct bbox_t_container {
 #include <cmath>
 #include <opencv2/opencv.hpp>
 
-extern "C" DARKNET_LIB_API int init(const char *configurationFilename, const char *weightsFilename, int gpu, int batch_size);
-extern "C" DARKNET_LIB_API int detect_image(const char *filename, bbox_t_container &container);
-extern "C" DARKNET_LIB_API int detect_mat(const uint8_t* data, const size_t data_length, bbox_t_container &container);
-extern "C" DARKNET_LIB_API int dispose();
-extern "C" DARKNET_LIB_API int get_device_count();
-extern "C" DARKNET_LIB_API int get_device_name(int gpu, char* deviceName);
-extern "C" DARKNET_LIB_API bool built_with_cuda();
-extern "C" DARKNET_LIB_API bool built_with_cudnn();
-extern "C" DARKNET_LIB_API bool built_with_opencv();
-extern "C" DARKNET_LIB_API void send_json_custom(char const* send_buf, int port, int timeout);
+extern "C"
+{
+	int init(const char *configurationFilename, const char *weightsFilename, int gpu, int batch_size);
+	int detect_image(const char *filename, bbox_t_container &container);
+	int detect_mat(const uint8_t* data, const size_t data_length, bbox_t_container &container);
+	int dispose();
+	int get_device_count();
+	int get_device_name(int gpu, char* deviceName);
+	bool built_with_cuda();
+	bool built_with_cudnn();
+	bool built_with_opencv();
+	void send_json_custom(char const* send_buf, int port, int timeout);
+}
 
 class Detector {
 	std::shared_ptr<void> detector_gpu_ptr;
@@ -87,22 +74,22 @@ public:
 	float nms = .4;
 	bool wait_stream;
 
-	DARKNET_LIB_API Detector(std::string cfg_filename, std::string weight_filename, int gpu_id = 0, int batch_size = 1);
-	DARKNET_LIB_API ~Detector();
+	Detector(std::string cfg_filename, std::string weight_filename, int gpu_id = 0, int batch_size = 1);
+	~Detector();
 
-	DARKNET_LIB_API std::vector<bbox_t> detect(std::string image_filename, float thresh = 0.2, bool use_mean = false);
-	DARKNET_LIB_API std::vector<bbox_t> detect(image_t img, float thresh = 0.2, bool use_mean = false);
-	DARKNET_LIB_API std::vector<std::vector<bbox_t>> detectBatch(image_t img, int batch_size, int width, int height, float thresh, bool make_nms = true);
-	static DARKNET_LIB_API image_t load_image(std::string image_filename);
-	static DARKNET_LIB_API void free_image(image_t m);
-	DARKNET_LIB_API int get_net_width() const;
-	DARKNET_LIB_API int get_net_height() const;
-	DARKNET_LIB_API int get_net_color_depth() const;
+	std::vector<bbox_t> detect(std::string image_filename, float thresh = 0.2, bool use_mean = false);
+	std::vector<bbox_t> detect(image_t img, float thresh = 0.2, bool use_mean = false);
+	std::vector<std::vector<bbox_t>> detectBatch(image_t img, int batch_size, int width, int height, float thresh, bool make_nms = true);
+	static image_t load_image(std::string image_filename);
+	static void free_image(image_t m);
+	int get_net_width() const;
+	int get_net_height() const;
+	int get_net_color_depth() const;
 
-	DARKNET_LIB_API std::vector<bbox_t> tracking_id(std::vector<bbox_t> cur_bbox_vec, bool const change_history = true,
+	std::vector<bbox_t> tracking_id(std::vector<bbox_t> cur_bbox_vec, bool const change_history = true,
 												int const frames_story = 5, int const max_dist = 40);
 
-	DARKNET_LIB_API void *get_cuda_context();
+	void *get_cuda_context();
 
 	std::vector<bbox_t> detect_resized(image_t img, int init_w, int init_h, float thresh = 0.2, bool use_mean = false)
 	{
