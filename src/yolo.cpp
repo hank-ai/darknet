@@ -346,7 +346,7 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
 
 void run_yolo(int argc, char **argv)
 {
-	int dont_show = (Darknet::cfg_and_state.is_shown ? 1 : 0);
+	int dont_show = (Darknet::CfgAndState::get().is_shown ? 1 : 0);
 //	int dont_show = find_arg(argc, argv, "-dont_show");
 	int mjpeg_port = find_int_arg(argc, argv, "-mjpeg_port", -1);
 	int json_port = find_int_arg(argc, argv, "-json_port", -1);

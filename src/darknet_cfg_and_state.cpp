@@ -6,9 +6,6 @@
 #endif
 
 
-Darknet::CfgAndState Darknet::cfg_and_state;
-
-
 Darknet::CfgAndState::CfgAndState()
 {
 	reset();
@@ -20,6 +17,13 @@ Darknet::CfgAndState::CfgAndState()
 Darknet::CfgAndState::~CfgAndState()
 {
 	return;
+}
+
+
+Darknet::CfgAndState & Darknet::CfgAndState::get()
+{
+	static CfgAndState cfg_and_state;
+	return cfg_and_state;
 }
 
 
@@ -146,36 +150,36 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 
 		if (args_and_parms.type == ArgsAndParms::EType::kCommand)
 		{
-			if (not cfg_and_state.command.empty())
+			if (not command.empty())
 			{
-				if (cfg_and_state.function.empty())
+				if (function.empty())
 				{
 					// we already have a command, so assume this is a function (such as "darknet test" and "darknet detector test")
-					cfg_and_state.function = iter->name;
+					function = iter->name;
 				}
 				else
 				{
-//					throw std::invalid_argument("command \"" + cfg_and_state.command + "\" is already set while processing new command argument \"" + original_arg + "\"");
-					display_warning_msg("command \"" + cfg_and_state.command + "\" is already set while processing new command argument \"" + original_arg + "\"\n");
+//					throw std::invalid_argument("command \"" + command + "\" is already set while processing new command argument \"" + original_arg + "\"");
+					display_warning_msg("command \"" + command + "\" is already set while processing new command argument \"" + original_arg + "\"\n");
 				}
 			}
 			else
 			{
-				cfg_and_state.command = iter->name;
+				command = iter->name;
 			}
 		}
 
 		if (args_and_parms.type == ArgsAndParms::EType::kFunction and original_arg[0] != '-') // don't mix up func "map" with parm "-map"
 		{
-			if (not cfg_and_state.function.empty())
+			if (not function.empty())
 			{
 				/// @todo need to fix things like the function "map" and the optional training parameter "-map" which would trigger this code
-//				throw std::invalid_argument("function \"" + cfg_and_state.function + "\" is already set while processing new function argument \"" + original_arg + "\"");
-//				display_warning_msg("function \"" + cfg_and_state.function + "\" is already set while processing new function argument \"" + original_arg + "\"\n");
+//				throw std::invalid_argument("function \"" + function + "\" is already set while processing new function argument \"" + original_arg + "\"");
+//				display_warning_msg("function \"" + function + "\" is already set while processing new function argument \"" + original_arg + "\"\n");
 			}
 			else
 			{
-				cfg_and_state.function = iter->name;
+				function = iter->name;
 			}
 		}
 	}

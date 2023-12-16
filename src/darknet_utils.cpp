@@ -243,7 +243,7 @@ void Darknet::display_warning_msg(const std::string & msg)
 void Darknet::update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const float seconds_remaining)
 {
 	// doing this requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
-	if (cfg_and_state.colour_is_enabled)
+	if (CfgAndState::get().colour_is_enabled)
 	{
 		if (std::isfinite(current_map) && current_map > 0.0f)
 		{

@@ -147,7 +147,7 @@ void Darknet::display_usage()
 		<< std::endl
 		<< "Darknet/YOLO CLI usage:" << std::endl
 		<< std::endl
-		<< "\t\t" << cfg_and_state.argv[0] << " <command> [<options>] [<function>] [<more options and filenames>]" << std::endl
+		<< "\t\t" << CfgAndState::get().argv[0] << " <command> [<options>] [<function>] [<more options and filenames>]" << std::endl
 		<< std::endl
 		<< "Commands:" << std::endl;
 

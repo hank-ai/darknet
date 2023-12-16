@@ -222,7 +222,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	// THIS is the start of the training loop!
 	// ***************************************
 
-	while (get_current_iteration(net) < net.max_batches and Darknet::cfg_and_state.must_immediately_exit == false)
+	while (get_current_iteration(net) < net.max_batches and Darknet::CfgAndState::get().must_immediately_exit == false)
 	{
 		// we're starting a new iteration
 		std::cout << std::endl;
@@ -2137,6 +2137,8 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 
 void run_detector(int argc, char **argv)
 {
+	auto & cfg_and_state = Darknet::CfgAndState::get();
+
 	int benchmark = find_arg(argc, argv, "-benchmark");
 	int benchmark_layers = find_arg(argc, argv, "-benchmark_layers");
 	//if (benchmark_layers) benchmark = 1;
@@ -2190,14 +2192,14 @@ void run_detector(int argc, char **argv)
 	}
 	else
 	{
-		gpu = Darknet::cfg_and_state.gpu_index;
+		gpu = cfg_and_state.gpu_index;
 		gpus = &gpu;
 		ngpus = 1;
 	}
 
-	int clear		= Darknet::cfg_and_state.is_set("clear"	)	? 1 : 0;
-	int calc_map	= Darknet::cfg_and_state.is_set("map"	)	? 1 : 0;
-	int dont_show	= Darknet::cfg_and_state.is_shown			? 0 : 1;
+	int clear		= cfg_and_state.is_set("clear"	)	? 1 : 0;
+	int calc_map	= cfg_and_state.is_set("map"	)	? 1 : 0;
+	int dont_show	= cfg_and_state.is_shown			? 0 : 1;
 	if (benchmark) dont_show = 1;
 
 	/// @todo get rid of the old C-style filename access and use std::filesystem::path within the functions so we're not passing these around as char* parms
@@ -2206,13 +2208,13 @@ void run_detector(int argc, char **argv)
 	char * weights	= nullptr;
 	char * input_fn	= nullptr; // if we're passing in an image for example
 
-	std::string fn1 = Darknet::cfg_and_state.data_filename		.string();
-	std::string fn2 = Darknet::cfg_and_state.cfg_filename		.string();
-	std::string fn3 = Darknet::cfg_and_state.weights_filename	.string();
-	std::string fn4 = (Darknet::cfg_and_state.filenames.size() > 3 ? Darknet::cfg_and_state.filenames[3] : "");
-	if (fn4.empty() and not Darknet::cfg_and_state.additional_arguments.empty())
+	std::string fn1 = cfg_and_state.data_filename		.string();
+	std::string fn2 = cfg_and_state.cfg_filename		.string();
+	std::string fn3 = cfg_and_state.weights_filename	.string();
+	std::string fn4 = (cfg_and_state.filenames.size() > 3 ? cfg_and_state.filenames[3] : "");
+	if (fn4.empty() and not cfg_and_state.additional_arguments.empty())
 	{
-		fn4 = Darknet::cfg_and_state.additional_arguments[0];
+		fn4 = cfg_and_state.additional_arguments[0];
 	}
 
 	if (not fn1.empty())	{ datacfg	= const_cast<char*>(fn1.c_str()); }
@@ -2220,14 +2222,14 @@ void run_detector(int argc, char **argv)
 	if (not fn3.empty())	{ weights	= const_cast<char*>(fn3.c_str()); }
 	if (not fn4.empty())	{ input_fn	= const_cast<char*>(fn4.c_str()); }
 
-	if		(Darknet::cfg_and_state.function == "test"			) { test_detector(datacfg, cfg, weights, input_fn, thresh, hier_thresh, dont_show, ext_output, save_labels, outfile, letter_box, benchmark_layers); }
-	else if (Darknet::cfg_and_state.function == "train"			) { train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, mjpeg_port, show_imgs, benchmark_layers, chart_path); }
-	else if (Darknet::cfg_and_state.function == "valid"			) { validate_detector(datacfg, cfg, weights, outfile); }
-	else if (Darknet::cfg_and_state.function == "recall"		) { validate_detector_recall(datacfg, cfg, weights); }
-	else if (Darknet::cfg_and_state.function == "map"			) { validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL); }
-	else if (Darknet::cfg_and_state.function == "calcanchors"	) { calc_anchors(datacfg, num_of_clusters, width, height, show); }
-	else if (Darknet::cfg_and_state.function == "draw"			) { draw_object(datacfg, cfg, weights, input_fn, thresh, dont_show, 100, letter_box, benchmark_layers); }
-	else if (Darknet::cfg_and_state.function == "demo"			)
+	if		(cfg_and_state.function == "test"		) { test_detector(datacfg, cfg, weights, input_fn, thresh, hier_thresh, dont_show, ext_output, save_labels, outfile, letter_box, benchmark_layers); }
+	else if (cfg_and_state.function == "train"		) { train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, mjpeg_port, show_imgs, benchmark_layers, chart_path); }
+	else if (cfg_and_state.function == "valid"		) { validate_detector(datacfg, cfg, weights, outfile); }
+	else if (cfg_and_state.function == "recall"		) { validate_detector_recall(datacfg, cfg, weights); }
+	else if (cfg_and_state.function == "map"		) { validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL); }
+	else if (cfg_and_state.function == "calcanchors") { calc_anchors(datacfg, num_of_clusters, width, height, show); }
+	else if (cfg_and_state.function == "draw"		) { draw_object(datacfg, cfg, weights, input_fn, thresh, dont_show, 100, letter_box, benchmark_layers); }
+	else if (cfg_and_state.function == "demo"		)
 	{
 		/* Examples:
 		 *
@@ -2250,7 +2252,7 @@ void run_detector(int argc, char **argv)
 	}
 	else
 	{
-		darknet_fatal_error(DARKNET_LOC, "invalid Darknet command: %s %s", Darknet::cfg_and_state.command.c_str(), Darknet::cfg_and_state.function.c_str());
+		darknet_fatal_error(DARKNET_LOC, "invalid Darknet command: %s %s", cfg_and_state.command.c_str(), cfg_and_state.function.c_str());
 	}
 
 	/// @todo why only do this if ngpus > 1?  Is this a bug?  Should it be zero?

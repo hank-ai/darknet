@@ -40,7 +40,7 @@ void average(int argc, char *argv[])
 {
 	char *cfgfile = argv[2];
 	char *outfile = argv[3];
-	Darknet::cfg_and_state.gpu_index = -1;
+	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	network sum = parse_network_cfg(cfgfile);
 
@@ -111,7 +111,7 @@ void speed(char *cfgfile, int tics)
 
 void operations(char *cfgfile)
 {
-	Darknet::cfg_and_state.gpu_index = -1;
+	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	int i;
 	long ops = 0;
@@ -149,7 +149,7 @@ void operations(char *cfgfile)
 
 void oneoff(char *cfgfile, char *weightfile, char *outfile)
 {
-	Darknet::cfg_and_state.gpu_index = -1;
+	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	int oldn = net.layers[net.n - 2].n;
 	int c = net.layers[net.n - 2].c;
@@ -175,7 +175,7 @@ void oneoff(char *cfgfile, char *weightfile, char *outfile)
 
 void partial(char *cfgfile, char *weightfile, char *outfile, int max)
 {
-	Darknet::cfg_and_state.gpu_index = -1;
+	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg_custom(cfgfile, 1, 1);
 	if(weightfile){
 		load_weights_upto(&net, weightfile, max);
@@ -187,7 +187,7 @@ void partial(char *cfgfile, char *weightfile, char *outfile, int max)
 
 void rescale_net(char *cfgfile, char *weightfile, char *outfile)
 {
-	Darknet::cfg_and_state.gpu_index = -1;
+	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if(weightfile){
 		load_weights(&net, weightfile);
@@ -205,7 +205,7 @@ void rescale_net(char *cfgfile, char *weightfile, char *outfile)
 
 void rgbgr_net(char *cfgfile, char *weightfile, char *outfile)
 {
-	Darknet::cfg_and_state.gpu_index = -1;
+	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if(weightfile){
 		load_weights(&net, weightfile);
@@ -223,7 +223,7 @@ void rgbgr_net(char *cfgfile, char *weightfile, char *outfile)
 
 void reset_normalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
-	Darknet::cfg_and_state.gpu_index = -1;
+	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if (weightfile) {
 		load_weights(&net, weightfile);
@@ -274,7 +274,7 @@ layer normalize_layer(layer l, int n)
 
 void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
-	Darknet::cfg_and_state.gpu_index = -1;
+	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if(weightfile){
 		load_weights(&net, weightfile);
@@ -314,7 +314,7 @@ void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 
 void statistics_net(char *cfgfile, char *weightfile)
 {
-	Darknet::cfg_and_state.gpu_index = -1;
+	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if (weightfile) {
 		load_weights(&net, weightfile);
@@ -366,7 +366,7 @@ void statistics_net(char *cfgfile, char *weightfile)
 
 void denormalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
-	Darknet::cfg_and_state.gpu_index = -1;
+	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if (weightfile) {
 		load_weights(&net, weightfile);
@@ -467,7 +467,8 @@ int main(int argc, char **argv)
 		#endif
 
 		// process the args before printing anything so we can handle "-colour" and "-nocolour" correctly
-		Darknet::cfg_and_state.process_arguments(argc, argv);
+		auto & cfg_and_state = Darknet::CfgAndState::get();
+		cfg_and_state.process_arguments(argc, argv);
 
 		#ifdef _DEBUG
 		_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
@@ -482,7 +483,7 @@ int main(int argc, char **argv)
 
 		std::cout << "Darknet " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
 
-		Darknet::cfg_and_state.gpu_index = find_int_arg(argc, argv, "-i", 0);
+		cfg_and_state.gpu_index = find_int_arg(argc, argv, "-i", 0);
 
 #ifndef GPU
 		Darknet::cfg_and_state.gpu_index = -1;
@@ -490,9 +491,9 @@ int main(int argc, char **argv)
 		std::cout << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
 		init_cpu();
 #else   // GPU
-		if (Darknet::cfg_and_state.gpu_index >= 0)
+		if (cfg_and_state.gpu_index >= 0)
 		{
-			cuda_set_device(Darknet::cfg_and_state.gpu_index);
+			cuda_set_device(cfg_and_state.gpu_index);
 			CHECK_CUDA(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
 		}
 
@@ -504,43 +505,43 @@ int main(int argc, char **argv)
 
 		errno = 0;
 
-		if		(Darknet::cfg_and_state.command.empty())			{ Darknet::display_usage();			}
-		else if (Darknet::cfg_and_state.command == "3d")			{ composite_3d		(argv[2], argv[3], argv[4], (argc > 5) ? atof(argv[5]) : 0); }
-		else if (Darknet::cfg_and_state.command == "art")			{ run_art			(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "average")		{ average			(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "captcha")		{ run_captcha		(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "cifar")			{ run_cifar			(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "classify")		{ predict_classifier("cfg/imagenet1k.data", argv[2], argv[3], argv[4], 5); }
-		else if (Darknet::cfg_and_state.command == "classifier")	{ run_classifier	(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "coco")			{ run_coco			(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "compare")		{ run_compare		(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "denormalize")	{ denormalize_net	(argv[2], argv[3], argv[4]); }
-		else if (Darknet::cfg_and_state.command == "detector")		{ run_detector		(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "dice")			{ run_dice			(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "imtest")		{ test_resize		(argv[2]);		}
-		else if (Darknet::cfg_and_state.command == "go")			{ run_go			(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "help")			{ Darknet::display_usage();			}
-		else if (Darknet::cfg_and_state.command == "nightmare")		{ run_nightmare		(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "normalize")		{ normalize_net		(argv[2], argv[3], argv[4]); }
-		else if (Darknet::cfg_and_state.command == "oneoff")		{ oneoff			(argv[2], argv[3], argv[4]); }
-		else if (Darknet::cfg_and_state.command == "ops")			{ operations		(argv[2]); }
-		else if (Darknet::cfg_and_state.command == "partial")		{ partial			(argv[2], argv[3], argv[4], atoi(argv[5])); }
-		else if (Darknet::cfg_and_state.command == "rescale")		{ rescale_net		(argv[2], argv[3], argv[4]); }
-		else if (Darknet::cfg_and_state.command == "reset")			{ reset_normalize_net(argv[2], argv[3], argv[4]); }
-		else if (Darknet::cfg_and_state.command == "rgbgr")			{ rgbgr_net			(argv[2], argv[3], argv[4]); }
-		else if (Darknet::cfg_and_state.command == "rnn")			{ run_char_rnn		(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "speed")			{ speed				(argv[2], (argc > 3 && argv[3]) ? atoi(argv[3]) : 0); }
-		else if (Darknet::cfg_and_state.command == "statistics")	{ statistics_net	(argv[2], argv[3]); }
-		else if (Darknet::cfg_and_state.command == "super")			{ run_super			(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "tag")			{ run_tag			(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "test")			{ test_resize		(argv[2]);		}
-		else if (Darknet::cfg_and_state.command == "version")		{ /* nothing else to do, we've already displayed the version information */ }
-		else if (Darknet::cfg_and_state.command == "vid")			{ run_vid_rnn		(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "visualize")		{ visualize			(argv[2], (argc > 3) ? argv[3] : 0); }
-		else if (Darknet::cfg_and_state.command == "voxel")			{ run_voxel			(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "writing")		{ run_writing		(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "yolo")			{ run_yolo			(argc, argv);	}
-		else if (Darknet::cfg_and_state.command == "detect")
+		if		(cfg_and_state.command.empty())				{ Darknet::display_usage();			}
+		else if (cfg_and_state.command == "3d")				{ composite_3d		(argv[2], argv[3], argv[4], (argc > 5) ? atof(argv[5]) : 0); }
+		else if (cfg_and_state.command == "art")			{ run_art			(argc, argv);	}
+		else if (cfg_and_state.command == "average")		{ average			(argc, argv);	}
+		else if (cfg_and_state.command == "captcha")		{ run_captcha		(argc, argv);	}
+		else if (cfg_and_state.command == "cifar")			{ run_cifar			(argc, argv);	}
+		else if (cfg_and_state.command == "classify")		{ predict_classifier("cfg/imagenet1k.data", argv[2], argv[3], argv[4], 5); }
+		else if (cfg_and_state.command == "classifier")		{ run_classifier	(argc, argv);	}
+		else if (cfg_and_state.command == "coco")			{ run_coco			(argc, argv);	}
+		else if (cfg_and_state.command == "compare")		{ run_compare		(argc, argv);	}
+		else if (cfg_and_state.command == "denormalize")	{ denormalize_net	(argv[2], argv[3], argv[4]); }
+		else if (cfg_and_state.command == "detector")		{ run_detector		(argc, argv);	}
+		else if (cfg_and_state.command == "dice")			{ run_dice			(argc, argv);	}
+		else if (cfg_and_state.command == "imtest")			{ test_resize		(argv[2]);		}
+		else if (cfg_and_state.command == "go")				{ run_go			(argc, argv);	}
+		else if (cfg_and_state.command == "help")			{ Darknet::display_usage();			}
+		else if (cfg_and_state.command == "nightmare")		{ run_nightmare		(argc, argv);	}
+		else if (cfg_and_state.command == "normalize")		{ normalize_net		(argv[2], argv[3], argv[4]); }
+		else if (cfg_and_state.command == "oneoff")			{ oneoff			(argv[2], argv[3], argv[4]); }
+		else if (cfg_and_state.command == "ops")			{ operations		(argv[2]); }
+		else if (cfg_and_state.command == "partial")		{ partial			(argv[2], argv[3], argv[4], atoi(argv[5])); }
+		else if (cfg_and_state.command == "rescale")		{ rescale_net		(argv[2], argv[3], argv[4]); }
+		else if (cfg_and_state.command == "reset")			{ reset_normalize_net(argv[2], argv[3], argv[4]); }
+		else if (cfg_and_state.command == "rgbgr")			{ rgbgr_net			(argv[2], argv[3], argv[4]); }
+		else if (cfg_and_state.command == "rnn")			{ run_char_rnn		(argc, argv);	}
+		else if (cfg_and_state.command == "speed")			{ speed				(argv[2], (argc > 3 && argv[3]) ? atoi(argv[3]) : 0); }
+		else if (cfg_and_state.command == "statistics")		{ statistics_net	(argv[2], argv[3]); }
+		else if (cfg_and_state.command == "super")			{ run_super			(argc, argv);	}
+		else if (cfg_and_state.command == "tag")			{ run_tag			(argc, argv);	}
+		else if (cfg_and_state.command == "test")			{ test_resize		(argv[2]);		}
+		else if (cfg_and_state.command == "version")		{ /* nothing else to do, we've already displayed the version information */ }
+		else if (cfg_and_state.command == "vid")			{ run_vid_rnn		(argc, argv);	}
+		else if (cfg_and_state.command == "visualize")		{ visualize			(argv[2], (argc > 3) ? argv[3] : 0); }
+		else if (cfg_and_state.command == "voxel")			{ run_voxel			(argc, argv);	}
+		else if (cfg_and_state.command == "writing")		{ run_writing		(argc, argv);	}
+		else if (cfg_and_state.command == "yolo")			{ run_yolo			(argc, argv);	}
+		else if (cfg_and_state.command == "detect")
 		{
 			float thresh = find_float_arg(argc, argv, "-thresh", .24);
 			int ext_output = find_arg(argc, argv, "-ext_output");
@@ -549,7 +550,7 @@ int main(int argc, char **argv)
 		}
 		else
 		{
-			throw std::invalid_argument("invalid command (run \"" + Darknet::cfg_and_state.argv[0] + " help\" for a list of possible commands)");
+			throw std::invalid_argument("invalid command (run \"" + cfg_and_state.argv[0] + " help\" for a list of possible commands)");
 		}
 	}
 	catch (const std::exception & e)

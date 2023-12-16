@@ -105,7 +105,7 @@ image get_convolutional_delta(convolutional_layer l)
 
 size_t get_workspace_size32(layer l){
 #ifdef CUDNN
-	if (Darknet::cfg_and_state.gpu_index >= 0)
+	if (Darknet::CfgAndState::get().gpu_index >= 0)
 	{
 		size_t most = 0;
 		size_t s = 0;
@@ -147,7 +147,7 @@ size_t get_workspace_size32(layer l){
 
 size_t get_workspace_size16(layer l) {
 #if defined(CUDNN) && defined(CUDNN_HALF)
-	if (Darknet::cfg_and_state.gpu_index >= 0)
+	if (Darknet::CfgAndState::get().gpu_index >= 0)
 	{
 		size_t most = 0;
 		size_t s = 0;
@@ -683,7 +683,7 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
 	l.backward_gpu = backward_convolutional_layer_gpu;
 	l.update_gpu = update_convolutional_layer_gpu;
 
-	if (Darknet::cfg_and_state.gpu_index >= 0)
+	if (Darknet::CfgAndState::get().gpu_index >= 0)
 	{
 		if (train && (l.activation == SWISH || l.activation == MISH || l.activation == HARD_MISH)) {
 			l.activation_input_gpu = cuda_make_array(l.activation_input, total_batch*l.outputs);
@@ -842,7 +842,7 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
 		}
 		for (i = 0; i < n; ++i) l.input_layer->biases[i] = 0;
 #ifdef GPU
-		if (Darknet::cfg_and_state.gpu_index >= 0)
+		if (Darknet::CfgAndState::get().gpu_index >= 0)
 		{
 			l.input_antialiasing_gpu = cuda_make_array(NULL, l.batch*l.outputs);
 			push_convolutional_layer(*(l.input_layer));
@@ -1141,7 +1141,7 @@ void binary_align_weights(convolutional_layer *l)
 		float_to_bit(align_weights, (unsigned char*)l->align_bit_weights, align_weights_size);
 
 		//if (l->n >= 32)
-		if (Darknet::cfg_and_state.gpu_index >= 0)
+		if (Darknet::CfgAndState::get().gpu_index >= 0)
 		{
 			//int M = l->n;
 			//int N = l->out_w*l->out_h;

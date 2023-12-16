@@ -339,7 +339,7 @@ void log_backtrace()
 {
 	#define MAX_STACK_FRAMES 50
 	void * stack[MAX_STACK_FRAMES];
-	
+
 #ifdef WIN32
 	auto process = GetCurrentProcess();
 	SymSetOptions(
@@ -396,9 +396,9 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 	pthread_mutex_lock(&darknet_fatal_error_critical_section);
 
 	// only log the message and the rest of the information if this is the first call into darknet_fatal_error()
-	if (Darknet::cfg_and_state.must_immediately_exit == false)
+	if (Darknet::CfgAndState::get().must_immediately_exit == false)
 	{
-		Darknet::cfg_and_state.must_immediately_exit = true;
+		Darknet::CfgAndState::get().must_immediately_exit = true;
 
 		fprintf(stderr,
 			"\n"

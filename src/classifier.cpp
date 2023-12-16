@@ -1399,12 +1399,12 @@ void run_classifier(int argc, char **argv)
 			gpu_list = strchr(gpu_list, ',')+1;
 		}
 	} else {
-		gpu = Darknet::cfg_and_state.gpu_index;
+		gpu = Darknet::CfgAndState::get().gpu_index;
 		gpus = &gpu;
 		ngpus = 1;
 	}
 
-	int dont_show = (Darknet::cfg_and_state.is_shown ? 1 : 0);
+	int dont_show = (Darknet::CfgAndState::get().is_shown ? 1 : 0);
 //	int dont_show = find_arg(argc, argv, "-dont_show");
 	int benchmark = find_arg(argc, argv, "-benchmark");
 	int benchmark_layers = find_arg(argc, argv, "-benchmark_layers");

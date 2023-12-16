@@ -47,7 +47,7 @@ std::string Darknet::in_colour(const EColour colour, const double d)
 
 std::string Darknet::in_colour(const EColour colour, const std::string & msg)
 {
-	if (cfg_and_state.colour_is_enabled)
+	if (CfgAndState::get().colour_is_enabled)
 	{
 		return ansi_colours[colour] + msg + ansi_colours[EColour::kNormal];
 	}
@@ -58,7 +58,7 @@ std::string Darknet::in_colour(const EColour colour, const std::string & msg)
 
 std::string Darknet::in_colour(const EColour colour)
 {
-	if (cfg_and_state.colour_is_enabled)
+	if (CfgAndState::get().colour_is_enabled)
 	{
 		return ansi_colours[colour];
 	}

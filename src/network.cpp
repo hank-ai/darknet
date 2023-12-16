@@ -314,7 +314,7 @@ void update_network(network net)
 float *get_network_output(network net)
 {
 #ifdef GPU
-	if (Darknet::cfg_and_state.gpu_index >= 0) return get_network_output_gpu(net);
+	if (Darknet::CfgAndState::get().gpu_index >= 0) return get_network_output_gpu(net);
 #endif
 	int i;
 	for(i = net.n-1; i > 0; --i) if(net.layers[i].type != COST) break;
@@ -368,7 +368,7 @@ void backward_network(network net, network_state state)
 float train_network_datum(network net, float *x, float *y)
 {
 #ifdef GPU
-	if(Darknet::cfg_and_state.gpu_index >= 0) return train_network_datum_gpu(net, x, y);
+	if(Darknet::CfgAndState::get().gpu_index >= 0) return train_network_datum_gpu(net, x, y);
 #endif
 	network_state state={0};
 	*net.seen += net.batch;
@@ -509,7 +509,7 @@ int recalculate_workspace_size(network *net)
 {
 #ifdef GPU
 	cuda_set_device(net->gpu_index);
-	if (Darknet::cfg_and_state.gpu_index >= 0) cuda_free(net->workspace);
+	if (Darknet::CfgAndState::get().gpu_index >= 0) cuda_free(net->workspace);
 #endif
 	int i;
 	size_t workspace_size = 0;
@@ -527,7 +527,7 @@ int recalculate_workspace_size(network *net)
 	}
 
 #ifdef GPU
-	if (Darknet::cfg_and_state.gpu_index >= 0)
+	if (Darknet::CfgAndState::get().gpu_index >= 0)
 	{
 		const auto workspace_to_allocate = workspace_size / sizeof(float) + 1;
 		std::cout << std::endl << "allocating workspace: " << size_to_IEC_string(workspace_to_allocate) << std::endl;
@@ -572,7 +572,7 @@ int resize_network(network *net, int w, int h)
 {
 #ifdef GPU
 	cuda_set_device(net->gpu_index);
-	if(Darknet::cfg_and_state.gpu_index >= 0)
+	if(Darknet::CfgAndState::get().gpu_index >= 0)
 	{
 		cuda_free(net->workspace);
 		if (net->input_gpu)
@@ -672,7 +672,7 @@ int resize_network(network *net, int w, int h)
 	std::cout << "Allocating workspace:  " << size_to_IEC_string(workspace_size) << std::endl;
 #ifdef GPU
 	const int size = get_network_input_size(*net) * net->batch;
-	if (Darknet::cfg_and_state.gpu_index >= 0)
+	if (Darknet::CfgAndState::get().gpu_index >= 0)
 	{
 		net->workspace = cuda_make_array(0, workspace_size/sizeof(float) + 1);
 		net->input_state_gpu = cuda_make_array(0, size);
@@ -792,7 +792,7 @@ float *network_predict_ptr(network *net, float *input)
 float *network_predict(network net, float *input)
 {
 #ifdef GPU
-	if (Darknet::cfg_and_state.gpu_index >= 0)
+	if (Darknet::CfgAndState::get().gpu_index >= 0)
 	{
 		return network_predict_gpu(net, input);
 	}
@@ -1276,7 +1276,7 @@ void free_network(network net)
 	free(net.rewritten_bbox);
 
 #ifdef GPU
-	if (Darknet::cfg_and_state.gpu_index >= 0) cuda_free(net.workspace);
+	if (Darknet::CfgAndState::get().gpu_index >= 0) cuda_free(net.workspace);
 	else free(net.workspace);
 	free_pinned_memory();
 	if (net.input_state_gpu) cuda_free(net.input_state_gpu);
@@ -1344,7 +1344,7 @@ void fuse_conv_batchnorm(network net)
 				free_convolutional_batchnorm(l);
 				l->batch_normalize = 0;
 #ifdef GPU
-				if (Darknet::cfg_and_state.gpu_index >= 0)
+				if (Darknet::CfgAndState::get().gpu_index >= 0)
 				{
 					push_convolutional_layer(*l);
 				}
@@ -1398,7 +1398,7 @@ void fuse_conv_batchnorm(network net)
 			l->weights_normalization = NO_NORMALIZATION;
 
 #ifdef GPU
-			if (Darknet::cfg_and_state.gpu_index >= 0)
+			if (Darknet::CfgAndState::get().gpu_index >= 0)
 			{
 				push_shortcut_layer(*l);
 			}
@@ -1601,7 +1601,7 @@ void ema_update(network net, float ema_alpha)
 		layer l = net.layers[i];
 		if (l.type == CONVOLUTIONAL) {
 #ifdef GPU
-			if (Darknet::cfg_and_state.gpu_index >= 0)
+			if (Darknet::CfgAndState::get().gpu_index >= 0)
 			{
 				pull_convolutional_layer(l);
 			}
@@ -1641,7 +1641,7 @@ void ema_apply(network net)
 			}
 
 #ifdef GPU
-			if (Darknet::cfg_and_state.gpu_index >= 0)
+			if (Darknet::CfgAndState::get().gpu_index >= 0)
 			{
 				push_convolutional_layer(l);
 			}
@@ -1664,7 +1664,7 @@ void reject_similar_weights(network net, float sim_threshold)
 
 		if (l.type == CONVOLUTIONAL && l.activation != LINEAR) {
 #ifdef GPU
-			if (Darknet::cfg_and_state.gpu_index >= 0)
+			if (Darknet::CfgAndState::get().gpu_index >= 0)
 			{
 				pull_convolutional_layer(l);
 			}
@@ -1705,7 +1705,7 @@ void reject_similar_weights(network net, float sim_threshold)
 			}
 
 #ifdef GPU
-			if (Darknet::cfg_and_state.gpu_index >= 0)
+			if (Darknet::CfgAndState::get().gpu_index >= 0)
 			{
 				push_convolutional_layer(l);
 			}

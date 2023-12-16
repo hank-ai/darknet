@@ -15,6 +15,9 @@ namespace Darknet
 			/// Destructor.
 			~CfgAndState();
 
+			/// Get a reference to the singleton used by Darknet.
+			static CfgAndState & get();
+
 			/// Clear out all settings and state to a known initial state.
 			CfgAndState & reset();
 
@@ -67,6 +70,4 @@ namespace Darknet
 			/// The index of the GPU to use.  @p -1 means no GPU is selected.
 			int gpu_index;
 	};
-
-	extern CfgAndState cfg_and_state;
 }
