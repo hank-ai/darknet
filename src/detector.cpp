@@ -29,13 +29,18 @@ typedef __compar_fn_t comparison_fn_t;
 
 int check_mistakes = 0;
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
 static int coco_ids[] = { 1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,27,28,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,67,70,72,73,74,75,76,77,78,79,80,81,82,84,85,86,87,88,89,90 };
 
 void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, char* chart_path)
 {
-//	const std::filesystem::path & datacfg		= Darknet::cfg_and_state.data_filename;
-//	const std::filesystem::path & cfgfile		= Darknet::cfg_and_state.cfg_filename;
-//	const std::filesystem::path & weightfile	= Darknet::cfg_and_state.weights_filename;
+//	const std::filesystem::path & datacfg		= cfg_and_state.data_filename;
+//	const std::filesystem::path & cfgfile		= cfg_and_state.cfg_filename;
+//	const std::filesystem::path & weightfile	= cfg_and_state.weights_filename;
 
 	list *options = read_data_cfg(datacfg);
 	char *train_images = option_find_str(options, "train", "data/train.txt");
@@ -222,7 +227,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	// THIS is the start of the training loop!
 	// ***************************************
 
-	while (get_current_iteration(net) < net.max_batches and Darknet::CfgAndState::get().must_immediately_exit == false)
+	while (get_current_iteration(net) < net.max_batches and cfg_and_state.must_immediately_exit == false)
 	{
 		// we're starting a new iteration
 		std::cout << std::endl;
@@ -2137,8 +2142,6 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 
 void run_detector(int argc, char **argv)
 {
-	auto & cfg_and_state = Darknet::CfgAndState::get();
-
 	int benchmark = find_arg(argc, argv, "-benchmark");
 	int benchmark_layers = find_arg(argc, argv, "-benchmark_layers");
 	//if (benchmark_layers) benchmark = 1;

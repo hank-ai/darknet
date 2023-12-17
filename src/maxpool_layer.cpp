@@ -6,6 +6,11 @@
 #include "image.hpp"
 #include "darknet_internal.hpp"
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
 image get_maxpool_image(maxpool_layer l)
 {
 	int h = l.out_h;
@@ -196,7 +201,7 @@ maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size, int s
 		}
 		for (i = 0; i < l.out_c; ++i) l.input_layer->biases[i] = 0;
 #ifdef GPU
-		if (Darknet::CfgAndState::get().gpu_index >= 0)
+		if (cfg_and_state.gpu_index >= 0)
 		{
 			if (l.antialiasing) l.input_antialiasing_gpu = cuda_make_array(NULL, l.batch*l.outputs);
 			push_convolutional_layer(*(l.input_layer));

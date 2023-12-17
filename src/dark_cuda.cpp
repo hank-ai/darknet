@@ -16,9 +16,15 @@ int cuda_debug_sync = 0;
 #endif
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 void cuda_set_device(int n)
 {
-	Darknet::CfgAndState::get().gpu_index = n;
+	cfg_and_state.gpu_index = n;
 	cudaError_t status = cudaSetDevice(n);
 	if (status != cudaSuccess)
 	{

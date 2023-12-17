@@ -44,6 +44,13 @@
 #include "image.hpp"
 #include "darknet_internal.hpp"
 
+
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 void empty_func(dropout_layer l, network_state state) {
 	//l.output_gpu = state.input;
 }
@@ -1412,7 +1419,7 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 		darknet_fatal_error(DARKNET_LOC, "config file has no sections");
 	}
 	network net = make_network(sections->size - 1);
-	net.gpu_index = Darknet::CfgAndState::get().gpu_index;
+	net.gpu_index = cfg_and_state.gpu_index;
 	size_params params;
 
 	if (batch > 0) params.train = 0;    // allocates memory for Inference only
@@ -1824,7 +1831,7 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 #ifdef GPU
 	get_cuda_stream();
 	//get_cuda_memcpy_stream();
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		int size = get_network_input_size(net) * net.batch;
 		net.input_state_gpu = cuda_make_array(0, size);
@@ -1919,7 +1926,7 @@ list *read_cfg(char *filename)
 void save_convolutional_weights_binary(layer l, FILE *fp)
 {
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_convolutional_layer(l);
 	}
@@ -1952,7 +1959,7 @@ void save_convolutional_weights_binary(layer l, FILE *fp)
 void save_shortcut_weights(layer l, FILE *fp)
 {
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_shortcut_layer(l);
 		printf("\n pull_shortcut_layer \n");
@@ -1971,7 +1978,7 @@ void save_shortcut_weights(layer l, FILE *fp)
 void save_implicit_weights(layer l, FILE *fp)
 {
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_implicit_layer(l);
 		//printf("\n pull_implicit_layer \n");
@@ -1995,7 +2002,7 @@ void save_convolutional_weights(layer l, FILE *fp)
 		//return;
 	}
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_convolutional_layer(l);
 	}
@@ -2021,7 +2028,7 @@ void save_convolutional_weights_ema(layer l, FILE *fp)
 		//return;
 	}
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_convolutional_layer(l);
 	}
@@ -2043,7 +2050,7 @@ void save_convolutional_weights_ema(layer l, FILE *fp)
 void save_batchnorm_weights(layer l, FILE *fp)
 {
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_batchnorm_layer(l);
 	}
@@ -2057,7 +2064,7 @@ void save_batchnorm_weights(layer l, FILE *fp)
 void save_connected_weights(layer l, FILE *fp)
 {
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_connected_layer(l);
 	}
@@ -2154,7 +2161,7 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 			save_convolutional_weights(*(l.output_layer), fp);
 		} if(l.type == LOCAL){
 #ifdef GPU
-			if (Darknet::CfgAndState::get().gpu_index >= 0)
+			if (cfg_and_state.gpu_index >= 0)
 			{
 				pull_local_layer(l);
 			}
@@ -2206,7 +2213,7 @@ void load_connected_weights(layer l, FILE *fp, int transpose)
 		//printf("rolling_variance: %f mean %f variance\n", mean_array(l.rolling_variance, l.outputs), variance_array(l.rolling_variance, l.outputs));
 	}
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_connected_layer(l);
 	}
@@ -2220,7 +2227,7 @@ void load_batchnorm_weights(layer l, FILE *fp)
 	fread(l.rolling_mean, sizeof(float), l.c, fp);
 	fread(l.rolling_variance, sizeof(float), l.c, fp);
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_batchnorm_layer(l);
 	}
@@ -2254,7 +2261,7 @@ void load_convolutional_weights_binary(layer l, FILE *fp)
 		}
 	}
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_convolutional_layer(l);
 	}
@@ -2310,7 +2317,7 @@ void load_convolutional_weights(layer l, FILE *fp)
 	}
 	//if (l.binary) binarize_weights(l.weights, l.n, (l.c/l.groups)*l.size*l.size, l.weights);
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_convolutional_layer(l);
 	}
@@ -2326,7 +2333,7 @@ void load_shortcut_weights(layer l, FILE *fp)
 	//for (int i = 0; i < l.nweights; ++i) printf(" %f, ", l.weights[i]);
 	//printf(" read_bytes = %d \n\n", read_bytes);
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_shortcut_layer(l);
 	}
@@ -2342,7 +2349,7 @@ void load_implicit_weights(layer l, FILE *fp)
 	//for (int i = 0; i < l.nweights; ++i) printf(" %f, ", l.weights[i]);
 	//printf(" read_bytes = %d \n\n", read_bytes);
 #ifdef GPU
-	if (Darknet::CfgAndState::get().gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_implicit_layer(l);
 	}
@@ -2452,7 +2459,7 @@ void load_weights_upto(network *net, char *filename, int cutoff)
 			fread(l.biases, sizeof(float), l.outputs, fp);
 			fread(l.weights, sizeof(float), size, fp);
 #ifdef GPU
-			if (Darknet::CfgAndState::get().gpu_index >= 0)
+			if (cfg_and_state.gpu_index >= 0)
 			{
 				push_local_layer(l);
 			}

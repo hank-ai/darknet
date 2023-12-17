@@ -4,7 +4,7 @@
 namespace
 {
 	/// Text strings with the VT100/ANSI escape codes needed to display colour output.
-	const Darknet::VStr ansi_colours =
+	static const Darknet::VStr ansi_colours =
 	{
 		"\033[0m",		// EColour::kNormal
 		"\033[0;30m",	// EColour::kBlack
@@ -24,6 +24,8 @@ namespace
 		"\033[1;36m",	// EColour::kBrightCyan
 		"\033[1;37m"	// EColour::kBrightWhite
 	};
+
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
 }
 
 
@@ -47,7 +49,7 @@ std::string Darknet::in_colour(const EColour colour, const double d)
 
 std::string Darknet::in_colour(const EColour colour, const std::string & msg)
 {
-	if (CfgAndState::get().colour_is_enabled)
+	if (cfg_and_state.colour_is_enabled)
 	{
 		return ansi_colours[colour] + msg + ansi_colours[EColour::kNormal];
 	}
@@ -58,7 +60,7 @@ std::string Darknet::in_colour(const EColour colour, const std::string & msg)
 
 std::string Darknet::in_colour(const EColour colour)
 {
-	if (CfgAndState::get().colour_is_enabled)
+	if (cfg_and_state.colour_is_enabled)
 	{
 		return ansi_colours[colour];
 	}
