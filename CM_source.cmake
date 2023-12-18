@@ -1,6 +1,17 @@
 # Darknet object detection framework
 
 
+# The old "src" directory was split into "src-lib" and "src-cli" in December 2023.
+# Rename that old dirctory, otherwise people will be confused if source files show
+# up in multiple subdirectories.
+IF (EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/src")
+	FILE (RENAME "${CMAKE_CURRENT_SOURCE_DIR}/src" "${CMAKE_CURRENT_SOURCE_DIR}/delete_me_old_src")
+ENDIF ()
+IF (EXISTS "${CMAKE_CURRENT_BINARY_DIR}/src")
+	FILE (RENAME "${CMAKE_CURRENT_BINARY_DIR}/src" "${CMAKE_CURRENT_BINARY_DIR}/delete_me_old_src")
+ENDIF ()
+
+
 IF (WIN32)
 #	ADD_COMPILE_OPTIONS (/W4)				# warning level (high)
 #	ADD_COMPILE_OPTIONS (/WX)				# treat warnings as errors
