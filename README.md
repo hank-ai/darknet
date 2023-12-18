@@ -212,11 +212,11 @@ msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 
 If you get an error about some missing CUDA DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
 ```bat
-copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\*.dll" src\Release\
+copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\*.dll" src-cli\Release\
 ```
 Similarly, if you get an error about CUDNN, then manually copy the CUDNN `.dll` file into the same output directory.  For example:
 ```bat
-copy "C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll" src\Release\
+copy "C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll" src-cli\Release\
 ```
 Once the files have been copied, re-run the last `msbuild.exe` command to generate the NSIS installation package:
 ```bat

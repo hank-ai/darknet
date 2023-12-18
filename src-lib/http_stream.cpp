@@ -28,9 +28,6 @@ using std::endl;
 // socket related abstractions:
 //
 #ifdef _WIN32
-#ifndef USE_CMAKE_LIBS
-#pragma comment(lib, "ws2_32.lib")
-#endif
 #define WIN32_LEAN_AND_MEAN
 #define _WINSOCK_DEPRECATED_NO_WARNINGS
 #include <windows.h>

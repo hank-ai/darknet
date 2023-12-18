@@ -66,23 +66,6 @@ extern "C" void resize_window_cv(char const* window_name, int width, int height)
 #endif//DEBUG
 
 
-// OpenCV libraries
-#if 0
-#ifndef CV_VERSION_EPOCH
-#define OPENCV_VERSION CVAUX_STR(CV_VERSION_MAJOR)"" CVAUX_STR(CV_VERSION_MINOR)"" CVAUX_STR(CV_VERSION_REVISION) OCV_D
-#ifndef USE_CMAKE_LIBS
-#pragma comment(lib, "opencv_world" OPENCV_VERSION ".lib")
-#endif    // USE_CMAKE_LIBS
-#else   // CV_VERSION_EPOCH
-#define OPENCV_VERSION CVAUX_STR(CV_VERSION_EPOCH)"" CVAUX_STR(CV_VERSION_MAJOR)"" CVAUX_STR(CV_VERSION_MINOR) OCV_D
-#ifndef USE_CMAKE_LIBS
-#pragma comment(lib, "opencv_core" OPENCV_VERSION ".lib")
-#pragma comment(lib, "opencv_imgproc" OPENCV_VERSION ".lib")
-#pragma comment(lib, "opencv_highgui" OPENCV_VERSION ".lib")
-#endif    // USE_CMAKE_LIBS
-#endif    // CV_VERSION_EPOCH
-#endif
-
 #include "http_stream.hpp"
 
 #ifndef CV_RGB

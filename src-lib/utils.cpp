@@ -24,10 +24,6 @@
 #include "darknet_version.h"
 #include "darknet_format_and_colour.hpp"
 
-#ifndef USE_CMAKE_LIBS
-#pragma warning(disable: 4996)
-#endif
-
 
 void *xmalloc_location(const size_t size, const char * const filename, const char * const funcname, const int line) {
 	void *ptr=malloc(size);
