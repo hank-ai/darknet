@@ -50,12 +50,16 @@ ENDIF ()
 # TODO: https://stackoverflow.com/questions/36501542/what-is-gcc-clang-equivalent-of-fp-model-fast-1-in-icc
 # TODO: -ffast-math and -funsafe-math-optimizations
 
+
 SET (BUILD_SHARED_LIBS TRUE)				# ADD_LIBRARY() will default to shared libs
-SET (CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)	# automatically create a module definition (.def) file with all global symbols
 SET (CMAKE_ENABLE_EXPORTS TRUE)				# equivalent to -rdynamic (to get the backtrace when something goes wrong)
 SET (CMAKE_POSITION_INDEPENDENT_CODE ON)	# equivalent to -fpic (position independent code)
 
 
+INCLUDE_DIRECTORIES (src-cli)
+INCLUDE_DIRECTORIES (src-lib)
+
 ADD_SUBDIRECTORY (doc)
 ADD_SUBDIRECTORY (cfg)
-ADD_SUBDIRECTORY (src)
+ADD_SUBDIRECTORY (src-lib)
+ADD_SUBDIRECTORY (src-cli)

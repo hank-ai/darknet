@@ -6,14 +6,6 @@
 
 #include "darknet.h"
 #include "parser.hpp"
-#include "utils.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
-#include "connected_layer.hpp"
-#include "darknet_utils.hpp"
-#include "convolutional_layer.hpp"
-#include "image.hpp"
-
 #include "darknet_internal.hpp"
 
 
