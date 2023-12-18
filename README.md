@@ -140,7 +140,7 @@ Installing the package will copy the following files:
 
 You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run this to test:  `darknet version`.
 
-> If you have `darknetcli` but not `darknet` then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file.  It is during this final installation step that the CLI is renamed to `/usr/bin/darknet`.
+> If you don't have /usr/bin/darknet` then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file.
 
 ## Windows CMake Method
 
@@ -227,7 +227,7 @@ msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 >
 > Note that the output of the `cmake` command is a normal Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio.
 
-You should now have this file you can run:  `C:\src\Darknet\build\src\Release\Darknetcli.exe`.  Run this to test:  `C:\src\Darknet\build\src\Release\Darknetcli.exe version`.
+You should now have this file you can run:  `C:\src\Darknet\build\src-cli\Release\darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src-cli\Release\darknet.exe version`.
 
 To correctly install Darknet, the libraries, the include files, and the necessary DLLs, run the NSIS installation wizard that was built in the last step.  See the file `darknet-VERSION.exe` in the `build` directory.  For example:
 ```bat
@@ -244,7 +244,7 @@ Installing the NSIS installation package will:
 
 You are now done!  Once the installation wizard has finished, Darknet will have been installed into `C:\Program Files\Darknet\`.  Run this to test:  `C:\Program Files\Darknet\bin\darknet.exe version`.
 
-> If you have `darknetcli.exe` but not `darknet.exe` then this means you _did not_ install it, you only built it!  Make sure you go through each step of the NSIS installation wizard.  It is during this final installation step that the CLI is renamed from `Darknetcli.exe` to `Darknet.exe`.
+> If you don't have `C:/Program Files/darknet/bin/darknet.exe` then this means you _did not_ install it, you only built it!  Make sure you go through each step of the NSIS installation wizard in the previous step.
 
 # Using Darknet
 

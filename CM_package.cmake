@@ -28,8 +28,8 @@ ENDIF ()
 
 IF (WIN32)
 	SET (CPACK_PACKAGE_INSTALL_DIRECTORY "Darknet") # C:/Program Files/Darknet/...
-	SET (CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/src/windows/darknet_logo_blue.ico")
-	SET (CPACK_NSIS_MUI_UNIICON "${CMAKE_SOURCE_DIR}/src/windows/darknet_logo_blue.ico")
+	SET (CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/src-cli/windows/darknet_logo_blue.ico")
+	SET (CPACK_NSIS_MUI_UNIICON "${CMAKE_SOURCE_DIR}/src-cli/windows/darknet_logo_blue.ico")
 	SET (CPACK_NSIS_DISPLAY_NAME "Darknet/YOLO Object Detection Framework")
 	SET (CPACK_NSIS_PACKAGE_NAME "Darknet/YOLO Object Detection Framework")
 	SET (CPACK_NSIS_MODIFY_PATH "ON")
