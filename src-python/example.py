@@ -40,8 +40,6 @@ for filename in ["../artwork/dog.jpg", "../artwork/eagle.jpg", "../artwork/giraf
     image_bgr = cv2.imread(filename)
     image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
     image_resized = cv2.resize(image_rgb, (width, height), interpolation=cv2.INTER_LINEAR)
-    cv2.imshow("OpenCV BGR", image_bgr)
-    cv2.imshow("Resized RGB", image_resized)
 
     # create a Darknet-specific image structure with the resized image
     darknet_image = darknet.make_image(width, height, 3)
@@ -52,12 +50,12 @@ for filename in ["../artwork/dog.jpg", "../artwork/eagle.jpg", "../artwork/giraf
     darknet.free_image(darknet_image)
 
     # display the results on the console
-    darknet.print_detections(detections, true)
+    darknet.print_detections(detections, True)
 
     # draw some boxes and labels over what was detected
-    image_with_boxes = darknet.draw_boxes(detections, image_resized, class_colors)
+    image_with_boxes = darknet.draw_boxes(detections, image_resized, colours)
 
-    cv2.imshow("Results", cv2.cvtColor(image_with_boxes, cv2.COLOR_RGB2BGR))
+    cv2.imshow("annotated image", cv2.cvtColor(image_with_boxes, cv2.COLOR_RGB2BGR))
     if cv2.waitKey() & 0xFF == ord('q'):
         break;
 
