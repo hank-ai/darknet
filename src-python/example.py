@@ -37,7 +37,10 @@ for filename in ["../artwork/dog.jpg", "../artwork/eagle.jpg", "../artwork/giraf
     print(filename)
 
     # use OpenCV to load the image and swap OpenCV's usual BGR for the RGB that Darknet requires
-    image_resized = cv2.resize(cv2.cvtColor(cv2.imread(filename), cv2.COLOR_BGR2RGB), (width, height), interpolation=cv2.INTER_LINEAR)
+    image_bgr = cv2.imread(filename)
+    image_rgb = cv2.cvtColor(image_bgr, cv2.COLOR_BGR2RGB)
+    image_resized = cv2.resize(image_rgb, (width, height), interpolation=cv2.INTER_LINEAR)
+    cv2.imshow("OpenCV BGR", image_bgr)
     cv2.imshow("Resized RGB", image_resized)
 
     # create a Darknet-specific image structure with the resized image
