@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import argparse
 import os
 import glob
@@ -12,9 +14,8 @@ def parser():
     parser = argparse.ArgumentParser(description="YOLO Object Detection")
     parser.add_argument("--input", type=str, default="",
                         help="image source. It can be a single image, a"
-                        "txt with paths to them, or a folder. Image valid"
-                        " formats are jpg, jpeg or png."
-                        "If no input is given, ")
+                        " txt with paths to them, or a folder. Image valid"
+                        " formats are jpg, jpeg or png.")
     parser.add_argument("--batch_size", default=1, type=int,
                         help="number of images to be processed at the same time")
     parser.add_argument("--weights", default="yolov4.weights",

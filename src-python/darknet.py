@@ -3,9 +3,20 @@
 """
 Python 3 wrapper for identifying objects in images
 
-Running the script requires opencv-python to be installed (`pip install opencv-python`)
-Directly viewing or returning bounding-boxed images requires scikit-image to be installed (`pip install scikit-image`)
-Use pip3 instead of pip on some systems to be sure to install modules for python3
+Running the script requires opencv-python to be installed, via either of these two options:
+
+- sudo apt-get install python3-opencv
+- pip3 install opencv-python
+
+NOTE:  As of December 2023 while using Ubuntu 22.04, the apt-get install one was
+better since the pip3 one would result in a known segfault when cv2.imshow() was called:
+https://github.com/opencv/opencv-python/issues/794
+
+Directly viewing or returning bounding-boxed images requires scikit-image to be installed:
+
+- pip3 install scikit-image
+
+See the example code (such as "example_images.py") which imports this module.
 """
 
 from ctypes import *
@@ -220,8 +231,7 @@ def detect_image(network, class_names, image, thresh=.5, hier_thresh=.5, nms=.45
     """
     pnum = pointer(c_int(0))
     predict_image(network, image)
-    detections = get_network_boxes(network, image.w, image.h,
-                                   thresh, hier_thresh, None, 0, pnum, 0)
+    detections = get_network_boxes(network, image.w, image.h, thresh, hier_thresh, None, 0, pnum, 0)
     num = pnum[0]
     if nms:
         do_nms_sort(detections, num, len(class_names), nms)
@@ -232,15 +242,13 @@ def detect_image(network, class_names, image, thresh=.5, hier_thresh=.5, nms=.45
 
 
 if os.name == "posix":
-    cwd = os.path.dirname(__file__)
-    lib = CDLL(cwd + "/libdarknet.so", RTLD_GLOBAL)
+    libpath = "/usr/lib/libdarknet.so"
 elif os.name == "nt":
-    cwd = os.path.dirname(__file__)
-    os.environ['PATH'] = cwd + ';' + os.environ['PATH']
-    lib = CDLL("darknet.dll", RTLD_GLOBAL)
+    libpath = "C:/Program Files/darknet/bin/darknet.dll"
 else:
     print("Unsupported OS")
     exit
+lib = CDLL(libpath, RTLD_GLOBAL)
 
 lib.network_width.argtypes = [c_void_p]
 lib.network_width.restype = c_int
