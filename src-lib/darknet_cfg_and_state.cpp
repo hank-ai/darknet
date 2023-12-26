@@ -32,7 +32,11 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	must_immediately_exit	= false;
 	is_shown				= true;
 	colour_is_enabled		= true;
+#ifdef GPU
+	gpu_index				= 0;
+#else
 	gpu_index				= -1;
+#endif
 
 	argv					.clear();
 	args					.clear();
