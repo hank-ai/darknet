@@ -65,7 +65,7 @@
 ## Error Handling and Notes
 - Ensure correct paths, file names, and formats.
 - Use Ctrl+C to stop execution in console.
-- Press 'q' to quit display windows.
+- Press `q` to quit display windows.
 
 Note:
 > Command usability depends on `darknet_images.py` implementation and Darknet version.
