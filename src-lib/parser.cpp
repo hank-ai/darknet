@@ -1412,6 +1412,20 @@ network parse_network_cfg(char *filename)
 
 network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 {
+	if (filename == nullptr)
+	{
+		darknet_fatal_error(DARKNET_LOC, "expected a .cfg filename but got a NULL filename instead");
+	}
+
+	if (strcasestr(filename, ".cfg") == nullptr)
+	{
+		// Not necessarily an error...maybe the user has named their .cfg files something else.
+		// But in most cases, if someone uses a .names or .weights file in the place of a .cfg
+		// then Darknet will obviously not run correctly, so at least attempt to warn them.
+
+		Darknet::display_warning_msg("expected a .cfg filename but got this instead: " + std::string(filename) + "\n");
+	}
+
 	list *sections = read_cfg(filename);
 	node *n = sections->front;
 	if(!n)
@@ -1891,35 +1905,56 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 list *read_cfg(char *filename)
 {
 	FILE *file = fopen(filename, "r");
-	if(file == 0) file_error(filename, DARKNET_LOC);
+	if (file == nullptr)
+	{
+		file_error(filename, DARKNET_LOC);
+	}
+
 	char *line;
 	int nu = 0;
 	list *sections = make_list();
 	section *current = 0;
-	while((line=fgetl(file)) != 0){
+
+	while ((line=fgetl(file)) != 0)
+	{
 		++ nu;
 		strip(line);
-		switch(line[0]){
+		switch(line[0])
+		{
 			case '[':
+			{
 				current = (section*)xmalloc(sizeof(section));
 				list_insert(sections, current);
 				current->options = make_list();
 				current->type = line;
 				break;
+			}
 			case '\0':
 			case '#':
 			case ';':
+			{
 				free(line);
 				break;
+			}
 			default:
-				if(!read_option(line, current->options)){
-					fprintf(stderr, "Config file error line %d, could parse: %s\n", nu, line);
+			{
+				if (current == nullptr or current->options	== nullptr)
+				{
+					darknet_fatal_error(DARKNET_LOC, "config file error in %s on line %d, no section defined for \"%s\"", filename, nu, line);
+				}
+
+				if (!read_option(line, current->options))
+				{
+					fprintf(stderr, "config file error in %s on line %d, could not parse \"%s\"\n", filename, nu, line);
 					free(line);
 				}
 				break;
+			}
 		}
 	}
+
 	fclose(file);
+
 	return sections;
 }
 
