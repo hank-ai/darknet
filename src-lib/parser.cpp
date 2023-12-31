@@ -1417,7 +1417,8 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 		darknet_fatal_error(DARKNET_LOC, "expected a .cfg filename but got a NULL filename instead");
 	}
 
-	if (strcasestr(filename, ".cfg") == nullptr)
+	if (strstr(filename, ".cfg") == nullptr and
+		strstr(filename, ".CFG") == nullptr)
 	{
 		// Not necessarily an error...maybe the user has named their .cfg files something else.
 		// But in most cases, if someone uses a .names or .weights file in the place of a .cfg
