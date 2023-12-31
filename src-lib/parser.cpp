@@ -1,12 +1,6 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdint.h>
-
 #include "darknet_version.h"
 #include "activation_layer.hpp"
 #include "activations.hpp"
-//#include "assert.h"
 #include "avgpool_layer.hpp"
 #include "batchnorm_layer.hpp"
 #include "blas.hpp"
@@ -44,6 +38,11 @@
 #include "image.hpp"
 #include "darknet_internal.hpp"
 
+#ifdef WIN32
+#include <shlwapi.h>
+#define strcasestr StrStrIA
+#pragma comment(lib, "Shlwapi.lib")
+#endif
 
 namespace
 {
@@ -1417,8 +1416,7 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 		darknet_fatal_error(DARKNET_LOC, "expected a .cfg filename but got a NULL filename instead");
 	}
 
-	if (strstr(filename, ".cfg") == nullptr and
-		strstr(filename, ".CFG") == nullptr)
+	if (strcasestr(filename, ".cfg") == nullptr)
 	{
 		// Not necessarily an error...maybe the user has named their .cfg files something else.
 		// But in most cases, if someone uses a .names or .weights file in the place of a .cfg
