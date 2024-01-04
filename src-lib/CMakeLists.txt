@@ -38,6 +38,7 @@ IF (DARKNET_USE_CUDA)
 ENDIF ()
 TARGET_LINK_LIBRARIES (darknetobjlib PRIVATE ${DARKNET_LINK_LIBS})
 
+
 # ==
 # Next step is to create the actual darknet library.
 # ==
