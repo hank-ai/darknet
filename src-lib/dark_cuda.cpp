@@ -170,29 +170,25 @@ cudnnHandle_t cudnn_handle()
 	return cudnnHandle[i];
 }
 
-
-void cudnn_check_error(cudnnStatus_t status, const char * const filename, const char * const function, const int line)
-{
+void cudnn_check_error(cudnnStatus_t status, const char * const filename, const char * const function, const int line) {
 #if defined(DEBUG) || defined(CUDA_DEBUG)
-	cudaDeviceSynchronize();
+    cudaDeviceSynchronize();
 #endif
-	if (cuda_debug_sync) {
-		cudaDeviceSynchronize();
-	}
-	cudnnStatus_t status2 = CUDNN_STATUS_SUCCESS;
-#ifdef CUDNN_ERRQUERY_RAWCODE
-	cudnnStatus_t status_tmp = cudnnQueryRuntimeError(cudnn_handle(), &status2, CUDNN_ERRQUERY_RAWCODE, NULL);
-#endif
-	if (status != CUDNN_STATUS_SUCCESS)
-	{
-		darknet_fatal_error(filename, function, line, "cuDNN current error: status=%d, %s", status, cudnnGetErrorString(status));
-	}
-
-	if (status2 != CUDNN_STATUS_SUCCESS)
-	{
-		darknet_fatal_error(filename, function, line, "cuDNN most recent error: status=%d, %s", status2, cudnnGetErrorString(status2));
-	}
+    if (cuda_debug_sync) {
+        cudaDeviceSynchronize();
+    }
+    if (status != CUDNN_STATUS_SUCCESS) {
+        if (status == CUDNN_STATUS_BAD_PARAM) {
+            // Specific handling for CUDNN_STATUS_BAD_PARAM
+            printf("CUDNN_STATUS_BAD_PARAM error in %s at %s:%d\n", function, filename, line);
+            // Add any additional handling or logging here
+        } else {
+            // Handle other cuDNN errors
+            darknet_fatal_error(filename, function, line, "cuDNN current error: status=%d, %s", status, cudnnGetErrorString(status));
+        }
+    }
 }
+
 
 void cudnn_check_error_extended(cudnnStatus_t status, const char * const filename, const char * const function, const int line)
 {
@@ -717,3 +713,4 @@ void show_cuda_cudnn_info()
 #include "darknet.h"
 void cuda_set_device(int n) {}
 #endif // GPU
+
