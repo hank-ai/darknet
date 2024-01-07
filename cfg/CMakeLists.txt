@@ -1,8 +1,7 @@
 # Darknet object detection framework
 
 
-FILE (GLOB CFG *.cfg)
-LIST (SORT CFG)
+FILE (GLOB CFG *.cfg *.names)
 
 IF (UNIX)
 	INSTALL (FILES ${CFG} DESTINATION /opt/darknet/cfg/)
