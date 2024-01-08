@@ -325,7 +325,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
 	for (int i = 0; i < returned_algo_count; i++)
 	{
 		if (conv_fwd_results[i].status == CUDNN_STATUS_SUCCESS &&
-			conv_fwd_results[i].algo != CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM &&
+			conv_fwd_results[i].algo != CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM && ///< @todo I'm not convinced this is the best fix for issue #1.  See BAD_PARAM at https://docs.nvidia.com/deeplearning/cudnn/release-notes/
 			conv_fwd_results[i].algo != CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED &&
 			conv_fwd_results[i].memory < free_memory &&
 			(conv_fwd_results[i].memory <= workspace_size_specify || cudnn_preference == cudnn_fastest) &&
