@@ -162,7 +162,7 @@ At this point we need to modify the Visual Studio installation to include suppor
 * select `Desktop Development With C++`
 * click on `Modify` in the bottom-right corner, and then click on `Yes`
 
-Once everything is downloaded and installed, click on the "Windows Start" menu again and select `Developer Command Prompt for VS 2022`.
+Once everything is downloaded and installed, click on the "Windows Start" menu again and select `Developer Command Prompt for VS 2022`.  **Do not** use PowerShell for these steps, you will run into problems!
 
 > Advanced users:
 >
@@ -366,7 +366,7 @@ Last updated 2023-11-17:
 * [X] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
 * [X] fix Windows build
 * [ ] fix ARM build (Jetson devices)
-* [ ] fix Python support
+* [X] fix Python support
 * [ ] clean up .hpp files
 * [ ] re-write darknet.h
 * [X] build darknet library
