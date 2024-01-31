@@ -162,32 +162,6 @@ image load_image_cv(char *filename, int channels)
 }
 
 
-image load_image_resize(char *filename, int w, int h, int c, image *im)
-{
-	image out;
-	try
-	{
-		cv::Mat loaded_image = load_image_mat(filename, c);
-
-		*im = mat_to_image(loaded_image);
-
-		cv::Mat resized(h, w, CV_8UC3);
-		cv::resize(loaded_image, resized, cv::Size(w, h), 0, 0, cv::INTER_LINEAR);
-		out = mat_to_image(resized);
-	}
-	catch (const std::exception & e)
-	{
-		darknet_fatal_error(DARKNET_LOC, "exception caught while loading %s or resizing to %dx%d: %s", filename, w, h, e.what());
-	}
-	catch (...)
-	{
-		darknet_fatal_error(DARKNET_LOC, "unknown exception while loading %s or resizing to %dx%d", filename, w, h);
-	}
-
-	return out;
-}
-
-
 int get_width_mat(mat_cv *mat)
 {
 	if (mat == nullptr)
