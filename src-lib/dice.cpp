@@ -2,6 +2,7 @@
 #include "utils.hpp"
 #include "parser.hpp"
 #include "data.hpp"
+#include "image.hpp"
 
 char *dice_labels[] = {"face1","face2","face3","face4","face5","face6"};
 
@@ -27,7 +28,7 @@ void train_dice(char *cfgfile, char *weightfile)
     while(1){
         ++i;
         time=clock();
-        data train = load_data_old(paths, imgs, plist->size, labels, 6, net.w, net.h);
+        data train = load_data_old(paths, imgs, plist->size, labels, 6, net.w, net.h, net.c);
         printf("Loaded: %lf seconds\n", sec(clock()-time));
 
         time=clock();
@@ -60,7 +61,7 @@ void validate_dice(char *filename, char *weightfile)
     int m = plist->size;
     free_list(plist);
 
-    data val = load_data_old(paths, m, 0, labels, 6, net.w, net.h);
+    data val = load_data_old(paths, m, 0, labels, 6, net.w, net.h, net.c);
     float *acc = network_accuracies(net, val, 2);
     printf("Validation Accuracy: %f, %d images\n", acc[0], m);
     free_data(val);
@@ -89,7 +90,7 @@ void test_dice(char *cfgfile, char *weightfile, char *filename)
             if(!input) return;
             strtok(input, "\n");
         }
-        image im = load_image_color(input, net.w, net.h);
+        image im = load_image(input, net.w, net.h, net.c);
         float *X = im.data;
         float *predictions = network_predict(net, X);
         top_predictions(net, 6, indexes);

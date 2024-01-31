@@ -82,12 +82,30 @@ extern "C" void resize_window_cv(char const* window_name, int width, int height)
 
 extern "C" {
 
-mat_cv * load_image_mat_cv(const char * const filename, int flag)
+mat_cv * load_image_mat_cv(const char * const filename, int channels)
 {
 	cv::Mat * mat = nullptr;
 
 	try
 	{
+		int flag = cv::IMREAD_UNCHANGED;
+		if (channels == 0)
+		{
+			flag = cv::IMREAD_COLOR;
+		}
+		else if (channels == 1)
+		{
+			flag = cv::IMREAD_GRAYSCALE;
+		}
+		else if (channels == 3)
+		{
+			flag = cv::IMREAD_COLOR;
+		}
+		else
+		{
+			darknet_fatal_error(DARKNET_LOC, "OpenCV cannot load an image with %d channels: %s", channels, filename);
+		}
+
 		cv::Mat input = cv::imread(filename, flag);
 		if (input.empty())
 		{
@@ -125,66 +143,13 @@ mat_cv * load_image_mat_cv(const char * const filename, int flag)
 }
 
 
-cv::Mat load_image_mat(char *filename, int channels)
+image load_image_cv(char *filename, int channels)
 {
-	int flag = cv::IMREAD_UNCHANGED;
-	if (channels == 0)
-	{
-		flag = cv::IMREAD_COLOR;
-	}
-	else if (channels == 1)
-	{
-		flag = cv::IMREAD_GRAYSCALE;
-	}
-	else if (channels == 3)
-	{
-		flag = cv::IMREAD_COLOR;
-	}
-	else
-	{
-		darknet_fatal_error(DARKNET_LOC, "OpenCV cannot load an image with %d channels: %s", channels, filename);
-	}
-
-	cv::Mat * mat_ptr = reinterpret_cast<cv::Mat*>(load_image_mat_cv(filename, flag));
-
+	cv::Mat* mat_ptr = reinterpret_cast<cv::Mat*>(load_image_mat_cv(filename, channels));
 	cv::Mat mat = *mat_ptr;
 	delete mat_ptr;
 
-	return mat;
-}
-
-
-image load_image_cv(char *filename, int channels)
-{
-	cv::Mat mat = load_image_mat(filename, channels);
-
 	return mat_to_image(mat);
-}
-
-
-image load_image_resize(char *filename, int w, int h, int c, image *im)
-{
-	image out;
-	try
-	{
-		cv::Mat loaded_image = load_image_mat(filename, c);
-
-		*im = mat_to_image(loaded_image);
-
-		cv::Mat resized(h, w, CV_8UC3);
-		cv::resize(loaded_image, resized, cv::Size(w, h), 0, 0, cv::INTER_LINEAR);
-		out = mat_to_image(resized);
-	}
-	catch (const std::exception & e)
-	{
-		darknet_fatal_error(DARKNET_LOC, "exception caught while loading %s or resizing to %dx%d: %s", filename, w, h, e.what());
-	}
-	catch (...)
-	{
-		darknet_fatal_error(DARKNET_LOC, "unknown exception while loading %s or resizing to %dx%d", filename, w, h);
-	}
-
-	return out;
 }
 
 
@@ -236,7 +201,7 @@ cv::Mat image_to_mat(image img)
 			for (int c = 0; c < img.c; ++c)
 			{
 				float val = img.data[c*img.h*img.w + y*img.w + x];
-				mat.data[y*step + x*img.c + c] = (unsigned char)(val * 255);
+				mat.data[y*step + x*img.c + c] = (unsigned char)(val * 255);	 // Is this right?
 			}
 		}
 	}
@@ -698,7 +663,7 @@ image get_image_from_stream_cpp(cap_cv *cap)
 int wait_for_stream(cap_cv *cap, cv::Mat* src, int dont_close)
 {
 	if (!src) {
-		if (dont_close) src = new cv::Mat(416, 416, CV_8UC(3)); // cvCreateImage(cvSize(416, 416), IPL_DEPTH_8U, 3);
+		if (dont_close) src = new cv::Mat(416, 416, CV_8UC(3)); // cvCreateImage(cvSize(416, 416), IPL_DEPTH_8U, 3);  // #COLOR
 		else return 0;
 	}
 	if (src->cols < 1 || src->rows < 1 || src->channels() < 1) {

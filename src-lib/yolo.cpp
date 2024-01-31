@@ -246,7 +246,7 @@ void validate_yolo_recall(char *cfgfile, char *weightfile)
 
 	for(i = 0; i < m; ++i){
 		char *path = paths[i];
-		image orig = load_image_color(path, 0, 0);
+		image orig = load_image(path, 0, 0, net.c);
 		image sized = resize_image(orig, net.w, net.h);
 		char *id = basecfg(path);
 		network_predict(net, sized.data);
@@ -316,7 +316,7 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
 			if(!input) return;
 			strtok(input, "\n");
 		}
-		image im = load_image_color(input,0,0);
+		image im = load_image(input,0,0, net.c);
 		image sized = resize_image(im, net.w, net.h);
 		float *X = sized.data;
 		clock_t time=clock();

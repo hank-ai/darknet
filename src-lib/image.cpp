@@ -1486,63 +1486,9 @@ void test_resize(char *filename)
 }
 
 
-#if 0
-image load_image_stb(char *filename, int channels)
-{
-	int w, h, c;
-	unsigned char *data = stbi_load(filename, &w, &h, &c, channels);
-	if (!data)
-	{
-		char short_filename[1024];
-		if (strlen(filename) >= 1024)
-		{
-			sprintf(short_filename, "name is too long");
-		}
-		else
-		{
-			sprintf(short_filename, "%s", filename);
-		}
-
-		darknet_fatal_error(DARKNET_LOC, "failed to load image: STB=%s filename=\"%s\"", stbi_failure_reason(), short_filename);
-	}
-	if(channels) c = channels;
-	int i,j,k;
-	image im = make_image(w, h, c);
-	for(k = 0; k < c; ++k){
-		for(j = 0; j < h; ++j){
-			for(i = 0; i < w; ++i){
-				int dst_index = i + w*j + w*h*k;
-				int src_index = k + c*i + c*w*j;
-				im.data[dst_index] = (float)data[src_index]/255.;
-			}
-		}
-	}
-	free(data);
-	return im;
-}
-#endif
-
-#if 0
-image load_image_stb_resize(char *filename, int w, int h, int c)
-{
-	image out = load_image_stb(filename, c);    // without OpenCV
-
-	if ((h && w) && (h != out.h || w != out.w)) {
-		image resized = resize_image(out, w, h);
-		free_image(out);
-		out = resized;
-	}
-	return out;
-}
-#endif
-
 image load_image(char * filename, int desired_width, int desired_height, int channels)
 {
-#ifdef OPENCV
 	image out = load_image_cv(filename, channels);
-#else
-	image out = load_image_stb(filename, channels); // without OpenCV
-#endif
 
 	if (desired_height > 0 && desired_width > 0 && (desired_height != out.h || desired_width != out.w))
 	{

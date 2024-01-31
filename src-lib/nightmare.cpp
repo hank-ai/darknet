@@ -209,7 +209,7 @@ void run_nightmare(int argc, char **argv)
     char *imbase = basecfg(input);
 
     set_batch_network(&net, 1);
-    image im = load_image_color(input, 0, 0);
+    image im = load_image(input, 0, 0, net.c);
     if(0){
         float scale = 1;
         if(im.w > 512 || im.h > 512){

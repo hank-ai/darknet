@@ -742,7 +742,12 @@ typedef struct network {
 	int outputs;
 	int truths;
 	int notruth;
-	int h, w, c;
+	// The height of the network
+	int h;
+	// The width of the network
+	int w;
+	// The number of channels for the network
+	int c;
 	int max_crop;
 	int min_crop;
 	float max_ratio;
@@ -960,7 +965,9 @@ typedef struct load_args {
 	char **labels;
 	int h;
 	int w;
-	int c; // color depth
+
+	/* Number of channels, typically 3 for RGB */
+	int c; 
 	int out_w;
 	int out_h;
 	int nh;

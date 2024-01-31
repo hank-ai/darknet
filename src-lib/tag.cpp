@@ -2,6 +2,7 @@
 #include "utils.hpp"
 #include "parser.hpp"
 #include "data.hpp"
+#include "image.hpp"
 
 void train_tag(char *cfgfile, char *weightfile, int clear)
 {
@@ -115,7 +116,7 @@ void test_tag(char *cfgfile, char *weightfile, char *filename)
             if(!input) return;
             strtok(input, "\n");
         }
-        image im = load_image_color(input, 0, 0);
+        image im = load_image(input, 0, 0, net.c);
         image r = resize_min(im, size);
         resize_network(&net, r.w, r.h);
         printf("%d %d\n", r.w, r.h);

@@ -7,6 +7,7 @@
 #include "parser.hpp"
 #include "box.hpp"
 #include "data.hpp"
+#include "image_opencv.hpp"
 
 void train_compare(char *cfgfile, char *weightfile)
 {
@@ -175,8 +176,8 @@ int bbox_comparator(const void *a, const void *b)
     network net = box1.net;
     int class_id   = box1.class_id;
 
-    image im1 = load_image_color(box1.filename, net.w, net.h);
-    image im2 = load_image_color(box2.filename, net.w, net.h);
+    image im1 = load_image(box1.filename, net.w, net.h, net.c);
+    image im2 = load_image(box2.filename, net.w, net.h, net.c);
     float* X = (float*)xcalloc(net.w * net.h * net.c, sizeof(float));
     memcpy(X,                   im1.data, im1.w*im1.h*im1.c*sizeof(float));
     memcpy(X+im1.w*im1.h*im1.c, im2.data, im2.w*im2.h*im2.c*sizeof(float));
@@ -204,8 +205,8 @@ void bbox_update(sortable_bbox *a, sortable_bbox *b, int class_id, int result)
 
 void bbox_fight(network net, sortable_bbox *a, sortable_bbox *b, int classes, int class_id)
 {
-    image im1 = load_image_color(a->filename, net.w, net.h);
-    image im2 = load_image_color(b->filename, net.w, net.h);
+    image im1 = load_image(a->filename, net.w, net.h, net.c);
+    image im2 = load_image(b->filename, net.w, net.h, net.c);
     float* X = (float*)xcalloc(net.w * net.h * net.c, sizeof(float));
     memcpy(X,                   im1.data, im1.w*im1.h*im1.c*sizeof(float));
     memcpy(X+im1.w*im1.h*im1.c, im2.data, im2.w*im2.h*im2.c*sizeof(float));

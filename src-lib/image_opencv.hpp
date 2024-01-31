@@ -42,11 +42,6 @@ mat_cv * load_image_mat_cv(const char * const filename, int flag);
 image load_image_cv(char *filename, int channels);
 
 
-/** Load the given image, but then immediately resize it to the desired dimensions.  Does not maintain apect ratio,
- * and does not use letterbox.
- */
-image load_image_resize(char *filename, int w, int h, int c, image *im);
-
 
 int get_width_mat(mat_cv *mat);
 int get_height_mat(mat_cv *mat);
