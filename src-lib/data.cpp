@@ -718,7 +718,7 @@ data load_data_region(int n, char **paths, int m, int w, int h, int c, int size,
     return d;
 }
 
-data load_data_compare(int n, char **paths, int m, int classes, int w, int h)
+data load_data_compare(int n, char **paths, int m, int classes, int w, int h, int c)
 {
     if(m) paths = get_random_paths(paths, 2*n, m);
     int i,j;
@@ -732,8 +732,8 @@ data load_data_compare(int n, char **paths, int m, int classes, int w, int h)
     int k = 2*(classes);
     d.y = make_matrix(n, k);
     for(i = 0; i < n; ++i){
-        image im1 = load_image_color(paths[i*2],   w, h);
-        image im2 = load_image_color(paths[i*2+1], w, h);
+        image im1 = load_image(paths[i*2],   w, h, c);
+        image im2 = load_image(paths[i*2+1], w, h, c);
 
         d.X.vals[i] = (float*)xcalloc(d.X.cols, sizeof(float));
         memcpy(d.X.vals[i],         im1.data, h*w*3*sizeof(float));
@@ -782,12 +782,12 @@ data load_data_compare(int n, char **paths, int m, int classes, int w, int h)
     return d;
 }
 
-data load_data_swag(char **paths, int n, int classes, float jitter)
+data load_data_swag(char **paths, int n, int classes, float jitter, int channels)
 {
     int index = random_gen()%n;
     char *random_path = paths[index];
 
-    image orig = load_image_color(random_path, 0, 0);
+    image orig = load_image(random_path, 0, 0, channels);
     int h = orig.h;
     int w = orig.w;
 
@@ -1559,11 +1559,11 @@ void *load_thread(void *ptr)
         *a.d = load_data_detection(a.n, a.paths, a.m, a.w, a.h, a.c, a.num_boxes, a.truth_size, a.classes, a.flip, a.gaussian_noise, a.blur, a.mixup, a.jitter, a.resize,
             a.hue, a.saturation, a.exposure, a.mini_batch, a.track, a.augment_speed, a.letter_box, a.mosaic_bound, a.contrastive, a.contrastive_jit_flip, a.contrastive_color, a.show_imgs);
     } else if (a.type == SWAG_DATA){
-        *a.d = load_data_swag(a.paths, a.n, a.classes, a.jitter);
+        *a.d = load_data_swag(a.paths, a.n, a.classes, a.jitter, a.c);
     }
     else if (a.type == COMPARE_DATA)
     {
-        *a.d = load_data_compare(a.n, a.paths, a.m, a.classes, a.w, a.h);
+        *a.d = load_data_compare(a.n, a.paths, a.m, a.classes, a.w, a.h, a.c);
     }
     else if (a.type == IMAGE_DATA)
     {

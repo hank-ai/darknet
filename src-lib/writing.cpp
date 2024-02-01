@@ -105,7 +105,7 @@ void test_writing(char *cfgfile, char *weightfile, char *filename)
             strtok(input, "\n");
         }
 
-        image im = load_image_color(input, 0, 0);
+        image im = load_image(input, 0, 0, net.c);
         resize_network(&net, im.w, im.h);
         printf("%d %d %d\n", im.h, im.w, im.c);
         float *X = im.data;

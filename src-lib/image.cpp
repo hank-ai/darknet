@@ -1499,11 +1499,6 @@ image load_image(char * filename, int desired_width, int desired_height, int cha
 	return out;
 }
 
-image load_image_color(char *filename, int w, int h)
-{
-	return load_image(filename, w, h, 3);
-}
-
 image get_image_layer(image m, int l)
 {
 	image out = make_image(m.w, m.h, 1);
