@@ -9,6 +9,7 @@
 #include <assert.h>
 #include <float.h>
 #include <limits.h>
+#include <regex>
 #include "darkunistd.hpp"
 
 #ifdef WIN32
@@ -487,15 +488,64 @@ list *split_str(char *s, char delim)
 
 void strip(char *s)
 {
-	size_t i;
+	if (s == nullptr)
+	{
+		return;
+	}
+
+	/* The old strip() function would remove *all* whitespace, including whitespace in the middle of the text.  This would
+	 * cause problems when a filename or a subdirectory contains a space.  So this new function (2024-02) expects a KEY=VAL
+	 * pair and rebuilds the string from what regex returns.
+	 */
+
+	static const std::regex rx(
+		"^"			// start of string
+		"\\s*"		// optional leading whitespace
+		"("			// GROUP #1
+		"[^=]*?"	// "KEY" is everything up to the first "=" (lazy match to ignore whitespace before the "=")
+		")"
+		"\\s*"		// optional whitespace
+		"[:=]"		// ":" or "="
+		"\\s*"		// optional whitespace
+		"("			// GROUP #2
+		".*?"		// "VAL" (lazy match so we don't grab the trailing whitespace)
+		")"
+		"\\s*"		// optional trailing whitespace
+		"$"			// end of string
+		);
+
+	std::smatch match;
+	std::string str = s;
+	if (std::regex_match(str, match, rx))
+	{
+		std::string key = match.str(1);
+		std::string val = match.str(2);
+		str = key + "=" + val;
+
+		strcpy(s, str.c_str());
+		return;
+	}
+
+	// if we get here, then trim() is being used for something other than KEY=VAL, so we'll run the original code
+
 	size_t len = strlen(s);
 	size_t offset = 0;
-	for(i = 0; i < len; ++i){
+	for (size_t i = 0; i < len; ++i)
+	{
 		char c = s[i];
-		if(c==' '||c=='\t'||c=='\n'||c =='\r'||c==0x0d||c==0x0a) ++offset;
-		else s[i-offset] = c;
+		if (c == ' '	||
+			c == '\t'	||
+			c == '\n'	||
+			c == '\r'	)
+		{
+			++offset;
+		}
+		else
+		{
+			s[i - offset] = c;
+		}
 	}
-	s[len-offset] = '\0';
+	s[len - offset] = '\0';
 }
 
 
@@ -532,33 +582,57 @@ void free_ptrs(void **ptrs, int n)
 	free(ptrs);
 }
 
-char *fgetl(FILE *fp)
+
+char * fgetl(FILE *fp)
 {
-	if(feof(fp)) return 0;
+	if (feof(fp))
+	{
+		return nullptr;
+	}
+
+	// get the first part of the line...
 	size_t size = 512;
-	char* line = (char*)xmalloc(size * sizeof(char));
-	if(!fgets(line, size, fp)){
+	char * line = (char*)xmalloc(size * sizeof(char));
+	if (!fgets(line, size, fp))
+	{
 		free(line);
 		return 0;
 	}
 
+	// ...and if the line does not end with \n we reallocate and keep reading more
 	size_t curr = strlen(line);
-
-	while((line[curr-1] != '\n') && !feof(fp)){
-		if(curr == size-1){
+	while ((line[curr - 1] != '\n') && !feof(fp))
+	{
+		if (curr == size - 1)
+		{
 			size *= 2;
 			line = (char*)xrealloc(line, size * sizeof(char));
 		}
 		size_t readsize = size-curr;
-		if(readsize > INT_MAX) readsize = INT_MAX-1;
+		if (readsize > INT_MAX)
+		{
+			readsize = INT_MAX-1;
+		}
 		fgets(&line[curr], readsize, fp);
 		curr = strlen(line);
 	}
-	if(curr >= 2)
-		if(line[curr-2] == 0x0d) line[curr-2] = 0x00;
 
-	if(curr >= 1)
-		if(line[curr-1] == 0x0a) line[curr-1] = 0x00;
+	// get rid of CR and LF at the end of the line
+	if (curr >= 2)
+	{
+		if (line[curr-2] == '\r')
+		{
+			line[curr-2] = '\0';
+		}
+	}
+
+	if (curr >= 1)
+	{
+		if (line[curr-1] == '\n')
+		{
+			line[curr-1] = '\0';
+		}
+	}
 
 	return line;
 }
