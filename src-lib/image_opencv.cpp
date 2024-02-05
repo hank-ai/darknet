@@ -89,11 +89,8 @@ mat_cv * load_image_mat_cv(const char * const filename, int channels)
 	try
 	{
 		int flag = cv::IMREAD_UNCHANGED;
-		if (channels == 0)
-		{
-			flag = cv::IMREAD_COLOR;
-		}
-		else if (channels == 1)
+
+		if (channels == 1)
 		{
 			flag = cv::IMREAD_GRAYSCALE;
 		}
