@@ -7,7 +7,6 @@
 #include "data.hpp"
 
 
-#ifdef OPENCV
 void reconstruct_picture(network net, float *features, image recon, image update, float rate, float momentum, float lambda, int smooth_size, int iters);
 
 
@@ -206,6 +205,3 @@ void run_vid_rnn(int argc, char **argv)
     if(0==strcmp(argv[2], "train")) train_vid_rnn(cfg, weights);
     else if(0==strcmp(argv[2], "generate")) generate_vid_rnn(cfg, weights);
 }
-#else
-void run_vid_rnn(int argc, char **argv){}
-#endif

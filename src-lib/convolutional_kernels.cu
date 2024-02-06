@@ -1188,7 +1188,6 @@ void assisted_excitation_forward_gpu(convolutional_layer l, network_state state)
 
     if (0)   // visualize ground truth
     {
-#ifdef OPENCV
         cuda_pull_array(l.output_gpu, l.output, l.outputs * l.batch);
         cudaStreamSynchronize(get_cuda_stream());
         CHECK_CUDA(cudaPeekAtLastError());
@@ -1220,7 +1219,6 @@ void assisted_excitation_forward_gpu(convolutional_layer l, network_state state)
             wait_key_cv(5);
         }
         wait_until_press_key_cv();
-#endif // OPENCV
     }
 
     free(truth_cpu);

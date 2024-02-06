@@ -8,7 +8,6 @@
 
 void extract_voxel(char *lfile, char *rfile, char *prefix)
 {
-#ifdef OPENCV
     int w = 1920;
     int h = 1080;
     int shift = 0;
@@ -36,10 +35,6 @@ void extract_voxel(char *lfile, char *rfile, char *prefix)
         free_image(rs);
         ++count;
     }
-
-#else
-    printf("need OpenCV for extraction\n");
-#endif
 }
 
 void train_voxel(char *cfgfile, char *weightfile)

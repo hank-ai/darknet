@@ -16,7 +16,6 @@
 
 void demo_art(char *cfgfile, char *weightfile, int cam_index)
 {
-#ifdef OPENCV
     network net = parse_network_cfg(cfgfile);
     if(weightfile){
         load_weights(&net, weightfile);
@@ -64,7 +63,6 @@ void demo_art(char *cfgfile, char *weightfile, int cam_index)
 
         wait_key_cv(1);
     }
-#endif
 }
 
 

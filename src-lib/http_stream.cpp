@@ -329,8 +329,6 @@ void send_json(detection *dets, int nboxes, int classes, char **names, long long
 // ----------------------------------------
 
 
-#ifdef OPENCV
-
 #include <opencv2/opencv.hpp>
 #include <opencv2/highgui/highgui.hpp>
 #include <opencv2/highgui/highgui_c.h>
@@ -642,8 +640,6 @@ int send_http_post_request(char *http_post_host, int server_port, const char *vi
     return 0;
 }
 #endif   //  __CYGWIN__
-
-#endif      // OPENCV
 
 // -----------------------------------------------------
 

@@ -1012,8 +1012,6 @@ void blend_truth_mosaic(float *new_truth, int boxes, int truth_size, float *old_
     //printf("\n was %d bboxes, now %d bboxes \n", count_new_truth, t);
 }
 
-#ifdef OPENCV
-
 #include "http_stream.hpp"
 
 data load_data_detection(int n, char **paths, int m, int w, int h, int c, int boxes, int truth_size, int classes, int use_flip, int use_gaussian_noise, int use_blur, int use_mixup,
@@ -1326,215 +1324,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
     return d;
 }
-#else    // OPENCV
-void blend_images(image new_img, float alpha, image old_img, float beta)
-{
-    int data_size = new_img.w * new_img.h * new_img.c;
-    int i;
-    #pragma omp parallel for
-    for (i = 0; i < data_size; ++i)
-        new_img.data[i] = new_img.data[i] * alpha + old_img.data[i] * beta;
-}
 
-data load_data_detection(int n, char **paths, int m, int w, int h, int c, int boxes, int truth_size, int classes, int use_flip, int gaussian_noise, int use_blur, int use_mixup,
-    float jitter, float resize, float hue, float saturation, float exposure, int mini_batch, int track, int augment_speed, int letter_box, int mosaic_bound, int contrastive, int contrastive_jit_flip, int contrastive_color, int show_imgs)
-{
-    const int random_index = random_gen();
-    c = c ? c : 3;
-    char **random_paths;
-    char **mixup_random_paths = NULL;
-    if(track) random_paths = get_sequential_paths(paths, n, m, mini_batch, augment_speed, contrastive);
-    else random_paths = get_random_paths_custom(paths, n, m, contrastive);
-
-    //assert(use_mixup < 2);
-    if (use_mixup == 2)
-    {
-        darknet_fatal_error(DARKNET_LOC, "cutmix=1 is not supported for Detector");
-    }
-    if (use_mixup == 3 || use_mixup == 4)
-    {
-        darknet_fatal_error(DARKNET_LOC, "use of mosaic=1 in .cfg file requires that Darknet be compiled with OpenCV");
-    }
-    int mixup = use_mixup ? random_gen() % 2 : 0;
-    //printf("\n mixup = %d \n", mixup);
-    if (mixup) {
-        if (track) mixup_random_paths = get_sequential_paths(paths, n, m, mini_batch, augment_speed, contrastive);
-        else mixup_random_paths = get_random_paths(paths, n, m);
-    }
-
-    int i;
-    data d = { 0 };
-    d.shallow = 0;
-
-    d.X.rows = n;
-    d.X.vals = (float**)xcalloc(d.X.rows, sizeof(float*));
-    d.X.cols = h*w*c;
-
-    float r1 = 0, r2 = 0, r3 = 0, r4 = 0, r_scale;
-    float resize_r1 = 0, resize_r2 = 0;
-    float dhue = 0, dsat = 0, dexp = 0, flip = 0;
-    int augmentation_calculated = 0;
-
-    d.y = make_matrix(n, truth_size * boxes);
-    int i_mixup = 0;
-    for (i_mixup = 0; i_mixup <= mixup; i_mixup++) {
-        if (i_mixup) augmentation_calculated = 0;
-        for (i = 0; i < n; ++i) {
-            float *truth = (float*)xcalloc(truth_size * boxes, sizeof(float));
-            char *filename = (i_mixup) ? mixup_random_paths[i] : random_paths[i];
-
-            image orig = load_image(filename, 0, 0, c);
-
-            int oh = orig.h;
-            int ow = orig.w;
-
-            int dw = (ow*jitter);
-            int dh = (oh*jitter);
-
-            float resize_down = resize, resize_up = resize;
-            if (resize_down > 1.0) resize_down = 1 / resize_down;
-            int min_rdw = ow*(1 - (1 / resize_down)) / 2;
-            int min_rdh = oh*(1 - (1 / resize_down)) / 2;
-
-            if (resize_up < 1.0) resize_up = 1 / resize_up;
-            int max_rdw = ow*(1 - (1 / resize_up)) / 2;
-            int max_rdh = oh*(1 - (1 / resize_up)) / 2;
-
-            if (!augmentation_calculated || !track)
-            {
-                augmentation_calculated = 1;
-                resize_r1 = random_float();
-                resize_r2 = random_float();
-
-                if (!contrastive || contrastive_jit_flip || i % 2 == 0)
-                {
-                    r1 = random_float();
-                    r2 = random_float();
-                    r3 = random_float();
-                    r4 = random_float();
-
-                    flip = use_flip ? random_gen() % 2 : 0;
-                }
-
-                r_scale = random_float();
-
-                if (!contrastive || contrastive_color || i % 2 == 0)
-                {
-                    dhue = rand_uniform_strong(-hue, hue);
-                    dsat = rand_scale(saturation);
-                    dexp = rand_scale(exposure);
-                }
-            }
-
-            int pleft = rand_precalc_random(-dw, dw, r1);
-            int pright = rand_precalc_random(-dw, dw, r2);
-            int ptop = rand_precalc_random(-dh, dh, r3);
-            int pbot = rand_precalc_random(-dh, dh, r4);
-
-            if (resize < 1) {
-                // downsize only
-                pleft += rand_precalc_random(min_rdw, 0, resize_r1);
-                pright += rand_precalc_random(min_rdw, 0, resize_r2);
-                ptop += rand_precalc_random(min_rdh, 0, resize_r1);
-                pbot += rand_precalc_random(min_rdh, 0, resize_r2);
-            }
-            else {
-                pleft += rand_precalc_random(min_rdw, max_rdw, resize_r1);
-                pright += rand_precalc_random(min_rdw, max_rdw, resize_r2);
-                ptop += rand_precalc_random(min_rdh, max_rdh, resize_r1);
-                pbot += rand_precalc_random(min_rdh, max_rdh, resize_r2);
-            }
-
-            if (letter_box)
-            {
-                float img_ar = (float)ow / (float)oh;
-                float net_ar = (float)w / (float)h;
-                float result_ar = img_ar / net_ar;
-                //printf(" ow = %d, oh = %d, w = %d, h = %d, img_ar = %f, net_ar = %f, result_ar = %f \n", ow, oh, w, h, img_ar, net_ar, result_ar);
-                if (result_ar > 1)  // sheight - should be increased
-                {
-                    float oh_tmp = ow / net_ar;
-                    float delta_h = (oh_tmp - oh) / 2;
-                    ptop = ptop - delta_h;
-                    pbot = pbot - delta_h;
-                    //printf(" result_ar = %f, oh_tmp = %f, delta_h = %d, ptop = %f, pbot = %f \n", result_ar, oh_tmp, delta_h, ptop, pbot);
-                }
-                else  // swidth - should be increased
-                {
-                    float ow_tmp = oh * net_ar;
-                    float delta_w = (ow_tmp - ow) / 2;
-                    pleft = pleft - delta_w;
-                    pright = pright - delta_w;
-                    //printf(" result_ar = %f, ow_tmp = %f, delta_w = %d, pleft = %f, pright = %f \n", result_ar, ow_tmp, delta_w, pleft, pright);
-                }
-            }
-
-            int swidth = ow - pleft - pright;
-            int sheight = oh - ptop - pbot;
-
-            float sx = (float)swidth / ow;
-            float sy = (float)sheight / oh;
-
-            image cropped = crop_image(orig, pleft, ptop, swidth, sheight);
-
-            float dx = ((float)pleft / ow) / sx;
-            float dy = ((float)ptop / oh) / sy;
-
-            image sized = resize_image(cropped, w, h);
-            if (flip) flip_image(sized);
-            distort_image(sized, dhue, dsat, dexp);
-            //random_distort_image(sized, hue, saturation, exposure);
-
-            fill_truth_detection(filename, boxes, truth_size, truth, classes, flip, dx, dy, 1. / sx, 1. / sy, w, h);
-
-            if (i_mixup) {
-                image old_img = sized;
-                old_img.data = d.X.vals[i];
-                //show_image(sized, "new");
-                //show_image(old_img, "old");
-                //wait_until_press_key_cv();
-                blend_images(sized, 0.5, old_img, 0.5);
-                blend_truth(truth, boxes, truth_size, d.y.vals[i]);
-                free_image(old_img);
-            }
-
-            d.X.vals[i] = sized.data;
-            memcpy(d.y.vals[i], truth, truth_size * boxes * sizeof(float));
-
-            if (show_imgs)// && i_mixup)
-            {
-                char buff[1000];
-                sprintf(buff, "aug_%d_%d_%s_%d", random_index, i, basecfg(filename), random_gen());
-
-                int t;
-                for (t = 0; t < boxes; ++t) {
-                    box b = float_to_box_stride(d.y.vals[i] + t*truth_size, 1);
-                    if (!b.x) break;
-                    int left = (b.x - b.w / 2.)*sized.w;
-                    int right = (b.x + b.w / 2.)*sized.w;
-                    int top = (b.y - b.h / 2.)*sized.h;
-                    int bot = (b.y + b.h / 2.)*sized.h;
-                    draw_box_width(sized, left, top, right, bot, 1, 150, 100, 50); // 3 channels RGB
-                }
-
-                save_image(sized, buff);
-                if (show_imgs == 1) {
-                    show_image(sized, buff);
-                    wait_until_press_key_cv();
-                }
-                printf("\nYou use flag -show_imgs, so will be saved aug_...jpg images.\n");
-            }
-
-            free_image(orig);
-            free_image(cropped);
-            free(truth);
-        }
-    }
-    free(random_paths);
-    if (mixup_random_paths) free(mixup_random_paths);
-    return d;
-}
-#endif    // OPENCV
 
 void *load_thread(void *ptr)
 {
@@ -1919,7 +1709,6 @@ data load_data_augment(char **paths, int n, int m, char **labels, int k, tree *h
         }
     }
 
-#ifdef OPENCV
     if (use_blur) {
         int i;
         for (i = 0; i < d.X.rows; ++i) {
@@ -1931,15 +1720,9 @@ data load_data_augment(char **paths, int n, int m, char **labels, int k, tree *h
                 image blurred = blur_image(im, ksize);
                 free_image(im);
                 d.X.vals[i] = blurred.data;
-                //if (i == 0) {
-                //    show_image(im, "Not blurred");
-                //    show_image(blurred, "blurred");
-                //    wait_until_press_key_cv();
-                //}
             }
         }
     }
-#endif  // OPENCV
 
     if (show_imgs) {
         int i, j;

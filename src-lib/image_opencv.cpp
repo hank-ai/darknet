@@ -8,20 +8,6 @@
 #include <iostream>
 #include <ciso646>
 
-#ifndef OPENCV
-
-extern "C" void show_opencv_info()
-{
-	display_warning_msg("OpenCV is disabled - image loading and data augmentation will be slow\n");
-}
-
-extern "C" int wait_key_cv(int delay) { return 0; }
-extern "C" int wait_until_press_key_cv() { return 0; }
-extern "C" void destroy_all_windows_cv() {}
-extern "C" void resize_window_cv(char const* window_name, int width, int height) {}
-
-#else
-
 #include "utils.hpp"
 
 #include <cstdio>
@@ -1534,7 +1520,7 @@ void cv_draw_object(image sized, float *truth_cpu, int max_boxes, int num_truth,
 // ====================================================================
 
 
-void show_acnhors(int number_of_boxes, int num_of_clusters, float *rel_width_height_array, model anchors_data, int width, int height)
+void show_anchors(int number_of_boxes, int num_of_clusters, float *rel_width_height_array, model anchors_data, int width, int height)
 {
 	cv::Mat labels = cv::Mat(number_of_boxes, 1, CV_32SC1);
 	cv::Mat points = cv::Mat(number_of_boxes, 2, CV_32FC1);
@@ -1594,5 +1580,3 @@ void show_opencv_info()
 }
 
 }   // extern "C"
-
-#endif // opencv

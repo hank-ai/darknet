@@ -263,9 +263,7 @@ void run_nightmare(int argc, char **argv)
                 reconstruct_picture(net, features, im, update, rate, momentum, lambda, smooth_size, 1);
                 //if ((n+1)%30 == 0) rate *= .5;
                 show_image(im, "reconstruction");
-#ifdef OPENCV
                 wait_key_cv(10);
-#endif
             }else{
                 int layer = max_layer + rand()%range - range/2;
                 int octave = rand()%octaves;

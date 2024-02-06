@@ -195,7 +195,6 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	if (dont_show && show_imgs) show_imgs = 2;
 	args.show_imgs = show_imgs;
 
-#ifdef OPENCV
 	//int num_threads = get_num_threads();
 	//if(num_threads > 2) args.threads = get_num_threads() - 2;
 	args.threads = 6 * ngpus;   // 3 for - Amazon EC2 Tesla V100: p3.2xlarge (8 logical cores) - p3.16xlarge
@@ -204,7 +203,6 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	// This is where we draw the initial blank chart.  That chart is then updated by update_train_loss_chart() at every iteration.
 	Darknet::initialize_new_charts(net.max_batches, net.max_chart_loss);
 
-#endif    //OPENCV
 	if (net.contrastive && args.threads > net.batch/2) args.threads = net.batch / 2;
 	if (net.track)
 	{
@@ -421,7 +419,6 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			// done doing mAP% calculation
 		}
 
-#ifdef OPENCV
 		if (net.contrastive)
 		{
 			float cur_con_acc = -1;
@@ -438,8 +435,6 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
 		// this is where we draw the chart while training
 		Darknet::update_loss_in_new_charts(iteration, avg_loss, seconds_remaining, dont_show);
-
-#endif    // OPENCV
 
 		if (iteration >= iter_save + how_often_we_save_weights || (iteration % how_often_we_save_weights) == 0)
 		{
@@ -481,9 +476,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
 	printf("If you want to re-start training, then use the flag \"-clear\" in the training command.\n");
 
-#ifdef OPENCV
 	destroy_all_windows_cv();
-#endif
 
 	// free memory
 	pthread_join(load_thread, 0);
@@ -1798,9 +1791,7 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 	}
 
 	if (show) {
-#ifdef OPENCV
-		show_acnhors(number_of_boxes, num_of_clusters, rel_width_height_array, anchors_data, width, height);
-#endif // OPENCV
+		show_anchors(number_of_boxes, num_of_clusters, rel_width_height_array, anchors_data, width, height);
 	}
 	free(rel_width_height_array);
 	free(counter_per_class);

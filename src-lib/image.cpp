@@ -687,12 +687,7 @@ void rgbgr_image(image im)
 
 void show_image(image p, const char *name)
 {
-#ifdef OPENCV
 	show_image_cv(p, name);
-#else
-	fprintf(stderr, "Not compiled with OpenCV, saving to %s.png instead\n", name);
-	save_image(p, name);
-#endif  // OPENCV
 }
 
 void save_image_png(image im, const char *name)
@@ -965,11 +960,8 @@ void composite_3d(char *f1, char *f2, char *out, int delta)
 	for(i = 0; i < c.w*c.h; ++i){
 		c.data[i] = a.data[i];
 	}
-#ifdef OPENCV
+
 	save_image_jpg(c, out);
-#else
-	save_image(c, out);
-#endif
 }
 
 void fill_image(image m, float s)
@@ -1459,7 +1451,6 @@ void test_resize(char *filename)
 	show_image(c3, "C3");
 	show_image(c4, "C4");
 
-#ifdef OPENCV
 	while(1){
 		image aug = random_augment_image(im, 0, .75, 320, 448, 320);
 		show_image(aug, "aug");
@@ -1482,7 +1473,6 @@ void test_resize(char *filename)
 		free_image(c);
 		wait_until_press_key_cv();
 	}
-#endif
 }
 
 
