@@ -2311,15 +2311,15 @@ void load_convolutional_weights(layer l, FILE *fp)
 	int num = l.nweights;
 	int read_bytes;
 	read_bytes = fread(l.biases, sizeof(float), l.n, fp);
-	if (read_bytes > 0 && read_bytes < l.n) printf("\n Warning: Unexpected end of wights-file! l.biases - l.index = %d \n", l.index);
+	if (read_bytes > 0 && read_bytes < l.n) printf("\n Warning: Unexpected end of weights-file! l.biases - l.index = %d \n", l.index);
 	//fread(l.weights, sizeof(float), num, fp); // as in connected layer
 	if (l.batch_normalize && (!l.dontloadscales)){
 		read_bytes = fread(l.scales, sizeof(float), l.n, fp);
-		if (read_bytes > 0 && read_bytes < l.n) printf("\n Warning: Unexpected end of wights-file! l.scales - l.index = %d \n", l.index);
+		if (read_bytes > 0 && read_bytes < l.n) printf("\n Warning: Unexpected end of weights-file! l.scales - l.index = %d \n", l.index);
 		read_bytes = fread(l.rolling_mean, sizeof(float), l.n, fp);
-		if (read_bytes > 0 && read_bytes < l.n) printf("\n Warning: Unexpected end of wights-file! l.rolling_mean - l.index = %d \n", l.index);
+		if (read_bytes > 0 && read_bytes < l.n) printf("\n Warning: Unexpected end of weights-file! l.rolling_mean - l.index = %d \n", l.index);
 		read_bytes = fread(l.rolling_variance, sizeof(float), l.n, fp);
-		if (read_bytes > 0 && read_bytes < l.n) printf("\n Warning: Unexpected end of wights-file! l.rolling_variance - l.index = %d \n", l.index);
+		if (read_bytes > 0 && read_bytes < l.n) printf("\n Warning: Unexpected end of weights-file! l.rolling_variance - l.index = %d \n", l.index);
 		if (0) /// @todo What!?
 		{
 			int i;
@@ -2339,7 +2339,7 @@ void load_convolutional_weights(layer l, FILE *fp)
 		}
 	}
 	read_bytes = fread(l.weights, sizeof(float), num, fp);
-	if (read_bytes > 0 && read_bytes < l.n) printf("\n Warning: Unexpected end of wights-file! l.weights - l.index = %d \n", l.index);
+	if (read_bytes > 0 && read_bytes < l.n) printf("\n Warning: Unexpected end of weights-file! l.weights - l.index = %d \n", l.index);
 	//if(l.adam){
 	//    fread(l.m, sizeof(float), num, fp);
 	//    fread(l.v, sizeof(float), num, fp);
@@ -2363,7 +2363,7 @@ void load_shortcut_weights(layer l, FILE *fp)
 	int num = l.nweights;
 	int read_bytes;
 	read_bytes = fread(l.weights, sizeof(float), num, fp);
-	if (read_bytes > 0 && read_bytes < num) printf("\n Warning: Unexpected end of wights-file! l.weights - l.index = %d \n", l.index);
+	if (read_bytes > 0 && read_bytes < num) printf("\n Warning: Unexpected end of weights-file! l.weights - l.index = %d \n", l.index);
 	//for (int i = 0; i < l.nweights; ++i) printf(" %f, ", l.weights[i]);
 	//printf(" read_bytes = %d \n\n", read_bytes);
 #ifdef GPU
@@ -2379,7 +2379,7 @@ void load_implicit_weights(layer l, FILE *fp)
 	int num = l.nweights;
 	int read_bytes;
 	read_bytes = fread(l.weights, sizeof(float), num, fp);
-	if (read_bytes > 0 && read_bytes < num) printf("\n Warning: Unexpected end of wights-file! l.weights - l.index = %d \n", l.index);
+	if (read_bytes > 0 && read_bytes < num) printf("\n Warning: Unexpected end of weights-file! l.weights - l.index = %d \n", l.index);
 	//for (int i = 0; i < l.nweights; ++i) printf(" %f, ", l.weights[i]);
 	//printf(" read_bytes = %d \n\n", read_bytes);
 #ifdef GPU
