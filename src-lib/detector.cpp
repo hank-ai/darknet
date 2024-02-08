@@ -1871,18 +1871,11 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 			}
 		}
 
-		//box *boxes = calloc(l.w*l.h*l.n, sizeof(box));
-		//float **probs = calloc(l.w*l.h*l.n, sizeof(float*));
-		//for(j = 0; j < l.w*l.h*l.n; ++j) probs[j] = (float*)xcalloc(l.classes, sizeof(float));
-
 		float *X = sized.data;
 
-		//time= what_time_is_it_now();
 		double time = get_time_point();
 		network_predict(net, X);
-		//network_predict_image(&net, im); letterbox = 1;
 		printf("%s: Predicted in %lf milli-seconds.\n", input, ((double)get_time_point() - time) / 1000);
-		//printf("%s: Predicted in %f seconds.\n", input, (what_time_is_it_now()-time));
 
 		int nboxes = 0;
 		detection *dets = get_network_boxes(&net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letter_box);
@@ -1898,11 +1891,14 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 			}
 		}
 
-		draw_detections_v3(im, dets, nboxes, thresh, names, l.classes, ext_output);
-		save_image(im, "predictions");
+		// Load the image explicitly asking for 3 color channels
+		image im_color = load_image(input, 0, 0, 3);
+
+		draw_detections_v3(im_color, dets, nboxes, thresh, names, l.classes, ext_output);
+		save_image(im_color, "predictions");
 		if (!dont_show)
 		{
-			show_image(im, "predictions");
+			show_image(im_color, "predictions");
 		}
 
 		if (json_file)
@@ -1946,6 +1942,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		}
 
 		free_detections(dets, nboxes);
+		free_image(im_color);
 		free_image(im);
 		free_image(sized);
 
