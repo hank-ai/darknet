@@ -34,12 +34,7 @@ static float get_pixel(image m, int x, int y, int c)
 static float get_pixel_extend(image m, int x, int y, int c)
 {
 	if (x < 0 || x >= m.w || y < 0 || y >= m.h) return 0;
-	/*
-	if(x < 0) x = 0;
-	if(x >= m.w) x = m.w-1;
-	if(y < 0) y = 0;
-	if(y >= m.h) y = m.h-1;
-	*/
+
 	if (c < 0 || c >= m.c) return 0;
 	return get_pixel(m, x, y, c);
 }
@@ -129,7 +124,6 @@ image get_opencv_label(const std::string & str, const int area)
 			// looks like this might be a good font scale to use for this object
 			break;
 		}
-
 		// otherwise, try a smaller font scale
 	}
 
@@ -461,14 +455,6 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 		float prob = probs[i][class_id];
 		if(prob > thresh){
 
-			//// for comparison with OpenCV version of DNN Darknet Yolo v2
-			//printf("\n %f, %f, %f, %f, ", boxes[i].x, boxes[i].y, boxes[i].w, boxes[i].h);
-			// int k;
-			//for (k = 0; k < classes; ++k) {
-			//    printf("%f, ", probs[i][k]);
-			//}
-			//printf("\n");
-
 			int width = im.h * .012;
 
 			if(0)
@@ -494,16 +480,8 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 			if(bot > im.h-1) bot = im.h-1;
 			printf("%s: %.0f%%", names[class_id], prob * 100);
 
-			//printf(" - id: %d, x_center: %d, y_center: %d, width: %d, height: %d",
-			//    class_id, (right + left) / 2, (bot - top) / 2, right - left, bot - top);
-
 			printf("\n");
 			draw_box_width(im, left, top, right, bot, width, red, green, blue);
-//			if (alphabet)
-//			{
-//				image label = get_label(alphabet, names[class_id], (im.h*.03)/10);
-//				draw_label(im, top + width, left, label, rgb);
-//			}
 		}
 	}
 }
@@ -1081,6 +1059,7 @@ float three_way_min(float a, float b, float c)
 }
 
 // http://www.cs.rit.edu/~ncs/color/t_convert.html
+// #COLOR - cannot do HSV if channels > 3
 void rgb_to_hsv(image im)
 {
 	assert(im.c == 3);
@@ -1118,6 +1097,7 @@ void rgb_to_hsv(image im)
 	}
 }
 
+// #COLOR - cannot do HSV if channels > 3
 void hsv_to_rgb(image im)
 {
 	assert(im.c == 3);
@@ -1226,46 +1206,7 @@ void translate_image_channel(image im, int c, float v)
 	}
 }
 
-image binarize_image(image im)
-{
-	image c = copy_image(im);
-	int i;
-	for(i = 0; i < im.w * im.h * im.c; ++i){
-		if(c.data[i] > .5) c.data[i] = 1;
-		else c.data[i] = 0;
-	}
-	return c;
-}
-
-void saturate_image(image im, float sat)
-{
-	rgb_to_hsv(im);
-	scale_image_channel(im, 1, sat);
-	hsv_to_rgb(im);
-	constrain_image(im);
-}
-
-void hue_image(image im, float hue)
-{
-	rgb_to_hsv(im);
-	int i;
-	for(i = 0; i < im.w*im.h; ++i){
-		im.data[i] = im.data[i] + hue;
-		if (im.data[i] > 1) im.data[i] -= 1;
-		if (im.data[i] < 0) im.data[i] += 1;
-	}
-	hsv_to_rgb(im);
-	constrain_image(im);
-}
-
-void exposure_image(image im, float sat)
-{
-	rgb_to_hsv(im);
-	scale_image_channel(im, 2, sat);
-	hsv_to_rgb(im);
-	constrain_image(im);
-}
-
+// #COLOR - needs to be fixed for 1 <= c <= N
 void distort_image(image im, float hue, float sat, float val)
 {
 	if (im.c >= 3)
@@ -1288,6 +1229,7 @@ void distort_image(image im, float hue, float sat, float val)
 	constrain_image(im);
 }
 
+// #COLOR - HSV no beuno
 void random_distort_image(image im, float hue, float saturation, float exposure)
 {
 	float dhue = rand_uniform_strong(-hue, hue);
@@ -1296,6 +1238,7 @@ void random_distort_image(image im, float hue, float saturation, float exposure)
 	distort_image(im, dhue, dsat, dexp);
 }
 
+// #COLOR - HSV no beuno
 void saturate_exposure_image(image im, float sat, float exposure)
 {
 	rgb_to_hsv(im);
