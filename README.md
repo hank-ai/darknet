@@ -74,6 +74,8 @@ The various build methods available in the past have been merged together into a
 
 **Beware if you are following old tutorials with more complicated build steps, or build steps that don't match what is in this readme.**  The new build steps as described below started in August 2023.
 
+Software developers are encouraged to visit https://darknetcv.ai/ to get information on the internals of the Darknet/YOLO object detection framework.
+
 ## Linux CMake Method
 
 [![Darknet build tutorial for Linux](doc/linux_build_thumbnail.jpg)](https://www.youtube.com/watch?v=WTT1s8JjLFk)
@@ -101,7 +103,7 @@ make -j4 package
 sudo dpkg -i darknet-VERSION.deb
 ```
 
-If you are using an older version of CMake, such as the one with Ubuntu 18.04 or 20.04, then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu can be done with the following commands:
+If you are using an older version of CMake then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu can be done with the following commands:
 
 ```sh
 sudo apt-get purge cmake
@@ -140,7 +142,7 @@ Installing the package will copy the following files:
 
 You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run this to test:  `darknet version`.
 
-> If you don't have /usr/bin/darknet` then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file.
+> If you don't have /usr/bin/darknet` then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file as described above.
 
 ## Windows CMake Method
 
@@ -168,7 +170,7 @@ Once everything is downloaded and installed, click on the "Windows Start" menu a
 >
 > Instead of running the `Developer Command Prompt`, you can use a normal command prompt or ssh into the device and manually run `"\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`.
 
-Run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
+Once you have the Developer Command Prompt running as described above, run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
 
 ```bat
 cd c:\
@@ -237,14 +239,14 @@ darknet-2.0.31-win64.exe
 Installing the NSIS installation package will:
 
 * Create a directory called `Darknet`, such as `C:\Program Files\Darknet\`.
-* Install the CLI application, and at the same time rename it to `darknet.exe`.
+* Install the CLI application, `darknet.exe`.
 * Install the required 3rd-party `.dll` files, such as those from OpenCV.
 * Install the neccesary Darknet `.dll`, `.lib` and `.h` files to use `darknet.dll` from another application.
 * Install the template `.cfg` files.
 
 You are now done!  Once the installation wizard has finished, Darknet will have been installed into `C:\Program Files\Darknet\`.  Run this to test:  `C:\Program Files\Darknet\bin\darknet.exe version`.
 
-> If you don't have `C:/Program Files/darknet/bin/darknet.exe` then this means you _did not_ install it, you only built it!  Make sure you go through each step of the NSIS installation wizard in the previous step.
+> If you don't have `C:/Program Files/darknet/bin/darknet.exe` then this means you _did not_ install it, you only built it!  Make sure you go through each panel of the NSIS installation wizard in the previous step.
 
 # Using Darknet
 
@@ -336,7 +338,7 @@ backup = /home/username/nn/animals
 * Modify your `.cfg` file with a text editor.
   * Make sure that `batch=64`.
   * Note the subdivisions.  Depending on the network dimensions and the amount of memory available on your GPU, you may need to increase the subdivisions.  The best value to use is `1` so start with that.  See the [Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#cuda_out_of_memory) if `1` doesn't work for you.
-  * Note `max_batches=...`.  A good value to use when starting out is 2000 x the number of classes.  For this example, we have 4 animals, so 4 * 2000 = 8000.  For this example, we'll use `max_batches=8000`.
+  * Note `max_batches=...`.  A good value to use when starting out is 2000 x the number of classes.  For this example, we have 4 animals, so 4 * 2000 = 8000.  Meaning we'll use `max_batches=8000`.
   * Note `steps=...`.  This should be set to 80% and 90% of `max_batches`.  For this example we'd use `steps=6400,7200` since `max_batches` was set to 8000.
   * Note `width=...` and `height=...`.  These are the network dimensions.  The Darknet/YOLO FAQ explains [how to calculate the best size to use](https://www.ccoderun.ca/programming/darknet_faq/#optimal_network_size).
   * Search for all instances of the line `classes=...` and modify it with the number of classes in your `.names` file.  For this example, we'd use `classes=4`.
@@ -359,7 +361,7 @@ Be patient.  The best weights will be saved as `animals_best.weights`.  And the 
 
 # Roadmap
 
-Last updated 2023-11-17:
+Last updated 2024-02-12:
 
 ## Short-term goals
 
@@ -390,6 +392,8 @@ Last updated 2023-11-17:
 ## Mid-term goals
 
 * [ ] better use of `cv::Mat` instead of the custom `image` structure in C
+* [ ] do not cast `cv::Mat` to `void*` but use it as a proper C++ object
+* [ ] completely remove internal/obsolete `image` structure
 * [ ] fix support for 1-channel greyscale images
 * [ ] add support for N-channel images where N > 3 (e.g., images with an additional depth or thermal channel)
 * [ ] on-going code cleanup
@@ -398,3 +402,5 @@ Last updated 2023-11-17:
 
 * [ ] fix CUDA/CUDNN issues with all GPUs
 * [ ] look into adding support for non-NVIDIA GPUs
+* [ ] rotated bounding boxes, or some sort of "angle" support
+
