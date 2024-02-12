@@ -742,11 +742,11 @@ typedef struct network {
 	int outputs;
 	int truths;
 	int notruth;
-	// The height of the network
+	/// The height of the network.  Must be divisible by @p 32.  E.g, @p 640.
 	int h;
-	// The width of the network
+	/// The width of the network.  Must be divisible by @p 32.  E.g., @p 480.
 	int w;
-	// The number of channels for the network
+	/// The number of channels for the network.  Typically @p 3 when working with RGB images.
 	int c;
 	int max_crop;
 	int min_crop;
@@ -967,7 +967,7 @@ typedef struct load_args {
 	int w;
 
 	/* Number of channels, typically 3 for RGB */
-	int c; 
+	int c;
 	int out_w;
 	int out_h;
 	int nh;
