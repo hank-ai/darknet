@@ -1059,7 +1059,7 @@ float three_way_min(float a, float b, float c)
 }
 
 // http://www.cs.rit.edu/~ncs/color/t_convert.html
-// #COLOR - cannot do HSV if channels > 3
+///< @todo #COLOR - cannot do HSV if channels > 3
 void rgb_to_hsv(image im)
 {
 	assert(im.c == 3);
@@ -1097,7 +1097,7 @@ void rgb_to_hsv(image im)
 	}
 }
 
-// #COLOR - cannot do HSV if channels > 3
+///< @todo #COLOR - cannot do HSV if channels > 3
 void hsv_to_rgb(image im)
 {
 	assert(im.c == 3);
@@ -1206,7 +1206,7 @@ void translate_image_channel(image im, int c, float v)
 	}
 }
 
-// #COLOR - needs to be fixed for 1 <= c <= N
+///< @todo #COLOR - needs to be fixed for 1 <= c <= N
 void distort_image(image im, float hue, float sat, float val)
 {
 	if (im.c >= 3)
@@ -1229,7 +1229,7 @@ void distort_image(image im, float hue, float sat, float val)
 	constrain_image(im);
 }
 
-// #COLOR - HSV no beuno
+///< @todo #COLOR - HSV no beuno
 void random_distort_image(image im, float hue, float saturation, float exposure)
 {
 	float dhue = rand_uniform_strong(-hue, hue);
@@ -1238,15 +1238,6 @@ void random_distort_image(image im, float hue, float saturation, float exposure)
 	distort_image(im, dhue, dsat, dexp);
 }
 
-// #COLOR - HSV no beuno
-void saturate_exposure_image(image im, float sat, float exposure)
-{
-	rgb_to_hsv(im);
-	scale_image_channel(im, 1, sat);
-	scale_image_channel(im, 2, exposure);
-	hsv_to_rgb(im);
-	constrain_image(im);
-}
 
 float bilinear_interpolate(image im, float x, float y, int c)
 {
@@ -1263,12 +1254,6 @@ float bilinear_interpolate(image im, float x, float y, int c)
 	return val;
 }
 
-void quantize_image(image im)
-{
-	int size = im.c * im.w * im.h;
-	int i;
-	for (i = 0; i < size; ++i) im.data[i] = (int)(im.data[i] * 255) / 255. + (0.5/255);
-}
 
 void make_image_red(image im)
 {
@@ -1318,8 +1303,6 @@ image make_attention_image(int img_size, float *original_delta_cpu, float *origi
 	free_image(resized);
 	for (k = 0; k < img_size; ++k) attention_img.data[k] = attention_img.data[k]*alpha + (1-alpha)*original_input_cpu[k];
 
-	//normalize_image(attention_img);
-	//show_image(attention_img, "delta");
 	return attention_img;
 }
 
@@ -1513,8 +1496,8 @@ image collapse_images_horz(image *ims, int n)
 	for(i = 0; i < n; ++i){
 		int w_offset = i*(size+border);
 		image copy = copy_image(ims[i]);
-		//normalize_image(copy);
-		if(c == 3 && color){
+
+		if(c == 3 && color){	///< @todo #COLOR
 			embed_image(copy, filters, w_offset, 0);
 		}
 		else{
@@ -1541,15 +1524,7 @@ void show_image_normalized(image im, const char *name)
 void show_images(image *ims, int n, char *window)
 {
 	image m = collapse_images_vert(ims, n);
-	/*
-	int w = 448;
-	int h = ((float)m.h/m.w) * 448;
-	if(h > 896){
-	h = 896;
-	w = ((float)m.w/m.h) * 896;
-	}
-	image sized = resize_image(m, w, h);
-	*/
+	
 	normalize_image(m);
 	save_image(m, window);
 	show_image(m, window);

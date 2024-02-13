@@ -412,4 +412,3 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	free_network(net);
 	//cudaProfilerStop();
 }
-

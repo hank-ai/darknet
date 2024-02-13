@@ -1209,7 +1209,7 @@ void update_train_loss_chart(char *windows_name, mat_cv* img_src, int img_size, 
 // Data augmentation
 // ====================================================================
 
-// #COLOR - cannot do hue 
+///< @todo #COLOR - cannot do hue in hyperspectal land
 image image_data_augmentation(mat_cv* mat, int w, int h,
 	int pleft, int ptop, int swidth, int sheight, int flip,
 	float dhue, float dsat, float dexp,
@@ -1232,7 +1232,6 @@ image image_data_augmentation(mat_cv* mat, int w, int h,
 		}
 		else {
 			cv::Mat cropped(src_rect.size(), img.type());
-			//cropped.setTo(cv::Scalar::all(0));
 			cropped.setTo(cv::mean(img));
 
 			img(new_src_rect).copyTo(cropped(dst_rect));
@@ -1251,7 +1250,7 @@ image image_data_augmentation(mat_cv* mat, int w, int h,
 		// HSV augmentation
 		// cv::COLOR_BGR2HSV, cv::COLOR_RGB2HSV, cv::COLOR_HSV2BGR, cv::COLOR_HSV2RGB
 		if (dsat != 1 || dexp != 1 || dhue != 0) {
-			if (img.channels() >= 3)
+			if (img.channels() >= 3)	// The only (really) works for c == 3
 			{
 				cv::Mat hsv_src;
 				cvtColor(sized, hsv_src, cv::COLOR_RGB2HSV);    // RGB to HSV
