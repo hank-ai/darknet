@@ -69,7 +69,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			free_layer_custom(net_map.layers[k], 1);
 		}
 
-		char *name_list = option_find_str(options, "names", "data/names.list");
+		char *name_list = option_find_str(options, "names", nullptr);
 		int names_size = 0;
 		char **names = get_labels_custom(name_list, &names_size);
 		if (net_classes != names_size)
@@ -693,8 +693,8 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 {
 	int j;
 	list *options = read_data_cfg(datacfg);
-	char *valid_images = option_find_str(options, "valid", "data/train.list");
-	char *name_list = option_find_str(options, "names", "data/names.list");
+	char *valid_images = option_find_str(options, "valid", nullptr);
+	char *name_list = option_find_str(options, "names", nullptr);
 	char *prefix = option_find_str(options, "results", "results");
 	char **names = get_labels(name_list);
 	char *mapf = option_find_str(options, "map", 0);
@@ -990,9 +990,9 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 {
 	int j;
 	list *options = read_data_cfg(datacfg);
-	char *valid_images = option_find_str(options, "valid", "data/train.txt");
+	char *valid_images = option_find_str(options, "valid", nullptr);
 	char *difficult_valid_images = option_find_str(options, "difficult", NULL);
-	char *name_list = option_find_str(options, "names", "data/names.list");
+	char *name_list = option_find_str(options, "names", nullptr);
 	int names_size = 0;
 	char **names = get_labels_custom(name_list, &names_size); //get_labels(name_list);
 	//char *mapf = option_find_str(options, "map", 0);
@@ -1004,7 +1004,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	//int initial_batch;
 	if (existing_net)
 	{
-		char *train_images = option_find_str(options, "train", "data/train.txt");
+		char *train_images = option_find_str(options, "train", nullptr);
 		valid_images = option_find_str(options, "valid", train_images);
 		net = *existing_net;
 		remember_network_recurrent_state(*existing_net);
@@ -1802,7 +1802,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	float hier_thresh, int dont_show, int ext_output, int save_labels, char *outfile, int letter_box, int benchmark_layers)
 {
 	list *options = read_data_cfg(datacfg);
-	char *name_list = option_find_str(options, "names", "data/names.list");
+	char *name_list = option_find_str(options, "names", nullptr);
 	int names_size = 0;
 	char **names = get_labels_custom(name_list, &names_size); //get_labels(name_list);
 
@@ -1975,7 +1975,7 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 	int letter_box, int benchmark_layers)
 {
 	list *options = read_data_cfg(datacfg);
-	char *name_list = option_find_str(options, "names", "data/names.list");
+	char *name_list = option_find_str(options, "names", nullptr);
 	int names_size = 0;
 	char **names = get_labels_custom(name_list, &names_size); //get_labels(name_list);
 
@@ -2229,7 +2229,7 @@ void run_detector(int argc, char **argv)
 		 */
 		list *options = read_data_cfg(datacfg);
 		int classes = option_find_int(options, "classes", 20);
-		char *name_list = option_find_str(options, "names", "data/names.list");
+		char *name_list = option_find_str(options, "names", nullptr);
 		char **names = get_labels(name_list);
 		if (input_fn)
 		{

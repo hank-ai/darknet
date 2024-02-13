@@ -184,7 +184,7 @@ cv::Mat image_to_mat(image img)
 			for (int c = 0; c < img.c; ++c)
 			{
 				float val = img.data[c*img.h*img.w + y*img.w + x];
-				mat.data[y*step + x*img.c + c] = (unsigned char)(val * 255);	 // Is this right?
+				mat.data[y*step + x*img.c + c] = (unsigned char)(val * 255);	 ///< @todo Is this right?
 			}
 		}
 	}
@@ -646,7 +646,7 @@ image get_image_from_stream_cpp(cap_cv *cap)
 int wait_for_stream(cap_cv *cap, cv::Mat* src, int dont_close)
 {
 	if (!src) {
-		if (dont_close) src = new cv::Mat(416, 416, CV_8UC(3)); // cvCreateImage(cvSize(416, 416), IPL_DEPTH_8U, 3);  // #COLOR
+		if (dont_close) src = new cv::Mat(416, 416, CV_8UC(3)); // cvCreateImage(cvSize(416, 416), IPL_DEPTH_8U, 3);  ///< @todo #COLOR
 		else return 0;
 	}
 	if (src->cols < 1 || src->rows < 1 || src->channels() < 1) {

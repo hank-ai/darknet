@@ -112,7 +112,7 @@ matrix load_image_paths_gray(char **paths, int n, int w, int h)
     X.cols = 0;
 
     for(i = 0; i < n; ++i){
-        image im = load_image(paths[i], w, h, 3);	// #COLOR
+        image im = load_image(paths[i], w, h, 3);	///< @todo #COLOR
 
         image gray = grayscale_image(im);
         free_image(im);
@@ -124,7 +124,7 @@ matrix load_image_paths_gray(char **paths, int n, int w, int h)
     return X;
 }
 
-matrix load_image_paths(char **paths, int n, int w, int h, int c) 
+matrix load_image_paths(char **paths, int n, int w, int h, int c)
 {
     int i;
     matrix X;
@@ -133,7 +133,7 @@ matrix load_image_paths(char **paths, int n, int w, int h, int c)
     X.cols = 0;
 
     for(i = 0; i < n; ++i){
-        image im = load_image(paths[i], w, h, c);  // #COLOR
+        image im = load_image(paths[i], w, h, c);  ///< @todo #COLOR
         X.vals[i] = im.data;
         X.cols = im.h*im.w*im.c;
     }
@@ -1653,7 +1653,7 @@ data load_data_augment(char **paths, int n, int m, char **labels, int k, tree *h
                 const float beta = 1 - alpha;
 
                 int channel, x, y;
-                for (channel = 0; channel < 3; ++channel) {
+                for (channel = 0; channel < 3; ++channel) { ///< @todo #COLOR
                     for (y = top; y < bot; ++y) {
                         for (x = left; x < right; ++x) {
                             int j = x + y*w + channel *w*h;
@@ -1681,7 +1681,7 @@ data load_data_augment(char **paths, int n, int m, char **labels, int k, tree *h
                 float s4 = (float)((w - cut_x) * (h - cut_y)) / (w*h);
 
                 int channel, x, y;
-                for (channel = 0; channel < 3; ++channel) {
+                for (channel = 0; channel < 3; ++channel) { ///< @todo #COLOR
                     for (y = 0; y < h; ++y) {
                         for (x = 0; x < w; ++x) {
                             int j = x + y*w + channel *w*h;

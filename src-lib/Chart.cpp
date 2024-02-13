@@ -340,9 +340,9 @@ Chart & Chart::update_bottom_text(const float seconds_remaining)
 	std::time_t current_time = std::time(nullptr);
 	std::tm * tm = std::localtime(&current_time);
 	char buffer[100];
-	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %Z", tm);
+	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", tm);
 	p1 = cv::Point(15, mat.rows - 20);
-	p2 = cv::Point(p1.x + 250, p1.y + 20);
+	p2 = cv::Point(p1.x + 210, p1.y + 20);
 	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // fill it with white to clear out the previous text
 	cv::putText(mat, buffer, cv::Point(15, mat.rows - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
 
