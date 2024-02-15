@@ -222,7 +222,7 @@ public:
 // --------------------------------------------------------------------------------
 
 
-#if defined(TRACK_OPTFLOW) && defined(OPENCV) && defined(GPU)
+#if defined(TRACK_OPTFLOW) && defined(GPU)
 
 #include <opencv2/cudaoptflow.hpp>
 #include <opencv2/cudaimgproc.hpp>
@@ -412,7 +412,7 @@ public:
 
 };
 
-#elif defined(TRACK_OPTFLOW) && defined(OPENCV)
+#elif defined(TRACK_OPTFLOW)
 
 #include <opencv2/video/tracking.hpp>
 
@@ -540,7 +540,7 @@ public:
 
 class Tracker_optflow {};
 
-#endif    // defined(TRACK_OPTFLOW) && defined(OPENCV)
+#endif    // defined(TRACK_OPTFLOW) && defined(GPU)
 
 
 static cv::Scalar obj_id_to_color(int obj_id) {

@@ -10,8 +10,6 @@
 #endif
 
 
-#ifdef OPENCV
-
 #include <string>
 #include <opencv2/opencv.hpp>
 
@@ -90,5 +88,3 @@ extern Chart training_chart;
 
 /// Additional training charts for each of the classes.
 extern std::vector<Chart> more_charts;
-
-#endif

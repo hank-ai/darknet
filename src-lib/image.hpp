@@ -29,7 +29,6 @@ void draw_box_width(image a, int x1, int y1, int x2, int y2, int w, float r, flo
 void draw_bbox(image a, box bbox, int w, float r, float g, float b);
 void draw_label(image a, int r, int c, image label, const float *rgb);
 void draw_weighted_label(image a, int r, int c, image label, const float *rgb, const float alpha);
-void write_label(image a, int r, int c, image *characters, char *string, float *rgb);
 
 /// This is still called from a few isolated places, but you're probably looking for @ref draw_detections_v3().
 void draw_detections(image im, int num, float thresh, box *boxes, float **probs, char **names, int classes);
@@ -45,17 +44,13 @@ image random_augment_image(image im, float angle, float aspect, int low, int hig
 void random_distort_image(image im, float hue, float saturation, float exposure);
 void fill_image(image m, float s);
 void letterbox_image_into(image im, int w, int h, image boxed);
-// image resize_min(image im, int min);
 image resize_max(image im, int max);
 void translate_image(image m, float s);
 void normalize_image(image p);
 image rotate_image(image m, float rad);
 void rotate_image_cw(image im, int times);
 void embed_image(image source, image dest, int dx, int dy);
-void saturate_image(image im, float sat);
-void exposure_image(image im, float sat);
 void distort_image(image im, float hue, float sat, float val);
-void saturate_exposure_image(image im, float sat, float exposure);
 void hsv_to_rgb(image im);
 void constrain_image(image im);
 void composite_3d(char *f1, char *f2, char *out, int delta);
@@ -90,8 +85,6 @@ void copy_image_inplace(image src, image dst);
  * to match those dimensions.  Otherwise, specify @p 0 (zero) to leave the image dimensions unchanged.
  */
 image load_image(char * filename, int desired_width, int desired_height, int channels);
-
-image load_image_stb_resize(char *filename, int w, int h, int c);
 
 float bilinear_interpolate(image im, float x, float y, int c);
 

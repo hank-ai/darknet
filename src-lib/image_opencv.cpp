@@ -1209,7 +1209,7 @@ void update_train_loss_chart(char *windows_name, mat_cv* img_src, int img_size, 
 // Data augmentation
 // ====================================================================
 
-///< @todo #COLOR - cannot do hue in hyperspectal land
+/// @todo #COLOR - cannot do hue in hyperspectal land
 image image_data_augmentation(mat_cv* mat, int w, int h,
 	int pleft, int ptop, int swidth, int sheight, int flip,
 	float dhue, float dsat, float dexp,

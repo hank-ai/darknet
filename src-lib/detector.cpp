@@ -1968,7 +1968,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	free_network(net);
 }
 
-#if defined(OPENCV) && defined(GPU)
+#if defined(GPU)
 
 // adversarial attack dnn
 void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, int dont_show, int it_num,
@@ -2121,12 +2121,12 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 
 	free_network(net);
 }
-#else // defined(OPENCV) && defined(GPU)
+#else // defined(GPU)
 void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, int dont_show, int it_num, int letter_box, int benchmark_layers)
 {
 	darknet_fatal_error(DARKNET_LOC, "detector draw cannot be used without OpenCV and CUDA");
 }
-#endif // defined(OPENCV) && defined(GPU)
+#endif // defined(GPU)
 
 void run_detector(int argc, char **argv)
 {

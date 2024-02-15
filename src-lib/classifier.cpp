@@ -214,7 +214,7 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 		if (avg_time < 0) avg_time = time_remaining;
 		else avg_time = alpha_time * time_remaining + (1 -  alpha_time) * avg_time;
 		start = what_time_is_it_now();
-		printf("%d, %.3f: %f, %f avg, %f rate, %lf seconds, %ld images, %f hours left\n", get_current_batch(net), (float)(*net.seen)/ train_images_num, loss, avg_loss, get_current_rate(net), sec(clock()-time), *net.seen, avg_time);
+		printf("%d, %.3f: %f, %f avg, %f rate, %lf seconds, %lld images, %f hours left\n", get_current_batch(net), (float)(*net.seen)/ train_images_num, loss, avg_loss, get_current_rate(net), sec(clock()-time), *net.seen, avg_time);
 
 		if (net.contrastive) {
 			float cur_con_acc = -1;
@@ -1050,96 +1050,6 @@ void threat_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_i
 	}
 }
 
-
-void gun_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_index, const char *filename)
-{
-#ifdef OPENCV_DISABLE
-	int bad_cats[] = {218, 539, 540, 1213, 1501, 1742, 1911, 2415, 4348, 19223, 368, 369, 370, 1133, 1200, 1306, 2122, 2301, 2537, 2823, 3179, 3596, 3639, 4489, 5107, 5140, 5289, 6240, 6631, 6762, 7048, 7171, 7969, 7984, 7989, 8824, 8927, 9915, 10270, 10448, 13401, 15205, 18358, 18894, 18895, 19249, 19697};
-
-	printf("Classifier Demo\n");
-	network net = parse_network_cfg(cfgfile);
-	if(weightfile){
-		load_weights(&net, weightfile);
-	}
-	set_batch_network(&net, 1);
-	list *options = read_data_cfg(datacfg);
-
-	srand(2222222);
-	CvCapture * cap;
-
-	if (filename) {
-		//cap = cvCaptureFromFile(filename);
-		cap = get_capture_video_stream(filename);
-	}
-	else {
-		//cap = cvCaptureFromCAM(cam_index);
-		cap = get_capture_webcam(cam_index);
-	}
-
-	if(!cap)
-	{
-		darknet_fatal_error(DARKNET_LOC, "failed to connect to webcam (%d, %s)", cam_index, filename);
-	}
-
-	int classes = option_find_int(options, "classes", 2);
-	int top = option_find_int(options, "top", 1);
-	if (top > classes) top = classes;
-
-	char *name_list = option_find_str(options, "names", 0);
-	char **names = get_labels(name_list);
-
-	int* indexes = (int*)xcalloc(top, sizeof(int));
-
-	cvNamedWindow("Threat Detection", CV_WINDOW_NORMAL);
-	cvResizeWindow("Threat Detection", 512, 512);
-	float fps = 0;
-	int i;
-
-	while(1){
-		struct timeval tval_before, tval_after, tval_result;
-		gettimeofday(&tval_before, NULL);
-
-		//image in = get_image_from_stream(cap);
-		image in = get_image_from_stream_cpp(cap);
-		image in_s = resize_image(in, net.w, net.h);
-		show_image(in, "Threat Detection");
-
-		float *predictions = network_predict(net, in_s.data);
-		top_predictions(net, top, indexes);
-
-		printf("\033[2J");
-		printf("\033[1;1H");
-
-		int threat = 0;
-		for(i = 0; i < sizeof(bad_cats)/sizeof(bad_cats[0]); ++i){
-			int index = bad_cats[i];
-			if(predictions[index] > .01){
-				printf("Threat Detected!\n");
-				threat = 1;
-				break;
-			}
-		}
-		if(!threat) printf("Scanning...\n");
-		for(i = 0; i < sizeof(bad_cats)/sizeof(bad_cats[0]); ++i){
-			int index = bad_cats[i];
-			if(predictions[index] > .01){
-				printf("%s\n", names[index]);
-			}
-		}
-
-		free_image(in_s);
-		free_image(in);
-
-		cvWaitKey(10);
-
-		gettimeofday(&tval_after, NULL);
-		timersub(&tval_after, &tval_before, &tval_result);
-		float curr = 1000000.f/((long int)tval_result.tv_usec);
-		fps = .9*fps + .1*curr;
-	}
-#endif
-}
-
 void demo_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_index, const char *filename, int benchmark, int benchmark_layers)
 {
 	printf("Classifier Demo\n");
@@ -1305,7 +1215,6 @@ void run_classifier(int argc, char **argv)
 	else if(0==strcmp(argv[2], "try")) try_classifier(data, cfg, weights, filename, atoi(layer_s));
 	else if(0==strcmp(argv[2], "train")) train_classifier(data, cfg, weights, gpus, ngpus, clear, dontuse_opencv, dont_show, mjpeg_port, calc_topk, show_imgs, chart_path);
 	else if(0==strcmp(argv[2], "demo")) demo_classifier(data, cfg, weights, cam_index, filename, benchmark, benchmark_layers);
-	else if(0==strcmp(argv[2], "gun")) gun_classifier(data, cfg, weights, cam_index, filename);
 	else if(0==strcmp(argv[2], "threat")) threat_classifier(data, cfg, weights, cam_index, filename);
 	else if(0==strcmp(argv[2], "test")) test_classifier(data, cfg, weights, layer);
 	else if(0==strcmp(argv[2], "label")) label_classifier(data, cfg, weights);
