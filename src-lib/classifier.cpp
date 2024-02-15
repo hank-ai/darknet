@@ -32,7 +32,7 @@ float *get_regression_values(char **labels, int n)
 	return v;
 }
 
-void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dontuse_opencv, int dont_show, int mjpeg_port, int calc_topk, int show_imgs, char* chart_path)
+void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int mjpeg_port, int calc_topk, int show_imgs, char* chart_path)
 {
 	int i;
 
@@ -101,7 +101,6 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 	args.hierarchy = net.hierarchy;
 
 	args.contrastive = net.contrastive;
-	args.dontuse_opencv = dontuse_opencv;
 	args.min = net.min_crop;
 	args.max = net.max_crop;
 	args.flip = net.flip;
@@ -132,12 +131,10 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 	int img_size = 1000;
 	char windows_name[100];
 	sprintf(windows_name, "chart_%s.png", base);
-	if (!dontuse_opencv)
-	{
-		// This draws the initial blank chart.  Then see the call to update_train_loss_chart() below.
-		img = draw_initial_train_chart(windows_name, max_img_loss, net.max_batches, number_of_lines, img_size, dont_show, chart_path);
-	}
 
+	// This draws the initial blank chart.  Then see the call to update_train_loss_chart() below.
+	img = draw_initial_train_chart(windows_name, max_img_loss, net.max_batches, number_of_lines, img_size, dont_show, chart_path);
+	
 	data train;
 	data buffer;
 	pthread_t load_thread;
@@ -224,10 +221,9 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 			if (cur_con_acc >= 0) avg_contrastive_acc = avg_contrastive_acc*0.99 + cur_con_acc * 0.01;
 			printf("  avg_contrastive_acc = %f \n", avg_contrastive_acc);
 		}
-		if (!dontuse_opencv)
-		{
-			update_train_loss_chart(windows_name, img, img_size, avg_loss, max_img_loss, i, net.max_batches, topk, draw_precision, topk_buff, avg_contrastive_acc / 100, dont_show, mjpeg_port, avg_time);
-		}
+
+		update_train_loss_chart(windows_name, img, img_size, avg_loss, max_img_loss, i, net.max_batches, topk, draw_precision, topk_buff, avg_contrastive_acc / 100, dont_show, mjpeg_port, avg_time);
+		
 
 		if (i >= (iter_save + 1000)) {
 			iter_save = i;
@@ -1198,7 +1194,6 @@ void run_classifier(int argc, char **argv)
 	int benchmark = find_arg(argc, argv, "-benchmark");
 	int benchmark_layers = find_arg(argc, argv, "-benchmark_layers");
 	if (benchmark_layers) benchmark = 1;
-	int dontuse_opencv = find_arg(argc, argv, "-dontuse_opencv");
 	int show_imgs = find_arg(argc, argv, "-show_imgs");
 	int calc_topk = find_arg(argc, argv, "-topk");
 	int cam_index = find_int_arg(argc, argv, "-c", 0);
@@ -1213,7 +1208,7 @@ void run_classifier(int argc, char **argv)
 	char* chart_path = find_char_arg(argc, argv, "-chart", 0);
 	if(0==strcmp(argv[2], "predict")) predict_classifier(data, cfg, weights, filename, top);
 	else if(0==strcmp(argv[2], "try")) try_classifier(data, cfg, weights, filename, atoi(layer_s));
-	else if(0==strcmp(argv[2], "train")) train_classifier(data, cfg, weights, gpus, ngpus, clear, dontuse_opencv, dont_show, mjpeg_port, calc_topk, show_imgs, chart_path);
+	else if(0==strcmp(argv[2], "train")) train_classifier(data, cfg, weights, gpus, ngpus, clear, dont_show, mjpeg_port, calc_topk, show_imgs, chart_path);
 	else if(0==strcmp(argv[2], "demo")) demo_classifier(data, cfg, weights, cam_index, filename, benchmark, benchmark_layers);
 	else if(0==strcmp(argv[2], "threat")) threat_classifier(data, cfg, weights, cam_index, filename);
 	else if(0==strcmp(argv[2], "test")) test_classifier(data, cfg, weights, layer);

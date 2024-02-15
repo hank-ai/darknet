@@ -986,7 +986,6 @@ typedef struct load_args {
 	int letter_box;
 	int mosaic_bound;
 	int show_imgs;
-	int dontuse_opencv;
 	int contrastive;
 	int contrastive_jit_flip;
 	int contrastive_color;
