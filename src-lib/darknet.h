@@ -837,16 +837,6 @@ typedef struct network_state {
 	network net;
 } network_state;
 
-//typedef struct {
-//    int w;
-//    int h;
-//    float scale;
-//    float rad;
-//    float dx;
-//    float dy;
-//    float aspect;
-//} augment_args;
-
 // image.h
 typedef struct image {
 	int w;
@@ -854,13 +844,6 @@ typedef struct image {
 	int c;
 	float *data;
 } image;
-
-//typedef struct {
-//    int w;
-//    int h;
-//    int c;
-//    float *data;
-//} image;
 
 // box.h
 typedef struct box {
@@ -894,9 +877,9 @@ typedef struct detection{
 	float *mask;
 	float objectness;
 	int sort_class;
-	float *uc; // Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
-	int points; // bit-0 - center, bit-1 - top-left-corner, bit-2 - bottom-right-corner
-	float *embeddings;  // embeddings for tracking
+	float *uc; /// Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
+	int points; /// bit-0 - center, bit-1 - top-left-corner, bit-2 - bottom-right-corner
+	float *embeddings;  /// embeddings for tracking
 	int embedding_size;
 	float sim;
 	int track_id;
@@ -965,9 +948,7 @@ typedef struct load_args {
 	char **labels;
 	int h;
 	int w;
-
-	/* Number of channels, typically 3 for RGB */
-	int c;
+	int c;	/// Number of channels, typically 3 for RGB 
 	int out_w;
 	int out_h;
 	int nh;
@@ -1017,19 +998,6 @@ typedef struct box_label {
 	float left, right, top, bottom;
 } box_label;
 
-// list.h
-//typedef struct node {
-//    void *val;
-//    struct node *next;
-//    struct node *prev;
-//} node;
-
-// list.h
-//typedef struct list {
-//    int size;
-//    node *front;
-//    node *back;
-//} list;
 // -----------------------------------------------------
 
 
