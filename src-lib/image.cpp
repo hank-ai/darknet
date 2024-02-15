@@ -1059,7 +1059,7 @@ float three_way_min(float a, float b, float c)
 }
 
 // http://www.cs.rit.edu/~ncs/color/t_convert.html
-///< @todo #COLOR - cannot do HSV if channels > 3
+/// @todo #COLOR - cannot do HSV if channels > 3
 void rgb_to_hsv(image im)
 {
 	assert(im.c == 3);
@@ -1097,7 +1097,7 @@ void rgb_to_hsv(image im)
 	}
 }
 
-///< @todo #COLOR - cannot do HSV if channels > 3
+/// @todo #COLOR - cannot do HSV if channels > 3
 void hsv_to_rgb(image im)
 {
 	assert(im.c == 3);
@@ -1206,7 +1206,7 @@ void translate_image_channel(image im, int c, float v)
 	}
 }
 
-///< @todo #COLOR - needs to be fixed for 1 <= c <= N
+/// @todo #COLOR - needs to be fixed for 1 <= c <= N
 void distort_image(image im, float hue, float sat, float val)
 {
 	if (im.c >= 3)
@@ -1229,7 +1229,7 @@ void distort_image(image im, float hue, float sat, float val)
 	constrain_image(im);
 }
 
-///< @todo #COLOR - HSV no beuno
+/// @todo #COLOR - HSV no beuno
 void random_distort_image(image im, float hue, float saturation, float exposure)
 {
 	float dhue = rand_uniform_strong(-hue, hue);
@@ -1530,7 +1530,7 @@ void show_image_normalized(image im, const char *name)
 void show_images(image *ims, int n, char *window)
 {
 	image m = collapse_images_vert(ims, n);
-	
+
 	normalize_image(m);
 	save_image(m, window);
 	show_image(m, window);

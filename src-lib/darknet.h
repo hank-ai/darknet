@@ -742,9 +742,9 @@ typedef struct network {
 	int outputs;
 	int truths;
 	int notruth;
-	/// The height of the network.  Must be divisible by @p 32.  E.g, @p 640.
+	/// The height of the network.  Must be divisible by @p 32.  E.g, @p 480.
 	int h;
-	/// The width of the network.  Must be divisible by @p 32.  E.g., @p 480.
+	/// The width of the network.  Must be divisible by @p 32.  E.g., @p 640.
 	int w;
 	/// The number of channels for the network.  Typically @p 3 when working with RGB images.
 	int c;
@@ -753,7 +753,7 @@ typedef struct network {
 	float max_ratio;
 	float min_ratio;
 	int center;
-	int flip; // horizontal flip 50% probability augmentaiont for classifier training (default = 1)
+	int flip; ///< horizontal flip 50% probability augmentaiont for classifier training (default = 1)
 	int gaussian_noise;
 	int blur;
 	int mixup;
@@ -877,9 +877,9 @@ typedef struct detection{
 	float *mask;
 	float objectness;
 	int sort_class;
-	float *uc; /// Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
-	int points; /// bit-0 - center, bit-1 - top-left-corner, bit-2 - bottom-right-corner
-	float *embeddings;  /// embeddings for tracking
+	float *uc; ///< Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
+	int points; ///< bit-0 - center, bit-1 - top-left-corner, bit-2 - bottom-right-corner
+	float *embeddings;  ///< embeddings for tracking
 	int embedding_size;
 	float sim;
 	int track_id;
@@ -948,7 +948,7 @@ typedef struct load_args {
 	char **labels;
 	int h;
 	int w;
-	int c;	/// Number of channels, typically 3 for RGB 
+	int c;	///< Number of channels, typically 3 for RGB
 	int out_w;
 	int out_h;
 	int nh;

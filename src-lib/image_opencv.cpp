@@ -1250,7 +1250,7 @@ image image_data_augmentation(mat_cv* mat, int w, int h,
 		// HSV augmentation
 		// cv::COLOR_BGR2HSV, cv::COLOR_RGB2HSV, cv::COLOR_HSV2BGR, cv::COLOR_HSV2RGB
 		if (dsat != 1 || dexp != 1 || dhue != 0) {
-			if (img.channels() >= 3)	// The only (really) works for c == 3
+			if (img.channels() >= 3)	// This only (really) works for c == 3
 			{
 				cv::Mat hsv_src;
 				cvtColor(sized, hsv_src, cv::COLOR_RGB2HSV);    // RGB to HSV
