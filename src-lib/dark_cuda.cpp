@@ -400,7 +400,7 @@ void pre_allocate_pinned_memory(const size_t size)
 				darknet_fatal_error(DARKNET_LOC, "cudaHostAlloc failed");
 			}
 
-			printf(" Allocated %lu pinned block \n", pinned_block_size);
+			printf(" Allocated %ll pinned block \n", pinned_block_size);
 		}
 		pinned_num_of_blocks = num_of_blocks;
 	}
@@ -420,7 +420,7 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 	{
 		if ((allocation_size + pinned_index) > pinned_block_size) {
 			const float filled = (float)100 * pinned_index / pinned_block_size;
-			printf("\n Pinned block_id = %lu, filled = %f %% \n", pinned_block_id, filled);
+			printf("\n Pinned block_id = %ll, filled = %f %% \n", pinned_block_id, filled);
 			pinned_block_id++;
 			pinned_index = 0;
 		}
@@ -435,13 +435,13 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 
 	if(!x_cpu) {
 		if (allocation_size > pinned_block_size / 2) {
-			printf("Try to allocate new pinned memory, size = %lu MB \n", size / (1024 * 1024));
+			printf("Try to allocate new pinned memory, size = %ll MB \n", size / (1024 * 1024));
 			cudaError_t status = cudaHostAlloc((void **)&x_cpu, size, cudaHostRegisterMapped);
 			if (status != cudaSuccess) fprintf(stderr, " Can't allocate CUDA-pinned memory on CPU-RAM (pre-allocated memory is over too) \n");
 			CHECK_CUDA(status);
 		}
 		else {
-			printf("Try to allocate new pinned BLOCK, size = %lu MB \n", size / (1024 * 1024));
+			printf("Try to allocate new pinned BLOCK, size = %ll MB \n", size / (1024 * 1024));
 			pinned_num_of_blocks++;
 			pinned_block_id = pinned_num_of_blocks - 1;
 			pinned_index = 0;
