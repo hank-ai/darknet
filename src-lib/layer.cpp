@@ -30,7 +30,10 @@ namespace
 	{
 		if (array)
 		{
+			/** @todo Isn't this an array?  Should the array be freed?
+			 *
 			free_and_clear(*array);
+			 */
 			free(array);
 			array = nullptr;
 		}
