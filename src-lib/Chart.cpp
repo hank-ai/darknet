@@ -23,6 +23,7 @@ Chart::Chart()
 	max_map_value = 0.0f;
 	map_colour = CV_RGB(200, 0, 0);
 
+	started_timestamp = std::time(nullptr);
 	last_update_timestamp = 0;
 	last_save_timestamp = 0;
 
@@ -314,7 +315,13 @@ Chart & Chart::update_bottom_text(const float seconds_remaining)
 	cv::putText(mat, ss.str(), p1, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, cv::LINE_AA);
 
 	// grey TIME REMAINING=...
+	const std::time_t current_time = std::time(nullptr);
 	std::string txt = "time remaining=" + Darknet::format_time_remaining(seconds_remaining);
+	if (seconds_remaining <= 5.0f)
+	{
+		// instead of the time remaining, show the amount of time that has elapsed
+		txt = "time elapsed=" + Darknet::format_time_remaining(current_time - started_timestamp);
+	}
 	p1 = cv::Point(mat.cols - 250, grid_size.height + 20);
 	p2 = cv::Point(mat.cols, p1.y + 20);
 	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // clear out previous text
@@ -337,7 +344,6 @@ Chart & Chart::update_bottom_text(const float seconds_remaining)
 	cv::putText(mat, txt, cv::Point(mat.cols - text_size.width - 5, mat.rows - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
 
 	// draw the timestamp in the lower left
-	std::time_t current_time = std::time(nullptr);
 	std::tm * tm = std::localtime(&current_time);
 	char buffer[100];
 	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", tm);

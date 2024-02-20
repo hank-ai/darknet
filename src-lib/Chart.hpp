@@ -78,6 +78,7 @@ class Chart final
 		float max_map_value;
 		cv::Scalar map_colour;
 
+		std::time_t started_timestamp;
 		std::time_t last_update_timestamp;
 		std::time_t last_save_timestamp;
 };
