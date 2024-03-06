@@ -188,7 +188,7 @@ Chart & Chart::initialize()
 
 Chart & Chart::save_to_disk()
 {
-	cv::imwrite(filename, mat, {cv::ImwriteFlags::IMWRITE_PNG_COMPRESSION, 0});
+	cv::imwrite(filename, mat, {cv::ImwriteFlags::IMWRITE_PNG_COMPRESSION, 3});
 
 	return *this;
 }
@@ -369,7 +369,8 @@ Chart & Chart::update_save_and_display(const int current_iteration, const float 
 		need_to_update = true;
 	}
 
-	if (current_iteration % 100 == 0)
+	if ((current_iteration < 10) or // update frequently at the start so the user has an idea of how long it will take
+		(current_iteration % 100 == 0))
 	{
 		need_to_update = true;
 		need_to_save = true;
