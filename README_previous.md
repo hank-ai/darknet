@@ -1,3 +1,7 @@
+# WARNING!
+
+The content of this readme file is out-of-date.  It is kept both for historical reasons and since it documents some things that are not covered in the new readme file.
+
 # Yolo v4, v3 and v2 for Windows and Linux
 
 ![darknet and hank.ai logos](artwork/darknet_and_hank_ai_logos.png)

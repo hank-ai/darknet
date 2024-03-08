@@ -381,7 +381,7 @@ Last updated 2024-02-12:
 * [X] re-enable AVX
 * [ ] look into old zed camera support
 * [X] remove old solutions and Makefile
-* [ ] make OpenCV non-optional
+* [X] make OpenCV non-optional
 * [ ] better and more consistent command line parsing
 * [X] remove STB
 * [X] re-write CMakeLists.txt to use the new CUDA detection
