@@ -105,6 +105,17 @@ Chart & Chart::initialize()
 		}
 	}
 
+	// we're running out of space to put text in the chart!
+
+	// the version number needs to be rotated 90 degrees and then inserted into the edge of the chart
+	txt = "Darknet/YOLO v" DARKNET_VERSION_SHORT;
+	const int border = 5;
+	text_size = cv::Size(border * 2, border * 2) + cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, 1, nullptr);
+	cv::Mat tmp(text_size, CV_8UC3, CV_RGB(255, 255, 255));
+	cv::putText(tmp, txt, cv::Point(border, tmp.rows - border), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
+	cv::rotate(tmp, tmp, cv::ROTATE_90_COUNTERCLOCKWISE);
+	tmp.copyTo(mat(cv::Rect(0, grid_rect.height - tmp.rows, tmp.cols, tmp.rows)));
+
 	// draw the chart lines and axis values
 
 	// vertical lines starting on the left with zero and working our way to the right side of the grid
@@ -181,17 +192,6 @@ Chart & Chart::initialize()
 	txt = title;
 	text_size = cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, 1, nullptr);
 	cv::putText(mat, txt, cv::Point((mat.cols - text_size.width) / 2, mat.rows - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
-
-	// we're running out of space to put text in the chart!
-
-	// the version number needs to be rotated 90 degrees and then inserted into the edge of the chart
-	txt = "Darknet v" DARKNET_VERSION_SHORT;
-	text_size = cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, 1, nullptr);
-	text_size += {4, 4};
-	cv::Mat tmp(text_size, CV_8UC3, CV_RGB(255, 255, 255));
-	cv::putText(tmp, txt, cv::Point(2, tmp.rows - 2), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
-	cv::rotate(tmp, tmp, cv::ROTATE_90_COUNTERCLOCKWISE);
-	tmp.copyTo(mat(cv::Rect(5, grid_rect.height - tmp.rows, tmp.cols, tmp.rows)));
 
 	return *this;
 }
