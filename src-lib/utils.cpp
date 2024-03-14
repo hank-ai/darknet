@@ -415,14 +415,13 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 			perror(buffer);
 		}
 
-		fprintf(stderr, "* Error location: %s, %s(), line #%d\n", filename, funcname, line);
-		fprintf(stderr, "* Error message:  %s", Darknet::in_colour(Darknet::EColour::kBrightRed).c_str());
-
 		if (rc)
 		{
-			fprintf(stderr, "* Lock failed: rc=%d\n", rc);
+			fprintf(stderr, "* Lock failed:    rc=%d\n", rc);
 		}
 
+		fprintf(stderr, "* Error location: %s, %s(), line #%d\n", filename, funcname, line);
+		fprintf(stderr, "* Error message:  %s", Darknet::in_colour(Darknet::EColour::kBrightRed).c_str());
 		va_list args;
 		va_start(args, msg);
 		vfprintf(stderr, msg, args);
