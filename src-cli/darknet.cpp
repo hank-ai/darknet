@@ -1,4 +1,4 @@
-#include <signal.h>
+#include <csignal>
 
 #if defined(_MSC_VER) && defined(_DEBUG)
 #include <crtdbg.h>
@@ -425,6 +425,11 @@ void visualize(char *cfgfile, char *weightfile)
 
 void darknet_signal_handler(int sig)
 {
+	// prevent recursion if this signal happens again (set the default signal action)
+	std::signal(sig, SIG_DFL);
+
+	std::cout << "calling Darknet's fatal error handler due to signal #" << sig << std::endl;
+
 	#ifdef WIN32
 	darknet_fatal_error(DARKNET_LOC, "signal handler invoked for signal #%d", sig);
 	#else

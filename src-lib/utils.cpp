@@ -1,5 +1,6 @@
 #define _CRT_RAND_S
 #include <stdlib.h>
+#include <csignal>
 
 #include "utils.hpp"
 #include <stdio.h>
@@ -379,28 +380,32 @@ void log_backtrace()
 }
 
 
-/* When things start going wrong, it isn't unusual for multiple threads to exit at the same time.  Multiple calls to
-* darknet_fatal_error() results in overlapping messages, or we may not understand exactly which call was the first
-* one to cause the original error.  To prevent this confusion, we use a mutex lock and will allow a single thread
-* at a time to call into darknet_fatal_error().
-*/
-pthread_mutex_t darknet_fatal_error_critical_section = PTHREAD_MUTEX_INITIALIZER;
+namespace
+{
+	/* When things start going wrong, it isn't unusual for multiple threads to exit at the same time.  Multiple calls to
+	* darknet_fatal_error() results in overlapping messages, or we may not understand exactly which call was the first
+	* one to cause the original error.  To prevent this confusion, we use a mutex lock and will allow a single thread
+	* at a time to call into darknet_fatal_error().
+	*/
+	static pthread_mutex_t darknet_fatal_error_critical_section = PTHREAD_MUTEX_INITIALIZER;
+}
+
 
 void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...)
 {
 	const int saved_errno = errno;
 
-	pthread_mutex_lock(&darknet_fatal_error_critical_section);
+	timespec ts;
+	ts.tv_nsec = 0;
+	ts.tv_sec = std::time(nullptr) + 5;
+	const int rc = pthread_mutex_timedlock(&darknet_fatal_error_critical_section, &ts);
 
 	// only log the message and the rest of the information if this is the first call into darknet_fatal_error()
 	if (Darknet::CfgAndState::get().must_immediately_exit == false)
 	{
 		Darknet::CfgAndState::get().must_immediately_exit = true;
 
-		fprintf(stderr,
-			"\n"
-			"* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
-//			"* A fatal error has been detected.  Darknet will now exit.\n");
+		fprintf(stderr, "\n* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
 
 		if (saved_errno != 0)
 		{
@@ -412,6 +417,11 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 
 		fprintf(stderr, "* Error location: %s, %s(), line #%d\n", filename, funcname, line);
 		fprintf(stderr, "* Error message:  %s", Darknet::in_colour(Darknet::EColour::kBrightRed).c_str());
+
+		if (rc)
+		{
+			fprintf(stderr, "* Lock failed: rc=%d\n", rc);
+		}
 
 		va_list args;
 		va_start(args, msg);
@@ -429,9 +439,20 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 		log_backtrace();
 	}
 
-	pthread_mutex_unlock(&darknet_fatal_error_critical_section);
+	std::fflush(stdout);
+	std::fflush(stderr);
+	std::cout << std::flush;
+	std::cerr << std::flush;
 
-	exit(EXIT_FAILURE);
+	if (rc == 0)
+	{
+		pthread_mutex_unlock(&darknet_fatal_error_critical_section);
+	}
+
+	// Don't bother trying to exit() cleanly since some threads might be tied up in CUDA calls that
+	// tend to hang when things go wrong.  Reset the signal handler to the default action and abort.
+	std::signal(SIGABRT, SIG_DFL);
+	std::abort();
 }
 
 const char * size_to_IEC_string(const size_t size)
