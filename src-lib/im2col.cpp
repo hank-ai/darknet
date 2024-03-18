@@ -1,9 +1,11 @@
 #include "im2col.hpp"
 #include <stdio.h>
-
+#include "Timing.hpp"
 
 float im2col_get_pixel(float *im, int height, int width, int channels, int row, int col, int channel, int pad)
 {
+	TAT(TATPARMS);
+
 	row -= pad;
 	col -= pad;
 
@@ -24,6 +26,8 @@ void im2col_cpu(float* data_im,
 	int channels,  int height,  int width,
 	int ksize,  int stride, int pad, float* data_col)
 {
+	TAT(TATPARMS);
+
 	int c,h,w;
 	int height_col = (height + 2*pad - ksize) / stride + 1;
 	int width_col = (width + 2*pad - ksize) / stride + 1;
@@ -68,6 +72,8 @@ void im2col_cpu_ext(
 	const int dilation_h, const int dilation_w,	// dilation
 	float* data_col)							// output
 {
+	TAT(TATPARMS);
+
 	const int output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
 	const int output_w = (width + 2 * pad_w - (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
 	const int channel_size = height * width;

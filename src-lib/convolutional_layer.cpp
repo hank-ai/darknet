@@ -221,6 +221,7 @@ void create_convolutional_cudnn_tensors(layer *l)
 
 void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_size_specify)
 {
+	TAT(TATPARMS);
 
 // CUDNN_HALF
 	// TRUE_HALF_CONFIG is only supported on architectures with true fp16 support (compute capability 5.3 and 6.0):

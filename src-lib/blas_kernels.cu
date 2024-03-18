@@ -8,6 +8,8 @@
 #include "dark_cuda.hpp"
 #include "utils.hpp"
 #include "tree.hpp"
+#include "Timing.hpp"
+
 
 __inline__ __device__
 float warpAllReduceSum(float val) {
@@ -1547,7 +1549,9 @@ __global__ void add_3_arrays_activate_kernel(float *a1, float *a2, float *a3, si
 
 extern "C" void add_3_arrays_activate(float *a1, float *a2, float *a3, size_t size, ACTIVATION a, float *dst)
 {
-    const int block_size = BLOCK;
+	TAT(TATPARMS);
+
+	const int block_size = BLOCK;
     const int num_blocks = get_number_of_blocks(size, block_size);
     if (!(a == LOGISTIC || a == TANH || a == LEAKY || a == LINEAR))
     {
@@ -1586,7 +1590,9 @@ __global__ void activate_and_mult_kernel(float *a1, float *a2, size_t size, ACTI
 
 extern "C" void activate_and_mult(float *a1, float *a2, size_t size, ACTIVATION a, float *dst)
 {
-    const int block_size = BLOCK;
+	TAT(TATPARMS);
+
+	const int block_size = BLOCK;
     const int num_blocks = get_number_of_blocks(size, block_size);
     if (!(a == TANH || a == LEAKY || a == LINEAR))
     {

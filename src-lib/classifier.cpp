@@ -34,6 +34,8 @@ float *get_regression_values(char **labels, int n)
 
 void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int mjpeg_port, int calc_topk, int show_imgs, char* chart_path)
 {
+	TAT(TATPARMS);
+
 	int i;
 
 	float avg_loss = -1;
@@ -134,7 +136,7 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 
 	// This draws the initial blank chart.  Then see the call to update_train_loss_chart() below.
 	img = draw_initial_train_chart(windows_name, max_img_loss, net.max_batches, number_of_lines, img_size, dont_show, chart_path);
-	
+
 	data train;
 	data buffer;
 	pthread_t load_thread;
@@ -223,7 +225,7 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 		}
 
 		update_train_loss_chart(windows_name, img, img_size, avg_loss, max_img_loss, i, net.max_batches, topk, draw_precision, topk_buff, avg_contrastive_acc / 100, dont_show, mjpeg_port, avg_time);
-		
+
 
 		if (i >= (iter_save + 1000)) {
 			iter_save = i;
@@ -715,6 +717,8 @@ void try_classifier(char *datacfg, char *cfgfile, char *weightfile, char *filena
 
 void predict_classifier(char *datacfg, char *cfgfile, char *weightfile, char *filename, int top)
 {
+	TAT(TATPARMS);
+
 	network net = parse_network_cfg_custom(cfgfile, 1, 0);
 	if(weightfile){
 		load_weights(&net, weightfile);

@@ -1,9 +1,6 @@
 #pragma once
 
-#include <map>
-#include <set>
-#include <string>
-#include <filesystem>
+#include "darknet_internal.hpp"
 
 
 namespace Darknet

@@ -63,6 +63,7 @@ list *read_cfg(char *filename);
 
 LAYER_TYPE string_to_layer_type(char * type)
 {
+	TAT(TATPARMS);
 
 	if (strcmp(type, "[shortcut]")==0) return SHORTCUT;
 	if (strcmp(type, "[scale_channels]") == 0) return SCALE_CHANNELS;
@@ -112,6 +113,8 @@ LAYER_TYPE string_to_layer_type(char * type)
 
 void free_section(section *s)
 {
+	TAT(TATPARMS);
+
 	free(s->type);
 	node *n = s->options->front;
 	while(n){
@@ -128,6 +131,8 @@ void free_section(section *s)
 
 void parse_data(char *data, float *a, int n)
 {
+	TAT(TATPARMS);
+
 	int i;
 	if(!data) return;
 	char *curr = data;
@@ -156,6 +161,8 @@ typedef struct size_params{
 
 local_layer parse_local(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int n = option_find_int(options, "filters",1);
 	int size = option_find_int(options, "size",1);
 	int stride = option_find_int(options, "stride",1);
@@ -181,6 +188,8 @@ local_layer parse_local(list *options, size_params params)
 
 convolutional_layer parse_convolutional(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int n = option_find_int(options, "filters",1);
 	int groups = option_find_int_quiet(options, "groups", 1);
 	int size = option_find_int(options, "size",1);
@@ -268,6 +277,8 @@ convolutional_layer parse_convolutional(list *options, size_params params)
 
 layer parse_crnn(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int size = option_find_int_quiet(options, "size", 3);
 	int stride = option_find_int_quiet(options, "stride", 1);
 	int dilation = option_find_int_quiet(options, "dilation", 1);
@@ -292,6 +303,8 @@ layer parse_crnn(list *options, size_params params)
 
 layer parse_rnn(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int output = option_find_int(options, "output",1);
 	int hidden = option_find_int(options, "hidden",1);
 	char *activation_s = option_find_str(options, "activation", "logistic");
@@ -308,6 +321,8 @@ layer parse_rnn(list *options, size_params params)
 
 layer parse_gru(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int output = option_find_int(options, "output",1);
 	int batch_normalize = option_find_int_quiet(options, "batch_normalize", 0);
 
@@ -318,6 +333,8 @@ layer parse_gru(list *options, size_params params)
 
 layer parse_lstm(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int output = option_find_int(options, "output",1);
 	int batch_normalize = option_find_int_quiet(options, "batch_normalize", 0);
 
@@ -328,6 +345,8 @@ layer parse_lstm(list *options, size_params params)
 
 layer parse_conv_lstm(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	// a ConvLSTM with a larger transitional kernel should be able to capture faster motions
 	int size = option_find_int_quiet(options, "size", 3);
 	int stride = option_find_int_quiet(options, "stride", 1);
@@ -359,6 +378,8 @@ layer parse_conv_lstm(list *options, size_params params)
 
 layer parse_history(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int history_size = option_find_int(options, "history_size", 4);
 	layer l = make_history_layer(params.batch, params.h, params.w, params.c, history_size, params.time_steps, params.train);
 	return l;
@@ -366,6 +387,8 @@ layer parse_history(list *options, size_params params)
 
 connected_layer parse_connected(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int output = option_find_int(options, "output",1);
 	char *activation_s = option_find_str(options, "activation", "logistic");
 	ACTIVATION activation = get_activation(activation_s);
@@ -378,6 +401,8 @@ connected_layer parse_connected(list *options, size_params params)
 
 softmax_layer parse_softmax(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int groups = option_find_int_quiet(options, "groups", 1);
 	softmax_layer layer = make_softmax_layer(params.batch, params.inputs, groups);
 	layer.temperature = option_find_float_quiet(options, "temperature", 1);
@@ -393,6 +418,8 @@ softmax_layer parse_softmax(list *options, size_params params)
 
 contrastive_layer parse_contrastive(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int classes = option_find_int(options, "classes", 1000);
 	layer *yolo_layer = NULL;
 	int yolo_layer_id = option_find_int_quiet(options, "yolo_layer", 0);
@@ -414,6 +441,8 @@ contrastive_layer parse_contrastive(list *options, size_params params)
 
 int *parse_yolo_mask(char *a, int *num)
 {
+	TAT(TATPARMS);
+
 	int *mask = 0;
 	if (a) {
 		int len = strlen(a);
@@ -436,6 +465,8 @@ int *parse_yolo_mask(char *a, int *num)
 
 float *get_classes_multipliers(char *cpc, const int classes, const float max_delta)
 {
+	TAT(TATPARMS);
+
 	float *classes_multipliers = NULL;
 	if (cpc) {
 		int classes_counters = classes;
@@ -477,6 +508,8 @@ float *get_classes_multipliers(char *cpc, const int classes, const float max_del
 
 layer parse_yolo(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int classes = option_find_int(options, "classes", 20);
 	int total = option_find_int(options, "num", 1);
 	int num = total;
@@ -586,6 +619,8 @@ layer parse_yolo(list *options, size_params params)
 
 int *parse_gaussian_yolo_mask(char *a, int *num) // Gaussian_YOLOv3
 {
+	TAT(TATPARMS);
+
 	int *mask = 0;
 	if (a) {
 		int len = strlen(a);
@@ -609,6 +644,8 @@ int *parse_gaussian_yolo_mask(char *a, int *num) // Gaussian_YOLOv3
 
 layer parse_gaussian_yolo(list *options, size_params params) // Gaussian_YOLOv3
 {
+	TAT(TATPARMS);
+
 	int classes = option_find_int(options, "classes", 20);
 	int max_boxes = option_find_int_quiet(options, "max", 200);
 	int total = option_find_int(options, "num", 1);
@@ -701,6 +738,8 @@ layer parse_gaussian_yolo(list *options, size_params params) // Gaussian_YOLOv3
 
 layer parse_region(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int coords = option_find_int(options, "coords", 4);
 	int classes = option_find_int(options, "classes", 20);
 	int num = option_find_int(options, "num", 1);
@@ -758,6 +797,8 @@ layer parse_region(list *options, size_params params)
 }
 detection_layer parse_detection(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int coords = option_find_int(options, "coords", 1);
 	int classes = option_find_int(options, "classes", 1);
 	int rescore = option_find_int(options, "rescore", 0);
@@ -783,6 +824,8 @@ detection_layer parse_detection(list *options, size_params params)
 
 cost_layer parse_cost(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	char *type_s = option_find_str(options, "type", "sse");
 	COST_TYPE type = get_cost_type(type_s);
 	float scale = option_find_float_quiet(options, "scale",1);
@@ -793,6 +836,8 @@ cost_layer parse_cost(list *options, size_params params)
 
 crop_layer parse_crop(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int crop_height = option_find_int(options, "crop_height",1);
 	int crop_width = option_find_int(options, "crop_width",1);
 	int flip = option_find_int(options, "flip",0);
@@ -820,6 +865,8 @@ crop_layer parse_crop(list *options, size_params params)
 
 layer parse_reorg(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int stride = option_find_int(options, "stride",1);
 	int reverse = option_find_int_quiet(options, "reverse",0);
 
@@ -839,6 +886,8 @@ layer parse_reorg(list *options, size_params params)
 
 layer parse_reorg_old(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	printf("\n reorg_old \n");
 	int stride = option_find_int(options, "stride", 1);
 	int reverse = option_find_int_quiet(options, "reverse", 0);
@@ -859,6 +908,8 @@ layer parse_reorg_old(list *options, size_params params)
 
 maxpool_layer parse_local_avgpool(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int stride = option_find_int(options, "stride", 1);
 	int stride_x = option_find_int_quiet(options, "stride_x", stride);
 	int stride_y = option_find_int_quiet(options, "stride_y", stride);
@@ -885,6 +936,8 @@ maxpool_layer parse_local_avgpool(list *options, size_params params)
 
 maxpool_layer parse_maxpool(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int stride = option_find_int(options, "stride",1);
 	int stride_x = option_find_int_quiet(options, "stride_x", stride);
 	int stride_y = option_find_int_quiet(options, "stride_y", stride);
@@ -912,6 +965,8 @@ maxpool_layer parse_maxpool(list *options, size_params params)
 
 avgpool_layer parse_avgpool(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	int batch,w,h,c;
 	w = params.w;
 	h = params.h;
@@ -928,6 +983,8 @@ avgpool_layer parse_avgpool(list *options, size_params params)
 
 dropout_layer parse_dropout(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	float probability = option_find_float(options, "probability", .2);
 	int dropblock = option_find_int_quiet(options, "dropblock", 0);
 	float dropblock_size_rel = option_find_float_quiet(options, "dropblock_size_rel", 0);
@@ -953,6 +1010,8 @@ dropout_layer parse_dropout(list *options, size_params params)
 
 layer parse_normalization(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	float alpha = option_find_float(options, "alpha", .0001);
 	float beta =  option_find_float(options, "beta" , .75);
 	float kappa = option_find_float(options, "kappa", 1);
@@ -963,12 +1022,16 @@ layer parse_normalization(list *options, size_params params)
 
 layer parse_batchnorm(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	layer l = make_batchnorm_layer(params.batch, params.w, params.h, params.c, params.train);
 	return l;
 }
 
 layer parse_shortcut(list *options, size_params params, network net)
 {
+	TAT(TATPARMS);
+
 	char *activation_s = option_find_str(options, "activation", "linear");
 	ACTIVATION activation = get_activation(activation_s);
 
@@ -1047,6 +1110,8 @@ layer parse_shortcut(list *options, size_params params, network net)
 
 layer parse_scale_channels(list *options, size_params params, network net)
 {
+	TAT(TATPARMS);
+
 	char *l = option_find(options, "from");
 	int index = atoi(l);
 	if (index < 0) index = params.index + index;
@@ -1068,6 +1133,8 @@ layer parse_scale_channels(list *options, size_params params, network net)
 
 layer parse_sam(list *options, size_params params, network net)
 {
+	TAT(TATPARMS);
+
 	char *l = option_find(options, "from");
 	int index = atoi(l);
 	if (index < 0) index = params.index + index;
@@ -1088,6 +1155,8 @@ layer parse_sam(list *options, size_params params, network net)
 
 layer parse_implicit(list *options, size_params params, network net)
 {
+	TAT(TATPARMS);
+
 	float mean_init = option_find_float(options, "mean", 0.0);
 	float std_init = option_find_float(options, "std", 0.2);
 	int filters = option_find_int(options, "filters", 128);
@@ -1100,6 +1169,8 @@ layer parse_implicit(list *options, size_params params, network net)
 
 layer parse_activation(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	char *activation_s = option_find_str(options, "activation", "linear");
 	ACTIVATION activation = get_activation(activation_s);
 
@@ -1117,6 +1188,7 @@ layer parse_activation(list *options, size_params params)
 
 layer parse_upsample(list *options, size_params params, network net)
 {
+	TAT(TATPARMS);
 
 	int stride = option_find_int(options, "stride", 2);
 	layer l = make_upsample_layer(params.batch, params.w, params.h, params.c, stride);
@@ -1126,6 +1198,8 @@ layer parse_upsample(list *options, size_params params, network net)
 
 route_layer parse_route(list *options, size_params params)
 {
+	TAT(TATPARMS);
+
 	char *l = option_find(options, "layers");
 	if(!l)
 	{
@@ -1191,6 +1265,8 @@ route_layer parse_route(list *options, size_params params)
 
 learning_rate_policy get_policy(char *s)
 {
+	TAT(TATPARMS);
+
 	if (strcmp(s, "random")==0) return RANDOM;
 	if (strcmp(s, "poly")==0) return POLY;
 	if (strcmp(s, "constant")==0) return CONSTANT;
@@ -1205,6 +1281,8 @@ learning_rate_policy get_policy(char *s)
 
 void parse_net_options(list *options, network *net)
 {
+	TAT(TATPARMS);
+
 	net->max_batches = option_find_int(options, "max_batches", 0);
 	net->batch = option_find_int(options, "batch",1);
 	net->learning_rate = option_find_float(options, "learning_rate", .001);
@@ -1242,7 +1320,6 @@ void parse_net_options(list *options, network *net)
 	net->dynamic_minibatch = option_find_int_quiet(options, "dynamic_minibatch", 0);
 	net->optimized_memory = option_find_int_quiet(options, "optimized_memory", 0);
 	net->workspace_size_limit = (size_t)1024*1024 * option_find_float_quiet(options, "workspace_size_limit_MB", 1024);  // 1024 MB by default
-
 
 	net->adam = option_find_int_quiet(options, "adam", 0);
 	if(net->adam){
@@ -1367,12 +1444,16 @@ void parse_net_options(list *options, network *net)
 
 int is_network(section *s)
 {
+	TAT(TATPARMS);
+
 	return (strcmp(s->type, "[net]")==0
 			|| strcmp(s->type, "[network]")==0);
 }
 
 void set_train_only_bn(network net)
 {
+	TAT(TATPARMS);
+
 	int train_only_bn = 0;
 	int i;
 	for (i = net.n - 1; i >= 0; --i) {
@@ -1406,11 +1487,15 @@ void set_train_only_bn(network net)
 
 network parse_network_cfg(char *filename)
 {
+	TAT(TATPARMS);
+
 	return parse_network_cfg_custom(filename, 0, 0);
 }
 
 network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 {
+	TAT(TATPARMS);
+
 	if (filename == nullptr)
 	{
 		darknet_fatal_error(DARKNET_LOC, "expected a .cfg filename but got a NULL filename instead");
@@ -1903,6 +1988,8 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 
 list *read_cfg(char *filename)
 {
+	TAT(TATPARMS);
+
 	FILE *file = fopen(filename, "r");
 	if (file == nullptr)
 	{
@@ -1959,6 +2046,8 @@ list *read_cfg(char *filename)
 
 void save_convolutional_weights_binary(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
@@ -1992,6 +2081,8 @@ void save_convolutional_weights_binary(layer l, FILE *fp)
 
 void save_shortcut_weights(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
@@ -2011,6 +2102,8 @@ void save_shortcut_weights(layer l, FILE *fp)
 
 void save_implicit_weights(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
@@ -2030,6 +2123,8 @@ void save_implicit_weights(layer l, FILE *fp)
 
 void save_convolutional_weights(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 	if (l.binary)
 	{
 		//save_convolutional_weights_binary(l, fp);
@@ -2057,6 +2152,8 @@ void save_convolutional_weights(layer l, FILE *fp)
 
 void save_convolutional_weights_ema(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 	if (l.binary) {
 		//save_convolutional_weights_binary(l, fp);
 		//return;
@@ -2083,6 +2180,8 @@ void save_convolutional_weights_ema(layer l, FILE *fp)
 
 void save_batchnorm_weights(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
@@ -2097,6 +2196,8 @@ void save_batchnorm_weights(layer l, FILE *fp)
 
 void save_connected_weights(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
@@ -2115,6 +2216,8 @@ void save_connected_weights(layer l, FILE *fp)
 
 void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	if (net.gpu_index >= 0)
 	{
@@ -2211,11 +2314,15 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 }
 void save_weights(network net, char *filename)
 {
+	TAT(TATPARMS);
+
 	save_weights_upto(net, filename, net.n, 0);
 }
 
 void transpose_matrix(float *a, int rows, int cols)
 {
+	TAT(TATPARMS);
+
 	float* transpose = (float*)xcalloc(rows * cols, sizeof(float));
 	int x, y;
 	for(x = 0; x < rows; ++x){
@@ -2229,6 +2336,8 @@ void transpose_matrix(float *a, int rows, int cols)
 
 void load_connected_weights(layer l, FILE *fp, int transpose)
 {
+	TAT(TATPARMS);
+
 	fread(l.biases, sizeof(float), l.outputs, fp);
 	fread(l.weights, sizeof(float), l.outputs*l.inputs, fp);
 	if(transpose)
@@ -2256,6 +2365,8 @@ void load_connected_weights(layer l, FILE *fp, int transpose)
 
 void load_batchnorm_weights(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 	fread(l.biases, sizeof(float), l.c, fp);
 	fread(l.scales, sizeof(float), l.c, fp);
 	fread(l.rolling_mean, sizeof(float), l.c, fp);
@@ -2270,6 +2381,8 @@ void load_batchnorm_weights(layer l, FILE *fp)
 
 void load_convolutional_weights_binary(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 	fread(l.biases, sizeof(float), l.n, fp);
 	if (l.batch_normalize && (!l.dontloadscales)){
 		fread(l.scales, sizeof(float), l.n, fp);
@@ -2304,6 +2417,8 @@ void load_convolutional_weights_binary(layer l, FILE *fp)
 
 void load_convolutional_weights(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 	if(l.binary){
 		//load_convolutional_weights_binary(l, fp);
 		//return;
@@ -2360,6 +2475,8 @@ void load_convolutional_weights(layer l, FILE *fp)
 
 void load_shortcut_weights(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 	int num = l.nweights;
 	int read_bytes;
 	read_bytes = fread(l.weights, sizeof(float), num, fp);
@@ -2376,6 +2493,8 @@ void load_shortcut_weights(layer l, FILE *fp)
 
 void load_implicit_weights(layer l, FILE *fp)
 {
+	TAT(TATPARMS);
+
 	int num = l.nweights;
 	int read_bytes;
 	read_bytes = fread(l.weights, sizeof(float), num, fp);
@@ -2392,6 +2511,8 @@ void load_implicit_weights(layer l, FILE *fp)
 
 void load_weights_upto(network *net, char *filename, int cutoff)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	if(net->gpu_index >= 0){
 		cuda_set_device(net->gpu_index);
@@ -2507,12 +2628,16 @@ void load_weights_upto(network *net, char *filename, int cutoff)
 
 void load_weights(network *net, char *filename)
 {
+	TAT(TATPARMS);
+
 	load_weights_upto(net, filename, net->n);
 }
 
 // load network & force - set batch size
 network *load_network_custom(char *cfg, char *weights, int clear, int batch)
 {
+	TAT(TATPARMS);
+
 	printf(" Try to load cfg: %s, weights: %s, clear = %d \n", cfg, weights, clear);
 	network* net = (network*)xcalloc(1, sizeof(network));
 	*net = parse_network_cfg_custom(cfg, batch, 1);
@@ -2531,6 +2656,8 @@ network *load_network_custom(char *cfg, char *weights, int clear, int batch)
 // load network & get batch size from cfg-file
 network *load_network(char *cfg, char *weights, int clear)
 {
+	TAT(TATPARMS);
+
 	printf(" Try to load cfg: %s, clear = %d \n", cfg, clear);
 	network* net = (network*)xcalloc(1, sizeof(network));
 	*net = parse_network_cfg(cfg);

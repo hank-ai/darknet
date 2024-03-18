@@ -7,6 +7,7 @@
 #include "blas.hpp"
 #include "dark_cuda.hpp"
 #include "darknet_utils.hpp"
+#include "Timing.hpp"
 #include <stdio.h>
 #include <math.h>
 #include <ciso646>
@@ -17,6 +18,8 @@ float colors[6][3] = { {1,0,1}, {0,0,1},{0,1,1},{0,1,0},{1,1,0},{1,0,0} };
 
 float get_color(int c, int x, int max)
 {
+	TAT(TATPARMS);
+
 	float ratio = ((float)x/max)*5;
 	int i = floor(ratio);
 	int j = ceil(ratio);
@@ -28,11 +31,15 @@ float get_color(int c, int x, int max)
 
 static float get_pixel(image m, int x, int y, int c)
 {
+	TAT(TATPARMS);
+
 	assert(x < m.w && y < m.h && c < m.c);
 	return m.data[c*m.h*m.w + y*m.w + x];
 }
 static float get_pixel_extend(image m, int x, int y, int c)
 {
+	TAT(TATPARMS);
+
 	if (x < 0 || x >= m.w || y < 0 || y >= m.h) return 0;
 
 	if (c < 0 || c >= m.c) return 0;
@@ -40,18 +47,24 @@ static float get_pixel_extend(image m, int x, int y, int c)
 }
 static void set_pixel(image m, int x, int y, int c, float val)
 {
+	TAT(TATPARMS);
+
 	if (x < 0 || y < 0 || c < 0 || x >= m.w || y >= m.h || c >= m.c) return;
 	assert(x < m.w && y < m.h && c < m.c);
 	m.data[c*m.h*m.w + y*m.w + x] = val;
 }
 static void add_pixel(image m, int x, int y, int c, float val)
 {
+	TAT(TATPARMS);
+
 	assert(x < m.w && y < m.h && c < m.c);
 	m.data[c*m.h*m.w + y*m.w + x] += val;
 }
 
 void composite_image(image source, image dest, int dx, int dy)
 {
+	TAT(TATPARMS);
+
 	int x,y,k;
 	for(k = 0; k < source.c; ++k){
 		for(y = 0; y < source.h; ++y){
@@ -66,6 +79,8 @@ void composite_image(image source, image dest, int dx, int dy)
 
 image border_image(image a, int border)
 {
+	TAT(TATPARMS);
+
 	image b = make_image(a.w + 2*border, a.h + 2*border, a.c);
 	int x,y,k;
 	for(k = 0; k < b.c; ++k){
@@ -82,6 +97,8 @@ image border_image(image a, int border)
 
 image tile_images(image a, image b, int dx)
 {
+	TAT(TATPARMS);
+
 	if(a.w == 0) return copy_image(b);
 	image c = make_image(a.w + b.w + dx, (a.h > b.h) ? a.h : b.h, (a.c > b.c) ? a.c : b.c);
 	fill_cpu(c.w*c.h*c.c, 1, c.data, 1);
@@ -92,6 +109,8 @@ image tile_images(image a, image b, int dx)
 
 image get_label(image **characters, char *string, int size)
 {
+	TAT(TATPARMS);
+
 	if(size > 7) size = 7;
 	image label = make_empty_image(0,0,0);
 	while(*string){
@@ -109,6 +128,9 @@ image get_label(image **characters, char *string, int size)
 image get_opencv_label(const std::string & str, const int area)
 {
 	/// @todo what are the performance implications of LINE_AA over LINE_4 or LINE_8?
+
+	TAT(TATPARMS);
+
 	const auto font_lines		= cv::LineTypes::LINE_AA;
 	const auto font_face		= cv::HersheyFonts::FONT_HERSHEY_PLAIN;
 	const auto font_thickness	= 1;
@@ -136,6 +158,8 @@ image get_opencv_label(const std::string & str, const int area)
 
 image get_label_v3(image **characters, char *string, int size)
 {
+	TAT(TATPARMS);
+
 	size = size / 10;
 	if (size > 7) size = 7;
 	image label = make_empty_image(0, 0, 0);
@@ -154,6 +178,8 @@ image get_label_v3(image **characters, char *string, int size)
 
 void draw_label(image a, int r, int c, image label, const float *rgb)
 {
+	TAT(TATPARMS);
+
 	int w = label.w;
 	int h = label.h;
 	if (r - h >= 0) r = r - h;
@@ -171,6 +197,8 @@ void draw_label(image a, int r, int c, image label, const float *rgb)
 
 void draw_weighted_label(image a, int r, int c, image label, const float *rgb, const float alpha)
 {
+	TAT(TATPARMS);
+
 	int w = label.w;
 	int h = label.h;
 	if (r - h >= 0) r = r - h;
@@ -190,6 +218,8 @@ void draw_weighted_label(image a, int r, int c, image label, const float *rgb, c
 
 void draw_box_bw(image a, int x1, int y1, int x2, int y2, float brightness)
 {
+	TAT(TATPARMS);
+
 	//normalize_image(a);
 	int i;
 	if (x1 < 0) x1 = 0;
@@ -214,6 +244,8 @@ void draw_box_bw(image a, int x1, int y1, int x2, int y2, float brightness)
 
 void draw_box_width_bw(image a, int x1, int y1, int x2, int y2, int w, float brightness)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for (i = 0; i < w; ++i) {
 		float alternate_color = (w % 2) ? (brightness) : (1.0 - brightness);
@@ -223,6 +255,8 @@ void draw_box_width_bw(image a, int x1, int y1, int x2, int y2, int w, float bri
 
 void draw_box(image a, int x1, int y1, int x2, int y2, float r, float g, float b)
 {
+	TAT(TATPARMS);
+
 	//normalize_image(a);
 	int i;
 	if(x1 < 0) x1 = 0;
@@ -259,6 +293,8 @@ void draw_box(image a, int x1, int y1, int x2, int y2, float r, float g, float b
 
 void draw_box_width(image a, int x1, int y1, int x2, int y2, int w, float r, float g, float b)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for(i = 0; i < w; ++i){
 		draw_box(a, x1+i, y1+i, x2-i, y2-i, r, g, b);
@@ -267,6 +303,8 @@ void draw_box_width(image a, int x1, int y1, int x2, int y2, int w, float r, flo
 
 void draw_bbox(image a, box bbox, int w, float r, float g, float b)
 {
+	TAT(TATPARMS);
+
 	int left  = (bbox.x-bbox.w/2)*a.w;
 	int right = (bbox.x+bbox.w/2)*a.w;
 	int top   = (bbox.y-bbox.h/2)*a.h;
@@ -281,6 +319,8 @@ void draw_bbox(image a, box bbox, int w, float r, float g, float b)
 // Creates array of detections with prob > thresh and fills best_class for them
 detection_with_class* get_actual_detections(detection *dets, int dets_num, float thresh, int* selected_detections_num, char **names)
 {
+	TAT(TATPARMS);
+
 	int selected_num = 0;
 	detection_with_class* result_arr = (detection_with_class*)xcalloc(dets_num, sizeof(detection_with_class));
 	int i;
@@ -307,7 +347,10 @@ detection_with_class* get_actual_detections(detection *dets, int dets_num, float
 }
 
 // compare to sort detection** by bbox.x
-int compare_by_lefts(const void *a_ptr, const void *b_ptr) {
+int compare_by_lefts(const void *a_ptr, const void *b_ptr)
+{
+	TAT(TATPARMS);
+
 	const detection_with_class* a = (detection_with_class*)a_ptr;
 	const detection_with_class* b = (detection_with_class*)b_ptr;
 	const float delta = (a->det.bbox.x - a->det.bbox.w/2) - (b->det.bbox.x - b->det.bbox.w/2);
@@ -315,7 +358,10 @@ int compare_by_lefts(const void *a_ptr, const void *b_ptr) {
 }
 
 // compare to sort detection** by best_class probability
-int compare_by_probs(const void *a_ptr, const void *b_ptr) {
+int compare_by_probs(const void *a_ptr, const void *b_ptr)
+{
+	TAT(TATPARMS);
+
 	const detection_with_class* a = (detection_with_class*)a_ptr;
 	const detection_with_class* b = (detection_with_class*)b_ptr;
 	float delta = a->det.prob[a->best_class] - b->det.prob[b->best_class];
@@ -324,6 +370,8 @@ int compare_by_probs(const void *a_ptr, const void *b_ptr) {
 
 void draw_detections_v3(image im, detection *dets, int num, float thresh, char **names, int classes, int ext_output)
 {
+	TAT(TATPARMS);
+
 	static int frame_id = 0;
 	frame_id++;
 
@@ -448,6 +496,8 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 {
 	// wrong function!  see draw_detections_v3() instead!
 
+	TAT(TATPARMS);
+
 	int i;
 
 	for(i = 0; i < num; ++i){
@@ -488,6 +538,8 @@ void draw_detections(image im, int num, float thresh, box *boxes, float **probs,
 
 void transpose_image(image im)
 {
+	TAT(TATPARMS);
+
 	assert(im.w == im.h);
 	int n, m;
 	int c;
@@ -504,6 +556,8 @@ void transpose_image(image im)
 
 void rotate_image_cw(image im, int times)
 {
+	TAT(TATPARMS);
+
 	assert(im.w == im.h);
 	times = (times + 400) % 4;
 	int i, x, y, c;
@@ -525,6 +579,8 @@ void rotate_image_cw(image im, int times)
 
 void flip_image(image a)
 {
+	TAT(TATPARMS);
+
 	int i,j,k;
 	for(k = 0; k < a.c; ++k){
 		for(i = 0; i < a.h; ++i){
@@ -541,6 +597,8 @@ void flip_image(image a)
 
 image image_distance(image a, image b)
 {
+	TAT(TATPARMS);
+
 	int i,j;
 	image dist = make_image(a.w, a.h, 1);
 	for(i = 0; i < a.c; ++i){
@@ -556,6 +614,8 @@ image image_distance(image a, image b)
 
 void embed_image(image source, image dest, int dx, int dy)
 {
+	TAT(TATPARMS);
+
 	int x,y,k;
 	for(k = 0; k < source.c; ++k){
 		for(y = 0; y < source.h; ++y){
@@ -569,6 +629,8 @@ void embed_image(image source, image dest, int dx, int dy)
 
 image collapse_image_layers(image source, int border)
 {
+	TAT(TATPARMS);
+
 	int h = source.h;
 	h = (h+border)*source.c - border;
 	image dest = make_image(source.w, h, 1);
@@ -584,6 +646,8 @@ image collapse_image_layers(image source, int border)
 
 void constrain_image(image im)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for(i = 0; i < im.w*im.h*im.c; ++i){
 		if(im.data[i] < 0) im.data[i] = 0;
@@ -593,6 +657,8 @@ void constrain_image(image im)
 
 void normalize_image(image p)
 {
+	TAT(TATPARMS);
+
 	int i;
 	float min = 9999999;
 	float max = -999999;
@@ -613,6 +679,8 @@ void normalize_image(image p)
 
 void normalize_image2(image p)
 {
+	TAT(TATPARMS);
+
 	float* min = (float*)xcalloc(p.c, sizeof(float));
 	float* max = (float*)xcalloc(p.c, sizeof(float));
 	int i,j;
@@ -642,11 +710,15 @@ void normalize_image2(image p)
 
 void copy_image_inplace(image src, image dst)
 {
+	TAT(TATPARMS);
+
 	memcpy(dst.data, src.data, src.h*src.w*src.c * sizeof(float));
 }
 
 image copy_image(image p)
 {
+	TAT(TATPARMS);
+
 	image copy = p;
 	copy.data = (float*)xcalloc(p.h * p.w * p.c, sizeof(float));
 	memcpy(copy.data, p.data, p.h*p.w*p.c*sizeof(float));
@@ -655,6 +727,8 @@ image copy_image(image p)
 
 void rgbgr_image(image im)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for(i = 0; i < im.w*im.h; ++i){
 		float swap = im.data[i];
@@ -665,12 +739,16 @@ void rgbgr_image(image im)
 
 void show_image(image p, const char *name)
 {
+	TAT(TATPARMS);
+
 	show_image_cv(p, name);
 }
 
 void save_image_png(image im, const char *name)
 {
 	/// @todo merge with @ref save_mat_png()
+
+	TAT(TATPARMS);
 
 	std::string filename = name;
 	filename += ".png";
@@ -696,6 +774,8 @@ void save_image_png(image im, const char *name)
 void save_image_jpg(image im, const char *name)
 {
 	/// @todo merge with @ref save_mat_jpg()
+
+	TAT(TATPARMS);
 
 	std::string filename = name;
 	filename += ".jpg";
@@ -725,6 +805,8 @@ void save_image(image im, const char *name)
 
 void save_image_options(image im, const char *name, IMTYPE f, int quality)
 {
+	TAT(TATPARMS);
+
 	if (f == IMTYPE::PNG)
 	{
 		save_image_png(im, name);
@@ -738,6 +820,8 @@ void save_image_options(image im, const char *name, IMTYPE f, int quality)
 
 void show_image_layers(image p, char *name)
 {
+	TAT(TATPARMS);
+
 	int i;
 	char buff[256];
 	for(i = 0; i < p.c; ++i){
@@ -750,6 +834,8 @@ void show_image_layers(image p, char *name)
 
 void show_image_collapsed(image p, char *name)
 {
+	TAT(TATPARMS);
+
 	image c = collapse_image_layers(p, 1);
 	show_image(c, name);
 	free_image(c);
@@ -757,6 +843,8 @@ void show_image_collapsed(image p, char *name)
 
 image make_empty_image(int w, int h, int c)
 {
+	TAT(TATPARMS);
+
 	image out;
 	out.data = 0;
 	out.h = h;
@@ -767,6 +855,8 @@ image make_empty_image(int w, int h, int c)
 
 image make_image(int w, int h, int c)
 {
+	TAT(TATPARMS);
+
 	image out = make_empty_image(w,h,c);
 	out.data = (float*)xcalloc(h * w * c, sizeof(float));
 
@@ -775,6 +865,8 @@ image make_image(int w, int h, int c)
 
 image make_random_image(int w, int h, int c)
 {
+	TAT(TATPARMS);
+
 	image out = make_empty_image(w,h,c);
 	out.data = (float*)xcalloc(h * w * c, sizeof(float));
 	int i;
@@ -786,6 +878,8 @@ image make_random_image(int w, int h, int c)
 
 image float_to_image_scaled(int w, int h, int c, float *data)
 {
+	TAT(TATPARMS);
+
 	image out = make_image(w, h, c);
 	int abs_max = 0;
 	int i = 0;
@@ -800,6 +894,8 @@ image float_to_image_scaled(int w, int h, int c, float *data)
 
 image float_to_image(int w, int h, int c, float *data)
 {
+	TAT(TATPARMS);
+
 	image out = make_empty_image(w,h,c);
 	out.data = data;
 	return out;
@@ -808,6 +904,8 @@ image float_to_image(int w, int h, int c, float *data)
 
 image rotate_crop_image(image im, float rad, float s, int w, int h, float dx, float dy, float aspect)
 {
+	TAT(TATPARMS);
+
 	int x, y, c;
 	float cx = im.w/2.;
 	float cy = im.h/2.;
@@ -827,6 +925,8 @@ image rotate_crop_image(image im, float rad, float s, int w, int h, float dx, fl
 
 image rotate_image(image im, float rad)
 {
+	TAT(TATPARMS);
+
 	int x, y, c;
 	float cx = im.w/2.;
 	float cy = im.h/2.;
@@ -846,18 +946,24 @@ image rotate_image(image im, float rad)
 
 void translate_image(image m, float s)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for(i = 0; i < m.h*m.w*m.c; ++i) m.data[i] += s;
 }
 
 void scale_image(image m, float s)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for(i = 0; i < m.h*m.w*m.c; ++i) m.data[i] *= s;
 }
 
 image crop_image(image im, int dx, int dy, int w, int h)
 {
+	TAT(TATPARMS);
+
 	image cropped = make_image(w, h, im.c);
 	int i, j, k;
 	for(k = 0; k < im.c; ++k){
@@ -880,6 +986,8 @@ image crop_image(image im, int dx, int dy, int w, int h)
 
 int best_3d_shift_r(image a, image b, int min, int max)
 {
+	TAT(TATPARMS);
+
 	if(min == max) return min;
 	int mid = floor((min + max) / 2.);
 	image c1 = crop_image(b, 0, mid, b.w, b.h);
@@ -894,6 +1002,8 @@ int best_3d_shift_r(image a, image b, int min, int max)
 
 int best_3d_shift(image a, image b, int min, int max)
 {
+	TAT(TATPARMS);
+
 	int i;
 	int best = 0;
 	float best_distance = FLT_MAX;
@@ -912,6 +1022,8 @@ int best_3d_shift(image a, image b, int min, int max)
 
 void composite_3d(char *f1, char *f2, char *out, int delta)
 {
+	TAT(TATPARMS);
+
 	if(!out) out = "out";
 	image a = load_image(f1, 0,0,0);
 	image b = load_image(f2, 0,0,0);
@@ -944,12 +1056,16 @@ void composite_3d(char *f1, char *f2, char *out, int delta)
 
 void fill_image(image m, float s)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for (i = 0; i < m.h*m.w*m.c; ++i) m.data[i] = s;
 }
 
 void letterbox_image_into(image im, int w, int h, image boxed)
 {
+	TAT(TATPARMS);
+
 	int new_w = im.w;
 	int new_h = im.h;
 	if (((float)w / im.w) < ((float)h / im.h)) {
@@ -967,6 +1083,8 @@ void letterbox_image_into(image im, int w, int h, image boxed)
 
 image letterbox_image(image im, int w, int h)
 {
+	TAT(TATPARMS);
+
 	int new_w = im.w;
 	int new_h = im.h;
 	if (((float)w / im.w) < ((float)h / im.h)) {
@@ -989,6 +1107,8 @@ image letterbox_image(image im, int w, int h)
 
 image resize_max(image im, int max)
 {
+	TAT(TATPARMS);
+
 	int w = im.w;
 	int h = im.h;
 	if(w > h){
@@ -1005,6 +1125,8 @@ image resize_max(image im, int max)
 
 image resize_min(image im, int min)
 {
+	TAT(TATPARMS);
+
 	int w = im.w;
 	int h = im.h;
 	if(w < h){
@@ -1021,6 +1143,8 @@ image resize_min(image im, int min)
 
 image random_crop_image(image im, int w, int h)
 {
+	TAT(TATPARMS);
+
 	int dx = rand_int(0, im.w - w);
 	int dy = rand_int(0, im.h - h);
 	image crop = crop_image(im, dx, dy, w, h);
@@ -1029,6 +1153,8 @@ image random_crop_image(image im, int w, int h)
 
 image random_augment_image(image im, float angle, float aspect, int low, int high, int size)
 {
+	TAT(TATPARMS);
+
 	aspect = rand_scale(aspect);
 	int r = rand_int(low, high);
 	int min = (im.h < im.w*aspect) ? im.h : im.w*aspect;
@@ -1050,11 +1176,15 @@ image random_augment_image(image im, float angle, float aspect, int low, int hig
 
 float three_way_max(float a, float b, float c)
 {
+	TAT(TATPARMS);
+
 	return (a > b) ? ( (a > c) ? a : c) : ( (b > c) ? b : c) ;
 }
 
 float three_way_min(float a, float b, float c)
 {
+	TAT(TATPARMS);
+
 	return (a < b) ? ( (a < c) ? a : c) : ( (b < c) ? b : c) ;
 }
 
@@ -1062,6 +1192,8 @@ float three_way_min(float a, float b, float c)
 /// @todo #COLOR - cannot do HSV if channels > 3
 void rgb_to_hsv(image im)
 {
+	TAT(TATPARMS);
+
 	assert(im.c == 3);
 	int i, j;
 	float r, g, b;
@@ -1100,6 +1232,8 @@ void rgb_to_hsv(image im)
 /// @todo #COLOR - cannot do HSV if channels > 3
 void hsv_to_rgb(image im)
 {
+	TAT(TATPARMS);
+
 	assert(im.c == 3);
 	int i, j;
 	float r, g, b;
@@ -1141,6 +1275,8 @@ void hsv_to_rgb(image im)
 
 image grayscale_image(image im)
 {
+	TAT(TATPARMS);
+
 	assert(im.c == 3);
 	int i, j, k;
 	image gray = make_image(im.w, im.h, 1);
@@ -1157,6 +1293,8 @@ image grayscale_image(image im)
 
 image threshold_image(image im, float thresh)
 {
+	TAT(TATPARMS);
+
 	int i;
 	image t = make_image(im.w, im.h, im.c);
 	for(i = 0; i < im.w*im.h*im.c; ++i){
@@ -1167,6 +1305,8 @@ image threshold_image(image im, float thresh)
 
 image blend_image(image fore, image back, float alpha)
 {
+	TAT(TATPARMS);
+
 	assert(fore.w == back.w && fore.h == back.h && fore.c == back.c);
 	image blend = make_image(fore.w, fore.h, fore.c);
 	int i, j, k;
@@ -1184,6 +1324,8 @@ image blend_image(image fore, image back, float alpha)
 
 void scale_image_channel(image im, int c, float v)
 {
+	TAT(TATPARMS);
+
 	int i, j;
 	for(j = 0; j < im.h; ++j){
 		for(i = 0; i < im.w; ++i){
@@ -1196,6 +1338,8 @@ void scale_image_channel(image im, int c, float v)
 
 void translate_image_channel(image im, int c, float v)
 {
+	TAT(TATPARMS);
+
 	int i, j;
 	for(j = 0; j < im.h; ++j){
 		for(i = 0; i < im.w; ++i){
@@ -1209,6 +1353,8 @@ void translate_image_channel(image im, int c, float v)
 /// @todo #COLOR - needs to be fixed for 1 <= c <= N
 void distort_image(image im, float hue, float sat, float val)
 {
+	TAT(TATPARMS);
+
 	if (im.c >= 3)
 	{
 		rgb_to_hsv(im);
@@ -1232,6 +1378,8 @@ void distort_image(image im, float hue, float sat, float val)
 /// @todo #COLOR - HSV no beuno
 void random_distort_image(image im, float hue, float saturation, float exposure)
 {
+	TAT(TATPARMS);
+
 	float dhue = rand_uniform_strong(-hue, hue);
 	float dsat = rand_scale(saturation);
 	float dexp = rand_scale(exposure);
@@ -1241,6 +1389,8 @@ void random_distort_image(image im, float hue, float saturation, float exposure)
 
 float bilinear_interpolate(image im, float x, float y, int c)
 {
+	TAT(TATPARMS);
+
 	int ix = (int) floorf(x);
 	int iy = (int) floorf(y);
 
@@ -1256,6 +1406,8 @@ float bilinear_interpolate(image im, float x, float y, int c)
 
 void quantize_image(image im)
 {
+	TAT(TATPARMS);
+
 	int size = im.c * im.w * im.h;
 	int i;
 	for (i = 0; i < size; ++i) im.data[i] = (int)(im.data[i] * 255) / 255. + (0.5 / 255);
@@ -1263,6 +1415,8 @@ void quantize_image(image im)
 
 void make_image_red(image im)
 {
+	TAT(TATPARMS);
+
 	int r, c, k;
 	for (r = 0; r < im.h; ++r) {
 		for (c = 0; c < im.w; ++c) {
@@ -1281,6 +1435,8 @@ void make_image_red(image im)
 
 image make_attention_image(int img_size, float *original_delta_cpu, float *original_input_cpu, int w, int h, int c, float alpha)
 {
+	TAT(TATPARMS);
+
 	image attention_img;
 	attention_img.w = w;
 	attention_img.h = h;
@@ -1314,6 +1470,8 @@ image make_attention_image(int img_size, float *original_delta_cpu, float *origi
 
 image resize_image(image im, int w, int h)
 {
+	TAT(TATPARMS);
+
 	if (im.w == w && im.h == h) return copy_image(im);
 
 	image resized = make_image(w, h, im.c);
@@ -1361,6 +1519,8 @@ image resize_image(image im, int w, int h)
 
 void test_resize(char *filename)
 {
+	TAT(TATPARMS);
+
 	image im = load_image(filename, 0,0, 3);
 	float mag = mag_array(im.data, im.w*im.h*im.c);
 	printf("L2 Norm: %f\n", mag);
@@ -1410,6 +1570,8 @@ void test_resize(char *filename)
 
 image load_image(char * filename, int desired_width, int desired_height, int channels)
 {
+	TAT(TATPARMS);
+
 	image out = load_image_cv(filename, channels);
 
 	if (desired_height > 0 && desired_width > 0 && (desired_height != out.h || desired_width != out.w))
@@ -1423,6 +1585,8 @@ image load_image(char * filename, int desired_width, int desired_height, int cha
 
 image get_image_layer(image m, int l)
 {
+	TAT(TATPARMS);
+
 	image out = make_image(m.w, m.h, 1);
 	int i;
 	for(i = 0; i < m.h*m.w; ++i){
@@ -1433,6 +1597,8 @@ image get_image_layer(image m, int l)
 
 void print_image(image m)
 {
+	TAT(TATPARMS);
+
 	int i, j, k;
 	for(i =0 ; i < m.c; ++i){
 		for(j =0 ; j < m.h; ++j){
@@ -1450,6 +1616,8 @@ void print_image(image m)
 
 image collapse_images_vert(image *ims, int n)
 {
+	TAT(TATPARMS);
+
 	int color = 1;
 	int border = 1;
 	int h,w,c;
@@ -1485,6 +1653,8 @@ image collapse_images_vert(image *ims, int n)
 
 image collapse_images_horz(image *ims, int n)
 {
+	TAT(TATPARMS);
+
 	int color = 1;
 	int border = 1;
 	int h,w,c;
@@ -1521,6 +1691,8 @@ image collapse_images_horz(image *ims, int n)
 
 void show_image_normalized(image im, const char *name)
 {
+	TAT(TATPARMS);
+
 	image c = copy_image(im);
 	normalize_image(c);
 	show_image(c, name);
@@ -1529,6 +1701,8 @@ void show_image_normalized(image im, const char *name)
 
 void show_images(image *ims, int n, char *window)
 {
+	TAT(TATPARMS);
+
 	image m = collapse_images_vert(ims, n);
 
 	normalize_image(m);
@@ -1539,6 +1713,8 @@ void show_images(image *ims, int n, char *window)
 
 void free_image(image m)
 {
+	TAT(TATPARMS);
+
 	if(m.data){
 		free(m.data);
 	}
@@ -1547,6 +1723,8 @@ void free_image(image m)
 // Fast copy data from a contiguous byte array into the image.
 void copy_image_from_bytes(image im, char *pdata)
 {
+	TAT(TATPARMS);
+
 	unsigned char *data = (unsigned char*)pdata;
 	int i, k, j;
 	int w = im.w;

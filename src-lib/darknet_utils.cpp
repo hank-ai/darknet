@@ -1,13 +1,5 @@
-#include "darknet_utils.hpp"
 #include "Chart.hpp"
-#include "image.hpp"
-
-#include <iomanip>
-#include <sstream>
-#include <string>
-#include <cstdio>
-#include <cmath>
-#include <ciso646>
+#include "darknet_internal.hpp"
 
 
 std::vector<std::string> Darknet::class_names;
@@ -22,6 +14,8 @@ namespace
 
 void Darknet::remember_class_names(char ** names, const int count)
 {
+	TAT(TATPARMS);
+
 	if (static_cast<size_t>(count) == class_names.size())
 	{
 		// assume this is a redundant call and we already know all of the class names and colours
@@ -64,6 +58,8 @@ void Darknet::remember_class_names(char ** names, const int count)
 
 std::string Darknet::format_time(const double & seconds_remaing)
 {
+	TAT(TATPARMS);
+
 	std::stringstream ss;
 	ss << std::fixed << std::setprecision(3);
 
@@ -86,6 +82,8 @@ std::string Darknet::format_time(const double & seconds_remaing)
 
 std::string Darknet::format_time_remaining(const float & seconds_remaining)
 {
+	TAT(TATPARMS);
+
 	const float seconds	= 1.0;
 	const float minutes	= 60.0 * seconds;
 	const float hours	= 60.0 * minutes;
@@ -131,6 +129,8 @@ std::string Darknet::format_time_remaining(const float & seconds_remaining)
 
 std::string Darknet::format_loss(const double & loss)
 {
+	TAT(TATPARMS);
+
 	EColour colour = EColour::kNormal;
 
 	if (loss < 0.0		||
@@ -162,6 +162,8 @@ std::string Darknet::format_loss(const double & loss)
 
 std::string Darknet::format_map_accuracy(const float & accuracy)
 {
+	TAT(TATPARMS);
+
 	EColour colour = EColour::kNormal;
 
 	if (accuracy < 0.5f || std::isfinite(accuracy) == false)
@@ -191,6 +193,8 @@ std::string Darknet::format_map_accuracy(const float & accuracy)
 
 void Darknet::display_loaded_images(const int images, const double time)
 {
+	TAT(TATPARMS);
+
 	printf("loaded %d images in %s\n", images, format_time(time).c_str());
 
 	return;
@@ -199,6 +203,8 @@ void Darknet::display_loaded_images(const int images, const double time)
 
 void Darknet::display_iteration_summary(const int iteration, const float loss, const float avg_loss, const float rate, const double time, const int images, const float seconds_remaining)
 {
+	TAT(TATPARMS);
+
 	printf("%s: loss=%s, avg loss=%s, rate=%f, %s, %d images, time remaining=%s\n",
 			in_colour(EColour::kBrightWhite, iteration)	.c_str(),
 			format_loss(loss)							.c_str(),
@@ -215,6 +221,8 @@ void Darknet::display_iteration_summary(const int iteration, const float loss, c
 
 void Darknet::display_last_accuracy(const float iou_thresh, const float mean_average_precision, const float best_map)
 {
+	TAT(TATPARMS);
+
 	printf("-> last accuracy mAP@%0.2f=%s, best=%s\n",
 			iou_thresh,
 			format_map_accuracy(mean_average_precision).c_str(),
@@ -226,6 +234,8 @@ void Darknet::display_last_accuracy(const float iou_thresh, const float mean_ave
 
 void Darknet::display_error_msg(const std::string & msg)
 {
+	TAT(TATPARMS);
+
 	if (not msg.empty())
 	{
 		std::cout << in_colour(EColour::kBrightRed, msg);
@@ -237,6 +247,8 @@ void Darknet::display_error_msg(const std::string & msg)
 
 void Darknet::display_warning_msg(const std::string & msg)
 {
+	TAT(TATPARMS);
+
 	if (not msg.empty())
 	{
 		std::cout << in_colour(EColour::kYellow, msg);
@@ -248,6 +260,8 @@ void Darknet::display_warning_msg(const std::string & msg)
 
 void Darknet::update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const float seconds_remaining)
 {
+	TAT(TATPARMS);
+
 	// doing this requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
 	if (cfg_and_state.colour_is_enabled)
 	{
@@ -267,6 +281,8 @@ void Darknet::update_console_title(const int iteration, const int max_batches, c
 
 std::string Darknet::text_to_simple_label(std::string txt)
 {
+	TAT(TATPARMS);
+
 	// first we convert unknown characters to whitespace
 	size_t pos = 0;
 	while (true)
@@ -313,6 +329,8 @@ std::string Darknet::text_to_simple_label(std::string txt)
 
 void Darknet::initialize_new_charts(const int max_batches, const float max_img_loss)
 {
+	TAT(TATPARMS);
+
 	training_chart = Chart("", max_batches, max_img_loss);
 
 	more_charts.clear();
@@ -331,6 +349,8 @@ void Darknet::initialize_new_charts(const int max_batches, const float max_img_l
 
 void Darknet::update_loss_in_new_charts(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show)
 {
+	TAT(TATPARMS);
+
 	if (training_chart.empty() == false)
 	{
 		training_chart.update_save_and_display(current_iteration, loss, seconds_remaining, dont_show);
@@ -347,6 +367,8 @@ void Darknet::update_loss_in_new_charts(const int current_iteration, const float
 
 void Darknet::update_accuracy_in_new_charts(const int class_index, const float accuracy)
 {
+	TAT(TATPARMS);
+
 	if (training_chart.empty() == false)
 	{
 		if (class_index < 0)

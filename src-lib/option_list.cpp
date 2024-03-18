@@ -1,13 +1,11 @@
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
 #include "option_list.hpp"
-#include "utils.hpp"
 #include "data.hpp"
-#include "darknet_format_and_colour.hpp"
+#include "darknet_internal.hpp"
 
 list *read_data_cfg(char *filename)
 {
+	TAT(TATPARMS);
+
 	FILE * file = fopen(filename, "r");
 	if (file == nullptr)
 	{
@@ -115,6 +113,8 @@ list *read_data_cfg(char *filename)
 
 metadata get_metadata(char *file)
 {
+	TAT(TATPARMS);
+
 	metadata m = { 0 };
 	list *options = read_data_cfg(file);
 
@@ -137,6 +137,8 @@ metadata get_metadata(char *file)
 
 int read_option(char *s, list *options)
 {
+	TAT(TATPARMS);
+
 	size_t len = strlen(s);
 	char * val = nullptr;
 	bool found = false;
@@ -167,6 +169,8 @@ int read_option(char *s, list *options)
 
 void option_insert(list *l, char *key, char *val)
 {
+	TAT(TATPARMS);
+
 	kvp* p = (kvp*)xmalloc(sizeof(kvp));
 	p->key = key;
 	p->val = val;
@@ -176,6 +180,8 @@ void option_insert(list *l, char *key, char *val)
 
 void option_unused(list *l)
 {
+	TAT(TATPARMS);
+
 	kvp * previous_kvp = NULL;
 
 	node *n = l->front;
@@ -203,6 +209,8 @@ void option_unused(list *l)
 
 char *option_find(list *l, const char *key)
 {
+	TAT(TATPARMS);
+
 	node *n = l->front;
 	while(n)
 	{
@@ -219,6 +227,8 @@ char *option_find(list *l, const char *key)
 
 char *option_find_str(list *l, char *key, char *def)
 {
+	TAT(TATPARMS);
+
 	char *v = option_find(l, key);
 	if(v) return v;
 	if(def) fprintf(stderr, "%s: Using default '%s'\n", key, def);
@@ -227,6 +237,8 @@ char *option_find_str(list *l, char *key, char *def)
 
 char *option_find_str_quiet(list *l, char *key, char *def)
 {
+	TAT(TATPARMS);
+
 	char *v = option_find(l, key);
 	if (v) return v;
 	return def;
@@ -234,6 +246,8 @@ char *option_find_str_quiet(list *l, char *key, char *def)
 
 int option_find_int(list *l, char *key, int def)
 {
+	TAT(TATPARMS);
+
 	char *v = option_find(l, key);
 	if(v) return atoi(v);
 	fprintf(stderr, "%s: Using default '%d'\n", key, def);
@@ -242,6 +256,8 @@ int option_find_int(list *l, char *key, int def)
 
 int option_find_int_quiet(list *l, char *key, int def)
 {
+	TAT(TATPARMS);
+
 	char *v = option_find(l, key);
 	if(v) return atoi(v);
 	return def;
@@ -249,6 +265,8 @@ int option_find_int_quiet(list *l, char *key, int def)
 
 float option_find_float_quiet(list *l, char *key, float def)
 {
+	TAT(TATPARMS);
+
 	char *v = option_find(l, key);
 	if(v) return atof(v);
 	return def;
@@ -256,6 +274,8 @@ float option_find_float_quiet(list *l, char *key, float def)
 
 float option_find_float(list *l, char *key, float def)
 {
+	TAT(TATPARMS);
+
 	char *v = option_find(l, key);
 	if(v) return atof(v);
 	fprintf(stderr, "%s: Using default '%lf'\n", key, def);

@@ -1,11 +1,11 @@
-#include "layer.hpp"
-#include "dark_cuda.hpp"
-#include <stdlib.h>
+#include "darknet_internal.hpp"
 
 namespace
 {
 	void free_and_clear(uint32_t* & ptr)
 	{
+		TAT(TATPARMS);
+
 		if (ptr)
 		{
 			free(ptr);
@@ -17,6 +17,8 @@ namespace
 
 	void free_and_clear(float* & ptr)
 	{
+		TAT(TATPARMS);
+
 		if (ptr)
 		{
 			free(ptr);
@@ -28,6 +30,8 @@ namespace
 
 	void free_and_clear(float** & array)
 	{
+		TAT(TATPARMS);
+
 		if (array)
 		{
 			/** @todo Isn't this an array?  Should the array be freed?
@@ -43,6 +47,8 @@ namespace
 
 	void free_and_clear(int* & ptr)
 	{
+		TAT(TATPARMS);
+
 		if (ptr)
 		{
 			free(ptr);
@@ -54,6 +60,8 @@ namespace
 
 	void free_and_clear(char* & ptr)
 	{
+		TAT(TATPARMS);
+
 		if (ptr)
 		{
 			free(ptr);
@@ -65,6 +73,8 @@ namespace
 
 	void free_sublayer(layer* & l)
 	{
+		TAT(TATPARMS);
+
 		if (l)
 		{
 			free_layer(*l);
@@ -78,6 +88,8 @@ namespace
 	#ifdef GPU
 	void cuda_free_and_clear(float* & ptr)
 	{
+		TAT(TATPARMS);
+
 		if (ptr)
 		{
 			cuda_free(ptr);
@@ -92,12 +104,16 @@ namespace
 
 void free_layer(layer l)
 {
+	TAT(TATPARMS);
+
 	free_layer_custom(l, 0);
 }
 
 
 void free_layer_custom(layer l, int keep_cudnn_desc)
 {
+	TAT(TATPARMS);
+
 	if (l.share_layer != nullptr)
 	{
 		return;	// don't free shared layers

@@ -199,6 +199,8 @@ Chart & Chart::initialize()
 
 Chart & Chart::save_to_disk()
 {
+	TAT(TATPARMS);
+
 	cv::imwrite(filename, mat, {cv::ImwriteFlags::IMWRITE_PNG_COMPRESSION, 3});
 
 	return *this;
@@ -208,6 +210,8 @@ Chart & Chart::save_to_disk()
 Chart & Chart::update_loss(const int current_iteration, const float loss)
 {
 	/// @note This is called at @em every iteration to update the chart.
+
+	TAT(TATPARMS);
 
 	cv::Mat grid = mat(grid_rect);
 	const cv::Size grid_size = grid.size();
@@ -237,6 +241,8 @@ Chart & Chart::update_accuracy(const float accuracy)
 Chart & Chart::update_accuracy(const int current_iteration, const float accuracy)
 {
 	/// @note This is called only when a new mAP% value has been calculated.
+
+	TAT(TATPARMS);
 
 	cv::Mat grid = mat(grid_rect);
 	const cv::Size grid_size = grid.size();
@@ -282,6 +288,8 @@ Chart & Chart::update_accuracy(const int current_iteration, const float accuracy
 Chart & Chart::update_bottom_text(const float seconds_remaining)
 {
 	// draw the text at the bottom of the chart
+
+	TAT(TATPARMS);
 
 	const cv::Size grid_size = grid_rect.size();
 	cv::Size text_size;
@@ -369,6 +377,8 @@ Chart & Chart::update_bottom_text(const float seconds_remaining)
 
 Chart & Chart::update_save_and_display(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show)
 {
+	TAT(TATPARMS);
+
 	update_loss(current_iteration, loss);
 
 	bool need_to_update = false;

@@ -1,18 +1,16 @@
-#include "network.hpp"
 #include "detection_layer.hpp"
 #include "cost_layer.hpp"
-#include "utils.hpp"
 #include "parser.hpp"
-#include "box.hpp"
 #include "demo.hpp"
 #include "data.hpp"
-
 #include "darknet_internal.hpp"
 
 char *voc_names[] = {"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"};
 
 void train_yolo(char *cfgfile, char *weightfile)
 {
+	TAT(TATPARMS);
+
 	char* train_images = "data/voc/train.txt";
 	char* backup_directory = "backup/";
 	srand(time(0));
@@ -88,6 +86,8 @@ void train_yolo(char *cfgfile, char *weightfile)
 
 void print_yolo_detections(FILE **fps, char *id, box *boxes, float **probs, int total, int classes, int w, int h)
 {
+	TAT(TATPARMS);
+
 	int i, j;
 	for(i = 0; i < total; ++i){
 		float xmin = boxes[i].x - boxes[i].w/2.;
@@ -109,6 +109,8 @@ void print_yolo_detections(FILE **fps, char *id, box *boxes, float **probs, int 
 
 void validate_yolo(char *cfgfile, char *weightfile)
 {
+	TAT(TATPARMS);
+
 	network net = parse_network_cfg(cfgfile);
 	if(weightfile){
 		load_weights(&net, weightfile);
@@ -210,6 +212,8 @@ void validate_yolo(char *cfgfile, char *weightfile)
 
 void validate_yolo_recall(char *cfgfile, char *weightfile)
 {
+	TAT(TATPARMS);
+
 	network net = parse_network_cfg(cfgfile);
 	if(weightfile){
 		load_weights(&net, weightfile);
@@ -289,6 +293,8 @@ void validate_yolo_recall(char *cfgfile, char *weightfile)
 
 void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
 {
+	TAT(TATPARMS);
+
 	network net = parse_network_cfg(cfgfile);
 	if(weightfile)
 	{
@@ -346,6 +352,8 @@ void test_yolo(char *cfgfile, char *weightfile, char *filename, float thresh)
 
 void run_yolo(int argc, char **argv)
 {
+	TAT(TATPARMS);
+
 	int dont_show = (Darknet::CfgAndState::get().is_shown ? 1 : 0);
 //	int dont_show = find_arg(argc, argv, "-dont_show");
 	int mjpeg_port = find_int_arg(argc, argv, "-mjpeg_port", -1);

@@ -10,6 +10,8 @@
 #include "col2im.hpp"
 #include "dark_cuda.hpp"
 #include "box.hpp"
+#include "Timing.hpp"
+
 
 extern "C"
 {
@@ -160,7 +162,9 @@ void cuda_convert_f16_to_f32(float* input_f16, size_t size, float *output_f32) {
 
 half *cuda_make_f16_from_f32_array(float *src, size_t n)
 {
-    half *dst16;
+	TAT(TATPARMS);
+
+	half *dst16;
     size_t size = sizeof(half)*n;
     CHECK_CUDA(cudaMalloc((void **)&dst16, size));
     if (src) {

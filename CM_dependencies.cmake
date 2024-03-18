@@ -167,4 +167,11 @@ ELSE ()
 	ADD_COMPILE_OPTIONS(-msse4a)
 ENDIF ()
 
-#MESSAGE (STATUS "Link: ${DARKNET_LINK_LIBS}")
+# ============
+# == Timing ==
+# ============
+CMAKE_DEPENDENT_OPTION (ENABLE_TIMING_AND_TRACKING "Enable Darknet timing and tracking debugging" OFF "" OFF)
+IF (ENABLE_TIMING_AND_TRACKING)
+	MESSAGE (WARNING "Darknet timing and tracking debug code is *ENABLED*!")
+	ADD_COMPILE_DEFINITIONS(DARKNET_TIMING_AND_TRACKING_ENABLED)
+ENDIF ()

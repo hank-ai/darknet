@@ -1,7 +1,4 @@
-#include <iostream>
-#include "darknet_args_and_parms.hpp"
-#include "darknet_cfg_and_state.hpp"
-#include "darknet_utils.hpp"
+#include "darknet_internal.hpp"
 
 
 Darknet::ArgsAndParms::~ArgsAndParms()

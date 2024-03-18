@@ -38,6 +38,8 @@ static int coco_ids[] = { 1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,
 
 void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, char* chart_path)
 {
+	TAT(TATPARMS);
+
 //	const std::filesystem::path & datacfg		= cfg_and_state.data_filename;
 //	const std::filesystem::path & cfgfile		= cfg_and_state.cfg_filename;
 //	const std::filesystem::path & weightfile	= cfg_and_state.weights_filename;
@@ -509,6 +511,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
 static int get_coco_image_id(char *filename)
 {
+	TAT(TATPARMS);
+
 	char *p = strrchr(filename, '/');
 	char *c = strrchr(filename, '_');
 	if (c) p = c;
@@ -517,6 +521,8 @@ static int get_coco_image_id(char *filename)
 
 static void print_cocos(FILE *fp, char *image_path, detection *dets, int num_boxes, int classes, int w, int h)
 {
+	TAT(TATPARMS);
+
 	int i, j;
 	//int image_id = get_coco_image_id(image_path);
 	char *p = basecfg(image_path);
@@ -550,6 +556,8 @@ static void print_cocos(FILE *fp, char *image_path, detection *dets, int num_box
 
 void print_detector_detections(FILE **fps, char *id, detection *dets, int total, int classes, int w, int h)
 {
+	TAT(TATPARMS);
+
 	int i, j;
 	for (i = 0; i < total; ++i) {
 		float xmin = dets[i].bbox.x - dets[i].bbox.w / 2. + 1;
@@ -571,6 +579,8 @@ void print_detector_detections(FILE **fps, char *id, detection *dets, int total,
 
 void print_imagenet_detections(FILE *fp, int id, detection *dets, int total, int classes, int w, int h)
 {
+	TAT(TATPARMS);
+
 	int i, j;
 	for (i = 0; i < total; ++i) {
 		float xmin = dets[i].bbox.x - dets[i].bbox.w / 2.;
@@ -593,6 +603,8 @@ void print_imagenet_detections(FILE *fp, int id, detection *dets, int total, int
 
 static void print_kitti_detections(FILE **fps, char *id, detection *dets, int total, int classes, int w, int h, char *outfile, char *prefix)
 {
+	TAT(TATPARMS);
+
 	char *kitti_ids[] = { "car", "pedestrian", "cyclist" };
 	FILE *fpd = 0;
 	char buffd[1024];
@@ -623,6 +635,8 @@ static void print_kitti_detections(FILE **fps, char *id, detection *dets, int to
 
 static void eliminate_bdd(char *buf, char *a)
 {
+	TAT(TATPARMS);
+
 	int n = 0;
 	int i, k;
 	for (i = 0; buf[i] != '\0'; i++)
@@ -650,6 +664,8 @@ static void eliminate_bdd(char *buf, char *a)
 
 static void get_bdd_image_id(char *filename)
 {
+	TAT(TATPARMS);
+
 	char *p = strrchr(filename, '/');
 	eliminate_bdd(p, ".jpg");
 	eliminate_bdd(p, "/");
@@ -658,6 +674,8 @@ static void get_bdd_image_id(char *filename)
 
 static void print_bdd_detections(FILE *fp, char *image_path, detection *dets, int num_boxes, int classes, int w, int h)
 {
+	TAT(TATPARMS);
+
 	char *bdd_ids[] = { "bike" , "bus" , "car" , "motor" ,"person", "rider", "traffic light", "traffic sign", "train", "truck" };
 	get_bdd_image_id(image_path);
 	int i, j;
@@ -691,6 +709,8 @@ static void print_bdd_detections(FILE *fp, char *image_path, detection *dets, in
 
 void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *outfile)
 {
+	TAT(TATPARMS);
+
 	int j;
 	list *options = read_data_cfg(datacfg);
 	char *valid_images = option_find_str(options, "valid", nullptr);
@@ -892,6 +912,8 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 
 void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 {
+	TAT(TATPARMS);
+
 	network net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
 	if (weightfile) {
 		load_weights(&net, weightfile);
@@ -978,6 +1000,8 @@ typedef struct {
 
 int detections_comparator(const void *pa, const void *pb)
 {
+	TAT(TATPARMS);
+
 	box_prob a = *(const box_prob *)pa;
 	box_prob b = *(const box_prob *)pb;
 	float diff = a.p - b.p;
@@ -988,6 +1012,8 @@ int detections_comparator(const void *pa, const void *pb)
 
 float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, network *existing_net)
 {
+	TAT(TATPARMS);
+
 	int j;
 	list *options = read_data_cfg(datacfg);
 	char *valid_images = option_find_str(options, "valid", nullptr);
@@ -1588,6 +1614,8 @@ typedef struct {
 
 int anchors_comparator(const void *pa, const void *pb)
 {
+	TAT(TATPARMS);
+
 	anchors_t a = *(const anchors_t *)pa;
 	anchors_t b = *(const anchors_t *)pb;
 	float diff = b.w*b.h - a.w*a.h;
@@ -1598,6 +1626,8 @@ int anchors_comparator(const void *pa, const void *pb)
 
 int anchors_data_comparator(const float **pa, const float **pb)
 {
+	TAT(TATPARMS);
+
 	float *a = (float *)*pa;
 	float *b = (float *)*pb;
 	float diff = b[0] * b[1] - a[0] * a[1];
@@ -1610,6 +1640,8 @@ int anchors_data_comparator(const float **pa, const float **pb)
 void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int show)
 {
 	/// @todo shouldn't we check the .cfg file instead, and get the anchors, width, and height from there instead of requiring them as parms?
+
+	TAT(TATPARMS);
 
 	std::cout
 		<< "Recalculating anchors"
@@ -1801,6 +1833,8 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh,
 	float hier_thresh, int dont_show, int ext_output, int save_labels, char *outfile, int letter_box, int benchmark_layers)
 {
+	TAT(TATPARMS);
+
 	list *options = read_data_cfg(datacfg);
 	char *name_list = option_find_str(options, "names", nullptr);
 	int names_size = 0;
@@ -1974,6 +2008,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, int dont_show, int it_num,
 	int letter_box, int benchmark_layers)
 {
+	TAT(TATPARMS);
+
 	list *options = read_data_cfg(datacfg);
 	char *name_list = option_find_str(options, "names", nullptr);
 	int names_size = 0;
@@ -2130,6 +2166,8 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 
 void run_detector(int argc, char **argv)
 {
+	TAT(TATPARMS);
+
 	int benchmark = find_arg(argc, argv, "-benchmark");
 	int benchmark_layers = find_arg(argc, argv, "-benchmark_layers");
 	//if (benchmark_layers) benchmark = 1;

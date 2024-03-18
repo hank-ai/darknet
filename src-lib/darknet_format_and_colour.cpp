@@ -180,5 +180,3 @@ std::string Darknet::format_map_confusion_matrix_values(
 
 	return output;
 }
-
-

@@ -6,8 +6,10 @@
 //#include <float.h>
 #include <cfloat>
 
+#include "Timing.hpp"
 #include "activations.hpp"
 #include "dark_cuda.hpp"
+
 
 __device__ float lhtan_activate_kernel(float x)
 {
@@ -533,7 +535,9 @@ extern "C" void activate_array_hard_mish_ongpu(float *x, int n, float *activatio
 
 extern "C" void gradient_array_ongpu(float *x, int n, ACTIVATION a, float *delta)
 {
-    const int num_blocks = get_number_of_blocks(n, BLOCK);
+	TAT(TATPARMS);
+
+	const int num_blocks = get_number_of_blocks(n, BLOCK);
     if (a == LINEAR) return;
     else if (a == LEAKY) gradient_array_leaky_kernel << <num_blocks, BLOCK, 0, get_cuda_stream() >> >(x, n, delta);
     else if (a == REVLEAKY) gradient_array_revleaky_kernel << <num_blocks, BLOCK, 0, get_cuda_stream() >> >(x, n, delta);

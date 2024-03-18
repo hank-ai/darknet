@@ -55,6 +55,8 @@ namespace
 
 load_args get_base_args(network *net)
 {
+	TAT(TATPARMS);
+
 	load_args args = { 0 };
 	args.w = net->w;
 	args.h = net->h;
@@ -73,30 +75,23 @@ load_args get_base_args(network *net)
 
 int64_t get_current_iteration(network net)
 {
+	TAT(TATPARMS);
+
 	return *net.cur_iteration;
 }
 
 int get_current_batch(network net)
 {
+	TAT(TATPARMS);
+
 	int batch_num = (*net.seen)/(net.batch*net.subdivisions);
 	return batch_num;
 }
 
-/*
-void reset_momentum(network net)
-{
-	if (net.momentum == 0) return;
-	net.learning_rate = 0;
-	net.momentum = 0;
-	net.decay = 0;
-	#ifdef GPU
-		//if(net.gpu_index >= 0) update_network_gpu(net);
-	#endif
-}
-*/
-
 void reset_network_state(network *net, int b)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for (i = 0; i < net->n; ++i) {
 #ifdef GPU
@@ -113,11 +108,15 @@ void reset_network_state(network *net, int b)
 
 void reset_rnn(network *net)
 {
+	TAT(TATPARMS);
+
 	reset_network_state(net, 0);
 }
 
 float get_current_seq_subdivisions(network net)
 {
+	TAT(TATPARMS);
+
 	int sequence_subdivisions = net.init_sequential_subdivisions;
 
 	if (net.num_steps > 0)
@@ -136,6 +135,8 @@ float get_current_seq_subdivisions(network net)
 
 int get_sequence_value(network net)
 {
+	TAT(TATPARMS);
+
 	int sequence = 1;
 	if (net.sequential_subdivisions != 0) sequence = net.subdivisions / net.sequential_subdivisions;
 	if (sequence < 1) sequence = 1;
@@ -144,6 +145,8 @@ int get_sequence_value(network net)
 
 float get_current_rate(network net)
 {
+	TAT(TATPARMS);
+
 	int batch_num = get_current_batch(net);
 	int i;
 	float rate;
@@ -194,6 +197,8 @@ float get_current_rate(network net)
 
 char * get_layer_string(LAYER_TYPE a)
 {
+	TAT(TATPARMS);
+
 	switch(a){
 		case CONVOLUTIONAL:
 			return "convolutional";
@@ -255,6 +260,8 @@ char * get_layer_string(LAYER_TYPE a)
 
 network make_network(int n)
 {
+	TAT(TATPARMS);
+
 	network net = {0};
 	net.n = n;
 	net.layers = (layer*)xcalloc(net.n, sizeof(layer));
@@ -282,6 +289,8 @@ network make_network(int n)
 
 void forward_network(network net, network_state state)
 {
+	TAT(TATPARMS);
+
 	state.workspace = net.workspace;
 	int i;
 	for(i = 0; i < net.n; ++i){
@@ -306,6 +315,8 @@ void forward_network(network net, network_state state)
 
 void update_network(network net)
 {
+	TAT(TATPARMS);
+
 	int i;
 	int update_batch = net.batch*net.subdivisions;
 	float rate = get_current_rate(net);
@@ -320,6 +331,8 @@ void update_network(network net)
 
 float *get_network_output(network net)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	if (cfg_and_state.gpu_index >= 0) return get_network_output_gpu(net);
 #endif
@@ -330,6 +343,8 @@ float *get_network_output(network net)
 
 float get_network_cost(network net)
 {
+	TAT(TATPARMS);
+
 	int i;
 	float sum = 0;
 	int count = 0;
@@ -344,6 +359,8 @@ float get_network_cost(network net)
 
 int get_predicted_class_network(network net)
 {
+	TAT(TATPARMS);
+
 	float *out = get_network_output(net);
 	int k = get_network_output_size(net);
 	return max_index(out, k);
@@ -351,6 +368,8 @@ int get_predicted_class_network(network net)
 
 void backward_network(network net, network_state state)
 {
+	TAT(TATPARMS);
+
 	int i;
 	float *original_input = state.input;
 	float *original_delta = state.delta;
@@ -374,6 +393,8 @@ void backward_network(network net, network_state state)
 
 float train_network_datum(network net, float *x, float *y)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	if(cfg_and_state.gpu_index >= 0) return train_network_datum_gpu(net, x, y);
 #endif
@@ -398,6 +419,8 @@ float train_network_datum(network net, float *x, float *y)
 
 float train_network_sgd(network net, data d, int n)
 {
+	TAT(TATPARMS);
+
 	int batch = net.batch;
 	float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
 	float* y = (float*)xcalloc(batch * d.y.cols, sizeof(float));
@@ -417,11 +440,15 @@ float train_network_sgd(network net, data d, int n)
 
 float train_network(network net, data d)
 {
+	TAT(TATPARMS);
+
 	return train_network_waitkey(net, d, 0);
 }
 
 float train_network_waitkey(network net, data d, int wait_key)
 {
+	TAT(TATPARMS);
+
 	assert(d.X.rows % net.batch == 0);
 	int batch = net.batch;
 	int n = d.X.rows / batch;
@@ -490,6 +517,8 @@ float train_network_waitkey(network net, data d, int wait_key)
 
 float train_network_batch(network net, data d, int n)
 {
+	TAT(TATPARMS);
+
 	int i,j;
 	network_state state={0};
 	state.index = 0;
@@ -514,6 +543,8 @@ float train_network_batch(network net, data d, int n)
 
 int recalculate_workspace_size(network *net)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	cuda_set_device(net->gpu_index);
 	if (cfg_and_state.gpu_index >= 0) cuda_free(net->workspace);
@@ -557,6 +588,8 @@ int recalculate_workspace_size(network *net)
 
 void set_batch_network(network *net, int b)
 {
+	TAT(TATPARMS);
+
 	net->batch = b;
 	int i;
 	for(i = 0; i < net->n; ++i){
@@ -577,6 +610,8 @@ void set_batch_network(network *net, int b)
 
 int resize_network(network *net, int w, int h)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	cuda_set_device(net->gpu_index);
 	if(cfg_and_state.gpu_index >= 0)
@@ -719,6 +754,8 @@ int resize_network(network *net, int w, int h)
 
 int get_network_output_size(network net)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for(i = net.n-1; i > 0; --i) if(net.layers[i].type != COST) break;
 	return net.layers[i].outputs;
@@ -726,11 +763,15 @@ int get_network_output_size(network net)
 
 int get_network_input_size(network net)
 {
+	TAT(TATPARMS);
+
 	return net.layers[0].inputs;
 }
 
 detection_layer get_network_detection_layer(network net)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for(i = 0; i < net.n; ++i){
 		if(net.layers[i].type == DETECTION){
@@ -744,6 +785,8 @@ detection_layer get_network_detection_layer(network net)
 
 image get_network_image_layer(network net, int i)
 {
+	TAT(TATPARMS);
+
 	layer l = net.layers[i];
 	if (l.out_w && l.out_h && l.out_c){
 		return float_to_image(l.out_w, l.out_h, l.out_c, l.output);
@@ -754,11 +797,15 @@ image get_network_image_layer(network net, int i)
 
 layer* get_network_layer(network* net, int i)
 {
+	TAT(TATPARMS);
+
 	return net->layers + i;
 }
 
 image get_network_image(network net)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for(i = net.n-1; i >= 0; --i){
 		image m = get_network_image_layer(net, i);
@@ -770,6 +817,8 @@ image get_network_image(network net)
 
 void visualize_network(network net)
 {
+	TAT(TATPARMS);
+
 	image *prev = 0;
 	int i;
 	char buff[256];
@@ -784,6 +833,8 @@ void visualize_network(network net)
 
 void top_predictions(network net, int k, int *index)
 {
+	TAT(TATPARMS);
+
 	int size = get_network_output_size(net);
 	float *out = get_network_output(net);
 	top_k(out, size, k, index);
@@ -793,11 +844,15 @@ void top_predictions(network net, int k, int *index)
 // struct to make the python binding work properly.
 float *network_predict_ptr(network *net, float *input)
 {
+	TAT(TATPARMS);
+
 	return network_predict(*net, input);
 }
 
 float *network_predict(network net, float *input)
 {
+	TAT(TATPARMS);
+
 #ifdef GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
@@ -819,6 +874,8 @@ float *network_predict(network net, float *input)
 
 int num_detections(network *net, float thresh)
 {
+	TAT(TATPARMS);
+
 	int i;
 	int s = 0;
 	for (i = 0; i < net->n; ++i) {
@@ -838,6 +895,8 @@ int num_detections(network *net, float thresh)
 
 int num_detections_batch(network *net, float thresh, int batch)
 {
+	TAT(TATPARMS);
+
 	int i;
 	int s = 0;
 	for (i = 0; i < net->n; ++i) {
@@ -854,6 +913,8 @@ int num_detections_batch(network *net, float thresh, int batch)
 
 detection *make_network_boxes(network *net, float thresh, int *num)
 {
+	TAT(TATPARMS);
+
 	int i;
 	layer l = net->layers[net->n - 1];
 	for (i = 0; i < net->n; ++i) {
@@ -885,6 +946,8 @@ detection *make_network_boxes(network *net, float thresh, int *num)
 
 detection *make_network_boxes_batch(network *net, float thresh, int *num, int batch)
 {
+	TAT(TATPARMS);
+
 	int i;
 	layer l = net->layers[net->n - 1];
 	for (i = 0; i < net->n; ++i) {
@@ -917,6 +980,8 @@ detection *make_network_boxes_batch(network *net, float thresh, int *num, int ba
 
 void custom_get_region_detections(layer l, int w, int h, int net_w, int net_h, float thresh, int *map, float hier, int relative, detection *dets, int letter)
 {
+	TAT(TATPARMS);
+
 	box* boxes = (box*)xcalloc(l.w * l.h * l.n, sizeof(box));
 	float** probs = (float**)xcalloc(l.w * l.h * l.n, sizeof(float*));
 	int i, j;
@@ -946,6 +1011,8 @@ void custom_get_region_detections(layer l, int w, int h, int net_w, int net_h, f
 
 void fill_network_boxes(network *net, int w, int h, float thresh, float hier, int *map, int relative, detection *dets, int letter)
 {
+	TAT(TATPARMS);
+
 	int prev_classes = -1;
 	int j;
 	for (j = 0; j < net->n; ++j) {
@@ -977,6 +1044,8 @@ void fill_network_boxes(network *net, int w, int h, float thresh, float hier, in
 
 void fill_network_boxes_batch(network *net, int w, int h, float thresh, float hier, int *map, int relative, detection *dets, int letter, int batch)
 {
+	TAT(TATPARMS);
+
 	int prev_classes = -1;
 	int j;
 	for (j = 0; j < net->n; ++j) {
@@ -1004,6 +1073,8 @@ void fill_network_boxes_batch(network *net, int w, int h, float thresh, float hi
 
 detection *get_network_boxes(network *net, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter)
 {
+	TAT(TATPARMS);
+
 	detection *dets = make_network_boxes(net, thresh, num);
 	fill_network_boxes(net, w, h, thresh, hier, map, relative, dets, letter);
 	return dets;
@@ -1011,6 +1082,8 @@ detection *get_network_boxes(network *net, int w, int h, float thresh, float hie
 
 void free_detections(detection *dets, int n)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for (i = 0; i < n; ++i) {
 		free(dets[i].prob);
@@ -1023,6 +1096,8 @@ void free_detections(detection *dets, int n)
 
 void free_batch_detections(det_num_pair *det_num_pairs, int n)
 {
+	TAT(TATPARMS);
+
 	int  i;
 	for(i=0; i<n; ++i)
 		free_detections(det_num_pairs[i].dets, det_num_pairs[i].num);
@@ -1040,6 +1115,8 @@ void free_batch_detections(det_num_pair *det_num_pairs, int n)
 
 char *detection_to_json(detection *dets, int nboxes, int classes, char **names, long long int frame_id, char *filename)
 {
+	TAT(TATPARMS);
+
 	const float thresh = 0.005; // function get_network_boxes() has already filtred dets by actual threshold
 
 	char *send_buf = (char *)calloc(1024, sizeof(char));
@@ -1088,6 +1165,8 @@ char *detection_to_json(detection *dets, int nboxes, int classes, char **names, 
 
 float *network_predict_image(network *net, image im)
 {
+	TAT(TATPARMS);
+
 	//image imr = letterbox_image(im, net->w, net->h);
 	float *p;
 	if(net->batch != 1) set_batch_network(net, 1);
@@ -1106,6 +1185,8 @@ float *network_predict_image(network *net, image im)
 
 det_num_pair* network_predict_batch(network *net, image im, int batch_size, int w, int h, float thresh, float hier, int *map, int relative, int letter)
 {
+	TAT(TATPARMS);
+
 	network_predict(*net, im.data);
 	det_num_pair *pdets = (struct det_num_pair *)calloc(batch_size, sizeof(det_num_pair));
 	int num;
@@ -1121,6 +1202,8 @@ det_num_pair* network_predict_batch(network *net, image im, int batch_size, int 
 
 float *network_predict_image_letterbox(network *net, image im)
 {
+	TAT(TATPARMS);
+
 	//image imr = letterbox_image(im, net->w, net->h);
 	float *p;
 	if (net->batch != 1) set_batch_network(net, 1);
@@ -1137,11 +1220,24 @@ float *network_predict_image_letterbox(network *net, image im)
 	return p;
 }
 
-int network_width(network *net) { return net->w; }
-int network_height(network *net) { return net->h; }
+int network_width(network *net)
+{
+	TAT(TATPARMS);
+
+	return net->w;
+}
+
+int network_height(network *net)
+{
+	TAT(TATPARMS);
+
+	return net->h;
+}
 
 matrix network_predict_data_multi(network net, data test, int n)
 {
+	TAT(TATPARMS);
+
 	int i,j,b,m;
 	int k = get_network_output_size(net);
 	matrix pred = make_matrix(test.X.rows, k);
@@ -1167,6 +1263,8 @@ matrix network_predict_data_multi(network net, data test, int n)
 
 matrix network_predict_data(network net, data test)
 {
+	TAT(TATPARMS);
+
 	int i,j,b;
 	int k = get_network_output_size(net);
 	matrix pred = make_matrix(test.X.rows, k);
@@ -1190,6 +1288,8 @@ matrix network_predict_data(network net, data test)
 
 void print_network(network net)
 {
+	TAT(TATPARMS);
+
 	int i,j;
 	for(i = 0; i < net.n; ++i){
 		layer l = net.layers[i];
@@ -1207,6 +1307,8 @@ void print_network(network net)
 
 void compare_networks(network n1, network n2, data test)
 {
+	TAT(TATPARMS);
+
 	matrix g1 = network_predict_data(n1, test);
 	matrix g2 = network_predict_data(n2, test);
 	int i;
@@ -1232,6 +1334,8 @@ void compare_networks(network n1, network n2, data test)
 
 float network_accuracy(network net, data d)
 {
+	TAT(TATPARMS);
+
 	matrix guess = network_predict_data(net, d);
 	float acc = matrix_topk_accuracy(d.y, guess,1);
 	free_matrix(guess);
@@ -1240,6 +1344,8 @@ float network_accuracy(network net, data d)
 
 float *network_accuracies(network net, data d, int n)
 {
+	TAT(TATPARMS);
+
 	static float acc[2];
 	matrix guess = network_predict_data(net, d);
 	acc[0] = matrix_topk_accuracy(d.y, guess, 1);
@@ -1250,6 +1356,8 @@ float *network_accuracies(network net, data d, int n)
 
 float network_accuracy_multi(network net, data d, int n)
 {
+	TAT(TATPARMS);
+
 	matrix guess = network_predict_data_multi(net, d, n);
 	float acc = matrix_topk_accuracy(d.y, guess,1);
 	free_matrix(guess);
@@ -1258,11 +1366,15 @@ float network_accuracy_multi(network net, data d, int n)
 
 void free_network_ptr(network* net)
 {
+	TAT(TATPARMS);
+
 	free_network(*net);
 }
 
 void free_network(network net)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for (i = 0; i < net.n; ++i) {
 		free_layer(net.layers[i]);
@@ -1307,12 +1419,18 @@ void free_network(network net)
 #endif
 }
 
-static float relu(float src) {
+static float relu(float src)
+{
+	TAT(TATPARMS);
+
 	if (src > 0) return src;
 	return 0;
 }
 
-static float lrelu(float src) {
+static float lrelu(float src)
+{
+	TAT(TATPARMS);
+
 	const float eps = 0.001;
 	if (src > eps) return src;
 	return eps;
@@ -1320,6 +1438,8 @@ static float lrelu(float src) {
 
 void fuse_conv_batchnorm(network net)
 {
+	TAT(TATPARMS);
+
 	int j;
 	for (j = 0; j < net.n; ++j) {
 		layer *l = &net.layers[j];
@@ -1421,6 +1541,8 @@ void forward_blank_layer(layer l, network_state state) {}
 
 void calculate_binary_weights(network net)
 {
+	TAT(TATPARMS);
+
 	int j;
 	for (j = 0; j < net.n; ++j) {
 		layer *l = &net.layers[j];
@@ -1462,6 +1584,8 @@ void calculate_binary_weights(network net)
 
 void copy_cudnn_descriptors(layer src, layer *dst)
 {
+	TAT(TATPARMS);
+
 #ifdef CUDNN
 	dst->normTensorDesc = src.normTensorDesc;
 	dst->normDstTensorDesc = src.normDstTensorDesc;
@@ -1477,6 +1601,8 @@ void copy_cudnn_descriptors(layer src, layer *dst)
 
 void copy_weights_net(network net_train, network *net_map)
 {
+	TAT(TATPARMS);
+
 	int k;
 	for (k = 0; k < net_train.n; ++k) {
 		layer *l = &(net_train.layers[k]);
@@ -1516,6 +1642,8 @@ void copy_weights_net(network net_train, network *net_map)
 // combine Training and Validation networks
 network combine_train_valid_networks(network net_train, network net_map)
 {
+	TAT(TATPARMS);
+
 	network net_combined = make_network(net_train.n);
 	layer *old_layers = net_combined.layers;
 	net_combined = net_train;
@@ -1547,6 +1675,8 @@ network combine_train_valid_networks(network net_train, network net_map)
 
 void free_network_recurrent_state(network net)
 {
+	TAT(TATPARMS);
+
 	int k;
 	for (k = 0; k < net.n; ++k) {
 		if (net.layers[k].type == CONV_LSTM) free_state_conv_lstm(net.layers[k]);
@@ -1556,6 +1686,8 @@ void free_network_recurrent_state(network net)
 
 void randomize_network_recurrent_state(network net)
 {
+	TAT(TATPARMS);
+
 	int k;
 	for (k = 0; k < net.n; ++k) {
 		if (net.layers[k].type == CONV_LSTM) randomize_state_conv_lstm(net.layers[k]);
@@ -1566,6 +1698,8 @@ void randomize_network_recurrent_state(network net)
 
 void remember_network_recurrent_state(network net)
 {
+	TAT(TATPARMS);
+
 	int k;
 	for (k = 0; k < net.n; ++k) {
 		if (net.layers[k].type == CONV_LSTM) remember_state_conv_lstm(net.layers[k]);
@@ -1575,6 +1709,8 @@ void remember_network_recurrent_state(network net)
 
 void restore_network_recurrent_state(network net)
 {
+	TAT(TATPARMS);
+
 	int k;
 	for (k = 0; k < net.n; ++k) {
 		if (net.layers[k].type == CONV_LSTM) restore_state_conv_lstm(net.layers[k]);
@@ -1585,6 +1721,8 @@ void restore_network_recurrent_state(network net)
 
 int is_ema_initialized(network net)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for (i = 0; i < net.n; ++i) {
 		layer l = net.layers[i];
@@ -1603,6 +1741,8 @@ int is_ema_initialized(network net)
 
 void ema_update(network net, float ema_alpha)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for (i = 0; i < net.n; ++i) {
 		layer l = net.layers[i];
@@ -1631,6 +1771,8 @@ void ema_update(network net, float ema_alpha)
 
 void ema_apply(network net)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for (i = 0; i < net.n; ++i) {
 		layer l = net.layers[i];
@@ -1661,6 +1803,8 @@ void ema_apply(network net)
 
 void reject_similar_weights(network net, float sim_threshold)
 {
+	TAT(TATPARMS);
+
 	int i;
 	for (i = 0; i < net.n; ++i) {
 		layer l = net.layers[i];
