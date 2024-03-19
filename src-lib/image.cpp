@@ -1472,7 +1472,10 @@ image resize_image(image im, int w, int h)
 {
 	TAT(TATPARMS);
 
-	if (im.w == w && im.h == h) return copy_image(im);
+	if (im.w == w && im.h == h)
+	{
+		return copy_image(im);
+	}
 
 	image resized = make_image(w, h, im.c);
 	image part = make_image(w, im.h, im.c);

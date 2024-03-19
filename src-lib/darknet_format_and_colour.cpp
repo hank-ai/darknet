@@ -31,24 +31,32 @@ namespace
 
 std::string Darknet::in_colour(const Darknet::EColour colour, const int i)
 {
+	TAT(TATPARMS);
+
 	return in_colour(colour, std::to_string(i));
 }
 
 
 std::string Darknet::in_colour(const EColour colour, const float f)
 {
+	TAT(TATPARMS);
+
 	return in_colour(colour, std::to_string(f));
 }
 
 
 std::string Darknet::in_colour(const EColour colour, const double d)
 {
+	TAT(TATPARMS);
+
 	return in_colour(colour, std::to_string(d));
 }
 
 
 std::string Darknet::in_colour(const EColour colour, const std::string & msg)
 {
+	TAT(TATPARMS);
+
 	if (cfg_and_state.colour_is_enabled)
 	{
 		return ansi_colours[colour] + msg + ansi_colours[EColour::kNormal];
@@ -60,6 +68,8 @@ std::string Darknet::in_colour(const EColour colour, const std::string & msg)
 
 std::string Darknet::in_colour(const EColour colour)
 {
+	TAT(TATPARMS);
+
 	if (cfg_and_state.colour_is_enabled)
 	{
 		return ansi_colours[colour];
@@ -71,6 +81,8 @@ std::string Darknet::in_colour(const EColour colour)
 
 std::string Darknet::format_in_colour(const std::string & str, const EColour & colour, const size_t & len)
 {
+	TAT(TATPARMS);
+
 	std::string padding;
 	if (str.length() < len)
 	{
@@ -83,6 +95,8 @@ std::string Darknet::format_in_colour(const std::string & str, const EColour & c
 
 std::string Darknet::format_in_colour(const int & i, const EColour & colour, const size_t & len)
 {
+	TAT(TATPARMS);
+
 	std::string str = std::to_string(i);
 	std::string padding;
 	if (str.length() < len)
@@ -96,6 +110,8 @@ std::string Darknet::format_in_colour(const int & i, const EColour & colour, con
 
 std::string Darknet::format_in_colour(const float & f, const EColour & colour, const size_t & len)
 {
+	TAT(TATPARMS);
+
 	std::stringstream ss;
 	ss << std::fixed << std::setprecision(4);
 	ss << (std::isnormal(f) ? f : 0.0f);
@@ -113,6 +129,8 @@ std::string Darknet::format_in_colour(const float & f, const EColour & colour, c
 
 std::string Darknet::format_in_colour(const float & f, const size_t & len, const bool inverted)
 {
+	TAT(TATPARMS);
+
 	// Are we dealing with 0...1, or 0...100?  If the value is > 1.0,
 	// then assume we have a number between 0...100 and divide by 100
 	// to scale it back to 0...1.
@@ -156,6 +174,8 @@ std::string Darknet::format_map_confusion_matrix_values(
 	const float & specificity,
 	const float & false_pos_rate)
 {
+	TAT(TATPARMS);
+
 	if (name.length() > 16)
 	{
 		name.erase(15);
