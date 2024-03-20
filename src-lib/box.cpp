@@ -5,81 +5,81 @@
 
 #include "darknet_internal.hpp"
 
-box float_to_box(float *f)
+box float_to_box(const float * f)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	box b;
 	b.x = f[0];
 	b.y = f[1];
 	b.w = f[2];
 	b.h = f[3];
+
 	return b;
 }
 
-box float_to_box_stride(float *f, int stride)
-{
-	TAT(TATPARMS);
 
-	box b = { 0 };
+box float_to_box_stride(const float *f, const int stride)
+{
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
+
+	box b;
 	b.x = f[0];
 	b.y = f[1 * stride];
 	b.w = f[2 * stride];
 	b.h = f[3 * stride];
+
 	return b;
 }
 
 
-dbox derivative(box a, box b)
+dbox derivative(const box & a, const box & b)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	dbox d;
-	d.dx = 0;
-	d.dw = 0;
-	d.dy = 0;
-	d.dh = 0;
 	d.dx = a.x < b.x ? 1.0 : -1.0;
 	d.dy = a.y < b.y ? 1.0 : -1.0;
 	d.dw = a.w < b.w ? 1.0 : -1.0;
 	d.dh = a.h < b.h ? 1.0 : -1.0;
+
 	return d;
 }
 
 
-// where c is the smallest box that fully encompases a and b
-boxabs box_c(box a, box b)
+/// where c is the smallest box that fully encompases a and b
+boxabs box_c(const box & a, const box & b)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
-	boxabs ba = { 0 };
-	ba.top = fmin(a.y - a.h / 2, b.y - b.h / 2);
-	ba.bot = fmax(a.y + a.h / 2, b.y + b.h / 2);
-	ba.left = fmin(a.x - a.w / 2, b.x - b.w / 2);
-	ba.right = fmax(a.x + a.w / 2, b.x + b.w / 2);
+	boxabs ba;
+	ba.top		= fmin(a.y - a.h / 2.0f, b.y - b.h / 2.0f);
+	ba.bot		= fmax(a.y + a.h / 2.0f, b.y + b.h / 2.0f);
+	ba.left		= fmin(a.x - a.w / 2.0f, b.x - b.w / 2.0f);
+	ba.right	= fmax(a.x + a.w / 2.0f, b.x + b.w / 2.0f);
+
 	return ba;
 }
 
-// representation from x, y, w, h to top, left, bottom, right
-boxabs to_tblr(box a)
-{
-	TAT(TATPARMS);
 
-	boxabs tblr = { 0 };
-	float t = a.y - (a.h / 2);
-	float b = a.y + (a.h / 2);
-	float l = a.x - (a.w / 2);
-	float r = a.x + (a.w / 2);
-	tblr.top = t;
-	tblr.bot = b;
-	tblr.left = l;
-	tblr.right = r;
+/// representation from x, y, w, h to top, left, bottom, right
+boxabs to_tblr(const box & a)
+{
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
+
+	boxabs tblr;
+	tblr.top	= a.y - (a.h / 2.0f);
+	tblr.bot	= a.y + (a.h / 2.0f);
+	tblr.left	= a.x - (a.w / 2.0f);
+	tblr.right	= a.x + (a.w / 2.0f);
+
 	return tblr;
 }
 
+
 float overlap(const float x1, const float w1, const float x2, const float w2)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	const float l1 = x1 - w1 / 2.0f;
 	const float l2 = x2 - w2 / 2.0f;
@@ -94,10 +94,10 @@ float overlap(const float x1, const float w1, const float x2, const float w2)
 
 float box_intersection(const box & a, const box & b)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
-	float w = overlap(a.x, a.w, b.x, b.w);
-	float h = overlap(a.y, a.h, b.y, b.h);
+	const float w = overlap(a.x, a.w, b.x, b.w);
+	const float h = overlap(a.y, a.h, b.y, b.h);
 	if (w <= 0.0f || h <= 0.0f)
 	{
 		return 0.0f;
@@ -110,7 +110,7 @@ float box_intersection(const box & a, const box & b)
 
 float box_union(const box & a, const box & b)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	const float i = box_intersection(a, b);
 	const float u = a.w * a.h + b.w * b.h - i;
@@ -118,24 +118,26 @@ float box_union(const box & a, const box & b)
 	return u;
 }
 
-float box_iou_kind(box a, box b, IOU_LOSS iou_kind)
+float box_iou_kind(const box & a, const box & b, const IOU_LOSS iou_kind)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	//IOU, GIOU, MSE, DIOU, CIOU
-	switch(iou_kind) {
+	switch(iou_kind)
+	{
 		/// @todo what about MSE?
-		case IOU: return box_iou(a, b);
-		case GIOU: return box_giou(a, b);
-		case DIOU: return box_diou(a, b);
-		case CIOU: return box_ciou(a, b);
+		case IOU:	return box_iou(a, b);
+		case GIOU:	return box_giou(a, b);
+		case DIOU:	return box_diou(a, b);
+		case CIOU:	return box_ciou(a, b);
 	}
+
 	return box_iou(a, b);
 }
 
 float box_iou(const box & a, const box & b)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	const float I = box_intersection(a, b);
 	if (I == 0.0f)
@@ -143,123 +145,115 @@ float box_iou(const box & a, const box & b)
 		return 0;
 	}
 
-	// if intersection is non-zero, then union will of course be non-zero, so no need to check a 2nd time
+	// if intersection is non-zero, then union will of course be non-zero, so no need to worry about divide-by-zero
 	const float U = box_union(a, b);
 
 	return I / U;
 }
 
-float box_giou(box a, box b)
+float box_giou(const box & a, const box & b)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	boxabs ba = box_c(a, b);
-	float w = ba.right - ba.left;
-	float h = ba.bot - ba.top;
-	float c = w*h;
-	float iou = box_iou(a, b);
-	if (c == 0) {
+	const float w = ba.right - ba.left;
+	const float h = ba.bot - ba.top;
+	const float c = w * h;
+
+	const float iou = box_iou(a, b);
+	if (c == 0.0f)
+	{
 		return iou;
 	}
-	float u = box_union(a, b);
-	float giou_term = (c - u) / c;
-#ifdef DEBUG_PRINTS
-	printf("  c: %f, u: %f, giou_term: %f\n", c, u, giou_term);
-#endif
+
+	const float u = box_union(a, b);
+	const float giou_term = (c - u) / c;
+
 	return iou - giou_term;
 }
 
-// https://github.com/Zzh-tju/DIoU-darknet
-// https://arxiv.org/abs/1911.08287
-float box_diou(box a, box b)
+float box_diou(const box & a, const box & b)
 {
-	TAT(TATPARMS);
+	/// https://github.com/Zzh-tju/DIoU-darknet
+	/// https://arxiv.org/abs/1911.08287
 
-	boxabs ba = box_c(a, b);
-	float w = ba.right - ba.left;
-	float h = ba.bot - ba.top;
-	float c = w * w + h * h;
-	float iou = box_iou(a, b);
-	if (c == 0) {
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
+
+	const boxabs ba = box_c(a, b);
+	const float w = ba.right - ba.left;
+	const float h = ba.bot - ba.top;
+	const float c = w * w + h * h;
+	const float iou = box_iou(a, b);
+	if (c == 0.0f)
+	{
 		return iou;
 	}
-	float d = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-	float u = pow(d / c, 0.6);
-	float diou_term = u;
-#ifdef DEBUG_PRINTS
-	printf("  c: %f, u: %f, riou_term: %f\n", c, u, diou_term);
-#endif
+
+	const float d = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+	const float diou_term = pow(d / c, 0.6);
+
 	return iou - diou_term;
 }
 
-float box_diounms(box a, box b, float beta1)
+float box_diounms(const box & a, const box & b, const float beta1)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
-	boxabs ba = box_c(a, b);
-	float w = ba.right - ba.left;
-	float h = ba.bot - ba.top;
-	float c = w * w + h * h;
-	float iou = box_iou(a, b);
-	if (c == 0) {
+	const boxabs ba = box_c(a, b);
+	const float w = ba.right - ba.left;
+	const float h = ba.bot - ba.top;
+	const float c = w * w + h * h;
+	const float iou = box_iou(a, b);
+	if (c == 0.0f)
+	{
 		return iou;
 	}
+
 	float d = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-	float u = pow(d / c, beta1);
-	float diou_term = u;
-#ifdef DEBUG_PRINTS
-	printf("  c: %f, u: %f, riou_term: %f\n", c, u, diou_term);
-#endif
+	float diou_term = pow(d / c, beta1);
+
 	return iou - diou_term;
 }
 
-// https://github.com/Zzh-tju/DIoU-darknet
-// https://arxiv.org/abs/1911.08287
-float box_ciou(box a, box b)
+float box_ciou(const box & a, const box & b)
 {
+	// https://github.com/Zzh-tju/DIoU-darknet
+	// https://arxiv.org/abs/1911.08287
+
 	TAT(TATPARMS);
 
-	boxabs ba = box_c(a, b);
-	float w = ba.right - ba.left;
-	float h = ba.bot - ba.top;
-	float c = w * w + h * h;
-	float iou = box_iou(a, b);
-	if (c == 0) {
+	const boxabs ba = box_c(a, b);
+	const float w = ba.right - ba.left;
+	const float h = ba.bot - ba.top;
+	const float c = w * w + h * h;
+	const float iou = box_iou(a, b);
+	if (c == 0.0f)
+	{
 		return iou;
 	}
-	float u = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-	float d = u / c;
-	float ar_gt = b.w / b.h;
-	float ar_pred = a.w / a.h;
-	float ar_loss = 4 / (M_PI * M_PI) * (atan(ar_gt) - atan(ar_pred)) * (atan(ar_gt) - atan(ar_pred));
-	float alpha = ar_loss / (1 - iou + ar_loss + 0.000001);
-	float ciou_term = d + alpha * ar_loss;                   //ciou
-#ifdef DEBUG_PRINTS
-	printf("  c: %f, u: %f, riou_term: %f\n", c, u, ciou_term);
-#endif
+
+	const float u = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+	const float d = u / c;
+	const float ar_gt = b.w / b.h;
+	const float ar_pred = a.w / a.h;
+	const float ar_loss = 4 / (M_PI * M_PI) * (atan(ar_gt) - atan(ar_pred)) * (atan(ar_gt) - atan(ar_pred));
+	const float alpha = ar_loss / (1 - iou + ar_loss + 0.000001);
+	const float ciou_term = d + alpha * ar_loss;                   //ciou
+
 	return iou - ciou_term;
 }
 
-dxrep dx_box_iou(box pred, box truth, IOU_LOSS iou_loss)
+dxrep dx_box_iou(const box & pred, const box & truth, const IOU_LOSS iou_loss)
 {
 	TAT(TATPARMS);
 
-	boxabs pred_tblr = to_tblr(pred);
-	float pred_t = fmin(pred_tblr.top, pred_tblr.bot);
-	float pred_b = fmax(pred_tblr.top, pred_tblr.bot);
-	float pred_l = fmin(pred_tblr.left, pred_tblr.right);
-	float pred_r = fmax(pred_tblr.left, pred_tblr.right);
-	//dbox dover = derivative(pred,truth);
-	//dbox diouu = diou(pred, truth);
-	boxabs truth_tblr = to_tblr(truth);
-#ifdef DEBUG_PRINTS
-	printf("\niou: %f, giou: %f\n", box_iou(pred, truth), box_giou(pred, truth));
-	printf("pred: x,y,w,h: (%f, %f, %f, %f) -> t,b,l,r: (%f, %f, %f, %f)\n", pred.x, pred.y, pred.w, pred.h, pred_tblr.top, pred_tblr.bot, pred_tblr.left, pred_tblr.right);
-	printf("truth: x,y,w,h: (%f, %f, %f, %f) -> t,b,l,r: (%f, %f, %f, %f)\n", truth.x, truth.y, truth.w, truth.h, truth_tblr.top, truth_tblr.bot, truth_tblr.left, truth_tblr.right);
-#endif
-	//printf("pred (t,b,l,r): (%f, %f, %f, %f)\n", pred_t, pred_b, pred_l, pred_r);
-	//printf("trut (t,b,l,r): (%f, %f, %f, %f)\n", truth_tblr.top, truth_tblr.bot, truth_tblr.left, truth_tblr.right);
-	dxrep ddx = {0};
+	const boxabs pred_tblr = to_tblr(pred);
+	const float pred_t = fmin(pred_tblr.top, pred_tblr.bot);
+	const float pred_b = fmax(pred_tblr.top, pred_tblr.bot);
+	const float pred_l = fmin(pred_tblr.left, pred_tblr.right);
+	const float pred_r = fmax(pred_tblr.left, pred_tblr.right);
+	const boxabs truth_tblr = to_tblr(truth);
+
 	float X = (pred_b - pred_t) * (pred_r - pred_l);
 	float Xhat = (truth_tblr.bot - truth_tblr.top) * (truth_tblr.right - truth_tblr.left);
 	float Ih = fmin(pred_b, truth_tblr.bot) - fmax(pred_t, truth_tblr.top);
@@ -270,28 +264,12 @@ dxrep dx_box_iou(box pred, box truth, IOU_LOSS iou_loss)
 	float giou_Cw = fmax(pred_r, truth_tblr.right) - fmin(pred_l, truth_tblr.left);
 	float giou_Ch = fmax(pred_b, truth_tblr.bot) - fmin(pred_t, truth_tblr.top);
 	float giou_C = giou_Cw * giou_Ch;
-	//float IoU = I / U;
-//#ifdef DEBUG_PRINTS
-	//printf("X: %f", X);
-	//printf(", Xhat: %f", Xhat);
-	//printf(", Ih: %f", Ih);
-	//printf(", Iw: %f", Iw);
-	//printf(", I: %f", I);
-	//printf(", U: %f", U);
-	//printf(", IoU: %f\n", I / U);
-//#endif
 
 	//Partial Derivatives, derivatives
 	float dX_wrt_t = -1 * (pred_r - pred_l);
 	float dX_wrt_b = pred_r - pred_l;
 	float dX_wrt_l = -1 * (pred_b - pred_t);
 	float dX_wrt_r = pred_b - pred_t;
-	// UNUSED
-	//// Ground truth
-	//float dXhat_wrt_t = -1 * (truth_tblr.right - truth_tblr.left);
-	//float dXhat_wrt_b = truth_tblr.right - truth_tblr.left;
-	//float dXhat_wrt_l = -1 * (truth_tblr.bot - truth_tblr.top);
-	//float dXhat_wrt_r = truth_tblr.bot - truth_tblr.top;
 
 	// gradient of I min/max in IoU calc (prediction)
 	float dI_wrt_t = pred_t > truth_tblr.top ? (-1 * Iw) : 0;
@@ -379,13 +357,6 @@ dxrep dx_box_iou(box pred, box truth, IOU_LOSS iou_loss)
 	float dCh_dw = dCb_dw - dCt_dw;
 	float dCh_dh = dCb_dh - dCt_dh;
 
-	// UNUSED
-	//// ground truth
-	//float dI_wrt_xhat_t = pred_t < truth_tblr.top ? (-1 * Iw) : 0;
-	//float dI_wrt_xhat_b = pred_b > truth_tblr.bot ? Iw : 0;
-	//float dI_wrt_xhat_l = pred_l < truth_tblr.left ? (-1 * Ih) : 0;
-	//float dI_wrt_xhat_r = pred_r > truth_tblr.right ? Ih : 0;
-
 	// Final IOU loss (prediction) (negative of IOU gradient, we want the negative loss)
 	float p_dx = 0;
 	float p_dy = 0;
@@ -437,137 +408,18 @@ dxrep dx_box_iou(box pred, box truth, IOU_LOSS iou_loss)
 		}
 	}
 
+	dxrep ddx = {0};
 	ddx.dt = p_dx;      //We follow the original code released from GDarknet. So in yolo_layer.c, dt, db, dl, dr are already dx, dy, dw, dh.
 	ddx.db = p_dy;
 	ddx.dl = p_dw;
 	ddx.dr = p_dh;
 
-	// UNUSED
-	//// ground truth
-	//float gt_dt = ((U * dI_wrt_xhat_t) - (I * (dXhat_wrt_t - dI_wrt_xhat_t))) / (U * U);
-	//float gt_db = ((U * dI_wrt_xhat_b) - (I * (dXhat_wrt_b - dI_wrt_xhat_b))) / (U * U);
-	//float gt_dl = ((U * dI_wrt_xhat_l) - (I * (dXhat_wrt_l - dI_wrt_xhat_l))) / (U * U);
-	//float gt_dr = ((U * dI_wrt_xhat_r) - (I * (dXhat_wrt_r - dI_wrt_xhat_r))) / (U * U);
-
-	// no min/max grad applied
-	//dx.dt = dt;
-	//dx.db = db;
-	//dx.dl = dl;
-	//dx.dr = dr;
-
-	//// sum in gt -- THIS DOESNT WORK
-	//dx.dt += gt_dt;
-	//dx.db += gt_db;
-	//dx.dl += gt_dl;
-	//dx.dr += gt_dr;
-
-	//// instead, look at the change between pred and gt, and weight t/b/l/r appropriately...
-	//// need the real derivative here (I think?)
-	//float delta_t = fmax(truth_tblr.top, pred_t) - fmin(truth_tblr.top, pred_t);
-	//float delta_b = fmax(truth_tblr.bot, pred_b) - fmin(truth_tblr.bot, pred_b);
-	//float delta_l = fmax(truth_tblr.left, pred_l) - fmin(truth_tblr.left, pred_l);
-	//float delta_r = fmax(truth_tblr.right, pred_r) - fmin(truth_tblr.right, pred_r);
-
-	//dx.dt *= delta_t / (delta_t + delta_b);
-	//dx.db *= delta_b / (delta_t + delta_b);
-	//dx.dl *= delta_l / (delta_l + delta_r);
-	//dx.dr *= delta_r / (delta_l + delta_r);
-
-	// UNUSED
-	//// ground truth
-	//float gt_dt = ((U * dI_wrt_xhat_t) - (I * (dXhat_wrt_t - dI_wrt_xhat_t))) / (U * U);
-	//float gt_db = ((U * dI_wrt_xhat_b) - (I * (dXhat_wrt_b - dI_wrt_xhat_b))) / (U * U);
-	//float gt_dl = ((U * dI_wrt_xhat_l) - (I * (dXhat_wrt_l - dI_wrt_xhat_l))) / (U * U);
-	//float gt_dr = ((U * dI_wrt_xhat_r) - (I * (dXhat_wrt_r - dI_wrt_xhat_r))) / (U * U);
-
-	// no min/max grad applied
-	//dx.dt = dt;
-	//dx.db = db;
-	//dx.dl = dl;
-	//dx.dr = dr;
-
-	// apply grad from prediction min/max for correct corner selection
-	//dx.dt = pred_tblr.top < pred_tblr.bot ? p_dt : p_db;
-	//dx.db = pred_tblr.top < pred_tblr.bot ? p_db : p_dt;
-	//dx.dl = pred_tblr.left < pred_tblr.right ? p_dl : p_dr;
-	//dx.dr = pred_tblr.left < pred_tblr.right ? p_dr : p_dl;
-
-	//// sum in gt -- THIS DOESNT WORK
-	//dx.dt += gt_dt;
-	//dx.db += gt_db;
-	//dx.dl += gt_dl;
-	//dx.dr += gt_dr;
-
-	//// instead, look at the change between pred and gt, and weight t/b/l/r appropriately...
-	//// need the real derivative here (I think?)
-	//float delta_t = fmax(truth_tblr.top, pred_t) - fmin(truth_tblr.top, pred_t);
-	//float delta_b = fmax(truth_tblr.bot, pred_b) - fmin(truth_tblr.bot, pred_b);
-	//float delta_l = fmax(truth_tblr.left, pred_l) - fmin(truth_tblr.left, pred_l);
-	//float delta_r = fmax(truth_tblr.right, pred_r) - fmin(truth_tblr.right, pred_r);
-
-	//dx.dt *= delta_t / (delta_t + delta_b);
-	//dx.db *= delta_b / (delta_t + delta_b);
-	//dx.dl *= delta_l / (delta_l + delta_r);
-	//dx.dr *= delta_r / (delta_l + delta_r);
-
-//#ifdef DEBUG_PRINTS
-	/*printf("  directions dt: ");
-	if ((pred_tblr.top < truth_tblr.top && dx.dt > 0) || (pred_tblr.top > truth_tblr.top && dx.dt < 0)) {
-	printf("✓");
-	} else {
-	printf("𝒙");
-	}
-	printf(", ");
-	if ((pred_tblr.bot < truth_tblr.bot && dx.db > 0) || (pred_tblr.bot > truth_tblr.bot && dx.db < 0)) {
-	printf("✓");
-	} else {
-	printf("𝒙");
-	}
-	printf(", ");
-	if ((pred_tblr.left < truth_tblr.left && dx.dl > 0) || (pred_tblr.left > truth_tblr.left && dx.dl < 0)) {
-	printf("✓");
-	} else {
-	printf("𝒙");
-	}
-	printf(", ");
-	if ((pred_tblr.right < truth_tblr.right && dx.dr > 0) || (pred_tblr.right > truth_tblr.right && dx.dr < 0)) {
-	printf("✓");
-	} else {
-	printf("𝒙");
-	}
-	printf("\n");
-
-	printf("dx dt:%f", dx.dt);
-	printf(", db: %f", dx.db);
-	printf(", dl: %f", dx.dl);
-	printf(", dr: %f | ", dx.dr);
-#endif
-
-#ifdef DEBUG_NAN
-	if (isnan(dx.dt)) { printf("dt isnan\n"); }
-	if (isnan(dx.db)) { printf("db isnan\n"); }
-	if (isnan(dx.dl)) { printf("dl isnan\n"); }
-	if (isnan(dx.dr)) { printf("dr isnan\n"); }
-#endif
-
-//    // No update if 0 or nan
-//    if (dx.dt == 0 || isnan(dx.dt)) { dx.dt = 1; }
-//    if (dx.db == 0 || isnan(dx.db)) { dx.db = 1; }
-//    if (dx.dl == 0 || isnan(dx.dl)) { dx.dl = 1; }
-//    if (dx.dr == 0 || isnan(dx.dr)) { dx.dr = 1; }
-//
-//#ifdef DEBUG_PRINTS
-//    printf("dx dt:%f (t: %f, p: %f)", dx.dt, gt_dt, p_dt);
-//    printf(", db: %f (t: %f, p: %f)", dx.db, gt_db, p_db);
-//    printf(", dl: %f (t: %f, p: %f)", dx.dl, gt_dl, p_dl);
-//    printf(", dr: %f (t: %f, p: %f) | ", dx.dr, gt_dr, p_dr);
-//#endif */
 	return ddx;
 }
 
-float box_rmse(box a, box b)
+float box_rmse(const box & a, const box & b)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	return sqrt(pow(a.x-b.x, 2) +
 				pow(a.y-b.y, 2) +
@@ -575,30 +427,30 @@ float box_rmse(box a, box b)
 				pow(a.h-b.h, 2));
 }
 
-dbox dintersect(box a, box b)
+dbox dintersect(const box & a, const box & b)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
-	float w = overlap(a.x, a.w, b.x, b.w);
-	float h = overlap(a.y, a.h, b.y, b.h);
-	dbox dover = derivative(a, b);
+	const float w = overlap(a.x, a.w, b.x, b.w);
+	const float h = overlap(a.y, a.h, b.y, b.h);
+	const dbox dover = derivative(a, b);
+
 	dbox di;
-
-	di.dw = dover.dw*h;
-	di.dx = dover.dx*h;
-	di.dh = dover.dh*w;
-	di.dy = dover.dy*w;
+	di.dw = dover.dw * h;
+	di.dx = dover.dx * h;
+	di.dh = dover.dh * w;
+	di.dy = dover.dy * w;
 
 	return di;
 }
 
-dbox dunion(box a, box b)
+dbox dunion(const box & a, const box & b)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
+
+	const dbox di = dintersect(a, b);
 
 	dbox du;
-
-	dbox di = dintersect(a, b);
 	du.dw = a.h - di.dw;
 	du.dh = a.w - di.dh;
 	du.dx = -di.dx;
@@ -689,36 +541,48 @@ void test_box()
 	printf("manual %f %f %f %f\n", xiou, yiou, wiou, hiou);
 }
 
-dbox diou(box a, box b)
+dbox diou(const box & a, const box & b)
 {
-	TAT(TATPARMS);
+	TAT(TATPARMS); // not marking it as reviewed since the code below has a serious bug!
 
-	float u = box_union(a, b);
-	float i = box_intersection(a, b);
-	dbox di = dintersect(a, b);
-	dbox du = dunion(a, b);
-	dbox dd = { 0,0,0,0 };
+	const float u = box_union(a, b);
+	const float i = box_intersection(a, b);
 
-	if (i <= 0 || 1) {
+	/** @todo the following IF statement always evaluated to @p true due to the @p "|| 1" comparison.
+	 * That line was changed by AlexeyAB on 2019-11-23.  Was that an accident?  Should the code below
+	 * never run?  Or was this a debug modification that was accidentally left in the code?
+	 */
+	if (i <= 0 || 1)
+	{
+		dbox dd;
 		dd.dx = b.x - a.x;
 		dd.dy = b.y - a.y;
 		dd.dw = b.w - a.w;
 		dd.dh = b.h - a.h;
+
 		return dd;
 	}
 
+	/// @todo due to the error (?) in the IF statmeent above, we'll never get to the code below this line!
+
+	const dbox di = dintersect(a, b);
+	const dbox du = dunion(a, b);
+
+	dbox dd;
 	dd.dx = (di.dx*u - du.dx*i) / (u*u);
 	dd.dy = (di.dy*u - du.dy*i) / (u*u);
 	dd.dw = (di.dw*u - du.dw*i) / (u*u);
 	dd.dh = (di.dh*u - du.dh*i) / (u*u);
+
 	return dd;
 }
 
-typedef struct{
+struct sortable_bbox
+{
 	int index;
 	int class_id;
 	float **probs;
-} sortable_bbox;
+};
 
 int nms_comparator(const void *pa, const void *pb)
 {
@@ -726,9 +590,19 @@ int nms_comparator(const void *pa, const void *pb)
 
 	sortable_bbox a = *(sortable_bbox *)pa;
 	sortable_bbox b = *(sortable_bbox *)pb;
+
 	float diff = a.probs[a.index][b.class_id] - b.probs[b.index][b.class_id];
-	if(diff < 0) return 1;
-	else if(diff > 0) return -1;
+
+	if(diff < 0.0f)
+	{
+		return 1;
+	}
+
+	if(diff > 0.0f)
+	{
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -770,15 +644,26 @@ int nms_comparator_v3(const void *pa, const void *pb)
 
 	detection a = *(detection *)pa;
 	detection b = *(detection *)pb;
-	float diff = 0;
-	if (b.sort_class >= 0) {
+	float diff = 0.0f;
+	if (b.sort_class >= 0)
+	{
 		diff = a.prob[b.sort_class] - b.prob[b.sort_class]; // there is already: prob = objectness*prob
 	}
-	else {
+	else
+	{
 		diff = a.objectness - b.objectness;
 	}
-	if (diff < 0) return 1;
-	else if (diff > 0) return -1;
+
+	if (diff < 0.0f)
+	{
+		return 1;
+	}
+
+	if (diff > 0.0f)
+	{
+		return -1;
+	}
+
 	return 0;
 }
 
@@ -860,18 +745,33 @@ void do_nms(box *boxes, float **probs, int total, int classes, float thresh)
 {
 	TAT(TATPARMS);
 
-	int i, j, k;
-	for(i = 0; i < total; ++i){
+	for (int i = 0; i < total; ++i)
+	{
 		int any = 0;
-		for(k = 0; k < classes; ++k) any = any || (probs[i][k] > 0);
-		if(!any) {
+		for (int k = 0; k < classes; ++k)
+		{
+			any = any || (probs[i][k] > 0.0f);
+		}
+
+		if (!any)
+		{
 			continue;
 		}
-		for(j = i+1; j < total; ++j){
-			if (box_iou(boxes[i], boxes[j]) > thresh){
-				for(k = 0; k < classes; ++k){
-					if (probs[i][k] < probs[j][k]) probs[i][k] = 0;
-					else probs[j][k] = 0;
+
+		for (int j = i + 1; j < total; ++j)
+		{
+			if (box_iou(boxes[i], boxes[j]) > thresh)
+			{
+				for (int k = 0; k < classes; ++k)
+				{
+					if (probs[i][k] < probs[j][k])
+					{
+						probs[i][k] = 0.0f;
+					}
+					else
+					{
+						probs[j][k] = 0.0f;
+					}
 				}
 			}
 		}
@@ -910,24 +810,6 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 				box b = dets[j].bbox;
 				if (box_iou(a, b) > thresh && nms_kind == CORNERS_NMS)
 				{
-					//float sum_prob = pow(dets[i].prob[k], 2) + pow(dets[j].prob[k], 2);
-					//float alpha_prob = pow(dets[i].prob[k], 2) / sum_prob;
-					//float beta_prob = pow(dets[j].prob[k], 2) / sum_prob;
-					//dets[i].bbox.x = (dets[i].bbox.x*alpha_prob + dets[j].bbox.x*beta_prob);
-					//dets[i].bbox.y = (dets[i].bbox.y*alpha_prob + dets[j].bbox.y*beta_prob);
-					//dets[i].bbox.w = (dets[i].bbox.w*alpha_prob + dets[j].bbox.w*beta_prob);
-					//dets[i].bbox.h = (dets[i].bbox.h*alpha_prob + dets[j].bbox.h*beta_prob);
-					/*
-					if (dets[j].points == YOLO_CENTER && (dets[i].points & dets[j].points) == 0) {
-						dets[i].bbox.x = (dets[i].bbox.x*alpha_prob + dets[j].bbox.x*beta_prob);
-						dets[i].bbox.y = (dets[i].bbox.y*alpha_prob + dets[j].bbox.y*beta_prob);
-					}
-					else if ((dets[i].points & dets[j].points) == 0) {
-						dets[i].bbox.w = (dets[i].bbox.w*alpha_prob + dets[j].bbox.w*beta_prob);
-						dets[i].bbox.h = (dets[i].bbox.h*alpha_prob + dets[j].bbox.h*beta_prob);
-					}
-					dets[i].points |= dets[j].points;
-					*/
 					dets[j].prob[k] = 0;
 				}
 				else if (box_diou(a, b) > thresh && nms_kind == GREEDY_NMS) {
@@ -939,33 +821,32 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 					}
 				}
 			}
-
-			//if ((nms_kind == CORNERS_NMS) && (dets[i].points != (YOLO_CENTER | YOLO_LEFT_TOP | YOLO_RIGHT_BOTTOM)))
-			//    dets[i].prob[k] = 0;
 		}
 	}
 }
 
-box encode_box(box b, box anchor)
+box encode_box(const box & b, const box & anchor)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	box encode;
 	encode.x = (b.x - anchor.x) / anchor.w;
 	encode.y = (b.y - anchor.y) / anchor.h;
 	encode.w = log2(b.w / anchor.w);
 	encode.h = log2(b.h / anchor.h);
+
 	return encode;
 }
 
-box decode_box(box b, box anchor)
+box decode_box(const box & b, const box & anchor)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	box decode;
 	decode.x = b.x * anchor.w + anchor.x;
 	decode.y = b.y * anchor.h + anchor.y;
-	decode.w = pow(2., b.w) * anchor.w;
-	decode.h = pow(2., b.h) * anchor.h;
+	decode.w = pow(2.0, b.w) * anchor.w;
+	decode.h = pow(2.0, b.h) * anchor.h;
+
 	return decode;
 }

@@ -9,10 +9,12 @@ namespace
 }
 
 
-Darknet::TimingAndTracking::TimingAndTracking(const std::string& n)
+Darknet::TimingAndTracking::TimingAndTracking(const std::string& n, const bool r, const std::string & c)
 {
-	name = n;
-	start_time = std::chrono::high_resolution_clock::now();
+	name		= n;
+	reviewed	= r;
+	comment		= c;
+	start_time	= std::chrono::high_resolution_clock::now();
 
 	return;
 }
