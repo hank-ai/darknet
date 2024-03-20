@@ -5,8 +5,7 @@
 
 #include "dropout_layer.hpp"
 #include "Timing.hpp"
-//#include "utils.hpp"
-//#include "blas.hpp"
+
 extern "C"
 {
 	void fill_ongpu(int N, float ALPHA, float * X, int INCX);
