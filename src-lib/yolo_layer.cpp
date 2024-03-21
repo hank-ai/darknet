@@ -140,18 +140,15 @@ box get_yolo_box(float *x, float *biases, int n, int index, int i, int j, int lw
 	TAT(TATPARMS);
 
 	box b;
-	// ln - natural logarithm (base = e)
-	// x` = t.x * lw - i;   // x = ln(x`/(1-x`))   // x - output of previous conv-layer
-	// y` = t.y * lh - i;   // y = ln(y`/(1-y`))   // y - output of previous conv-layer
-	// w = ln(t.w * net.w / anchors_w); // w - output of previous conv-layer
-	// h = ln(t.h * net.h / anchors_h); // h - output of previous conv-layer
-	if (new_coords) {
+	if (new_coords)
+	{
 		b.x = (i + x[index + 0 * stride]) / lw;
 		b.y = (j + x[index + 1 * stride]) / lh;
 		b.w = x[index + 2 * stride] * x[index + 2 * stride] * 4 * biases[2 * n] / w;
 		b.h = x[index + 3 * stride] * x[index + 3 * stride] * 4 * biases[2 * n + 1] / h;
 	}
-	else {
+	else
+	{
 		b.x = (i + x[index + 0 * stride]) / lw;
 		b.y = (j + x[index + 1 * stride]) / lh;
 		b.w = exp(x[index + 2 * stride]) * biases[2 * n] / w;
@@ -375,14 +372,15 @@ int compare_yolo_class(float *output, int classes, int class_index, int stride, 
 {
 	TAT(TATPARMS);
 
-	int j;
-	for (j = 0; j < classes; ++j) {
-		//float prob = objectness * output[class_index + stride*j];
-		float prob = output[class_index + stride*j];
-		if (prob > conf_thresh) {
+	for (int j = 0; j < classes; ++j)
+	{
+		float prob = output[class_index + stride * j];
+		if (prob > conf_thresh)
+		{
 			return 1;
 		}
 	}
+
 	return 0;
 }
 
@@ -437,9 +435,12 @@ void *process_batch(void* ptr)
 		//int count = 0;
 		//int class_count = 0;
 
-		for (j = 0; j < l.h; ++j) {
-			for (i = 0; i < l.w; ++i) {
-				for (n = 0; n < l.n; ++n) {
+		for (j = 0; j < l.h; ++j)
+		{
+			for (i = 0; i < l.w; ++i)
+			{
+				for (n = 0; n < l.n; ++n)
+				{
 					const int class_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 4 + 1);
 					const int obj_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 4);
 					const int box_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 0);
@@ -449,11 +450,13 @@ void *process_batch(void* ptr)
 					//int best_match_t = 0;
 					float best_iou = 0;
 					int best_t = 0;
-					for (t = 0; t < l.max_boxes; ++t) {
+					for (t = 0; t < l.max_boxes; ++t)
+					{
 						box truth = float_to_box_stride(state.truth + t * l.truth_size + b * l.truths, 1);
 						if (!truth.x) break;  // continue;
 						int class_id = state.truth[t * l.truth_size + b * l.truths + 4];
-						if (class_id >= l.classes || class_id < 0) {
+						if (class_id >= l.classes || class_id < 0)
+						{
 							printf("\n Warning: in txt-labels class_id=%d >= classes=%d in cfg-file. In txt-labels class_id should be [from 0 to %d] \n", class_id, l.classes, l.classes - 1);
 							printf("\n truth.x = %f, truth.y = %f, truth.w = %f, truth.h = %f, class_id = %d \n", truth.x, truth.y, truth.w, truth.h, class_id);
 							if (check_mistakes) getchar(); /// @todo replace with call to fatal error
@@ -461,15 +464,20 @@ void *process_batch(void* ptr)
 						}
 
 						float objectness = l.output[obj_index];
-						if (isnan(objectness) || isinf(objectness)) l.output[obj_index] = 0;
+						if (isnan(objectness) || isinf(objectness))
+						{
+							l.output[obj_index] = 0;
+						}
 						int class_id_match = compare_yolo_class(l.output, l.classes, class_index, l.w * l.h, objectness, class_id, 0.25f);
 
 						float iou = box_iou(pred, truth);
-						if (iou > best_match_iou && class_id_match == 1) {
+						if (iou > best_match_iou && class_id_match == 1)
+						{
 							best_match_iou = iou;
 							//best_match_t = t;
 						}
-						if (iou > best_iou) {
+						if (iou > best_iou)
+						{
 							best_iou = iou;
 							best_t = t;
 						}
@@ -478,14 +486,21 @@ void *process_batch(void* ptr)
 					avg_anyobj += l.output[obj_index];
 					l.delta[obj_index] = l.obj_normalizer * (0 - l.output[obj_index]);
 					if (best_match_iou > l.ignore_thresh) {
-						if (l.objectness_smooth) {
+						if (l.objectness_smooth)
+						{
 							const float delta_obj = l.obj_normalizer * (best_match_iou - l.output[obj_index]);
-							if (delta_obj > l.delta[obj_index]) l.delta[obj_index] = delta_obj;
-
+							if (delta_obj > l.delta[obj_index])
+							{
+								l.delta[obj_index] = delta_obj;
+							}
 						}
-						else l.delta[obj_index] = 0;
+						else
+						{
+							l.delta[obj_index] = 0;
+						}
 					}
-					else if (state.net.adversarial) {
+					else if (state.net.adversarial)
+					{
 						int stride = l.w * l.h;
 						float scale = pred.w * pred.h;
 						if (scale > 0) scale = sqrt(scale);

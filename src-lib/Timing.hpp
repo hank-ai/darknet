@@ -11,6 +11,22 @@
 
 namespace Darknet
 {
+	/** The timing and tracking functionality is used to find places in the code where optimizations should be made.  Since
+	 * the original authors are no longer active in the Darknet/YOLO project, there is a lot of unknown code.  This class
+	 * is used to time each function, and the results are stored in the @ref TimingRecords object.  When Darknet exits, the
+	 * results are shown in a table.
+	 *
+	 * Running with this enabled will slow down Darknet!  By a significant amount.  It is not meant to be used by "normal"
+	 * users, but instead by developers.  When building Darknet, you have to give it an extra parameter when you run the
+	 * cmake command.  For example:
+	 *
+	 * ~~~~
+	 * cd build
+	 * cmake -DENABLE_TIMING_AND_TRACKING=ON -DCMAKE_BUILD_TYPE=Debug ..
+	 * ~~~~
+	 *
+	 * Note that @p "Debug" is not needed for this functionality.  It will work just the same in @p "Release" mode.
+	 */
 	class TimingAndTracking final
 	{
 		public:
@@ -25,6 +41,11 @@ namespace Darknet
 			std::chrono::high_resolution_clock::time_point end_time;
 	};
 
+	/** An object of this type is statically instantiated in Timing.cpp.  It is used to store all the results from the
+	 * various @ref TimingAndTracking objects.  Upon destruction, this object will format all of the entries and display
+	 * then on the console.  Note this is expensive, and is only enabled when the necessary build flag has been set.
+	 * See the documentation in @ref TimingAndTracking.
+	 */
 	class TimingRecords final
 	{
 		public:
@@ -34,10 +55,12 @@ namespace Darknet
 
 			TimingRecords & add(const TimingAndTracking & tat);
 
-			std::map<std::string, size_t> min_elapsed_time_per_function;
-			std::map<std::string, size_t> max_elapsed_time_per_function;
-			std::map<std::string, size_t> total_elapsed_time_per_function;
-			std::map<std::string, size_t> number_of_calls_per_function;
+			std::map<std::string, size_t>		min_elapsed_time_per_function;
+			std::map<std::string, size_t>		max_elapsed_time_per_function;
+			std::map<std::string, size_t>		total_elapsed_time_per_function;
+			std::map<std::string, size_t>		number_of_calls_per_function;
+			std::map<std::string, bool>			reviewed_per_function;
+			std::map<std::string, std::string>	comment_per_function;
 	};
 }
 
