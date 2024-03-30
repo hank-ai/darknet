@@ -1160,7 +1160,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			char *path = paths[image_index];
 			char *id = basecfg(path);
 			float *X = val_resized[t].data;
-			network_predict(net, X);
+			network_predict(net, X); /// @todo would we save anything if net was passed in by reference?
 
 			int nboxes = 0;
 			float hier_thresh = 0;
