@@ -3,6 +3,7 @@
 #include <csignal>
 #include <regex>
 #include "darknet_internal.hpp"
+#include "darkunistd.hpp"
 
 #ifdef WIN32
 #include "gettimeofday.h"
