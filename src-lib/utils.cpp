@@ -422,10 +422,10 @@ void log_backtrace()
 namespace
 {
 	/* When things start going wrong, it isn't unusual for multiple threads to exit at the same time.  Multiple calls to
-	* darknet_fatal_error() results in overlapping messages, or we may not understand exactly which call was the first
-	* one to cause the original error.  To prevent this confusion, we use a mutex lock and will allow a single thread
-	* at a time to call into darknet_fatal_error().
-	*/
+	 * darknet_fatal_error() results in overlapping messages, or we may not understand exactly which call was the first
+	 * one to cause the original error.  To prevent this confusion, we use a mutex lock and will allow a single thread
+	 * at a time to call into darknet_fatal_error().
+	 */
 	static pthread_mutex_t darknet_fatal_error_critical_section = PTHREAD_MUTEX_INITIALIZER;
 }
 
@@ -434,10 +434,16 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 {
 	const int saved_errno = errno;
 
+#ifdef __APPLE__
+	// looks like on Mac we don't have pthread_mutex_timedlock(), but all of this code will
+	// be removed soon when we get rid of pthread so it actually isn't critically important
+	const int rc = pthread_mutex_lock(&darknet_fatal_error_critical_section);
+#else
 	timespec ts;
 	ts.tv_nsec = 0;
 	ts.tv_sec = std::time(nullptr) + 5;
 	const int rc = pthread_mutex_timedlock(&darknet_fatal_error_critical_section, &ts);
+#endif
 
 	// only log the message and the rest of the information if this is the first call into darknet_fatal_error()
 	if (Darknet::CfgAndState::get().must_immediately_exit == false)
