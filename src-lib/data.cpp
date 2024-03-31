@@ -5,7 +5,12 @@ extern int check_mistakes;
 
 #define NUMCHARS 37
 
-pthread_mutex_t mutex = PTHREAD_MUTEX_INITIALIZER;
+
+namespace
+{
+	static std::mutex data_mutex;
+}
+
 
 list *get_paths(char *filename)
 {
@@ -30,7 +35,9 @@ char **get_sequential_paths(char **paths, int n, int m, int mini_batch, int augm
 	if (speed < 1) speed = 1;
 	char** sequentia_paths = (char**)xcalloc(n, sizeof(char*));
 	int i;
-	pthread_mutex_lock(&mutex);
+
+	std::scoped_lock lock(data_mutex);
+
 	//printf("n = %d, mini_batch = %d \n", n, mini_batch);
 	unsigned int *start_time_indexes = (unsigned int *)xcalloc(mini_batch, sizeof(unsigned int));
 	for (i = 0; i < mini_batch; ++i) {
@@ -55,7 +62,7 @@ char **get_sequential_paths(char **paths, int n, int m, int mini_batch, int augm
 		} while (strlen(sequentia_paths[i]) == 0);
 	}
 	free(start_time_indexes);
-	pthread_mutex_unlock(&mutex);
+
 	return sequentia_paths;
 }
 
@@ -65,7 +72,9 @@ char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 
 	char** random_paths = (char**)xcalloc(n, sizeof(char*));
 	int i;
-	pthread_mutex_lock(&mutex);
+
+	std::scoped_lock lock(data_mutex);
+
 	int old_index = 0;
 	//printf("n = %d \n", n);
 	for(i = 0; i < n; ++i){
@@ -79,7 +88,7 @@ char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 			if (strlen(random_paths[i]) <= 4) printf(" Very small path to the image: %s \n", random_paths[i]);
 		} while (strlen(random_paths[i]) == 0);
 	}
-	pthread_mutex_unlock(&mutex);
+
 	return random_paths;
 }
 
@@ -1441,13 +1450,18 @@ pthread_t load_data_in_thread(load_args args)
 	return thread;
 }
 
-static const int thread_wait_ms = 5;
-static volatile int flag_exit;
-static volatile int * run_load_data = NULL;
-static load_args * args_swap = NULL;
-static pthread_t* threads = NULL;
 
-pthread_mutex_t mtx_load_data = PTHREAD_MUTEX_INITIALIZER;
+namespace
+{
+	static const int thread_wait_ms = 5;
+	static volatile int flag_exit;
+	static volatile int * run_load_data = NULL;
+	static load_args * args_swap = NULL;
+	static pthread_t* threads = NULL;
+
+	static std::mutex load_data_mutex;
+}
+
 
 void *run_thread_loop(void *ptr)
 {
@@ -1464,10 +1478,10 @@ void *run_thread_loop(void *ptr)
 			this_thread_sleep_for(thread_wait_ms);
 		}
 
-		pthread_mutex_lock(&mtx_load_data);
+		load_data_mutex.lock();
 		load_args *args_local = (load_args *)xcalloc(1, sizeof(load_args));
 		*args_local = args_swap[i];
-		pthread_mutex_unlock(&mtx_load_data);
+		load_data_mutex.unlock();
 
 		load_thread(args_local);
 
@@ -1509,9 +1523,9 @@ void *load_threads(void *ptr)
 		args.d = buffers + i;
 		args.n = (i + 1) * total / args.threads - i * total / args.threads;
 
-		pthread_mutex_lock(&mtx_load_data);
+		load_data_mutex.lock();
 		args_swap[i] = args;
-		pthread_mutex_unlock(&mtx_load_data);
+		load_data_mutex.unlock();
 
 		custom_atomic_store_int(&run_load_data[i], 1);  // run thread
 	}

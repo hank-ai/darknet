@@ -4,8 +4,9 @@
 
 namespace
 {
-	Darknet::TimingRecords tr;
-	static pthread_mutex_t timing_and_tracking_container_mutex = PTHREAD_MUTEX_INITIALIZER;
+	static Darknet::TimingRecords tr;
+
+	static std::timed_mutex timing_and_tracking_container_mutex;
 }
 
 
@@ -140,10 +141,7 @@ Darknet::TimingRecords & Darknet::TimingRecords::add(const Darknet::TimingAndTra
 	const auto duration = tat.end_time - tat.start_time;
 	const auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
 
-	timespec ts;
-	ts.tv_nsec = 0;
-	ts.tv_sec = std::time(nullptr) + 5;
-	const int rc = pthread_mutex_timedlock(&timing_and_tracking_container_mutex, &ts);
+	const bool is_locked = timing_and_tracking_container_mutex.try_lock_for(std::chrono::seconds(3));
 
 	number_of_calls_per_function[tat.name] ++;
 	total_elapsed_time_per_function[tat.name] += milliseconds;
@@ -160,9 +158,9 @@ Darknet::TimingRecords & Darknet::TimingRecords::add(const Darknet::TimingAndTra
 		max_elapsed_time_per_function[tat.name] = milliseconds;
 	}
 
-	if (rc == 0)
+	if (is_locked)
 	{
-		pthread_mutex_unlock(&timing_and_tracking_container_mutex);
+		timing_and_tracking_container_mutex.unlock();
 	}
 
 	#endif

@@ -7,6 +7,7 @@
 #include <atomic>
 #include <filesystem>
 #include <iostream>
+#include <mutex>
 #include <map>
 #include <set>
 #include <string>

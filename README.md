@@ -383,6 +383,7 @@ Last updated 2024-02-12:
 * [X] remove old solutions and Makefile
 * [X] make OpenCV non-optional
 * [ ] better and more consistent command line parsing
+* [ ] remove dependency on the old pthread library
 * [X] remove STB
 * [X] re-write CMakeLists.txt to use the new CUDA detection
 * [X] remove old "alphabet" code, and delete the 700+ images in data/labels

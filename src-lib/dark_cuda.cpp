@@ -383,12 +383,17 @@ void reset_wait_stream_events() {
 }
 
 
-static float **pinned_ptr = NULL;
-static size_t pinned_num_of_blocks = 0;
-static size_t pinned_index = 0;
-static size_t pinned_block_id = 0;
-static const size_t pinned_block_size = (size_t)1024 * 1024 * 1024 * 1;   // 1 GB block size
-static pthread_mutex_t mutex_pinned = PTHREAD_MUTEX_INITIALIZER;
+namespace
+{
+	static float **pinned_ptr = NULL;
+	static size_t pinned_num_of_blocks = 0;
+	static size_t pinned_index = 0;
+	static size_t pinned_block_id = 0;
+	static const size_t pinned_block_size = (size_t)1024 * 1024 * 1024 * 1;   // 1 GB block size
+
+	static std::mutex mutex_pinned;
+}
+
 
 // free CPU-pinned memory
 void free_pinned_memory()
@@ -413,8 +418,10 @@ void pre_allocate_pinned_memory(const size_t size)
 	const size_t num_of_blocks = size / pinned_block_size + ((size % pinned_block_size) ? 1 : 0);
 	printf("pre_allocate... pinned_ptr = %p \n", pinned_ptr);
 
-	pthread_mutex_lock(&mutex_pinned);
-	if (!pinned_ptr) {
+	std::scoped_lock lock(mutex_pinned);
+
+	if (!pinned_ptr)
+	{
 		pinned_ptr = (float **)calloc(num_of_blocks, sizeof(float *));
 		if(!pinned_ptr)
 		{
@@ -439,7 +446,6 @@ void pre_allocate_pinned_memory(const size_t size)
 		}
 		pinned_num_of_blocks = num_of_blocks;
 	}
-	pthread_mutex_unlock(&mutex_pinned);
 }
 
 // simple - get pre-allocated pinned memory
@@ -447,7 +453,8 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 {
 	TAT(TATPARMS);
 
-	pthread_mutex_lock(&mutex_pinned);
+	std::scoped_lock lock(mutex_pinned);
+
 	float *x_cpu = NULL;
 	const size_t memory_step = 512;// 4096;
 	const size_t size = sizeof(float)*n;
@@ -495,7 +502,6 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 		CHECK_CUDA(status);
 	}
 
-	pthread_mutex_unlock(&mutex_pinned);
 	return x_cpu;
 }
 
