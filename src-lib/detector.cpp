@@ -210,7 +210,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	}
 	//printf(" imgs = %d \n", imgs);
 
-	pthread_t load_thread = load_data(args);
+	std::thread load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
 
 	int count = 0;
 
@@ -277,10 +277,10 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 				printf("\n %d x %d \n", dim_w, dim_h);
 			}
 
-			pthread_join(load_thread, 0);
+			load_thread.join();
 			train = buffer;
 			Darknet::free_data(train);
-			load_thread = load_data(args);
+			load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
 
 			for (int k = 0; k < ngpus; ++k)
 			{
@@ -289,7 +289,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			net = nets[0];
 		}
 		double time = what_time_is_it_now();
-		pthread_join(load_thread, 0);
+		load_thread.join();
 		train = buffer;
 		if (net.track)
 		{
@@ -297,7 +297,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			args.threads = net.sequential_subdivisions * ngpus;
 			printf(" sequential_subdivisions = %d, sequence = %d \n", net.sequential_subdivisions, get_sequence_value(net));
 		}
-		load_thread = load_data(args);
+		load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
 
 		const double load_time = (what_time_is_it_now() - time);
 		Darknet::display_loaded_images(args.n, load_time); // "loaded %d images in %s\n"
@@ -380,10 +380,10 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 					args.n = imgs;
 					printf("\n %d x %d  (batch = %d) \n", init_w, init_h, init_b);
 				}
-				pthread_join(load_thread, 0);
+				load_thread.join();
 				Darknet::free_data(train);
 				train = buffer;
-				load_thread = load_data(args);
+				load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
 				for (int k = 0; k < ngpus; ++k)
 				{
 					resize_network(nets + k, init_w, init_h);
@@ -474,7 +474,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	destroy_all_windows_cv();
 
 	// free memory
-	pthread_join(load_thread, 0);
+	load_thread.join();
 	Darknet::free_data(buffer);
 
 	free_load_threads(&args);
@@ -817,6 +817,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 	if (letter_box) args.type = LETTERBOX_DATA;
 
 	Darknet::VThreads thr;
+	thr.reserve(nthreads);
 	for (t = 0; t < nthreads; ++t)
 	{
 		args.path = paths[i + t];
@@ -1129,6 +1130,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	int *fp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
 
 	Darknet::VThreads thr;
+	thr.reserve(nthreads);
 	for (int t = 0; t < nthreads; ++t)
 	{
 		args.path = paths[t];

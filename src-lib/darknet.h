@@ -13,7 +13,6 @@
 #include <string.h>
 #include <stdint.h>
 #include <assert.h>
-#include <pthread.h>
 
 /// @todo what is this?
 #define SECRET_NUM -1234
@@ -1060,7 +1059,7 @@ void free_layer(layer l);
 
 // data.c
 void free_data(data d);
-pthread_t load_data(load_args args);
+//pthread_t load_data(load_args args);
 void free_load_threads(void *ptr);
 //pthread_t load_data_in_thread(load_args args);
 //void *load_thread(void *ptr);

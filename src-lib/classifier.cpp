@@ -139,9 +139,9 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 
 	data train;
 	data buffer;
-	pthread_t load_thread;
 	args.d = &buffer;
-	load_thread = load_data(args);
+
+	std::thread load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
 
 	int iter_save = get_current_batch(net);
 	int iter_save_last = get_current_batch(net);
@@ -156,9 +156,9 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 	{
 		time=clock();
 
-		pthread_join(load_thread, 0);
+		load_thread.join();
 		train = buffer;
-		load_thread = load_data(args);
+		load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
 
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
 		time=clock();
@@ -259,7 +259,7 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 	release_mat(&img);
 	destroy_all_windows_cv();
 
-	pthread_join(load_thread, 0);
+	load_thread.join();
 	Darknet::free_data(buffer);
 
 	//free_network(net);

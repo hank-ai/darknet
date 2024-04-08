@@ -156,6 +156,7 @@ void validate_yolo(char *cfgfile, char *weightfile)
 	args.type = IMAGE_DATA;
 
 	Darknet::VThreads thr;
+	thr.reserve(nthreads);
 	for(t = 0; t < nthreads; ++t)
 	{
 		args.path = paths[i+t];

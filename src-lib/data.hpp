@@ -1,7 +1,5 @@
 #pragma once
 
-//#include <pthread.h>
-
 #include "darknet.h"
 #include "matrix.hpp"
 #include "list.hpp"

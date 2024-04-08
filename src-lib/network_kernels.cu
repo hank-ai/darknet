@@ -3,6 +3,8 @@
 #include <cstdio>
 #include <ctime>
 #include <cassert>
+#include <thread>
+#include <vector>
 
 #include "network.hpp"
 #include "data.hpp"
@@ -448,19 +450,16 @@ void *train_thread(void *ptr)
 	return 0;
 }
 
-pthread_t train_network_in_thread(network net, data d, float *err)
+std::thread train_network_in_thread(network net, data d, float *err)
 {
 	TAT(TATPARMS);
 
-	pthread_t thread;
 	train_args *ptr = (train_args *)calloc(1, sizeof(train_args));
 	ptr->net = net;
 	ptr->d = d;
 	ptr->err = err;
-	if(pthread_create(&thread, 0, train_thread, ptr))
-	{
-		darknet_fatal_error(DARKNET_LOC, "training thread creation failed");
-	}
+
+	std::thread thread(train_thread, ptr);
 
 	return thread;
 }
@@ -679,13 +678,16 @@ void sync_nets(network *nets, int n, int interval)
 	pthread_t *threads = (pthread_t *) calloc(layers, sizeof(pthread_t));
 
 	*nets[0].seen += interval * (n-1) * nets[0].batch * nets[0].subdivisions;
-	for (j = 0; j < n; ++j){
+	for (j = 0; j < n; ++j)
+	{
 		*nets[j].seen = *nets[0].seen;
 	}
-	for (j = 0; j < layers; ++j) {
+	for (j = 0; j < layers; ++j)
+	{
 		threads[j] = sync_layer_in_thread(nets, n, j);
 	}
-	for (j = 0; j < layers; ++j) {
+	for (j = 0; j < layers; ++j)
+	{
 		pthread_join(threads[j], 0);
 	}
 	free(threads);
@@ -695,22 +697,24 @@ float train_networks(network *nets, int n, data d, int interval)
 {
 	TAT(TATPARMS);
 
-	int i;
 #ifdef _DEBUG
 	int batch = nets[0].batch;
 	int subdivisions = nets[0].subdivisions;
 	assert(batch * subdivisions * n == d.X.rows);
 #endif
-	pthread_t *threads = (pthread_t *) calloc(n, sizeof(pthread_t));
 	float *errors = (float *) calloc(n, sizeof(float));
 
-	float sum = 0;
-	for(i = 0; i < n; ++i){
+	std::vector<std::thread> threads;
+	threads.reserve(n);
+	for(int i = 0; i < n; ++i)
+	{
 		data p = get_data_part(d, i, n);
-		threads[i] = train_network_in_thread(nets[i], p, errors + i);
+		threads.emplace_back(train_network_in_thread, nets[i], p, errors + i);
 	}
-	for(i = 0; i < n; ++i){
-		pthread_join(threads[i], 0);
+	float sum = 0.0f;
+	for(int i = 0; i < n; ++i)
+	{
+		threads[i].join();
 		//printf("%f\n", errors[i]);
 		sum += errors[i];
 	}
@@ -725,7 +729,6 @@ float train_networks(network *nets, int n, data d, int interval)
 		printf("Done!\n");
 	}
 	//cudaDeviceSynchronize();
-	free(threads);
 	free(errors);
 	return (float)sum/(n);
 }

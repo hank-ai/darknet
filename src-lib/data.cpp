@@ -1570,19 +1570,6 @@ void *load_threads(void *ptr)
 		while (custom_atomic_load_int(&run_load_data[i])) this_thread_sleep_for(thread_wait_ms); //   join
 	}
 
-	/*
-	pthread_t* threads = (pthread_t*)xcalloc(args.threads, sizeof(pthread_t));
-	for(i = 0; i < args.threads; ++i){
-		args.d = buffers + i;
-		args.n = (i+1) * total/args.threads - i * total/args.threads;
-		threads[i] = load_data_in_thread(args);
-	}
-	for(i = 0; i < args.threads; ++i)
-	{
-		pthread_join(threads[i], 0);
-	}
-	*/
-
 	*out = concat_datas(buffers, args.threads);
 	out->shallow = 0;
 	for (int i = 0; i < args.threads; ++i)
@@ -1591,7 +1578,7 @@ void *load_threads(void *ptr)
 		Darknet::free_data(buffers[i]);
 	}
 	free(buffers);
-	//free(threads);
+
 	return 0;
 }
 
@@ -1600,11 +1587,16 @@ void free_load_threads(void *ptr)
 	TAT(TATPARMS);
 
 	load_args args = *(load_args *)ptr;
-	if (args.threads == 0) args.threads = 1;
-	int i;
-	if (threads) {
+	if (args.threads == 0)
+	{
+		args.threads = 1;
+	}
+
+	if (threads)
+	{
 		custom_atomic_store_int(&flag_exit, 1);
-		for (i = 0; i < args.threads; ++i) {
+		for (int i = 0; i < args.threads; ++i)
+		{
 			pthread_join(threads[i], 0);
 		}
 		free((void*)run_load_data);
@@ -1615,17 +1607,15 @@ void free_load_threads(void *ptr)
 	}
 }
 
-pthread_t load_data(load_args args)
+
+std::thread Darknet::to_be_deleted_start_permanent_image_loading_threads(const load_args & args)
 {
 	TAT(TATPARMS);
 
-	pthread_t thread;
 	struct load_args* ptr = (load_args*)xcalloc(1, sizeof(struct load_args));
 	*ptr = args;
-	if(pthread_create(&thread, 0, load_threads, ptr))
-	{
-		darknet_fatal_error(DARKNET_LOC, "Thread creation failed");
-	}
+	std::thread thread(load_threads, ptr);
+
 	return thread;
 }
 
