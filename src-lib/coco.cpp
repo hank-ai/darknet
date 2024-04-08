@@ -1,16 +1,5 @@
-#include <stdio.h>
-
-#include "image.hpp"
-#include "network.hpp"
-#include "detection_layer.hpp"
-#include "cost_layer.hpp"
-#include "utils.hpp"
-#include "parser.hpp"
-#include "box.hpp"
-#include "demo.hpp"
-#include "data.hpp"
-
 #include "darknet_internal.hpp"
+#include "demo.hpp"
 
 char *coco_classes[] = {"person","bicycle","car","motorcycle","airplane","bus","train","truck","boat","traffic light","fire hydrant","stop sign","parking meter","bench","bird","cat","dog","horse","sheep","cow","elephant","bear","zebra","giraffe","backpack","umbrella","handbag","tie","suitcase","frisbee","skis","snowboard","sports ball","kite","baseball bat","baseball glove","skateboard","surfboard","tennis racket","bottle","wine glass","cup","fork","knife","spoon","bowl","banana","apple","sandwich","orange","broccoli","carrot","hot dog","pizza","donut","cake","chair","couch","potted plant","bed","dining table","toilet","tv","laptop","mouse","remote","keyboard","cell phone","microwave","oven","toaster","sink","refrigerator","book","clock","vase","scissors","teddy bear","hair drier","toothbrush"};
 
@@ -67,7 +56,8 @@ void train_coco(char *cfgfile, char *weightfile)
 	pthread_t load_thread = load_data_in_thread(args);
 	clock_t time;
 	//while(i*imgs < N*120){
-	while(get_current_batch(net) < net.max_batches){
+	while(get_current_batch(net) < net.max_batches)
+	{
 		i += 1;
 		time=clock();
 		pthread_join(load_thread, 0);
@@ -100,7 +90,7 @@ void train_coco(char *cfgfile, char *weightfile)
 			sprintf(buff, "%s/%s.backup", backup_directory, base);
 			save_weights(net, buff);
 		}
-		free_data(train);
+		Darknet::free_data(train);
 	}
 	char buff[256];
 	sprintf(buff, "%s/%s_final.weights", backup_directory, base);
@@ -188,27 +178,32 @@ void validate_coco(char *cfgfile, char *weightfile)
 	args.h = net.h;
 	args.type = IMAGE_DATA;
 
-	for(t = 0; t < nthreads; ++t){
+	for(t = 0; t < nthreads; ++t)
+	{
 		args.path = paths[i+t];
 		args.im = &buf[t];
 		args.resized = &buf_resized[t];
 		thr[t] = load_data_in_thread(args);
 	}
 	time_t start = time(0);
-	for(i = nthreads; i < m+nthreads; i += nthreads){
+	for(i = nthreads; i < m+nthreads; i += nthreads)
+	{
 		fprintf(stderr, "%d\n", i);
-		for(t = 0; t < nthreads && i+t-nthreads < m; ++t){
+		for(t = 0; t < nthreads && i+t-nthreads < m; ++t)
+		{
 			pthread_join(thr[t], 0);
 			val[t] = buf[t];
 			val_resized[t] = buf_resized[t];
 		}
-		for(t = 0; t < nthreads && i+t < m; ++t){
+		for(t = 0; t < nthreads && i+t < m; ++t)
+		{
 			args.path = paths[i+t];
 			args.im = &buf[t];
 			args.resized = &buf_resized[t];
 			thr[t] = load_data_in_thread(args);
 		}
-		for(t = 0; t < nthreads && i+t-nthreads < m; ++t){
+		for(t = 0; t < nthreads && i+t-nthreads < m; ++t)
+		{
 			char *path = paths[i+t-nthreads];
 			int image_id = get_coco_image_id(path);
 			float *X = val_resized[t].data;

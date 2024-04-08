@@ -1,9 +1,5 @@
-#include "detection_layer.hpp"
-#include "cost_layer.hpp"
-#include "parser.hpp"
-#include "demo.hpp"
-#include "data.hpp"
 #include "darknet_internal.hpp"
+#include "demo.hpp"
 
 char *voc_names[] = {"aeroplane", "bicycle", "bird", "boat", "bottle", "bus", "car", "cat", "chair", "cow", "diningtable", "dog", "horse", "motorbike", "person", "pottedplant", "sheep", "sofa", "train", "tvmonitor"};
 
@@ -57,7 +53,8 @@ void train_yolo(char *cfgfile, char *weightfile)
 	pthread_t load_thread = load_data_in_thread(args);
 	clock_t time;
 	//while(i*imgs < N*120){
-	while(get_current_batch(net) < net.max_batches){
+	while(get_current_batch(net) < net.max_batches)
+	{
 		i += 1;
 		time=clock();
 		pthread_join(load_thread, 0);
@@ -77,7 +74,7 @@ void train_yolo(char *cfgfile, char *weightfile)
 			sprintf(buff, "%s/%s_%d.weights", backup_directory, base, i);
 			save_weights(net, buff);
 		}
-		free_data(train);
+		Darknet::free_data(train);
 	}
 	char buff[256];
 	sprintf(buff, "%s/%s_final.weights", backup_directory, base);
@@ -159,27 +156,32 @@ void validate_yolo(char *cfgfile, char *weightfile)
 	args.h = net.h;
 	args.type = IMAGE_DATA;
 
-	for(t = 0; t < nthreads; ++t){
+	for(t = 0; t < nthreads; ++t)
+	{
 		args.path = paths[i+t];
 		args.im = &buf[t];
 		args.resized = &buf_resized[t];
 		thr[t] = load_data_in_thread(args);
 	}
 	time_t start = time(0);
-	for(i = nthreads; i < m+nthreads; i += nthreads){
+	for(i = nthreads; i < m+nthreads; i += nthreads)
+	{
 		fprintf(stderr, "%d\n", i);
-		for(t = 0; t < nthreads && i+t-nthreads < m; ++t){
+		for(t = 0; t < nthreads && i+t-nthreads < m; ++t)
+		{
 			pthread_join(thr[t], 0);
 			val[t] = buf[t];
 			val_resized[t] = buf_resized[t];
 		}
-		for(t = 0; t < nthreads && i+t < m; ++t){
+		for(t = 0; t < nthreads && i+t < m; ++t)
+		{
 			args.path = paths[i+t];
 			args.im = &buf[t];
 			args.resized = &buf_resized[t];
 			thr[t] = load_data_in_thread(args);
 		}
-		for(t = 0; t < nthreads && i+t-nthreads < m; ++t){
+		for(t = 0; t < nthreads && i+t-nthreads < m; ++t)
+		{
 			char *path = paths[i+t-nthreads];
 			char *id = basecfg(path);
 			float *X = val_resized[t].data;

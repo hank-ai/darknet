@@ -8,6 +8,8 @@
 #include <filesystem>
 #include <iostream>
 #include <mutex>
+#include <condition_variable>
+#include <deque>
 #include <map>
 #include <set>
 #include <string>
@@ -22,6 +24,7 @@
 #include <ctime>
 #include <chrono>
 #include <iostream>
+#include <thread>
 #include <opencv2/opencv.hpp>
 
 namespace Darknet
@@ -34,6 +37,7 @@ namespace Darknet
 }
 
 #include "darknet.h"
+#include "darknet.hpp"
 #include "darknet_version.h"
 
 #include "darknet_args_and_parms.hpp"
@@ -46,3 +50,5 @@ namespace Darknet
 #include "box.hpp"
 #include "blas.hpp"
 #include "utils.hpp"
+#include "parser.hpp"
+#include "data.hpp"

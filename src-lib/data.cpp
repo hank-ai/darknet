@@ -698,14 +698,18 @@ char **get_labels(char *filename)
 	return get_labels_custom(filename, NULL);
 }
 
-void free_data(data d)
+void Darknet::free_data(data & d)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-04-04");
 
-	if(!d.shallow){
+	// this is the only place in the entire codebase where the "shallow" flag is checked
+	if (d.shallow == 0)
+	{
 		free_matrix(d.X);
 		free_matrix(d.y);
-	}else{
+	}
+	else
+	{
 		free(d.X.vals);
 		free(d.y.vals);
 	}
@@ -1547,9 +1551,10 @@ void *load_threads(void *ptr)
 
 	*out = concat_datas(buffers, args.threads);
 	out->shallow = 0;
-	for(i = 0; i < args.threads; ++i){
+	for (int i = 0; i < args.threads; ++i)
+	{
 		buffers[i].shallow = 1;
-		free_data(buffers[i]);
+		Darknet::free_data(buffers[i]);
 	}
 	free(buffers);
 	//free(threads);
@@ -1785,11 +1790,12 @@ data load_data_augment(char **paths, int n, int m, char **labels, int k, tree *h
 			}
 		}
 
-		free_data(d2);
+		Darknet::free_data(d2);
 
-		if (use_mixup >= 3) {
-			free_data(d3);
-			free_data(d4);
+		if (use_mixup >= 3)
+		{
+			Darknet::free_data(d3);
+			Darknet::free_data(d4);
 		}
 	}
 
@@ -1891,9 +1897,10 @@ data concat_datas(data *d, int n)
 
 	int i;
 	data out = {0};
-	for(i = 0; i < n; ++i){
+	for(i = 0; i < n; ++i)
+	{
 		data newdata = concat_data(d[i], out);
-		free_data(out);
+		Darknet::free_data(out);
 		out = newdata;
 	}
 	return out;

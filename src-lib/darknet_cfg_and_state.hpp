@@ -40,7 +40,7 @@ namespace Darknet
 			 * training to finish early, and also prevents Darknet from logging any more (misleading) errors that happen on
 			 * additional threads.
 			 */
-			bool must_immediately_exit;
+			std::atomic<bool> must_immediately_exit;
 
 			/// When @p -dont_show has been set, this value will be set to @p false.
 			bool is_shown;

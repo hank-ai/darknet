@@ -152,7 +152,8 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 	double start, time_remaining, avg_time = -1, alpha_time = 0.01;
 	start = what_time_is_it_now();
 
-	while(get_current_batch(net) < net.max_batches || net.max_batches == 0){
+	while(get_current_batch(net) < net.max_batches || net.max_batches == 0)
+	{
 		time=clock();
 
 		pthread_join(load_thread, 0);
@@ -246,7 +247,7 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 			sprintf(buff, "%s/%s_last.weights", backup_directory, base);
 			save_weights(net, buff);
 		}
-		free_data(train);
+		Darknet::free_data(train);
 	}
 #ifdef GPU
 	if (ngpus != 1) sync_nets(nets, ngpus, 0);
@@ -259,7 +260,7 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 	destroy_all_windows_cv();
 
 	pthread_join(load_thread, 0);
-	free_data(buffer);
+	Darknet::free_data(buffer);
 
 	//free_network(net);
 	for (i = 0; i < ngpus; ++i) free_network(nets[i]);
@@ -329,7 +330,8 @@ void validate_classifier_crop(char *datacfg, char *filename, char *weightfile)
 
 		num = (i+1)*m/splits - i*m/splits;
 		char **part = paths+(i*m/splits);
-		if(i != splits){
+		if(i != splits)
+		{
 			args.paths = part;
 			load_thread = load_data_in_thread(args);
 		}
@@ -340,7 +342,7 @@ void validate_classifier_crop(char *datacfg, char *filename, char *weightfile)
 		avg_acc += acc[0];
 		avg_topk += acc[1];
 		printf("%d: top 1: %f, top %d: %f, %lf seconds, %d images\n", i, avg_acc/i, topk, avg_topk/i, sec(clock()-time), val.X.rows);
-		free_data(val);
+		Darknet::free_data(val);
 	}
 }
 
@@ -878,9 +880,13 @@ void test_classifier(char *datacfg, char *cfgfile, char *weightfile, int target_
 		pthread_join(load_thread, 0);
 		val = buffer;
 
-		if(curr < m){
+		if(curr < m)
+		{
 			args.paths = paths + curr;
-			if (curr + net.batch > m) args.n = m - curr;
+			if (curr + net.batch > m)
+			{
+				args.n = m - curr;
+			}
 			load_thread = load_data_in_thread(args);
 		}
 		fprintf(stderr, "Loaded: %d images in %lf seconds\n", val.X.rows, sec(clock()-time));
@@ -904,7 +910,7 @@ void test_classifier(char *datacfg, char *cfgfile, char *weightfile, int target_
 		free_matrix(pred);
 
 		fprintf(stderr, "%lf seconds, %d images, %d total\n", sec(clock()-time), val.X.rows, curr);
-		free_data(val);
+		Darknet::free_data(val);
 	}
 }
 

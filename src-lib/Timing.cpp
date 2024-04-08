@@ -1,4 +1,3 @@
-#include "Timing.hpp"
 #include "darknet_internal.hpp"
 
 
@@ -101,7 +100,7 @@ Darknet::TimingRecords::~TimingRecords()
 		const std::string reviewed		= (reviewed_per_function.at(name) ? "yes" : "");
 		const std::string comment		= comment_per_function.at(name);
 
-		if (total_milliseconds < 1000.0f)
+		if (total_milliseconds < 100.0f)
 		{
 			skipped ++;
 			continue;

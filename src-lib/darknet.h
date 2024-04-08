@@ -892,8 +892,10 @@ typedef struct det_num_pair {
 } det_num_pair, *pdet_num_pair;
 
 // matrix.h
-typedef struct matrix {
-	int rows, cols;
+typedef struct matrix
+{
+	int rows;
+	int cols;
 	float **vals;
 } matrix;
 

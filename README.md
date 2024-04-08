@@ -365,6 +365,7 @@ Last updated 2024-02-12:
 
 ## Short-term goals
 
+* [ ] get rid of check_mistakes and calls to getchar()
 * [X] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
 * [X] fix Windows build
 * [ ] fix ARM build (Jetson devices)
