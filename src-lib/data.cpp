@@ -18,12 +18,18 @@ list *get_paths(char *filename)
 
 	char *path;
 	FILE *file = fopen(filename, "r");
-	if(!file) file_error(filename, DARKNET_LOC);
+	if (!file)
+	{
+		file_error(filename, DARKNET_LOC);
+	}
+
 	list *lines = make_list();
-	while((path=fgetl(file))){
+	while((path=fgetl(file)))
+	{
 		list_insert(lines, path);
 	}
 	fclose(file);
+
 	return lines;
 }
 
@@ -1393,46 +1399,84 @@ void *load_thread(void *ptr)
 {
 	TAT(TATPARMS);
 
-	//srand(time(0));
-	//printf("Loading data: %d\n", random_gen());
-	load_args a = *(struct load_args*)ptr;
-	if(a.exposure == 0) a.exposure = 1;
-	if(a.saturation == 0) a.saturation = 1;
-	if(a.aspect == 0) a.aspect = 1;
+	load_args args = *(struct load_args*)ptr;
 
-	if (a.type == OLD_CLASSIFICATION_DATA){
-		*a.d = load_data_old(a.paths, a.n, a.m, a.labels, a.classes, a.w, a.h, a.c);
-	} else if (a.type == CLASSIFICATION_DATA){
-		*a.d = load_data_augment(a.paths, a.n, a.m, a.labels, a.classes, a.hierarchy, a.flip, a.min, a.max, a.w, a.h, a.c, a.angle, a.aspect, a.hue, a.saturation, a.exposure, a.mixup, a.blur, a.show_imgs, a.label_smooth_eps, a.contrastive);
-	} else if (a.type == SUPER_DATA){
-		*a.d = load_data_super(a.paths, a.n, a.m, a.w, a.h, a.c, a.scale);
-	} else if (a.type == WRITING_DATA){
-		*a.d = load_data_writing(a.paths, a.n, a.m, a.w, a.h,a.c, a.out_w, a.out_h);
-	} else if (a.type == REGION_DATA){
-		*a.d = load_data_region(a.n, a.paths, a.m, a.w, a.h, a.c, a.num_boxes, a.classes, a.jitter, a.hue, a.saturation, a.exposure);
-	} else if (a.type == DETECTION_DATA){
-		*a.d = load_data_detection(a.n, a.paths, a.m, a.w, a.h, a.c, a.num_boxes, a.truth_size, a.classes, a.flip, a.gaussian_noise, a.blur, a.mixup, a.jitter, a.resize,
-			a.hue, a.saturation, a.exposure, a.mini_batch, a.track, a.augment_speed, a.letter_box, a.mosaic_bound, a.contrastive, a.contrastive_jit_flip, a.contrastive_color, a.show_imgs);
-	} else if (a.type == SWAG_DATA){
-		*a.d = load_data_swag(a.paths, a.n, a.classes, a.jitter, a.c);
-	}
-	else if (a.type == COMPARE_DATA)
+	if(args.aspect		== 0.0f)	args.aspect		= 1.0f;
+	if(args.exposure	== 0.0f)	args.exposure	= 1.0f;
+	if(args.saturation	== 0.0f)	args.saturation	= 1.0f;
+
+	switch (args.type)
 	{
-		*a.d = load_data_compare(a.n, a.paths, a.m, a.classes, a.w, a.h, a.c);
-	}
-	else if (a.type == IMAGE_DATA)
-	{
-		*(a.im) = load_image(a.path, 0, 0, a.c);
-		*(a.resized) = resize_image(*(a.im), a.w, a.h);
-	}
-	else if (a.type == LETTERBOX_DATA)
-	{
-		*(a.im) = load_image(a.path, 0, 0, a.c);
-		*(a.resized) = letterbox_image(*(a.im), a.w, a.h);
-	}
-	else if (a.type == TAG_DATA)
-	{
-		*a.d = load_data_tag(a.paths, a.n, a.m, a.classes, a.flip, a.min, a.max, a.w, a.h, a.c, a.angle, a.aspect, a.hue, a.saturation, a.exposure);
+		case IMAGE_DATA:
+		{
+			// 2024:  used in coco.cpp, detector.cpp, yolo.cpp
+			*(args.im) = load_image(args.path, 0, 0, args.c);
+			*(args.resized) = resize_image(*(args.im), args.w, args.h);
+			break;
+		}
+		case LETTERBOX_DATA:
+		{
+			// 2024:  used in detector.cpp
+			*(args.im) = load_image(args.path, 0, 0, args.c);
+			*(args.resized) = letterbox_image(*(args.im), args.w, args.h);
+			break;
+		}
+		case DETECTION_DATA:
+		{
+			// 2024:  used in detector.cpp
+			*args.d = load_data_detection(args.n, args.paths, args.m, args.w, args.h, args.c, args.num_boxes, args.truth_size, args.classes, args.flip, args.gaussian_noise, args.blur, args.mixup, args.jitter, args.resize,
+					args.hue, args.saturation, args.exposure, args.mini_batch, args.track, args.augment_speed, args.letter_box, args.mosaic_bound, args.contrastive, args.contrastive_jit_flip, args.contrastive_color, args.show_imgs);
+			break;
+		}
+		case OLD_CLASSIFICATION_DATA:
+		{
+			// 2024:  used in classifier.cpp
+			*args.d = load_data_old(args.paths, args.n, args.m, args.labels, args.classes, args.w, args.h, args.c);
+			break;
+		}
+		case CLASSIFICATION_DATA:
+		{
+			// 2024:  used in captcha.cpp and classifier.cpp
+			*args.d = load_data_augment(args.paths, args.n, args.m, args.labels, args.classes, args.hierarchy, args.flip, args.min, args.max, args.w, args.h, args.c, args.angle, args.aspect, args.hue, args.saturation, args.exposure, args.mixup, args.blur, args.show_imgs, args.label_smooth_eps, args.contrastive);
+			break;
+		}
+		case SUPER_DATA:
+		{
+			// 2024:  used in super.cpp and voxel.cpp
+			*args.d = load_data_super(args.paths, args.n, args.m, args.w, args.h, args.c, args.scale);
+			break;
+		}
+		case WRITING_DATA:
+		{
+			// 2024:  used in writing.cpp
+			*args.d = load_data_writing(args.paths, args.n, args.m, args.w, args.h,args.c, args.out_w, args.out_h);
+			break;
+		}
+		case REGION_DATA:
+		{
+			// 2024:  used in coco.cpp and yolo.cpp
+			*args.d = load_data_region(args.n, args.paths, args.m, args.w, args.h, args.c, args.num_boxes, args.classes, args.jitter, args.hue, args.saturation, args.exposure);
+			break;
+		}
+#if 0 /// @todo delete unused type?
+		case SWAG_DATA:
+		{
+			*args.d = load_data_swag(args.paths, args.n, args.classes, args.jitter, args.c);
+			break;
+		}
+#endif
+		case COMPARE_DATA:
+		{
+			// 2024:  used in compare.cpp
+			*args.d = load_data_compare(args.n, args.paths, args.m, args.classes, args.w, args.h, args.c);
+			break;
+		}
+		case TAG_DATA:
+		{
+			// 2024:  used in tag.cpp
+			*args.d = load_data_tag(args.paths, args.n, args.m, args.classes, args.flip, args.min, args.max, args.w, args.h, args.c, args.angle, args.aspect, args.hue, args.saturation, args.exposure);
+			break;
+		}
 	}
 
 	free(ptr);
@@ -1473,9 +1517,12 @@ void *run_thread_loop(void *ptr)
 
 	const int i = *(int *)ptr;
 
-	while (!custom_atomic_load_int(&flag_exit)) {
-		while (!custom_atomic_load_int(&run_load_data[i])) {
-			if (custom_atomic_load_int(&flag_exit)) {
+	while (!custom_atomic_load_int(&flag_exit))
+	{
+		while (!custom_atomic_load_int(&run_load_data[i]))
+		{
+			if (custom_atomic_load_int(&flag_exit))
+			{
 				free(ptr);
 				return 0;
 			}
@@ -1507,13 +1554,15 @@ void *load_threads(void *ptr)
 	int total = args.n;
 	free(ptr);
 	data* buffers = (data*)xcalloc(args.threads, sizeof(data));
-	if (!threads) {
+	if (!threads)
+	{
 		threads = (pthread_t*)xcalloc(args.threads, sizeof(pthread_t));
 		run_load_data = (volatile int *)xcalloc(args.threads, sizeof(int));
 		args_swap = (load_args *)xcalloc(args.threads, sizeof(load_args));
 		fprintf(stderr, " Create %d permanent cpu-threads \n", args.threads);
 
-		for (i = 0; i < args.threads; ++i) {
+		for (i = 0; i < args.threads; ++i)
+		{
 			int* ptr = (int*)xcalloc(1, sizeof(int));
 			*ptr = i;
 			if (pthread_create(&threads[i], 0, run_thread_loop, ptr))
@@ -1523,7 +1572,8 @@ void *load_threads(void *ptr)
 		}
 	}
 
-	for (i = 0; i < args.threads; ++i) {
+	for (i = 0; i < args.threads; ++i)
+	{
 		args.d = buffers + i;
 		args.n = (i + 1) * total / args.threads - i * total / args.threads;
 
@@ -1533,7 +1583,8 @@ void *load_threads(void *ptr)
 
 		custom_atomic_store_int(&run_load_data[i], 1);  // run thread
 	}
-	for (i = 0; i < args.threads; ++i) {
+	for (i = 0; i < args.threads; ++i)
+	{
 		while (custom_atomic_load_int(&run_load_data[i])) this_thread_sleep_for(thread_wait_ms); //   join
 	}
 
@@ -1544,7 +1595,8 @@ void *load_threads(void *ptr)
 		args.n = (i+1) * total/args.threads - i * total/args.threads;
 		threads[i] = load_data_in_thread(args);
 	}
-	for(i = 0; i < args.threads; ++i){
+	for(i = 0; i < args.threads; ++i)
+	{
 		pthread_join(threads[i], 0);
 	}
 	*/

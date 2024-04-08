@@ -918,22 +918,22 @@ typedef enum
 {
 	CLASSIFICATION_DATA,
 	DETECTION_DATA,
-	CAPTCHA_DATA,
+//	CAPTCHA_DATA, unused
 	REGION_DATA,
 	IMAGE_DATA, ///< causes @ref load_image() and @ref resize_image() to be called
 	COMPARE_DATA,
 	WRITING_DATA,
-	SWAG_DATA,
+//	SWAG_DATA, unused
 	TAG_DATA,
 	OLD_CLASSIFICATION_DATA,
-	STUDY_DATA,
-	DET_DATA,
+//	STUDY_DATA, unused
+//	DET_DATA, unused
 	SUPER_DATA,
 	LETTERBOX_DATA,
-	REGRESSION_DATA,
-	SEGMENTATION_DATA,
-	INSTANCE_DATA,
-	ISEG_DATA
+//	REGRESSION_DATA, unused
+//	SEGMENTATION_DATA, unused
+//	INSTANCE_DATA, unused
+//	ISEG_DATA unused
 } data_type;
 
 
