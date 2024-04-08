@@ -64,16 +64,16 @@ void train_voxel(char *cfgfile, char *weightfile)
 	args.d = &buffer;
 	args.type = SUPER_DATA;
 
-	pthread_t load_thread = load_data_in_thread(args);
+	std::thread load_thread = delete_me_load_data_in_thread(args);
 	clock_t time;
 	//while(i*imgs < N*120){
 	while(get_current_batch(net) < net.max_batches)
 	{
 		i += 1;
 		time=clock();
-		pthread_join(load_thread, 0);
+		load_thread.join();
 		train = buffer;
-		load_thread = load_data_in_thread(args);
+		load_thread = delete_me_load_data_in_thread(args);
 
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
 

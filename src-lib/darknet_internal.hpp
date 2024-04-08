@@ -30,10 +30,11 @@
 namespace Darknet
 {
 	using MStr = std::map<std::string, std::string>;
-	using SStr = std::set<std::string>;
-	using VStr = std::vector<std::string>;
-	using VInt = std::vector<int>;
 	using MStrInt = std::map<std::string, int>;
+	using SStr = std::set<std::string>;
+	using VInt = std::vector<int>;
+	using VStr = std::vector<std::string>;
+	using VThreads = std::vector<std::thread>;
 }
 
 #include "darknet.h"

@@ -50,16 +50,16 @@ void train_yolo(char *cfgfile, char *weightfile)
 	args.saturation = net.saturation;
 	args.hue = net.hue;
 
-	pthread_t load_thread = load_data_in_thread(args);
+	std::thread load_thread = delete_me_load_data_in_thread(args);
 	clock_t time;
 	//while(i*imgs < N*120){
 	while(get_current_batch(net) < net.max_batches)
 	{
 		i += 1;
 		time=clock();
-		pthread_join(load_thread, 0);
+		load_thread.join();
 		train = buffer;
-		load_thread = load_data_in_thread(args);
+		load_thread = delete_me_load_data_in_thread(args);
 
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
 
@@ -149,19 +149,19 @@ void validate_yolo(char *cfgfile, char *weightfile)
 	image* val_resized = (image*)xcalloc(nthreads, sizeof(image));
 	image* buf = (image*)xcalloc(nthreads, sizeof(image));
 	image* buf_resized = (image*)xcalloc(nthreads, sizeof(image));
-	pthread_t* thr = (pthread_t*)xcalloc(nthreads, sizeof(pthread_t));
 
 	load_args args = {0};
 	args.w = net.w;
 	args.h = net.h;
 	args.type = IMAGE_DATA;
 
+	Darknet::VThreads thr;
 	for(t = 0; t < nthreads; ++t)
 	{
 		args.path = paths[i+t];
 		args.im = &buf[t];
 		args.resized = &buf_resized[t];
-		thr[t] = load_data_in_thread(args);
+		thr.emplace_back(delete_me_load_data_in_thread(args));
 	}
 	time_t start = time(0);
 	for(i = nthreads; i < m+nthreads; i += nthreads)
@@ -169,7 +169,7 @@ void validate_yolo(char *cfgfile, char *weightfile)
 		fprintf(stderr, "%d\n", i);
 		for(t = 0; t < nthreads && i+t-nthreads < m; ++t)
 		{
-			pthread_join(thr[t], 0);
+			thr[t].join();
 			val[t] = buf[t];
 			val_resized[t] = buf_resized[t];
 		}
@@ -178,7 +178,7 @@ void validate_yolo(char *cfgfile, char *weightfile)
 			args.path = paths[i+t];
 			args.im = &buf[t];
 			args.resized = &buf_resized[t];
-			thr[t] = load_data_in_thread(args);
+			thr[t] = delete_me_load_data_in_thread(args);
 		}
 		for(t = 0; t < nthreads && i+t-nthreads < m; ++t)
 		{
@@ -201,7 +201,6 @@ void validate_yolo(char *cfgfile, char *weightfile)
 	if (val_resized) free(val_resized);
 	if (buf) free(buf);
 	if (buf_resized) free(buf_resized);
-	if (thr) free(thr);
 
 	fprintf(stderr, "Total Detection Time: %f Seconds\n", (double)(time(0) - start));
 	if (fps) {

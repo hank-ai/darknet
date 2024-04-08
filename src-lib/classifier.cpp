@@ -321,11 +321,12 @@ void validate_classifier_crop(char *datacfg, char *filename, char *weightfile)
 	args.d = &buffer;
 	args.type = OLD_CLASSIFICATION_DATA;
 
-	pthread_t load_thread = load_data_in_thread(args);
-	for(i = 1; i <= splits; ++i){
+	std::thread load_thread = delete_me_load_data_in_thread(args);
+	for(i = 1; i <= splits; ++i)
+	{
 		time=clock();
 
-		pthread_join(load_thread, 0);
+		load_thread.join();
 		val = buffer;
 
 		num = (i+1)*m/splits - i*m/splits;
@@ -333,7 +334,7 @@ void validate_classifier_crop(char *datacfg, char *filename, char *weightfile)
 		if(i != splits)
 		{
 			args.paths = part;
-			load_thread = load_data_in_thread(args);
+			load_thread = delete_me_load_data_in_thread(args);
 		}
 		printf("Loaded: %d images in %lf seconds\n", val.X.rows, sec(clock()-time));
 
@@ -873,11 +874,12 @@ void test_classifier(char *datacfg, char *cfgfile, char *weightfile, int target_
 	args.d = &buffer;
 	args.type = OLD_CLASSIFICATION_DATA;
 
-	pthread_t load_thread = load_data_in_thread(args);
-	for(curr = net.batch; curr < m; curr += net.batch){
+	std::thread load_thread = delete_me_load_data_in_thread(args);
+	for(curr = net.batch; curr < m; curr += net.batch)
+	{
 		time=clock();
 
-		pthread_join(load_thread, 0);
+		load_thread.join();
 		val = buffer;
 
 		if(curr < m)
@@ -887,7 +889,7 @@ void test_classifier(char *datacfg, char *cfgfile, char *weightfile, int target_
 			{
 				args.n = m - curr;
 			}
-			load_thread = load_data_in_thread(args);
+			load_thread = delete_me_load_data_in_thread(args);
 		}
 		fprintf(stderr, "Loaded: %d images in %lf seconds\n", val.X.rows, sec(clock()-time));
 

@@ -23,7 +23,6 @@ void train_tag(char *cfgfile, char *weightfile, int clear)
 	printf("%d\n", plist->size);
 	int N = plist->size;
 	clock_t time;
-	pthread_t load_thread;
 	data train;
 	data buffer;
 
@@ -49,15 +48,15 @@ void train_tag(char *cfgfile, char *weightfile, int clear)
 
 	fprintf(stderr, "%d classes\n", net.outputs);
 
-	load_thread = load_data_in_thread(args);
+	std::thread load_thread = delete_me_load_data_in_thread(args);
 	int epoch = (*net.seen)/N;
 	while(get_current_batch(net) < net.max_batches || net.max_batches == 0)
 	{
 		time=clock();
-		pthread_join(load_thread, 0);
+		load_thread.join();
 		train = buffer;
 
-		load_thread = load_data_in_thread(args);
+		load_thread = delete_me_load_data_in_thread(args);
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
 		time=clock();
 		float loss = train_network(net, train);
@@ -81,7 +80,7 @@ void train_tag(char *cfgfile, char *weightfile, int clear)
 	sprintf(buff, "%s/%s.weights", backup_directory, base);
 	save_weights(net, buff);
 
-	pthread_join(load_thread, 0);
+	load_thread.join();
 	Darknet::free_data(buffer);
 	free_network(net);
 	free_ptrs((void**)paths, plist->size);

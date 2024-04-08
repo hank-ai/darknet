@@ -8,6 +8,10 @@
 #include "darknet_internal.hpp"
 
 
+// need to rename or delete this
+std::thread delete_me_load_data_in_thread(load_args args);
+
+
 namespace Darknet
 {
 	/** Things that we can do on a secondary thread.
@@ -148,9 +152,14 @@ namespace Darknet
 	/** Load the given image data as described by the @p load_args parameter.  This is typically used to load a single
 	 * image on a secondary thread.
 	 *
+	 * @warning The @p args are currently dynamically allocated by the caller, and then freed at the
+	 * bottom of this function.  This is carry-over from the @p pthread and @p C days, and will need to be fixed since
+	 * there is zero need to dynamically allocate and free this structure every time we load a new image.
+	 *
 	 * This was originally called @p load_thread().
 	 *
 	 * @since 2024-04-02
 	 */
-	void load_single_image_data(load_args args);
+	void load_single_image_data(void * ptr);
+//	void load_single_image_data(load_args args);
 }

@@ -1062,8 +1062,8 @@ void free_layer(layer l);
 void free_data(data d);
 pthread_t load_data(load_args args);
 void free_load_threads(void *ptr);
-pthread_t load_data_in_thread(load_args args);
-void *load_thread(void *ptr);
+//pthread_t load_data_in_thread(load_args args);
+//void *load_thread(void *ptr);
 
 // dark_cuda.h
 void cuda_pull_array(float *x_gpu, float *x, size_t n);

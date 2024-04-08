@@ -49,7 +49,6 @@ void train_captcha(char *cfgfile, char *weightfile)
 	char **paths = (char **)list_to_array(plist);
 	printf("%d\n", plist->size);
 	clock_t time;
-	pthread_t load_thread;
 	data train;
 	data buffer;
 
@@ -64,29 +63,31 @@ void train_captcha(char *cfgfile, char *weightfile)
 	args.d = &buffer;
 	args.type = CLASSIFICATION_DATA;
 
-	load_thread = load_data_in_thread(args);
-	while(1){
+	std::thread load_thread = delete_me_load_data_in_thread(args);
+
+	/// @todo no way this code was ever used -- it doesn't even have a way to break out of this infinite loop!?
+
+	while(1)
+	{
 		++i;
 		time=clock();
-		pthread_join(load_thread, 0);
+		load_thread.join();
 		train = buffer;
 		fix_data_captcha(train, solved);
 
-		/*
-		image im = float_to_image(256, 256, 3, train.X.vals[114]);
-		show_image(im, "training");
-		cvWaitKey(0);
-		*/
-
-		load_thread = load_data_in_thread(args);
+		load_thread = delete_me_load_data_in_thread(args);
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
 		time=clock();
 		float loss = train_network(net, train);
-		if(avg_loss == -1) avg_loss = loss;
+		if (avg_loss == -1)
+		{
+			avg_loss = loss;
+		}
 		avg_loss = avg_loss*.9 + loss*.1;
 		printf("%d: %f, %f avg, %lf seconds, %ld images\n", i, loss, avg_loss, sec(clock()-time), *net.seen);
 		Darknet::free_data(train);
-		if(i%100==0){
+		if(i%100==0)
+		{
 			char buff[256];
 			sprintf(buff, "imagenet_backup/%s_%d.weights", base, i);
 			save_weights(net, buff);

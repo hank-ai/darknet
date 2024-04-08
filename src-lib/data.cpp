@@ -9,6 +9,53 @@ extern int check_mistakes;
 namespace
 {
 	static std::mutex data_mutex;
+
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+
+	/** The permanent image loading threads started by @ref Darknet::run_image_loading_threads().
+	 *
+	 * @since 2024-04-03
+	 */
+	Darknet::VThreads image_data_loading_threads;
+
+	/** New items are inserted at the @em back, and the consumer then removes things from the @em front of the deque.
+	 *
+	 * @see @ref image_data_cache;
+	 *
+	 * @since 2024-04-02
+	 */
+	using ImageDataCache = std::deque<load_args>;
+
+	/** New items are inserted at the front by the image loading threads, and the consumer (training thread)
+	 * removes items from the back of the deque.
+	 *
+	 * @ref image_data_cache_mutex
+	 *
+	 * @since 2024-04-02
+	 */
+	ImageDataCache image_data_cache;
+
+	/** When the @ref image_data_cache must be modified, other threads must be locked out.
+	 * This mutex is used for that purpose.
+	 *
+	 * @ref image_data_cache
+	 *
+	 * @since 2024-04-02
+	 */
+	std::mutex image_data_cache_mutex;
+
+	/** Trigger for image data cache.
+	 *
+	 * @since 2024-04-02
+	 */
+	std::condition_variable image_data_cache_trigger;
+
+	/** Flag used by the image data loading threads to determine if they need to exit.
+	 *
+	 * @since 2024-04-02
+	 */
+	std::atomic<bool> image_data_loading_threads_must_exit = false;
+
 }
 
 
@@ -843,60 +890,6 @@ data load_data_compare(int n, char **paths, int m, int classes, int w, int h, in
 	return d;
 }
 
-data load_data_swag(char **paths, int n, int classes, float jitter, int channels)
-{
-	TAT(TATPARMS);
-
-	int index = random_gen()%n;
-	char *random_path = paths[index];
-
-	image orig = load_image(random_path, 0, 0, channels);
-	int h = orig.h;
-	int w = orig.w;
-
-	data d = {0};
-	d.shallow = 0;
-	d.w = w;
-	d.h = h;
-
-	d.X.rows = 1;
-	d.X.vals = (float**)xcalloc(d.X.rows, sizeof(float*));
-	d.X.cols = h*w*3;
-
-	int k = (4+classes)*30;
-	d.y = make_matrix(1, k);
-
-	int dw = w*jitter;
-	int dh = h*jitter;
-
-	int pleft  = rand_uniform(-dw, dw);
-	int pright = rand_uniform(-dw, dw);
-	int ptop   = rand_uniform(-dh, dh);
-	int pbot   = rand_uniform(-dh, dh);
-
-	int swidth =  w - pleft - pright;
-	int sheight = h - ptop - pbot;
-
-	float sx = (float)swidth  / w;
-	float sy = (float)sheight / h;
-
-	int flip = random_gen()%2;
-	image cropped = crop_image(orig, pleft, ptop, swidth, sheight);
-
-	float dx = ((float)pleft/w)/sx;
-	float dy = ((float)ptop /h)/sy;
-
-	image sized = resize_image(cropped, w, h);
-	if(flip) flip_image(sized);
-	d.X.vals[0] = sized.data;
-
-	fill_truth_swag(random_path, d.y.vals[0], classes, flip, dx, dy, 1./sx, 1./sy);
-
-	free_image(orig);
-	free_image(cropped);
-
-	return d;
-}
 
 void blend_truth(float *new_truth, int boxes, int truth_size, float *old_truth)
 {
@@ -1395,7 +1388,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 }
 
 
-void *load_thread(void *ptr)
+void Darknet::load_single_image_data(void * ptr)
 {
 	TAT(TATPARMS);
 
@@ -1458,13 +1451,6 @@ void *load_thread(void *ptr)
 			*args.d = load_data_region(args.n, args.paths, args.m, args.w, args.h, args.c, args.num_boxes, args.classes, args.jitter, args.hue, args.saturation, args.exposure);
 			break;
 		}
-#if 0 /// @todo delete unused type?
-		case SWAG_DATA:
-		{
-			*args.d = load_data_swag(args.paths, args.n, args.classes, args.jitter, args.c);
-			break;
-		}
-#endif
 		case COMPARE_DATA:
 		{
 			// 2024:  used in compare.cpp
@@ -1481,20 +1467,17 @@ void *load_thread(void *ptr)
 
 	free(ptr);
 
-	return 0;
+	return;
 }
 
-pthread_t load_data_in_thread(load_args args)
+std::thread delete_me_load_data_in_thread(load_args args)
 {
 	TAT(TATPARMS);
 
-	pthread_t thread;
 	struct load_args* ptr = (load_args*)xcalloc(1, sizeof(struct load_args));
 	*ptr = args;
-	if(pthread_create(&thread, 0, load_thread, ptr))
-	{
-		darknet_fatal_error(DARKNET_LOC, "thread creation failed");
-	}
+	std::thread thread(Darknet::load_single_image_data, ptr);
+
 	return thread;
 }
 
@@ -1534,7 +1517,7 @@ void *run_thread_loop(void *ptr)
 		*args_local = args_swap[i];
 		load_data_mutex.unlock();
 
-		load_thread(args_local);
+		Darknet::load_single_image_data(args_local);
 
 		custom_atomic_store_int(&run_load_data[i], 0);
 	}
@@ -1546,7 +1529,6 @@ void *load_threads(void *ptr)
 {
 	TAT(TATPARMS);
 
-	//srand(time(0));
 	int i;
 	load_args args = *(load_args *)ptr;
 	if (args.threads == 0) args.threads = 1;

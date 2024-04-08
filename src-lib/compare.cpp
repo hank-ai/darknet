@@ -19,7 +19,6 @@ void train_compare(char *cfgfile, char *weightfile)
 	int N = plist->size;
 	printf("%d\n", N);
 	clock_t time;
-	pthread_t load_thread;
 	data train;
 	data buffer;
 
@@ -33,17 +32,18 @@ void train_compare(char *cfgfile, char *weightfile)
 	args.d = &buffer;
 	args.type = COMPARE_DATA;
 
-	load_thread = load_data_in_thread(args);
+	std::thread load_thread = delete_me_load_data_in_thread(args);
 	int epoch = *net.seen/N;
 	int i = 0;
 	while(1)
 	{
 		++i;
 		time=clock();
-		pthread_join(load_thread, 0);
+		load_thread.join();
+
 		train = buffer;
 
-		load_thread = load_data_in_thread(args);
+		load_thread = delete_me_load_data_in_thread(args);
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
 		time=clock();
 		float loss = train_network(net, train);
@@ -65,7 +65,7 @@ void train_compare(char *cfgfile, char *weightfile)
 			if(epoch%22 == 0) net.learning_rate *= .1;
 		}
 	}
-	pthread_join(load_thread, 0);
+	load_thread.join();
 	Darknet::free_data(buffer);
 	free_network(net);
 	free_ptrs((void**)paths, plist->size);
@@ -106,12 +106,12 @@ void validate_compare(char *filename, char *weightfile)
 	args.d = &buffer;
 	args.type = COMPARE_DATA;
 
-	pthread_t load_thread = load_data_in_thread(args);
+	std::thread load_thread = delete_me_load_data_in_thread(args);
 	for(i = 1; i <= splits; ++i)
 	{
 		time=clock();
 
-		pthread_join(load_thread, 0);
+		load_thread.join();
 		val = buffer;
 
 		num = (i+1)*N/splits - i*N/splits;
@@ -119,7 +119,7 @@ void validate_compare(char *filename, char *weightfile)
 		if(i != splits)
 		{
 			args.paths = part;
-			load_thread = load_data_in_thread(args);
+			load_thread = delete_me_load_data_in_thread(args);
 		}
 		printf("Loaded: %d images in %lf seconds\n", val.X.rows, sec(clock()-time));
 
