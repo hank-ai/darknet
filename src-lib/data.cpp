@@ -56,6 +56,20 @@ namespace
 	 */
 	std::atomic<bool> image_data_loading_threads_must_exit = false;
 
+
+	static const int thread_wait_ms = 5;
+	static volatile int flag_exit;
+	static volatile int * run_load_data = NULL;
+	static load_args * args_swap = NULL;
+
+	/** Permanent data-loading (image, bboxes) threads started by @ref load_threads().
+	 *
+	 * @since 2024-04-08
+	 */
+	static Darknet::VThreads data_loading_threads;
+
+	static std::mutex load_data_mutex;
+
 }
 
 
@@ -1482,18 +1496,6 @@ std::thread delete_me_load_data_in_thread(load_args args)
 }
 
 
-namespace
-{
-	static const int thread_wait_ms = 5;
-	static volatile int flag_exit;
-	static volatile int * run_load_data = NULL;
-	static load_args * args_swap = NULL;
-	static pthread_t* threads = NULL;
-
-	static std::mutex load_data_mutex;
-}
-
-
 void *run_thread_loop(void *ptr)
 {
 	TAT(TATPARMS);
@@ -1531,26 +1533,29 @@ void *load_threads(void *ptr)
 
 	int i;
 	load_args args = *(load_args *)ptr;
-	if (args.threads == 0) args.threads = 1;
+	if (args.threads == 0)
+	{
+		args.threads = 1;
+	}
 	data *out = args.d;
 	int total = args.n;
 	free(ptr);
 	data* buffers = (data*)xcalloc(args.threads, sizeof(data));
-	if (!threads)
+
+	if (data_loading_threads.empty())
 	{
-		threads = (pthread_t*)xcalloc(args.threads, sizeof(pthread_t));
+		data_loading_threads.reserve(args.threads);
+
 		run_load_data = (volatile int *)xcalloc(args.threads, sizeof(int));
 		args_swap = (load_args *)xcalloc(args.threads, sizeof(load_args));
-		fprintf(stderr, " Create %d permanent cpu-threads \n", args.threads);
+
+		std::cout << "Creating " << args.threads << " permanent CPU threads to load images and bounding boxes." << std::endl;
 
 		for (i = 0; i < args.threads; ++i)
 		{
 			int* ptr = (int*)xcalloc(1, sizeof(int));
 			*ptr = i;
-			if (pthread_create(&threads[i], 0, run_thread_loop, ptr))
-			{
-				darknet_fatal_error(DARKNET_LOC, "Thread creation failed");
-			}
+			data_loading_threads.emplace_back(run_thread_loop, ptr);
 		}
 	}
 
@@ -1567,7 +1572,10 @@ void *load_threads(void *ptr)
 	}
 	for (i = 0; i < args.threads; ++i)
 	{
-		while (custom_atomic_load_int(&run_load_data[i])) this_thread_sleep_for(thread_wait_ms); //   join
+		while (custom_atomic_load_int(&run_load_data[i]))
+		{
+			this_thread_sleep_for(thread_wait_ms); //   join
+		}
 	}
 
 	*out = concat_datas(buffers, args.threads);
@@ -1586,23 +1594,19 @@ void free_load_threads(void *ptr)
 {
 	TAT(TATPARMS);
 
-	load_args args = *(load_args *)ptr;
-	if (args.threads == 0)
-	{
-		args.threads = 1;
-	}
-
-	if (threads)
+	if (not data_loading_threads.empty())
 	{
 		custom_atomic_store_int(&flag_exit, 1);
-		for (int i = 0; i < args.threads; ++i)
+		for (auto & t : data_loading_threads)
 		{
-			pthread_join(threads[i], 0);
+			if (t.joinable())
+			{
+				t.join();
+			}
 		}
 		free((void*)run_load_data);
 		free(args_swap);
-		free(threads);
-		threads = NULL;
+		data_loading_threads.clear();
 		custom_atomic_store_int(&flag_exit, 0);
 	}
 }
