@@ -48,7 +48,8 @@ void train_tag(char *cfgfile, char *weightfile, int clear)
 
 	fprintf(stderr, "%d classes\n", net.outputs);
 
-	std::thread load_thread = delete_me_load_data_in_thread(args);
+	std::thread load_thread(Darknet::load_single_image_data, args);
+
 	int epoch = (*net.seen)/N;
 	while(get_current_batch(net) < net.max_batches || net.max_batches == 0)
 	{
@@ -56,7 +57,8 @@ void train_tag(char *cfgfile, char *weightfile, int clear)
 		load_thread.join();
 		train = buffer;
 
-		load_thread = delete_me_load_data_in_thread(args);
+		load_thread = std::thread(Darknet::load_single_image_data, args);
+
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
 		time=clock();
 		float loss = train_network(net, train);

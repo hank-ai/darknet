@@ -63,7 +63,7 @@ void train_captcha(char *cfgfile, char *weightfile)
 	args.d = &buffer;
 	args.type = CLASSIFICATION_DATA;
 
-	std::thread load_thread = delete_me_load_data_in_thread(args);
+	std::thread load_thread(Darknet::load_single_image_data, args);
 
 	/// @todo no way this code was ever used -- it doesn't even have a way to break out of this infinite loop!?
 
@@ -75,7 +75,8 @@ void train_captcha(char *cfgfile, char *weightfile)
 		train = buffer;
 		fix_data_captcha(train, solved);
 
-		load_thread = delete_me_load_data_in_thread(args);
+		load_thread = std::thread(Darknet::load_single_image_data, args);
+
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
 		time=clock();
 		float loss = train_network(net, train);

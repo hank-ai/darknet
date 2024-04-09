@@ -53,7 +53,8 @@ void train_coco(char *cfgfile, char *weightfile)
 	args.saturation = net.saturation;
 	args.hue = net.hue;
 
-	std::thread load_thread = delete_me_load_data_in_thread(args);
+	std::thread load_thread(Darknet::load_single_image_data, args);
+
 	clock_t time;
 	//while(i*imgs < N*120){
 	while(get_current_batch(net) < net.max_batches)
@@ -62,17 +63,9 @@ void train_coco(char *cfgfile, char *weightfile)
 		time=clock();
 		load_thread.join();
 		train = buffer;
-		load_thread = delete_me_load_data_in_thread(args);
+		load_thread = std::thread(Darknet::load_single_image_data, args);
 
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
-
-		/*
-		image im = float_to_image(net.w, net.h, 3, train.X.vals[113]);
-		image copy = copy_image(im);
-		draw_coco(copy, train.y.vals[113], 7, "truth");
-		cvWaitKey(0);
-		free_image(copy);
-		*/
 
 		time=clock();
 		float loss = train_network(net, train);
@@ -184,7 +177,7 @@ void validate_coco(char *cfgfile, char *weightfile)
 		args.path = paths[i+t];
 		args.im = &buf[t];
 		args.resized = &buf_resized[t];
-		thr.emplace_back(delete_me_load_data_in_thread(args));
+		thr.emplace_back(Darknet::load_single_image_data, args);
 	}
 	time_t start = time(0);
 	for(i = nthreads; i < m+nthreads; i += nthreads)
@@ -201,7 +194,7 @@ void validate_coco(char *cfgfile, char *weightfile)
 			args.path = paths[i+t];
 			args.im = &buf[t];
 			args.resized = &buf_resized[t];
-			thr[t] = delete_me_load_data_in_thread(args);
+			thr[t] = std::thread(Darknet::load_single_image_data, args);
 		}
 		for(t = 0; t < nthreads && i+t-nthreads < m; ++t)
 		{

@@ -210,7 +210,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	}
 	//printf(" imgs = %d \n", imgs);
 
-	std::thread load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
+	std::thread load_thread = std::thread(Darknet::run_image_loading_threads, args);
 
 	int count = 0;
 
@@ -280,7 +280,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			load_thread.join();
 			train = buffer;
 			Darknet::free_data(train);
-			load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
+			load_thread = std::thread(Darknet::run_image_loading_threads, args);
 
 			for (int k = 0; k < ngpus; ++k)
 			{
@@ -297,7 +297,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			args.threads = net.sequential_subdivisions * ngpus;
 			printf(" sequential_subdivisions = %d, sequence = %d \n", net.sequential_subdivisions, get_sequence_value(net));
 		}
-		load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
+		load_thread = std::thread(Darknet::run_image_loading_threads, args);
 
 		const double load_time = (what_time_is_it_now() - time);
 		Darknet::display_loaded_images(args.n, load_time); // "loaded %d images in %s\n"
@@ -383,7 +383,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 				load_thread.join();
 				Darknet::free_data(train);
 				train = buffer;
-				load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
+				load_thread = std::thread(Darknet::run_image_loading_threads, args);
+
 				for (int k = 0; k < ngpus; ++k)
 				{
 					resize_network(nets + k, init_w, init_h);
@@ -477,7 +478,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	load_thread.join();
 	Darknet::free_data(buffer);
 
-	free_load_threads(&args);
+	Darknet::stop_image_loading_threads();
 
 	free(base);
 	free(paths);
@@ -823,7 +824,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 		args.path = paths[i + t];
 		args.im = &buf[t];
 		args.resized = &buf_resized[t];
-		thr.emplace_back(delete_me_load_data_in_thread(args));
+		thr.emplace_back(Darknet::load_single_image_data, args);
 	}
 	time_t start = time(0);
 	for (i = nthreads; i < m + nthreads; i += nthreads)
@@ -840,7 +841,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 			args.path = paths[i + t];
 			args.im = &buf[t];
 			args.resized = &buf_resized[t];
-			thr[t] = delete_me_load_data_in_thread(args);
+			thr[t] = std::thread(Darknet::load_single_image_data, args);
 		}
 		for (t = 0; t < nthreads && i + t - nthreads < m; ++t)
 		{
@@ -1138,7 +1139,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		args.path = paths[t];
 		args.im = &buf[t];
 		args.resized = &buf_resized[t];
-		thr.emplace_back(delete_me_load_data_in_thread(args));
+		thr.emplace_back(Darknet::load_single_image_data, args);
 	}
 	time_t start = time(0);
 	for (int i = nthreads; i < number_of_validation_images + nthreads; i += nthreads)
@@ -1159,7 +1160,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			args.path = paths[i + t];
 			args.im = &buf[t];
 			args.resized = &buf_resized[t];
-			thr[t] = delete_me_load_data_in_thread(args);
+			thr[t] = std::thread(Darknet::load_single_image_data, args);
 		}
 
 		for (int t = 0; t < nthreads && i + t - nthreads < number_of_validation_images; ++t)

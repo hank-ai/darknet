@@ -1057,9 +1057,6 @@ image resize_min(image im, int min);
 void free_layer_custom(layer l, int keep_cudnn_desc);
 void free_layer(layer l);
 
-// data.c
-void free_load_threads(void *ptr);
-
 // dark_cuda.h
 void cuda_pull_array(float *x_gpu, float *x, size_t n);
 void cuda_pull_array_async(float *x_gpu, float *x, size_t n);

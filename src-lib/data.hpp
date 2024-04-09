@@ -1,24 +1,13 @@
 #pragma once
 
-#include "darknet.h"
-#include "matrix.hpp"
-#include "list.hpp"
-#include "tree.hpp"
-
-#ifdef __cplusplus
-extern "C" {
+#ifndef __cplusplus
+#error "The darknet project requires the use of a C++ compiler."
 #endif
 
-static inline float distance_from_edge(int x, int max)
-{
-    int dx = (max/2) - x;
-    if (dx < 0) dx = -dx;
-    dx = (max/2) + 1 - dx;
-    dx *= 2;
-    float dist = (float)dx/max;
-    if (dist > 1) dist = 1;
-    return dist;
-}
+#include <thread>
+#include "darknet.h"
+#include "list.hpp"
+
 
 void print_letters(float *pred, int n);
 data load_data_old(char **paths, int n, int m, char **labels, int k, int w, int h, int c);
@@ -54,6 +43,56 @@ data concat_datas(data *d, int n);
 void fill_truth(char *path, char **labels, int k, float *truth);
 void fill_truth_smooth(char *path, char **labels, int k, float *truth, float label_smooth_eps);
 
-#ifdef __cplusplus
+
+namespace Darknet
+{
+	/** This runs as a @p std::thread.  It is started by the main thread during training and ensures the data-loading
+	 * threads are running.  This starts the thread that controls all of the permanent image loading threads.
+	 *
+	 * This was originally called @p load_threads() and used @p pthread, but has since been re-written to use C++11.
+	 *
+	 * @see @ref stop_image_loading_threads()
+	 *
+	 * @since 2024-03-31
+	 */
+	void run_image_loading_threads(load_args args);
+
+
+	/** Stop and join the image loading threads started in @ref Darknet::run_image_loading_threads().
+	 *
+	 * This was originally called @p free_load_threads() and used @p pthread, but has since been re-written to use C++11.
+	 *
+	 * @since 2024-04-02
+	 */
+	void stop_image_loading_threads();
+
+
+	/** Run the permanent thread image loading loop.  This is started by @ref Darknet::run_image_loading_threads(),
+	 * and is stopped by @ref Darknet::stop_image_loading_threads().
+	 *
+	 * This was originally called @p run_thread_loop() and used @p pthread, but has since been re-written to use C++11.
+	 *
+	 * @todo Fix param which should not be a @p void*.  This is a leftover of the previous @p pthread code.
+	 *
+	 * @since 2024-04-02
+	 */
+	void image_loading_loop(void * ptr);
+
+
+	/** Load the given image data as described by the @p load_args parameter.  This is typically used to load a single
+	 * image on a secondary thread.
+	 *
+	 * @warning The @p args are currently dynamically allocated by the caller, and then freed at the
+	 * bottom of this function.  This is carry-over from the @p pthread and @p C days, and will need to be fixed since
+	 * there is zero need to dynamically allocate and free this structure every time we load a new image.
+	 *
+	 * This was originally called @p load_thread().
+	 *
+	 * @since 2024-04-02
+	 */
+	void load_single_image_data(load_args args);
+
+
+	/// Frees the "data buffer" used to load images.
+	void free_data(data & d);
 }
-#endif

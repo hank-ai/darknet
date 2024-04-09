@@ -141,7 +141,7 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 	data buffer;
 	args.d = &buffer;
 
-	std::thread load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
+	std::thread load_thread = std::thread(Darknet::run_image_loading_threads, args);
 
 	int iter_save = get_current_batch(net);
 	int iter_save_last = get_current_batch(net);
@@ -158,7 +158,7 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 
 		load_thread.join();
 		train = buffer;
-		load_thread = Darknet::to_be_deleted_start_permanent_image_loading_threads(args);
+		load_thread = std::thread(Darknet::run_image_loading_threads, args);
 
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
 		time=clock();
@@ -321,7 +321,8 @@ void validate_classifier_crop(char *datacfg, char *filename, char *weightfile)
 	args.d = &buffer;
 	args.type = OLD_CLASSIFICATION_DATA;
 
-	std::thread load_thread = delete_me_load_data_in_thread(args);
+	std::thread load_thread(Darknet::load_single_image_data, args);
+
 	for(i = 1; i <= splits; ++i)
 	{
 		time=clock();
@@ -334,7 +335,7 @@ void validate_classifier_crop(char *datacfg, char *filename, char *weightfile)
 		if(i != splits)
 		{
 			args.paths = part;
-			load_thread = delete_me_load_data_in_thread(args);
+			load_thread = std::thread(Darknet::load_single_image_data, args);
 		}
 		printf("Loaded: %d images in %lf seconds\n", val.X.rows, sec(clock()-time));
 
@@ -874,7 +875,7 @@ void test_classifier(char *datacfg, char *cfgfile, char *weightfile, int target_
 	args.d = &buffer;
 	args.type = OLD_CLASSIFICATION_DATA;
 
-	std::thread load_thread = delete_me_load_data_in_thread(args);
+	std::thread load_thread(Darknet::load_single_image_data, args);
 	for(curr = net.batch; curr < m; curr += net.batch)
 	{
 		time=clock();
@@ -889,7 +890,7 @@ void test_classifier(char *datacfg, char *cfgfile, char *weightfile, int target_
 			{
 				args.n = m - curr;
 			}
-			load_thread = delete_me_load_data_in_thread(args);
+			load_thread = std::thread(Darknet::load_single_image_data, args);
 		}
 		fprintf(stderr, "Loaded: %d images in %lf seconds\n", val.X.rows, sec(clock()-time));
 

@@ -33,7 +33,8 @@ void train_super(char *cfgfile, char *weightfile)
 	args.d = &buffer;
 	args.type = SUPER_DATA;
 
-	std::thread load_thread = delete_me_load_data_in_thread(args);
+	std::thread load_thread = std::thread(Darknet::load_single_image_data, args);
+
 	clock_t time;
 	//while(i*imgs < N*120){
 	while(get_current_batch(net) < net.max_batches)
@@ -42,7 +43,7 @@ void train_super(char *cfgfile, char *weightfile)
 		time=clock();
 		load_thread.join();
 		train = buffer;
-		load_thread = delete_me_load_data_in_thread(args);
+		load_thread = std::thread(Darknet::load_single_image_data, args);
 
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
 
