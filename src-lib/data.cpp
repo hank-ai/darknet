@@ -62,13 +62,19 @@ namespace
 	 */
 	static Darknet::VThreads data_loading_threads;
 
+	/** Undocumented mutex around some of the file path logic.
+	 *
+	 * @todo Needs to be investigated, as there are zero comments indicating exactly what is being protected and why.
+	 * This used to be a pthread mutex, was converted to a normal C++11 std::mutex in March 2024.
+	 */
+	static std::mutex data_path_mutex;
+
+
 	/// @todo: delete these
 	static const int thread_wait_ms = 5;
-	static volatile int flag_exit;
-	static volatile int * run_load_data = NULL;
+	static volatile int * run_load_data = NULL; // per-thread, int that determines if thread can run 0=stop 1=go
 	static load_args * args_swap = NULL;
-	static std::mutex load_data_mutex;
-	static std::mutex data_mutex;
+	static std::mutex load_data_mutex; // used to protect access to args_swap
 }
 
 
@@ -102,19 +108,28 @@ char **get_sequential_paths(char **paths, int n, int m, int mini_batch, int augm
 	char** sequentia_paths = (char**)xcalloc(n, sizeof(char*));
 	int i;
 
-	std::scoped_lock lock(data_mutex);
+	std::scoped_lock lock(data_path_mutex);
 
 	//printf("n = %d, mini_batch = %d \n", n, mini_batch);
 	unsigned int *start_time_indexes = (unsigned int *)xcalloc(mini_batch, sizeof(unsigned int));
-	for (i = 0; i < mini_batch; ++i) {
-		if (contrastive && (i % 2) == 1) start_time_indexes[i] = start_time_indexes[i - 1];
-		else start_time_indexes[i] = random_gen() % m;
+	for (i = 0; i < mini_batch; ++i)
+	{
+		if (contrastive && (i % 2) == 1)
+		{
+			start_time_indexes[i] = start_time_indexes[i - 1];
+		}
+		else
+		{
+			start_time_indexes[i] = random_gen() % m;
+		}
 
 		//printf(" start_time_indexes[i] = %u, ", start_time_indexes[i]);
 	}
 
-	for (i = 0; i < n; ++i) {
-		do {
+	for (i = 0; i < n; ++i)
+	{
+		do
+		{
 			int time_line_index = i % mini_batch;
 			unsigned int index = start_time_indexes[time_line_index] % m;
 			start_time_indexes[time_line_index] += speed;
@@ -124,7 +139,10 @@ char **get_sequential_paths(char **paths, int n, int m, int mini_batch, int augm
 			//printf(" index = %d, ", index);
 			//if(i == 0) printf("%s\n", paths[index]);
 			//printf(" index = %u - grp: %s \n", index, paths[index]);
-			if (strlen(sequentia_paths[i]) <= 4) printf(" Very small path to the image: %s \n", sequentia_paths[i]);
+			if (strlen(sequentia_paths[i]) <= 4)
+			{
+				printf(" Very small path to the image: %s \n", sequentia_paths[i]);
+			}
 		} while (strlen(sequentia_paths[i]) == 0);
 	}
 	free(start_time_indexes);
@@ -139,19 +157,31 @@ char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 	char** random_paths = (char**)xcalloc(n, sizeof(char*));
 	int i;
 
-	std::scoped_lock lock(data_mutex);
+	std::scoped_lock lock(data_path_mutex);
 
 	int old_index = 0;
 	//printf("n = %d \n", n);
-	for(i = 0; i < n; ++i){
-		do {
+	for(i = 0; i < n; ++i)
+	{
+		do
+		{
 			int index = random_gen() % m;
-			if (contrastive && (i % 2 == 1)) index = old_index;
-			else old_index = index;
+			if (contrastive && (i % 2 == 1))
+			{
+				index = old_index;
+			}
+			else
+			{
+				old_index = index;
+			}
 			random_paths[i] = paths[index];
 			//if(i == 0) printf("%s\n", paths[index]);
 			//printf("grp: %s\n", paths[index]);
-			if (strlen(random_paths[i]) <= 4) printf(" Very small path to the image: %s \n", random_paths[i]);
+			if (strlen(random_paths[i]) <= 4)
+			{
+				printf(" Very small path to the image: %s \n", random_paths[i]);
+			}
+
 		} while (strlen(random_paths[i]) == 0);
 	}
 
@@ -169,11 +199,13 @@ char **find_replace_paths(char **paths, int n, char *find, char *replace)
 
 	char** replace_paths = (char**)xcalloc(n, sizeof(char*));
 	int i;
-	for(i = 0; i < n; ++i){
+	for(i = 0; i < n; ++i)
+	{
 		char replaced[4096];
 		find_replace(paths[i], find, replace, replaced);
 		replace_paths[i] = copy_string(replaced);
 	}
+
 	return replace_paths;
 }
 
@@ -187,7 +219,8 @@ matrix load_image_paths_gray(char **paths, int n, int w, int h)
 	X.vals = (float**)xcalloc(X.rows, sizeof(float*));
 	X.cols = 0;
 
-	for(i = 0; i < n; ++i){
+	for(i = 0; i < n; ++i)
+	{
 		image im = load_image(paths[i], w, h, 3);	///< @todo #COLOR
 
 		image gray = grayscale_image(im);
@@ -197,6 +230,7 @@ matrix load_image_paths_gray(char **paths, int n, int w, int h)
 		X.vals[i] = im.data;
 		X.cols = im.h*im.w*im.c;
 	}
+
 	return X;
 }
 
@@ -1654,57 +1688,51 @@ void Darknet::load_single_image_data(load_args args)
 }
 
 
-void Darknet::image_loading_loop(void *ptr)
+void Darknet::image_loading_loop(const int idx)
 {
+	// This loop runs on a secondary thread.
+
 	TAT(TATPARMS);
 
-	const int i = *(int *)ptr;
-
-	while (!custom_atomic_load_int(&flag_exit))
+	while (image_data_loading_threads_must_exit == false and cfg_and_state.must_immediately_exit == false)
 	{
-		while (!custom_atomic_load_int(&run_load_data[i]))
+		while (!custom_atomic_load_int(&run_load_data[idx]))
 		{
-			if (custom_atomic_load_int(&flag_exit))
+			if (image_data_loading_threads_must_exit)
 			{
-				free(ptr);
 				return;
 			}
 			this_thread_sleep_for(thread_wait_ms);
 		}
 
-#if 0
 		load_data_mutex.lock();
-		load_args *args_local = (load_args *)xcalloc(1, sizeof(load_args));
-		*args_local = args_swap[i];
-		load_data_mutex.unlock();
-#endif
-
-		load_data_mutex.lock();
-		load_args args_local = args_swap[i];
+		load_args args_local = args_swap[idx];
 		load_data_mutex.unlock();
 
 		Darknet::load_single_image_data(args_local);
 
-		custom_atomic_store_int(&run_load_data[i], 0);
+		custom_atomic_store_int(&run_load_data[idx], 0);
 	}
-	free(ptr);
 
 	return;
 }
 
 void Darknet::run_image_loading_threads(load_args args)
 {
+	/* NOTE:  This is normally started on a new thread!  For example, you might see this:
+	 *
+	 *		std::thread t(Darknet::run_image_loading_threads, args);
+	 */
+
 	TAT(TATPARMS);
 
-//	int i;
-//	load_args args = *(load_args *)ptr;
 	if (args.threads == 0)
 	{
 		args.threads = 1;
 	}
 	data *out = args.d;
 	int total = args.n;
-//	free(ptr);
+
 	data* buffers = (data*)xcalloc(args.threads, sizeof(data));
 
 	if (data_loading_threads.empty())
@@ -1718,9 +1746,7 @@ void Darknet::run_image_loading_threads(load_args args)
 
 		for (int i = 0; i < args.threads; ++i)
 		{
-			int* ptr = (int*)xcalloc(1, sizeof(int));
-			*ptr = i;
-			data_loading_threads.emplace_back(image_loading_loop, ptr);
+			data_loading_threads.emplace_back(image_loading_loop, i);
 		}
 	}
 
@@ -1756,13 +1782,15 @@ void Darknet::run_image_loading_threads(load_args args)
 	return;
 }
 
+
 void Darknet::stop_image_loading_threads()
 {
 	TAT(TATPARMS);
 
 	if (not data_loading_threads.empty())
 	{
-		custom_atomic_store_int(&flag_exit, 1);
+		image_data_loading_threads_must_exit = true;
+
 		for (auto & t : data_loading_threads)
 		{
 			if (t.joinable())
@@ -1773,8 +1801,11 @@ void Darknet::stop_image_loading_threads()
 		free((void*)run_load_data);
 		free(args_swap);
 		data_loading_threads.clear();
-		custom_atomic_store_int(&flag_exit, 0);
+
+		image_data_loading_threads_must_exit = false;
 	}
+
+	return;
 }
 
 

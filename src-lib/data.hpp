@@ -72,11 +72,9 @@ namespace Darknet
 	 *
 	 * This was originally called @p run_thread_loop() and used @p pthread, but has since been re-written to use C++11.
 	 *
-	 * @todo Fix param which should not be a @p void*.  This is a leftover of the previous @p pthread code.
-	 *
 	 * @since 2024-04-02
 	 */
-	void image_loading_loop(void * ptr);
+	void image_loading_loop(const int idx);
 
 
 	/** Load the given image data as described by the @p load_args parameter.  This is typically used to load a single
