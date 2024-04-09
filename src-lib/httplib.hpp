@@ -119,7 +119,6 @@ using socket_t = SOCKET;
 #ifdef CPPHTTPLIB_USE_POLL
 #include <poll.h>
 #endif
-#include <pthread.h>
 #include <csignal>
 #include <sys/select.h>
 #include <sys/socket.h>

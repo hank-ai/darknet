@@ -1007,6 +1007,8 @@ int detections_comparator(const void *pa, const void *pb)
 {
 	TAT(TATPARMS);
 
+	/// @todo inline this with std::sort() to simplify things...also check to see where else code like this exists, I think there are several qsorts with this functionality
+
 	box_prob a = *(const box_prob *)pa;
 	box_prob b = *(const box_prob *)pb;
 	float diff = a.p - b.p;
@@ -1341,6 +1343,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	}
 
 	// SORT(detections)
+	/// @todo replace qsort() highest priority
 	qsort(detections, detections_count, sizeof(box_prob), detections_comparator);
 
 	typedef struct {
@@ -1739,6 +1742,7 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 	// K-means
 	anchors_data = do_kmeans(boxes_data, num_of_clusters);
 
+	/// @todo replace qsort() lowest priority
 	qsort((void*)anchors_data.centers.vals, num_of_clusters, 2 * sizeof(float), (__compar_fn_t)anchors_data_comparator);
 
 	//gen_anchors.py = 1.19, 1.99, 2.79, 4.60, 4.53, 8.92, 8.06, 5.29, 10.32, 10.66

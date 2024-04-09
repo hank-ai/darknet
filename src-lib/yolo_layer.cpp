@@ -1,17 +1,4 @@
-#include "yolo_layer.hpp"
-#include "activations.hpp"
-#include "blas.hpp"
-#include "box.hpp"
-#include "dark_cuda.hpp"
-#include "utils.hpp"
-#include "Timing.hpp"
-
-#include <math.h>
-#include <stdio.h>
-#include <assert.h>
-#include <string.h>
-#include <stdlib.h>
-#include <cfloat>
+#include "darknet_internal.hpp"
 
 extern int check_mistakes;
 
@@ -405,7 +392,7 @@ typedef struct train_yolo_args {
 	int class_count;
 } train_yolo_args;
 
-void *process_batch(void* ptr)
+void process_batch(void* ptr)
 {
 	TAT(TATPARMS);
 
@@ -694,7 +681,7 @@ void *process_batch(void* ptr)
 
 	}
 
-	return 0;
+	return;
 }
 
 
@@ -751,7 +738,8 @@ void forward_yolo_layer(const layer l, network_state state)
 
 
 	int num_threads = l.batch;
-	pthread_t* threads = (pthread_t*)calloc(num_threads, sizeof(pthread_t));
+	Darknet::VThreads threads;
+	threads.reserve(num_threads);
 
 	struct train_yolo_args* yolo_args = (train_yolo_args*)xcalloc(l.batch, sizeof(struct train_yolo_args));
 
@@ -767,15 +755,12 @@ void forward_yolo_layer(const layer l, network_state state)
 		yolo_args[b].count = 0;
 		yolo_args[b].class_count = 0;
 
-		if (pthread_create(&threads[b], 0, process_batch, &(yolo_args[b])))
-		{
-			darknet_fatal_error(DARKNET_LOC, "YOLO thread creation failed");
-		}
+		threads.emplace_back(process_batch, &(yolo_args[b]));
 	}
 
 	for (int b = 0; b < l.batch; b++)
 	{
-		pthread_join(threads[b], 0);
+		threads[b].join();
 
 		tot_iou += yolo_args[b].tot_iou;
 		tot_iou_loss += yolo_args[b].tot_iou_loss;
@@ -785,7 +770,6 @@ void forward_yolo_layer(const layer l, network_state state)
 	}
 
 	free(yolo_args);
-	free(threads);
 
 	// Search for an equidistant point from the distant boundaries of the local minimum
 	int iteration_num = get_current_iteration(state.net);

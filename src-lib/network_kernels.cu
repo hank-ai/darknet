@@ -143,7 +143,10 @@ void forward_network_gpu(network net, network_state state)
 	if (net.benchmark_layers)
 	{
 		printf("\n\nSorted by time (forward):\n");
+
+		/// @todo replace qsort() unknown priority
 		qsort(sorted_avg_time_per_layer, net.n, sizeof(time_benchmark_layers), time_comparator);
+
 		for (i = 0; i < net.n; ++i)
 		{
 			//printf("layer %d - type: %d - avg_time %lf ms \n", avg_time_per_layer[i].layer_id, avg_time_per_layer[i].layer_type, avg_time_per_layer[i].time);
@@ -270,10 +273,15 @@ void backward_network_gpu(network net, network_state state)
 		constrain_min_max_ongpu(x_size, 0, 1, original_input, 1);
 	}
 
-	if (net.benchmark_layers) {
+	if (net.benchmark_layers)
+	{
 		printf("\n\nSorted by time (backward):\n");
+
+		/// @todo replace qsort() unknown priority
 		qsort(sorted_avg_time_per_layer, net.n, sizeof(time_benchmark_layers), time_comparator);
-		for (i = 0; i < net.n; ++i) {
+
+		for (i = 0; i < net.n; ++i)
+		{
 			//printf("layer %d - type: %d - avg_time %lf ms \n", avg_time_per_layer[i].layer_id, avg_time_per_layer[i].layer_type, avg_time_per_layer[i].time);
 			printf("%d - bw-sort-layer %d - type: %d - avg_time %lf ms \n", i, sorted_avg_time_per_layer[i].layer_id, sorted_avg_time_per_layer[i].layer_type, sorted_avg_time_per_layer[i].time);
 		}
@@ -651,20 +659,16 @@ void *sync_layer_thread(void *ptr)
 	return 0;
 }
 
-pthread_t sync_layer_in_thread(network *nets, int n, int j)
+std::thread sync_layer_in_thread(network *nets, int n, int j)
 {
 	TAT(TATPARMS);
 
-	pthread_t thread;
 	sync_args *ptr = (sync_args *)calloc(1, sizeof(sync_args));
 	ptr->nets = nets;
 	ptr->n = n;
 	ptr->j = j;
 
-	if(pthread_create(&thread, 0, sync_layer_thread, ptr))
-	{
-		darknet_fatal_error(DARKNET_LOC, "sync layer thread creation failed");
-	}
+	std::thread thread(sync_layer_thread, ptr);
 
 	return thread;
 }
@@ -675,7 +679,9 @@ void sync_nets(network *nets, int n, int interval)
 
 	int j;
 	int layers = nets[0].n;
-	pthread_t *threads = (pthread_t *) calloc(layers, sizeof(pthread_t));
+
+	std::vector<std::thread> threads;
+	threads.reserve(layers);
 
 	*nets[0].seen += interval * (n-1) * nets[0].batch * nets[0].subdivisions;
 	for (j = 0; j < n; ++j)
@@ -684,13 +690,15 @@ void sync_nets(network *nets, int n, int interval)
 	}
 	for (j = 0; j < layers; ++j)
 	{
-		threads[j] = sync_layer_in_thread(nets, n, j);
+		/// @todo move sync_layer_in_thread() and sync_layer_thread() into here as a lambda
+		threads.emplace_back(sync_layer_in_thread(nets, n, j));
 	}
 	for (j = 0; j < layers; ++j)
 	{
-		pthread_join(threads[j], 0);
+		threads[j].join();
 	}
-	free(threads);
+
+	return;
 }
 
 float train_networks(network *nets, int n, data d, int interval)

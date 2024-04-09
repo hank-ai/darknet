@@ -379,7 +379,9 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
 	detection_with_class* selected_detections = get_actual_detections(dets, num, thresh, &selected_detections_num, names);
 
 	// text output
+	/// @todo replace qsort() mid priority
 	qsort(selected_detections, selected_detections_num, sizeof(*selected_detections), compare_by_lefts);
+
 	int i;
 	for (i = 0; i < selected_detections_num; ++i)
 	{
@@ -419,7 +421,9 @@ void draw_detections_v3(image im, detection *dets, int num, float thresh, char *
 	}
 
 	// image output
+	/// @todo replace qsort() mid priority
 	qsort(selected_detections, selected_detections_num, sizeof(*selected_detections), compare_by_probs);
+
 	for (i = 0; i < selected_detections_num; ++i)
 	{
 		int width = im.h * .002;

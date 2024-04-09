@@ -245,8 +245,12 @@ void SortMaster3000(char *filename, char *weightfile)
 		boxes[i].elo = 1500;
 	}
 	clock_t time=clock();
+
+	/// @todo replace qsort() low priority
 	qsort(boxes, N, sizeof(sortable_bbox), bbox_comparator);
-	for(i = 0; i < N; ++i){
+
+	for(i = 0; i < N; ++i)
+	{
 		printf("%s\n", boxes[i].filename);
 	}
 	printf("Sorted in %d compares, %f secs\n", total_compares, sec(clock()-time));
@@ -296,23 +300,33 @@ void BattleRoyaleWithCheese(char *filename, char *weightfile)
 
 	int class_id;
 
-	for (class_id = 0; class_id < classes; ++class_id){
-
+	for (class_id = 0; class_id < classes; ++class_id)
+	{
 		N = total;
 		current_class_id = class_id;
+
+		/// @todo replace qsort() low priority
 		qsort(boxes, N, sizeof(sortable_bbox), elo_comparator);
 		N /= 2;
 
-		for(round = 1; round <= 100; ++round){
+		for(round = 1; round <= 100; ++round)
+		{
 			clock_t round_time=clock();
 			printf("Round: %d\n", round);
 
 			sorta_shuffle(boxes, N, sizeof(sortable_bbox), 10);
-			for(i = 0; i < N/2; ++i){
+			for(i = 0; i < N/2; ++i)
+			{
 				bbox_fight(net, boxes+i*2, boxes+i*2+1, classes, class_id);
 			}
+
+			/// @todo replace qsort() low priority
 			qsort(boxes, N, sizeof(sortable_bbox), elo_comparator);
-			if(round <= 20) N = (N*9/10)/2*2;
+
+			if(round <= 20)
+			{
+				N = (N*9/10)/2*2;
+			}
 
 			printf("Round: %f secs, %d remaining\n", sec(clock()-round_time), N);
 		}

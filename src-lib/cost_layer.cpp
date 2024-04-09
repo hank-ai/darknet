@@ -127,9 +127,17 @@ int float_abs_compare (const void * a, const void * b)
 	TAT(TATPARMS);
 
 	float fa = *(const float*) a;
-	if(fa < 0) fa = -fa;
+	if (fa < 0.0f)
+	{
+		fa = -fa;
+	}
+
 	float fb = *(const float*) b;
-	if(fb < 0) fb = -fb;
+	if (fb < 0.0f)
+	{
+		fb = -fb;
+	}
+
 	return (fa > fb) - (fa < fb);
 }
 
@@ -137,20 +145,32 @@ void forward_cost_layer_gpu(cost_layer l, network_state state)
 {
 	TAT(TATPARMS);
 
-	if (!state.truth) return;
-	if (l.cost_type == MASKED) {
+	if (!state.truth)
+	{
+		return;
+	}
+
+	if (l.cost_type == MASKED)
+	{
 		mask_ongpu(l.batch*l.inputs, state.input, SECRET_NUM, state.truth);
 	}
 
-	if(l.cost_type == SMOOTH){
+	if (l.cost_type == SMOOTH)
+	{
 		smooth_l1_gpu(l.batch*l.inputs, state.input, state.truth, l.delta_gpu, l.output_gpu);
-	} else {
+	}
+	else
+	{
 		l2_gpu(l.batch*l.inputs, state.input, state.truth, l.delta_gpu, l.output_gpu);
 	}
 
-	if(l.ratio){
+	if (l.ratio)
+	{
 		cuda_pull_array(l.delta_gpu, l.delta, l.batch*l.inputs);
+
+		/// @todo replace qsort() unknown priority
 		qsort(l.delta, l.batch*l.inputs, sizeof(float), float_abs_compare);
+
 		int n = (1-l.ratio) * l.batch*l.inputs;
 		float thresh = l.delta[n];
 		thresh = 0;

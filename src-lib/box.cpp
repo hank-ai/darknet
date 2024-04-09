@@ -619,22 +619,34 @@ void do_nms_sort_v2(box *boxes, float **probs, int total, int classes, float thr
 		s[i].probs = probs;
 	}
 
-	for(k = 0; k < classes; ++k){
-		for(i = 0; i < total; ++i){
+	for(k = 0; k < classes; ++k)
+	{
+		for(i = 0; i < total; ++i)
+		{
 			s[i].class_id = k;
 		}
+
+		/// @todo replace qsort() low priority
 		qsort(s, total, sizeof(sortable_bbox), nms_comparator);
-		for(i = 0; i < total; ++i){
-			if(probs[s[i].index][k] == 0) continue;
+
+		for(i = 0; i < total; ++i)
+		{
+			if(probs[s[i].index][k] == 0)
+			{
+				continue;
+			}
 			box a = boxes[s[i].index];
-			for(j = i+1; j < total; ++j){
+			for(j = i+1; j < total; ++j)
+			{
 				box b = boxes[s[j].index];
-				if (box_iou(a, b) > thresh){
+				if (box_iou(a, b) > thresh)
+				{
 					probs[s[j].index][k] = 0;
 				}
 			}
 		}
 	}
+
 	free(s);
 }
 
@@ -673,8 +685,10 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 
 	int i, j, k;
 	k = total - 1;
-	for (i = 0; i <= k; ++i) {
-		if (dets[i].objectness == 0) {
+	for (i = 0; i <= k; ++i)
+	{
+		if (dets[i].objectness == 0)
+		{
 			detection swap = dets[i];
 			dets[i] = dets[k];
 			dets[k] = swap;
@@ -684,20 +698,33 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 	}
 	total = k + 1;
 
-	for (i = 0; i < total; ++i) {
+	for (i = 0; i < total; ++i)
+	{
 		dets[i].sort_class = -1;
 	}
 
+	/// @todo replace qsort() higher priority
 	qsort(dets, total, sizeof(detection), nms_comparator_v3);
-	for (i = 0; i < total; ++i) {
-		if (dets[i].objectness == 0) continue;
+
+	for (i = 0; i < total; ++i)
+	{
+		if (dets[i].objectness == 0)
+		{
+			continue;
+		}
 		box a = dets[i].bbox;
-		for (j = i + 1; j < total; ++j) {
-			if (dets[j].objectness == 0) continue;
+		for (j = i + 1; j < total; ++j)
+		{
+			if (dets[j].objectness == 0)
+			{
+				continue;
+			}
 			box b = dets[j].bbox;
-			if (box_iou(a, b) > thresh) {
+			if (box_iou(a, b) > thresh)
+			{
 				dets[j].objectness = 0;
-				for (k = 0; k < classes; ++k) {
+				for (k = 0; k < classes; ++k)
+				{
 					dets[j].prob[k] = 0;
 				}
 			}
@@ -711,8 +738,10 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
 
 	int i, j, k;
 	k = total - 1;
-	for (i = 0; i <= k; ++i) {
-		if (dets[i].objectness == 0) {
+	for (i = 0; i <= k; ++i)
+	{
+		if (dets[i].objectness == 0)
+		{
 			detection swap = dets[i];
 			dets[i] = dets[k];
 			dets[k] = swap;
@@ -722,18 +751,29 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
 	}
 	total = k + 1;
 
-	for (k = 0; k < classes; ++k) {
-		for (i = 0; i < total; ++i) {
+	for (k = 0; k < classes; ++k)
+	{
+		for (i = 0; i < total; ++i)
+		{
 			dets[i].sort_class = k;
 		}
+
+		/// @todo replace qsort() higher priority
 		qsort(dets, total, sizeof(detection), nms_comparator_v3);
-		for (i = 0; i < total; ++i) {
+
+		for (i = 0; i < total; ++i)
+		{
 			//printf("  k = %d, \t i = %d \n", k, i);
-			if (dets[i].prob[k] == 0) continue;
+			if (dets[i].prob[k] == 0)
+			{
+				continue;
+			}
 			box a = dets[i].bbox;
-			for (j = i + 1; j < total; ++j) {
+			for (j = i + 1; j < total; ++j)
+			{
 				box b = dets[j].bbox;
-				if (box_iou(a, b) > thresh) {
+				if (box_iou(a, b) > thresh)
+				{
 					dets[j].prob[k] = 0;
 				}
 			}
@@ -786,8 +826,10 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 
 	int i, j, k;
 	k = total - 1;
-	for (i = 0; i <= k; ++i) {
-		if (dets[i].objectness == 0) {
+	for (i = 0; i <= k; ++i)
+	{
+		if (dets[i].objectness == 0)
+		{
 			detection swap = dets[i];
 			dets[i] = dets[k];
 			dets[k] = swap;
@@ -797,26 +839,38 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 	}
 	total = k + 1;
 
-	for (k = 0; k < classes; ++k) {
-		for (i = 0; i < total; ++i) {
-			dets[i].sort_class = k;
-		}
-		qsort(dets, total, sizeof(detection), nms_comparator_v3);
+	for (k = 0; k < classes; ++k)
+	{
 		for (i = 0; i < total; ++i)
 		{
-			if (dets[i].prob[k] == 0) continue;
+			dets[i].sort_class = k;
+		}
+
+		/// @todo replace qsort() lower priority
+		qsort(dets, total, sizeof(detection), nms_comparator_v3);
+
+		for (i = 0; i < total; ++i)
+		{
+			if (dets[i].prob[k] == 0)
+			{
+				continue;
+			}
 			box a = dets[i].bbox;
-			for (j = i + 1; j < total; ++j) {
+			for (j = i + 1; j < total; ++j)
+			{
 				box b = dets[j].bbox;
 				if (box_iou(a, b) > thresh && nms_kind == CORNERS_NMS)
 				{
 					dets[j].prob[k] = 0;
 				}
-				else if (box_diou(a, b) > thresh && nms_kind == GREEDY_NMS) {
+				else if (box_diou(a, b) > thresh && nms_kind == GREEDY_NMS)
+				{
 					dets[j].prob[k] = 0;
 				}
-				else {
-					if (box_diounms(a, b, beta1) > thresh && nms_kind == DIOU_NMS) {
+				else
+				{
+					if (box_diounms(a, b, beta1) > thresh && nms_kind == DIOU_NMS)
+					{
 						dets[j].prob[k] = 0;
 					}
 				}
