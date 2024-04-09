@@ -71,7 +71,8 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 #endif
 
 	fprintf(stderr, "yolo\n");
-	srand(time(0));
+	/// @todo why!?
+//	srand(time(0));
 
 	return l;
 }

@@ -77,18 +77,14 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		free_ptrs((void**)names, net_map.layers[net_map.n - 1].classes);
 	}
 
-	srand(time(0));
 	char *base = basecfg(cfgfile);
 
 	float avg_loss = -1.0f;
 	float avg_contrastive_acc = 0.0f;
 	network* nets = (network*)xcalloc(ngpus, sizeof(network));
 
-	srand(time(0)); /// @todo
-	int seed = rand();
 	for (int k = 0; k < ngpus; ++k)
 	{
-		srand(seed); /// @todo
 #ifdef GPU
 		cuda_set_device(gpus[k]);
 #endif
@@ -105,7 +101,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		}
 		nets[k].learning_rate *= ngpus;
 	}
-	srand(time(0));	/// @todo why again?
+
 	network net = nets[0];
 
 	const int actual_batch_size = net.batch * net.subdivisions;
@@ -120,7 +116,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
 	int imgs = net.batch * net.subdivisions * ngpus;
 	printf("Learning Rate: %g, Momentum: %g, Decay: %g\n", net.learning_rate, net.momentum, net.decay);
-	data train, buffer;
+	data train;
+	data buffer;
 
 	layer l = net.layers[net.n - 1];
 	for (int k = 0; k < net.n; ++k)
@@ -172,8 +169,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	net.num_boxes = args.num_boxes;
 	net.train_images_num = train_images_num;
 	args.d = &buffer;
-	args.type = DETECTION_DATA;
-	args.threads = 64;    // 16 or 64
+	args.type = DETECTION_DATA; // this is the only place in the code where this type is used
+	args.threads = 64;    // 16 or 64 -- see several lines below where this is set to 6 * GPUs
 
 	args.angle = net.angle;
 	args.gaussian_noise = net.gaussian_noise;
@@ -198,17 +195,26 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	// This is where we draw the initial blank chart.  That chart is then updated by update_train_loss_chart() at every iteration.
 	Darknet::initialize_new_charts(net.max_batches, net.max_chart_loss);
 
-	if (net.contrastive && args.threads > net.batch/2) args.threads = net.batch / 2;
+	if (net.contrastive && args.threads > net.batch/2)
+	{
+		args.threads = net.batch / 2;
+	}
+
 	if (net.track)
 	{
 		args.track = net.track;
 		args.augment_speed = net.augment_speed;
-		if (net.sequential_subdivisions) args.threads = net.sequential_subdivisions * ngpus;
-		else args.threads = net.subdivisions * ngpus;
+		if (net.sequential_subdivisions)
+		{
+			args.threads = net.sequential_subdivisions * ngpus;
+		}
+		else
+		{
+			args.threads = net.subdivisions * ngpus;
+		}
 		args.mini_batch = net.batch / net.time_steps;
 		printf("\n Tracking! batch = %d, subdiv = %d, time_steps = %d, mini_batch = %d \n", net.batch, net.subdivisions, net.time_steps, args.mini_batch);
 	}
-	//printf(" imgs = %d \n", imgs);
 
 	std::thread load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
@@ -725,7 +731,6 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 	fuse_conv_batchnorm(net);
 	calculate_binary_weights(net);
 	fprintf(stderr, "Learning Rate: %g, Momentum: %g, Decay: %g\n", net.learning_rate, net.momentum, net.decay);
-	srand(time(0));
 
 	list *plist = get_paths(valid_images);
 	char **paths = (char **)list_to_array(plist);
@@ -927,7 +932,6 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 	}
 	//set_batch_network(&net, 1);
 	fuse_conv_batchnorm(net);
-	srand(time(0));
 
 	//list *plist = get_paths("data/coco_val_5k.list");
 	list *options = read_data_cfg(datacfg);
@@ -1060,7 +1064,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	{
 		darknet_fatal_error(DARKNET_LOC, "in the file %s number of names %d is not equal to classes=%d in the file %s", name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
 	}
-	srand(time(0)); /// @todo Why are we doing this here?  every time we do the mAP% calculation?
+
 	printf("\n calculating mAP (mean average precision)...\n");
 
 	list *plist = get_paths(valid_images);
@@ -1683,7 +1687,6 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 	int classes = option_find_int(options, "classes", 1);
 	int* counter_per_class = (int*)xcalloc(classes, sizeof(int));
 
-	srand(time(0));
 	int number_of_boxes = 0;
 	printf(" read labels from %d images \n", number_of_images);
 
@@ -1868,7 +1871,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 			darknet_fatal_error(DARKNET_LOC, "number of names and classes do not match");
 		}
 	}
-	srand(2222222); /// @todo Why is this being done this way here?
+
 	char buff[256];
 	char *input = buff;
 	char *json_buf = NULL;
@@ -2042,7 +2045,6 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 		darknet_fatal_error(DARKNET_LOC, "number of names in %s (%d) does not match classes=%d in %s", name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
 	}
 
-	srand(2222222); /// @todo why??
 	char buff[256];
 	char *input = buff;
 

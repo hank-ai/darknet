@@ -54,7 +54,8 @@ region_layer make_region_layer(int batch, int w, int h, int n, int classes, int 
 #endif
 
 	fprintf(stderr, "detection\n");
-	srand(time(0));
+	/// @todo why!?
+//	srand(time(0));
 
 	return l;
 }

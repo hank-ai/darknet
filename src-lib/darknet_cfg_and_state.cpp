@@ -29,6 +29,11 @@ Darknet::CfgAndState & Darknet::CfgAndState::get()
 
 Darknet::CfgAndState & Darknet::CfgAndState::reset()
 {
+	// Seeding the old C-style rand() is peppered all over the codebase for some reason.
+	// I'm hoping we can do it once, and then nor worry about it again.  Eventually we
+	// can move to the new C++11 objects and functions for dealing with random numbers.
+	std::srand(std::time(nullptr));
+
 	must_immediately_exit	= false;
 	is_shown				= true;
 	colour_is_enabled		= true;

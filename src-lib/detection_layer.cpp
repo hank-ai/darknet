@@ -44,7 +44,8 @@ detection_layer make_detection_layer(int batch, int inputs, int n, int side, int
 #endif
 
 	fprintf(stderr, "Detection Layer\n");
-	srand(time(0));
+	/// @todo why!?
+//	srand(time(0));
 
 	return l;
 }
