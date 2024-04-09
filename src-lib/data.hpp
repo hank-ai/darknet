@@ -55,10 +55,10 @@ namespace Darknet
 	 *
 	 * @since 2024-03-31
 	 */
-	void run_image_loading_threads(load_args args);
+	void run_image_loading_control_thread(load_args args);
 
 
-	/** Stop and join the image loading threads started in @ref Darknet::run_image_loading_threads().
+	/** Stop and join the image loading threads started in @ref Darknet::run_image_loading_control_thread().
 	 *
 	 * This was originally called @p free_load_threads() and used @p pthread, but has since been re-written to use C++11.
 	 *
@@ -67,7 +67,7 @@ namespace Darknet
 	void stop_image_loading_threads();
 
 
-	/** Run the permanent thread image loading loop.  This is started by @ref Darknet::run_image_loading_threads(),
+	/** Run the permanent thread image loading loop.  This is started by @ref Darknet::run_image_loading_control_thread(),
 	 * and is stopped by @ref Darknet::stop_image_loading_threads().
 	 *
 	 * This was originally called @p run_thread_loop() and used @p pthread, but has since been re-written to use C++11.

@@ -141,7 +141,7 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 	data buffer;
 	args.d = &buffer;
 
-	std::thread load_thread = std::thread(Darknet::run_image_loading_threads, args);
+	std::thread load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 	int iter_save = get_current_batch(net);
 	int iter_save_last = get_current_batch(net);
@@ -158,7 +158,7 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
 
 		load_thread.join();
 		train = buffer;
-		load_thread = std::thread(Darknet::run_image_loading_threads, args);
+		load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 		printf("Loaded: %lf seconds\n", sec(clock()-time));
 		time=clock();

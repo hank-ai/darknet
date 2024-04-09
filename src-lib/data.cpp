@@ -10,7 +10,8 @@ namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
-	/** The permanent image loading threads started by @ref Darknet::run_image_loading_threads().
+#if 0
+	/** The permanent image loading threads started by @ref Darknet::run_image_loading_control_thread().
 	 *
 	 * @since 2024-04-03
 	 */
@@ -47,6 +48,8 @@ namespace
 	 * @since 2024-04-02
 	 */
 	std::condition_variable image_data_cache_trigger;
+#endif
+
 
 	/** Flag used by the image data loading threads to determine if they need to exit.
 	 *
@@ -54,13 +57,17 @@ namespace
 	 */
 	std::atomic<bool> image_data_loading_threads_must_exit = false;
 
-	/** Permanent data-loading (image, bboxes) threads started by @ref run_image_loading_threads().
+	/** @{
+	 * Permanent data-loading (image, bboxes) threads started by @ref run_image_loading_control_thread().
 	 *
 	 * @todo Check to see if it loads just images, or images and bboxes.
 	 *
 	 * @since 2024-04-08
 	 */
-	static Darknet::VThreads data_loading_threads;
+	static std::vector<std::thread>				data_loading_threads;
+//	static std::vector<std::mutex>				data_loading_mutexes;
+//	static std::vector<std::condition_variable>	data_loading_triggers;
+	/// @}
 
 	/** Undocumented mutex around some of the file path logic.
 	 *
@@ -161,7 +168,7 @@ char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 
 	int old_index = 0;
 	//printf("n = %d \n", n);
-	for(i = 0; i < n; ++i)
+	for (i = 0; i < n; ++i)
 	{
 		do
 		{
@@ -175,8 +182,6 @@ char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 				old_index = index;
 			}
 			random_paths[i] = paths[index];
-			//if(i == 0) printf("%s\n", paths[index]);
-			//printf("grp: %s\n", paths[index]);
 			if (strlen(random_paths[i]) <= 4)
 			{
 				printf(" Very small path to the image: %s \n", random_paths[i]);
@@ -1251,6 +1256,7 @@ void blend_truth_mosaic(float *new_truth, int boxes, int truth_size, float *old_
 	//printf("\n was %d bboxes, now %d bboxes \n", count_new_truth, t);
 }
 
+/// @todo DELETE THIS!
 #include "http_stream.hpp"
 
 data load_data_detection(int n, char **paths, int m, int w, int h, int c, int boxes, int truth_size, int classes, int use_flip, int use_gaussian_noise, int use_blur, int use_mixup,
@@ -1604,7 +1610,6 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 		if (random_paths) free(random_paths);
 	}
 
-
 	return d;
 }
 
@@ -1717,11 +1722,11 @@ void Darknet::image_loading_loop(const int idx)
 	return;
 }
 
-void Darknet::run_image_loading_threads(load_args args)
+void Darknet::run_image_loading_control_thread(load_args args)
 {
 	/* NOTE:  This is normally started on a new thread!  For example, you might see this:
 	 *
-	 *		std::thread t(Darknet::run_image_loading_threads, args);
+	 *		std::thread t(Darknet::run_image_loading_control_thread, args);
 	 */
 
 	TAT(TATPARMS);
@@ -1737,12 +1742,14 @@ void Darknet::run_image_loading_threads(load_args args)
 
 	if (data_loading_threads.empty())
 	{
-		data_loading_threads.reserve(args.threads);
+		std::cout << "Creating " << args.threads << " permanent CPU threads to load images and bounding boxes." << std::endl;
+
+		data_loading_threads	.reserve(args.threads);
+//		data_loading_triggers	.resize(args.threads);
+//		data_loading_mutexes	.resize(args.threads);
 
 		run_load_data = (volatile int *)xcalloc(args.threads, sizeof(int));
 		args_swap = (load_args *)xcalloc(args.threads, sizeof(load_args));
-
-		std::cout << "Creating " << args.threads << " permanent CPU threads to load images and bounding boxes." << std::endl;
 
 		for (int i = 0; i < args.threads; ++i)
 		{

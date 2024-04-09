@@ -210,7 +210,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	}
 	//printf(" imgs = %d \n", imgs);
 
-	std::thread load_thread = std::thread(Darknet::run_image_loading_threads, args);
+	std::thread load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 	int count = 0;
 
@@ -280,7 +280,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			load_thread.join();
 			train = buffer;
 			Darknet::free_data(train);
-			load_thread = std::thread(Darknet::run_image_loading_threads, args);
+
+			load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 			for (int k = 0; k < ngpus; ++k)
 			{
@@ -297,7 +298,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			args.threads = net.sequential_subdivisions * ngpus;
 			printf(" sequential_subdivisions = %d, sequence = %d \n", net.sequential_subdivisions, get_sequence_value(net));
 		}
-		load_thread = std::thread(Darknet::run_image_loading_threads, args);
+		load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 		const double load_time = (what_time_is_it_now() - time);
 		Darknet::display_loaded_images(args.n, load_time); // "loaded %d images in %s\n"
@@ -383,7 +384,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 				load_thread.join();
 				Darknet::free_data(train);
 				train = buffer;
-				load_thread = std::thread(Darknet::run_image_loading_threads, args);
+				load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 				for (int k = 0; k < ngpus; ++k)
 				{

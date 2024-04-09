@@ -944,8 +944,8 @@ typedef struct load_args {
 	int threads;
 	char **paths;
 	char *path;
-	int n;
-	int m;
+	int n; ///< number of images, or batch size?
+	int m; ///< maximum number of images?
 	char **labels;
 	int h;
 	int w;
