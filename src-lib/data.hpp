@@ -74,11 +74,15 @@ namespace Darknet
 	 *
 	 * @since 2024-04-02
 	 */
-	void image_loading_loop(const int idx);
+	void image_loading_loop(const int idx, load_args args);
 
 
-	/** Load the given image data as described by the @p load_args parameter.  This is typically used to load a single
-	 * image on a secondary thread.
+	/** Load the given image data as described by the @p load_args parameter.  This is typically used to load images on a
+	 * secondary thread, such as @ref image_loading_loop().
+	 *
+	 * @note The name is misleading.  While I initially thought a single image at a time was being loaded, the @p args.n
+	 * argument is used to describe the number of images that will be loaded together.  This will typically be the batch
+	 * size divided by the number of worker threads (default is 6 threads).
 	 *
 	 * This was originally called @p load_thread().
 	 *

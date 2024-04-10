@@ -900,7 +900,8 @@ typedef struct matrix
 
 // data.h
 typedef struct data {
-	int w, h;
+	int w;
+	int h;
 	matrix X;
 	matrix y;
 	int shallow;
