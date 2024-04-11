@@ -12,8 +12,6 @@
 #include <math.h>
 #include <ciso646>
 
-extern int check_mistakes;
-
 float colors[6][3] = { {1,0,1}, {0,0,1},{0,1,1},{0,1,0},{1,1,0},{1,0,0} };
 
 float get_color(int c, int x, int max)

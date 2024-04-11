@@ -142,7 +142,7 @@ float box_iou(const box & a, const box & b)
 	const float I = box_intersection(a, b);
 	if (I == 0.0f)
 	{
-		return 0;
+		return 0.0f;
 	}
 
 	// if intersection is non-zero, then union will of course be non-zero, so no need to worry about divide-by-zero
@@ -291,32 +291,38 @@ dxrep dx_box_iou(const box & pred, const box & truth, const IOU_LOSS iou_loss)
 	float p_db = 0;
 	float p_dl = 0;
 	float p_dr = 0;
-	if (U > 0 ) {
-	p_dt = ((U * dI_wrt_t) - (I * dU_wrt_t)) / (U * U);
-	p_db = ((U * dI_wrt_b) - (I * dU_wrt_b)) / (U * U);
-	p_dl = ((U * dI_wrt_l) - (I * dU_wrt_l)) / (U * U);
-	p_dr = ((U * dI_wrt_r) - (I * dU_wrt_r)) / (U * U);
+	if (U > 0 )
+	{
+		p_dt = ((U * dI_wrt_t) - (I * dU_wrt_t)) / (U * U);
+		p_db = ((U * dI_wrt_b) - (I * dU_wrt_b)) / (U * U);
+		p_dl = ((U * dI_wrt_l) - (I * dU_wrt_l)) / (U * U);
+		p_dr = ((U * dI_wrt_r) - (I * dU_wrt_r)) / (U * U);
 	}
+
 	// apply grad from prediction min/max for correct corner selection
 	p_dt = pred_tblr.top < pred_tblr.bot ? p_dt : p_db;
 	p_db = pred_tblr.top < pred_tblr.bot ? p_db : p_dt;
 	p_dl = pred_tblr.left < pred_tblr.right ? p_dl : p_dr;
 	p_dr = pred_tblr.left < pred_tblr.right ? p_dr : p_dl;
 
-	if (iou_loss == GIOU) {
-	if (giou_C > 0) {
-		// apply "C" term from gIOU
-		p_dt += ((giou_C * dU_wrt_t) - (U * dC_wrt_t)) / (giou_C * giou_C);
-		p_db += ((giou_C * dU_wrt_b) - (U * dC_wrt_b)) / (giou_C * giou_C);
-		p_dl += ((giou_C * dU_wrt_l) - (U * dC_wrt_l)) / (giou_C * giou_C);
-		p_dr += ((giou_C * dU_wrt_r) - (U * dC_wrt_r)) / (giou_C * giou_C);
-	}
-	if (Iw<=0||Ih<=0) {
-		p_dt = ((giou_C * dU_wrt_t) - (U * dC_wrt_t)) / (giou_C * giou_C);
-		p_db = ((giou_C * dU_wrt_b) - (U * dC_wrt_b)) / (giou_C * giou_C);
-		p_dl = ((giou_C * dU_wrt_l) - (U * dC_wrt_l)) / (giou_C * giou_C);
-		p_dr = ((giou_C * dU_wrt_r) - (U * dC_wrt_r)) / (giou_C * giou_C);
-	}
+	if (iou_loss == GIOU)
+	{
+		if (giou_C > 0)
+		{
+			// apply "C" term from gIOU
+			p_dt += ((giou_C * dU_wrt_t) - (U * dC_wrt_t)) / (giou_C * giou_C);
+			p_db += ((giou_C * dU_wrt_b) - (U * dC_wrt_b)) / (giou_C * giou_C);
+			p_dl += ((giou_C * dU_wrt_l) - (U * dC_wrt_l)) / (giou_C * giou_C);
+			p_dr += ((giou_C * dU_wrt_r) - (U * dC_wrt_r)) / (giou_C * giou_C);
+		}
+
+		if (Iw<=0||Ih<=0)
+		{
+			p_dt = ((giou_C * dU_wrt_t) - (U * dC_wrt_t)) / (giou_C * giou_C);
+			p_db = ((giou_C * dU_wrt_b) - (U * dC_wrt_b)) / (giou_C * giou_C);
+			p_dl = ((giou_C * dU_wrt_l) - (U * dC_wrt_l)) / (giou_C * giou_C);
+			p_dr = ((giou_C * dU_wrt_r) - (U * dC_wrt_r)) / (giou_C * giou_C);
+		}
 	}
 
 	float Ct = fmin(pred.y - pred.h / 2,truth.y - truth.h / 2);
@@ -370,37 +376,47 @@ dxrep dx_box_iou(const box & pred, const box & truth, const IOU_LOSS iou_loss)
 
 	// https://github.com/Zzh-tju/DIoU-darknet
 	// https://arxiv.org/abs/1911.08287
-	if (iou_loss == DIOU) {
-		if (C > 0) {
+	if (iou_loss == DIOU)
+	{
+		if (C > 0)
+		{
 			p_dx += (2*(truth.x-pred.x)*C-(2*Cw*dCw_dx+2*Ch*dCh_dx)*S) / (C * C);
 			p_dy += (2*(truth.y-pred.y)*C-(2*Cw*dCw_dy+2*Ch*dCh_dy)*S) / (C * C);
 			p_dw += (2*Cw*dCw_dw+2*Ch*dCh_dw)*S / (C * C);
 			p_dh += (2*Cw*dCw_dh+2*Ch*dCh_dh)*S / (C * C);
 		}
-	if (Iw<=0||Ih<=0){
-			p_dx = (2*(truth.x-pred.x)*C-(2*Cw*dCw_dx+2*Ch*dCh_dx)*S) / (C * C);
-			p_dy = (2*(truth.y-pred.y)*C-(2*Cw*dCw_dy+2*Ch*dCh_dy)*S) / (C * C);
-			p_dw = (2*Cw*dCw_dw+2*Ch*dCh_dw)*S / (C * C);
-			p_dh = (2*Cw*dCw_dh+2*Ch*dCh_dh)*S / (C * C);
+
+		if (Iw<=0||Ih<=0)
+		{
+				p_dx = (2*(truth.x-pred.x)*C-(2*Cw*dCw_dx+2*Ch*dCh_dx)*S) / (C * C);
+				p_dy = (2*(truth.y-pred.y)*C-(2*Cw*dCw_dy+2*Ch*dCh_dy)*S) / (C * C);
+				p_dw = (2*Cw*dCw_dw+2*Ch*dCh_dw)*S / (C * C);
+				p_dh = (2*Cw*dCw_dh+2*Ch*dCh_dh)*S / (C * C);
 		}
 	}
-	//The following codes are calculating the gradient of ciou.
 
-	if (iou_loss == CIOU) {
-	float ar_gt = truth.w / truth.h;
+	// The following codes are calculating the gradient of ciou.
+
+	if (iou_loss == CIOU)
+	{
+		float ar_gt = truth.w / truth.h;
 		float ar_pred = pred.w / pred.h;
 		float ar_loss = 4 / (M_PI * M_PI) * (atan(ar_gt) - atan(ar_pred)) * (atan(ar_gt) - atan(ar_pred));
-	float alpha = ar_loss / (1 - I/U + ar_loss + 0.000001);
-	float ar_dw=8/(M_PI*M_PI)*(atan(ar_gt)-atan(ar_pred))*pred.h;
+		float alpha = ar_loss / (1 - I/U + ar_loss + 0.000001);
+		float ar_dw=8/(M_PI*M_PI)*(atan(ar_gt)-atan(ar_pred))*pred.h;
 		float ar_dh=-8/(M_PI*M_PI)*(atan(ar_gt)-atan(ar_pred))*pred.w;
-		if (C > 0) {
-		// dar*
+
+		if (C > 0)
+		{
+			// dar*
 			p_dx += (2*(truth.x-pred.x)*C-(2*Cw*dCw_dx+2*Ch*dCh_dx)*S) / (C * C);
 			p_dy += (2*(truth.y-pred.y)*C-(2*Cw*dCw_dy+2*Ch*dCh_dy)*S) / (C * C);
 			p_dw += (2*Cw*dCw_dw+2*Ch*dCh_dw)*S / (C * C) + alpha * ar_dw;
 			p_dh += (2*Cw*dCw_dh+2*Ch*dCh_dh)*S / (C * C) + alpha * ar_dh;
 		}
-	if (Iw<=0||Ih<=0){
+
+		if (Iw<=0||Ih<=0)
+		{
 			p_dx = (2*(truth.x-pred.x)*C-(2*Cw*dCw_dx+2*Ch*dCh_dx)*S) / (C * C);
 			p_dy = (2*(truth.y-pred.y)*C-(2*Cw*dCw_dy+2*Ch*dCh_dy)*S) / (C * C);
 			p_dw = (2*Cw*dCw_dw+2*Ch*dCh_dw)*S / (C * C) + alpha * ar_dw;

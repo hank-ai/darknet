@@ -540,14 +540,24 @@ void upsample_cpu(float *in, int w, int h, int c, int batch, int stride, int for
 	TAT(TATPARMS);
 
 	int i, j, k, b;
-	for (b = 0; b < batch; ++b) {
-		for (k = 0; k < c; ++k) {
-			for (j = 0; j < h*stride; ++j) {
-				for (i = 0; i < w*stride; ++i) {
+	for (b = 0; b < batch; ++b)
+	{
+		for (k = 0; k < c; ++k)
+		{
+			for (j = 0; j < h*stride; ++j)
+			{
+				for (i = 0; i < w*stride; ++i)
+				{
 					int in_index = b*w*h*c + k*w*h + (j / stride)*w + i / stride;
 					int out_index = b*w*h*c*stride*stride + k*w*h*stride*stride + j*w*stride + i;
-					if (forward) out[out_index] = scale*in[in_index];
-					else in[in_index] += scale*out[out_index];
+					if (forward)
+					{
+						out[out_index] = scale*in[in_index];
+					}
+					else
+					{
+						in[in_index] += scale*out[out_index];
+					}
 				}
 			}
 		}
@@ -559,8 +569,8 @@ void constrain_cpu(int size, float ALPHA, float *X)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < size; ++i) {
+	for (int i = 0; i < size; ++i)
+	{
 		X[i] = fminf(ALPHA, fmaxf(-ALPHA, X[i]));
 	}
 }
@@ -569,11 +579,13 @@ void fix_nan_and_inf_cpu(float *input, size_t size)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < size; ++i) {
+	for (int i = 0; i < size; ++i)
+	{
 		float val = input[i];
 		if (isnan(val) || isinf(val))
+		{
 			input[i] = 1.0f / i;  // pseudo random value
+		}
 	}
 }
 
@@ -581,8 +593,8 @@ void get_embedding(float *src, int src_w, int src_h, int src_c, int embedding_si
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < embedding_size; ++i) {
+	for (int i = 0; i < embedding_size; ++i)
+	{
 		const int src_index = cur_b*(src_c*src_h*src_w) + cur_n*(embedding_size*src_h*src_w) + i*src_h*src_w + cur_h*(src_w) + cur_w;
 
 		const float val = src[src_index];
@@ -761,8 +773,12 @@ void grad_contrastive_loss_positive_f(size_t i, int *class_ids, int *labels, siz
 	const float vec_len = math_vector_length(z[i], feature_size);
 	size_t j;
 	float N = 0;
-	for (j = 0; j < num_of_samples; ++j) {
-		if (labels[i] == labels[j] && labels[i] >= 0) N++;
+	for (j = 0; j < num_of_samples; ++j)
+	{
+		if (labels[i] == labels[j] && labels[i] >= 0)
+		{
+			N++;
+		}
 	}
 	if (N == 0 || temperature == 0 || vec_len == 0)
 	{
@@ -770,13 +786,18 @@ void grad_contrastive_loss_positive_f(size_t i, int *class_ids, int *labels, siz
 	}
 	const float mult = 1 / ((N - 1) * temperature * vec_len);
 
-	for (j = 0; j < num_of_samples; ++j) {
+	for (j = 0; j < num_of_samples; ++j)
+	{
 		//if (i != j && (i/2) == (j/2)) {
-		if (i != j && labels[i] == labels[j] && labels[i] >= 0) {
+		if (i != j && labels[i] == labels[j] && labels[i] >= 0)
+		{
 			//printf(" i = %d, j = %d, num_of_samples = %d, labels[i] = %d, labels[j] = %d \n",
 			//    i, j, num_of_samples, labels[i], labels[j]);
 			const int sim_P_i = get_sim_P_index(i, j, contrast_p, contrast_p_size);
-			if (sim_P_i < 0) continue;
+			if (sim_P_i < 0)
+			{
+				continue;
+			}
 			const float sim = contrast_p[sim_P_i].sim;
 			const float P = contrast_p[sim_P_i].P;
 			//if (!check_sim(i, j, contrast_p, contrast_p_size)) continue;
@@ -787,7 +808,8 @@ void grad_contrastive_loss_positive_f(size_t i, int *class_ids, int *labels, siz
 
 			int m;
 			//const float d = mult*(sim * z[i][m] - z[j][m]) * (1 - P); // 1
-			for (m = 0; m < feature_size; ++m) {
+			for (m = 0; m < feature_size; ++m)
+			{
 				//const float d = mult*(sim * z[j][m] - z[j][m]) * (1 - P); // my
 				//const float d = mult*(sim * z[i][m] + sim * z[j][m] - z[j][m]) *(1 - P); // 1+2
 				const float d = mult*(sim * z[i][m] - z[j][m]) *(1 - P); // 1 (70%)

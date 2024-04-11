@@ -20,8 +20,6 @@ typedef __compar_fn_t comparison_fn_t;
 
 #include "http_stream.hpp"
 
-int check_mistakes = 0;
-
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
@@ -1705,14 +1703,11 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 			if (truth[j].x > 1 || truth[j].x <= 0 || truth[j].y > 1 || truth[j].y <= 0 ||
 				truth[j].w > 1 || truth[j].w <= 0 || truth[j].h > 1 || truth[j].h <= 0)
 			{
-				printf("\n\nWrong label: %s - j = %d, x = %f, y = %f, width = %f, height = %f \n",
-					labelpath, j, truth[j].x, truth[j].y, truth[j].w, truth[j].h);
-				sprintf(buff, "echo \"Wrong label: %s - j = %d, x = %f, y = %f, width = %f, height = %f\" >> bad_label.list",
-					labelpath, j, truth[j].x, truth[j].y, truth[j].w, truth[j].h);
-				system(buff);
-				if (check_mistakes) getchar();
+				darknet_fatal_error(DARKNET_LOC, "invalid annotation coordinates or size for class #%d in %s", truth[j].id, labelpath);
 			}
-			if (truth[j].id >= classes) {
+
+			if (truth[j].id >= classes)
+			{
 				classes = truth[j].id + 1;
 				counter_per_class = (int*)xrealloc(counter_per_class, classes * sizeof(int));
 			}
@@ -2187,7 +2182,6 @@ void run_detector(int argc, char **argv)
 	int show = find_arg(argc, argv, "-show");
 	int letter_box = find_arg(argc, argv, "-letter_box");
 	int map_points = find_int_arg(argc, argv, "-points", 0);
-	check_mistakes = find_arg(argc, argv, "-check_mistakes");
 	int show_imgs = find_arg(argc, argv, "-show_imgs");
 	int mjpeg_port = find_int_arg(argc, argv, "-mjpeg_port", -1);
 	int avgframes = find_int_arg(argc, argv, "-avgframes", 3);

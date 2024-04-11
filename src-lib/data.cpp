@@ -1,8 +1,6 @@
 #include "data.hpp"
 #include "darknet_internal.hpp"
 
-extern int check_mistakes;
-
 #define NUMCHARS 37
 
 
@@ -282,21 +280,9 @@ box_label *read_boxes(char *filename, int *n)
 	FILE *file = fopen(filename, "r");
 	if (!file)
 	{
-		printf("Can't open label file. (This can be normal only if you use MSCOCO): %s \n", filename);
-		//file_error(filename, DARKNET_LOC);
-		FILE* fw = fopen("bad.list", "a");
-		fwrite(filename, sizeof(char), strlen(filename), fw);
-		char *new_line = "\n";
-		fwrite(new_line, sizeof(char), strlen(new_line), fw);
-		fclose(fw);
-		if (check_mistakes)
-		{
-			darknet_fatal_error(DARKNET_LOC, "mistakes found while reading bounding boxes (%s)", filename);
-		}
-
-		*n = 0;
-		return boxes;
+		darknet_fatal_error(DARKNET_LOC, "failed to open annotation file \"%s\"", filename);
 	}
+
 	const int max_obj_img = 4000;// 30000;
 	const int img_hash = (custom_hash(filename) % max_obj_img)*max_obj_img;
 	//printf(" img_hash = %d, filename = %s; ", img_hash, filename);
@@ -524,7 +510,6 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 		id = boxes[i].id;
 		int track_id = boxes[i].track_id;
 
-/// @todo Search for getchar() in the lines below and turn all of these to calls into darknet_fatal_error()
 #ifdef __GNUC__
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wformat-overflow"
@@ -536,12 +521,7 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 		char buff[256];
 		if (id >= classes)
 		{
-			printf("\n Wrong annotation: class_id = %d. But class_id should be [from 0 to %d], file: %s \n", id, (classes-1), labelpath);
-			sprintf(buff, "echo %s \"Wrong annotation: class_id = %d. But class_id should be [from 0 to %d]\" >> bad_label.list", labelpath, id, (classes-1));
-			system(buff);
-			if (check_mistakes) getchar();
-			++sub;
-			continue;
+			darknet_fatal_error(DARKNET_LOC, "invalid class ID #%d in %s", id, labelpath);
 		}
 		if ((w < lowest_w || h < lowest_h))
 		{
@@ -553,37 +533,25 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 
 		if (x == 999999 || y == 999999)
 		{
-			printf("\n Wrong annotation: x = 0, y = 0, < 0 or > 1, file: %s \n", labelpath);
-			sprintf(buff, "echo %s \"Wrong annotation: x = 0 or y = 0\" >> bad_label.list", labelpath);
-			system(buff);
-			++sub;
-			if (check_mistakes) getchar();
-			continue;
+			darknet_fatal_error(DARKNET_LOC, "invalid annotation for class ID #%d in %s", id, labelpath);
 		}
-		if (x <= 0 || x > 1 || y <= 0 || y > 1)
+
+		/// @todo shouldn't this be x - w/2 < 0.0f?  And same for other variables?
+		if (x <= 0.0f || x > 1.0f || y <= 0.0f || y > 1.0f)
 		{
-			printf("\n Wrong annotation: x = %f, y = %f, file: %s \n", x, y, labelpath);
-			sprintf(buff, "echo %s \"Wrong annotation: x = %f, y = %f\" >> bad_label.list", labelpath, x, y);
-			system(buff);
-			++sub;
-			if (check_mistakes) getchar();
-			continue;
+			darknet_fatal_error(DARKNET_LOC, "invalid coordinates for class ID #%d in %s", id, labelpath);
 		}
-		if (w > 1)
+
+		/// @todo again, instead of checking for > 1, shouldn't we check x + w / 2 ?
+		if (w > 1.0f)
 		{
-			printf("\n Wrong annotation: w = %f, file: %s \n", w, labelpath);
-			sprintf(buff, "echo %s \"Wrong annotation: w = %f\" >> bad_label.list", labelpath, w);
-			system(buff);
-			w = 1;
-			if (check_mistakes) getchar();
+			darknet_fatal_error(DARKNET_LOC, "invalid width for class ID #%d in %s", id, labelpath);
 		}
-		if (h > 1)
+
+		/// @todo check for y - h/2 and y + h/2?
+		if (h > 1.0f)
 		{
-			printf("\n Wrong annotation: h = %f, file: %s \n", h, labelpath);
-			sprintf(buff, "echo %s \"Wrong annotation: h = %f\" >> bad_label.list", labelpath, h);
-			system(buff);
-			h = 1;
-			if (check_mistakes) getchar();
+			darknet_fatal_error(DARKNET_LOC, "invalid height for class ID #%d in %s", id, labelpath);
 		}
 
 #ifdef __GNUC__
@@ -1245,10 +1213,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
 	if (use_mixup == 2 || use_mixup == 4)
 	{
-		printf("\n cutmix=1 - isn't supported for Detector (use cutmix=1 only for Classifier) \n");
-		if (check_mistakes) getchar();
-		if(use_mixup == 2) use_mixup = 0;
-		else use_mixup = 3;
+		darknet_fatal_error(DARKNET_LOC, "cutmix=1 isn't supported for detector (only Classifier can use cutmix=1)");
 	}
 
 	if (use_mixup == 3 && letter_box)
@@ -1329,13 +1294,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			src = load_image_mat_cv(filename, c);
 			if (src == NULL)
 			{
-				printf("\n Error in load_data_detection() - OpenCV \n");
-				fflush(stdout);
-				if (check_mistakes)
-				{
-					getchar();
-				}
-				continue;
+				darknet_fatal_error(DARKNET_LOC, "failed to read image \"%s\"", filename);
 			}
 
 			const int oh = get_height_mat(src);	// original height
@@ -1718,7 +1677,7 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 {
 	// This loop runs on a secondary thread.
 
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-04-11");
 
 	const int number_of_threads	= args.threads;	// typically will be 6
 	const int number_of_images	= args.n;		// typically will be 64 (batch size)

@@ -364,15 +364,20 @@ void forward_contrastive_layer(contrastive_layer l, network_state state)
 									contrast_p[contrast_p_index].time_step_j = time_step_j;
 									contrast_p_index++;
 									//printf(" contrast_p_index = %d, contrast_p_size = %d \n", contrast_p_index, contrast_p_size);
-									if ((contrast_p_index+1) >= contrast_p_size) {
+									if ((contrast_p_index+1) >= contrast_p_size)
+									{
 										contrast_p_size = contrast_p_index + 1;
 										//printf(" contrast_p_size = %d, z_index = %d, z_index2 = %d \n", contrast_p_size, z_index, z_index2);
 										contrast_p = (contrastive_params*)xrealloc(contrast_p, contrast_p_size * sizeof(contrastive_params));
 									}
 
-									if (sim > 1.001 || sim < -1.001) {
-										printf(" sim = %f, ", sim); getchar();
+#if 0
+									if (sim > 1.001 || sim < -1.001)
+									{
+										printf(" sim = %f, ", sim);
+										getchar();
 									}
+#endif
 								}
 							}
 						}
