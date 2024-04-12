@@ -66,21 +66,22 @@ namespace Darknet
 
 #ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
 
-/// Create a @ref Darknet::TimingAndTracking object on the stack to generate some information allowing us to debug which parts of the code takes a long time to run.
-#define TAT(n) Darknet::TimingAndTracking tat(n)
+	/// Create a @ref Darknet::TimingAndTracking object on the stack to generate some information allowing us to debug which parts of the code takes a long time to run.
+	#define TAT(n) Darknet::TimingAndTracking tat(n)
 
-/// Similar to @ref TAT() but indicate this function or method was reviewed, as well as the date when it was last reviewed.
-#define TAT_REVIEWED(n, d) Darknet::TimingAndTracking tat(n, true, d)
+	/// Similar to @ref TAT() but indicate this function or method was reviewed, as well as the date when it was last reviewed.
+	#define TAT_REVIEWED(n, d) Darknet::TimingAndTracking tat(n, true, d)
 
-/// Similar to @ref TAT() but with a comment.
-#define TAT_COMMENT(n, c) Darknet::TimingAndTracking tat(n, false, c)
+	/// Similar to @ref TAT() but with a comment.
+	#define TAT_COMMENT(n, c) Darknet::TimingAndTracking tat(n, false, c)
 
-#define TATPARMS __PRETTY_FUNCTION__
+	#define TATPARMS __PRETTY_FUNCTION__
 
 #else
 
-#define TAT(...)
-#define TAT_REVIEWED(...)
-#define TATPARMS ""
+	#define TAT(...)
+	#define TAT_REVIEWED(...)
+	#define TAT_COMMENT(...)
+	#define TATPARMS ""
 
 #endif
