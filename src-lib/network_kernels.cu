@@ -144,7 +144,7 @@ void forward_network_gpu(network net, network_state state)
 	{
 		printf("\n\nSorted by time (forward):\n");
 
-		/// @todo replace qsort() unknown priority
+		/// @todo replace qsort() low priority
 		qsort(sorted_avg_time_per_layer, net.n, sizeof(time_benchmark_layers), time_comparator);
 
 		for (i = 0; i < net.n; ++i)
@@ -321,45 +321,59 @@ void forward_backward_network_gpu(network net, float *x, float *y)
 	state.net = net;
 	int x_size = get_network_input_size(net)*net.batch;
 	int y_size = get_network_output_size(net)*net.batch;
-	if(net.layers[net.n-1].truths) y_size = net.layers[net.n-1].truths*net.batch;
-	if(!*net.input_gpu){
+	if(net.layers[net.n-1].truths)
+	{
+		y_size = net.layers[net.n-1].truths*net.batch;
+	}
+	if(!*net.input_gpu)
+	{
 		*net.input_gpu = cuda_make_array(x, x_size);
 		*net.truth_gpu = cuda_make_array(y, y_size);
-	}else{
+	}
+	else
+	{
 		cuda_push_array(*net.input_gpu, x, x_size);
 		cuda_push_array(*net.truth_gpu, y, y_size);
 	}
 	state.input = *net.input_gpu;
 	state.delta = 0;
-	if (net.adversarial) {
+	if (net.adversarial)
+	{
 		state.delta = cuda_make_array(NULL, x_size);
 	}
 	state.truth = *net.truth_gpu;
 	state.train = 1;
 #if defined(CUDNN_HALF) && defined(CUDNN)
 	int i;
-	for (i = 0; i < net.n; ++i) {
+	for (i = 0; i < net.n; ++i)
+	{
 		layer l = net.layers[i];
-		if (net.cudnn_half){
-			if (l.type == CONVOLUTIONAL && l.weights_gpu && l.weights_gpu16) {
+		if (net.cudnn_half)
+		{
+			if (l.type == CONVOLUTIONAL && l.weights_gpu && l.weights_gpu16)
+			{
 				assert((l.nweights) > 0);
 				cuda_convert_f32_to_f16(l.weights_gpu, l.nweights, l.weights_gpu16);
 			}
-			else if (l.type == CRNN && l.input_layer->weights_gpu && l.input_layer->weights_gpu16) {
+			else if (l.type == CRNN && l.input_layer->weights_gpu && l.input_layer->weights_gpu16)
+			{
 				assert((l.input_layer->c*l.input_layer->n*l.input_layer->size*l.input_layer->size) > 0);
 				cuda_convert_f32_to_f16(l.input_layer->weights_gpu, l.input_layer->nweights, l.input_layer->weights_gpu16);
 				cuda_convert_f32_to_f16(l.self_layer->weights_gpu, l.self_layer->nweights, l.self_layer->weights_gpu16);
 				cuda_convert_f32_to_f16(l.output_layer->weights_gpu, l.output_layer->nweights, l.output_layer->weights_gpu16);
 			}
-			else if (l.type == CONV_LSTM && l.wf->weights_gpu && l.wf->weights_gpu16) {
+			else if (l.type == CONV_LSTM && l.wf->weights_gpu && l.wf->weights_gpu16)
+			{
 				assert((l.wf->c * l.wf->n * l.wf->size * l.wf->size) > 0);
-				if (l.peephole) {
+				if (l.peephole)
+				{
 					cuda_convert_f32_to_f16(l.vf->weights_gpu, l.vf->nweights, l.vf->weights_gpu16);
 					cuda_convert_f32_to_f16(l.vi->weights_gpu, l.vi->nweights, l.vi->weights_gpu16);
 					cuda_convert_f32_to_f16(l.vo->weights_gpu, l.vo->nweights, l.vo->weights_gpu16);
 				}
 				cuda_convert_f32_to_f16(l.wf->weights_gpu, l.wf->nweights, l.wf->weights_gpu16);
-				if (!l.bottleneck) {
+				if (!l.bottleneck)
+				{
 					cuda_convert_f32_to_f16(l.wi->weights_gpu, l.wi->nweights, l.wi->weights_gpu16);
 					cuda_convert_f32_to_f16(l.wg->weights_gpu, l.wg->nweights, l.wg->weights_gpu16);
 					cuda_convert_f32_to_f16(l.wo->weights_gpu, l.wo->nweights, l.wo->weights_gpu16);
@@ -376,11 +390,13 @@ void forward_backward_network_gpu(network net, float *x, float *y)
 	//cudaStreamSynchronize(get_cuda_stream());
 	backward_network_gpu(net, state);
 
-	if (net.adversarial) {
+	if (net.adversarial)
+	{
 		cuda_free(state.delta);
 		cuda_pull_array(*net.input_gpu, x, x_size);
 	}
-	if(*(state.net.total_bbox) > 0)
+
+	if (*(state.net.total_bbox) > 0)
 	{
 		printf("total_bbox=%d, rewritten_bbox=%f%%\n", *(state.net.total_bbox), 100.0f * (float)*(state.net.rewritten_bbox) / *(state.net.total_bbox));
 	}
@@ -391,15 +407,19 @@ float train_network_datum_gpu(network net, float *x, float *y)
 	TAT(TATPARMS);
 
 	*net.seen += net.batch;
-	if (net.adversarial_lr && rand_int(0, 1) == 1 && get_current_iteration(net) > net.burn_in) {
+	if (net.adversarial_lr && rand_int(0, 1) == 1 && get_current_iteration(net) > net.burn_in)
+	{
 		net.adversarial = 1;
 		float lr_old = net.learning_rate;
 		float scale = (get_current_iteration(net) / ((float)net.max_batches));
 		//scale = sin(scale * M_PI);
 		net.learning_rate = net.adversarial_lr * scale;
-//        layer l = net.layers[net.n - 1];
+//		layer l = net.layers[net.n - 1];
 		int y_size = get_network_output_size(net)*net.batch;
-		if (net.layers[net.n - 1].truths) y_size = net.layers[net.n - 1].truths*net.batch;
+		if (net.layers[net.n - 1].truths)
+		{
+			y_size = net.layers[net.n - 1].truths*net.batch;
+		}
 		float *truth_cpu = (float *)xcalloc(y_size, sizeof(float));
 
 		const int img_size = net.w*net.h*net.c;
@@ -411,8 +431,10 @@ float train_network_datum_gpu(network net, float *x, float *y)
 		forward_backward_network_gpu(net, x, truth_cpu);
 
 		int b;
-		for (b = 0; b < net.batch; ++b) {
-			if (b % 2 == 1 && net.contrastive) {
+		for (b = 0; b < net.batch; ++b)
+		{
+			if (b % 2 == 1 && net.contrastive)
+			{
 				//printf(" b = %d old img, ", b);
 				memcpy(x + img_size*b, old_input + img_size*b, img_size * sizeof(float));
 			}
@@ -435,7 +457,7 @@ float train_network_datum_gpu(network net, float *x, float *y)
 	forward_backward_network_gpu(net, x, y);
 	float error = get_network_cost(net);
 	//if (((*net.seen) / net.batch) % net.subdivisions == 0) update_network_gpu(net);
-	const int sequence = get_sequence_value(net);
+//	const int sequence = get_sequence_value(net);
 	//if (((*net.seen) / net.batch) % (net.subdivisions*sequence) == 0) update_network_gpu(net);
 
 	return error;

@@ -394,7 +394,7 @@ typedef struct train_yolo_args {
 
 void process_batch(void* ptr)
 {
-	TAT(TATPARMS);
+	TAT_COMMENT(TATPARMS, "complicated");
 
 	train_yolo_args *args = (train_yolo_args*)ptr;
 	const layer l = args->l;
@@ -490,7 +490,10 @@ void process_batch(void* ptr)
 				{
 					int stride = l.w * l.h;
 					float scale = pred.w * pred.h;
-					if (scale > 0) scale = sqrt(scale);
+					if (scale > 0)
+					{
+						scale = sqrt(scale);
+					}
 					l.delta[obj_index] = scale * l.obj_normalizer * (0 - l.output[obj_index]);
 					int cl_id;
 					int found_object = 0;

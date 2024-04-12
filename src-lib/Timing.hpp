@@ -72,6 +72,9 @@ namespace Darknet
 /// Similar to @ref TAT() but indicate this function or method was reviewed, as well as the date when it was last reviewed.
 #define TAT_REVIEWED(n, d) Darknet::TimingAndTracking tat(n, true, d)
 
+/// Similar to @ref TAT() but with a comment.
+#define TAT_COMMENT(n, c) Darknet::TimingAndTracking tat(n, false, c)
+
 #define TATPARMS __PRETTY_FUNCTION__
 
 #else

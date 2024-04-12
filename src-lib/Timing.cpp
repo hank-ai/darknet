@@ -66,13 +66,13 @@ Darknet::TimingRecords::~TimingRecords()
 	};
 	const MStrInt m =
 	{
-		{"calls"	, 8},
+		{"calls"	, 12},
 		{"min"		, 8},
 		{"max"		, 8},
 		{"total"	, 12},
-		{"average"	, 8},
+		{"average"	, 12},
 		{"reviewed"	, 8},
-		{"comment"	, 10},
+		{"comment"	, 12},
 		{"function"	, 8},
 	};
 

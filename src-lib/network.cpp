@@ -138,8 +138,15 @@ int get_sequence_value(network net)
 	TAT(TATPARMS);
 
 	int sequence = 1;
-	if (net.sequential_subdivisions != 0) sequence = net.subdivisions / net.sequential_subdivisions;
-	if (sequence < 1) sequence = 1;
+	if (net.sequential_subdivisions != 0)
+	{
+		sequence = net.subdivisions / net.sequential_subdivisions;
+	}
+	if (sequence < 1)
+	{
+		sequence = 1;
+	}
+
 	return sequence;
 }
 
@@ -396,8 +403,12 @@ float train_network_datum(network net, float *x, float *y)
 	TAT(TATPARMS);
 
 #ifdef GPU
-	if(cfg_and_state.gpu_index >= 0) return train_network_datum_gpu(net, x, y);
+	if(cfg_and_state.gpu_index >= 0)
+	{
+		return train_network_datum_gpu(net, x, y);
+	}
 #endif
+
 	network_state state={0};
 	*net.seen += net.batch;
 	state.index = 0;
@@ -447,7 +458,7 @@ float train_network(network net, data d)
 
 float train_network_waitkey(network net, data d, int wait_key)
 {
-	TAT(TATPARMS);
+	TAT_COMMENT(TATPARMS, "complicated");
 
 	assert(d.X.rows % net.batch == 0);
 	int batch = net.batch;
@@ -457,12 +468,16 @@ float train_network_waitkey(network net, data d, int wait_key)
 
 	int i;
 	float sum = 0;
-	for(i = 0; i < n; ++i){
+	for(i = 0; i < n; ++i)
+	{
 		get_next_batch(d, batch, i*batch, X, y);
 		net.current_subdivision = i;
 		float err = train_network_datum(net, X, y);
 		sum += err;
-		if(wait_key) wait_key_cv(5);
+		if(wait_key)
+		{
+			wait_key_cv(5);
+		}
 	}
 	(*net.cur_iteration) += 1;
 #ifdef GPU
@@ -497,7 +512,6 @@ float train_network_waitkey(network net, data d, int wait_key)
 		}
 	}
 
-
 	int reject_stop_point = net.max_batches*3/4;
 
 	if ((*net.cur_iteration) < reject_stop_point &&
@@ -508,9 +522,9 @@ float train_network_waitkey(network net, data d, int wait_key)
 		reject_similar_weights(net, sim_threshold);
 	}
 
-
 	free(X);
 	free(y);
+
 	return (float)sum/(n*batch);
 }
 
@@ -527,8 +541,10 @@ float train_network_batch(network net, data d, int n)
 	state.delta = 0;
 	float sum = 0;
 	int batch = 2;
-	for(i = 0; i < n; ++i){
-		for(j = 0; j < batch; ++j){
+	for (i = 0; i < n; ++i)
+	{
+		for (j = 0; j < batch; ++j)
+		{
 			int index = random_gen()%d.X.rows;
 			state.input = d.X.vals[index];
 			state.truth = d.y.vals[index];

@@ -361,7 +361,7 @@ Be patient.  The best weights will be saved as `animals_best.weights`.  And the 
 
 # Roadmap
 
-Last updated 2024-02-12:
+Last updated 2024-04-11:
 
 ## Short-term goals
 
