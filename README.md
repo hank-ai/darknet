@@ -406,4 +406,3 @@ Last updated 2024-04-11:
 * [ ] fix CUDA/CUDNN issues with all GPUs
 * [ ] look into adding support for non-NVIDIA GPUs
 * [ ] rotated bounding boxes, or some sort of "angle" support
-

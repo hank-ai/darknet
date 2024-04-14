@@ -44,10 +44,32 @@ IF (WIN32)
 	ADD_COMPILE_DEFINITIONS (_USE_MATH_DEFINES)
 ENDIF ()
 
+
 IF (UNIX)
+	# https://gcc.gnu.org/onlinedocs/gcc/Optimize-Options.html
+
 	ADD_COMPILE_OPTIONS (-Wall)					# enable "all" warnings
 	ADD_COMPILE_OPTIONS (-Wextra)				# enable even more warnings
 	ADD_COMPILE_OPTIONS (-Wno-unused-parameter)	# don't report this error
+	ADD_COMPILE_OPTIONS (-O3)					# turn on optimizations
+
+	# nvcc incorrectly fails to parse this flag as it expects a number to come after -O
+#	ADD_COMPILE_OPTIONS (-Ofast)				# turn on optimizations for speed
+
+	# this causes a problem with OpenCV where doubles are treated as if they were floats
+#	ADD_COMPILE_OPTIONS (-fsingle-precision-constant)	# treat floating-point constants as single precision instead of implicitly converting them to double-precision constants
+
+	# TODO Investigate these options further.  When I tried them in early April 2024, they did not seem to have a huge impact on training speed.
+#	ADD_COMPILE_OPTIONS (-ffast-math)			# this option can result in incorrect output for programs that depend on an exact implementation of IEEE or ISO rules/specifications for math functions.
+#	ADD_COMPILE_OPTIONS (-fno-math-errno)		# do not set errno after calling math functions that are executed with a single instruction [...] it can result in incorrect output for programs that depend on an exact implementation of IEEE or ISO rules/specifications for math functions
+#	ADD_COMPILE_OPTIONS (-funsafe-math-optimizations) # allow optimizations for floating-point arithmetic that (a) assume that arguments and results are valid and (b) may violate IEEE or ANSI standards.
+#	ADD_COMPILE_OPTIONS (-fassociative-math)	# allow re-association of operands in series of floating-point operations
+#	ADD_COMPILE_OPTIONS (-freciprocal-math)		# allow the reciprocal of a value to be used instead of dividing by the value if this enables optimizations
+#	ADD_COMPILE_OPTIONS (-ffinite-math-only)	# allow optimizations for floating-point arithmetic that assume that arguments and results are not NaNs or +-Infs
+#	ADD_COMPILE_OPTIONS (-fno-signed-zeros)		# allow optimizations for floating-point arithmetic that ignore the signedness of zero
+#	ADD_COMPILE_OPTIONS (-fno-trapping-math)	# compile code assuming that floating-point operations cannot generate user-visible traps
+#	ADD_COMPILE_OPTIONS (-frename-registers)	# attempt to avoid false dependencies in scheduled code by making use of registers left over after register allocation
+#	ADD_COMPILE_OPTIONS (-funroll-loops)		# unroll loops whose number of iterations can be determined at compile time or upon entry to the loop
 
 	# TODO remove the following options and clean up the code instead of ignoring the problem
 	ADD_COMPILE_OPTIONS (-Wno-write-strings)
@@ -57,15 +79,14 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-Wno-sign-compare)
 ENDIF ()
 
+
 # TODO: https://learn.microsoft.com/en-us/cpp/build/reference/fp-specify-floating-point-behavior?view=msvc-170
 # TODO: https://stackoverflow.com/questions/36501542/what-is-gcc-clang-equivalent-of-fp-model-fast-1-in-icc
-# TODO: -ffast-math and -funsafe-math-optimizations
 
 
 SET (BUILD_SHARED_LIBS TRUE)				# ADD_LIBRARY() will default to shared libs
 SET (CMAKE_ENABLE_EXPORTS TRUE)				# equivalent to -rdynamic (to get the backtrace when something goes wrong)
 SET (CMAKE_POSITION_INDEPENDENT_CODE ON)	# equivalent to -fpic (position independent code)
-
 
 INCLUDE_DIRECTORIES (src-cli)
 INCLUDE_DIRECTORIES (src-lib)
