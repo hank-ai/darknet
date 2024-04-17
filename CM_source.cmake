@@ -51,7 +51,6 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-Wall)					# enable "all" warnings
 	ADD_COMPILE_OPTIONS (-Wextra)				# enable even more warnings
 	ADD_COMPILE_OPTIONS (-Wno-unused-parameter)	# don't report this error
-
 	IF (CMAKE_BUILD_TYPE MATCHES DEBUG OR
 		CMAKE_BUILD_TYPE MATCHES Debug OR
 		CMAKE_BUILD_TYPE MATCHES debug)

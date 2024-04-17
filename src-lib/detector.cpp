@@ -230,15 +230,23 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		std::cout << std::endl;
 		errno = 0;
 
+		// yolov3-tiny, yolov3-tiny-3l, yolov3, and yolov4 all use "random=1"
+		// yolov4-tiny and yolov4-tiny-3l both use "random=0"
 		if (l.random && count++ % 10 == 0)
 		{
 			float rand_coef = 1.4;
-			if (l.random != 1.0) rand_coef = l.random;
+			if (l.random != 1.0)
+			{
+				rand_coef = l.random;
+			}
 			printf("Resizing, random_coef = %.2f \n", rand_coef);
 			float random_val = rand_scale(rand_coef);    // *x or /x
 			int dim_w = roundl(random_val*init_w / net.resize_step + 1) * net.resize_step;
 			int dim_h = roundl(random_val*init_h / net.resize_step + 1) * net.resize_step;
-			if (random_val < 1 && (dim_w > init_w || dim_h > init_h)) dim_w = init_w, dim_h = init_h;
+			if (random_val < 1 && (dim_w > init_w || dim_h > init_h))
+			{
+				dim_w = init_w, dim_h = init_h;
+			}
 
 			int max_dim_w = roundl(rand_coef*init_w / net.resize_step + 1) * net.resize_step;
 			int max_dim_h = roundl(rand_coef*init_h / net.resize_step + 1) * net.resize_step;
@@ -292,7 +300,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 				resize_network(nets + k, dim_w, dim_h);
 			}
 			net = nets[0];
-		}
+		} // random=1
+
 		double time = what_time_is_it_now();
 		load_thread.join();
 		train = buffer;
@@ -829,6 +838,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 		args.im = &buf[t];
 		args.resized = &buf_resized[t];
 		thr.emplace_back(Darknet::load_single_image_data, args);
+		cfg_and_state.set_thread_name(thr.back(), "validate loading thread #" + std::to_string(t));
 	}
 	time_t start = time(0);
 	for (i = nthreads; i < m + nthreads; i += nthreads)
@@ -837,6 +847,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 		for (t = 0; t < nthreads && i + t - nthreads < m; ++t)
 		{
 			thr[t].join();
+			cfg_and_state.del_thread_name(thr[t]);
 			val[t] = buf[t];
 			val_resized[t] = buf_resized[t];
 		}
@@ -846,6 +857,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 			args.im = &buf[t];
 			args.resized = &buf_resized[t];
 			thr[t] = std::thread(Darknet::load_single_image_data, args);
+			cfg_and_state.set_thread_name(thr.back(), "validate loading thread #" + std::to_string(t));
 		}
 		for (t = 0; t < nthreads && i + t - nthreads < m; ++t)
 		{
@@ -886,13 +898,17 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 			free_image(val_resized[t]);
 		}
 	}
-	if (fps) {
-		for (j = 0; j < classes; ++j) {
+	if (fps)
+	{
+		for (j = 0; j < classes; ++j)
+		{
 			fclose(fps[j]);
 		}
 		free(fps);
 	}
-	if (coco) {
+
+	if (coco)
+	{
 #ifdef WIN32
 		fseek(fp, -3, SEEK_CUR);
 #else
@@ -901,7 +917,8 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 		fprintf(fp, "\n]\n");
 	}
 
-	if (bdd) {
+	if (bdd)
+	{
 #ifdef WIN32
 		fseek(fp, -3, SEEK_CUR);
 #else
@@ -1143,6 +1160,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		args.im = &buf[t];
 		args.resized = &buf_resized[t];
 		thr.emplace_back(Darknet::load_single_image_data, args);
+		cfg_and_state.set_thread_name(thr.back(), "map loading thread #" + std::to_string(t));
 	}
 	time_t start = time(0);
 	for (int i = nthreads; i < number_of_validation_images + nthreads; i += nthreads)
@@ -1154,6 +1172,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		for (int t = 0; t < nthreads && (i + t - nthreads) < number_of_validation_images; ++t)
 		{
 			thr[t].join();
+			cfg_and_state.del_thread_name(thr[t]);
 			val[t] = buf[t];
 			val_resized[t] = buf_resized[t];
 		}
@@ -1164,6 +1183,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			args.im = &buf[t];
 			args.resized = &buf_resized[t];
 			thr[t] = std::thread(Darknet::load_single_image_data, args);
+			cfg_and_state.set_thread_name(thr[t], "map loading thread #" + std::to_string(t));
 		}
 
 		for (int t = 0; t < nthreads && i + t - nthreads < number_of_validation_images; ++t)

@@ -463,11 +463,12 @@ int main(int argc, char **argv)
 
 		// process the args before printing anything so we can handle "-colour" and "-nocolour" correctly
 		auto & cfg_and_state = Darknet::CfgAndState::get();
+		cfg_and_state.set_thread_name("main darknet thread");
 		cfg_and_state.process_arguments(argc, argv);
 
 		#ifdef _DEBUG
 		_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-		Darknet::display_warning_msg("_DEBUG is used\n");
+		Darknet::display_warning_msg("DEBUG is used\n");
 		#endif
 
 		#ifdef DEBUG

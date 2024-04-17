@@ -438,9 +438,18 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 	const auto is_locked = darknet_fatal_error_mutex.try_lock_for(std::chrono::seconds(5));
 
 	// only log the message and the rest of the information if this is the first call into darknet_fatal_error()
-	if (Darknet::CfgAndState::get().must_immediately_exit == false)
+	auto & cfg_and_state = Darknet::CfgAndState::get();
+
+	if (cfg_and_state.must_immediately_exit == false)
 	{
-		Darknet::CfgAndState::get().must_immediately_exit = true;
+		cfg_and_state.must_immediately_exit = true;
+
+		decltype(cfg_and_state.thread_names) all_thread_names;
+		if (true)
+		{
+			std::scoped_lock lock(cfg_and_state.thread_names_mutex);
+			all_thread_names = cfg_and_state.thread_names;
+		}
 
 		fprintf(stderr, "\n* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
 
@@ -460,14 +469,27 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 		va_end(args);
 
 		// the vfprintf() message is not newline-terminated so we need to take care of that before we print anything else
-		fprintf(stderr,
-			"%s\n"
-			"* Version %s built on %s %s\n"
-			"* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n",
-			Darknet::in_colour(Darknet::EColour::kNormal).c_str(),
-			DARKNET_VERSION_STRING, __DATE__, __TIME__);
+		fprintf(stderr, "%s\n", Darknet::in_colour(Darknet::EColour::kNormal).c_str());
+
+		std::cout
+			<< "* Thread #" << std::this_thread::get_id() << ": " << cfg_and_state.get_thread_name() << std::endl
+			<< "* Version " << DARKNET_VERSION_STRING << " built on " << __DATE__ << " " <<__TIME__ << std::endl
+			<< "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *" << std::endl;
 
 		log_backtrace();
+
+		std::cout << "known threads:  " << all_thread_names.size() << std::endl;
+		size_t count = 0;
+		for (const auto & [tid, name] : all_thread_names)
+		{
+			count ++;
+			std::cout << count << "/" << all_thread_names.size() << ": #" << tid << ": " << name << std::endl;
+			if (count > 15 and all_thread_names.size() >= 20)
+			{
+				std::cout << "..." << std::endl;
+				break;
+			}
+		}
 	}
 
 	std::fflush(stdout);
