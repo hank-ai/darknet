@@ -1679,6 +1679,8 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 
 	TAT_REVIEWED(TATPARMS, "2024-04-11");
 
+	cfg_and_state.set_thread_name("image loading loop #" + std::to_string(idx));
+
 	const int number_of_threads	= args.threads;	// typically will be 6
 	const int number_of_images	= args.n;		// typically will be 64 (batch size)
 
@@ -1717,6 +1719,8 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 		}
 	}
 
+	cfg_and_state.del_thread_name();
+
 	return;
 }
 
@@ -1729,6 +1733,8 @@ void Darknet::run_image_loading_control_thread(load_args args)
 	 */
 
 	TAT(TATPARMS);
+
+	cfg_and_state.set_thread_name("image loading control thread");
 
 	if (args.threads == 0)
 	{
@@ -1781,7 +1787,10 @@ void Darknet::run_image_loading_control_thread(load_args args)
 		buffer.shallow = 1;
 		Darknet::free_data(buffer);
 	}
+
 	control_thread_data_buffers.clear();
+
+	cfg_and_state.del_thread_name();
 
 	return;
 }
@@ -2148,6 +2157,7 @@ data concat_data(data d1, data d2)
 	d.shallow = 1;
 	d.X = concat_matrix(d1.X, d2.X);
 	d.y = concat_matrix(d1.y, d2.y);
+
 	return d;
 }
 
@@ -2157,12 +2167,13 @@ data concat_datas(data *d, int n)
 
 	int i;
 	data out = {0};
-	for(i = 0; i < n; ++i)
+	for (i = 0; i < n; ++i)
 	{
 		data newdata = concat_data(d[i], out);
 		Darknet::free_data(out);
 		out = newdata;
 	}
+
 	return out;
 }
 

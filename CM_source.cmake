@@ -52,6 +52,8 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-Wextra)				# enable even more warnings
 	ADD_COMPILE_OPTIONS (-Wno-unused-parameter)	# don't report this error
 	ADD_COMPILE_OPTIONS (-O3)					# turn on optimizations
+#	ADD_COMPILE_OPTIONS (-O0)
+#	ADD_COMPILE_OPTIONS (-ggdb)
 
 	# nvcc incorrectly fails to parse this flag as it expects a number to come after -O
 #	ADD_COMPILE_OPTIONS (-Ofast)				# turn on optimizations for speed

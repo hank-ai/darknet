@@ -36,6 +36,41 @@ namespace Darknet
 			 */
 			bool is_set(const std::string arg, const bool default_value = false);
 
+			/// Return a name for the current thread.  Thread name must previous have been added using @ref set_thread_name().
+			std::string get_thread_name();
+
+
+			/// Set a name to use for the given thread.  @see @ref del_thread_name()
+			void set_thread_name(const std::thread::id & tid, const std::string & name);
+
+
+			/// Alias for @ref set_thread_name().
+			void set_thread_name(const std::thread & t, const std::string & name)
+			{
+				set_thread_name(t.get_id(), name);
+			}
+
+			/// Alias for @ref set_thread_name().  Uses the ID of the current running thread.
+			void set_thread_name(const std::string & name)
+			{
+				set_thread_name(std::this_thread::get_id(), name);
+			}
+
+			/// Delete the thread name from the map.  Does nothing if this thread wasn't given a name.
+			void del_thread_name(const std::thread::id & tid);
+
+			/// Alias for @ref del_thread_name().
+			void del_thread_name(const std::thread & t)
+			{
+				del_thread_name(t.get_id());
+			}
+
+			/// Alias for @ref del_thread_name().  Uses the ID of the current running thread.
+			void del_thread_name()
+			{
+				del_thread_name(std::this_thread::get_id());
+			}
+
 			/** This bool gets set by @ref darknet_fatal_error() when a thread terminates and Darknet must exit.  This causes
 			 * training to finish early, and also prevents Darknet from logging any more (misleading) errors that happen on
 			 * additional threads.
@@ -69,5 +104,10 @@ namespace Darknet
 
 			/// The index of the GPU to use.  @p -1 means no GPU is selected.
 			int gpu_index;
+
+			/// @{ Name the threads that we create in case we have to report an error.
+			std::mutex thread_names_mutex;
+			std::map<std::thread::id, std::string> thread_names;
+			/// @}
 	};
 }
