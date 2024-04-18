@@ -37,7 +37,7 @@ IF (WIN32)
 #	ADD_COMPILE_OPTIONS (/wd4996)
 #	ADD_COMPILE_OPTIONS (/Zc:strictStrings-)
 	ADD_COMPILE_DEFINITIONS (NOMINMAX)
-	ADD_COMPILE_DEFINITIONS (_CRT_SECURE_NO_WARNINGS )	# don't complain about localtime()
+	ADD_COMPILE_DEFINITIONS (_CRT_SECURE_NO_WARNINGS)	# don't complain about localtime()
 
 	# With old compilers (or Windows only?) it used to be necessary to define this prior to #including cmath.
 	# Not sure if (or why?) this still seems to be required with Visual Studio.
@@ -51,7 +51,18 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-Wall)					# enable "all" warnings
 	ADD_COMPILE_OPTIONS (-Wextra)				# enable even more warnings
 	ADD_COMPILE_OPTIONS (-Wno-unused-parameter)	# don't report this error
-	ADD_COMPILE_OPTIONS (-O3)					# turn on optimizations
+
+	IF (CMAKE_BUILD_TYPE MATCHES DEBUG OR
+		CMAKE_BUILD_TYPE MATCHES Debug OR
+		CMAKE_BUILD_TYPE MATCHES debug)
+		MESSAGE (WARNING "Making a DEBUG build.")
+		ADD_COMPILE_OPTIONS (-O0)				# turn off optimizations
+		ADD_COMPILE_OPTIONS (-ggdb)				# turn on GDB info
+		ADD_COMPILE_DEFINITIONS (DEBUG)
+	ELSE ()
+		MESSAGE (STATUS "Making an optimized release build.")
+		ADD_COMPILE_OPTIONS (-O3)				# turn on optimizations
+	ENDIF ()
 
 	# nvcc incorrectly fails to parse this flag as it expects a number to come after -O
 #	ADD_COMPILE_OPTIONS (-Ofast)				# turn on optimizations for speed
