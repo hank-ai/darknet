@@ -518,7 +518,7 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 		// not detect small objects
 		//if ((w < 0.001F || h < 0.001F)) continue;
 		// if truth (box for object) is smaller than 1x1 pix
-		char buff[256];
+		//char buff[256];
 		if (id >= classes)
 		{
 			darknet_fatal_error(DARKNET_LOC, "invalid class ID #%d in %s", id, labelpath);
@@ -847,6 +847,8 @@ void Darknet::free_data(data & d)
 	{
 		free(d.X.vals);
 		free(d.y.vals);
+		d.X.vals = nullptr;
+		d.y.vals = nullptr;
 	}
 
 	return;
@@ -865,10 +867,9 @@ data load_data_region(int n, char **paths, int m, int w, int h, int c, int size,
 	d.X.vals = (float**)xcalloc(d.X.rows, sizeof(float*));
 	d.X.cols = h*w*3;
 
-
 	int k = size*size*(5+classes);
 	d.y = make_matrix(n, k);
-	for(i = 0; i < n; ++i)
+	for (i = 0; i < n; ++i)
 	{
 		image orig = load_image(random_paths[i], 0, 0, c);
 
@@ -1689,7 +1690,7 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 	while (image_data_loading_threads_must_exit == false and cfg_and_state.must_immediately_exit == false)
 	{
 		load_args local_args = args;
-		data d;
+		data d = {0};
 		local_args.d = &d;
 
 		Darknet::load_single_image_data(local_args);

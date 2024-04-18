@@ -902,7 +902,7 @@ typedef struct matrix
 typedef struct data {
 	int w;
 	int h;
-	matrix X;
+	matrix X; // Note uppercase.  Why?  I have no idea.
 	matrix y;
 	int shallow;
 	int *num_boxes;
