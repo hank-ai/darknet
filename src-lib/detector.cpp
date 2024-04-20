@@ -31,6 +31,12 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 {
 	TAT(TATPARMS);
 
+	#ifndef GPU
+	// If you know what you are doing, you can comment out this next line.
+	// But if you know what you are doing, then I'm guessing you'll also have access to a decent GPU.
+	darknet_fatal_error(DARKNET_LOC, "An attempt was made to start training without a GPU.  Please see the FAQ.");
+	#endif
+
 //	const std::filesystem::path & datacfg		= cfg_and_state.data_filename;
 //	const std::filesystem::path & cfgfile		= cfg_and_state.cfg_filename;
 //	const std::filesystem::path & weightfile	= cfg_and_state.weights_filename;
@@ -80,13 +86,6 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	float avg_loss = -1.0f;
 	float avg_contrastive_acc = 0.0f;
 	network* nets = (network*)xcalloc(ngpus, sizeof(network));
-
-	if (ngpus < 1)
-	{
-		// If you know what you are doing, you can comment out this next line.
-		// But if you know what you are doing, then I'm guessing you'll also have access to a decent GPU.
-		darknet_fatal_error(DARKNET_LOC, "An attempt was made to start training without a usable GPU.  Please see the FAQ.");
-	}
 
 	for (int k = 0; k < ngpus; ++k)
 	{
