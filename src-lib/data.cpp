@@ -1675,14 +1675,10 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 	// e.g., 64 batch size / 6 threads = 10 or 11 images per thread
 	args.n = (idx + 1) * number_of_images / number_of_threads - idx * number_of_images / number_of_threads;
 
-	while (true)
+	while (image_data_loading_threads_must_exit == false and
+			cfg_and_state.must_immediately_exit == false)
 	{
 		/// @todo get rid of this busy-loop
-
-		if (image_data_loading_threads_must_exit or cfg_and_state.must_immediately_exit)
-		{
-			break;
-		}
 
 		// wait until the control thread tells us we can load the next set of images
 		if (data_loading_per_thread_flag[idx] == 0)
@@ -1719,29 +1715,31 @@ void Darknet::run_image_loading_control_thread(load_args args)
 	{
 		args.threads = 1;
 	}
-	const int number_of_threads = args.threads;	// typically will be 6
-	const int number_of_images = args.n;		// typically will be 64 (batch size)
+	const int number_of_threads	= args.threads;	// typically will be 6
+	const int number_of_images	= args.n;		// typically will be 64 (batch size)
 
-	data *out = args.d;
-	data* buffers = (data*)xcalloc(args.threads, sizeof(data));
+	data * out = args.d;
+	data * buffers = (data*)xcalloc(number_of_threads, sizeof(data));
 
+	// create the secondary threads
 	if (data_loading_threads.empty())
 	{
-		std::cout << "Creating " << args.threads << " permanent CPU threads to load images and bounding boxes." << std::endl;
+		std::cout << "Creating " << number_of_threads << " permanent CPU threads to load images and bounding boxes." << std::endl;
 
-		data_loading_threads			.reserve(args.threads);
-		data_loading_per_thread_flag	.reserve(args.threads);
+		data_loading_threads			.reserve(number_of_threads);
+		data_loading_per_thread_flag	.reserve(number_of_threads);
 
-		args_swap = (load_args *)xcalloc(args.threads, sizeof(load_args));
+		args_swap = (load_args *)xcalloc(number_of_threads, sizeof(load_args));
 
-		for (int idx = 0; idx < args.threads; ++idx)
+		for (int idx = 0; idx < number_of_threads; ++idx)
 		{
 			data_loading_per_thread_flag.push_back(0);
 			data_loading_threads.emplace_back(image_loading_loop, idx, args);
 		}
 	}
 
-	for (int idx = 0; idx < args.threads; ++idx)
+	// tell each thread that we want more images, and where they can be stored
+	for (int idx = 0; idx < number_of_threads; ++idx)
 	{
 		args.d = buffers + idx;
 		args.n = (idx + 1) * number_of_images / number_of_threads - idx * number_of_images / number_of_threads;
@@ -1754,18 +1752,21 @@ void Darknet::run_image_loading_control_thread(load_args args)
 	}
 
 	// wait for the loading threads to be done
-	for (int idx = 0; idx < args.threads; ++idx)
+	for (int idx = 0; idx < number_of_threads; ++idx)
 	{
-		while (data_loading_per_thread_flag[idx])
+		while (image_data_loading_threads_must_exit == false and
+				cfg_and_state.must_immediately_exit == false and
+				data_loading_per_thread_flag[idx] != 0) // the loading thread will reset this flag to zero once it is ready
 		{
 			std::this_thread::sleep_for(thread_wait_ms);
 		}
 	}
 
-	*out = concat_datas(buffers, args.threads);
+	// process the results
+	*out = concat_datas(buffers, number_of_threads);
 	out->shallow = 0;
 
-	for (int idx = 0; idx < args.threads; ++idx)
+	for (int idx = 0; idx < number_of_threads; ++idx)
 	{
 		buffers[idx].shallow = 1;
 		Darknet::free_data(buffers[idx]);
