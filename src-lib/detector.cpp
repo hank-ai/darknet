@@ -81,6 +81,13 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	float avg_contrastive_acc = 0.0f;
 	network* nets = (network*)xcalloc(ngpus, sizeof(network));
 
+	if (ngpus < 1)
+	{
+		// If you know what you are doing, you can comment out this next line.
+		// But if you know what you are doing, then I'm guessing you'll also have access to a decent GPU.
+		darknet_fatal_error(DARKNET_LOC, "An attempt was made to start training without a usable GPU.  Please see the FAQ.");
+	}
+
 	for (int k = 0; k < ngpus; ++k)
 	{
 #ifdef GPU
