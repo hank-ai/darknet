@@ -22,23 +22,14 @@ namespace
 	static std::atomic<bool> image_data_loading_threads_must_exit = false;
 
 
-	/** @{
-	 * When the control thread is ready to accept new image data buffer, it will signal all threads waiting on this
-	 * condition variable.  The image loops @ref image_loading_loop() wait until this trigger before they push their
-	 * buffers into the vector where the control thread can process it.
-	 */
-	static std::mutex control_thread_mutex;
-	static std::condition_variable control_thread_trigger;
-	static std::vector<data> control_thread_data_buffers;
-	/// @}
-
-
-	/** Flags to indicate to individual threads if they should push their data buffers to the control thread.
-	 * These flags are normally @p false and then are set to @p true by @ref run_image_loading_control_thread().
+	/** Flags to indicate to individual data loading threads what they should do.  @p 0 is stop, and @p 1 is go.
+	 * These flags are normally @p 0 and then are set to @p 1 by @ref run_image_loading_control_thread().
+	 *
+	 * (Was @p std::vector<bool> but that individual bit handling, and we only have a few threads.)
 	 *
 	 * @since 2024-04-10
 	 */
-	static std::vector<bool> data_loading_push_buffers_flag;
+	static std::vector<int> data_loading_per_thread_flag;
 
 
 	/** Undocumented mutex around some of the file path logic.
@@ -47,6 +38,13 @@ namespace
 	 * This used to be a pthread mutex, was converted to a normal C++11 std::mutex in March 2024.
 	 */
 	static std::mutex data_path_mutex;
+
+
+	/// @{ @todo: delete these once the code is cleaned up
+	static const std::chrono::milliseconds thread_wait_ms(5); ///< @todo DELETE THIS! :(
+	static load_args * args_swap = NULL; ///< @todo I wish I better understood how/why this exists...
+	static std::mutex args_swap_mutex; // used to protect access to args_swap
+	/// @}
 }
 
 
@@ -70,7 +68,6 @@ list *get_paths(char *filename)
 
 	return lines;
 }
-
 
 char **get_sequential_paths(char **paths, int n, int m, int mini_batch, int augment_speed, int contrastive)
 {
@@ -123,7 +120,6 @@ char **get_sequential_paths(char **paths, int n, int m, int mini_batch, int augm
 	return sequentia_paths;
 }
 
-
 char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 {
 	TAT(TATPARMS);
@@ -160,12 +156,10 @@ char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 	return random_paths;
 }
 
-
 char **get_random_paths(char **paths, int n, int m)
 {
 	return get_random_paths_custom(paths, n, m, 0);
 }
-
 
 char **find_replace_paths(char **paths, int n, char *find, char *replace)
 {
@@ -182,7 +176,6 @@ char **find_replace_paths(char **paths, int n, char *find, char *replace)
 
 	return replace_paths;
 }
-
 
 matrix load_image_paths_gray(char **paths, int n, int w, int h)
 {
@@ -209,7 +202,6 @@ matrix load_image_paths_gray(char **paths, int n, int w, int h)
 	return X;
 }
 
-
 matrix load_image_paths(char **paths, int n, int w, int h, int c)
 {
 	TAT(TATPARMS);
@@ -229,7 +221,6 @@ matrix load_image_paths(char **paths, int n, int w, int h, int c)
 
 	return X;
 }
-
 
 matrix load_image_augment_paths(char **paths, int n, int use_flip, int min, int max, int w, int h, int c, float angle, float aspect, float hue, float saturation, float exposure, int contrastive)
 {
@@ -281,7 +272,7 @@ box_label *read_boxes(char *filename, int *n)
 	if (!file)
 	{
 		darknet_fatal_error(DARKNET_LOC, "failed to open annotation file \"%s\"", filename);
-	}
+		}
 
 	const int max_obj_img = 4000;// 30000;
 	const int img_hash = (custom_hash(filename) % max_obj_img)*max_obj_img;
@@ -535,19 +526,16 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 		{
 			darknet_fatal_error(DARKNET_LOC, "invalid annotation for class ID #%d in %s", id, labelpath);
 		}
-
 		/// @todo shouldn't this be x - w/2 < 0.0f?  And same for other variables?
 		if (x <= 0.0f || x > 1.0f || y <= 0.0f || y > 1.0f)
 		{
 			darknet_fatal_error(DARKNET_LOC, "invalid coordinates for class ID #%d in %s", id, labelpath);
 		}
-
 		/// @todo again, instead of checking for > 1, shouldn't we check x + w / 2 ?
 		if (w > 1.0f)
 		{
 			darknet_fatal_error(DARKNET_LOC, "invalid width for class ID #%d in %s", id, labelpath);
 		}
-
 		/// @todo check for y - h/2 and y + h/2?
 		if (h > 1.0f)
 		{
@@ -850,7 +838,6 @@ void Darknet::free_data(data & d)
 		d.X.vals = nullptr;
 		d.y.vals = nullptr;
 	}
-
 	return;
 }
 
@@ -866,6 +853,7 @@ data load_data_region(int n, char **paths, int m, int w, int h, int c, int size,
 	d.X.rows = n;
 	d.X.vals = (float**)xcalloc(d.X.rows, sizeof(float*));
 	d.X.cols = h*w*3;
+
 
 	int k = size*size*(5+classes);
 	d.y = make_matrix(n, k);
@@ -1214,7 +1202,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
 	if (use_mixup == 2 || use_mixup == 4)
 	{
-		darknet_fatal_error(DARKNET_LOC, "cutmix=1 isn't supported for detector (only Classifier can use cutmix=1)");
+		darknet_fatal_error(DARKNET_LOC, "cutmix=1 isn't supported for detector (only classifier can use cutmix=1)");
 	}
 
 	if (use_mixup == 3 && letter_box)
@@ -1687,35 +1675,31 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 	// e.g., 64 batch size / 6 threads = 10 or 11 images per thread
 	args.n = (idx + 1) * number_of_images / number_of_threads - idx * number_of_images / number_of_threads;
 
-	while (image_data_loading_threads_must_exit == false and cfg_and_state.must_immediately_exit == false)
+	while (true)
 	{
-		load_args local_args = args;
-		data d = {0};
-		local_args.d = &d;
+		/// @todo get rid of this busy-loop
 
-		Darknet::load_single_image_data(local_args);
-
-		while (	image_data_loading_threads_must_exit	== false and
-				cfg_and_state.must_immediately_exit		== false and
-				data_loading_push_buffers_flag[idx]		== false)
+		if (image_data_loading_threads_must_exit or cfg_and_state.must_immediately_exit)
 		{
-			// wait until the control thread tells us it wants our buffer
-			std::unique_lock lock(control_thread_mutex);
-			control_thread_trigger.wait(lock);
+			break;
 		}
 
-		// once we get here, either things are shutting down or the control thread wants our buffer
-
-		if (data_loading_push_buffers_flag[idx])
+		// wait until the control thread tells us we can load the next set of images
+		if (data_loading_per_thread_flag[idx] == 0)
 		{
-			std::unique_lock lock(control_thread_mutex);
-			data_loading_push_buffers_flag[idx] = false;
-			control_thread_data_buffers.emplace_back(d);
-			lock.unlock();
-
-			// let the other threads -- especially the control thread -- know we're done
-			control_thread_trigger.notify_all();
+			std::this_thread::sleep_for(thread_wait_ms);
+			continue;
 		}
+
+		// if we get here, then the control thread has told us to load the next image
+
+		args_swap_mutex.lock();
+		load_args args_local = args_swap[idx];
+		args_swap_mutex.unlock();
+
+		Darknet::load_single_image_data(args_local);
+
+		data_loading_per_thread_flag[idx] = 0;
 	}
 
 	return;
@@ -1735,54 +1719,58 @@ void Darknet::run_image_loading_control_thread(load_args args)
 	{
 		args.threads = 1;
 	}
+	const int number_of_threads = args.threads;	// typically will be 6
+	const int number_of_images = args.n;		// typically will be 64 (batch size)
+
+	data *out = args.d;
+	data* buffers = (data*)xcalloc(args.threads, sizeof(data));
 
 	if (data_loading_threads.empty())
 	{
 		std::cout << "Creating " << args.threads << " permanent CPU threads to load images and bounding boxes." << std::endl;
 
 		data_loading_threads			.reserve(args.threads);
-		data_loading_push_buffers_flag	.reserve(args.threads);
-		control_thread_data_buffers		.reserve(args.threads);
+		data_loading_per_thread_flag	.reserve(args.threads);
+
+		args_swap = (load_args *)xcalloc(args.threads, sizeof(load_args));
 
 		for (int idx = 0; idx < args.threads; ++idx)
 		{
-			data_loading_push_buffers_flag.push_back(false);
+			data_loading_per_thread_flag.push_back(0);
 			data_loading_threads.emplace_back(image_loading_loop, idx, args);
 		}
 	}
 
-	// let the threads know we want the buffers
 	for (int idx = 0; idx < args.threads; ++idx)
 	{
-		data_loading_push_buffers_flag[idx] = true;
-	}
-	control_thread_trigger.notify_all();
+		args.d = buffers + idx;
+		args.n = (idx + 1) * number_of_images / number_of_threads - idx * number_of_images / number_of_threads;
 
-	// now we have to wait until all the threads have given us their buffer
-	while (	image_data_loading_threads_must_exit	== false and
-			cfg_and_state.must_immediately_exit		== false and
-			control_thread_data_buffers.size() < args.threads)
+		args_swap_mutex.lock();
+		args_swap[idx] = args;
+		args_swap_mutex.unlock();
+
+		data_loading_per_thread_flag[idx] = 1;
+	}
+
+	// wait for the loading threads to be done
+	for (int idx = 0; idx < args.threads; ++idx)
 	{
-		std::unique_lock lock(control_thread_mutex);
-		if (control_thread_data_buffers.size() >= args.threads)
+		while (data_loading_per_thread_flag[idx])
 		{
-			break;
+			std::this_thread::sleep_for(thread_wait_ms);
 		}
-
-		// otherwise, we'll wait until one of the threads notifies us that a data buffer has been added
-
-		control_thread_trigger.wait(lock);
 	}
 
-	*args.d = concat_datas(control_thread_data_buffers.data(), control_thread_data_buffers.size());
-	args.d->shallow = 0;
+	*out = concat_datas(buffers, args.threads);
+	out->shallow = 0;
 
-	for (auto & buffer : control_thread_data_buffers)
+	for (int idx = 0; idx < args.threads; ++idx)
 	{
-		buffer.shallow = 1;
-		Darknet::free_data(buffer);
+		buffers[idx].shallow = 1;
+		Darknet::free_data(buffers[idx]);
 	}
-	control_thread_data_buffers.clear();
+	free(buffers);
 
 	return;
 }
@@ -1798,13 +1786,12 @@ void Darknet::stop_image_loading_threads()
 
 		for (auto & t : data_loading_threads)
 		{
-			control_thread_trigger.notify_all();
-
 			if (t.joinable())
 			{
 				t.join();
 			}
 		}
+		free(args_swap);
 		data_loading_threads.clear();
 
 		image_data_loading_threads_must_exit = false;
