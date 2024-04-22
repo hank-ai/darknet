@@ -65,9 +65,10 @@ IF (UNIX)
 	ENDIF ()
 
 	# nvcc incorrectly fails to parse this flag as it expects a number to come after -O
+	# instead, see where this is set for specific source files in src-lib/CMakeLists.txt
 #	ADD_COMPILE_OPTIONS (-Ofast)				# turn on optimizations for speed
 
-	# this causes a problem with OpenCV where doubles are treated as if they were floats
+	# this cannot be used since OpenCV has places where doubles are used and they cannot (should not!) be converted to float
 #	ADD_COMPILE_OPTIONS (-fsingle-precision-constant)	# treat floating-point constants as single precision instead of implicitly converting them to double-precision constants
 
 	# TODO Investigate these options further.  When I tried them in early April 2024, they did not seem to have a huge impact on training speed.

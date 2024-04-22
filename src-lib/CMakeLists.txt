@@ -12,6 +12,11 @@ CONFIGURE_FILE (${CMAKE_CURRENT_SOURCE_DIR}/darknet_version.h.in ${CMAKE_CURRENT
 FILE (GLOB LIBSRC *.cpp)
 LIST (REMOVE_ITEM LIBSRC yolo_v2_class.cpp)
 
+IF (COMPILER_IS_GNU_OR_CLANG)
+	# nvcc doesn't like this flag, so we have to set it specifically on the .cpp files and not on the .cu files
+	SET_SOURCE_FILES_PROPERTIES (${LIBSRC} PROPERTIES COMPILE_FLAGS -Ofast)
+ENDIF ()
+
 IF (DARKNET_USE_CUDA)
 	FILE (GLOB CUDASRC *.cu)
 	LIST (APPEND LIBSRC ${CUDASRC})
