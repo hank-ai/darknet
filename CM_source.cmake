@@ -51,6 +51,7 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-Wall)					# enable "all" warnings
 	ADD_COMPILE_OPTIONS (-Wextra)				# enable even more warnings
 	ADD_COMPILE_OPTIONS (-Wno-unused-parameter)	# don't report this error
+
 	IF (CMAKE_BUILD_TYPE MATCHES DEBUG OR
 		CMAKE_BUILD_TYPE MATCHES Debug OR
 		CMAKE_BUILD_TYPE MATCHES debug)
@@ -89,14 +90,14 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-Wno-sign-compare)
 ENDIF ()
 
-
 # TODO: https://learn.microsoft.com/en-us/cpp/build/reference/fp-specify-floating-point-behavior?view=msvc-170
 # TODO: https://stackoverflow.com/questions/36501542/what-is-gcc-clang-equivalent-of-fp-model-fast-1-in-icc
 
-
-SET (BUILD_SHARED_LIBS TRUE)				# ADD_LIBRARY() will default to shared libs
-SET (CMAKE_ENABLE_EXPORTS TRUE)				# equivalent to -rdynamic (to get the backtrace when something goes wrong)
-SET (CMAKE_POSITION_INDEPENDENT_CODE ON)	# equivalent to -fpic (position independent code)
+SET (BUILD_SHARED_LIBS TRUE)					# ADD_LIBRARY() will default to shared libs
+SET (CMAKE_ENABLE_EXPORTS TRUE)					# equivalent to -rdynamic (to get the backtrace when something goes wrong)
+SET (CMAKE_OPTIMIZE_DEPENDENCIES TRUE)			# some dependencies may be removed if they are not necessary to build the library
+SET (CMAKE_POSITION_INDEPENDENT_CODE TRUE)		# equivalent to -fpic (position independent code)
+SET (CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)	# enable link-time optimization by default for all targets (e.g., -flto)
 
 INCLUDE_DIRECTORIES (src-cli)
 INCLUDE_DIRECTORIES (src-lib)
