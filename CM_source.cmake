@@ -62,6 +62,10 @@ IF (UNIX)
 	ELSE ()
 		MESSAGE (STATUS "Making an optimized release build.")
 		ADD_COMPILE_OPTIONS (-O3)				# turn on optimizations
+		
+		# this breaks the windows build, so even though it shouldn't be a
+		# linux-only optimization, we only set this for UNIX-type builds
+		SET (CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE) # enable link-time optimization for all targets (e.g., -flto)
 	ENDIF ()
 
 	# nvcc incorrectly fails to parse this flag as it expects a number to come after -O
@@ -98,7 +102,6 @@ SET (BUILD_SHARED_LIBS TRUE)					# ADD_LIBRARY() will default to shared libs
 SET (CMAKE_ENABLE_EXPORTS TRUE)					# equivalent to -rdynamic (to get the backtrace when something goes wrong)
 SET (CMAKE_OPTIMIZE_DEPENDENCIES TRUE)			# some dependencies may be removed if they are not necessary to build the library
 SET (CMAKE_POSITION_INDEPENDENT_CODE TRUE)		# equivalent to -fpic (position independent code)
-SET (CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE)	# enable link-time optimization by default for all targets (e.g., -flto)
 
 INCLUDE_DIRECTORIES (src-cli)
 INCLUDE_DIRECTORIES (src-lib)
