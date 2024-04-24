@@ -62,7 +62,7 @@ IF (UNIX)
 	ELSE ()
 		MESSAGE (STATUS "Making an optimized release build.")
 		ADD_COMPILE_OPTIONS (-O3)				# turn on optimizations
-		
+
 		# this breaks the windows build, so even though it shouldn't be a
 		# linux-only optimization, we only set this for UNIX-type builds
 		SET (CMAKE_INTERPROCEDURAL_OPTIMIZATION TRUE) # enable link-time optimization for all targets (e.g., -flto)
@@ -75,17 +75,25 @@ IF (UNIX)
 	# this cannot be used since OpenCV has places where doubles are used and they cannot (should not!) be converted to float
 #	ADD_COMPILE_OPTIONS (-fsingle-precision-constant)	# treat floating-point constants as single precision instead of implicitly converting them to double-precision constants
 
-	# TODO Investigate these options further.  When I tried them in early April 2024, they did not seem to have a huge impact on training speed.
-#	ADD_COMPILE_OPTIONS (-ffast-math)			# this option can result in incorrect output for programs that depend on an exact implementation of IEEE or ISO rules/specifications for math functions.
-#	ADD_COMPILE_OPTIONS (-fno-math-errno)		# do not set errno after calling math functions that are executed with a single instruction [...] it can result in incorrect output for programs that depend on an exact implementation of IEEE or ISO rules/specifications for math functions
-#	ADD_COMPILE_OPTIONS (-funsafe-math-optimizations) # allow optimizations for floating-point arithmetic that (a) assume that arguments and results are valid and (b) may violate IEEE or ANSI standards.
-#	ADD_COMPILE_OPTIONS (-fassociative-math)	# allow re-association of operands in series of floating-point operations
-#	ADD_COMPILE_OPTIONS (-freciprocal-math)		# allow the reciprocal of a value to be used instead of dividing by the value if this enables optimizations
-#	ADD_COMPILE_OPTIONS (-ffinite-math-only)	# allow optimizations for floating-point arithmetic that assume that arguments and results are not NaNs or +-Infs
-#	ADD_COMPILE_OPTIONS (-fno-signed-zeros)		# allow optimizations for floating-point arithmetic that ignore the signedness of zero
-#	ADD_COMPILE_OPTIONS (-fno-trapping-math)	# compile code assuming that floating-point operations cannot generate user-visible traps
-#	ADD_COMPILE_OPTIONS (-frename-registers)	# attempt to avoid false dependencies in scheduled code by making use of registers left over after register allocation
-#	ADD_COMPILE_OPTIONS (-funroll-loops)		# unroll loops whose number of iterations can be determined at compile time or upon entry to the loop
+	# TODO Investigate these options further.  When I tried them in early April 2024, they did not seem to have a huge
+	# impact on training speed.  I enabled them individually, and recorded the time it took to train a specific simple
+	# network I had on hand.
+	#
+	# 2024-04-24:  For now, I've enabled just unsafe-math-optimizations.  I've not found any combination of options which
+	# gives better results.  Note that enabling some or all of these options may cause issues with training neural networks.
+	#
+														# [8:00] no optimization options enabled
+														# [7:53] all optimizations enabled
+#	ADD_COMPILE_OPTIONS (-ffast-math)					# [7:55] this option can result in incorrect output for programs that depend on an exact implementation of IEEE or ISO rules/specifications for math functions.
+#	ADD_COMPILE_OPTIONS (-frename-registers)			# [7:55] attempt to avoid false dependencies in scheduled code by making use of registers left over after register allocation
+#	ADD_COMPILE_OPTIONS (-ffinite-math-only)			# [7:53] allow optimizations for floating-point arithmetic that assume that arguments and results are not NaNs or +-Infs
+#	ADD_COMPILE_OPTIONS (-funroll-loops)				# [7:53] unroll loops whose number of iterations can be determined at compile time or upon entry to the loop
+#	ADD_COMPILE_OPTIONS (-fno-signed-zeros)				# [7:57] allow optimizations for floating-point arithmetic that ignore the signedness of zero
+#	ADD_COMPILE_OPTIONS (-freciprocal-math)				# [7:54] allow the reciprocal of a value to be used instead of dividing by the value if this enables optimizations
+#	ADD_COMPILE_OPTIONS (-fno-math-errno)				# [7:53] do not set errno after calling math functions that are executed with a single instruction [...] it can result in incorrect output for programs that depend on an exact implementation of IEEE or ISO rules/specifications for math functions
+#	ADD_COMPILE_OPTIONS (-fassociative-math)			# [7:52] allow re-association of operands in series of floating-point operations
+#	ADD_COMPILE_OPTIONS (-fno-trapping-math)			# [7:52] compile code assuming that floating-point operations cannot generate user-visible traps
+	ADD_COMPILE_OPTIONS (-funsafe-math-optimizations)	# [7:49] allow optimizations for floating-point arithmetic that (a) assume that arguments and results are valid and (b) may violate IEEE or ANSI standards.
 
 	# TODO remove the following options and clean up the code instead of ignoring the problem
 	ADD_COMPILE_OPTIONS (-Wno-write-strings)
