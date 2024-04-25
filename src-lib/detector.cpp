@@ -1021,32 +1021,24 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 	}
 }
 
-typedef struct {
-	box b;
-	float p;
-	int class_id;
-	int image_index;
-	int truth_flag;
-	int unique_truth_index;
-} box_prob;
-
-int detections_comparator(const void *pa, const void *pb)
-{
-	TAT(TATPARMS);
-
-	/// @todo inline this with std::sort() to simplify things...also check to see where else code like this exists, I think there are several qsorts with this functionality
-
-	box_prob a = *(const box_prob *)pa;
-	box_prob b = *(const box_prob *)pb;
-	float diff = a.p - b.p;
-	if (diff < 0) return 1;
-	else if (diff > 0) return -1;
-	return 0;
-}
 
 float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, network *existing_net)
 {
+	// Example command that calls this function:
+	//
+	//			darknet detector map cars.data cars.cfg cars_best.weights
+
 	TAT(TATPARMS);
+
+	struct box_prob
+	{
+		box b;					// bounding box
+		float p;				// probability
+		int class_id;
+		int image_index;		// ?
+		int truth_flag;			// ?
+		int unique_truth_index;	// ?
+	};
 
 	int j;
 	list *options = read_data_cfg(datacfg);
@@ -1372,16 +1364,35 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		}
 	}
 
-	// SORT(detections)
-	/// @todo replace qsort() highest priority
-	qsort(detections, detections_count, sizeof(box_prob), detections_comparator);
+	// Sort the array from high probability to low probability.
+	//
+	// With a test of 7125 entries in the array:
+	//
+	// - qsort() with function took:	576286 nanoseconds
+	// - std::sort() with lambda took:	414231 nanoseconds
+	//
+	std::sort(detections, detections + detections_count,
+			[](const box_prob & lhs, const box_prob & rhs)
+			{
+				const auto diff = lhs.p - rhs.p;
 
-	typedef struct {
+				if (diff < 0.0f)
+				{
+					return false;
+				}
+
+				return true;
+			});
+
+	struct pr_t
+	{
 		double prob;
 		double precision;
 		double recall;
-		int tp, fp, fn;
-	} pr_t;
+		int tp;
+		int fp;
+		int fn;
+	};
 
 	// for PR-curve
 	// Note this is a pointer-to-a-pointer.  We don't have just 1 of these per class, but these exist for every detections_count.
