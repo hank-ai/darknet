@@ -672,10 +672,42 @@ void do_nms_sort_v2(box *boxes, float **probs, int total, int classes, float thr
 
 namespace
 {
+	int TEMP_nms_comparator_v3(const void *pa, const void *pb)
+	{
+		TAT(TATPARMS);
+
+		detection a = *(detection *)pa;
+		detection b = *(detection *)pb;
+		float diff = 0.0f;
+		if (b.sort_class >= 0)
+		{
+			diff = a.prob[b.sort_class] - b.prob[b.sort_class]; // there is already: prob = objectness*prob
+		}
+		else
+		{
+			diff = a.objectness - b.objectness;
+		}
+
+		if (diff < 0.0f)
+		{
+			return 1;
+		}
+
+		if (diff > 0.0f)
+		{
+			return -1;
+		}
+
+		return 0;
+	}
+
 	void sort_detections(detection *dets, const int total)
 	{
 		TAT(TATPARMS);
 
+#if 1
+		qsort(dets, total, sizeof(detection), TEMP_nms_comparator_v3);
+#else
 		std::sort(dets, dets + total,
 				[](const detection & lhs, const detection & rhs)
 				{
@@ -696,6 +728,7 @@ namespace
 
 					return true;
 				});
+#endif
 	}
 }
 
