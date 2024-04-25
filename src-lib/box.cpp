@@ -622,8 +622,11 @@ int nms_comparator(const void *pa, const void *pb)
 	return 0;
 }
 
+
 void do_nms_sort_v2(box *boxes, float **probs, int total, int classes, float thresh)
 {
+	// 2024-04-25:  I think this one is no longer called.
+
 	TAT(TATPARMS);
 
 	int i, j, k;
@@ -666,37 +669,41 @@ void do_nms_sort_v2(box *boxes, float **probs, int total, int classes, float thr
 	free(s);
 }
 
-int nms_comparator_v3(const void *pa, const void *pb)
+
+namespace
 {
-	TAT(TATPARMS);
-
-	detection a = *(detection *)pa;
-	detection b = *(detection *)pb;
-	float diff = 0.0f;
-	if (b.sort_class >= 0)
+	void sort_detections(detection *dets, const int total)
 	{
-		diff = a.prob[b.sort_class] - b.prob[b.sort_class]; // there is already: prob = objectness*prob
-	}
-	else
-	{
-		diff = a.objectness - b.objectness;
-	}
+		TAT(TATPARMS);
 
-	if (diff < 0.0f)
-	{
-		return 1;
-	}
+		std::sort(dets, dets + total,
+				[](const detection & lhs, const detection & rhs)
+				{
+					auto diff = 0.0f;
+					if (rhs.sort_class >= 0)
+					{
+						diff = lhs.prob[rhs.sort_class] - rhs.prob[rhs.sort_class]; // there is already: prob = objectness*prob
+					}
+					else
+					{
+						diff = lhs.objectness - rhs.objectness;
+					}
 
-	if (diff > 0.0f)
-	{
-		return -1;
-	}
+					if (diff < 0.0f)
+					{
+						return false;
+					}
 
-	return 0;
+					return true;
+				});
+	}
 }
+
 
 void do_nms_obj(detection *dets, int total, int classes, float thresh)
 {
+	// 2024-04-25:  this one seems to be called often
+
 	TAT(TATPARMS);
 
 	int i, j, k;
@@ -719,8 +726,7 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 		dets[i].sort_class = -1;
 	}
 
-	/// @todo replace qsort() higher priority
-	qsort(dets, total, sizeof(detection), nms_comparator_v3);
+	sort_detections(dets, total);
 
 	for (i = 0; i < total; ++i)
 	{
@@ -774,8 +780,7 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
 			dets[i].sort_class = k;
 		}
 
-		/// @todo replace qsort() higher priority
-		qsort(dets, total, sizeof(detection), nms_comparator_v3);
+		sort_detections(dets, total);
 
 		for (i = 0; i < total; ++i)
 		{
@@ -862,8 +867,7 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 			dets[i].sort_class = k;
 		}
 
-		/// @todo replace qsort() lower priority
-		qsort(dets, total, sizeof(detection), nms_comparator_v3);
+		sort_detections(dets, total);
 
 		for (i = 0; i < total; ++i)
 		{

@@ -366,6 +366,7 @@ Last updated 2024-04-11:
 ## Short-term goals
 
 * [ ] swap out qsort() for std::sort()
+* [ ] swap out printf() for std::cout
 * [X] get rid of check_mistakes, getchar(), and system()
 * [X] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
 * [X] fix Windows build

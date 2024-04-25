@@ -877,8 +877,14 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 			detection *dets = get_network_boxes(&net, w, h, thresh, .5, map, 0, &nboxes, letter_box);
 			if (nms)
 			{
-				if (l.nms_kind == DEFAULT_NMS) do_nms_sort(dets, nboxes, l.classes, nms);
-				else diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
+				if (l.nms_kind == DEFAULT_NMS)
+				{
+					do_nms_sort(dets, nboxes, l.classes, nms);
+				}
+				else
+				{
+					diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
+				}
 			}
 
 			if (coco)
@@ -2169,9 +2175,16 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 
 		int nboxes = 0;
 		detection *dets = get_network_boxes(&net, sized.w, sized.h, thresh, 0, 0, 1, &nboxes, letter_box);
-		if (nms) {
-			if (l.nms_kind == DEFAULT_NMS) do_nms_sort(dets, nboxes, l.classes, nms);
-			else diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
+		if (nms)
+		{
+			if (l.nms_kind == DEFAULT_NMS)
+			{
+				do_nms_sort(dets, nboxes, l.classes, nms);
+			}
+			else
+			{
+				diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
+			}
 		}
 		draw_detections_v3(sized, dets, nboxes, thresh, names, l.classes, 1);
 		save_image(sized, "pre_predictions");
