@@ -672,7 +672,7 @@ void do_nms_sort_v2(box *boxes, float **probs, int total, int classes, float thr
 
 namespace
 {
-	int TEMP_nms_comparator_v3(const void *pa, const void *pb)
+	int nms_comparator_v3(const void *pa, const void *pb)
 	{
 		TAT(TATPARMS);
 
@@ -701,33 +701,29 @@ namespace
 		return 0;
 	}
 
-	void sort_detections(detection *dets, const int total)
+	static inline void sort_box_detections(detection *dets, const int total)
 	{
 		TAT(TATPARMS);
 
 #if 1
-		qsort(dets, total, sizeof(detection), TEMP_nms_comparator_v3);
+		qsort(dets, total, sizeof(detection), nms_comparator_v3);
 #else
-		std::sort(dets, dets + total,
-				[](const detection & lhs, const detection & rhs)
-				{
-					auto diff = 0.0f;
-					if (rhs.sort_class >= 0)
-					{
-						diff = lhs.prob[rhs.sort_class] - rhs.prob[rhs.sort_class]; // there is already: prob = objectness*prob
-					}
-					else
-					{
-						diff = lhs.objectness - rhs.objectness;
-					}
+		if (total > 1)
+		{
+			// We want to sort from high probability to low probability.  The default sort behaviour would be to
+			// sort from low to high.  We reverse the sort order by comparing RHS to LHS instead of LHS to RHS.
 
-					if (diff < 0.0f)
+			std::sort(dets, dets + total,
+					[](const detection & lhs, const detection & rhs) -> bool
 					{
-						return false;
-					}
+						if (rhs.sort_class < 0)
+						{
+							return rhs.objectness < lhs.objectness;
+						}
 
-					return true;
-				});
+						return rhs.prob[rhs.sort_class] < lhs.prob[rhs.sort_class];
+					});
+		}
 #endif
 	}
 }
@@ -739,12 +735,13 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 
 	TAT(TATPARMS);
 
-	int i, j, k;
-	k = total - 1;
-	for (i = 0; i <= k; ++i)
+	int k = total - 1;
+	for (int i = 0; i <= k; ++i)
 	{
 		if (dets[i].objectness == 0)
 		{
+			/// @todo use std::swap?
+
 			detection swap = dets[i];
 			dets[i] = dets[k];
 			dets[k] = swap;
@@ -754,21 +751,21 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 	}
 	total = k + 1;
 
-	for (i = 0; i < total; ++i)
+	for (int i = 0; i < total; ++i)
 	{
 		dets[i].sort_class = -1;
 	}
 
-	sort_detections(dets, total);
+	sort_box_detections(dets, total);
 
-	for (i = 0; i < total; ++i)
+	for (int i = 0; i < total; ++i)
 	{
 		if (dets[i].objectness == 0)
 		{
 			continue;
 		}
 		box a = dets[i].bbox;
-		for (j = i + 1; j < total; ++j)
+		for (int j = i + 1; j < total; ++j)
 		{
 			if (dets[j].objectness == 0)
 			{
@@ -778,7 +775,7 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 			if (box_iou(a, b) > thresh)
 			{
 				dets[j].objectness = 0;
-				for (k = 0; k < classes; ++k)
+				for (int k = 0; k < classes; ++k)
 				{
 					dets[j].prob[k] = 0;
 				}
@@ -791,12 +788,12 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
 {
 	TAT(TATPARMS);
 
-	int i, j, k;
-	k = total - 1;
-	for (i = 0; i <= k; ++i)
+	int k = total - 1;
+	for (int i = 0; i <= k; ++i)
 	{
 		if (dets[i].objectness == 0)
 		{
+			/// @todo std::swap
 			detection swap = dets[i];
 			dets[i] = dets[k];
 			dets[k] = swap;
@@ -808,27 +805,27 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
 
 	for (k = 0; k < classes; ++k)
 	{
-		for (i = 0; i < total; ++i)
+		for (int i = 0; i < total; ++i)
 		{
 			dets[i].sort_class = k;
 		}
 
-		sort_detections(dets, total);
+		sort_box_detections(dets, total);
 
-		for (i = 0; i < total; ++i)
+		for (int i = 0; i < total; ++i)
 		{
 			//printf("  k = %d, \t i = %d \n", k, i);
-			if (dets[i].prob[k] == 0)
+			if (dets[i].prob[k] == 0.0f)
 			{
 				continue;
 			}
 			box a = dets[i].bbox;
-			for (j = i + 1; j < total; ++j)
+			for (int j = i + 1; j < total; ++j)
 			{
 				box b = dets[j].bbox;
 				if (box_iou(a, b) > thresh)
 				{
-					dets[j].prob[k] = 0;
+					dets[j].prob[k] = 0.0f;
 				}
 			}
 		}
@@ -878,12 +875,12 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 {
 	TAT(TATPARMS);
 
-	int i, j, k;
-	k = total - 1;
-	for (i = 0; i <= k; ++i)
+	int k = total - 1;
+	for (int i = 0; i <= k; ++i)
 	{
 		if (dets[i].objectness == 0)
 		{
+			/// @todo std::swap
 			detection swap = dets[i];
 			dets[i] = dets[k];
 			dets[k] = swap;
@@ -893,23 +890,25 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 	}
 	total = k + 1;
 
+//	std::cout << "diounms total is " << total << std::endl;
+
 	for (k = 0; k < classes; ++k)
 	{
-		for (i = 0; i < total; ++i)
+		for (int i = 0; i < total; ++i)
 		{
 			dets[i].sort_class = k;
 		}
 
-		sort_detections(dets, total);
+		sort_box_detections(dets, total);
 
-		for (i = 0; i < total; ++i)
+		for (int i = 0; i < total; ++i)
 		{
 			if (dets[i].prob[k] == 0)
 			{
 				continue;
 			}
 			box a = dets[i].bbox;
-			for (j = i + 1; j < total; ++j)
+			for (int j = i + 1; j < total; ++j)
 			{
 				box b = dets[j].bbox;
 				if (box_iou(a, b) > thresh && nms_kind == CORNERS_NMS)
