@@ -705,7 +705,7 @@ namespace
 	{
 		TAT(TATPARMS);
 
-#if 1
+#if 0
 		qsort(dets, total, sizeof(detection), nms_comparator_v3);
 #else
 		if (total > 1)
