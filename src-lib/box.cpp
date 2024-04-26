@@ -740,11 +740,7 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 	{
 		if (dets[i].objectness == 0)
 		{
-			/// @todo use std::swap?
-
-			detection swap = dets[i];
-			dets[i] = dets[k];
-			dets[k] = swap;
+			std::swap(dets[i], dets[k]);
 			--k;
 			--i;
 		}
@@ -793,10 +789,7 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
 	{
 		if (dets[i].objectness == 0)
 		{
-			/// @todo std::swap
-			detection swap = dets[i];
-			dets[i] = dets[k];
-			dets[k] = swap;
+			std::swap(dets[i], dets[k]);
 			--k;
 			--i;
 		}
@@ -880,10 +873,7 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 	{
 		if (dets[i].objectness == 0)
 		{
-			/// @todo std::swap
-			detection swap = dets[i];
-			dets[i] = dets[k];
-			dets[k] = swap;
+			std::swap(dets[i], dets[k]);
 			--k;
 			--i;
 		}

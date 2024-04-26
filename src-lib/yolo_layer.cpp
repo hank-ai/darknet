@@ -1245,9 +1245,7 @@ void avg_flipped_yolo(layer l)
 				{
 					int i1 = z*l.w*l.h*l.n + n*l.w*l.h + j*l.w + i;
 					int i2 = z*l.w*l.h*l.n + n*l.w*l.h + j*l.w + (l.w - i - 1);
-					float swap = flip[i1];
-					flip[i1] = flip[i2];
-					flip[i2] = swap;
+					std::swap(flip[i1], flip[i2]);
 					if (z == 0)
 					{
 						flip[i1] = -flip[i1];

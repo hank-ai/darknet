@@ -2363,16 +2363,12 @@ void randomize_data(data d)
 	TAT(TATPARMS);
 
 	int i;
-	for(i = d.X.rows-1; i > 0; --i)
+	for (i = d.X.rows - 1; i > 0; --i)
 	{
-		int index = random_gen()%i;
-		float *swap = d.X.vals[index];
-		d.X.vals[index] = d.X.vals[i];
-		d.X.vals[i] = swap;
+		const int index = random_gen() % i;
 
-		swap = d.y.vals[index];
-		d.y.vals[index] = d.y.vals[i];
-		d.y.vals[i] = swap;
+		std::swap(d.X.vals[index], d.X.vals[i]);
+		std::swap(d.y.vals[index], d.y.vals[i]);
 	}
 }
 
