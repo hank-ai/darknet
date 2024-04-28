@@ -191,47 +191,6 @@ std::string Darknet::format_map_accuracy(const float & accuracy)
 }
 
 
-void Darknet::display_loaded_images(const int images, const double time)
-{
-	TAT(TATPARMS);
-
-	printf("loaded %d images in %s\n", images, format_time(time).c_str());
-
-	return;
-}
-
-
-void Darknet::display_iteration_summary(const int iteration, const float loss, const float avg_loss, const float rate, const double time, const int images, const float seconds_remaining)
-{
-	TAT(TATPARMS);
-
-	printf("%s: loss=%s, avg loss=%s, rate=%f, %s, %d images, time remaining=%s\n",
-			in_colour(EColour::kBrightWhite, iteration)	.c_str(),
-			format_loss(loss)							.c_str(),
-			format_loss(avg_loss)						.c_str(),
-			rate,
-			format_time(time)							.c_str(),
-			images,
-			format_time_remaining(seconds_remaining)	.c_str()
-			);
-
-	return;
-}
-
-
-void Darknet::display_last_accuracy(const float iou_thresh, const float mean_average_precision, const float best_map)
-{
-	TAT(TATPARMS);
-
-	printf("-> last accuracy mAP@%0.2f=%s, best=%s\n",
-			iou_thresh,
-			format_map_accuracy(mean_average_precision).c_str(),
-			format_map_accuracy(best_map).c_str());
-
-	return;
-}
-
-
 void Darknet::display_error_msg(const std::string & msg)
 {
 	TAT(TATPARMS);
@@ -252,27 +211,6 @@ void Darknet::display_warning_msg(const std::string & msg)
 	if (not msg.empty())
 	{
 		std::cout << in_colour(EColour::kYellow, msg);
-	}
-
-	return;
-}
-
-
-void Darknet::update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const float seconds_remaining)
-{
-	TAT(TATPARMS);
-
-	// doing this requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
-	if (cfg_and_state.colour_is_enabled)
-	{
-		if (std::isfinite(current_map) && current_map > 0.0f)
-		{
-			printf("\033]2;%d/%d: loss=%0.1f map=%0.2f best=%0.2f time=%s\007", iteration, max_batches, loss, current_map, best_map, format_time_remaining(seconds_remaining).c_str());
-		}
-		else
-		{
-			printf("\033]2;%d/%d: loss=%0.1f time=%s\007", iteration, max_batches, loss, format_time_remaining(seconds_remaining).c_str());
-		}
 	}
 
 	return;

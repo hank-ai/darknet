@@ -593,12 +593,15 @@ dbox diou(const box & a, const box & b)
 	return dd;
 }
 
-struct sortable_bbox
+namespace
 {
-	int index;
-	int class_id;
-	float **probs;
-};
+	struct sortable_bbox
+	{
+		int index;
+		int class_id;
+		float **probs;
+	};
+}
 
 int nms_comparator(const void *pa, const void *pb)
 {

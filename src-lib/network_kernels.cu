@@ -395,11 +395,6 @@ void forward_backward_network_gpu(network net, float *x, float *y)
 		cuda_free(state.delta);
 		cuda_pull_array(*net.input_gpu, x, x_size);
 	}
-
-	if (*(state.net.total_bbox) > 0)
-	{
-		printf("total_bbox=%d, rewritten_bbox=%f%%\n", *(state.net.total_bbox), 100.0f * (float)*(state.net.rewritten_bbox) / *(state.net.total_bbox));
-	}
 }
 
 float train_network_datum_gpu(network net, float *x, float *y)
