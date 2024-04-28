@@ -75,7 +75,11 @@ namespace Darknet
 	/// Similar to @ref TAT() but with a comment.
 	#define TAT_COMMENT(n, c) Darknet::TimingAndTracking tat(n, false, c)
 
-	#define TATPARMS __PRETTY_FUNCTION__
+	#ifdef WIN32
+		#define TATPARMS __FUNCSIG
+	#else
+		#define TATPARMS __PRETTY_FUNCTION__
+	#endif
 
 #else
 
