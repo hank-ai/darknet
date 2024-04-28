@@ -18,8 +18,6 @@ typedef __compar_fn_t comparison_fn_t;
 #endif
 #endif
 
-#include "http_stream.hpp"
-
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
