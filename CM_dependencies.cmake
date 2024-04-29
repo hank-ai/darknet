@@ -52,39 +52,26 @@ ENDIF ()
 # == cuDNN ==
 # ===========
 IF (DARKNET_USE_CUDA)
-	IF (WIN32)
-		# If installed according to the NVIDIA instructions, CUDNN should look like this:
-		#		C:\Program Files\NVIDIA\CUDNN\v8.x\...
-		# The .dll is named:
-		#		C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll
-		# And the header should look like:
-		#		C:\Program Files\NVIDIA\CUDNN\v8.x\include\cudnn.h
-		#
-		SET (CUDNN_DIR "C:/Program Files/NVIDIA/CUDNN/v8.x")
-		SET (CUDNN_DLL "${CUDNN_DIR}/bin/cudnn64_8.dll")
-		SET (CUDNN_LIB "${CUDNN_DIR}/lib/x64/cudnn.lib")
-		SET (CUDNN_HEADER "${CUDNN_DIR}/include/cudnn.h")
-		IF (EXISTS ${CUDNN_DLL} AND EXISTS ${CUDNN_LIB} AND EXISTS ${CUDNN_HEADER})
-			MESSAGE (STATUS "cuDNN found at ${CUDNN_DIR}")
-			INCLUDE_DIRECTORIES (${CUDNN_DIR}/include/)
-			ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
-			ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
-			SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${CUDNN_LIB})
-		ELSE ()
-			MESSAGE (WARNING "Did not find cuDNN at ${CUDNN_DIR}")
-		ENDIF ()
-	ELSE ()
-		# Should be slightly easier to deal with on Linux if it was installed correctly.
-		FIND_LIBRARY (CUDNN cudnn OPTIONAL QUIET)
-		IF (NOT CUDNN)
-			MESSAGE (STATUS "Skipping cuDNN")
-		ELSE ()
+       	# Look for cudnn, we will look in the same place as other CUDA
+		# libraries and also a few other places as well.
+		find_path(cudnn_include cudnn.h
+					HINTS ${CUDA_INCLUDE_DIRS} ENV CUDNN_INCLUDE_DIR  ENV CUDNN_HOME
+					PATHS /usr/local /usr/local/cuda ENV CPATH
+					PATH_SUFFIXES include)
+
+		get_filename_component(cudnn_hint_path "${CUDA_CUBLAS_LIBRARIES}" PATH)
+		find_library(cudnn cudnn
+					HINTS ${cudnn_hint_path} ENV CUDNN_LIBRARY_DIR  ENV CUDNN_HOME
+					PATHS /usr/local /usr/local/cuda ENV LD_LIBRARY_PATH
+					PATH_SUFFIXES lib64 lib x64)
+		IF (cudnn AND cudnn_include)
 			MESSAGE (STATUS "Enabling cuDNN")
 			ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
 			ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
 			SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${CUDNN})
+		ELSE ()
+			MESSAGE (STATUS "Skipping cuDNN")
 		ENDIF ()
-	ENDIF ()
 ENDIF ()
 
 
