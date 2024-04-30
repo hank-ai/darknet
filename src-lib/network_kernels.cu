@@ -464,30 +464,25 @@ typedef struct {
 	float *err;
 } train_args;
 
-void *train_thread(void *ptr)
+void train_thread( network& net,  data& d, float* err)
 {
 	TAT(TATPARMS);
 
-	train_args args = *(train_args*)ptr;
-	free(ptr);
+
+	cuda_set_device(net.gpu_index);
+	*err = train_network(net, d);
+	
+}
+/*void* train_thread(void* ptr)
+{
+	TAT(TATPARMS);
+
+	train_args args{ *(train_args*)ptr };
+	//	free(ptr);
 	cuda_set_device(args.net.gpu_index);
 	*args.err = train_network(args.net, args.d);
 	return 0;
-}
-
-std::thread train_network_in_thread(network net, data d, float *err)
-{
-	TAT(TATPARMS);
-
-	train_args *ptr = (train_args *)calloc(1, sizeof(train_args));
-	ptr->net = net;
-	ptr->d = d;
-	ptr->err = err;
-
-	std::thread thread(train_thread, ptr);
-
-	return thread;
-}
+}*/
 
 void pull_updates(layer l)
 {
@@ -733,8 +728,9 @@ float train_networks(network *nets, int n, data d, int interval)
 	threads.reserve(n);
 	for(int i = 0; i < n; ++i)
 	{
+		
 		data p = get_data_part(d, i, n);
-		threads.emplace_back(train_network_in_thread, nets[i], p, errors + i);
+		threads.emplace_back(train_thread, std::ref(nets[i]), std::ref(p), errors + i);
 	}
 	float sum = 0.0f;
 	for(int i = 0; i < n; ++i)
