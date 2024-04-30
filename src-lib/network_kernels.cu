@@ -466,7 +466,6 @@ void train_thread( network& net,  data& d, float* err)
 	*err = train_network(net, d);	
 }
 
-
 void pull_updates(layer l)
 {
 	TAT(TATPARMS);
@@ -711,7 +710,7 @@ float train_networks(network *nets, int n, data d, int interval)
 	threads.reserve(n);
 	for(int i = 0; i < n; ++i)
 	{
-		
+
 		data p = get_data_part(d, i, n);
 		threads.emplace_back(train_thread, std::ref(nets[i]), std::ref(p), errors + i);
 	}
