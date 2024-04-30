@@ -361,12 +361,12 @@ Be patient.  The best weights will be saved as `animals_best.weights`.  And the 
 
 # Roadmap
 
-Last updated 2024-04-11:
+Last updated 2024-04-30:
 
 ## Short-term goals
 
-* [ ] swap out qsort() for std::sort()
-* [ ] swap out printf() for std::cout
+* [X] swap out qsort() for std::sort() where used during training (some other obscure ones remain)
+* [ ] swap out printf() for std::cout (in progress)
 * [X] get rid of check_mistakes, getchar(), and system()
 * [X] convert Darknet to use the C++ compiler (g++ on Linux, VisualStudio on Windows)
 * [X] fix Windows build

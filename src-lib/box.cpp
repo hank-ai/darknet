@@ -593,12 +593,15 @@ dbox diou(const box & a, const box & b)
 	return dd;
 }
 
-struct sortable_bbox
+namespace
 {
-	int index;
-	int class_id;
-	float **probs;
-};
+	struct sortable_bbox
+	{
+		int index;
+		int class_id;
+		float **probs;
+	};
+}
 
 int nms_comparator(const void *pa, const void *pb)
 {
@@ -705,7 +708,7 @@ namespace
 	{
 		TAT(TATPARMS);
 
-#if 1
+#if 0
 		qsort(dets, total, sizeof(detection), nms_comparator_v3);
 #else
 		if (total > 1)
@@ -740,11 +743,7 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 	{
 		if (dets[i].objectness == 0)
 		{
-			/// @todo use std::swap?
-
-			detection swap = dets[i];
-			dets[i] = dets[k];
-			dets[k] = swap;
+			std::swap(dets[i], dets[k]);
 			--k;
 			--i;
 		}
@@ -793,10 +792,7 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
 	{
 		if (dets[i].objectness == 0)
 		{
-			/// @todo std::swap
-			detection swap = dets[i];
-			dets[i] = dets[k];
-			dets[k] = swap;
+			std::swap(dets[i], dets[k]);
 			--k;
 			--i;
 		}
@@ -880,10 +876,7 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 	{
 		if (dets[i].objectness == 0)
 		{
-			/// @todo std::swap
-			detection swap = dets[i];
-			dets[i] = dets[k];
-			dets[k] = swap;
+			std::swap(dets[i], dets[k]);
 			--k;
 			--i;
 		}

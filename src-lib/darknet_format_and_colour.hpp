@@ -47,10 +47,6 @@ namespace Darknet
 	/// Format the mAP% accuracy with ANSI colours.
 	std::string format_map_accuracy(const float & accuracy);
 
-	void display_loaded_images(const int images, const double time);
-	void display_iteration_summary(const int iteration, const float loss, const float avg_loss, const float rate, const double time, const int images, const float seconds_remaining);
-	void display_last_accuracy(const float iou_thresh, const float mean_average_precision, const float best_map);
-
 	std::string format_in_colour(const std::string & str, const EColour & colour, const size_t & len);
 	std::string format_in_colour(const int & i, const EColour & colour, const size_t & len);
 	std::string format_in_colour(const float & f, const EColour & colour, const size_t & len);

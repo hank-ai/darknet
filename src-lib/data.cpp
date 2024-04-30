@@ -32,14 +32,6 @@ namespace
 	static std::vector<int> data_loading_per_thread_flag;
 
 
-	/** Undocumented mutex around some of the file path logic.
-	 *
-	 * @todo Needs to be investigated, as there are zero comments indicating exactly what is being protected and why.
-	 * This used to be a pthread mutex, was converted to a normal C++11 std::mutex in March 2024.
-	 */
-	static std::mutex data_path_mutex;
-
-
 	/// @{ @todo: delete these once the code is cleaned up
 	static const std::chrono::milliseconds thread_wait_ms(5); ///< @todo DELETE THIS! :(
 	static load_args * args_swap = NULL; ///< @todo I wish I better understood how/why this exists...
@@ -74,15 +66,15 @@ char **get_sequential_paths(char **paths, int n, int m, int mini_batch, int augm
 	TAT(TATPARMS);
 
 	int speed = rand_int(1, augment_speed);
-	if (speed < 1) speed = 1;
+	if (speed < 1)
+	{
+		speed = 1;
+	}
+
 	char** sequentia_paths = (char**)xcalloc(n, sizeof(char*));
-	int i;
 
-	std::scoped_lock lock(data_path_mutex);
-
-	//printf("n = %d, mini_batch = %d \n", n, mini_batch);
 	unsigned int *start_time_indexes = (unsigned int *)xcalloc(mini_batch, sizeof(unsigned int));
-	for (i = 0; i < mini_batch; ++i)
+	for (int i = 0; i < mini_batch; ++i)
 	{
 		if (contrastive && (i % 2) == 1)
 		{
@@ -92,28 +84,15 @@ char **get_sequential_paths(char **paths, int n, int m, int mini_batch, int augm
 		{
 			start_time_indexes[i] = random_gen() % m;
 		}
-
-		//printf(" start_time_indexes[i] = %u, ", start_time_indexes[i]);
 	}
 
-	for (i = 0; i < n; ++i)
+	for (int i = 0; i < n; ++i)
 	{
-		do
-		{
-			int time_line_index = i % mini_batch;
-			unsigned int index = start_time_indexes[time_line_index] % m;
-			start_time_indexes[time_line_index] += speed;
+		int time_line_index = i % mini_batch;
+		unsigned int index = start_time_indexes[time_line_index] % m;
+		start_time_indexes[time_line_index] += speed;
 
-			//int index = random_gen() % m;
-			sequentia_paths[i] = paths[index];
-			//printf(" index = %d, ", index);
-			//if(i == 0) printf("%s\n", paths[index]);
-			//printf(" index = %u - grp: %s \n", index, paths[index]);
-			if (strlen(sequentia_paths[i]) <= 4)
-			{
-				printf(" Very small path to the image: %s \n", sequentia_paths[i]);
-			}
-		} while (strlen(sequentia_paths[i]) == 0);
+		sequentia_paths[i] = paths[index];
 	}
 	free(start_time_indexes);
 
@@ -125,32 +104,22 @@ char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 	TAT(TATPARMS);
 
 	char** random_paths = (char**)xcalloc(n, sizeof(char*));
-	int i;
-
-	std::scoped_lock lock(data_path_mutex);
 
 	int old_index = 0;
-	//printf("n = %d \n", n);
-	for (i = 0; i < n; ++i)
-	{
-		do
-		{
-			int index = random_gen() % m;
-			if (contrastive && (i % 2 == 1))
-			{
-				index = old_index;
-			}
-			else
-			{
-				old_index = index;
-			}
-			random_paths[i] = paths[index];
-			if (strlen(random_paths[i]) <= 4)
-			{
-				printf(" Very small path to the image: %s \n", random_paths[i]);
-			}
 
-		} while (strlen(random_paths[i]) == 0);
+	// "n" is the total number of filenames to be returned at once
+	for (int i = 0; i < n; ++i)
+	{
+		int index = random_gen() % m;
+		if (contrastive && (i % 2 == 1))
+		{
+			index = old_index;
+		}
+		else
+		{
+			old_index = index;
+		}
+		random_paths[i] = paths[index];
 	}
 
 	return random_paths;
@@ -2363,16 +2332,12 @@ void randomize_data(data d)
 	TAT(TATPARMS);
 
 	int i;
-	for(i = d.X.rows-1; i > 0; --i)
+	for (i = d.X.rows - 1; i > 0; --i)
 	{
-		int index = random_gen()%i;
-		float *swap = d.X.vals[index];
-		d.X.vals[index] = d.X.vals[i];
-		d.X.vals[i] = swap;
+		const int index = random_gen() % i;
 
-		swap = d.y.vals[index];
-		d.y.vals[index] = d.y.vals[i];
-		d.y.vals[i] = swap;
+		std::swap(d.X.vals[index], d.X.vals[i]);
+		std::swap(d.y.vals[index], d.y.vals[i]);
 	}
 }
 

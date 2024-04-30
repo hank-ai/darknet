@@ -27,9 +27,6 @@ namespace Darknet
 	 */
 	void remember_class_names(char ** names, const int count);
 
-	/// Use VT100/ANSI codes to update the console title during training.
-	void update_console_title(const int iteration, const int max_batches, const float loss, const float current_map, const float best_map, const float seconds_remaining);
-
 	/// Setup the new C++ charts.  This is called once just prior to starting training.  @see @ref Chart
 	void initialize_new_charts(const int max_batches, const float max_img_loss);
 

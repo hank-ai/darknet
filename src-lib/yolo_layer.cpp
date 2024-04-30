@@ -1,5 +1,10 @@
 #include "darknet_internal.hpp"
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
 layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)
 {
 	TAT(TATPARMS);
@@ -1070,12 +1075,24 @@ void forward_yolo_layer(const layer l, network_state state)
 		classification_loss /= l.batch;
 		iou_loss /= l.batch;
 
-		printf("v3 (%s loss, Normalizer: (iou: %.2f, obj: %.2f, cls: %.2f) Region %d Avg (IOU: %f), count: %d, class_loss = %f, iou_loss = %f, total_loss = %f \n",
-			(l.iou_loss == MSE ? "mse" : (l.iou_loss == GIOU ? "giou" : "iou")), l.iou_normalizer, l.obj_normalizer, l.cls_normalizer, state.index, tot_iou / count, count, classification_loss, iou_loss, loss);
-
-		//fprintf(stderr, "v3 (%s loss, Normalizer: (iou: %.2f, cls: %.2f) Region %d Avg (IOU: %f, GIOU: %f), Class: %f, Obj: %f, No Obj: %f, .5R: %f, .75R: %f, count: %d, class_loss = %f, iou_loss = %f, total_loss = %f \n",
-		//    (l.iou_loss == MSE ? "mse" : (l.iou_loss == GIOU ? "giou" : "iou")), l.iou_normalizer, l.obj_normalizer, state.index, tot_iou / count, tot_giou / count, avg_cat / class_count, avg_obj / count, avg_anyobj / (l.w*l.h*l.n*l.batch), recall / count, recall75 / count, count,
-		//    classification_loss, iou_loss, loss);
+		if (cfg_and_state.is_verbose)
+		{
+			std::cout <<
+					"v3 (" << (	l.iou_loss == MSE	?	"mse"	:
+								l.iou_loss == GIOU	?	"giou"	:
+														"iou"	) << " loss, "
+					"Normalizer: "
+					"(iou: "		<< std::setprecision(2) << l.iou_normalizer		<<
+					", obj: "		<< std::setprecision(2) << l.obj_normalizer		<<
+					", cls: "		<< std::setprecision(2) << l.cls_normalizer		<< ") "
+					"Region "		<< state.index									<< " "
+					"Avg (IOU: "	<< std::setprecision(6) << tot_iou / count		<< "), "
+					"count: "		<< count										<< ", "
+					"class_loss: "	<< std::setprecision(6) << classification_loss	<< ", "
+					"iou_loss: "	<< std::setprecision(6) << iou_loss				<< ", "
+					"total_loss: "	<< std::setprecision(6) << loss
+									<< std::setprecision(2)							<< std::endl;
+		}
 	}
 }
 
@@ -1245,9 +1262,7 @@ void avg_flipped_yolo(layer l)
 				{
 					int i1 = z*l.w*l.h*l.n + n*l.w*l.h + j*l.w + i;
 					int i2 = z*l.w*l.h*l.n + n*l.w*l.h + j*l.w + (l.w - i - 1);
-					float swap = flip[i1];
-					flip[i1] = flip[i2];
-					flip[i2] = swap;
+					std::swap(flip[i1], flip[i2]);
 					if (z == 0)
 					{
 						flip[i1] = -flip[i1];

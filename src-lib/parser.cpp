@@ -2224,9 +2224,14 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 		cuda_set_device(net.gpu_index);
 	}
 #endif
-	fprintf(stderr, "Saving weights to %s\n", filename);
+
+	std::cout << "Saving weights to " << Darknet::in_colour(Darknet::EColour::kBrightMagenta, filename) << std::endl;
+
 	FILE *fp = fopen(filename, "wb");
-	if(!fp) file_error(filename, DARKNET_LOC);
+	if(!fp)
+	{
+		file_error(filename, DARKNET_LOC);
+	}
 
 	const int major = DARKNET_WEIGHTS_VERSION_MAJOR;
 	const int minor = DARKNET_WEIGHTS_VERSION_MINOR;
@@ -2239,35 +2244,53 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 	fwrite(net.seen, sizeof(uint64_t), 1, fp);
 
 	int i;
-	for(i = 0; i < net.n && i < cutoff; ++i){
+	for (i = 0; i < net.n && i < cutoff; ++i)
+	{
 		layer l = net.layers[i];
-		if (l.type == CONVOLUTIONAL && l.share_layer == NULL) {
-			if (save_ema) {
+		if (l.type == CONVOLUTIONAL && l.share_layer == NULL)
+		{
+			if (save_ema)
+			{
 				save_convolutional_weights_ema(l, fp);
 			}
-			else {
+			else
+			{
 				save_convolutional_weights(l, fp);
 			}
-		} if (l.type == SHORTCUT && l.nweights > 0) {
+		}
+		if (l.type == SHORTCUT && l.nweights > 0)
+		{
 			save_shortcut_weights(l, fp);
-		} if (l.type == IMPLICIT) {
+		}
+		if (l.type == IMPLICIT)
+		{
 			save_implicit_weights(l, fp);
-		} if(l.type == CONNECTED){
+		}
+		if (l.type == CONNECTED)
+		{
 			save_connected_weights(l, fp);
-		} if(l.type == BATCHNORM){
+		}
+		if (l.type == BATCHNORM)
+		{
 			save_batchnorm_weights(l, fp);
-		} if(l.type == RNN){
+		}
+		if (l.type == RNN)
+		{
 			save_connected_weights(*(l.input_layer), fp);
 			save_connected_weights(*(l.self_layer), fp);
 			save_connected_weights(*(l.output_layer), fp);
-		} if(l.type == GRU){
+		}
+		if (l.type == GRU)
+		{
 			save_connected_weights(*(l.input_z_layer), fp);
 			save_connected_weights(*(l.input_r_layer), fp);
 			save_connected_weights(*(l.input_h_layer), fp);
 			save_connected_weights(*(l.state_z_layer), fp);
 			save_connected_weights(*(l.state_r_layer), fp);
 			save_connected_weights(*(l.state_h_layer), fp);
-		} if(l.type == LSTM){
+		}
+		if (l.type == LSTM)
+		{
 			save_connected_weights(*(l.wf), fp);
 			save_connected_weights(*(l.wi), fp);
 			save_connected_weights(*(l.wg), fp);
@@ -2276,14 +2299,18 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 			save_connected_weights(*(l.ui), fp);
 			save_connected_weights(*(l.ug), fp);
 			save_connected_weights(*(l.uo), fp);
-		} if (l.type == CONV_LSTM) {
-			if (l.peephole) {
+		}
+		if (l.type == CONV_LSTM)
+		{
+			if (l.peephole)
+			{
 				save_convolutional_weights(*(l.vf), fp);
 				save_convolutional_weights(*(l.vi), fp);
 				save_convolutional_weights(*(l.vo), fp);
 			}
 			save_convolutional_weights(*(l.wf), fp);
-			if (!l.bottleneck) {
+			if (!l.bottleneck)
+			{
 				save_convolutional_weights(*(l.wi), fp);
 				save_convolutional_weights(*(l.wg), fp);
 				save_convolutional_weights(*(l.wo), fp);
@@ -2292,11 +2319,15 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 			save_convolutional_weights(*(l.ui), fp);
 			save_convolutional_weights(*(l.ug), fp);
 			save_convolutional_weights(*(l.uo), fp);
-		} if(l.type == CRNN){
+		}
+		if (l.type == CRNN)
+		{
 			save_convolutional_weights(*(l.input_layer), fp);
 			save_convolutional_weights(*(l.self_layer), fp);
 			save_convolutional_weights(*(l.output_layer), fp);
-		} if(l.type == LOCAL){
+		}
+		if (l.type == LOCAL)
+		{
 #ifdef GPU
 			if (cfg_and_state.gpu_index >= 0)
 			{
@@ -2308,10 +2339,10 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 			fwrite(l.biases, sizeof(float), l.outputs, fp);
 			fwrite(l.weights, sizeof(float), size, fp);
 		}
-		fflush(fp);
 	}
 	fclose(fp);
 }
+
 void save_weights(network net, char *filename)
 {
 	TAT(TATPARMS);

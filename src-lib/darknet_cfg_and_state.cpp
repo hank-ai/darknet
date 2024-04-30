@@ -43,9 +43,14 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	// can move to the new C++11 objects and functions for dealing with random numbers.
 	std::srand(std::time(nullptr));
 
+	// prefer using 500 over 5e+02 when outputting floats
+	std::cout << std::fixed;
+
 	must_immediately_exit	= false;
 	is_shown				= true;
 	colour_is_enabled		= true;
+	is_verbose				= false;
+
 #ifdef GPU
 	gpu_index				= 0;
 #else
@@ -204,6 +209,11 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 				function = iter->name;
 			}
 		}
+	}
+
+	if (args.count("verbose") > 0)
+	{
+		is_verbose = true;
 	}
 
 	if (args.count("dontshow") > 0)

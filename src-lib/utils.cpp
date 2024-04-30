@@ -1189,10 +1189,9 @@ float rand_uniform(float min, float max)
 {
 	TAT(TATPARMS);
 
-	if(max < min){
-		float swap = min;
-		min = max;
-		max = swap;
+	if (max < min)
+	{
+		std::swap(min, max);
 	}
 
 #if (RAND_MAX < 65536)
@@ -1307,10 +1306,9 @@ float rand_uniform_strong(float min, float max)
 {
 	TAT(TATPARMS);
 
-	if (max < min) {
-		float swap = min;
-		min = max;
-		max = swap;
+	if (max < min)
+	{
+		std::swap(min, max);
 	}
 	return (random_float() * (max - min)) + min;
 }
@@ -1319,10 +1317,9 @@ float rand_precalc_random(float min, float max, float random_part)
 {
 	TAT(TATPARMS);
 
-	if (max < min) {
-		float swap = min;
-		min = max;
-		max = swap;
+	if (max < min)
+	{
+		std::swap(min, max);
 	}
 	return (random_part * (max - min)) + min;
 }

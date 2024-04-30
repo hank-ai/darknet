@@ -402,29 +402,41 @@ float train_network_datum(network net, float *x, float *y)
 {
 	TAT(TATPARMS);
 
+	float error = 0.0f;
+
 #ifdef GPU
 	if(cfg_and_state.gpu_index >= 0)
 	{
-		return train_network_datum_gpu(net, x, y);
+		error = train_network_datum_gpu(net, x, y);
+	}
+	else
+	{
+#endif
+
+		network_state state={0};
+		*net.seen += net.batch;
+		state.index = 0;
+		state.net = net;
+		state.input = x;
+		state.delta = 0;
+		state.truth = y;
+		state.train = 1;
+		forward_network(net, state);
+		backward_network(net, state);
+		error = get_network_cost(net);
+
+#ifdef GPU
 	}
 #endif
 
-	network_state state={0};
-	*net.seen += net.batch;
-	state.index = 0;
-	state.net = net;
-	state.input = x;
-	state.delta = 0;
-	state.truth = y;
-	state.train = 1;
-	forward_network(net, state);
-	backward_network(net, state);
-	float error = get_network_cost(net);
-	//if(((*net.seen)/net.batch)%net.subdivisions == 0) update_network(net);
-	if(*(state.net.total_bbox) > 0)
+	if (cfg_and_state.is_verbose and *(net.total_bbox) > 0)
 	{
-		printf("total_bbox=%d, rewritten_bbox=%f%%\n", *(state.net.total_bbox), 100.0f * (float)*(state.net.rewritten_bbox) / *(state.net.total_bbox));
+		std::cout
+			<< "total_bbox=" << *(net.total_bbox)
+			<< ", rewritten_bbox=" << 100.0f * float(*(net.rewritten_bbox)) / float(*(net.total_bbox))
+			<< "%" << std::endl;
 	}
+
 	return error;
 }
 

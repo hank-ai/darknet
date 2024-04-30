@@ -18,8 +18,6 @@ typedef __compar_fn_t comparison_fn_t;
 #endif
 #endif
 
-#include "http_stream.hpp"
-
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
@@ -258,7 +256,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			int max_dim_h = roundl(rand_coef*init_h / net.resize_step + 1) * net.resize_step;
 
 			// at the beginning (check if enough memory) and at the end (calc rolling mean/variance)
-			if (avg_loss < 0 || get_current_iteration(net) > net.max_batches - 100)
+			if (avg_loss < 0.0f || get_current_iteration(net) > net.max_batches - 100)
 			{
 				dim_w = max_dim_w;
 				dim_h = max_dim_h;
@@ -320,10 +318,13 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 		const double load_time = (what_time_is_it_now() - time);
-		Darknet::display_loaded_images(args.n, load_time); // "loaded %d images in %s\n"
-		if (load_time > 0.1 && avg_loss > 0)
+		if (cfg_and_state.is_verbose)
 		{
-			Darknet::display_warning_msg("Performance bottleneck detected.  Slow CPU or hard drive?\n");
+			std::cout << "loaded " << args.n << " images in " << Darknet::format_time(load_time) << std::endl;
+		}
+		if (load_time > 0.1 && avg_loss > 0.0f)
+		{
+			Darknet::display_warning_msg("Performance bottleneck detected.  Slow CPU or hard drive?  Loading images from a network share?\n");
 		}
 
 		time = what_time_is_it_now();
@@ -351,10 +352,13 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		if (calc_map)
 		{
 			std::cout << "-> next mAP calculation will be at iteration #" << next_map_calc << std::endl;
-			if (mean_average_precision > 0)
+			if (mean_average_precision > 0.0f)
 			{
-				// "-> last accuracy mAP@0.50=42.67%, best=78.32%"
-				Darknet::display_last_accuracy(iou_thresh, mean_average_precision, best_map);
+				std::cout
+					<< "-> last accuracy mAP@" << std::setprecision(2) << iou_thresh
+					<< "="			<< Darknet::format_map_accuracy(mean_average_precision)
+					<< ", best="	<< Darknet::format_map_accuracy(best_map)
+					<< std::endl;
 			}
 		}
 
@@ -364,18 +368,49 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		const float iters_per_second	= current_iter / elapsed_seconds;
 		const float seconds_remaining	= (net.max_batches - current_iter) / iters_per_second;
 
-		Darknet::update_console_title(iteration, net.max_batches, loss, mean_average_precision, best_map, /* avg_time_in_hours * 60 * 60 */ seconds_remaining);
-
-		if (net.cudnn_half)
+		// updating the console titlebar requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
+		if (cfg_and_state.colour_is_enabled)
 		{
-			if (iteration < net.burn_in * 3)
+			if (std::isfinite(mean_average_precision) && mean_average_precision > 0.0f)
 			{
-				std::cout << "Tensor Cores are disabled until iteration #" << (3 * net.burn_in) << "." << std::endl;
+				std::cout
+					<< "\033]2;"
+					<< iteration << "/" << net.max_batches
+					<< ": loss=" << std::setprecision(1) << loss
+					<< " map=" << std::setprecision(2) << mean_average_precision
+					<< " best=" << std::setprecision(2) << best_map
+					<< " time=" << Darknet::format_time_remaining(seconds_remaining)
+					<< "\007";
+			}
+			else
+			{
+				std::cout
+					<< "\033]2;"
+					<< iteration << "/" << net.max_batches
+					<< ": loss=" << std::setprecision(1) << loss
+					<< " time=" << Darknet::format_time_remaining(seconds_remaining)
+					<< "\007";
 			}
 		}
 
+		if (cfg_and_state.is_verbose	and
+			net.cudnn_half				and
+			iteration < net.burn_in * 3)
+		{
+			std::cout << "Tensor cores are disabled until iteration #" << (3 * net.burn_in) << "." << std::endl;
+		}
+
 		// 5989: loss=0.444, avg loss=0.329, rate=0.000026, 64.424 milliseconds, 383296 images, time remaining=7 seconds
-		Darknet::display_iteration_summary(iteration, loss, avg_loss, get_current_rate(net), (what_time_is_it_now() - time), iteration * imgs, /* avg_time_in_hours * 60 * 60 */ seconds_remaining);
+		std::cout
+			<< Darknet::in_colour(Darknet::EColour::kBrightWhite, iteration)
+			<< ": loss=" << Darknet::format_loss(loss)
+			<< ", avg loss=" << Darknet::format_loss(avg_loss)
+			<< ", rate=" << std::setprecision(8) << get_current_rate(net) << std::setprecision(2)
+			<< ", " << Darknet::format_time(what_time_is_it_now() - time)
+			<< ", " << iteration * imgs
+			<< " images, time remaining="
+			<< Darknet::format_time_remaining(seconds_remaining)
+			<< std::endl;
 
 		// This is where we decide if we have to do the mAP% calculations.
 		if (calc_map && (iteration >= next_map_calc || iteration == net.max_batches))
@@ -1166,11 +1201,11 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		thr.emplace_back(Darknet::load_single_image_data, args);
 		cfg_and_state.set_thread_name(thr.back(), "map loading thread #" + std::to_string(t));
 	}
-	time_t start = time(0);
+	time_t start = std::time(nullptr);
 	for (int i = nthreads; i < number_of_validation_images + nthreads; i += nthreads)
 	{
-		const int percentage = roundl(100.0 * (i - nthreads) / number_of_validation_images);
-		printf("\rprocessing #%d (%d%%)", (i - nthreads), percentage);
+		const int percentage = std::round(100.0f * (i - nthreads) / number_of_validation_images);
+		std::cout << "\rprocessing #" << (i - nthreads) << " (" << percentage << "%) " << std::flush;
 
 		// wait until the 4 threads have finished loading in their image
 		for (int t = 0; t < nthreads && (i + t - nthreads) < number_of_validation_images; ++t)

@@ -145,17 +145,21 @@ void validate_compare(char *filename, char *weightfile)
 	}
 }
 
-typedef struct {
-	network net;
-	char *filename;
-	int class_id;
-	int classes;
-	float elo;
-	float *elos;
-} sortable_bbox;
+namespace
+{
+	struct sortable_bbox
+	{
+		network net;
+		char *filename;
+		int class_id;
+		int classes;
+		float elo;
+		float *elos;
+	};
 
-int total_compares = 0;
-int current_class_id = 0;
+	int total_compares = 0;
+	int current_class_id = 0;
+}
 
 int elo_comparator(const void*a, const void *b)
 {
