@@ -458,31 +458,14 @@ float train_network_datum_gpu(network net, float *x, float *y)
 	return error;
 }
 
-typedef struct {
-	network net;
-	data d;
-	float *err;
-} train_args;
-
 void train_thread( network& net,  data& d, float* err)
 {
 	TAT(TATPARMS);
 
-
 	cuda_set_device(net.gpu_index);
-	*err = train_network(net, d);
-	
+	*err = train_network(net, d);	
 }
-/*void* train_thread(void* ptr)
-{
-	TAT(TATPARMS);
 
-	train_args args{ *(train_args*)ptr };
-	//	free(ptr);
-	cuda_set_device(args.net.gpu_index);
-	*args.err = train_network(args.net, args.d);
-	return 0;
-}*/
 
 void pull_updates(layer l)
 {
