@@ -54,12 +54,12 @@ ENDIF ()
 IF (DARKNET_USE_CUDA)
 		# Look for cudnn, we will look in the same place as other CUDA libraries and also a few other places as well.
 		FIND_PATH(cudnn_include cudnn.h
-					HINTS ${CUDA_INCLUDE_DIRS} ENV CUDNN_INCLUDE_DIR ENV CUDA_PATH
+					HINTS ${CUDA_INCLUDE_DIRS} ENV CUDNN_INCLUDE_DIR ENV CUDA_PATH ENV CUDNN_HOME
 					PATHS /usr/local /usr/local/cuda ENV CPATH
 					PATH_SUFFIXES include)
 		GET_FILENAME_COMPONENT(cudnn_hint_path "${CUDA_CUBLAS_LIBRARIES}" PATH)
 		FIND_LIBRARY(cudnn cudnn
-					HINTS ${cudnn_hint_path} ENV CUDNN_LIBRARY_DIR  ENV CUDA_PATH
+					HINTS ${cudnn_hint_path} ENV CUDNN_LIBRARY_DIR ENV CUDA_PATH ENV CUDNN_HOME
 					PATHS /usr/local /usr/local/cuda ENV LD_LIBRARY_PATH
 					PATH_SUFFIXES lib64 lib x64)
 		IF (cudnn AND cudnn_include)

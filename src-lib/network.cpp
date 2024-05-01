@@ -463,7 +463,9 @@ float train_network_sgd(network net, data d, int n)
 
 float train_network(network net, data d)
 {
+	/* no need to track this since we simply call the other train function which is already tracked
 	TAT(TATPARMS);
+	 */
 
 	return train_network_waitkey(net, d, 0);
 }
@@ -486,7 +488,7 @@ float train_network_waitkey(network net, data d, int wait_key)
 		net.current_subdivision = i;
 		float err = train_network_datum(net, X, y);
 		sum += err;
-		if(wait_key)
+		if (wait_key)
 		{
 			wait_key_cv(5);
 		}
