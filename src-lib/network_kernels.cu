@@ -713,7 +713,7 @@ void sync_nets(network *nets, int n, int interval)
 	for (int j = 0; j < layers; ++j)
 	{
 		threads.emplace_back(
-				[=]()
+				[nets,n,j]()
 				{
 					sync_layer(nets, n, j);
 				});
@@ -745,20 +745,21 @@ float train_networks(network *nets, int n, data d, int interval)
 
 	std::vector<std::thread> threads;
 	threads.reserve(n);
+	std::vector<data> p(n);
+
 	for (int i = 0; i < n; ++i)
-	{
-		// note that "p" is a local stack variable which goes out of scope at the end of this for() loop
-		data p = get_data_part(d, i, n);
+	{		
+		 p[i] = get_data_part(d, i, n);
 
 		threads.emplace_back(
-			[](network & net, data d, float * err)
+			[](network & net, data &d, float * err)
 			{
 				TAT(TATPARMS);
 
 				cuda_set_device(net.gpu_index);
 				*err = train_network(net, d); // note this is the "singular" train function (e.g., for a single GPU)
 			},
-			std::ref(nets[i]), p, errors + i);
+			std::ref(nets[i]), std::ref(p[i]), errors + i);
 	}
 
 	float sum = 0.0f;
