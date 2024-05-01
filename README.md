@@ -189,7 +189,7 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 	* Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
 	* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#download-windows> to download and install cuDNN.
 	* Once you install CUDA make sure you can run `nvcc` and `nvidia-smi`.  You may have to modify your `PATH` variable.
-	* Once you download cuDNN, unzip and copy the bin, include, and lib directories into `C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/&lt;version&gt;/`.  You may need to overwrite some files.
+	* Once you download cuDNN, unzip and copy the bin, include, and lib directories into `C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/[version]/`.  You may need to overwrite some files.
 	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
 		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
 		* Remember to re-build Darknet.
