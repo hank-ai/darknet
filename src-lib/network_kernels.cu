@@ -747,9 +747,7 @@ float train_networks(network *nets, int n, data d, int interval)
 	threads.reserve(n);
 	for (int i = 0; i < n; ++i)
 	{
-==== BASE ====
-		
-==== BASE ====
+		// note that "p" is a local stack variable which goes out of scope at the end of this for() loop
 		data p = get_data_part(d, i, n);
 
 		threads.emplace_back(
