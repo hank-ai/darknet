@@ -189,7 +189,7 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 	* Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
 	* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#download-windows> to download and install cuDNN.
 	* Once you install CUDA make sure you can run `nvcc` and `nvidia-smi`.  You may have to modify your `PATH` variable.
-	* Once you download cuDNN, unzip and copy the bin, include, and lib directories into `C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/&lt;version&gt;/.  You may need to overwrite some files.
+	* Once you download cuDNN, unzip and copy the bin, include, and lib directories into `C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/&lt;version&gt;/`.  You may need to overwrite some files.
 	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
 		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
 		* Remember to re-build Darknet.
@@ -344,6 +344,12 @@ darknet detector -map -dont_show train animals.data animals.cfg
 ```
 
 Be patient.  The best weights will be saved as `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file.  See [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#training_command) for additional parameters you may want to use when training a new network.
+
+If you want to see more details during training, add the `--verbose` parameter.  For example:
+
+```sh
+darknet detector -map -dont_show --verbose train animals.data animals.cfg
+```
 
 # Other Tools and Links
 
