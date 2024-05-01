@@ -157,6 +157,8 @@ winget install nsis.nsis
 winget install Microsoft.VisualStudio.2022.Community --silent --override "--wait --quiet --add Microsoft.VisualStudio.Workload.NativeDesktop"
 ```
 
+Be careful, that last line is quite long, make sure you copy all of it!
+
 Once everything is downloaded and installed, click on the "Windows Start" menu again and select `Developer Command Prompt for VS 2022`.  **Do not** use PowerShell for these steps, you will run into problems!
 
 > Advanced users:
@@ -187,6 +189,7 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 	* Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
 	* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#download-windows> to download and install cuDNN.
 	* Once you install CUDA make sure you can run `nvcc` and `nvidia-smi`.  You may have to modify your `PATH` variable.
+	* Once you download cuDNN, unzip and copy the bin, include, and lib directories into `C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/&lt;version&gt;/.  You may need to overwrite some files.
 	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
 		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
 		* Remember to re-build Darknet.
@@ -205,14 +208,12 @@ msbuild.exe /property:Platform=x64;Configuration=Release /target:Build -maxCpuCo
 msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 ```
 
-If you get an error about some missing CUDA DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
+If you get an error about some missing CUDA or cuDNN DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
 ```bat
 copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\*.dll" src-cli\Release\
 ```
-Similarly, if you get an error about CUDNN, then manually copy the CUDNN `.dll` file into the same output directory.  For example:
-```bat
-copy "C:\Program Files\NVIDIA\CUDNN\v8.x\bin\cudnn64_8.dll" src-cli\Release\
-```
+(That is an example!  Check to make sure what version you are running, and run the command that is appropriate for what you have installed.)
+
 Once the files have been copied, re-run the last `msbuild.exe` command to generate the NSIS installation package:
 ```bat
 msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
