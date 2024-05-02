@@ -55,10 +55,10 @@ namespace Darknet
 
 			TimingRecords & add(const TimingAndTracking & tat);
 
-			std::map<std::string, size_t>		min_elapsed_time_per_function;
-			std::map<std::string, size_t>		max_elapsed_time_per_function;
-			std::map<std::string, size_t>		total_elapsed_time_per_function;
-			std::map<std::string, size_t>		number_of_calls_per_function;
+			std::map<std::string, uint64_t>		min_elapsed_time_per_function;		///< in nanoseconds
+			std::map<std::string, uint64_t>		max_elapsed_time_per_function;		///< in nanoseconds
+			std::map<std::string, uint64_t>		total_elapsed_time_per_function;	///< in nanoseconds
+			std::map<std::string, uint64_t>		number_of_calls_per_function;
 			std::map<std::string, bool>			reviewed_per_function;
 			std::map<std::string, std::string>	comment_per_function;
 	};

@@ -40,6 +40,13 @@ Darknet::TimingRecords::~TimingRecords()
 {
 	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
 
+	// Remember this is the destruction of a *static* object.  By the time we get here,
+	// everything has been taken down, main() has stopped running, and no other static
+	// object can be relied upon.
+	//
+	// Do not attempt to use the colour codes in this method.  The colour table has already
+	// been destructed which leads to strange segfaults which are very difficult to debug.
+
 	// sort the calls by total time
 	VStr sorted_names;
 	sorted_names.reserve(total_elapsed_time_per_function.size());
@@ -50,7 +57,18 @@ Darknet::TimingRecords::~TimingRecords()
 	std::sort(sorted_names.begin(), sorted_names.end(),
 			[&](const std::string & lhs, const std::string & rhs)
 			{
-				return total_elapsed_time_per_function[lhs] > total_elapsed_time_per_function[rhs];
+				// sort by total time
+
+				const auto & lhs_nanoseconds = total_elapsed_time_per_function[lhs];
+				const auto & rhs_nanoseconds = total_elapsed_time_per_function[rhs];
+
+				if (lhs_nanoseconds != rhs_nanoseconds)
+				{
+					return lhs_nanoseconds > rhs_nanoseconds;
+				}
+
+				// ...unless the total time is exactly the same, in which case sort by the number of calls
+				return number_of_calls_per_function[lhs] > number_of_calls_per_function[rhs];
 			});
 
 	const VStr cols =
@@ -76,6 +94,10 @@ Darknet::TimingRecords::~TimingRecords()
 		{"function"	, 8},
 	};
 
+	std::cout
+		<< "               +---------------------------------------------------+" << std::endl
+		<< "               | min, max, total, and average are in milliseconds  |" << std::endl;
+
 	std::string seperator;
 	for (const auto & name : cols)
 	{
@@ -89,18 +111,20 @@ Darknet::TimingRecords::~TimingRecords()
 	}
 	std::cout << std::endl << seperator << std::endl;
 
+	const double nanoseconds_to_milliseconds = 1000000.0;
+
 	size_t skipped = 0;
 	for (const auto & name : sorted_names)
 	{
-		const auto & calls				= number_of_calls_per_function.at(name);
-		const auto & total_milliseconds	= total_elapsed_time_per_function.at(name);
-		const auto & min_milliseconds	= min_elapsed_time_per_function.at(name);
-		const auto & max_milliseconds	= max_elapsed_time_per_function.at(name);
-		const auto average_milliseconds	= float(total_milliseconds) / float(calls);
-		const std::string reviewed		= (reviewed_per_function.at(name) ? "yes" : "");
-		const std::string comment		= comment_per_function.at(name);
+		const uint64_t calls				= number_of_calls_per_function.at(name);
+		const uint64_t total_milliseconds	= std::round(total_elapsed_time_per_function.at(name)	/ nanoseconds_to_milliseconds);
+		const uint64_t min_milliseconds		= std::round(min_elapsed_time_per_function.at(name)		/ nanoseconds_to_milliseconds);
+		const uint64_t max_milliseconds		= std::round(max_elapsed_time_per_function.at(name)		/ nanoseconds_to_milliseconds);
+		const double average_milliseconds	= total_elapsed_time_per_function.at(name)				/ nanoseconds_to_milliseconds / calls;
+		const std::string reviewed			= (reviewed_per_function.at(name) ? "yes" : "");
+		const std::string comment			= comment_per_function.at(name);
 
-		if (total_milliseconds < 100.0f)
+		if (total_milliseconds < 10.0f)
 		{
 			skipped ++;
 			continue;
@@ -138,23 +162,23 @@ Darknet::TimingRecords & Darknet::TimingRecords::add(const Darknet::TimingAndTra
 	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
 
 	const auto duration = tat.end_time - tat.start_time;
-	const auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+	const auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
 
 	const bool is_locked = timing_and_tracking_container_mutex.try_lock_for(std::chrono::seconds(3));
 
 	number_of_calls_per_function[tat.name] ++;
-	total_elapsed_time_per_function[tat.name] += milliseconds;
+	total_elapsed_time_per_function[tat.name] += nanoseconds;
 
 	reviewed_per_function[tat.name] = tat.reviewed;
 	comment_per_function[tat.name] = tat.comment;
 
-	if (min_elapsed_time_per_function.count(tat.name) == 0 or milliseconds < min_elapsed_time_per_function[tat.name])
+	if (min_elapsed_time_per_function.count(tat.name) == 0 or nanoseconds < min_elapsed_time_per_function[tat.name])
 	{
-		min_elapsed_time_per_function[tat.name] = milliseconds;
+		min_elapsed_time_per_function[tat.name] = nanoseconds;
 	}
-	if (max_elapsed_time_per_function.count(tat.name) == 0 or milliseconds > max_elapsed_time_per_function[tat.name])
+	if (max_elapsed_time_per_function.count(tat.name) == 0 or nanoseconds > max_elapsed_time_per_function[tat.name])
 	{
-		max_elapsed_time_per_function[tat.name] = milliseconds;
+		max_elapsed_time_per_function[tat.name] = nanoseconds;
 	}
 
 	if (is_locked)
