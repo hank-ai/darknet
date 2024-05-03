@@ -223,7 +223,7 @@ struct layer {
 	int outputs;
 	float mean_alpha;
 	int nweights;
-	int nbiases;
+	int nbiases; ///< unused?  Seems to be no references to this in the codebase.
 	int extra;
 	int truths;
 	int h, w, c;

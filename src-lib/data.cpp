@@ -279,10 +279,8 @@ void randomize_boxes(box_label *b, int n)
 	int i;
 	for(i = 0; i < n; ++i)
 	{
-		box_label swap = b[i];
-		int index = random_gen()%n;
-		b[i] = b[index];
-		b[index] = swap;
+		const auto index = random_gen()%n;
+		std::swap(b[i], b[index]);
 	}
 }
 
@@ -318,8 +316,8 @@ void correct_boxes(box_label *boxes, int n, float dx, float dy, float sx, float 
 		if(flip)
 		{
 			float swap = boxes[i].left;
-			boxes[i].left = 1. - boxes[i].right;
-			boxes[i].right = 1. - swap;
+			boxes[i].left = 1.0f - boxes[i].right;
+			boxes[i].right = 1.0f - swap;
 		}
 
 		boxes[i].left =  constrain(0, 1, boxes[i].left);

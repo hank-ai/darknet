@@ -342,8 +342,11 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 #else
 		loss = train_network(net, train);
 #endif
-		if (avg_loss < 0 || avg_loss != avg_loss) avg_loss = loss;    // if(-inf or nan)
-		avg_loss = avg_loss*.9 + loss*.1;
+		if (avg_loss < 0.0f || avg_loss != avg_loss)
+		{
+			avg_loss = loss;    // if(-inf or nan)
+		}
+		avg_loss = avg_loss * 0.9f + loss * 0.1f;
 
 		const int iteration = get_current_iteration(net);
 
@@ -508,7 +511,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			sprintf(buff, "%s/%s_last.weights", backup_directory, base);
 			save_weights(net, buff);
 
-			if (net.ema_alpha && is_ema_initialized(net)) {
+			if (net.ema_alpha && is_ema_initialized(net))
+			{
 				sprintf(buff, "%s/%s_ema.weights", backup_directory, base);
 				save_weights_upto(net, buff, net.n, 1);
 				printf(" EMA weights are saved to the file: %s \n", buff);
@@ -519,7 +523,10 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	} // end of training loop
 
 #ifdef GPU
-	if (ngpus != 1) sync_nets(nets, ngpus, 0);
+	if (ngpus != 1)
+	{
+		sync_nets(nets, ngpus, 0);
+	}
 #endif
 	char buff[256];
 	sprintf(buff, "%s/%s_final.weights", backup_directory, base);

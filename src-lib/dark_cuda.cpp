@@ -56,7 +56,7 @@ void *cuda_get_context()
 
 void check_cuda_error(cudaError_t status, const char * const filename, const char * const funcname, const int line)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-05-02");
 
 	if (status != cudaSuccess)
 	{
@@ -72,12 +72,11 @@ void check_cuda_error(cudaError_t status, const char * const filename, const cha
 
 void check_cuda_error_extended(cudaError_t status, const char * const filename, const char * const funcname, const int line)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2024-05-02");
 
 	if (status != cudaSuccess)
 	{
-		fflush(NULL);
-		printf("\nCUDA status error: %s, %s(), line #%d\n", filename, funcname, line);
+		std::cout << "CUDA status error: " << filename << ", " << funcname << "(), line #" << line << std::endl;
 		check_cuda_error(status, filename, funcname, line);
 	}
 
@@ -90,14 +89,14 @@ void check_cuda_error_extended(cudaError_t status, const char * const filename, 
 		status = cudaDeviceSynchronize();
 		if (status != cudaSuccess)
 		{
-			fflush(NULL);
-			printf("\nCUDA status = cudaDeviceSynchronize() error: %s, %s(), line #%d\n", filename, funcname, line);
+			std::cout << "CUDA status = cudaDeviceSynchronize() error: " << filename << ", " << funcname << "(), line #" << line << std::endl;
 		}
 	}
 	check_cuda_error(status, filename, funcname, line);
 }
 
-dim3 cuda_gridsize(size_t n){
+dim3 cuda_gridsize(size_t n)
+{
 	size_t k = (n-1) / BLOCK + 1;
 	size_t x = k;
 	size_t y = 1;
