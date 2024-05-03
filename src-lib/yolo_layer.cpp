@@ -25,11 +25,26 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	l.classes = classes;
 	l.cost = (float*)xcalloc(1, sizeof(float));
 	l.biases = (float*)xcalloc(total * 2, sizeof(float));
+
+	/* PR #51:
+	 * When the model is loaded in darknet, I'm working on allowing Python to access the model's information.
+	 * At this point, I'm sending the structural information of all layers of the model to Python, but when
+	 * passing the length of the bias pointer of the 'YOLO' layer, the length (nbiases) value is 0.
+	 *
+	 * For the YOLO layer, the bias value has a length of anchor * 2, and it would be great if this information
+	 * could also be confirmed from nbiases.
+	 */
 	l.nbiases = total * 2;
-	if(mask) l.mask = mask;
-	else{
+
+	if(mask)
+	{
+		l.mask = mask;
+	}
+	else
+	{
 		l.mask = (int*)xcalloc(n, sizeof(int));
-		for(i = 0; i < n; ++i){
+		for(i = 0; i < n; ++i)
+		{
 			l.mask[i] = i;
 		}
 	}
@@ -40,13 +55,23 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	l.truth_size = 4 + 2;
 	l.truths = l.max_boxes*l.truth_size;    // 90*(4 + 1);
 	l.labels = (int*)xcalloc(batch * l.w*l.h*l.n, sizeof(int));
-	for (i = 0; i < batch * l.w*l.h*l.n; ++i) l.labels[i] = -1;
+
+	for (i = 0; i < batch * l.w*l.h*l.n; ++i)
+	{
+		l.labels[i] = -1;
+	}
 	l.class_ids = (int*)xcalloc(batch * l.w*l.h*l.n, sizeof(int));
-	for (i = 0; i < batch * l.w*l.h*l.n; ++i) l.class_ids[i] = -1;
+
+	for (i = 0; i < batch * l.w*l.h*l.n; ++i)
+	{
+		l.class_ids[i] = -1;
+	}
 
 	l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
-	for(i = 0; i < total*2; ++i){
+
+	for(i = 0; i < total*2; ++i)
+	{
 		l.biases[i] = .5;
 	}
 
