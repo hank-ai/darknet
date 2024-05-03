@@ -3,18 +3,29 @@
 
 namespace
 {
-	static Darknet::TimingRecords tr;
+	Darknet::TimingRecords & get_tr()
+	{
+		/// There is only 1 of these objects.  All the the tracking/timing information is stored in this object.
+		static Darknet::TimingRecords tr;
 
-	static std::timed_mutex timing_and_tracking_container_mutex;
+		return tr;
+	}
+
+	/// Mutex used to lock access to @ref tr, to ensure we're not modifying the STL containers at the same time across multiple threads.
+	std::timed_mutex timing_and_tracking_container_mutex;
 }
 
 
 Darknet::TimingAndTracking::TimingAndTracking(const std::string& n, const bool r, const std::string & c)
 {
+	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
+
 	name		= n;
 	reviewed	= r;
 	comment		= c;
 	start_time	= std::chrono::high_resolution_clock::now();
+
+	#endif
 
 	return;
 }
@@ -22,9 +33,13 @@ Darknet::TimingAndTracking::TimingAndTracking(const std::string& n, const bool r
 
 Darknet::TimingAndTracking::~TimingAndTracking()
 {
+	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
+
 	end_time = std::chrono::high_resolution_clock::now();
 
-	tr.add(*this);
+	get_tr().add(*this);
+
+	#endif
 
 	return;
 }
@@ -46,6 +61,8 @@ Darknet::TimingRecords::~TimingRecords()
 	//
 	// Do not attempt to use the colour codes in this method.  The colour table has already
 	// been destructed which leads to strange segfaults which are very difficult to debug.
+
+	std::scoped_lock lock(timing_and_tracking_container_mutex);
 
 	// sort the calls by total time
 	VStr sorted_names;
@@ -164,7 +181,7 @@ Darknet::TimingRecords & Darknet::TimingRecords::add(const Darknet::TimingAndTra
 	const auto duration = tat.end_time - tat.start_time;
 	const auto nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
 
-	const bool is_locked = timing_and_tracking_container_mutex.try_lock_for(std::chrono::seconds(3));
+	std::scoped_lock lock(timing_and_tracking_container_mutex);
 
 	number_of_calls_per_function[tat.name] ++;
 	total_elapsed_time_per_function[tat.name] += nanoseconds;
@@ -179,11 +196,6 @@ Darknet::TimingRecords & Darknet::TimingRecords::add(const Darknet::TimingAndTra
 	if (max_elapsed_time_per_function.count(tat.name) == 0 or nanoseconds > max_elapsed_time_per_function[tat.name])
 	{
 		max_elapsed_time_per_function[tat.name] = nanoseconds;
-	}
-
-	if (is_locked)
-	{
-		timing_and_tracking_container_mutex.unlock();
 	}
 
 	#endif
