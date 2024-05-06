@@ -94,18 +94,30 @@ float overlap(const float x1, const float w1, const float x2, const float w2)
 
 float box_intersection(const box & a, const box & b)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	TAT_REVIEWED(TATPARMS, "2024-05-06");
 
 	const float w = overlap(a.x, a.w, b.x, b.w);
-	const float h = overlap(a.y, a.h, b.y, b.h);
-	if (w <= 0.0f || h <= 0.0f)
+	if (w <= 0.0f)
 	{
 		return 0.0f;
 	}
 
-	const float area = w * h;
+	const float h = overlap(a.y, a.h, b.y, b.h);
+	if (h <= 0.0f)
+	{
+		return 0.0f;
+	}
 
-	return area;
+	return w * h;
+}
+
+float box_union(const box& a, const box& b, const float intersection)
+{
+	TAT_REVIEWED(TATPARMS, "2024-06-05");
+
+	const float u = a.w * a.h + b.w * b.h - intersection;
+
+	return u;
 }
 
 float box_union(const box & a, const box & b)
@@ -146,7 +158,7 @@ float box_iou(const box & a, const box & b)
 	}
 
 	// if intersection is non-zero, then union will of course be non-zero, so no need to worry about divide-by-zero
-	const float U = box_union(a, b);
+	const float U = box_union(a, b,I);
 
 	return I / U;
 }
