@@ -97,6 +97,14 @@ ELSE ()
 	SET (COMPILER_IS_GNU_OR_CLANG FALSE)
 ENDIF ()
 
+# ===============
+# == GCC/Clang/MSCV ==
+# ===============
+if(COMPILER_IS_GNU_OR_CLANG OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC")
+    set(COMPILER_IS_GNU_OR_CLANG_OR_MSVC TRUE)
+ELSE ()
+	SET (COMPILER_IS_GNU_OR_CLANG_OR_MSVC FALSE)
+endif()
 
 # =============
 # == Threads ==
@@ -134,10 +142,11 @@ ENDIF ()
 # ===============
 # == AVX & SSE ==
 # ===============
-CMAKE_DEPENDENT_OPTION (ENABLE_SSE_AND_AVX "Enable AVX and SSE optimizations (Intel and AMD only)" ON "COMPILER_IS_GNU_OR_CLANG;HARDWARE_IS_X86" OFF)
+CMAKE_DEPENDENT_OPTION (ENABLE_SSE_AND_AVX "Enable AVX and SSE optimizations (Intel and AMD only)" ON "COMPILER_IS_GNU_OR_CLANG_OR_MSVC;HARDWARE_IS_X86" OFF)
 IF (NOT ENABLE_SSE_AND_AVX)
 	MESSAGE (WARNING "AVX and SSE optimizations are disabled.")
 ELSE ()
+	IF(COMPILER_IS_GNU_OR_CLANG)
 	MESSAGE (STATUS "Enabling AVX and SSE optimizations.")
 	ADD_COMPILE_OPTIONS(-ffp-contract=fast)
 	ADD_COMPILE_OPTIONS(-mavx)
@@ -146,6 +155,9 @@ ELSE ()
 	ADD_COMPILE_OPTIONS(-msse4.1)
 	ADD_COMPILE_OPTIONS(-msse4.2)
 	ADD_COMPILE_OPTIONS(-msse4a)
+	ELSE()
+	SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2" )
+	ENDIF()
 ENDIF ()
 
 
