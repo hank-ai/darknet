@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <execinfo.h>
 #endif
+#include <random>
 
 
 void *xmalloc_location(const size_t size, const char * const filename, const char * const funcname, const int line)
@@ -1266,21 +1267,12 @@ int rand_int_fast(int min, int max)
 	return r;
 }
 
-unsigned int random_gen()
-{
-	TAT(TATPARMS);
-
-	unsigned int rnd = 0;
-#ifdef WIN32
-	rand_s(&rnd);
-#else   // WIN32
-	rnd = rand();
-#if (RAND_MAX < 65536)
-		rnd = rand()*(RAND_MAX + 1) + rnd;
-#endif  //(RAND_MAX < 65536)
-#endif  // WIN32
-	return rnd;
+unsigned int random_gen(unsigned int min, unsigned int max) {
+	static thread_local std::mt19937 generator;
+	std::uniform_int_distribution<unsigned int> distribution(min, max);
+	return distribution(generator);
 }
+
 
 float random_float()
 {
