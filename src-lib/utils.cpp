@@ -1224,11 +1224,11 @@ float **one_hot_encode(float *a, int n, int k)
 
 namespace
 {
-	inline std::default_random_engine & get_rnd_engine()
+	inline std::mt19937 & get_rnd_engine()
 	{
 		TAT(TATPARMS);
 
-		static thread_local std::default_random_engine rnd_engine;
+		static thread_local std::mt19937 rnd_engine;
 		static thread_local bool needs_to_be_seeded = true;
 
 		if (needs_to_be_seeded)
