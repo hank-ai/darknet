@@ -154,11 +154,15 @@ Open a normal `cmd.exe` command prompt window and run the following commands:
 winget install Git.Git
 winget install Kitware.CMake
 winget install nsis.nsis
-winget install Microsoft.VisualStudio.2022.Community --silent --override "--wait --quiet --add Microsoft.VisualStudio.Workload.NativeDesktop"
+winget install Microsoft.VisualStudio.2022.Community
 ```
 
-Be careful, that last line is quite long, make sure you copy all of it!
+At this point we need to modify the Visual Studio installation to include support for C++ applications:
 
+* click on the "Windows Start" menu and run "Visual Studio Installer"
+* click on `Modify`
+* select `Desktop Development With C++`
+* click on `Modify` in the bottom-right corner, and then click on `Yes`
 Once everything is downloaded and installed, click on the "Windows Start" menu again and select `Developer Command Prompt for VS 2022`.  **Do not** use PowerShell for these steps, you will run into problems!
 
 > Advanced users:
