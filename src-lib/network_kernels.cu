@@ -32,10 +32,12 @@ extern "C"
 }
 
 
+#if 0
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 }
+#endif
 
 
 typedef struct time_benchmark_layers {
@@ -74,14 +76,13 @@ void forward_network_gpu(network net, network_state state)
 	}
 
 	state.workspace = net.workspace;
-	int i;
-	for(i = 0; i < net.n; ++i)
+	for (int i = 0; i < net.n; ++i)
 	{
 		state.index = i;
 		layer l = net.layers[i];
 //      printf("i=%d/%d: %s\n", i + 1, net.n, get_layer_string(l.type));
 
-		if(l.delta_gpu && state.train)
+		if (l.delta_gpu && state.train)
 		{
 			fill_ongpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
 		}
@@ -157,7 +158,7 @@ void forward_network_gpu(network net, network_state state)
 		/// @todo replace qsort() low priority
 		qsort(sorted_avg_time_per_layer, net.n, sizeof(time_benchmark_layers), time_comparator);
 
-		for (i = 0; i < net.n; ++i)
+		for (int i = 0; i < net.n; ++i)
 		{
 			//printf("layer %d - type: %d - avg_time %lf ms \n", avg_time_per_layer[i].layer_id, avg_time_per_layer[i].layer_type, avg_time_per_layer[i].time);
 			printf("%d - fw-sort-layer %d - type: %d - avg_time %lf ms \n", i, sorted_avg_time_per_layer[i].layer_id, sorted_avg_time_per_layer[i].layer_type, sorted_avg_time_per_layer[i].time);
@@ -748,7 +749,7 @@ float train_networks(network *nets, int n, data d, int interval)
 	std::vector<data> p(n);
 
 	for (int i = 0; i < n; ++i)
-	{		
+	{
 		 p[i] = get_data_part(d, i, n);
 
 		threads.emplace_back(

@@ -39,7 +39,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	TAT(TATPARMS);
 
 	// Seeding the old C-style rand() is peppered all over the codebase for some reason.
-	// I'm hoping we can do it once, and then nor worry about it again.  Eventually we
+	// I'm hoping we can do it once, and then not worry about it again.  Eventually we
 	// can move to the new C++11 objects and functions for dealing with random numbers.
 	std::srand(std::time(nullptr));
 	// ... also see the seeding that happens in get_rnd_engine()
