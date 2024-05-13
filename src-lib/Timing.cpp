@@ -107,7 +107,7 @@ Darknet::TimingRecords::~TimingRecords()
 		{"total"	, 12},
 		{"average"	, 12},
 		{"reviewed"	, 8},
-		{"comment"	, 12},
+		{"comment"	, 18},
 		{"function"	, 8},
 	};
 

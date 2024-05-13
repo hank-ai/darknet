@@ -197,11 +197,14 @@ static inline float clip_value(float val, const float max_val)
 	return val;
 }
 
-ious delta_yolo_box(box truth, float *x, float *biases, int n, int index, int i, int j, int lw, int lh, int w, int h, float *delta, float scale, int stride, float iou_normalizer, IOU_LOSS iou_loss, int accumulate, float max_delta, int *rewritten_bbox, int new_coords)
+inline ious delta_yolo_box(box truth, float *x, float *biases, int n, int index, int i, int j, int lw, int lh, int w, int h, float *delta, float scale, int stride, float iou_normalizer, IOU_LOSS iou_loss, int accumulate, float max_delta, int *rewritten_bbox, int new_coords)
 {
 	TAT(TATPARMS);
 
-	if (delta[index + 0 * stride] || delta[index + 1 * stride] || delta[index + 2 * stride] || delta[index + 3 * stride])
+	if (delta[index + 0 * stride] ||
+		delta[index + 1 * stride] ||
+		delta[index + 2 * stride] ||
+		delta[index + 3 * stride])
 	{
 		(*rewritten_bbox)++;
 	}
@@ -215,9 +218,18 @@ ious delta_yolo_box(box truth, float *x, float *biases, int n, int index, int i,
 	all_ious.giou = box_giou(pred, truth);
 	all_ious.diou = box_diou(pred, truth);
 	all_ious.ciou = box_ciou(pred, truth);
+
 	// avoid nan in dx_box_iou
-	if (pred.w == 0) { pred.w = 1.0; }
-	if (pred.h == 0) { pred.h = 1.0; }
+	if (pred.w == 0)
+	{
+		pred.w = 1.0;
+	}
+
+	if (pred.h == 0)
+	{
+		pred.h = 1.0;
+	}
+
 	if (iou_loss == MSE)    // old loss
 	{
 		float tx = (truth.x*lw - i);
@@ -225,7 +237,8 @@ ious delta_yolo_box(box truth, float *x, float *biases, int n, int index, int i,
 		float tw = log(truth.w*w / biases[2 * n]);
 		float th = log(truth.h*h / biases[2 * n + 1]);
 
-		if (new_coords) {
+		if (new_coords)
+		{
 			//tx = (truth.x*lw - i + 0.5) / 2;
 			//ty = (truth.y*lh - j + 0.5) / 2;
 			tw = sqrt(truth.w*w / (4 * biases[2 * n]));
@@ -241,7 +254,8 @@ ious delta_yolo_box(box truth, float *x, float *biases, int n, int index, int i,
 		delta[index + 2 * stride] += scale * (tw - x[index + 2 * stride]) * iou_normalizer;
 		delta[index + 3 * stride] += scale * (th - x[index + 3 * stride]) * iou_normalizer;
 	}
-	else {
+	else
+	{
 		// https://github.com/generalized-iou/g-darknet
 		// https://arxiv.org/abs/1902.09630v2
 		// https://giou.stanford.edu/
@@ -261,7 +275,8 @@ ious delta_yolo_box(box truth, float *x, float *biases, int n, int index, int i,
 
 
 		// predict exponential, apply gradient of e^delta_t ONLY for w,h
-		if (new_coords) {
+		if (new_coords)
+		{
 			//dw *= 8 * x[index + 2 * stride];
 			//dh *= 8 * x[index + 3 * stride];
 			//dw *= 8 * x[index + 2 * stride] * biases[2 * n] / w;
@@ -272,11 +287,11 @@ ious delta_yolo_box(box truth, float *x, float *biases, int n, int index, int i,
 			//dw *= grad_w;
 			//dh *= grad_h;
 		}
-		else {
+		else
+		{
 			dw *= exp(x[index + 2 * stride]);
 			dh *= exp(x[index + 3 * stride]);
 		}
-
 
 		//dw *= exp(x[index + 2 * stride]);
 		//dh *= exp(x[index + 3 * stride]);
@@ -293,7 +308,8 @@ ious delta_yolo_box(box truth, float *x, float *biases, int n, int index, int i,
 		dw = fix_nan_inf(dw);
 		dh = fix_nan_inf(dh);
 
-		if (max_delta != FLT_MAX) {
+		if (max_delta != FLT_MAX)
+		{
 			dx = clip_value(dx, max_delta);
 			dy = clip_value(dy, max_delta);
 			dw = clip_value(dw, max_delta);
@@ -301,7 +317,8 @@ ious delta_yolo_box(box truth, float *x, float *biases, int n, int index, int i,
 		}
 
 
-		if (!accumulate) {
+		if (!accumulate)
+		{
 			delta[index + 0 * stride] = 0;
 			delta[index + 1 * stride] = 0;
 			delta[index + 2 * stride] = 0;

@@ -61,7 +61,7 @@ IF (DARKNET_USE_CUDA)
 		FIND_LIBRARY(cudnn cudnn
 					HINTS ${cudnn_hint_path} ENV CUDNN_LIBRARY_DIR ENV CUDA_PATH ENV CUDNN_HOME
 					PATHS /usr/local /usr/local/cuda ENV LD_LIBRARY_PATH
-					PATH_SUFFIXES lib64 lib x64)
+					PATH_SUFFIXES lib64 lib/x64 lib x64)
 		IF (cudnn AND cudnn_include)
 			MESSAGE(STATUS "Found cuDNN: " ${cudnn})
 			ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
