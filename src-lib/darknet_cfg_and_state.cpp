@@ -42,6 +42,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	// I'm hoping we can do it once, and then nor worry about it again.  Eventually we
 	// can move to the new C++11 objects and functions for dealing with random numbers.
 	std::srand(std::time(nullptr));
+	// ... also see the seeding that happens in get_rnd_engine()
 
 	// prefer using 500 over 5e+02 when outputting floats
 	std::cout << std::fixed;
