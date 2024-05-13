@@ -1228,16 +1228,8 @@ namespace
 	{
 		TAT(TATPARMS);
 
-		static thread_local std::mt19937 rnd_engine;
-		static thread_local bool needs_to_be_seeded = true;
-
-		if (needs_to_be_seeded)
-		{
-			std::random_device r;
-			const auto seed = r() * std::chrono::high_resolution_clock::now().time_since_epoch().count() * std::hash<std::thread::id>()(std::this_thread::get_id());
-			rnd_engine.seed(seed);
-			needs_to_be_seeded = false;
-		}
+		// we must have 1 per thread of these (use random_device to seed the engine)
+		static thread_local std::mt19937 rnd_engine(std::random_device{}());
 
 		return rnd_engine;
 	}
