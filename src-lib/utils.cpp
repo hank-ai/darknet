@@ -14,6 +14,7 @@
 #include <sys/stat.h>
 #include <execinfo.h>
 #endif
+#include <random>
 
 
 void *xmalloc_location(const size_t size, const char * const filename, const char * const funcname, const int line)
@@ -1117,9 +1118,14 @@ int int_index(int *a, int val, int n)
 	TAT(TATPARMS);
 
 	int i;
-	for (i = 0; i < n; ++i) {
-		if (a[i] == val) return i;
+	for (i = 0; i < n; ++i)
+	{
+		if (a[i] == val)
+		{
+			return i;
+		}
 	}
+
 	return -1;
 }
 
@@ -1127,12 +1133,13 @@ int rand_int(int min, int max)
 {
 	TAT(TATPARMS);
 
-	if (max < min){
-		int s = min;
-		min = max;
-		max = s;
+	if (max < min)
+	{
+		std::swap(min, max);
 	}
+
 	int r = (random_gen()%(max - min + 1)) + min;
+
 	return r;
 }
 
@@ -1159,17 +1166,6 @@ float rand_normal()
 
 	return sqrt(rand1) * cos(rand2);
 }
-
-/*
-float rand_normal()
-{
-int n = 12;
-int i;
-float sum= 0;
-for(i = 0; i < n; ++i) sum += (float)random_gen()/RAND_MAX;
-return sum-n/2.;
-}
-*/
 
 size_t rand_size_t()
 {
@@ -1226,12 +1222,37 @@ float **one_hot_encode(float *a, int n, int k)
 	return t;
 }
 
-static unsigned int x = 123456789, y = 362436069, z = 521288629;
+namespace
+{
+	inline std::default_random_engine & get_rnd_engine()
+	{
+		TAT(TATPARMS);
+
+		static thread_local std::default_random_engine rnd_engine;
+		static thread_local bool needs_to_be_seeded = true;
+
+		if (needs_to_be_seeded)
+		{
+			std::random_device r;
+			const auto seed = r() * std::chrono::high_resolution_clock::now().time_since_epoch().count() * std::hash<std::thread::id>()(std::this_thread::get_id());
+			rnd_engine.seed(seed);
+			needs_to_be_seeded = false;
+		}
+
+		return rnd_engine;
+	}
+}
 
 // Marsaglia's xorshf96 generator: period 2^96-1
 unsigned int random_gen_fast(void)
 {
+	/// @todo Is this really faster than using the C++11 rng?  Do we gain something by keeping this?
+
 	TAT(TATPARMS);
+
+	static unsigned int x = 123456789;
+	static unsigned int y = 362436069;
+	static unsigned int z = 521288629;
 
 	unsigned int t;
 	x ^= x << 16;
@@ -1257,30 +1278,25 @@ int rand_int_fast(int min, int max)
 {
 	TAT(TATPARMS);
 
-	if (max < min) {
-		int s = min;
-		min = max;
-		max = s;
+	if (max < min)
+	{
+		std::swap(max, min);
 	}
+
 	int r = (random_gen_fast() % (max - min + 1)) + min;
+
 	return r;
 }
 
-unsigned int random_gen()
+unsigned int random_gen(unsigned int min, unsigned int max)
 {
 	TAT(TATPARMS);
 
-	unsigned int rnd = 0;
-#ifdef WIN32
-	rand_s(&rnd);
-#else   // WIN32
-	rnd = rand();
-#if (RAND_MAX < 65536)
-		rnd = rand()*(RAND_MAX + 1) + rnd;
-#endif  //(RAND_MAX < 65536)
-#endif  // WIN32
-	return rnd;
+	std::uniform_int_distribution<unsigned int> distribution(min, max);
+
+	return distribution(get_rnd_engine());
 }
+
 
 float random_float()
 {

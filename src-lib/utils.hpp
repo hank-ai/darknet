@@ -7,7 +7,7 @@
 #include <stdio.h>
 #include <time.h>
 #include <stdbool.h>
-
+#include <limits>
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -98,7 +98,7 @@ void print_statistics(float *a, int n);
 unsigned int random_gen_fast(void);
 float random_float_fast();
 int rand_int_fast(int min, int max);
-unsigned int random_gen();
+unsigned int random_gen(unsigned int min=0, unsigned int max=std::numeric_limits<unsigned int>::max());
 float random_float();
 float rand_uniform_strong(float min, float max);
 float rand_precalc_random(float min, float max, float random_part);
