@@ -7,7 +7,8 @@
 
 box float_to_box(const float * f)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is used in several places
+	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
 	box b;
 	b.x = f[0];
@@ -21,7 +22,8 @@ box float_to_box(const float * f)
 
 box float_to_box_stride(const float *f, const int stride)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is used in several places
+	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
 	box b;
 	b.x = f[0];
@@ -33,9 +35,10 @@ box float_to_box_stride(const float *f, const int stride)
 }
 
 
-dbox derivative(const box & a, const box & b)
+inline dbox derivative(const box & a, const box & b)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is only used in this file
+	TAT_REVIEWED(TATPARMS, "2024-03-19 inlined");
 
 	dbox d;
 	d.dx = a.x < b.x ? 1.0 : -1.0;
@@ -48,9 +51,10 @@ dbox derivative(const box & a, const box & b)
 
 
 /// where c is the smallest box that fully encompases a and b
-boxabs box_c(const box & a, const box & b)
+inline boxabs box_c(const box & a, const box & b)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is only used in this file
+	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
 
 	boxabs ba;
 	ba.top		= fmin(a.y - a.h / 2.0f, b.y - b.h / 2.0f);
@@ -63,9 +67,10 @@ boxabs box_c(const box & a, const box & b)
 
 
 /// representation from x, y, w, h to top, left, bottom, right
-boxabs to_tblr(const box & a)
+inline boxabs to_tblr(const box & a)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is only used in this file
+	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
 
 	boxabs tblr;
 	tblr.top	= a.y - (a.h / 2.0f);
@@ -77,9 +82,10 @@ boxabs to_tblr(const box & a)
 }
 
 
-float overlap(const float x1, const float w1, const float x2, const float w2)
+inline float overlap(const float x1, const float w1, const float x2, const float w2)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is only used in this file
+	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
 
 	const float l1 = x1 - w1 / 2.0f;
 	const float l2 = x2 - w2 / 2.0f;
@@ -92,25 +98,40 @@ float overlap(const float x1, const float w1, const float x2, const float w2)
 	return right - left;
 }
 
-float box_intersection(const box & a, const box & b)
+inline float box_intersection(const box & a, const box & b)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is only used in this file
+	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
 
 	const float w = overlap(a.x, a.w, b.x, b.w);
-	const float h = overlap(a.y, a.h, b.y, b.h);
-	if (w <= 0.0f || h <= 0.0f)
+	if (w <= 0.0f)
 	{
 		return 0.0f;
 	}
 
-	const float area = w * h;
+	const float h = overlap(a.y, a.h, b.y, b.h);
+	if (h <= 0.0f)
+	{
+		return 0.0f;
+	}
 
-	return area;
+	return w * h;
 }
 
-float box_union(const box & a, const box & b)
+inline float box_union(const box & a, const box & b, const float intersection)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is only used in this file
+	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+	const float u = a.w * a.h + b.w * b.h - intersection;
+
+	return u;
+}
+
+inline float box_union(const box & a, const box & b)
+{
+	// this function is only used in this file
+	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
 
 	const float i = box_intersection(a, b);
 	const float u = a.w * a.h + b.w * b.h - i;
@@ -120,6 +141,7 @@ float box_union(const box & a, const box & b)
 
 float box_iou_kind(const box & a, const box & b, const IOU_LOSS iou_kind)
 {
+	// this function is used in several places
 	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	//IOU, GIOU, MSE, DIOU, CIOU
@@ -137,6 +159,7 @@ float box_iou_kind(const box & a, const box & b, const IOU_LOSS iou_kind)
 
 float box_iou(const box & a, const box & b)
 {
+	// this function is used in many places
 	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	const float I = box_intersection(a, b);
@@ -146,14 +169,15 @@ float box_iou(const box & a, const box & b)
 	}
 
 	// if intersection is non-zero, then union will of course be non-zero, so no need to worry about divide-by-zero
-	const float U = box_union(a, b);
+	const float U = box_union(a, b, I);
 
 	return I / U;
 }
 
 float box_giou(const box & a, const box & b)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is used in several places
+	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
 	boxabs ba = box_c(a, b);
 	const float w = ba.right - ba.left;
@@ -177,7 +201,8 @@ float box_diou(const box & a, const box & b)
 	/// https://github.com/Zzh-tju/DIoU-darknet
 	/// https://arxiv.org/abs/1911.08287
 
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is used in several places
+	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
 	const boxabs ba = box_c(a, b);
 	const float w = ba.right - ba.left;
@@ -195,9 +220,10 @@ float box_diou(const box & a, const box & b)
 	return iou - diou_term;
 }
 
-float box_diounms(const box & a, const box & b, const float beta1)
+inline float box_diounms(const box & a, const box & b, const float beta1)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is only used in this file
+	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
 	const boxabs ba = box_c(a, b);
 	const float w = ba.right - ba.left;
@@ -219,6 +245,8 @@ float box_ciou(const box & a, const box & b)
 {
 	// https://github.com/Zzh-tju/DIoU-darknet
 	// https://arxiv.org/abs/1911.08287
+
+	// this function is used in several places
 
 	TAT(TATPARMS);
 
@@ -245,6 +273,7 @@ float box_ciou(const box & a, const box & b)
 
 dxrep dx_box_iou(const box & pred, const box & truth, const IOU_LOSS iou_loss)
 {
+	// this function is used in several places
 	TAT(TATPARMS);
 
 	const boxabs pred_tblr = to_tblr(pred);
@@ -435,6 +464,7 @@ dxrep dx_box_iou(const box & pred, const box & truth, const IOU_LOSS iou_loss)
 
 float box_rmse(const box & a, const box & b)
 {
+	// this function is used in multiple places
 	TAT_REVIEWED(TATPARMS, "2024-03-19");
 
 	return sqrt(pow(a.x-b.x, 2) +
@@ -443,9 +473,10 @@ float box_rmse(const box & a, const box & b)
 				pow(a.h-b.h, 2));
 }
 
-dbox dintersect(const box & a, const box & b)
+inline dbox dintersect(const box & a, const box & b)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is only used in this file
+	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
 	const float w = overlap(a.x, a.w, b.x, b.w);
 	const float h = overlap(a.y, a.h, b.y, b.h);
@@ -460,9 +491,10 @@ dbox dintersect(const box & a, const box & b)
 	return di;
 }
 
-dbox dunion(const box & a, const box & b)
+inline dbox dunion(const box & a, const box & b)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// this function is only used in this file
+	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
 	const dbox di = dintersect(a, b);
 
@@ -559,6 +591,7 @@ void test_box()
 
 dbox diou(const box & a, const box & b)
 {
+	// this function is called from multiple locations
 	TAT(TATPARMS); // not marking it as reviewed since the code below has a serious bug!
 
 	const float u = box_union(a, b);
@@ -603,8 +636,9 @@ namespace
 	};
 }
 
-int nms_comparator(const void *pa, const void *pb)
+inline int nms_comparator(const void *pa, const void *pb)
 {
+	// this is only called from 1 place
 	TAT(TATPARMS);
 
 	sortable_bbox a = *(sortable_bbox *)pa;
@@ -675,42 +709,10 @@ void do_nms_sort_v2(box *boxes, float **probs, int total, int classes, float thr
 
 namespace
 {
-	int nms_comparator_v3(const void *pa, const void *pb)
+	static inline void sort_box_detections(detection * dets, const int total)
 	{
 		TAT(TATPARMS);
 
-		detection a = *(detection *)pa;
-		detection b = *(detection *)pb;
-		float diff = 0.0f;
-		if (b.sort_class >= 0)
-		{
-			diff = a.prob[b.sort_class] - b.prob[b.sort_class]; // there is already: prob = objectness*prob
-		}
-		else
-		{
-			diff = a.objectness - b.objectness;
-		}
-
-		if (diff < 0.0f)
-		{
-			return 1;
-		}
-
-		if (diff > 0.0f)
-		{
-			return -1;
-		}
-
-		return 0;
-	}
-
-	static inline void sort_box_detections(detection *dets, const int total)
-	{
-		TAT(TATPARMS);
-
-#if 0
-		qsort(dets, total, sizeof(detection), nms_comparator_v3);
-#else
 		if (total > 1)
 		{
 			// We want to sort from high probability to low probability.  The default sort behaviour would be to
@@ -727,7 +729,6 @@ namespace
 						return rhs.prob[rhs.sort_class] < lhs.prob[rhs.sort_class];
 					});
 		}
-#endif
 	}
 }
 
@@ -785,6 +786,7 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 
 void do_nms_sort(detection *dets, int total, int classes, float thresh)
 {
+	// this is called from everywhere
 	TAT(TATPARMS);
 
 	int k = total - 1;
@@ -830,6 +832,7 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
 
 void do_nms(box *boxes, float **probs, int total, int classes, float thresh)
 {
+	// this is called from many locations
 	TAT(TATPARMS);
 
 	for (int i = 0; i < total; ++i)
@@ -869,6 +872,7 @@ void do_nms(box *boxes, float **probs, int total, int classes, float thresh)
 // https://arxiv.org/abs/1911.08287
 void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1)
 {
+	// this is called from several locations
 	TAT(TATPARMS);
 
 	int k = total - 1;
@@ -926,7 +930,8 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 
 box encode_box(const box & b, const box & anchor)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// not called, but exposed in the API
+	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
 	box encode;
 	encode.x = (b.x - anchor.x) / anchor.w;
@@ -939,7 +944,8 @@ box encode_box(const box & b, const box & anchor)
 
 box decode_box(const box & b, const box & anchor)
 {
-	TAT_REVIEWED(TATPARMS, "2024-03-19");
+	// not called, but exposed in the API
+	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
 	box decode;
 	decode.x = b.x * anchor.w + anchor.x;

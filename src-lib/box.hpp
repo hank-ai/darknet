@@ -29,7 +29,7 @@ float box_giou(const box & a, const box & b);
 float box_diou(const box & a, const box & b);
 float box_ciou(const box & a, const box & b);
 dxrep dx_box_iou(const box & a, const box & b, const IOU_LOSS iou_loss);
-boxabs to_tblr(const box & a);
+//boxabs to_tblr(const box & a);
 dbox diou(const box & a, const box & b);
 float box_rmse(const box & a, const box & b);
 void do_nms(box *boxes, float **probs, int total, int classes, float thresh);
