@@ -3,7 +3,392 @@
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
-}
+
+
+	struct train_yolo_args
+	{
+		layer l;
+		network_state state;
+		int b;
+
+		float tot_iou;
+		float tot_giou_loss;
+		float tot_iou_loss;
+		int count;
+		int class_count;
+	};
+
+
+	inline box get_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		box b;
+		if (new_coords)
+		{
+			b.x = (i + x[index + 0 * stride]) / lw;
+			b.y = (j + x[index + 1 * stride]) / lh;
+			b.w = x[index + 2 * stride] * x[index + 2 * stride] * 4 * biases[2 * n] / w;
+			b.h = x[index + 3 * stride] * x[index + 3 * stride] * 4 * biases[2 * n + 1] / h;
+		}
+		else
+		{
+			b.x = (i + x[index + 0 * stride]) / lw;
+			b.y = (j + x[index + 1 * stride]) / lh;
+			b.w = exp(x[index + 2 * stride]) * biases[2 * n] / w;
+			b.h = exp(x[index + 3 * stride]) * biases[2 * n + 1] / h;
+		}
+		return b;
+	}
+
+
+	inline void fix_nan_inf(float & val)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		if (std::isnan(val) or std::isinf(val))
+		{
+			val = 0.0f;
+		}
+
+		return;
+	}
+
+
+	inline void clip_value(float & val, const float max_val)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		if (val > max_val)
+		{
+			val = max_val;
+		}
+		else if (val < -max_val)
+		{
+			val = -max_val;
+		}
+
+		return;
+	}
+
+
+	/// loss function:  delta for box
+	inline ious delta_yolo_box(const box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		if (delta[index + 0 * stride] ||
+			delta[index + 1 * stride] ||
+			delta[index + 2 * stride] ||
+			delta[index + 3 * stride])
+		{
+			(*rewritten_bbox)++;
+		}
+
+		ious all_ious = { 0 };
+		// i - step in layer width
+		// j - step in layer height
+		//  Returns a box in absolute coordinates
+		box pred = get_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride, new_coords);
+		all_ious.iou = box_iou(pred, truth);
+		all_ious.giou = box_giou(pred, truth);
+		all_ious.diou = box_diou(pred, truth);
+		all_ious.ciou = box_ciou(pred, truth);
+
+		// avoid nan in dx_box_iou
+		if (pred.w == 0)
+		{
+			pred.w = 1.0;
+		}
+
+		if (pred.h == 0)
+		{
+			pred.h = 1.0;
+		}
+
+		if (iou_loss == MSE)    // old loss
+		{
+			float tx = (truth.x*lw - i);
+			float ty = (truth.y*lh - j);
+			float tw = log(truth.w*w / biases[2 * n]);
+			float th = log(truth.h*h / biases[2 * n + 1]);
+
+			if (new_coords)
+			{
+				//tx = (truth.x*lw - i + 0.5) / 2;
+				//ty = (truth.y*lh - j + 0.5) / 2;
+				tw = sqrt(truth.w*w / (4 * biases[2 * n]));
+				th = sqrt(truth.h*h / (4 * biases[2 * n + 1]));
+			}
+
+			//printf(" tx = %f, ty = %f, tw = %f, th = %f \n", tx, ty, tw, th);
+			//printf(" x = %f, y = %f, w = %f, h = %f \n", x[index + 0 * stride], x[index + 1 * stride], x[index + 2 * stride], x[index + 3 * stride]);
+
+			// accumulate delta
+			delta[index + 0 * stride] += scale * (tx - x[index + 0 * stride]) * iou_normalizer;
+			delta[index + 1 * stride] += scale * (ty - x[index + 1 * stride]) * iou_normalizer;
+			delta[index + 2 * stride] += scale * (tw - x[index + 2 * stride]) * iou_normalizer;
+			delta[index + 3 * stride] += scale * (th - x[index + 3 * stride]) * iou_normalizer;
+		}
+		else
+		{
+			// https://github.com/generalized-iou/g-darknet
+			// https://arxiv.org/abs/1902.09630v2
+			// https://giou.stanford.edu/
+			all_ious.dx_iou = dx_box_iou(pred, truth, iou_loss);
+
+			// jacobian^t (transpose)
+			//float dx = (all_ious.dx_iou.dl + all_ious.dx_iou.dr);
+			//float dy = (all_ious.dx_iou.dt + all_ious.dx_iou.db);
+			//float dw = ((-0.5 * all_ious.dx_iou.dl) + (0.5 * all_ious.dx_iou.dr));
+			//float dh = ((-0.5 * all_ious.dx_iou.dt) + (0.5 * all_ious.dx_iou.db));
+
+			// jacobian^t (transpose)
+			float dx = all_ious.dx_iou.dt;
+			float dy = all_ious.dx_iou.db;
+			float dw = all_ious.dx_iou.dl;
+			float dh = all_ious.dx_iou.dr;
+
+
+			// predict exponential, apply gradient of e^delta_t ONLY for w,h
+			if (new_coords)
+			{
+				//dw *= 8 * x[index + 2 * stride];
+				//dh *= 8 * x[index + 3 * stride];
+				//dw *= 8 * x[index + 2 * stride] * biases[2 * n] / w;
+				//dh *= 8 * x[index + 3 * stride] * biases[2 * n + 1] / h;
+
+				//float grad_w = 8 * exp(-x[index + 2 * stride]) / pow(exp(-x[index + 2 * stride]) + 1, 3);
+				//float grad_h = 8 * exp(-x[index + 3 * stride]) / pow(exp(-x[index + 3 * stride]) + 1, 3);
+				//dw *= grad_w;
+				//dh *= grad_h;
+			}
+			else
+			{
+				dw *= exp(x[index + 2 * stride]);
+				dh *= exp(x[index + 3 * stride]);
+			}
+
+			//dw *= exp(x[index + 2 * stride]);
+			//dh *= exp(x[index + 3 * stride]);
+
+			// normalize iou weight
+			dx *= iou_normalizer;
+			dy *= iou_normalizer;
+			dw *= iou_normalizer;
+			dh *= iou_normalizer;
+
+
+			fix_nan_inf(dx);
+			fix_nan_inf(dy);
+			fix_nan_inf(dw);
+			fix_nan_inf(dh);
+
+			if (max_delta != FLT_MAX)
+			{
+				clip_value(dx, max_delta);
+				clip_value(dy, max_delta);
+				clip_value(dw, max_delta);
+				clip_value(dh, max_delta);
+			}
+
+			if (!accumulate)
+			{
+				delta[index + 0 * stride] = 0;
+				delta[index + 1 * stride] = 0;
+				delta[index + 2 * stride] = 0;
+				delta[index + 3 * stride] = 0;
+			}
+
+			// accumulate delta
+			delta[index + 0 * stride] += dx;
+			delta[index + 1 * stride] += dy;
+			delta[index + 2 * stride] += dw;
+			delta[index + 3 * stride] += dh;
+		}
+
+		return all_ious;
+	}
+
+
+	inline void averages_yolo_deltas(const int class_index, const int box_index, const int stride, const int classes, float * delta)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		int classes_in_one_box = 0;
+		for (int c = 0; c < classes; ++c)
+		{
+			if (delta[class_index + stride * c] > 0.0f)
+			{
+				classes_in_one_box++;
+			}
+		}
+
+		if (classes_in_one_box > 0)
+		{
+			delta[box_index + 0 * stride] /= classes_in_one_box;
+			delta[box_index + 1 * stride] /= classes_in_one_box;
+			delta[box_index + 2 * stride] /= classes_in_one_box;
+			delta[box_index + 3 * stride] /= classes_in_one_box;
+		}
+	}
+
+
+	/// loss function:  delta for class
+	inline void delta_yolo_class(const float * output, float * delta, const int index, const int class_id, const int classes, const int stride, float * avg_cat, const int focal_loss, const float label_smooth_eps, const float *classes_multipliers, const float cls_normalizer)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		if (delta[index + stride * class_id])
+		{
+			float y_true = 1;
+
+			if (label_smooth_eps)
+			{
+				y_true = y_true *  (1 - label_smooth_eps) + 0.5*label_smooth_eps;
+			}
+
+			const float result_delta = y_true - output[index + stride * class_id];
+
+			if (!isnan(result_delta) && !isinf(result_delta))
+			{
+				delta[index + stride * class_id] = result_delta;
+			}
+
+			if (classes_multipliers)
+			{
+				delta[index + stride * class_id] *= classes_multipliers[class_id];
+			}
+
+			if (avg_cat)
+			{
+				*avg_cat += output[index + stride * class_id];
+			}
+
+			return;
+		}
+
+		// Focal loss
+		if (focal_loss)
+		{
+			// Focal Loss
+			float alpha = 0.5;    // 0.25 or 0.5
+			//float gamma = 2;    // hardcoded in many places of the grad-formula
+
+			int ti = index + stride*class_id;
+			float pt = output[ti] + 0.000000000000001F;
+			// http://fooplot.com/#W3sidHlwZSI6MCwiZXEiOiItKDEteCkqKDIqeCpsb2coeCkreC0xKSIsImNvbG9yIjoiIzAwMDAwMCJ9LHsidHlwZSI6MTAwMH1d
+			float grad = -(1 - pt) * (2 * pt*logf(pt) + pt - 1);    // http://blog.csdn.net/linmingan/article/details/77885832
+			//float grad = (1 - pt) * (2 * pt*logf(pt) + pt - 1);    // https://github.com/unsky/focal-loss
+
+			for (int n = 0; n < classes; ++n)
+			{
+				delta[index + stride*n] = (((n == class_id) ? 1 : 0) - output[index + stride * n]);
+
+				delta[index + stride*n] *= alpha*grad;
+
+				if (n == class_id && avg_cat)
+				{
+					*avg_cat += output[index + stride * n];
+				}
+			}
+		}
+		else
+		{
+			// default
+			for (int n = 0; n < classes; ++n)
+			{
+				float y_true = ((n == class_id) ? 1.0f : 0.0f);
+
+				if (label_smooth_eps)
+				{
+					y_true = y_true *  (1.0f - label_smooth_eps) + 0.5f * label_smooth_eps;
+				}
+				float result_delta = y_true - output[index + stride*n];
+				if (!isnan(result_delta) && !isinf(result_delta))
+				{
+					delta[index + stride * n] = result_delta;
+				}
+
+				if (classes_multipliers && n == class_id)
+				{
+					delta[index + stride * class_id] *= classes_multipliers[class_id] * cls_normalizer;
+				}
+
+				if (n == class_id && avg_cat)
+				{
+					*avg_cat += output[index + stride * n];
+				}
+			}
+		}
+	}
+
+
+	inline int compare_yolo_class(const float * output, const int classes, const int class_index, const int stride, const float objectness, const int class_id, const float conf_thresh)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		for (int j = 0; j < classes; ++j)
+		{
+			const float prob = output[class_index + stride * j];
+			if (prob > conf_thresh)
+			{
+				return 1;
+			}
+		}
+
+		return 0;
+	}
+
+
+	inline int entry_index(const layer & l, const int batch, const int location, const int entry)
+	{
+		// similar function exists in region_layer.cpp, but the math is slightly different
+
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		const int n		= location / (l.w * l.h);
+		const int loc	= location % (l.w * l.h);
+
+		return batch * l.outputs + n * l.w * l.h * (4 + l.classes + 1) + entry * l.w * l.h + loc;
+	}
+
+
+	inline void avg_flipped_yolo(layer & l)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		float * flip = l.output + l.outputs;
+
+		for (int j = 0; j < l.h; ++j)
+		{
+			for (int i = 0; i < l.w / 2; ++i)
+			{
+				for (int n = 0; n < l.n; ++n)
+				{
+					for (int z = 0; z < l.classes + 4 + 1; ++z)
+					{
+						const int i1 = z * l.w * l.h * l.n + n * l.w * l.h + j * l.w + i;
+						const int i2 = z * l.w * l.h * l.n + n * l.w * l.h + j * l.w + (l.w - i - 1);
+						std::swap(flip[i1], flip[i2]);
+						if (z == 0)
+						{
+							flip[i1] = -flip[i1];
+							flip[i2] = -flip[i2];
+						}
+					}
+				}
+			}
+		}
+
+		for (int i = 0; i < l.outputs; ++i)
+		{
+			l.output[i] = (l.output[i] + flip[i]) / 2.0f;
+		}
+	}
+
+} // anonymous namespace
+
 
 layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)
 {
@@ -106,7 +491,7 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	return l;
 }
 
-void resize_yolo_layer(layer *l, int w, int h)
+void resize_yolo_layer(layer * l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -152,299 +537,6 @@ void resize_yolo_layer(layer *l, int w, int h)
 #endif
 }
 
-box get_yolo_box(float *x, float *biases, int n, int index, int i, int j, int lw, int lh, int w, int h, int stride, int new_coords)
-{
-	TAT(TATPARMS);
-
-	box b;
-	if (new_coords)
-	{
-		b.x = (i + x[index + 0 * stride]) / lw;
-		b.y = (j + x[index + 1 * stride]) / lh;
-		b.w = x[index + 2 * stride] * x[index + 2 * stride] * 4 * biases[2 * n] / w;
-		b.h = x[index + 3 * stride] * x[index + 3 * stride] * 4 * biases[2 * n + 1] / h;
-	}
-	else
-	{
-		b.x = (i + x[index + 0 * stride]) / lw;
-		b.y = (j + x[index + 1 * stride]) / lh;
-		b.w = exp(x[index + 2 * stride]) * biases[2 * n] / w;
-		b.h = exp(x[index + 3 * stride]) * biases[2 * n + 1] / h;
-	}
-	return b;
-}
-
-static inline float fix_nan_inf(float val)
-{
-	TAT(TATPARMS);
-
-	if (isnan(val) || isinf(val)) val = 0;
-	return val;
-}
-
-static inline float clip_value(float val, const float max_val)
-{
-	TAT(TATPARMS);
-
-	if (val > max_val) {
-		//printf("\n val = %f > max_val = %f \n", val, max_val);
-		val = max_val;
-	}
-	else if (val < -max_val) {
-		//printf("\n val = %f < -max_val = %f \n", val, -max_val);
-		val = -max_val;
-	}
-	return val;
-}
-
-inline ious delta_yolo_box(box truth, float *x, float *biases, int n, int index, int i, int j, int lw, int lh, int w, int h, float *delta, float scale, int stride, float iou_normalizer, IOU_LOSS iou_loss, int accumulate, float max_delta, int *rewritten_bbox, int new_coords)
-{
-	TAT(TATPARMS);
-
-	if (delta[index + 0 * stride] ||
-		delta[index + 1 * stride] ||
-		delta[index + 2 * stride] ||
-		delta[index + 3 * stride])
-	{
-		(*rewritten_bbox)++;
-	}
-
-	ious all_ious = { 0 };
-	// i - step in layer width
-	// j - step in layer height
-	//  Returns a box in absolute coordinates
-	box pred = get_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride, new_coords);
-	all_ious.iou = box_iou(pred, truth);
-	all_ious.giou = box_giou(pred, truth);
-	all_ious.diou = box_diou(pred, truth);
-	all_ious.ciou = box_ciou(pred, truth);
-
-	// avoid nan in dx_box_iou
-	if (pred.w == 0)
-	{
-		pred.w = 1.0;
-	}
-
-	if (pred.h == 0)
-	{
-		pred.h = 1.0;
-	}
-
-	if (iou_loss == MSE)    // old loss
-	{
-		float tx = (truth.x*lw - i);
-		float ty = (truth.y*lh - j);
-		float tw = log(truth.w*w / biases[2 * n]);
-		float th = log(truth.h*h / biases[2 * n + 1]);
-
-		if (new_coords)
-		{
-			//tx = (truth.x*lw - i + 0.5) / 2;
-			//ty = (truth.y*lh - j + 0.5) / 2;
-			tw = sqrt(truth.w*w / (4 * biases[2 * n]));
-			th = sqrt(truth.h*h / (4 * biases[2 * n + 1]));
-		}
-
-		//printf(" tx = %f, ty = %f, tw = %f, th = %f \n", tx, ty, tw, th);
-		//printf(" x = %f, y = %f, w = %f, h = %f \n", x[index + 0 * stride], x[index + 1 * stride], x[index + 2 * stride], x[index + 3 * stride]);
-
-		// accumulate delta
-		delta[index + 0 * stride] += scale * (tx - x[index + 0 * stride]) * iou_normalizer;
-		delta[index + 1 * stride] += scale * (ty - x[index + 1 * stride]) * iou_normalizer;
-		delta[index + 2 * stride] += scale * (tw - x[index + 2 * stride]) * iou_normalizer;
-		delta[index + 3 * stride] += scale * (th - x[index + 3 * stride]) * iou_normalizer;
-	}
-	else
-	{
-		// https://github.com/generalized-iou/g-darknet
-		// https://arxiv.org/abs/1902.09630v2
-		// https://giou.stanford.edu/
-		all_ious.dx_iou = dx_box_iou(pred, truth, iou_loss);
-
-		// jacobian^t (transpose)
-		//float dx = (all_ious.dx_iou.dl + all_ious.dx_iou.dr);
-		//float dy = (all_ious.dx_iou.dt + all_ious.dx_iou.db);
-		//float dw = ((-0.5 * all_ious.dx_iou.dl) + (0.5 * all_ious.dx_iou.dr));
-		//float dh = ((-0.5 * all_ious.dx_iou.dt) + (0.5 * all_ious.dx_iou.db));
-
-		// jacobian^t (transpose)
-		float dx = all_ious.dx_iou.dt;
-		float dy = all_ious.dx_iou.db;
-		float dw = all_ious.dx_iou.dl;
-		float dh = all_ious.dx_iou.dr;
-
-
-		// predict exponential, apply gradient of e^delta_t ONLY for w,h
-		if (new_coords)
-		{
-			//dw *= 8 * x[index + 2 * stride];
-			//dh *= 8 * x[index + 3 * stride];
-			//dw *= 8 * x[index + 2 * stride] * biases[2 * n] / w;
-			//dh *= 8 * x[index + 3 * stride] * biases[2 * n + 1] / h;
-
-			//float grad_w = 8 * exp(-x[index + 2 * stride]) / pow(exp(-x[index + 2 * stride]) + 1, 3);
-			//float grad_h = 8 * exp(-x[index + 3 * stride]) / pow(exp(-x[index + 3 * stride]) + 1, 3);
-			//dw *= grad_w;
-			//dh *= grad_h;
-		}
-		else
-		{
-			dw *= exp(x[index + 2 * stride]);
-			dh *= exp(x[index + 3 * stride]);
-		}
-
-		//dw *= exp(x[index + 2 * stride]);
-		//dh *= exp(x[index + 3 * stride]);
-
-		// normalize iou weight
-		dx *= iou_normalizer;
-		dy *= iou_normalizer;
-		dw *= iou_normalizer;
-		dh *= iou_normalizer;
-
-
-		dx = fix_nan_inf(dx);
-		dy = fix_nan_inf(dy);
-		dw = fix_nan_inf(dw);
-		dh = fix_nan_inf(dh);
-
-		if (max_delta != FLT_MAX)
-		{
-			dx = clip_value(dx, max_delta);
-			dy = clip_value(dy, max_delta);
-			dw = clip_value(dw, max_delta);
-			dh = clip_value(dh, max_delta);
-		}
-
-
-		if (!accumulate)
-		{
-			delta[index + 0 * stride] = 0;
-			delta[index + 1 * stride] = 0;
-			delta[index + 2 * stride] = 0;
-			delta[index + 3 * stride] = 0;
-		}
-
-		// accumulate delta
-		delta[index + 0 * stride] += dx;
-		delta[index + 1 * stride] += dy;
-		delta[index + 2 * stride] += dw;
-		delta[index + 3 * stride] += dh;
-	}
-
-	return all_ious;
-}
-
-void averages_yolo_deltas(int class_index, int box_index, int stride, int classes, float *delta)
-{
-	TAT(TATPARMS);
-
-	int classes_in_one_box = 0;
-	int c;
-	for (c = 0; c < classes; ++c) {
-		if (delta[class_index + stride*c] > 0) classes_in_one_box++;
-	}
-
-	if (classes_in_one_box > 0) {
-		delta[box_index + 0 * stride] /= classes_in_one_box;
-		delta[box_index + 1 * stride] /= classes_in_one_box;
-		delta[box_index + 2 * stride] /= classes_in_one_box;
-		delta[box_index + 3 * stride] /= classes_in_one_box;
-	}
-}
-
-void delta_yolo_class(float *output, float *delta, int index, int class_id, int classes, int stride, float *avg_cat, int focal_loss, float label_smooth_eps, float *classes_multipliers, float cls_normalizer)
-{
-	TAT(TATPARMS);
-
-	int n;
-	if (delta[index + stride*class_id]){
-		float y_true = 1;
-		if(label_smooth_eps) y_true = y_true *  (1 - label_smooth_eps) + 0.5*label_smooth_eps;
-		float result_delta = y_true - output[index + stride*class_id];
-		if(!isnan(result_delta) && !isinf(result_delta)) delta[index + stride*class_id] = result_delta;
-		//delta[index + stride*class_id] = 1 - output[index + stride*class_id];
-
-		if (classes_multipliers) delta[index + stride*class_id] *= classes_multipliers[class_id];
-		if(avg_cat) *avg_cat += output[index + stride*class_id];
-		return;
-	}
-	// Focal loss
-	if (focal_loss) {
-		// Focal Loss
-		float alpha = 0.5;    // 0.25 or 0.5
-		//float gamma = 2;    // hardcoded in many places of the grad-formula
-
-		int ti = index + stride*class_id;
-		float pt = output[ti] + 0.000000000000001F;
-		// http://fooplot.com/#W3sidHlwZSI6MCwiZXEiOiItKDEteCkqKDIqeCpsb2coeCkreC0xKSIsImNvbG9yIjoiIzAwMDAwMCJ9LHsidHlwZSI6MTAwMH1d
-		float grad = -(1 - pt) * (2 * pt*logf(pt) + pt - 1);    // http://blog.csdn.net/linmingan/article/details/77885832
-		//float grad = (1 - pt) * (2 * pt*logf(pt) + pt - 1);    // https://github.com/unsky/focal-loss
-
-		for (n = 0; n < classes; ++n) {
-			delta[index + stride*n] = (((n == class_id) ? 1 : 0) - output[index + stride*n]);
-
-			delta[index + stride*n] *= alpha*grad;
-
-			if (n == class_id && avg_cat) *avg_cat += output[index + stride*n];
-		}
-	}
-	else {
-		// default
-		for (n = 0; n < classes; ++n) {
-			float y_true = ((n == class_id) ? 1 : 0);
-			if (label_smooth_eps) y_true = y_true *  (1 - label_smooth_eps) + 0.5*label_smooth_eps;
-			float result_delta = y_true - output[index + stride*n];
-			if (!isnan(result_delta) && !isinf(result_delta)) delta[index + stride*n] = result_delta;
-
-			if (classes_multipliers && n == class_id) delta[index + stride*class_id] *= classes_multipliers[class_id] * cls_normalizer;
-			if (n == class_id && avg_cat) *avg_cat += output[index + stride*n];
-		}
-	}
-}
-
-int compare_yolo_class(float *output, int classes, int class_index, int stride, float objectness, int class_id, float conf_thresh)
-{
-	TAT(TATPARMS);
-
-	for (int j = 0; j < classes; ++j)
-	{
-		float prob = output[class_index + stride * j];
-		if (prob > conf_thresh)
-		{
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
-namespace
-{
-	inline int entry_index(const layer & l, const int batch, const int location, const int entry)
-	{
-		// similar function exists in region_layer.cpp, but the math is slightly different
-
-		TAT(TATPARMS);
-
-		const int n		= location / (l.w * l.h);
-		const int loc	= location % (l.w * l.h);
-
-		return batch * l.outputs + n * l.w * l.h * (4 + l.classes + 1) + entry * l.w * l.h + loc;
-	}
-}
-
-typedef struct train_yolo_args {
-	layer l;
-	network_state state;
-	int b;
-
-	float tot_iou;
-	float tot_giou_loss;
-	float tot_iou_loss;
-	int count;
-	int class_count;
-} train_yolo_args;
 
 void process_batch(void* ptr)
 {
@@ -522,6 +614,8 @@ void process_batch(void* ptr)
 						best_t = t;
 					}
 				}
+
+				// delta for objectness:
 
 				avg_anyobj += l.output[obj_index];
 				l.delta[obj_index] = l.obj_normalizer * (0 - l.output[obj_index]);
@@ -1060,8 +1154,20 @@ void forward_yolo_layer(const layer l, network_state state)
 
 		loss /= l.batch;
 
-		printf("v3 (%s loss, Normalizer: (iou: %.2f, obj: %.2f, cls: %.2f) Region %d Avg (IOU: %f), count: %d, total_loss = %f \n",
-			(l.iou_loss == MSE ? "mse" : (l.iou_loss == GIOU ? "giou" : "iou")), l.iou_normalizer, l.obj_normalizer, l.cls_normalizer, state.index, tot_iou / count, count, loss);
+		// ...this is the non-verbose output!?
+		std::cout <<
+				"v3 " << (	l.iou_loss == MSE	?	"mse"	:
+							l.iou_loss == GIOU	?	"giou"	:
+													"iou"	) << " loss, "
+				"Normalizer: "
+				"(iou: "		<< std::setprecision(2) << l.iou_normalizer		<<
+				", obj: "		<< std::setprecision(2) << l.obj_normalizer		<<
+				", cls: "		<< std::setprecision(2) << l.cls_normalizer		<< ") "
+				"Region "		<< state.index									<< " "
+				"Avg (IOU: "	<< std::setprecision(6) << tot_iou / count		<< "), "
+				"count: "		<< count										<< ", "
+				"total_loss: "	<< std::setprecision(6) << loss
+								<< std::setprecision(2)							<< std::endl;
 	}
 	else
 	{
@@ -1096,7 +1202,7 @@ void forward_yolo_layer(const layer l, network_state state)
 		float loss = pow(mag_array(l.delta, l.outputs * l.batch), 2);
 		float iou_loss = loss - classification_loss;
 
-		float avg_iou_loss = 0;
+		float avg_iou_loss = 0.0f;
 		*(l.cost) = loss;
 
 		// gIOU loss + MSE (objectness) loss
@@ -1127,7 +1233,7 @@ void forward_yolo_layer(const layer l, network_state state)
 		if (cfg_and_state.is_verbose)
 		{
 			std::cout <<
-					"v3 (" << (	l.iou_loss == MSE	?	"mse"	:
+					"v3 " << (	l.iou_loss == MSE	?	"mse"	:
 								l.iou_loss == GIOU	?	"giou"	:
 														"iou"	) << " loss, "
 					"Normalizer: "
@@ -1218,52 +1324,14 @@ void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth
 	}
 }
 
-/*
-void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth, int relative, int letter)
-{
-	int i;
-	int new_w=0;
-	int new_h=0;
-	if (letter) {
-		if (((float)netw / w) < ((float)neth / h)) {
-			new_w = netw;
-			new_h = (h * netw) / w;
-		}
-		else {
-			new_h = neth;
-			new_w = (w * neth) / h;
-		}
-	}
-	else {
-		new_w = netw;
-		new_h = neth;
-	}
-	for (i = 0; i < n; ++i){
-		box b = dets[i].bbox;
-		b.x =  (b.x - (netw - new_w)/2./netw) / ((float)new_w/netw);
-		b.y =  (b.y - (neth - new_h)/2./neth) / ((float)new_h/neth);
-		b.w *= (float)netw/new_w;
-		b.h *= (float)neth/new_h;
-		if(!relative){
-			b.x *= w;
-			b.w *= w;
-			b.y *= h;
-			b.h *= h;
-		}
-		dets[i].bbox = b;
-	}
-}
-*/
-
 int yolo_num_detections(layer l, float thresh)
 {
 	TAT(TATPARMS);
 
-	int i, n;
 	int count = 0;
-	for (n = 0; n < l.n; ++n)
+	for (int n = 0; n < l.n; ++n)
 	{
-		for (i = 0; i < l.w*l.h; ++i)
+		for (int i = 0; i < l.w * l.h; ++i)
 		{
 			int obj_index  = entry_index(l, 0, n*l.w*l.h + i, 4);
 			if (l.output[obj_index] > thresh)
@@ -1279,53 +1347,19 @@ int yolo_num_detections_batch(layer l, float thresh, int batch)
 {
 	TAT(TATPARMS);
 
-	int i, n;
 	int count = 0;
-	for (i = 0; i < l.w*l.h; ++i)
+	for (int i = 0; i < l.w * l.h; ++i)
 	{
-		for(n = 0; n < l.n; ++n)
+		for (int n = 0; n < l.n; ++n)
 		{
-			int obj_index  = entry_index(l, batch, n*l.w*l.h + i, 4);
-			if(l.output[obj_index] > thresh)
+			int obj_index  = entry_index(l, batch, n * l.w * l.h + i, 4);
+			if (l.output[obj_index] > thresh)
 			{
 				++count;
 			}
 		}
 	}
 	return count;
-}
-
-void avg_flipped_yolo(layer l)
-{
-	TAT(TATPARMS);
-
-	int i,j,n,z;
-	float *flip = l.output + l.outputs;
-	for (j = 0; j < l.h; ++j)
-	{
-		for (i = 0; i < l.w/2; ++i)
-		{
-			for (n = 0; n < l.n; ++n)
-			{
-				for(z = 0; z < l.classes + 4 + 1; ++z)
-				{
-					int i1 = z*l.w*l.h*l.n + n*l.w*l.h + j*l.w + i;
-					int i2 = z*l.w*l.h*l.n + n*l.w*l.h + j*l.w + (l.w - i - 1);
-					std::swap(flip[i1], flip[i2]);
-					if (z == 0)
-					{
-						flip[i1] = -flip[i1];
-						flip[i2] = -flip[i2];
-					}
-				}
-			}
-		}
-	}
-
-	for(i = 0; i < l.outputs; ++i)
-	{
-		l.output[i] = (l.output[i] + flip[i])/2.;
-	}
 }
 
 int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
