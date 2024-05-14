@@ -426,8 +426,8 @@ lib.get_metadata.argtypes = [c_char_p]
 lib.get_metadata.restype = METADATA
 
 # Define and comment function to load a color image for Darknet
-load_image = lib.load_image_color
-load_image.argtypes = [c_char_p, c_int, c_int]
+load_image = lib.load_image
+load_image.argtypes = [c_char_p, c_int, c_int, c_int]
 load_image.restype = IMAGE
 
 # Define and comment function to convert RGB image to BGR

@@ -1049,7 +1049,7 @@ void copy_image_from_bytes(image im, char *pdata);
 image letterbox_image(image im, int w, int h);
 void rgbgr_image(image im);
 image make_image(int w, int h, int c);
-image load_image_color(char *filename, int w, int h);
+image load_image(char *filename, int w, int h, int c);
 void free_image(image m);
 image crop_image(image im, int dx, int dy, int w, int h);
 image resize_min(image im, int min);
