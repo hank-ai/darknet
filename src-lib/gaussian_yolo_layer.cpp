@@ -4,19 +4,7 @@
 // arxiv.org: https://arxiv.org/abs/1904.04620v2
 // source code: https://github.com/jwchoi384/Gaussian_YOLOv3
 
-#include "gaussian_yolo_layer.hpp"
-#include "activations.hpp"
-#include "blas.hpp"
-#include "box.hpp"
-#include "dark_cuda.hpp"
-#include "utils.hpp"
-#include "Timing.hpp"
-
-#include <cstdio>
-#include <cassert>
-#include <cstring>
-#include <cstdlib>
-#include <cfloat>
+#include "darknet_internal.hpp"
 
 namespace
 {
