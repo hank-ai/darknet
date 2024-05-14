@@ -18,6 +18,364 @@
 #include <cstdlib>
 #include <cfloat>
 
+namespace
+{
+	inline box get_gaussian_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const YOLO_POINT yolo_point)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		box b;
+
+		b.w = exp(x[index + 4 * stride]) * biases[2 * n] / w;
+		b.h = exp(x[index + 6 * stride]) * biases[2 * n + 1] / h;
+		b.x = (i + x[index + 0 * stride]) / lw;
+		b.y = (j + x[index + 2 * stride]) / lh;
+
+		if (yolo_point == YOLO_CENTER)
+		{
+		}
+		else if (yolo_point == YOLO_LEFT_TOP)
+		{
+			b.x = (i + x[index + 0 * stride]) / lw + b.w / 2;
+			b.y = (j + x[index + 2 * stride]) / lh + b.h / 2;
+		}
+		else if (yolo_point == YOLO_RIGHT_BOTTOM)
+		{
+			b.x = (i + x[index + 0 * stride]) / lw - b.w / 2;
+			b.y = (j + x[index + 2 * stride]) / lh - b.h / 2;
+		}
+
+		return b;
+	}
+
+
+	inline void fix_nan_inf(float & val)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		if (std::isnan(val) or
+			std::isinf(val))
+		{
+			val = 0.0f;
+		}
+
+		return;
+	}
+
+
+	inline void clip_value(float & val, const float max_val)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		if (val > max_val)
+		{
+			val = max_val;
+		}
+		else if (val < -max_val)
+		{
+			val = -max_val;
+		}
+
+		return;
+	}
+
+
+	inline float delta_gaussian_yolo_box(const box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta,
+										 const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const float uc_normalizer, const int accumulate, const YOLO_POINT yolo_point, const float max_delta)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		box pred = get_gaussian_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride, yolo_point);
+
+		float iou;
+		ious all_ious = { 0 };
+		all_ious.iou = box_iou(pred, truth);
+		all_ious.giou = box_giou(pred, truth);
+		all_ious.diou = box_diou(pred, truth);
+		all_ious.ciou = box_ciou(pred, truth);
+		if (pred.w == 0) { pred.w = 1.0; }
+		if (pred.h == 0) { pred.h = 1.0; }
+
+		float sigma_const = 0.3;
+		float epsi = pow(10,-9);
+
+		float dx, dy, dw, dh;
+
+		iou = all_ious.iou;
+
+		float tx, ty, tw, th;
+
+		tx = (truth.x*lw - i);
+		ty = (truth.y*lh - j);
+		tw = log(truth.w*w / biases[2 * n]);
+		th = log(truth.h*h / biases[2 * n + 1]);
+
+		if (yolo_point == YOLO_CENTER)
+		{
+		}
+		else if (yolo_point == YOLO_LEFT_TOP)
+		{
+			tx = ((truth.x - truth.w / 2)*lw - i);
+			ty = ((truth.y - truth.h / 2)*lh - j);
+		}
+		else if (yolo_point == YOLO_RIGHT_BOTTOM)
+		{
+			tx = ((truth.x + truth.w / 2)*lw - i);
+			ty = ((truth.y + truth.h / 2)*lh - j);
+		}
+
+		dx = (tx - x[index + 0 * stride]);
+		dy = (ty - x[index + 2 * stride]);
+		dw = (tw - x[index + 4 * stride]);
+		dh = (th - x[index + 6 * stride]);
+
+		// Gaussian
+		float in_exp_x = dx / x[index+1*stride];
+		float in_exp_x_2 = pow(in_exp_x, 2);
+		float normal_dist_x = exp(in_exp_x_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+1*stride]+sigma_const));
+
+		float in_exp_y = dy / x[index+3*stride];
+		float in_exp_y_2 = pow(in_exp_y, 2);
+		float normal_dist_y = exp(in_exp_y_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+3*stride]+sigma_const));
+
+		float in_exp_w = dw / x[index+5*stride];
+		float in_exp_w_2 = pow(in_exp_w, 2);
+		float normal_dist_w = exp(in_exp_w_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+5*stride]+sigma_const));
+
+		float in_exp_h = dh / x[index+7*stride];
+		float in_exp_h_2 = pow(in_exp_h, 2);
+		float normal_dist_h = exp(in_exp_h_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+7*stride]+sigma_const));
+
+		float temp_x = (1.0f/2.0f) * 1.0f/(normal_dist_x+epsi) * normal_dist_x * scale;
+		float temp_y = (1.0f/2.0f) * 1.0f/(normal_dist_y+epsi) * normal_dist_y * scale;
+		float temp_w = (1.0f/2.0f) * 1.0f/(normal_dist_w+epsi) * normal_dist_w * scale;
+		float temp_h = (1.0f/2.0f) * 1.0f/(normal_dist_h+epsi) * normal_dist_h * scale;
+
+		if (!accumulate)
+		{
+			delta[index + 0 * stride] = 0.0f;
+			delta[index + 1 * stride] = 0.0f;
+			delta[index + 2 * stride] = 0.0f;
+			delta[index + 3 * stride] = 0.0f;
+			delta[index + 4 * stride] = 0.0f;
+			delta[index + 5 * stride] = 0.0f;
+			delta[index + 6 * stride] = 0.0f;
+			delta[index + 7 * stride] = 0.0f;
+		}
+
+		float delta_x = temp_x * in_exp_x  * (1.0f / x[index + 1 * stride]);
+		float delta_y = temp_y * in_exp_y  * (1.0f / x[index + 3 * stride]);
+		float delta_w = temp_w * in_exp_w  * (1.0f / x[index + 5 * stride]);
+		float delta_h = temp_h * in_exp_h  * (1.0f / x[index + 7 * stride]);
+
+		float delta_ux = temp_x * (in_exp_x_2 / x[index + 1 * stride] - 1.0f / (x[index + 1 * stride] + sigma_const));
+		float delta_uy = temp_y * (in_exp_y_2 / x[index + 3 * stride] - 1.0f / (x[index + 3 * stride] + sigma_const));
+		float delta_uw = temp_w * (in_exp_w_2 / x[index + 5 * stride] - 1.0f / (x[index + 5 * stride] + sigma_const));
+		float delta_uh = temp_h * (in_exp_h_2 / x[index + 7 * stride] - 1.0f / (x[index + 7 * stride] + sigma_const));
+
+		if (iou_loss != MSE)
+		{
+			// GIoU
+			iou = all_ious.giou;
+
+			// https://github.com/generalized-iou/g-darknet
+			// https://arxiv.org/abs/1902.09630v2
+			// https://giou.stanford.edu/
+			// https://arxiv.org/abs/1911.08287v1
+			// https://github.com/Zzh-tju/DIoU-darknet
+			all_ious.dx_iou = dx_box_iou(pred, truth, iou_loss);
+
+			float dx, dy, dw, dh;
+
+			dx = all_ious.dx_iou.dt;
+			dy = all_ious.dx_iou.db;
+			dw = all_ious.dx_iou.dl;
+			dh = all_ious.dx_iou.dr;
+
+			if (yolo_point == YOLO_CENTER)
+			{
+			}
+			else if (yolo_point == YOLO_LEFT_TOP)
+			{
+				dx = dx - dw/2;
+				dy = dy - dh/2;
+			}
+			else if (yolo_point == YOLO_RIGHT_BOTTOM)
+			{
+				dx = dx + dw / 2;
+				dy = dy + dh / 2;
+			}
+
+			// jacobian^t (transpose)
+			//float dx = (all_ious.dx_iou.dl + all_ious.dx_iou.dr);
+			//float dy = (all_ious.dx_iou.dt + all_ious.dx_iou.db);
+			//float dw = ((-0.5 * all_ious.dx_iou.dl) + (0.5 * all_ious.dx_iou.dr));
+			//float dh = ((-0.5 * all_ious.dx_iou.dt) + (0.5 * all_ious.dx_iou.db));
+
+			// predict exponential, apply gradient of e^delta_t ONLY for w,h
+			dw *= exp(x[index + 4 * stride]);
+			dh *= exp(x[index + 6 * stride]);
+
+			delta_x = dx;
+			delta_y = dy;
+			delta_w = dw;
+			delta_h = dh;
+		}
+
+		// normalize iou weight, for GIoU
+		delta_x *= iou_normalizer;
+		delta_y *= iou_normalizer;
+		delta_w *= iou_normalizer;
+		delta_h *= iou_normalizer;
+
+		// normalize Uncertainty weight
+		delta_ux *= uc_normalizer;
+		delta_uy *= uc_normalizer;
+		delta_uw *= uc_normalizer;
+		delta_uh *= uc_normalizer;
+
+		fix_nan_inf(delta_x);
+		fix_nan_inf(delta_y);
+		fix_nan_inf(delta_w);
+		fix_nan_inf(delta_h);
+
+		fix_nan_inf(delta_ux);
+		fix_nan_inf(delta_uy);
+		fix_nan_inf(delta_uw);
+		fix_nan_inf(delta_uh);
+
+		if (max_delta != FLT_MAX)
+		{
+			clip_value(delta_x, max_delta);
+			clip_value(delta_y, max_delta);
+			clip_value(delta_w, max_delta);
+			clip_value(delta_h, max_delta);
+
+			clip_value(delta_ux, max_delta);
+			clip_value(delta_uy, max_delta);
+			clip_value(delta_uw, max_delta);
+			clip_value(delta_uh, max_delta);
+		}
+
+		delta[index + 0 * stride] += delta_x;
+		delta[index + 2 * stride] += delta_y;
+		delta[index + 4 * stride] += delta_w;
+		delta[index + 6 * stride] += delta_h;
+
+		delta[index + 1 * stride] += delta_ux;
+		delta[index + 3 * stride] += delta_uy;
+		delta[index + 5 * stride] += delta_uw;
+		delta[index + 7 * stride] += delta_uh;
+
+		return iou;
+	}
+
+
+	inline void averages_gaussian_yolo_deltas(const int class_index, const int box_index, const int stride, const int classes, float * delta)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		int classes_in_one_box = 0;
+		for (int c = 0; c < classes; ++c)
+		{
+			if (delta[class_index + stride*c] > 0)
+			{
+				classes_in_one_box++;
+			}
+		}
+
+		if (classes_in_one_box > 0)
+		{
+			delta[box_index + 0 * stride] /= classes_in_one_box;
+			delta[box_index + 1 * stride] /= classes_in_one_box;
+			delta[box_index + 2 * stride] /= classes_in_one_box;
+			delta[box_index + 3 * stride] /= classes_in_one_box;
+			delta[box_index + 4 * stride] /= classes_in_one_box;
+			delta[box_index + 5 * stride] /= classes_in_one_box;
+			delta[box_index + 6 * stride] /= classes_in_one_box;
+			delta[box_index + 7 * stride] /= classes_in_one_box;
+		}
+	}
+
+
+	inline void delta_gaussian_yolo_class(const float * output, float * delta, const int index, const int class_id, const int classes, const int stride, float * avg_cat, const float label_smooth_eps, const float * classes_multipliers, const float cls_normalizer)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		if (delta[index])
+		{
+			float y_true = 1;
+			if (label_smooth_eps)
+			{
+				y_true = y_true *  (1 - label_smooth_eps) + 0.5f * label_smooth_eps;
+			}
+			delta[index + stride*class_id] = y_true - output[index + stride*class_id];
+
+			if (classes_multipliers)
+			{
+				delta[index + stride*class_id] *= classes_multipliers[class_id];
+			}
+
+			if (avg_cat)
+			{
+				*avg_cat += output[index + stride*class_id];
+			}
+
+			return;
+		}
+
+		for(int n = 0; n < classes; ++n)
+		{
+			float y_true = ((n == class_id) ? 1 : 0);
+			if (label_smooth_eps)
+			{
+				y_true = y_true *  (1 - label_smooth_eps) + 0.5 * label_smooth_eps;
+			}
+			delta[index + stride*n] = y_true - output[index + stride*n];
+
+			if (classes_multipliers && n == class_id)
+			{
+				delta[index + stride*class_id] *= classes_multipliers[class_id] * cls_normalizer;
+			}
+
+			if (n == class_id && avg_cat)
+			{
+				*avg_cat += output[index + stride*n];
+			}
+		}
+	}
+
+
+	inline int compare_gaussian_yolo_class(const float *output, const int classes, const int class_index, const int stride, const float objectness, const int class_id, const float conf_thresh)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		for (int j = 0; j < classes; ++j)
+		{
+			const float prob = output[class_index + stride*j];
+			if (prob > conf_thresh)
+			{
+				return 1;
+			}
+		}
+
+		return 0;
+	}
+
+
+	inline int entry_gaussian_index(const layer & l, const int batch, const int location, const int entry)
+	{
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		int n =   location / (l.w*l.h);
+		int loc = location % (l.w*l.h);
+
+		return batch * l.outputs + n * l.w * l.h * (8 + l.classes + 1) + entry * l.w * l.h + loc;
+	}
+
+} // anonymous namespace
+
+
 layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)
 {
 	TAT(TATPARMS);
@@ -134,298 +492,6 @@ void resize_gaussian_yolo_layer(layer *l, int w, int h)
 #endif
 }
 
-box get_gaussian_yolo_box(float *x, float *biases, int n, int index, int i, int j, int lw, int lh, int w, int h, int stride, YOLO_POINT yolo_point)
-{
-	TAT(TATPARMS);
-
-	box b;
-
-	b.w = exp(x[index + 4 * stride]) * biases[2 * n] / w;
-	b.h = exp(x[index + 6 * stride]) * biases[2 * n + 1] / h;
-	b.x = (i + x[index + 0 * stride]) / lw;
-	b.y = (j + x[index + 2 * stride]) / lh;
-
-	if (yolo_point == YOLO_CENTER) {
-	}
-	else if (yolo_point == YOLO_LEFT_TOP) {
-		b.x = (i + x[index + 0 * stride]) / lw + b.w / 2;
-		b.y = (j + x[index + 2 * stride]) / lh + b.h / 2;
-	}
-	else if (yolo_point == YOLO_RIGHT_BOTTOM) {
-		b.x = (i + x[index + 0 * stride]) / lw - b.w / 2;
-		b.y = (j + x[index + 2 * stride]) / lh - b.h / 2;
-	}
-
-	return b;
-}
-
-static inline float fix_nan_inf(float val)
-{
-	TAT(TATPARMS);
-
-	if (std::isnan(val) || std::isinf(val)) val = 0;
-	return val;
-}
-
-static inline float clip_value(float val, const float max_val)
-{
-	TAT(TATPARMS);
-
-	if (val > max_val) val = max_val;
-	else if (val < -max_val) val = -max_val;
-	return val;
-}
-
-float delta_gaussian_yolo_box(box truth, float *x, float *biases, int n, int index, int i, int j, int lw, int lh, int w, int h, float *delta,
-	float scale, int stride, float iou_normalizer, IOU_LOSS iou_loss, float uc_normalizer, int accumulate, YOLO_POINT yolo_point, float max_delta)
-{
-	TAT(TATPARMS);
-
-	box pred = get_gaussian_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride, yolo_point);
-
-	float iou;
-	ious all_ious = { 0 };
-	all_ious.iou = box_iou(pred, truth);
-	all_ious.giou = box_giou(pred, truth);
-	all_ious.diou = box_diou(pred, truth);
-	all_ious.ciou = box_ciou(pred, truth);
-	if (pred.w == 0) { pred.w = 1.0; }
-	if (pred.h == 0) { pred.h = 1.0; }
-
-	float sigma_const = 0.3;
-	float epsi = pow(10,-9);
-
-	float dx, dy, dw, dh;
-
-	iou = all_ious.iou;
-
-	float tx, ty, tw, th;
-
-	tx = (truth.x*lw - i);
-	ty = (truth.y*lh - j);
-	tw = log(truth.w*w / biases[2 * n]);
-	th = log(truth.h*h / biases[2 * n + 1]);
-
-	if (yolo_point == YOLO_CENTER) {
-	}
-	else if (yolo_point == YOLO_LEFT_TOP) {
-		tx = ((truth.x - truth.w / 2)*lw - i);
-		ty = ((truth.y - truth.h / 2)*lh - j);
-	}
-	else if (yolo_point == YOLO_RIGHT_BOTTOM) {
-		tx = ((truth.x + truth.w / 2)*lw - i);
-		ty = ((truth.y + truth.h / 2)*lh - j);
-	}
-
-	dx = (tx - x[index + 0 * stride]);
-	dy = (ty - x[index + 2 * stride]);
-	dw = (tw - x[index + 4 * stride]);
-	dh = (th - x[index + 6 * stride]);
-
-	// Gaussian
-	float in_exp_x = dx / x[index+1*stride];
-	float in_exp_x_2 = pow(in_exp_x, 2);
-	float normal_dist_x = exp(in_exp_x_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+1*stride]+sigma_const));
-
-	float in_exp_y = dy / x[index+3*stride];
-	float in_exp_y_2 = pow(in_exp_y, 2);
-	float normal_dist_y = exp(in_exp_y_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+3*stride]+sigma_const));
-
-	float in_exp_w = dw / x[index+5*stride];
-	float in_exp_w_2 = pow(in_exp_w, 2);
-	float normal_dist_w = exp(in_exp_w_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+5*stride]+sigma_const));
-
-	float in_exp_h = dh / x[index+7*stride];
-	float in_exp_h_2 = pow(in_exp_h, 2);
-	float normal_dist_h = exp(in_exp_h_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+7*stride]+sigma_const));
-
-	float temp_x = (1./2.) * 1./(normal_dist_x+epsi) * normal_dist_x * scale;
-	float temp_y = (1./2.) * 1./(normal_dist_y+epsi) * normal_dist_y * scale;
-	float temp_w = (1./2.) * 1./(normal_dist_w+epsi) * normal_dist_w * scale;
-	float temp_h = (1./2.) * 1./(normal_dist_h+epsi) * normal_dist_h * scale;
-
-	if (!accumulate) {
-		delta[index + 0 * stride] = 0;
-		delta[index + 1 * stride] = 0;
-		delta[index + 2 * stride] = 0;
-		delta[index + 3 * stride] = 0;
-		delta[index + 4 * stride] = 0;
-		delta[index + 5 * stride] = 0;
-		delta[index + 6 * stride] = 0;
-		delta[index + 7 * stride] = 0;
-	}
-
-	float delta_x = temp_x * in_exp_x  * (1. / x[index + 1 * stride]);
-	float delta_y = temp_y * in_exp_y  * (1. / x[index + 3 * stride]);
-	float delta_w = temp_w * in_exp_w  * (1. / x[index + 5 * stride]);
-	float delta_h = temp_h * in_exp_h  * (1. / x[index + 7 * stride]);
-
-	float delta_ux = temp_x * (in_exp_x_2 / x[index + 1 * stride] - 1. / (x[index + 1 * stride] + sigma_const));
-	float delta_uy = temp_y * (in_exp_y_2 / x[index + 3 * stride] - 1. / (x[index + 3 * stride] + sigma_const));
-	float delta_uw = temp_w * (in_exp_w_2 / x[index + 5 * stride] - 1. / (x[index + 5 * stride] + sigma_const));
-	float delta_uh = temp_h * (in_exp_h_2 / x[index + 7 * stride] - 1. / (x[index + 7 * stride] + sigma_const));
-
-	if (iou_loss != MSE) {
-		// GIoU
-		iou = all_ious.giou;
-
-		// https://github.com/generalized-iou/g-darknet
-		// https://arxiv.org/abs/1902.09630v2
-		// https://giou.stanford.edu/
-		// https://arxiv.org/abs/1911.08287v1
-		// https://github.com/Zzh-tju/DIoU-darknet
-		all_ious.dx_iou = dx_box_iou(pred, truth, iou_loss);
-
-		float dx, dy, dw, dh;
-
-		dx = all_ious.dx_iou.dt;
-		dy = all_ious.dx_iou.db;
-		dw = all_ious.dx_iou.dl;
-		dh = all_ious.dx_iou.dr;
-
-		if (yolo_point == YOLO_CENTER) {
-		}
-		else if (yolo_point == YOLO_LEFT_TOP) {
-			dx = dx - dw/2;
-			dy = dy - dh/2;
-		}
-		else if (yolo_point == YOLO_RIGHT_BOTTOM) {
-			dx = dx + dw / 2;
-			dy = dy + dh / 2;
-		}
-
-		// jacobian^t (transpose)
-		//float dx = (all_ious.dx_iou.dl + all_ious.dx_iou.dr);
-		//float dy = (all_ious.dx_iou.dt + all_ious.dx_iou.db);
-		//float dw = ((-0.5 * all_ious.dx_iou.dl) + (0.5 * all_ious.dx_iou.dr));
-		//float dh = ((-0.5 * all_ious.dx_iou.dt) + (0.5 * all_ious.dx_iou.db));
-
-		// predict exponential, apply gradient of e^delta_t ONLY for w,h
-		dw *= exp(x[index + 4 * stride]);
-		dh *= exp(x[index + 6 * stride]);
-
-		delta_x = dx;
-		delta_y = dy;
-		delta_w = dw;
-		delta_h = dh;
-	}
-
-	// normalize iou weight, for GIoU
-	delta_x *= iou_normalizer;
-	delta_y *= iou_normalizer;
-	delta_w *= iou_normalizer;
-	delta_h *= iou_normalizer;
-
-	// normalize Uncertainty weight
-	delta_ux *= uc_normalizer;
-	delta_uy *= uc_normalizer;
-	delta_uw *= uc_normalizer;
-	delta_uh *= uc_normalizer;
-
-	delta_x = fix_nan_inf(delta_x);
-	delta_y = fix_nan_inf(delta_y);
-	delta_w = fix_nan_inf(delta_w);
-	delta_h = fix_nan_inf(delta_h);
-
-	delta_ux = fix_nan_inf(delta_ux);
-	delta_uy = fix_nan_inf(delta_uy);
-	delta_uw = fix_nan_inf(delta_uw);
-	delta_uh = fix_nan_inf(delta_uh);
-
-	if (max_delta != FLT_MAX) {
-		delta_x = clip_value(delta_x, max_delta);
-		delta_y = clip_value(delta_y, max_delta);
-		delta_w = clip_value(delta_w, max_delta);
-		delta_h = clip_value(delta_h, max_delta);
-
-		delta_ux = clip_value(delta_ux, max_delta);
-		delta_uy = clip_value(delta_uy, max_delta);
-		delta_uw = clip_value(delta_uw, max_delta);
-		delta_uh = clip_value(delta_uh, max_delta);
-	}
-
-	delta[index + 0 * stride] += delta_x;
-	delta[index + 2 * stride] += delta_y;
-	delta[index + 4 * stride] += delta_w;
-	delta[index + 6 * stride] += delta_h;
-
-	delta[index + 1 * stride] += delta_ux;
-	delta[index + 3 * stride] += delta_uy;
-	delta[index + 5 * stride] += delta_uw;
-	delta[index + 7 * stride] += delta_uh;
-	return iou;
-}
-
-void averages_gaussian_yolo_deltas(int class_index, int box_index, int stride, int classes, float *delta)
-{
-	TAT(TATPARMS);
-
-	int classes_in_one_box = 0;
-	int c;
-	for (c = 0; c < classes; ++c) {
-		if (delta[class_index + stride*c] > 0) classes_in_one_box++;
-	}
-
-	if (classes_in_one_box > 0) {
-		delta[box_index + 0 * stride] /= classes_in_one_box;
-		delta[box_index + 1 * stride] /= classes_in_one_box;
-		delta[box_index + 2 * stride] /= classes_in_one_box;
-		delta[box_index + 3 * stride] /= classes_in_one_box;
-		delta[box_index + 4 * stride] /= classes_in_one_box;
-		delta[box_index + 5 * stride] /= classes_in_one_box;
-		delta[box_index + 6 * stride] /= classes_in_one_box;
-		delta[box_index + 7 * stride] /= classes_in_one_box;
-	}
-}
-
-void delta_gaussian_yolo_class(float *output, float *delta, int index, int class_id, int classes, int stride, float *avg_cat, float label_smooth_eps, float *classes_multipliers, float cls_normalizer)
-{
-	TAT(TATPARMS);
-
-	int n;
-	if (delta[index]){
-		float y_true = 1;
-		if (label_smooth_eps) y_true = y_true *  (1 - label_smooth_eps) + 0.5*label_smooth_eps;
-		delta[index + stride*class_id] = y_true - output[index + stride*class_id];
-		//delta[index + stride*class_id] = 1 - output[index + stride*class_id];
-
-		if (classes_multipliers) delta[index + stride*class_id] *= classes_multipliers[class_id];
-		if(avg_cat) *avg_cat += output[index + stride*class_id];
-		return;
-	}
-	for(n = 0; n < classes; ++n){
-		float y_true = ((n == class_id) ? 1 : 0);
-		if (label_smooth_eps) y_true = y_true *  (1 - label_smooth_eps) + 0.5*label_smooth_eps;
-		delta[index + stride*n] = y_true - output[index + stride*n];
-
-		if (classes_multipliers && n == class_id) delta[index + stride*class_id] *= classes_multipliers[class_id] * cls_normalizer;
-		if(n == class_id && avg_cat) *avg_cat += output[index + stride*n];
-	}
-}
-
-int compare_gaussian_yolo_class(float *output, int classes, int class_index, int stride, float objectness, int class_id, float conf_thresh)
-{
-	TAT(TATPARMS);
-
-	int j;
-	for (j = 0; j < classes; ++j) {
-		//float prob = objectness * output[class_index + stride*j];
-		float prob = output[class_index + stride*j];
-		if (prob > conf_thresh) {
-			return 1;
-		}
-	}
-	return 0;
-}
-
-static int entry_gaussian_index(layer l, int batch, int location, int entry)
-{
-	TAT(TATPARMS);
-
-	int n =   location / (l.w*l.h);
-	int loc = location % (l.w*l.h);
-	return batch*l.outputs + n*l.w*l.h*(8+l.classes+1) + entry*l.w*l.h + loc;
-}
 
 void forward_gaussian_yolo_layer(const layer l, network_state state)
 {
@@ -435,8 +501,10 @@ void forward_gaussian_yolo_layer(const layer l, network_state state)
 	memcpy(l.output, state.input, l.outputs*l.batch*sizeof(float));
 
 #ifndef GPU
-	for (b = 0; b < l.batch; ++b){
-		for(n = 0; n < l.n; ++n){
+	for (b = 0; b < l.batch; ++b)
+	{
+		for(n = 0; n < l.n; ++n)
+		{
 			// x : mu, sigma
 			int index = entry_gaussian_index(l, b, n*l.w*l.h, 0);
 			activate_array(l.output + index, 2*l.w*l.h, LOGISTIC);
@@ -728,7 +796,6 @@ void forward_gaussian_yolo_layer(const layer l, network_state state)
 	float* classification_lost = (float *)calloc(l.batch * l.outputs, sizeof(float));
 	memcpy(classification_lost, l.delta, l.batch * l.outputs * sizeof(float));
 
-
 	for (b = 0; b < l.batch; ++b)
 	{
 		for (j = 0; j < l.h; ++j)
@@ -793,6 +860,7 @@ void forward_gaussian_yolo_layer(const layer l, network_state state)
 		class_loss, iou_loss, uc_loss, loss);
 }
 
+
 void backward_gaussian_yolo_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
@@ -825,15 +893,7 @@ void correct_gaussian_yolo_boxes(detection *dets, int n, int w, int h, int netw,
 		new_w = netw;
 		new_h = neth;
 	}
-	/*
-	if (((float)netw/w) < ((float)neth/h)) {
-		new_w = netw;
-		new_h = (h * netw)/w;
-	} else {
-		new_h = neth;
-		new_w = (w * neth)/h;
-	}
-	*/
+
 	for (i = 0; i < n; ++i)
 	{
 		box b = dets[i].bbox;
@@ -851,6 +911,7 @@ void correct_gaussian_yolo_boxes(detection *dets, int n, int w, int h, int netw,
 		dets[i].bbox = b;
 	}
 }
+
 
 int gaussian_yolo_num_detections(layer l, float thresh)
 {
@@ -872,13 +933,13 @@ int gaussian_yolo_num_detections(layer l, float thresh)
 	return count;
 }
 
+
 int get_gaussian_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
 {
 	TAT(TATPARMS);
 
 	int i,j,n;
 	float *predictions = l.output;
-	//if (l.batch == 2) avg_flipped_gaussian_yolo(l);
 	int count = 0;
 	for (i = 0; i < l.w*l.h; ++i)
 	{

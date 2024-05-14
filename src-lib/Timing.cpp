@@ -160,10 +160,11 @@ Darknet::TimingRecords::~TimingRecords()
 			<< "| " << std::setw(m.at("total"	)) << total_milliseconds											<< " "
 			<< "| " << std::setw(m.at("average"	)) << std::fixed << std::setprecision(1) << average_milliseconds	<< " "
 			<< "| " << std::setw(m.at("reviewed")) << reviewed														<< " "
-			<< "| " << std::setw(m.at("comment"	)) << comment														<< " "
+			<< "| " << std::setw(m.at("comment"	)) << std::left << comment											<< " "
 			<< "| " << display_name
 			<< std::endl;
 	}
+
 	std::cout
 		<< seperator << std::endl
 		<< "Entries skipped:  " << skipped << std::endl;
