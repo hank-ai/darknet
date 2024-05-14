@@ -192,13 +192,19 @@ float tisnan(float x)
 	return (x != x);
 }
 
-static int entry_index(layer l, int batch, int location, int entry)
+namespace
 {
-	TAT(TATPARMS);
+	inline int entry_index(const layer & l, const int batch, const int location, const int entry)
+	{
+		// similar function exists in yolo_layer.cpp, but the math is slightly different
 
-	int n = location / (l.w*l.h);
-	int loc = location % (l.w*l.h);
-	return batch*l.outputs + n*l.w*l.h*(l.coords + l.classes + 1) + entry*l.w*l.h + loc;
+		TAT(TATPARMS);
+
+		const int n		= location / (l.w * l.h);
+		const int loc	= location % (l.w * l.h);
+
+		return batch * l.outputs + n * l.w * l.h * (l.coords + l.classes + 1) + entry * l.w * l.h + loc;
+	}
 }
 
 void softmax_tree(float *input, int batch, int inputs, float temp, tree *hierarchy, float *output);

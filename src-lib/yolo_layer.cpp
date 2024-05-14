@@ -419,13 +419,19 @@ int compare_yolo_class(float *output, int classes, int class_index, int stride, 
 	return 0;
 }
 
-static int entry_index(layer l, int batch, int location, int entry)
+namespace
 {
-	TAT(TATPARMS);
+	inline int entry_index(const layer & l, const int batch, const int location, const int entry)
+	{
+		// similar function exists in region_layer.cpp, but the math is slightly different
 
-	int n =   location / (l.w*l.h);
-	int loc = location % (l.w*l.h);
-	return batch*l.outputs + n*l.w*l.h*(4+l.classes+1) + entry*l.w*l.h + loc;
+		TAT(TATPARMS);
+
+		const int n		= location / (l.w * l.h);
+		const int loc	= location % (l.w * l.h);
+
+		return batch * l.outputs + n * l.w * l.h * (4 + l.classes + 1) + entry * l.w * l.h + loc;
+	}
 }
 
 typedef struct train_yolo_args {
@@ -1412,17 +1418,18 @@ void forward_yolo_layer_gpu(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
-	if (l.embedding_output) {
+	if (l.embedding_output)
+	{
+		/// @todo make "le" a reference?
 		layer le = state.net.layers[l.embedding_layer_id];
 		cuda_pull_array_async(le.output_gpu, l.embedding_output, le.batch*le.outputs);
 	}
 
 	//copy_ongpu(l.batch*l.inputs, state.input, 1, l.output_gpu, 1);
 	simple_copy_ongpu(l.batch*l.inputs, state.input, l.output_gpu);
-	int b, n;
-	for (b = 0; b < l.batch; ++b)
+	for (int b = 0; b < l.batch; ++b)
 	{
-		for(n = 0; n < l.n; ++n)
+		for (int n = 0; n < l.n; ++n)
 		{
 			int bbox_index = entry_index(l, b, n*l.w*l.h, 0);
 			// y = 1./(1. + exp(-x))
@@ -1440,28 +1447,34 @@ void forward_yolo_layer_gpu(const layer l, network_state state)
 				int obj_index = entry_index(l, b, n*l.w*l.h, 4);
 				activate_array_ongpu(l.output_gpu + obj_index, (1 + l.classes)*l.w*l.h, LOGISTIC); // classes and objectness
 			}
+
 			if (l.scale_x_y != 1)
 			{
 				scal_add_ongpu(2 * l.w*l.h, l.scale_x_y, -0.5*(l.scale_x_y - 1), l.output_gpu + bbox_index, 1);      // scale x,y
 			}
 		}
 	}
-	if(!state.train || l.onlyforward)
+
+	if (!state.train || l.onlyforward)
 	{
 		//cuda_pull_array(l.output_gpu, l.output, l.batch*l.outputs);
-		if (l.mean_alpha && l.output_avg_gpu) mean_array_gpu(l.output_gpu, l.batch*l.outputs, l.mean_alpha, l.output_avg_gpu);
-		cuda_pull_array_async(l.output_gpu, l.output, l.batch*l.outputs);
+		if (l.mean_alpha && l.output_avg_gpu)
+		{
+			mean_array_gpu(l.output_gpu, l.batch*l.outputs, l.mean_alpha, l.output_avg_gpu);
+		}
+		cuda_pull_array_async(l.output_gpu, l.output, l.batch * l.outputs);
 		CHECK_CUDA(cudaPeekAtLastError());
 		return;
 	}
 
 	float *in_cpu = (float *)xcalloc(l.batch*l.inputs, sizeof(float));
 	cuda_pull_array(l.output_gpu, l.output, l.batch*l.outputs);
-	memcpy(in_cpu, l.output, l.batch*l.outputs*sizeof(float));
-	float *truth_cpu = 0;
+	memcpy(in_cpu, l.output, l.batch * l.outputs * sizeof(float));
+	float * truth_cpu = nullptr;
+
 	if (state.truth)
 	{
-		int num_truth = l.batch*l.truths;
+		int num_truth = l.batch * l.truths;
 		truth_cpu = (float *)xcalloc(num_truth, sizeof(float));
 		cuda_pull_array(state.truth, truth_cpu, num_truth);
 	}
@@ -1473,9 +1486,13 @@ void forward_yolo_layer_gpu(const layer l, network_state state)
 	cpu_state.input = in_cpu;
 	forward_yolo_layer(l, cpu_state);
 	//forward_yolo_layer(l, state);
-	cuda_push_array(l.delta_gpu, l.delta, l.batch*l.outputs);
+	cuda_push_array(l.delta_gpu, l.delta, l.batch * l.outputs);
+
 	free(in_cpu);
-	if (cpu_state.truth) free(cpu_state.truth);
+	if (cpu_state.truth)
+	{
+		free(cpu_state.truth);
+	}
 }
 
 void backward_yolo_layer_gpu(const layer l, network_state state)
