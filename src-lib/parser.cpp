@@ -521,9 +521,10 @@ layer parse_yolo(list *options, size_params params)
 	{
 		darknet_fatal_error(DARKNET_LOC, "filters in [convolutional] layer (%d) does not match classes or mask in [yolo] layer (%d)", params.inputs, l.outputs);
 	}
-	//assert(l.outputs == params.inputs);
 
-	l.show_details = option_find_int_quiet(options, "show_details", 1);
+	// The old Darknet had an option called "-show_details".  This was replaced by "--verbose".
+	l.show_details = cfg_and_state.is_verbose ? 1 : 0;
+
 	l.max_delta = option_find_float_quiet(options, "max_delta", FLT_MAX);   // set 10
 	char *cpc = option_find_str(options, "counters_per_class", 0);
 	l.classes_multipliers = get_classes_multipliers(cpc, classes, l.max_delta);

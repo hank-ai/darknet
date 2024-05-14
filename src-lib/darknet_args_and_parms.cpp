@@ -99,7 +99,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		// global options
 		ArgsAndParms("colour"	, "color"	),
 		ArgsAndParms("nocolour"	, "nocolor"	),
-		ArgsAndParms("verbose"				),
+		ArgsAndParms("verbose"	, "show_details"), // I originally didn't know about "show_details" when I implemented "verbose"
 
 		// other options
 		ArgsAndParms("avgframes"			), //-- takes an int  3

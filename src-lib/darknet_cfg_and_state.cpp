@@ -212,7 +212,8 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 		}
 	}
 
-	if (args.count("verbose") > 0)
+	if (args.count("verbose"		) > 0 or
+		args.count("show_details"	) > 0) // old Darknet had "-show_details", which I didn't know about when I created "--verbose"
 	{
 		is_verbose = true;
 	}
