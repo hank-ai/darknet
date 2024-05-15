@@ -1,9 +1,4 @@
-#include "reorg_old_layer.hpp"
-#include "utils.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
-#include "Timing.hpp"
-#include <stdio.h>
+#include "darknet_internal.hpp"
 
 
 layer make_reorg_old_layer(int batch, int w, int h, int c, int stride, int reverse)

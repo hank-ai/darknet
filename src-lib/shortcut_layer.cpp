@@ -1,12 +1,5 @@
-#include "shortcut_layer.hpp"
-#include "convolutional_layer.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
-#include "utils.hpp"
 #include "gemm.hpp"
-#include "Timing.hpp"
-#include <stdio.h>
-#include <assert.h>
+#include "darknet_internal.hpp"
 
 layer make_shortcut_layer(int batch, int n, int *input_layers, int* input_sizes, int w, int h, int c,
 	float **layers_output, float **layers_delta, float **layers_output_gpu, float **layers_delta_gpu, WEIGHTS_TYPE_T weights_type, WEIGHTS_NORMALIZATION_T weights_normalization,

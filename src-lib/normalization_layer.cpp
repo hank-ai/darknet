@@ -1,8 +1,4 @@
-#include "normalization_layer.hpp"
-#include "blas.hpp"
-#include "utils.hpp"
-#include "Timing.hpp"
-#include <stdio.h>
+#include "darknet_internal.hpp"
 
 layer make_normalization_layer(int batch, int w, int h, int c, int size, float alpha, float beta, float kappa)
 {

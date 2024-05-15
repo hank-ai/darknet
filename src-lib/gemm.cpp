@@ -142,6 +142,7 @@ void gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 
 static inline unsigned char xnor(unsigned char a, unsigned char b)
 {
+	TAT(TATPARMS);
 	//return a == b;
 	return !(a^b);
 }
@@ -159,29 +160,34 @@ static inline uint32_t get_bit_int32(uint32_t const*const src, size_t index)
 
 static inline uint32_t xnor_int32(uint32_t a, uint32_t b)
 {
+	TAT(TATPARMS);
 	return ~(a^b);
 }
 
 static inline uint64_t xnor_int64(uint64_t a, uint64_t b)
 {
+	TAT(TATPARMS);
 	return ~(a^b);
 }
 
 
 static inline uint32_t fill_bit_int32(char src)
 {
+	TAT(TATPARMS);
 	if (src == 0) return 0x00000000;
 	else return  0xFFFFFFFF;
 }
 
 static inline uint64_t fill_bit_int64(char src)
 {
+	TAT(TATPARMS);
 	if (src == 0) return 0x0000000000000000;
 	else return  0xFFFFFFFFFFFFFFFF;
 }
 
 void binary_int32_printf(uint32_t src)
 {
+	TAT(TATPARMS);
 	int i;
 	for (i = 0; i < 32; ++i) {
 		if (src & 1) printf("1");
@@ -193,6 +199,7 @@ void binary_int32_printf(uint32_t src)
 
 void binary_int64_printf(uint64_t src)
 {
+	TAT(TATPARMS);
 	int i;
 	for (i = 0; i < 64; ++i) {
 		if (src & 1) printf("1");
@@ -383,20 +390,28 @@ void transpose_bin(uint32_t *A, uint32_t *B, const int n, const int m,
 #include <smmintrin.h>
 
 #if defined(_MSC_VER) && _MSC_VER <= 1900
-static inline __int32 _mm256_extract_epi64(__m256i a, const int index) {
+static inline __int32 _mm256_extract_epi64(__m256i a, const int index)
+{
+	TAT(TATPARMS);
 	return a.m256i_i64[index];
 }
 
-static inline __int32 _mm256_extract_epi32(__m256i a, const int index) {
+static inline __int32 _mm256_extract_epi32(__m256i a, const int index)
+{
+	TAT(TATPARMS);
 	return a.m256i_i32[index];
 }
 #endif
 
-static inline float _dn_castu32_f32(uint32_t a) {
+static inline float _dn_castu32_f32(uint32_t a)
+{
+	TAT(TATPARMS);
 	return *((float *)&a);
 }
 
-static inline float _mm256_extract_float32(__m256 a, const int index) {
+static inline float _mm256_extract_float32(__m256 a, const int index)
+{
+	TAT(TATPARMS);
 	return a.m256_f32[index];
 }
 
@@ -407,11 +422,15 @@ static inline float _mm256_extract_float32(__m256 a, const int index) {
 #include <smmintrin.h>
 #include <cpuid.h>
 
-static inline float _dn_castu32_f32(uint32_t a) {
+static inline float _dn_castu32_f32(uint32_t a)
+{
+	TAT(TATPARMS);
 	return *((float *)&a);
 }
 
-static inline float _mm256_extract_float32(__m256 a, const int index) {
+static inline float _mm256_extract_float32(__m256 a, const int index)
+{
+	TAT(TATPARMS);
 	switch(index) {
 	case 0:
 	return _dn_castu32_f32(_mm256_extract_epi32(_mm256_castps_si256(a), 0));
@@ -436,6 +455,7 @@ static inline float _mm256_extract_float32(__m256 a, const int index) {
 
 void asm_cpuid(uint32_t* abcd, uint32_t eax)
 {
+	TAT(TATPARMS);
 	uint32_t ebx = 0, edx = 0, ecx = 0;
 
 	// EBX is saved to EDI and later restored

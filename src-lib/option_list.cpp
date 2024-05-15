@@ -1,5 +1,4 @@
 #include "option_list.hpp"
-#include "data.hpp"
 #include "darknet_internal.hpp"
 
 list *read_data_cfg(char *filename)

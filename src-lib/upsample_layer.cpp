@@ -1,10 +1,4 @@
-#include "upsample_layer.hpp"
-#include "dark_cuda.hpp"
-#include "utils.hpp"
-#include "blas.hpp"
-#include "Timing.hpp"
-
-#include <stdio.h>
+#include "darknet_internal.hpp"
 
 layer make_upsample_layer(int batch, int w, int h, int c, int stride)
 {

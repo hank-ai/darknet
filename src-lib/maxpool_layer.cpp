@@ -1,9 +1,4 @@
-#include "maxpool_layer.hpp"
-#include "convolutional_layer.hpp"
-#include "dark_cuda.hpp"
-#include "utils.hpp"
 #include "gemm.hpp"
-#include "image.hpp"
 #include "darknet_internal.hpp"
 
 namespace
@@ -13,6 +8,8 @@ namespace
 
 image get_maxpool_image(maxpool_layer l)
 {
+	TAT(TATPARMS);
+
 	int h = l.out_h;
 	int w = l.out_w;
 	int c = l.c;
@@ -21,6 +18,8 @@ image get_maxpool_image(maxpool_layer l)
 
 image get_maxpool_delta(maxpool_layer l)
 {
+	TAT(TATPARMS);
+
 	int h = l.out_h;
 	int w = l.out_w;
 	int c = l.c;
@@ -29,6 +28,8 @@ image get_maxpool_delta(maxpool_layer l)
 
 void create_maxpool_cudnn_tensors(layer *l)
 {
+	TAT(TATPARMS);
+
 #ifdef CUDNN
 	CHECK_CUDNN(cudnnCreatePoolingDescriptor(&l->poolingDesc));
 	CHECK_CUDNN(cudnnCreateTensorDescriptor(&l->srcTensorDesc));
@@ -38,6 +39,8 @@ void create_maxpool_cudnn_tensors(layer *l)
 
 void cudnn_maxpool_setup(layer *l)
 {
+	TAT(TATPARMS);
+
 #ifdef CUDNN
 	CHECK_CUDNN(cudnnSetPooling2dDescriptor(
 		l->poolingDesc,
@@ -58,6 +61,8 @@ void cudnn_maxpool_setup(layer *l)
 
 void cudnn_local_avgpool_setup(layer *l)
 {
+	TAT(TATPARMS);
+
 #ifdef CUDNN
 	CHECK_CUDNN(cudnnSetPooling2dDescriptor(
 		l->poolingDesc,
@@ -77,6 +82,8 @@ void cudnn_local_avgpool_setup(layer *l)
 
 maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x, int stride_y, int padding, int maxpool_depth, int out_channels, int antialiasing, int avgpool, int train)
 {
+	TAT(TATPARMS);
+
 	maxpool_layer l = { (LAYER_TYPE)0 };
 	l.avgpool = avgpool;
 	if (avgpool) l.type = LOCAL_AVGPOOL;
@@ -214,6 +221,8 @@ maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size, int s
 
 void resize_maxpool_layer(maxpool_layer *l, int w, int h)
 {
+	TAT(TATPARMS);
+
 	l->h = h;
 	l->w = w;
 	l->inputs = h*w*l->c;
@@ -249,6 +258,8 @@ void resize_maxpool_layer(maxpool_layer *l, int w, int h)
 
 void forward_maxpool_layer(const maxpool_layer l, network_state state)
 {
+	TAT(TATPARMS);
+
 	if (l.maxpool_depth)
 	{
 		int b, i, j, k, g;
@@ -335,6 +346,8 @@ void forward_maxpool_layer(const maxpool_layer l, network_state state)
 
 void backward_maxpool_layer(const maxpool_layer l, network_state state)
 {
+	TAT(TATPARMS);
+
 	int i;
 	int h = l.out_h;
 	int w = l.out_w;
@@ -349,6 +362,8 @@ void backward_maxpool_layer(const maxpool_layer l, network_state state)
 
 void forward_local_avgpool_layer(const maxpool_layer l, network_state state)
 {
+	TAT(TATPARMS);
+
 	int b, i, j, k, m, n;
 	int w_offset = -l.pad / 2;
 	int h_offset = -l.pad / 2;
@@ -387,6 +402,7 @@ void forward_local_avgpool_layer(const maxpool_layer l, network_state state)
 
 void backward_local_avgpool_layer(const maxpool_layer l, network_state state)
 {
+	TAT(TATPARMS);
 
 	int b, i, j, k, m, n;
 	int w_offset = -l.pad / 2;

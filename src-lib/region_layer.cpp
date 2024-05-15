@@ -1,14 +1,4 @@
-#include "region_layer.hpp"
-#include "activations.hpp"
-#include "blas.hpp"
-#include "box.hpp"
-#include "dark_cuda.hpp"
-#include "utils.hpp"
-#include "Timing.hpp"
-#include <stdio.h>
-#include <assert.h>
-#include <string.h>
-#include <stdlib.h>
+#include "darknet_internal.hpp"
 
 #define DOABS 1
 

@@ -12,8 +12,6 @@ extern "C"
 	int64_t get_current_iteration(network net);
 }
 
-//#include "image_opencv.hpp"
-//#include "image.hpp"
 
 #include "dark_cuda.hpp"
 

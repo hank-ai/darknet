@@ -1,10 +1,4 @@
-#include "scale_channels_layer.hpp"
-#include "utils.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
-#include "Timing.hpp"
-#include <stdio.h>
-#include <assert.h>
+#include "darknet_internal.hpp"
 
 layer make_scale_channels_layer(int batch, int index, int w, int h, int c, int w2, int h2, int c2, int scale_wh)
 {

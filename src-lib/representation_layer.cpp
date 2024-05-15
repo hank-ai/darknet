@@ -1,10 +1,4 @@
-#include "representation_layer.hpp"
-#include "utils.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
-#include "Timing.hpp"
-#include <stdio.h>
-#include <assert.h>
+#include "darknet_internal.hpp"
 
 layer make_implicit_layer(int batch, int index, float mean_init, float std_init, int filters, int atoms)
 {

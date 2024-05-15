@@ -14,7 +14,10 @@
 
 char *get_activation_string(ACTIVATION a)
 {
-	switch(a){
+	TAT(TATPARMS);
+
+	switch(a)
+	{
 		case LOGISTIC:
 			return "logistic";
 		case LOGGY:
@@ -53,6 +56,8 @@ char *get_activation_string(ACTIVATION a)
 
 ACTIVATION get_activation(char *s)
 {
+	TAT(TATPARMS);
+
 	if (strcmp(s, "logistic")==0) return LOGISTIC;
 	if (strcmp(s, "swish") == 0) return SWISH;
 	if (strcmp(s, "mish") == 0) return MISH;
@@ -82,7 +87,10 @@ ACTIVATION get_activation(char *s)
 
 float activate(float x, ACTIVATION a)
 {
-	switch(a){
+	TAT(TATPARMS);
+
+	switch(a)
+	{
 		/// @todo what about other values like RELUG, SWISH, etc?
 		case LINEAR:
 			return linear_activate(x);
@@ -121,6 +129,8 @@ float activate(float x, ACTIVATION a)
 
 void activate_array(float *x, const int n, const ACTIVATION a)
 {
+	TAT(TATPARMS);
+
 	int i;
 	if (a == LINEAR) {}
 	else if (a == LEAKY) {
@@ -144,6 +154,8 @@ void activate_array(float *x, const int n, const ACTIVATION a)
 
 void activate_array_swish(float *x, const int n, float * output_sigmoid, float * output)
 {
+	TAT(TATPARMS);
+
 	int i;
 	#pragma omp parallel for
 	for (i = 0; i < n; ++i) {
@@ -157,6 +169,8 @@ void activate_array_swish(float *x, const int n, float * output_sigmoid, float *
 // https://github.com/digantamisra98/Mish
 void activate_array_mish(float *x, const int n, float * activation_input, float * output)
 {
+	TAT(TATPARMS);
+
 	const float MISH_THRESHOLD = 20;
 	int i;
 	#pragma omp parallel for
@@ -169,6 +183,8 @@ void activate_array_mish(float *x, const int n, float * activation_input, float 
 
 static float hard_mish_yashas(float x)
 {
+	TAT(TATPARMS);
+
 	if (x > 0)
 		return x;
 	if (x > -2)
@@ -178,6 +194,8 @@ static float hard_mish_yashas(float x)
 
 void activate_array_hard_mish(float *x, const int n, float * activation_input, float * output)
 {
+	TAT(TATPARMS);
+
 	int i;
 	#pragma omp parallel for
 	for (i = 0; i < n; ++i) {
@@ -189,6 +207,8 @@ void activate_array_hard_mish(float *x, const int n, float * activation_input, f
 
 void activate_array_normalize_channels(float *x, const int n, int batch, int channels, int wh_step, float *output)
 {
+	TAT(TATPARMS);
+
 	int size = n / channels;
 
 	int i;
@@ -217,6 +237,8 @@ void activate_array_normalize_channels(float *x, const int n, int batch, int cha
 
 void activate_array_normalize_channels_softmax(float *x, const int n, int batch, int channels, int wh_step, float *output, int use_max_val)
 {
+	TAT(TATPARMS);
+
 	int size = n / channels;
 
 	int i;
@@ -254,6 +276,8 @@ void activate_array_normalize_channels_softmax(float *x, const int n, int batch,
 
 void gradient_array_normalize_channels_softmax(float *x, const int n, int batch, int channels, int wh_step, float *delta)
 {
+	TAT(TATPARMS);
+
 	int size = n / channels;
 
 	int i;
@@ -283,6 +307,8 @@ void gradient_array_normalize_channels_softmax(float *x, const int n, int batch,
 
 void gradient_array_normalize_channels(float *x, const int n, int batch, int channels, int wh_step, float *delta)
 {
+	TAT(TATPARMS);
+
 	int size = n / channels;
 
 	int i;
@@ -363,6 +389,8 @@ float gradient(float x, ACTIVATION a)
 
 void gradient_array(const float *x, const int n, const ACTIVATION a, float *delta)
 {
+	TAT(TATPARMS);
+
 	int i;
 	#pragma omp parallel for
 	for(i = 0; i < n; ++i){
@@ -373,6 +401,8 @@ void gradient_array(const float *x, const int n, const ACTIVATION a, float *delt
 // https://github.com/BVLC/caffe/blob/04ab089db018a292ae48d51732dd6c66766b36b6/src/caffe/layers/swish_layer.cpp#L54-L56
 void gradient_array_swish(const float *x, const int n, const float * sigmoid, float * delta)
 {
+	TAT(TATPARMS);
+
 	int i;
 	#pragma omp parallel for
 	for (i = 0; i < n; ++i) {
@@ -384,6 +414,8 @@ void gradient_array_swish(const float *x, const int n, const float * sigmoid, fl
 // https://github.com/digantamisra98/Mish
 void gradient_array_mish(const int n, const float * activation_input, float * delta)
 {
+	TAT(TATPARMS);
+
 	int i;
 	#pragma omp parallel for
 	for (i = 0; i < n; ++i) {
@@ -410,6 +442,8 @@ void gradient_array_mish(const int n, const float * activation_input, float * de
 
 static float hard_mish_yashas_grad(float x)
 {
+	TAT(TATPARMS);
+
 	if (x > 0)
 		return 1;
 	if (x > -2)
@@ -419,6 +453,8 @@ static float hard_mish_yashas_grad(float x)
 
 void gradient_array_hard_mish(const int n, const float * activation_input, float * delta)
 {
+	TAT(TATPARMS);
+
 	int i;
 	#pragma omp parallel for
 	for (i = 0; i < n; ++i) {

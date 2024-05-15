@@ -1,9 +1,4 @@
-#include "route_layer.hpp"
-#include "utils.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
-#include "Timing.hpp"
-#include <stdio.h>
+#include "darknet_internal.hpp"
 
 route_layer make_route_layer(int batch, int n, int *input_layers, int *input_sizes, int groups, int group_id)
 {

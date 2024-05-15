@@ -1,15 +1,4 @@
-#include "softmax_layer.hpp"
-#include "blas.hpp"
-#include "dark_cuda.hpp"
-#include "utils.hpp"
-#include "blas.hpp"
-#include "Timing.hpp"
-
-#include <float.h>
-#include <math.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <assert.h>
+#include "darknet_internal.hpp"
 
 /// @todo what is this?
 #define SECRET_NUM -1234
