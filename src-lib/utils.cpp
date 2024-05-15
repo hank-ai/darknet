@@ -22,7 +22,8 @@ void *xmalloc_location(const size_t size, const char * const filename, const cha
 	TAT(TATPARMS);
 
 	void *ptr=malloc(size);
-	if(!ptr) {
+	if (!ptr)
+	{
 		malloc_error(size, filename, funcname, line);
 	}
 	return ptr;
@@ -33,7 +34,8 @@ void *xcalloc_location(const size_t nmemb, const size_t size, const char * const
 	TAT(TATPARMS);
 
 	void *ptr=calloc(nmemb, size);
-	if(!ptr) {
+	if (!ptr)
+	{
 		calloc_error(nmemb * size, filename, funcname, line);
 	}
 	return ptr;
@@ -44,7 +46,8 @@ void *xrealloc_location(void *ptr, const size_t size, const char * const filenam
 	TAT(TATPARMS);
 
 	ptr=realloc(ptr,size);
-	if(!ptr) {
+	if (!ptr)
+	{
 		realloc_error(size, filename, funcname, line);
 	}
 	return ptr;

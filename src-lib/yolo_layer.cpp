@@ -908,9 +908,7 @@ void forward_yolo_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
-	//int i, j, b, t, n;
-	memcpy(l.output, state.input, l.outputs*l.batch * sizeof(float));
-	//int b;
+	memcpy(l.output, state.input, l.outputs * l.batch * sizeof(float));
 
 #ifndef GPU
 	for (int b = 0; b < l.batch; ++b)
@@ -973,7 +971,7 @@ void forward_yolo_layer(const layer l, network_state state)
 	Darknet::VThreads threads;
 	threads.reserve(num_threads);
 
-	struct train_yolo_args* yolo_args = (train_yolo_args*)xcalloc(l.batch, sizeof(struct train_yolo_args));
+	struct train_yolo_args * yolo_args = (train_yolo_args*)xcalloc(l.batch, sizeof(struct train_yolo_args));
 
 	for (int b = 0; b < l.batch; b++)
 	{
@@ -1021,7 +1019,6 @@ void forward_yolo_layer(const layer l, network_state state)
 		float counter = 0;
 		for (i = 0; i < l.batch * l.outputs; ++i)
 		{
-
 			if (l.delta[i] != 0)
 			{
 				counter++;
