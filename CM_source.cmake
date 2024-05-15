@@ -51,6 +51,8 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-Wall)					# enable "all" warnings
 	ADD_COMPILE_OPTIONS (-Wextra)				# enable even more warnings
 	ADD_COMPILE_OPTIONS (-Wno-unused-parameter)	# don't report this error
+	ADD_COMPILE_OPTIONS (-march=native)			# optimize for the architecture where g++ is running
+	ADD_COMPILE_OPTIONS (-mtune=native)			# optimize for the architecture where g++ is running
 
 	IF (CMAKE_BUILD_TYPE MATCHES DEBUG OR
 		CMAKE_BUILD_TYPE MATCHES Debug OR
