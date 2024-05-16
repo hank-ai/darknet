@@ -1144,14 +1144,64 @@ void forward_yolo_layer(const layer l, network_state state)
 		class_count = 1;
 	}
 
-	if (l.show_details == 0)
+	int stride = l.w*l.h;
+	float* no_iou_loss_delta = (float *)calloc(l.batch * l.outputs, sizeof(float));
+	memcpy(no_iou_loss_delta, l.delta, l.batch * l.outputs * sizeof(float));
+
+	for (int b = 0; b < l.batch; ++b)
 	{
-		float loss = pow(mag_array(l.delta, l.outputs * l.batch), 2);
-		*(l.cost) = loss;
+		for (int j = 0; j < l.h; ++j)
+		{
+			for (int i = 0; i < l.w; ++i)
+			{
+				for (int n = 0; n < l.n; ++n)
+				{
+					int index = entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
+					no_iou_loss_delta[index + 0 * stride] = 0;
+					no_iou_loss_delta[index + 1 * stride] = 0;
+					no_iou_loss_delta[index + 2 * stride] = 0;
+					no_iou_loss_delta[index + 3 * stride] = 0;
+				}
+			}
+		}
+	}
 
-		loss /= l.batch;
+	float classification_loss = l.obj_normalizer * pow(mag_array(no_iou_loss_delta, l.outputs * l.batch), 2);
+	free(no_iou_loss_delta);
+	float loss = pow(mag_array(l.delta, l.outputs * l.batch), 2);
+	float iou_loss = loss - classification_loss;
 
-		// ...this is the non-verbose output!?
+	float avg_iou_loss = 0.0f;
+	*(l.cost) = loss;
+
+	// gIOU loss + MSE (objectness) loss
+	if (l.iou_loss == MSE)
+	{
+		*(l.cost) = pow(mag_array(l.delta, l.outputs * l.batch), 2);
+	}
+	else
+	{
+		// Always compute classification loss both for iou + cls loss and for logging with mse loss
+		// TODO: remove IOU loss fields before computing MSE on class
+		//   probably split into two arrays
+		if (l.iou_loss == GIOU)
+		{
+			avg_iou_loss = count > 0 ? l.iou_normalizer * (tot_giou_loss / count) : 0;
+		}
+		else
+		{
+			avg_iou_loss = count > 0 ? l.iou_normalizer * (tot_iou_loss / count) : 0;
+		}
+		*(l.cost) = avg_iou_loss + classification_loss;
+	}
+
+	loss /= l.batch;
+	classification_loss /= l.batch;
+	iou_loss /= l.batch;
+
+	// show detailed output
+	if (cfg_and_state.is_verbose)
+	{
 		std::cout <<
 				"v3 " << (	l.iou_loss == MSE	?	"mse"	:
 							l.iou_loss == GIOU	?	"giou"	:
@@ -1163,88 +1213,10 @@ void forward_yolo_layer(const layer l, network_state state)
 				"Region "		<< state.index									<< " "
 				"Avg (IOU: "	<< std::setprecision(6) << tot_iou / count		<< "), "
 				"count: "		<< count										<< ", "
+				"class_loss: "	<< std::setprecision(6) << classification_loss	<< ", "
+				"iou_loss: "	<< std::setprecision(6) << iou_loss				<< ", "
 				"total_loss: "	<< std::setprecision(6) << loss
 								<< std::setprecision(2)							<< std::endl;
-	}
-	else
-	{
-		// show detailed output
-
-		int stride = l.w*l.h;
-		float* no_iou_loss_delta = (float *)calloc(l.batch * l.outputs, sizeof(float));
-		memcpy(no_iou_loss_delta, l.delta, l.batch * l.outputs * sizeof(float));
-
-
-		//int j, n;
-		for (int b = 0; b < l.batch; ++b)
-		{
-			for (int j = 0; j < l.h; ++j)
-			{
-				for (int i = 0; i < l.w; ++i)
-				{
-					for (int n = 0; n < l.n; ++n)
-					{
-						int index = entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
-						no_iou_loss_delta[index + 0 * stride] = 0;
-						no_iou_loss_delta[index + 1 * stride] = 0;
-						no_iou_loss_delta[index + 2 * stride] = 0;
-						no_iou_loss_delta[index + 3 * stride] = 0;
-					}
-				}
-			}
-		}
-
-		float classification_loss = l.obj_normalizer * pow(mag_array(no_iou_loss_delta, l.outputs * l.batch), 2);
-		free(no_iou_loss_delta);
-		float loss = pow(mag_array(l.delta, l.outputs * l.batch), 2);
-		float iou_loss = loss - classification_loss;
-
-		float avg_iou_loss = 0.0f;
-		*(l.cost) = loss;
-
-		// gIOU loss + MSE (objectness) loss
-		if (l.iou_loss == MSE)
-		{
-			*(l.cost) = pow(mag_array(l.delta, l.outputs * l.batch), 2);
-		}
-		else
-		{
-			// Always compute classification loss both for iou + cls loss and for logging with mse loss
-			// TODO: remove IOU loss fields before computing MSE on class
-			//   probably split into two arrays
-			if (l.iou_loss == GIOU)
-			{
-				avg_iou_loss = count > 0 ? l.iou_normalizer * (tot_giou_loss / count) : 0;
-			}
-			else
-			{
-				avg_iou_loss = count > 0 ? l.iou_normalizer * (tot_iou_loss / count) : 0;
-			}
-			*(l.cost) = avg_iou_loss + classification_loss;
-		}
-
-		loss /= l.batch;
-		classification_loss /= l.batch;
-		iou_loss /= l.batch;
-
-		if (cfg_and_state.is_verbose)
-		{
-			std::cout <<
-					"v3 " << (	l.iou_loss == MSE	?	"mse"	:
-								l.iou_loss == GIOU	?	"giou"	:
-														"iou"	) << " loss, "
-					"Normalizer: "
-					"(iou: "		<< std::setprecision(2) << l.iou_normalizer		<<
-					", obj: "		<< std::setprecision(2) << l.obj_normalizer		<<
-					", cls: "		<< std::setprecision(2) << l.cls_normalizer		<< ") "
-					"Region "		<< state.index									<< " "
-					"Avg (IOU: "	<< std::setprecision(6) << tot_iou / count		<< "), "
-					"count: "		<< count										<< ", "
-					"class_loss: "	<< std::setprecision(6) << classification_loss	<< ", "
-					"iou_loss: "	<< std::setprecision(6) << iou_loss				<< ", "
-					"total_loss: "	<< std::setprecision(6) << loss
-									<< std::setprecision(2)							<< std::endl;
-		}
 	}
 }
 
