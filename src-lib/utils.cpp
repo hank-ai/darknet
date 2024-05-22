@@ -472,25 +472,45 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 		vfprintf(stderr, msg, args);
 		va_end(args);
 
-		// the vfprintf() message is not newline-terminated so we need to take care of that before we print anything else
-		fprintf(stderr, "%s\n", Darknet::in_colour(Darknet::EColour::kNormal).c_str());
+		/* 2024-05-21:  I ran into a problem on Ubuntu where everything printed using std::cout and std::cerr following the
+		 * call to vfprintf() was ignored, even with attempts to flush the streams.  Thus, all the std::cout calls after this
+		 * line have been converted back to fprintf() to avoid this issue and ensure we get the full error message.
+		 */
 
-		std::cout
-			<< "* Thread #" << std::this_thread::get_id() << ": " << cfg_and_state.get_thread_name() << std::endl
-			<< "* Version " << DARKNET_VERSION_STRING << " built on " << __DATE__ << " " <<__TIME__ << std::endl
-			<< "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *" << std::endl;
+		const auto tid_to_digits = [](const std::thread::id & t) -> uint64_t
+		{
+			std::stringstream ss;
+			ss << t;
+			return std::stoull(ss.str());
+		};
+
+		fprintf(stderr,
+				"%s\n" // the vfprintf() message is not newline-terminated so we need to take care of that before we print anything else
+				"* Thread #%lu: %s\n"
+				"* Version %s built on %s %s\n"
+				"* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n",
+				Darknet::in_colour(Darknet::EColour::kNormal).c_str(),
+				tid_to_digits(std::this_thread::get_id()),
+				cfg_and_state.get_thread_name().c_str(),
+				DARKNET_VERSION_STRING, __DATE__, __TIME__);
 
 		log_backtrace();
 
-		std::cout << "known threads:  " << all_thread_names.size() << std::endl;
+		fprintf(stderr, "known threads:  %ld\n", all_thread_names.size());
 		size_t count = 0;
 		for (const auto & [tid, name] : all_thread_names)
 		{
 			count ++;
-			std::cout << count << "/" << all_thread_names.size() << ": #" << tid << ": " << name << std::endl;
+
+			fprintf(stderr, "%lu/%lu: #%lu: %s\n",
+					count,
+					all_thread_names.size(),
+					tid_to_digits(tid),
+					name.c_str());
+
 			if (count > 15 and all_thread_names.size() >= 20)
 			{
-				std::cout << "..." << std::endl;
+				fprintf(stderr, "...\n");
 				break;
 			}
 		}
@@ -498,6 +518,7 @@ void darknet_fatal_error(const char * const filename, const char * const funcnam
 
 	std::fflush(stdout);
 	std::fflush(stderr);
+
 	std::cout << std::flush;
 	std::cerr << std::flush;
 
