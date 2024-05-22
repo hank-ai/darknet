@@ -1,13 +1,5 @@
-#include "network.hpp"
-#include "detection_layer.hpp"
-#include "region_layer.hpp"
-#include "cost_layer.hpp"
-#include "utils.hpp"
-#include "parser.hpp"
-#include "box.hpp"
-#include "image.hpp"
-#include "demo.hpp"
-#include "darknet.h"
+#include "darknet_internal.hpp"
+
 #ifdef WIN32
 #include <time.h>
 #include "gettimeofday.h"
@@ -17,40 +9,41 @@
 
 #include "http_stream.hpp"
 
-static char **demo_names;
-//static image **demo_alphabet;
-static int demo_classes;
 
-static int nboxes = 0;
-static detection *dets = NULL;
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
-static network net;
-static image in_s ;
-static image det_s;
+	static int demo_classes		= -1;
+	static char ** demo_names	= nullptr;
+	static mat_cv ** cv_images	= nullptr;
+	static mat_cv * in_img		= nullptr;
+	static mat_cv * det_img		= nullptr;
+	static mat_cv * show_img	= nullptr;
+	static cap_cv * cap			= nullptr;
+	static detection * dets		= nullptr;
 
-static cap_cv *cap;
-static float fps = 0;
-static float demo_thresh = 0;
-static int demo_ext_output = 0;
-static long long int frame_id = 0;
-static int demo_json_port = -1;
-static bool demo_skip_frame = false;
+	static int nboxes				= 0;
+	static float fps				= 0;
+	static float demo_thresh		= 0;
+	static int demo_ext_output		= 0;
+	static long long int frame_id	= 0;
+	static int demo_json_port		= -1;
+	static bool demo_skip_frame		= false;
+	static int avg_frames			= 0;
+	static int demo_index			= 0;
+	static int letter_box			= 0;
 
+	static network net;
+	static image in_s ;
+	static image det_s;
 
-static int avg_frames;
-static int demo_index = 0;
-static mat_cv** cv_images;
+	static volatile int flag_exit;
 
-mat_cv* in_img;
-mat_cv* det_img;
-mat_cv* show_img;
-
-static volatile int flag_exit;
-static int letter_box = 0;
-
-static const int thread_wait_ms = 1;
-static volatile int run_fetch_in_thread = 0;
-static volatile int run_detect_in_thread = 0;
+	static const int thread_wait_ms = 1;
+	static volatile int run_fetch_in_thread = 0;
+	static volatile int run_detect_in_thread = 0;
+}
 
 
 void *fetch_in_thread(void *ptr)
@@ -142,7 +135,26 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	int frame_skip, char *prefix, char *out_filename, int mjpeg_port, int dontdraw_bbox, int json_port, int dont_show, int ext_output, int letter_box_in, int time_limit_sec, char *http_post_host,
 	int benchmark, int benchmark_layers)
 {
-	if (avgframes < 1) avgframes = 1;
+#if 0
+	std::cout
+		<< "DEMO"
+		<< " cfg=" << cfgfile
+		<< " weights=" << weightfile
+		<< " thresh=" << thresh
+		<< " cam=" << cam_index
+		<< " filename=" << filename
+		<< " classes=" << classes
+		<< " avg=" << avgframes
+		<< " skip=" << frame_skip
+		<< " prefix=" << prefix
+		<< " out=" << out_filename
+		<< std::endl;
+#endif
+
+	if (avgframes < 1)
+	{
+		avgframes = 1;
+	}
 	avg_frames = avgframes;
 	letter_box = letter_box_in;
 	in_img = det_img = show_img = NULL;
@@ -155,29 +167,38 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	demo_json_port = json_port;
 	printf("Demo\n");
 	net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
-	if(weightfile){
+
+	if(weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
-	if (net.letter_box) letter_box = 1;
+
+	if (net.letter_box)
+	{
+		letter_box = 1;
+	}
+
 	net.benchmark_layers = benchmark_layers;
 	fuse_conv_batchnorm(net);
 	calculate_binary_weights(net);
-	srand(2222222);
 
-	if(filename){
-		printf("video file: %s\n", filename);
-		cap = get_capture_video_stream(filename);
-		demo_skip_frame = is_live_stream(filename);
-	}else{
+	if (cfg_and_state.is_set("camera"))
+	{
+		cam_index = cfg_and_state.get("camera").value;
+
 		printf("Webcam index: %d\n", cam_index);
 		cap = get_capture_webcam(cam_index);
 		demo_skip_frame = true;
 	}
+	else
+	{
+		printf("video file: %s\n", filename);
+		cap = get_capture_video_stream(filename);
+		demo_skip_frame = is_live_stream(filename);
+	}
 
-	if (!cap) {
-#ifdef WIN32
-		printf("Check that you have copied file opencv_ffmpeg340_64.dll to the same directory where is darknet.exe \n");
-#endif
+	if (!cap)
+	{
 		darknet_fatal_error(DARKNET_LOC, "failed to connect to webcam (%d, %s)", cam_index, filename);
 	}
 
@@ -186,10 +207,11 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 
 	cv_images = (mat_cv**)xcalloc(avg_frames, sizeof(mat_cv));
 
-	int i;
-	for (i = 0; i < net.n; ++i) {
+	for (int i = 0; i < net.n; ++i)
+	{
 		layer lc = net.layers[i];
-		if (lc.type == YOLO) {
+		if (lc.type == YOLO)
+		{
 			lc.mean_alpha = 1.0 / avg_frames;
 			l = lc;
 		}
@@ -216,7 +238,8 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	det_img = in_img;
 	det_s = in_s;
 
-	for (j = 0; j < avg_frames / 2; ++j) {
+	for (j = 0; j < avg_frames / 2; ++j)
+	{
 		free_detections(dets, nboxes);
 		fetch_in_thread_sync(0); //fetch_in_thread(0);
 		detect_in_thread_sync(0); //fetch_in_thread(0);
@@ -225,27 +248,19 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	}
 
 	int count = 0;
-	if(!prefix && !dont_show){
+	if(!prefix && !dont_show)
+	{
 		int full_screen = 0;
 		create_window_cv("Demo", full_screen, 1352, 1013);
 	}
 
 
-	write_cv* output_video_writer = NULL;
+	write_cv * output_video_writer = NULL;
 	if (out_filename && !flag_exit)
 	{
 		int src_fps = 25;
 		src_fps = get_stream_fps_cpp_cv(cap);
-		output_video_writer =
-			create_video_writer(out_filename, 'm', 'p', '4', 'v', src_fps, get_width_mat(det_img), get_height_mat(det_img), 1);
-
-		//'H', '2', '6', '4'
-		//'D', 'I', 'V', 'X'
-		//'M', 'J', 'P', 'G'
-		//'M', 'P', '4', 'V'
-		//'M', 'P', '4', '2'
-		//'X', 'V', 'I', 'D'
-		//'W', 'M', 'V', '2'
+		output_video_writer = create_video_writer(out_filename, 'm', 'p', '4', 'v', src_fps, get_width_mat(det_img), get_height_mat(det_img), 1);
 	}
 
 	int send_http_post_once = 0;
@@ -256,7 +271,8 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	int frame_counter = 0;
 	int global_frame_counter = 0;
 
-	while(1){
+	while(1)
+	{
 		++count;
 		{
 			const float nms = .45;    // 0.4F
@@ -287,7 +303,8 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 			}
 
 			//char *http_post_server = "webhook.site/898bbd9b-0ddd-49cf-b81d-1f56be98d870";
-			if (http_post_host && !send_http_post_once) {
+			if (http_post_host && !send_http_post_once)
+			{
 				int timeout = 3;            // 3 seconds
 				int http_post_port = 80;    // 443 https, 80 http
 				if (send_http_post_request(http_post_host, http_post_port, filename,
@@ -297,17 +314,28 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 				}
 			}
 
-			if (!benchmark && !dontdraw_bbox) draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_classes, demo_ext_output);
+			if (!benchmark && !dontdraw_bbox)
+			{
+				draw_detections_cv_v3(show_img, local_dets, local_nboxes, demo_thresh, demo_names, demo_classes, demo_ext_output);
+			}
 			free_detections(local_dets, local_nboxes);
 
 			printf("\nFPS:%.1f \t AVG_FPS:%.1f\n", fps, avg_fps);
 
-			if(!prefix){
-				if (!dont_show) {
+			if(!prefix)
+			{
+				if (!dont_show)
+				{
 					const int each_frame = max_val_cmp(1, avg_fps / 60);
-					if(global_frame_counter % each_frame == 0) show_image_mat(show_img, "Demo");
+					if(global_frame_counter % each_frame == 0)
+					{
+						show_image_mat(show_img, "Demo");
+					}
+
 					int c = wait_key_cv(1);
-					if (c == 10) {
+
+					if (c == 10)
+					{
 						if (frame_skip == 0) frame_skip = 60;
 						else if (frame_skip == 4) frame_skip = 0;
 						else if (frame_skip == 60) frame_skip = 4;
@@ -318,14 +346,20 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 						flag_exit = 1;
 					}
 				}
-			}else{
+			}
+			else
+			{
 				char buff[256];
 				sprintf(buff, "%s_%08d.jpg", prefix, count);
-				if(show_img) save_cv_jpg(show_img, buff);
+				if(show_img)
+				{
+					save_cv_jpg(show_img, buff);
+				}
 			}
 
 			// if you run it with param -mjpeg_port 8090  then open URL in your web-browser: http://localhost:8090
-			if (mjpeg_port > 0 && show_img) {
+			if (mjpeg_port > 0 && show_img)
+			{
 				int port = mjpeg_port;
 				int timeout = 400000;
 				int jpeg_quality = 40;    // 1 - 100
@@ -333,31 +367,53 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 			}
 
 			// save video file
-			if (output_video_writer && show_img) {
+			if (output_video_writer && show_img)
+			{
 				write_frame_cv(output_video_writer, show_img);
 				printf("\n cvWriteFrame \n");
 			}
 
-			while (custom_atomic_load_int(&run_detect_in_thread)) {
-				if(avg_fps > 50) this_thread_yield();
-				else this_thread_sleep_for(thread_wait_ms);   // custom_join(detect_thread, 0);
+			while (custom_atomic_load_int(&run_detect_in_thread))
+			{
+				if(avg_fps > 50)
+				{
+					this_thread_yield();
+				}
+				else
+				{
+					this_thread_sleep_for(thread_wait_ms);   // custom_join(detect_thread, 0);
+				}
 			}
-			if (!benchmark) {
-				while (custom_atomic_load_int(&run_fetch_in_thread)) {
-					if (avg_fps > 50) this_thread_yield();
-					else this_thread_sleep_for(thread_wait_ms);   // custom_join(fetch_thread, 0);
+
+			if (!benchmark)
+			{
+				while (custom_atomic_load_int(&run_fetch_in_thread))
+				{
+					if (avg_fps > 50)
+					{
+						this_thread_yield();
+					}
+					else
+					{
+						this_thread_sleep_for(thread_wait_ms);   // custom_join(fetch_thread, 0);
+					}
 				}
 				free_image(det_s);
 			}
 
-			if (time_limit_sec > 0 && (get_time_point() - start_time_lim)/1000000 > time_limit_sec) {
+			if (time_limit_sec > 0 && (get_time_point() - start_time_lim)/1000000 > time_limit_sec)
+			{
 				printf(" start_time_lim = %f, get_time_point() = %f, time spent = %f \n", start_time_lim, get_time_point(), get_time_point() - start_time_lim);
 				break;
 			}
 
-			if (flag_exit == 1) break;
+			if (flag_exit == 1)
+			{
+				break;
+			}
 
-			if(delay == 0){
+			if (delay == 0)
+			{
 				if(!benchmark) release_mat(&show_img);
 				show_img = det_img;
 			}
@@ -365,7 +421,8 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 			det_s = in_s;
 		}
 		--delay;
-		if(delay < 0){
+		if(delay < 0)
+		{
 			delay = frame_skip;
 
 			//double after = get_wall_time();
@@ -378,7 +435,8 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 			float spent_time = (get_time_point() - start_time) / 1000000;
 			frame_counter++;
 			global_frame_counter++;
-			if (spent_time >= 3.0f) {
+			if (spent_time >= 3.0f)
+			{
 				//printf(" spent_time = %f \n", spent_time);
 				avg_fps = frame_counter / spent_time;
 				frame_counter = 0;
@@ -387,7 +445,8 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 		}
 	}
 	printf("input video stream closed. \n");
-	if (output_video_writer) {
+	if (output_video_writer)
+	{
 		release_video_writer(&output_video_writer);
 		printf("output_video_writer closed. \n");
 	}
@@ -402,8 +461,9 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	free_detections(dets, nboxes);
 
 	demo_index = (avg_frames + demo_index - 1) % avg_frames;
-	for (j = 0; j < avg_frames; ++j) {
-			release_mat(&cv_images[j]);
+	for (j = 0; j < avg_frames; ++j)
+	{
+		release_mat(&cv_images[j]);
 	}
 	free(cv_images);
 

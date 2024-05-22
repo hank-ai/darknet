@@ -286,7 +286,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 }
 
 
-bool Darknet::CfgAndState::is_set(const std::string arg, const bool default_value)
+bool Darknet::CfgAndState::is_set(const std::string & arg, const bool default_value) const
 {
 	TAT(TATPARMS);
 
@@ -298,6 +298,65 @@ bool Darknet::CfgAndState::is_set(const std::string arg, const bool default_valu
 	}
 
 	return default_value;
+}
+
+
+const Darknet::ArgsAndParms & Darknet::CfgAndState::get(const std::string & arg) const
+{
+	TAT(TATPARMS);
+
+	const std::string name = convert_to_lowercase_alphanum(arg);
+
+	if (args.count(name))
+	{
+		return args.at(name);
+	}
+
+	// if we get here, this argument wasn't specified on the CLI so get the default value from the known list of arguments
+
+	const auto & all_known_args = Darknet::get_all_possible_arguments();
+	auto iter = all_known_args.find(name);
+	if (iter != all_known_args.end())
+	{
+		return *iter;
+	}
+
+	// if we get here, we have no idea what this argument might be
+
+	throw std::invalid_argument("cannot find argument \"" + arg + "\"");
+}
+
+
+float Darknet::CfgAndState::get(const std::string & arg, const float f) const
+{
+	TAT(TATPARMS);
+
+	const std::string name = convert_to_lowercase_alphanum(arg);
+
+	if (args.count(name))
+	{
+		return args.at(name).value;
+	}
+
+	// arg was not found, so see if we have a "known" default we can return
+
+	const auto & all_known_args = Darknet::get_all_possible_arguments();
+	auto iter = all_known_args.find(name);
+	if (iter != all_known_args.end())
+	{
+		return iter->value;
+	}
+
+	// no clue what this might be so use the default value that was passed in
+	return f;
+}
+
+
+int Darknet::CfgAndState::get(const std::string & arg, const int i) const
+{
+	const float f = get(arg, static_cast<float>(i));
+
+	return static_cast<int>(f);
 }
 
 

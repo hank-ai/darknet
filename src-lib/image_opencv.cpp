@@ -516,12 +516,12 @@ mat_cv* get_capture_frame_cv(cap_cv * ptr)
 			}
 			else
 			{
-				std::cout << "Video stream has stopped." << std::endl;
+				throw std::runtime_error("Video stream has stopped.");
 			}
 		}
 		else
 		{
-			std::cout << "Video stream does not exist." << std::endl;
+			throw std::runtime_error("Video stream does not exist.");
 		}
 	}
 	catch (const std::exception & e)

@@ -53,3 +53,4 @@ namespace Darknet
 #include "utils.hpp"
 #include "parser.hpp"
 #include "data.hpp"
+#include "demo.hpp"

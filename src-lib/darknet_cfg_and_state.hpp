@@ -34,7 +34,16 @@ namespace Darknet
 			 * }
 			 * ~~~~
 			 */
-			bool is_set(const std::string arg, const bool default_value = false);
+			bool is_set(const std::string & arg, const bool default_value = false) const;
+
+			/** Get a CLI argument based on the name.  For example, if you call it with @p "thresh" you'd get the threshold
+			 * argument with the default value of 0.24 or whatever the user typed on the CLI.
+			 */
+			const ArgsAndParms & get(const std::string & arg) const;
+
+			float get(const std::string & arg, const float f) const;
+
+			int get(const std::string & arg, const int i) const;
 
 			/// Return a name for the current thread.  Thread name must previous have been added using @ref set_thread_name().
 			std::string get_thread_name();
@@ -89,7 +98,9 @@ namespace Darknet
 			/// Every argument starting with @p argv[0], unmodified, and in the exact order they were specified.
 			VStr argv;
 
-			/// A map of all arguments starting with @p argv[1].
+			/** A map of all arguments starting with @p argv[1].  Note this only has the arguments the user specified, not a
+			 * collection of "all" possible arguments.  @see @ref Darknet::get_all_possible_arguments()
+			 */
 			MArgsAndParms args;
 
 			std::string command;

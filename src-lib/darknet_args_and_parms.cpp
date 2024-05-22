@@ -44,6 +44,16 @@ Darknet::ArgsAndParms::ArgsAndParms(const std::string & n1, const EType t, const
 }
 
 
+Darknet::ArgsAndParms::ArgsAndParms(const std::string & n1, const std::string & n2, const int i, const std::string & txt) :
+	ArgsAndParms(n1, n2, txt)
+{
+	TAT(TATPARMS);
+
+	expect_parm	= true;
+	value		= i;
+}
+
+
 Darknet::ArgsAndParms::ArgsAndParms(const std::string & n1, const std::string & n2, const float f, const std::string & txt) :
 	ArgsAndParms(n1, n2, txt)
 {
@@ -114,20 +124,23 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("verbose"	, "show_details"), // I originally didn't know about "show_details" when I implemented "verbose"
 
 		// other options
+
+		ArgsAndParms("camera"	, "c"			, 0		),
+		ArgsAndParms("dontshow"	, "noshow"				),
+		ArgsAndParms("thresh"	, "threshold"	, 0.24f	),
+
 		ArgsAndParms("avgframes"			), //-- takes an int  3
 		ArgsAndParms("benchmark"			),
 		ArgsAndParms("benchmarklayers"		),
 		ArgsAndParms("checkmistakes"		),
 		ArgsAndParms("clear"				),
 		ArgsAndParms("dontdrawbbox"			),
-		ArgsAndParms("dontshow"	, "noshow"	),
 		ArgsAndParms("jsonport"				),
 		ArgsAndParms("letterbox"			),
 		ArgsAndParms("mjpegport"			), //-- takes an int?
 		ArgsAndParms("points"				), //-- takes an int?  0
 		ArgsAndParms("show"					),
 		ArgsAndParms("showimgs"				),
-		ArgsAndParms("thresh"	, "threshold", 0.24f),
 		ArgsAndParms("httpposthost"			),
 		ArgsAndParms("timelimitsec"			),
 		ArgsAndParms("outfilename"			),
@@ -135,7 +148,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("prefix"				),
 		ArgsAndParms("iouthresh"			),
 		ArgsAndParms("hier"					),
-		ArgsAndParms("c"					),
+//		ArgsAndParms("c"					),
 		ArgsAndParms("s"					),
 		ArgsAndParms("numofclusters"		),
 		ArgsAndParms("width"				),

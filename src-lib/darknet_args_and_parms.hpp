@@ -28,7 +28,10 @@ namespace Darknet
 
 			ArgsAndParms(const std::string & n1, const EType t, const std::string & txt = "");
 
-			/// Constructor.  Next argument must be a float parameter.
+			/// Constructor.  Next argument must be an @p int parameter.
+			ArgsAndParms(const std::string & n1, const std::string & n2, const int i, const std::string & txt = "");
+
+			/// Constructor.  Next argument must be a @p float parameter.
 			ArgsAndParms(const std::string & n1, const std::string & n2, const float f, const std::string & txt = "");
 
 			/// The name of the argument or command.  For example, this could be @p "dontshow" or @p "version".
