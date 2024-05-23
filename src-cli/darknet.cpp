@@ -16,7 +16,6 @@ extern void run_yolo(int argc, char **argv);
 extern void run_detector(int argc, char **argv);
 extern void run_coco(int argc, char **argv);
 extern void run_writing(int argc, char **argv);
-extern void run_captcha(int argc, char **argv);
 extern void run_nightmare(int argc, char **argv);
 extern void run_compare(int argc, char **argv);
 extern void run_classifier(int argc, char **argv);
@@ -506,7 +505,6 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "3d")				{ composite_3d		(argv[2], argv[3], argv[4], (argc > 5) ? atof(argv[5]) : 0); }
 		else if (cfg_and_state.command == "art")			{ run_art			(argc, argv);	}
 		else if (cfg_and_state.command == "average")		{ average			(argc, argv);	}
-		else if (cfg_and_state.command == "captcha")		{ run_captcha		(argc, argv);	}
 		else if (cfg_and_state.command == "cifar")			{ run_cifar			(argc, argv);	}
 		else if (cfg_and_state.command == "classify")		{ predict_classifier("cfg/imagenet1k.data", argv[2], argv[3], argv[4], 5); }
 		else if (cfg_and_state.command == "classifier")		{ run_classifier	(argc, argv);	}
