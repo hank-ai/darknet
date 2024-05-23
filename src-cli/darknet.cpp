@@ -15,7 +15,6 @@ extern void run_voxel(int argc, char **argv);
 extern void run_yolo(int argc, char **argv);
 extern void run_detector(int argc, char **argv);
 extern void run_coco(int argc, char **argv);
-extern void run_writing(int argc, char **argv);
 extern void run_nightmare(int argc, char **argv);
 extern void run_compare(int argc, char **argv);
 extern void run_classifier(int argc, char **argv);
@@ -533,7 +532,6 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "vid")			{ run_vid_rnn		(argc, argv);	}
 		else if (cfg_and_state.command == "visualize")		{ visualize			(argv[2], (argc > 3) ? argv[3] : 0); }
 		else if (cfg_and_state.command == "voxel")			{ run_voxel			(argc, argv);	}
-		else if (cfg_and_state.command == "writing")		{ run_writing		(argc, argv);	}
 		else if (cfg_and_state.command == "yolo")			{ run_yolo			(argc, argv);	}
 		else if (cfg_and_state.command == "detect")
 		{
