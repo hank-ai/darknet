@@ -731,8 +731,8 @@ void rgbgr_image(image im)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for(i = 0; i < im.w*im.h; ++i){
+	for (int i = 0; i < im.w*im.h; ++i)
+	{
 		float swap = im.data[i];
 		im.data[i] = im.data[i+im.w*im.h*2];
 		im.data[i+im.w*im.h*2] = swap;

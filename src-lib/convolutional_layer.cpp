@@ -1778,8 +1778,7 @@ void rgbgr_weights(convolutional_layer l)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < l.n; ++i)
+	for (int i = 0; i < l.n; ++i)
 	{
 		image im = get_convolutional_weight(l, i);
 		if (im.c == 3)

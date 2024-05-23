@@ -18,6 +18,7 @@ extern void run_char_rnn(int argc, char **argv);
 extern void run_vid_rnn(int argc, char **argv);
 extern void run_art(int argc, char **argv);
 
+
 void average(int argc, char *argv[])
 {
 	char *cfgfile = argv[2];
@@ -31,48 +32,59 @@ void average(int argc, char *argv[])
 
 	int i, j;
 	int n = argc - 5;
-	for(i = 0; i < n; ++i){
+	for (i = 0; i < n; ++i)
+	{
 		weightfile = argv[i+5];
 		load_weights(&net, weightfile);
-		for(j = 0; j < net.n; ++j){
+		for (j = 0; j < net.n; ++j)
+		{
 			layer l = net.layers[j];
 			layer out = sum.layers[j];
-			if(l.type == CONVOLUTIONAL){
+			if (l.type == CONVOLUTIONAL)
+			{
 				int num = l.n*l.c*l.size*l.size;
 				axpy_cpu(l.n, 1, l.biases, 1, out.biases, 1);
 				axpy_cpu(num, 1, l.weights, 1, out.weights, 1);
-				if(l.batch_normalize){
+				if (l.batch_normalize)
+				{
 					axpy_cpu(l.n, 1, l.scales, 1, out.scales, 1);
 					axpy_cpu(l.n, 1, l.rolling_mean, 1, out.rolling_mean, 1);
 					axpy_cpu(l.n, 1, l.rolling_variance, 1, out.rolling_variance, 1);
 				}
 			}
-			if(l.type == CONNECTED){
+			if (l.type == CONNECTED)
+			{
 				axpy_cpu(l.outputs, 1, l.biases, 1, out.biases, 1);
 				axpy_cpu(l.outputs*l.inputs, 1, l.weights, 1, out.weights, 1);
 			}
 		}
 	}
+
 	n = n+1;
-	for(j = 0; j < net.n; ++j){
+	for (j = 0; j < net.n; ++j)
+	{
 		layer l = sum.layers[j];
-		if(l.type == CONVOLUTIONAL){
+		if (l.type == CONVOLUTIONAL)
+		{
 			int num = l.n*l.c*l.size*l.size;
 			scal_cpu(l.n, 1./n, l.biases, 1);
 			scal_cpu(num, 1./n, l.weights, 1);
-				if(l.batch_normalize){
-					scal_cpu(l.n, 1./n, l.scales, 1);
-					scal_cpu(l.n, 1./n, l.rolling_mean, 1);
-					scal_cpu(l.n, 1./n, l.rolling_variance, 1);
-				}
+			if (l.batch_normalize){
+				scal_cpu(l.n, 1./n, l.scales, 1);
+				scal_cpu(l.n, 1./n, l.rolling_mean, 1);
+				scal_cpu(l.n, 1./n, l.rolling_variance, 1);
+			}
 		}
-		if(l.type == CONNECTED){
+		if (l.type == CONNECTED)
+		{
 			scal_cpu(l.outputs, 1./n, l.biases, 1);
 			scal_cpu(l.outputs*l.inputs, 1./n, l.weights, 1);
 		}
 	}
+
 	save_weights(sum, outfile);
 }
+
 
 void speed(char *cfgfile, int tics)
 {
@@ -96,30 +108,40 @@ void speed(char *cfgfile, int tics)
 	printf("Speed: %f Hz\n", tics/t);
 }
 
+
 void operations(char *cfgfile)
 {
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
-	int i;
 	long ops = 0;
-	for(i = 0; i < net.n; ++i){
+	for (int i = 0; i < net.n; ++i)
+	{
 		layer l = net.layers[i];
-		if(l.type == CONVOLUTIONAL){
+		if (l.type == CONVOLUTIONAL)
+		{
 			ops += 2l * l.n * l.size*l.size*l.c * l.out_h*l.out_w;
-		} else if(l.type == CONNECTED){
+		}
+		else if (l.type == CONNECTED)
+		{
 			ops += 2l * l.inputs * l.outputs;
-		} else if (l.type == RNN){
+		}
+		else if (l.type == RNN)
+		{
 			ops += 2l * l.input_layer->inputs * l.input_layer->outputs;
 			ops += 2l * l.self_layer->inputs * l.self_layer->outputs;
 			ops += 2l * l.output_layer->inputs * l.output_layer->outputs;
-		} else if (l.type == GRU){
+		}
+		else if (l.type == GRU)
+		{
 			ops += 2l * l.uz->inputs * l.uz->outputs;
 			ops += 2l * l.uh->inputs * l.uh->outputs;
 			ops += 2l * l.ur->inputs * l.ur->outputs;
 			ops += 2l * l.wz->inputs * l.wz->outputs;
 			ops += 2l * l.wh->inputs * l.wh->outputs;
 			ops += 2l * l.wr->inputs * l.wr->outputs;
-		} else if (l.type == LSTM){
+		}
+		else if (l.type == LSTM)
+		{
 			ops += 2l * l.uf->inputs * l.uf->outputs;
 			ops += 2l * l.ui->inputs * l.ui->outputs;
 			ops += 2l * l.ug->inputs * l.ug->outputs;
@@ -134,6 +156,7 @@ void operations(char *cfgfile)
 	printf("Floating Point Operations: %.2f Bn\n", (float)ops/1000000000.);
 }
 
+
 void oneoff(char *cfgfile, char *weightfile, char *outfile)
 {
 	Darknet::CfgAndState::get().gpu_index = -1;
@@ -143,9 +166,12 @@ void oneoff(char *cfgfile, char *weightfile, char *outfile)
 	net.layers[net.n - 2].n = 9372;
 	net.layers[net.n - 2].biases += 5;
 	net.layers[net.n - 2].weights += 5*c;
-	if(weightfile){
+
+	if(weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
+
 	net.layers[net.n - 2].biases -= 5;
 	net.layers[net.n - 2].weights -= 5*c;
 	net.layers[net.n - 2].n = oldn;
@@ -164,67 +190,91 @@ void partial(char *cfgfile, char *weightfile, char *outfile, int max)
 {
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg_custom(cfgfile, 1, 1);
-	if(weightfile){
+
+	if(weightfile)
+	{
 		load_weights_upto(&net, weightfile, max);
 	}
+
 	*net.seen = 0;
 	*net.cur_iteration = 0;
+
 	save_weights_upto(net, outfile, max, 0);
 }
+
 
 void rescale_net(char *cfgfile, char *weightfile, char *outfile)
 {
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
-	if(weightfile){
+
+	if(weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
-	int i;
-	for(i = 0; i < net.n; ++i){
+
+	for (int i = 0; i < net.n; ++i)
+	{
 		layer l = net.layers[i];
-		if(l.type == CONVOLUTIONAL){
+		if (l.type == CONVOLUTIONAL)
+		{
 			rescale_weights(l, 2, -.5);
 			break;
 		}
 	}
+
 	save_weights(net, outfile);
 }
+
 
 void rgbgr_net(char *cfgfile, char *weightfile, char *outfile)
 {
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
-	if(weightfile){
+
+	if (weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
-	int i;
-	for(i = 0; i < net.n; ++i){
+
+	for (int i = 0; i < net.n; ++i)
+	{
 		layer l = net.layers[i];
-		if(l.type == CONVOLUTIONAL){
+		if (l.type == CONVOLUTIONAL)
+		{
+			// swap red and blue channels?
 			rgbgr_weights(l);
 			break;
 		}
 	}
+
 	save_weights(net, outfile);
 }
+
 
 void reset_normalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
-	if (weightfile) {
+
+	if (weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
-	int i;
-	for (i = 0; i < net.n; ++i) {
+
+	for (int i = 0; i < net.n; ++i)
+	{
 		layer l = net.layers[i];
-		if (l.type == CONVOLUTIONAL && l.batch_normalize) {
+		if (l.type == CONVOLUTIONAL && l.batch_normalize)
+		{
 			denormalize_convolutional_layer(l);
 		}
-		if (l.type == CONNECTED && l.batch_normalize) {
+		if (l.type == CONNECTED && l.batch_normalize)
+		{
 			denormalize_connected_layer(l);
 		}
-		if (l.type == GRU && l.batch_normalize) {
+		if (l.type == GRU && l.batch_normalize)
+		{
 			denormalize_connected_layer(*l.input_z_layer);
 			denormalize_connected_layer(*l.input_r_layer);
 			denormalize_connected_layer(*l.input_h_layer);
@@ -232,7 +282,8 @@ void reset_normalize_net(char *cfgfile, char *weightfile, char *outfile)
 			denormalize_connected_layer(*l.state_r_layer);
 			denormalize_connected_layer(*l.state_h_layer);
 		}
-		if (l.type == LSTM && l.batch_normalize) {
+		if (l.type == LSTM && l.batch_normalize)
+		{
 			denormalize_connected_layer(*l.wf);
 			denormalize_connected_layer(*l.wi);
 			denormalize_connected_layer(*l.wg);
@@ -251,7 +302,8 @@ layer normalize_layer(layer l, int n)
 	int j;
 	l.batch_normalize=1;
 	l.scales = (float*)xcalloc(n, sizeof(float));
-	for(j = 0; j < n; ++j){
+	for(j = 0; j < n; ++j)
+	{
 		l.scales[j] = 1;
 	}
 	l.rolling_mean = (float*)xcalloc(n, sizeof(float));
@@ -263,19 +315,25 @@ void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
-	if(weightfile){
+
+	if(weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
-	int i;
-	for(i = 0; i < net.n; ++i){
+
+	for (int i = 0; i < net.n; ++i)
+	{
 		layer l = net.layers[i];
-		if(l.type == CONVOLUTIONAL && !l.batch_normalize){
+		if(l.type == CONVOLUTIONAL && !l.batch_normalize)
+		{
 			net.layers[i] = normalize_layer(l, l.n);
 		}
-		if (l.type == CONNECTED && !l.batch_normalize) {
+		if (l.type == CONNECTED && !l.batch_normalize)
+		{
 			net.layers[i] = normalize_layer(l, l.outputs);
 		}
-		if (l.type == GRU && l.batch_normalize) {
+		if (l.type == GRU && l.batch_normalize)
+		{
 			*l.input_z_layer = normalize_layer(*l.input_z_layer, l.input_z_layer->outputs);
 			*l.input_r_layer = normalize_layer(*l.input_r_layer, l.input_r_layer->outputs);
 			*l.input_h_layer = normalize_layer(*l.input_h_layer, l.input_h_layer->outputs);
@@ -284,7 +342,8 @@ void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 			*l.state_h_layer = normalize_layer(*l.state_h_layer, l.state_h_layer->outputs);
 			net.layers[i].batch_normalize=1;
 		}
-		if (l.type == LSTM && l.batch_normalize) {
+		if (l.type == LSTM && l.batch_normalize)
+		{
 			*l.wf = normalize_layer(*l.wf, l.wf->outputs);
 			*l.wi = normalize_layer(*l.wi, l.wi->outputs);
 			*l.wg = normalize_layer(*l.wg, l.wg->outputs);
@@ -296,6 +355,7 @@ void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 			net.layers[i].batch_normalize=1;
 		}
 	}
+
 	save_weights(net, outfile);
 }
 
@@ -303,17 +363,22 @@ void statistics_net(char *cfgfile, char *weightfile)
 {
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
-	if (weightfile) {
+
+	if (weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
-	int i;
-	for (i = 0; i < net.n; ++i) {
+
+	for (int i = 0; i < net.n; ++i)
+	{
 		layer l = net.layers[i];
-		if (l.type == CONNECTED && l.batch_normalize) {
+		if (l.type == CONNECTED && l.batch_normalize)
+		{
 			printf("Connected Layer %d\n", i);
 			statistics_connected_layer(l);
 		}
-		if (l.type == GRU && l.batch_normalize) {
+		if (l.type == GRU && l.batch_normalize)
+		{
 			printf("GRU Layer %d\n", i);
 			printf("Input Z\n");
 			statistics_connected_layer(*l.input_z_layer);
@@ -328,7 +393,8 @@ void statistics_net(char *cfgfile, char *weightfile)
 			printf("State H\n");
 			statistics_connected_layer(*l.state_h_layer);
 		}
-		if (l.type == LSTM && l.batch_normalize) {
+		if (l.type == LSTM && l.batch_normalize)
+		{
 			printf("LSTM Layer %d\n", i);
 			printf("wf\n");
 			statistics_connected_layer(*l.wf);
@@ -355,21 +421,28 @@ void denormalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
-	if (weightfile) {
+	if (weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
-	int i;
-	for (i = 0; i < net.n; ++i) {
+
+	for (int i = 0; i < net.n; ++i)
+	{
 		layer l = net.layers[i];
-		if (l.type == CONVOLUTIONAL && l.batch_normalize) {
+		if (l.type == CONVOLUTIONAL && l.batch_normalize)
+		{
 			denormalize_convolutional_layer(l);
 			net.layers[i].batch_normalize=0;
 		}
-		if (l.type == CONNECTED && l.batch_normalize) {
+		if (l.type == CONNECTED && l.batch_normalize)
+		{
 			denormalize_connected_layer(l);
 			net.layers[i].batch_normalize=0;
 		}
-		if (l.type == GRU && l.batch_normalize) {
+
+		/// @todo V3: is this a typo?  This @p if() block and the next @p if() block have exactly the same conditions.
+		if (l.type == GRU && l.batch_normalize)
+		{
 			denormalize_connected_layer(*l.input_z_layer);
 			denormalize_connected_layer(*l.input_r_layer);
 			denormalize_connected_layer(*l.input_h_layer);
@@ -384,7 +457,10 @@ void denormalize_net(char *cfgfile, char *weightfile, char *outfile)
 			l.state_h_layer->batch_normalize = 0;
 			net.layers[i].batch_normalize=0;
 		}
-		if (l.type == GRU && l.batch_normalize) {
+
+		/// @todo V3: I'm willing to bet this is supposed to be LSTM, not GRU...?
+		if (l.type == GRU && l.batch_normalize)
+		{
 			denormalize_connected_layer(*l.wf);
 			denormalize_connected_layer(*l.wi);
 			denormalize_connected_layer(*l.wg);
@@ -410,9 +486,11 @@ void denormalize_net(char *cfgfile, char *weightfile, char *outfile)
 void visualize(char *cfgfile, char *weightfile)
 {
 	network net = parse_network_cfg(cfgfile);
-	if(weightfile){
+	if (weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
+
 	visualize_network(net);
 	wait_until_press_key_cv();
 }
