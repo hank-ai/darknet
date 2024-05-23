@@ -11,7 +11,6 @@
 
 /// @todo V3 look through these and see what we no longer need
 extern void predict_classifier(char *datacfg, char *cfgfile, char *weightfile, char *filename, int top);
-extern void run_voxel(int argc, char **argv);
 extern void run_yolo(int argc, char **argv);
 extern void run_detector(int argc, char **argv);
 extern void run_coco(int argc, char **argv);
@@ -531,7 +530,6 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "version")		{ /* nothing else to do, we've already displayed the version information */ }
 		else if (cfg_and_state.command == "vid")			{ run_vid_rnn		(argc, argv);	}
 		else if (cfg_and_state.command == "visualize")		{ visualize			(argv[2], (argc > 3) ? argv[3] : 0); }
-		else if (cfg_and_state.command == "voxel")			{ run_voxel			(argc, argv);	}
 		else if (cfg_and_state.command == "yolo")			{ run_yolo			(argc, argv);	}
 		else if (cfg_and_state.command == "detect")
 		{
