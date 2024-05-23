@@ -9,6 +9,7 @@
 #include "darknet_internal.hpp"
 
 
+/// @todo V3 look through these and see what we no longer need
 extern void predict_classifier(char *datacfg, char *cfgfile, char *weightfile, char *filename, int top);
 extern void run_voxel(int argc, char **argv);
 extern void run_yolo(int argc, char **argv);
@@ -17,7 +18,6 @@ extern void run_coco(int argc, char **argv);
 extern void run_writing(int argc, char **argv);
 extern void run_captcha(int argc, char **argv);
 extern void run_nightmare(int argc, char **argv);
-extern void run_dice(int argc, char **argv);
 extern void run_compare(int argc, char **argv);
 extern void run_classifier(int argc, char **argv);
 extern void run_char_rnn(int argc, char **argv);
@@ -501,6 +501,7 @@ int main(int argc, char **argv)
 
 		errno = 0;
 
+		/// @todo V3 look through these and see what we no longer need
 		if		(cfg_and_state.command.empty())				{ Darknet::display_usage();			}
 		else if (cfg_and_state.command == "3d")				{ composite_3d		(argv[2], argv[3], argv[4], (argc > 5) ? atof(argv[5]) : 0); }
 		else if (cfg_and_state.command == "art")			{ run_art			(argc, argv);	}
@@ -513,7 +514,6 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "compare")		{ run_compare		(argc, argv);	}
 		else if (cfg_and_state.command == "denormalize")	{ denormalize_net	(argv[2], argv[3], argv[4]); }
 		else if (cfg_and_state.command == "detector")		{ run_detector		(argc, argv);	}
-		else if (cfg_and_state.command == "dice")			{ run_dice			(argc, argv);	}
 		else if (cfg_and_state.command == "imtest")			{ test_resize		(argv[2]);		}
 		else if (cfg_and_state.command == "go")				{ run_go			(argc, argv);	}
 		else if (cfg_and_state.command == "help")			{ Darknet::display_usage();			}
