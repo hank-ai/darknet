@@ -19,7 +19,6 @@ extern void run_compare(int argc, char **argv);
 extern void run_classifier(int argc, char **argv);
 extern void run_char_rnn(int argc, char **argv);
 extern void run_vid_rnn(int argc, char **argv);
-extern void run_tag(int argc, char **argv);
 extern void run_cifar(int argc, char **argv);
 extern void run_go(int argc, char **argv);
 extern void run_art(int argc, char **argv);
@@ -525,11 +524,10 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "speed")			{ speed				(argv[2], (argc > 3 && argv[3]) ? atoi(argv[3]) : 0); }
 		else if (cfg_and_state.command == "statistics")		{ statistics_net	(argv[2], argv[3]); }
 		else if (cfg_and_state.command == "super")			{ run_super			(argc, argv);	}
-		else if (cfg_and_state.command == "tag")			{ run_tag			(argc, argv);	}
 		else if (cfg_and_state.command == "test")			{ test_resize		(argv[2]);		}
 		else if (cfg_and_state.command == "version")		{ /* nothing else to do, we've already displayed the version information */ }
-		else if (cfg_and_state.command == "vid")			{ run_vid_rnn		(argc, argv);	}
-		else if (cfg_and_state.command == "visualize")		{ visualize			(argv[2], (argc > 3) ? argv[3] : 0); }
+		else if (cfg_and_state.command == "vid")			{ run_vid_rnn		(argc, argv);	} ///< @todo V3 what is this?
+		else if (cfg_and_state.command == "visualize")		{ visualize			(argv[2], (argc > 3) ? argv[3] : 0); } ///< @todo V3 what is this?
 		else if (cfg_and_state.command == "yolo")			{ run_yolo			(argc, argv);	}
 		else if (cfg_and_state.command == "detect")
 		{
