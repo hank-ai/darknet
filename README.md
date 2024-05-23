@@ -48,13 +48,13 @@ YOLOv7 surpasses all known object detectors in both speed and accuracy in the ra
 ## Darknet Version
 
 * The original Darknet tool written by Joseph Redmon in 2013-2017 did not have a version number.  We consider this version 0.x.
-* The next popular Darknet repo maintained by AlexeyAB between 2017-2021 also did not have a version number.  We consider this version 1.x.
+* The next popular Darknet repo maintained by Alexey Bochkovskiy between 2017-2021 also did not have a version number.  We consider this version 1.x.
 * The Darknet repo sponsored by Hank.ai and maintained by Stéphane Charette starting in 2023 was the first one with a `version` command.  From 2023 until mid-2024, it returned version 2.0.
 	* The goal was to try and break as little of the existing functionality while getting familiar with the codebase.
 	* Re-wrote the build steps so we have 1 unified way to build using CMake on both Windows and Linux
 	* Converted the codebase to use the C++ compiler
 	* Enhanced chart.png while training
-	* Bug fixes and performance-related enhancements, mostly related to cutting down the time it takes to train a network
+	* Bug fixes and performance-related optimizations, mostly related to cutting down the time it takes to train a network
 	* The last branch of this codebase is version 2.1
 * The next phase of development started in mid-2024.  The `version` command now returns 3.0.
 	* Removed many old and unmaintained commands

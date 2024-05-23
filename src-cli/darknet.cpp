@@ -76,13 +76,18 @@ void average(int argc, char *argv[])
 
 void speed(char *cfgfile, int tics)
 {
-	if (tics == 0) tics = 1000;
+	if (tics == 0)
+	{
+		tics = 1000;
+	}
+
 	network net = parse_network_cfg(cfgfile);
 	set_batch_network(&net, 1);
 	int i;
-	time_t start = time(0);
 	image im = make_image(net.w, net.h, net.c);
-	for(i = 0; i < tics; ++i){
+	time_t start = time(0);
+	for(i = 0; i < tics; ++i)
+	{
 		network_predict(net, im.data);
 	}
 	double t = difftime(time(0), start);
@@ -493,8 +498,10 @@ int main(int argc, char **argv)
 
 		/// @todo V3 look through these and see what we no longer need
 		if		(cfg_and_state.command.empty())				{ Darknet::display_usage();			}
+
+		/// @todo V3 "3d" seems to combine 2 images into a single alpha-blended composite.  It works...but does it belong in Darknet?  What is this for?
 		else if (cfg_and_state.command == "3d")				{ composite_3d		(argv[2], argv[3], argv[4], (argc > 5) ? atof(argv[5]) : 0); }
-		else if (cfg_and_state.command == "art")			{ run_art			(argc, argv);	}
+
 		else if (cfg_and_state.command == "average")		{ average			(argc, argv);	}
 		else if (cfg_and_state.command == "classify")		{ predict_classifier("cfg/imagenet1k.data", argv[2], argv[3], argv[4], 5); }
 		else if (cfg_and_state.command == "classifier")		{ run_classifier	(argc, argv);	}

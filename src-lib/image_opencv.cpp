@@ -61,7 +61,7 @@ mat_cv * load_image_mat_cv(const char * const filename, int channels)
 		{
 			flag = cv::IMREAD_COLOR;
 		}
-		else
+		else if (channels != 0)
 		{
 			darknet_fatal_error(DARKNET_LOC, "OpenCV cannot load an image with %d channels: %s", channels, filename);
 		}
