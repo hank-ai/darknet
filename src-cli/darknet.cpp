@@ -20,7 +20,6 @@ extern void run_classifier(int argc, char **argv);
 extern void run_char_rnn(int argc, char **argv);
 extern void run_vid_rnn(int argc, char **argv);
 extern void run_cifar(int argc, char **argv);
-extern void run_go(int argc, char **argv);
 extern void run_art(int argc, char **argv);
 
 void average(int argc, char *argv[])
@@ -508,8 +507,7 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "compare")		{ run_compare		(argc, argv);	}
 		else if (cfg_and_state.command == "denormalize")	{ denormalize_net	(argv[2], argv[3], argv[4]); }
 		else if (cfg_and_state.command == "detector")		{ run_detector		(argc, argv);	}
-		else if (cfg_and_state.command == "imtest")			{ test_resize		(argv[2]);		}
-		else if (cfg_and_state.command == "go")				{ run_go			(argc, argv);	}
+		else if (cfg_and_state.command == "imtest")			{ test_resize		(argv[2]);		} ///< @see "test"
 		else if (cfg_and_state.command == "help")			{ Darknet::display_usage();			}
 		else if (cfg_and_state.command == "nightmare")		{ run_nightmare		(argc, argv);	}
 		else if (cfg_and_state.command == "normalize")		{ normalize_net		(argv[2], argv[3], argv[4]); }
@@ -522,7 +520,7 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "rnn")			{ run_char_rnn		(argc, argv);	}
 		else if (cfg_and_state.command == "speed")			{ speed				(argv[2], (argc > 3 && argv[3]) ? atoi(argv[3]) : 0); }
 		else if (cfg_and_state.command == "statistics")		{ statistics_net	(argv[2], argv[3]); }
-		else if (cfg_and_state.command == "test")			{ test_resize		(argv[2]);		}
+		else if (cfg_and_state.command == "test")			{ test_resize		(argv[2]);		} ///< @todo V3 what is this?
 		else if (cfg_and_state.command == "version")		{ /* nothing else to do, we've already displayed the version information */ }
 		else if (cfg_and_state.command == "vid")			{ run_vid_rnn		(argc, argv);	} ///< @todo V3 what is this?
 		else if (cfg_and_state.command == "visualize")		{ visualize			(argv[2], (argc > 3) ? argv[3] : 0); } ///< @todo V3 what is this?
