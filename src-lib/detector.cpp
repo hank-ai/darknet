@@ -136,6 +136,15 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
 	list *plist = get_paths(train_images);
 	int train_images_num = plist->size;
+	if (train_images_num == 0)
+	{
+		darknet_fatal_error(DARKNET_LOC, "no training images available (verify %s)", train_images);
+	}
+	if (train_images_num < actual_batch_size)
+	{
+		Darknet::display_warning_msg("Warning: there seems to be very few training images (num=" + std::to_string(train_images_num) + ", batch=" + std::to_string(actual_batch_size) + ")\n");
+	}
+
 	char **paths = (char **)list_to_array(plist);
 
 	const int calc_map_for_each = fmax(100, train_images_num / (net.batch * net.subdivisions));  // calculate mAP for each epoch (used to be every 4 epochs)
@@ -1130,6 +1139,16 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 
 	list *plist = get_paths(valid_images);
 	char **paths = (char **)list_to_array(plist);
+
+	const int actual_batch_size = net.batch * net.subdivisions;
+	if (plist->size == 0)
+	{
+		darknet_fatal_error(DARKNET_LOC, "no validation images available (verify %s)", valid_images);
+	}
+	if (plist->size < actual_batch_size)
+	{
+		Darknet::display_warning_msg("Warning: there seems to be very few validation images (num=" + std::to_string(plist->size) + ", batch=" + std::to_string(actual_batch_size) + ")\n");
+	}
 
 	list *plist_dif = NULL;
 	char **paths_dif = NULL;

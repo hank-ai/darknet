@@ -58,6 +58,11 @@ list *get_paths(char *filename)
 	}
 	fclose(file);
 
+	if (lines->size == 0)
+	{
+		darknet_fatal_error(DARKNET_LOC, "failed to read any lines from %s", filename);
+	}
+
 	return lines;
 }
 
