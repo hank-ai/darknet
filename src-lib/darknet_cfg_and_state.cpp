@@ -95,6 +95,40 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 {
 	TAT(TATPARMS);
 
+	#ifdef DEBUG
+	if (argc == 1)
+	{
+		// if no argument has been specified _AND_ we're in debug mode, then run a "fake" command.
+		// This makes it easier to run darknet in a debugger without having to remember all the args.
+
+		static std::vector<char*> cmd =
+		{
+			// process a video
+//			"darknet", "detector", "demo", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights", "DSCN1583A.MOV"
+
+			// process a single image file
+//			"darknet", "detector", "test", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights", "set_01/DSCN1580_frame_000000.jpg"
+
+			// train the network
+			"darknet", "detector", "train", "-map", "-dont_show", "LegoGears.data", "LegoGears.cfg"
+
+			// calculate mAP%
+//			"darknet", "detector", "map", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights"
+		};
+
+		int c = cmd.size();
+		char ** v = &cmd[0];
+
+		std::cout << "Inserting " << c << " fake arguments because we're running darknet in DEBUG mode!" << std::endl;
+		for (int i = 0; i < c; i ++)
+		{
+			std::cout << "argv[" << i << "] = \"" << v[i] << "\"" << std::endl;
+		}
+
+		return process_arguments(c, v);
+	}
+	#endif
+
 	argv.clear();
 	args.clear();
 
