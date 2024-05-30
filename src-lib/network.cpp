@@ -997,6 +997,7 @@ int num_detections(network *net, float thresh)
 		layer l = net->layers[i];
 		if (l.type == YOLO)
 		{
+			/// @todo V3 JAZZ
 			s += yolo_num_detections(l, thresh);
 		}
 
@@ -1055,6 +1056,7 @@ detection * make_network_boxes(network *net, float thresh, int *num)
 		}
 	}
 
+	/// @todo V3 JAZZ
 	int nboxes = num_detections(net, thresh);
 	if (num)
 	{

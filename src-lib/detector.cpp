@@ -1976,9 +1976,10 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	char *json_buf = NULL;
 	int json_image_id = 0;
 	FILE* json_file = NULL;
-	if (outfile) {
+	if (outfile)
+	{
 		json_file = fopen(outfile, "wb");
-		if(!json_file)
+		if (!json_file)
 		{
 			file_error(outfile, DARKNET_LOC);
 		}
@@ -1987,25 +1988,42 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	}
 	int j;
 	float nms = .45;    // 0.4F
-	while (1) {
-		if (filename) {
+	while (1)
+	{
+		if (filename)
+		{
 			strncpy(input, filename, 256);
 			if (strlen(input) > 0)
-				if (input[strlen(input) - 1] == 0x0d) input[strlen(input) - 1] = 0;
+			{
+				if (input[strlen(input) - 1] == 0x0d)
+				{
+					input[strlen(input) - 1] = 0;
+				}
+			}
 		}
-		else {
+		else
+		{
 			printf("Enter Image Path: ");
 			fflush(stdout);
 			input = fgets(input, 256, stdin);
-			if (!input) break;
+			if (!input)
+			{
+				break;
+			}
 			strtok(input, "\n");
 		}
 		//image im;
 		//image sized = load_image_resize(input, net.w, net.h, net.c, &im);
 		image im = load_image(input, 0, 0, net.c);
 		image sized;
-		if(letter_box) sized = letterbox_image(im, net.w, net.h);
-		else sized = resize_image(im, net.w, net.h);
+		if (letter_box)
+		{
+			sized = letterbox_image(im, net.w, net.h);
+		}
+		else
+		{
+			sized = resize_image(im, net.w, net.h);
+		}
 
 		layer l = net.layers[net.n - 1];
 		for (int k = 0; k < net.n; ++k)

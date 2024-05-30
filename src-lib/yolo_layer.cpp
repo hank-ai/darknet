@@ -1269,6 +1269,7 @@ void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth
 	float ratiow = (float)new_w / netw;
 	// ratio between rotated network width and network width
 	float ratioh = (float)new_h / neth;
+
 	for (i = 0; i < n; ++i)
 	{
 		box b = dets[i].bbox;
@@ -1297,14 +1298,18 @@ int yolo_num_detections(layer l, float thresh)
 {
 	TAT(TATPARMS);
 
+//	std::cout << std::endl;
+
 	int count = 0;
 	for (int n = 0; n < l.n; ++n)
 	{
 		for (int i = 0; i < l.w * l.h; ++i)
 		{
-			int obj_index  = entry_index(l, 0, n*l.w*l.h + i, 4);
+			const int obj_index  = entry_index(l, 0, n*l.w*l.h + i, 4);
 			if (l.output[obj_index] > thresh)
 			{
+				/// @todo V3 JAZZ
+//				std::cout << "n=" << n << " l.n=" << l.n << " i=" << i << " w=" << l.w << " h=" << l.h << " l.output[" << obj_index << "]=" << l.output[obj_index] << std::endl;
 				++count;
 			}
 		}
@@ -1336,20 +1341,61 @@ int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh,
 	TAT(TATPARMS);
 
 	//printf("\n l.batch = %d, l.w = %d, l.h = %d, l.n = %d \n", l.batch, l.w, l.h, l.n);
-	int i,j,n;
+
 	float *predictions = l.output;
-	// This snippet below is not necessary
-	// Need to comment it in order to batch processing >= 2 images
-	//if (l.batch == 2) avg_flipped_yolo(l);
+
+	/// @todo V3 JAZZ
+
+	#if 0
+	std::cout
+		<< "->"
+		<< " w=" << l.w
+		<< " h=" << l.h
+		<< " out_w=" << l.out_w
+		<< " out_h=" << l.out_h
+		<< " inputs=" << l.inputs
+		<< " outputs=" << l.outputs
+		<< std::endl;
+
+	for (int i = 0; i < l.w*l.h; ++i)
+	{
+		std::cout << "[";
+		for (int n = 0; n < l.n; ++n)
+		{
+			// layer, batch, location, entry
+			int obj_index = entry_index(l, 0, n*l.w*l.h + i, 4);
+			float objectness = predictions[obj_index];
+			std::cout << obj_index << "=" << objectness << " ";
+		}
+		std::cout << "]" << std::endl;
+	}
+	#endif
+
+	#if 0
+	for (int i=0; i<l.outputs; i++)
+	{
+		if (i % 10 == 0)
+		{
+			std::cout << std::endl;
+		}
+		std::cout << i << "=" << predictions[i] << " ";
+	}
+	std::cout << std::endl;
+	#endif
+
 	int count = 0;
-	for (i = 0; i < l.w*l.h; ++i){
+	for (int i = 0; i < l.w*l.h; ++i)
+	{
 		int row = i / l.w;
 		int col = i % l.w;
-		for(n = 0; n < l.n; ++n){
+
+		for (int n = 0; n < l.n; ++n)
+		{
 			int obj_index  = entry_index(l, 0, n*l.w*l.h + i, 4);
 			float objectness = predictions[obj_index];
-			//if(objectness <= thresh) continue;    // incorrect behavior for Nan values
-			if (objectness > thresh) {
+
+			if (objectness > thresh)
+			{
 				//printf("\n objectness = %f, thresh = %f, i = %d, n = %d \n", objectness, thresh, i, n);
 				int box_index = entry_index(l, 0, n*l.w*l.h + i, 0);
 				dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w*l.h, l.new_coords);
@@ -1360,7 +1406,7 @@ int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh,
 					get_embedding(l.embedding_output, l.w, l.h, l.n*l.embedding_size, l.embedding_size, col, row, n, 0, dets[count].embeddings);
 				}
 
-				for (j = 0; j < l.classes; ++j)
+				for (int j = 0; j < l.classes; ++j)
 				{
 					int class_index = entry_index(l, 0, n*l.w*l.h + i, 4 + 1 + j);
 					float prob = objectness*predictions[class_index];
@@ -1370,7 +1416,9 @@ int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh,
 			}
 		}
 	}
+
 	correct_yolo_boxes(dets, count, w, h, netw, neth, relative, letter);
+
 	return count;
 }
 
