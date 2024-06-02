@@ -5,7 +5,12 @@
 #endif
 
 
-//#include "darknet_internal.hpp"
+#include "darknet_internal.hpp"
+
+
+int yolo_num_detections_v3(network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache);
+
+int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, Darknet::Output_Object_Cache & cache);
 
 
 // For future use when we convert darknet.h to darknet.hpp.  For now,

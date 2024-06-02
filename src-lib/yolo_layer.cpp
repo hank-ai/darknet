@@ -1294,28 +1294,66 @@ void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth
 	}
 }
 
+
 int yolo_num_detections(layer l, float thresh)
 {
 	TAT(TATPARMS);
 
-//	std::cout << std::endl;
+	/// @todo V3 JAZZ 725 milliseconds
 
 	int count = 0;
+
 	for (int n = 0; n < l.n; ++n)
 	{
+		/// @todo V3 JAZZ 2024-06-02 Why does this not work like I expect?
+		//#pragma omp parallel for reduction (+:count)
 		for (int i = 0; i < l.w * l.h; ++i)
 		{
-			const int obj_index  = entry_index(l, 0, n*l.w*l.h + i, 4);
+			const int obj_index  = entry_index(l, 0, n * l.w * l.h + i, 4);
 			if (l.output[obj_index] > thresh)
 			{
-				/// @todo V3 JAZZ
-//				std::cout << "n=" << n << " l.n=" << l.n << " i=" << i << " w=" << l.w << " h=" << l.h << " l.output[" << obj_index << "]=" << l.output[obj_index] << std::endl;
 				++count;
 			}
 		}
 	}
+
 	return count;
 }
+
+
+int yolo_num_detections_v3(network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache)
+{
+	TAT(TATPARMS);
+
+	/// @todo V3 JAZZ 687 milliseconds
+
+	int count = 0;
+
+	const layer & l = net->layers[index];
+
+	for (int n = 0; n < l.n; ++n)
+	{
+		for (int i = 0; i < l.w * l.h; ++i)
+		{
+			const int obj_index = entry_index(l, 0, n * l.w * l.h + i, 4);
+			if (l.output[obj_index] > thresh)
+			{
+				++count;
+
+				// remember the location of this object so we don't have to walk through the array again
+				Darknet::Output_Object oo;
+				oo.layer_index = index;
+				oo.n = n;
+				oo.i = i;
+				oo.obj_index = obj_index;
+				cache.push_back(oo);
+			}
+		}
+	}
+
+	return count;
+}
+
 
 int yolo_num_detections_batch(layer l, float thresh, int batch)
 {
@@ -1333,55 +1371,20 @@ int yolo_num_detections_batch(layer l, float thresh, int batch)
 			}
 		}
 	}
+
 	return count;
 }
+
 
 int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
 {
 	TAT(TATPARMS);
 
+	/// @todo V3 JAZZ 830 milliseconds
+
 	//printf("\n l.batch = %d, l.w = %d, l.h = %d, l.n = %d \n", l.batch, l.w, l.h, l.n);
 
-	float *predictions = l.output;
-
-	/// @todo V3 JAZZ
-
-	#if 0
-	std::cout
-		<< "->"
-		<< " w=" << l.w
-		<< " h=" << l.h
-		<< " out_w=" << l.out_w
-		<< " out_h=" << l.out_h
-		<< " inputs=" << l.inputs
-		<< " outputs=" << l.outputs
-		<< std::endl;
-
-	for (int i = 0; i < l.w*l.h; ++i)
-	{
-		std::cout << "[";
-		for (int n = 0; n < l.n; ++n)
-		{
-			// layer, batch, location, entry
-			int obj_index = entry_index(l, 0, n*l.w*l.h + i, 4);
-			float objectness = predictions[obj_index];
-			std::cout << obj_index << "=" << objectness << " ";
-		}
-		std::cout << "]" << std::endl;
-	}
-	#endif
-
-	#if 0
-	for (int i=0; i<l.outputs; i++)
-	{
-		if (i % 10 == 0)
-		{
-			std::cout << std::endl;
-		}
-		std::cout << i << "=" << predictions[i] << " ";
-	}
-	std::cout << std::endl;
-	#endif
+	const float * predictions = l.output;
 
 	int count = 0;
 	for (int i = 0; i < l.w*l.h; ++i)
@@ -1421,6 +1424,53 @@ int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh,
 
 	return count;
 }
+
+
+int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, Darknet::Output_Object_Cache & cache)
+{
+	TAT(TATPARMS);
+
+	/// @todo V3 JAZZ 74 milliseconds
+
+	int count = 0;
+
+	for (const auto & oo : cache)
+	{
+		const auto & i			= oo.i;
+		const auto & n			= oo.n;
+		const auto & obj_index	= oo.obj_index;
+
+		const layer & l = net->layers[oo.layer_index];
+		const float * predictions = l.output;
+
+		const int row			= i / l.w;
+		const int col			= i % l.w;
+		const float objectness	= predictions[obj_index];
+
+		int box_index = entry_index(l, 0, n * l.w * l.h + i, 0);
+		dets[count].bbox		= get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w * l.h, l.new_coords);
+		dets[count].objectness	= objectness;
+		dets[count].classes		= l.classes;
+
+		if (l.embedding_output)
+		{
+			get_embedding(l.embedding_output, l.w, l.h, l.n * l.embedding_size, l.embedding_size, col, row, n, 0, dets[count].embeddings);
+		}
+
+		for (int j = 0; j < l.classes; ++j)
+		{
+			int class_index = entry_index(l, 0, n * l.w * l.h + i, 4 + 1 + j);
+			float prob = objectness * predictions[class_index];
+			dets[count].prob[j] = (prob > thresh) ? prob : 0;
+		}
+		++count;
+	}
+
+	correct_yolo_boxes(dets, count, w, h, netw, neth, relative, letter);
+
+	return count;
+}
+
 
 int get_yolo_detections_batch(layer l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, int batch)
 {

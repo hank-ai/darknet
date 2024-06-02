@@ -905,6 +905,8 @@ int gaussian_yolo_num_detections(layer l, float thresh)
 {
 	TAT(TATPARMS);
 
+	/// @todo V3 JAZZ -- should this be using the new "object cache"?  (gaussian_yolo doesn't seem to be used anymore)
+
 	int i, n;
 	int count = 0;
 	for (i = 0; i < l.w*l.h; ++i)

@@ -10,6 +10,7 @@
 #include <mutex>
 #include <condition_variable>
 #include <deque>
+#include <list>
 #include <map>
 #include <set>
 #include <string>
@@ -35,6 +36,19 @@ namespace Darknet
 	using VInt = std::vector<int>;
 	using VStr = std::vector<std::string>;
 	using VThreads = std::vector<std::thread>;
+
+	/** This is used to help keep some state between calls to functions fill_network_boxes(), get_yolo_detections(), etc.
+	 * We use the cache to track objects within the output array, so we don't have to walk over the entire array every
+	 * time we need to find all the objects and bounding boxes.
+	 */
+	struct Output_Object
+	{
+		int layer_index;	///< The layer index where this was found.
+		int n;				///< What is "n"...the mask number?
+		int i;				///< The index into the float output array for the given layer.
+		int obj_index;		///< The object index.
+	};
+	using Output_Object_Cache = std::list<Output_Object>;
 }
 
 #include "darknet.h"

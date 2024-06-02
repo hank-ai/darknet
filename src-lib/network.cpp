@@ -991,13 +991,15 @@ int num_detections(network *net, float thresh)
 {
 	TAT(TATPARMS);
 
+	/// @todo V3 JAZZ 740 milliseconds
+
 	int s = 0;
 	for (int i = 0; i < net->n; ++i)
 	{
 		layer l = net->layers[i];
 		if (l.type == YOLO)
 		{
-			/// @todo V3 JAZZ
+			/// @todo V3 JAZZ 725 milliseconds -- this is where we spend all our time
 			s += yolo_num_detections(l, thresh);
 		}
 
@@ -1013,6 +1015,40 @@ int num_detections(network *net, float thresh)
 	}
 
 	return s;
+}
+
+
+int num_detections_v3(network *net, float thresh, Darknet::Output_Object_Cache & cache)
+{
+	TAT(TATPARMS);
+
+	/// @todo V3 JAZZ 694 milliseconds
+
+	int detections = 0;
+
+	for (int i = 0; i < net->n; ++i)
+	{
+		const layer & l = net->layers[i];
+		if (l.type == YOLO)
+		{
+			/// @todo V3 JAZZ 687 milliseconds -- this is where we spend all our time
+			detections += yolo_num_detections_v3(net, i, thresh, cache);
+		}
+
+		/// @todo Is this still used in a modern .cfg file?  Should it be removed?
+		if (l.type == GAUSSIAN_YOLO)
+		{
+			detections += gaussian_yolo_num_detections(l, thresh);
+		}
+
+		/// @todo Is this still used in a modern .cfg file?  Should it be removed?
+		if (l.type == DETECTION || l.type == REGION)
+		{
+			detections += l.w * l.h * l.n;
+		}
+	}
+
+	return detections;
 }
 
 
@@ -1043,8 +1079,11 @@ detection * make_network_boxes(network *net, float thresh, int *num)
 {
 	/// @see @ref make_network_boxes_batch()
 
+	/// @todo V3 JAZZ 766 milliseconds
+
 	TAT(TATPARMS);
 
+	// find the last layer that is one of these 4 types
 	layer l = net->layers[net->n - 1];
 	for (int i = 0; i < net->n; ++i)
 	{
@@ -1056,8 +1095,8 @@ detection * make_network_boxes(network *net, float thresh, int *num)
 		}
 	}
 
-	/// @todo V3 JAZZ
-	int nboxes = num_detections(net, thresh);
+	/// @todo V3 JAZZ 740 milliseconds -- this is where we spend all our time
+	const int nboxes = num_detections(net, thresh);
 	if (num)
 	{
 		*num = nboxes;
@@ -1067,6 +1106,7 @@ detection * make_network_boxes(network *net, float thresh, int *num)
 	for (int i = 0; i < nboxes; ++i)
 	{
 		dets[i].prob = (float*)xcalloc(l.classes, sizeof(float));
+
 		// tx,ty,tw,th uncertainty
 		if (l.type == GAUSSIAN_YOLO)
 		{
@@ -1094,6 +1134,68 @@ detection * make_network_boxes(network *net, float thresh, int *num)
 		{
 			dets[i].embeddings = NULL;
 		}
+		dets[i].embedding_size = l.embedding_size;
+	}
+
+	return dets;
+}
+
+
+detection * make_network_boxes_v3(network * net, const float thresh, int * num, Darknet::Output_Object_Cache & cache)
+{
+	/// @todo V3 JAZZ 718 milliseconds
+
+	TAT(TATPARMS);
+
+	// find a layer that is one of these 4 types
+	const layer & l = [&net]()
+	{
+		for (int i = 0; i < net->n; ++i)
+		{
+			/// @todo Is anything but YOLO still used as an output layer in a modern .cfg file?  Should these be removed?
+
+			const layer & tmp = net->layers[i];
+			if (tmp.type == YOLO			or
+				tmp.type == GAUSSIAN_YOLO	or
+				tmp.type == DETECTION		or
+				tmp.type == REGION			)
+			{
+				return tmp;
+			}
+		}
+
+		// if nothing was found we'll use the last layer
+		return net->layers[net->n - 1];
+	}();
+
+	/// @todo V3 JAZZ 694 milliseconds meaning 97% of this function is spent in this next line
+	const int nboxes = num_detections_v3(net, thresh, cache);
+	if (num)
+	{
+		*num = nboxes;
+	}
+
+	detection* dets = (detection*)xcalloc(nboxes, sizeof(detection));
+	for (int i = 0; i < nboxes; ++i)
+	{
+		dets[i].prob = (float*)xcalloc(l.classes, sizeof(float));
+
+		// tx,ty,tw,th uncertainty
+		if (l.type == GAUSSIAN_YOLO)
+		{
+			dets[i].uc = (float*)xcalloc(4, sizeof(float)); // Gaussian_YOLOv3
+		}
+
+		if (l.coords > 4)
+		{
+			dets[i].mask = (float*)xcalloc(l.coords - 4, sizeof(float));
+		}
+
+		if (l.embedding_output)
+		{
+			dets[i].embeddings = (float*)xcalloc(l.embedding_size, sizeof(float));
+		}
+
 		dets[i].embedding_size = l.embedding_size;
 	}
 
@@ -1203,21 +1305,24 @@ void fill_network_boxes(network *net, int w, int h, float thresh, float hier, in
 {
 	TAT(TATPARMS);
 
+	/// @todo V3 JAZZ 845 milliseconds
+
 	int prev_classes = -1;
 	for (int j = 0; j < net->n; ++j)
 	{
 		layer l = net->layers[j];
 		if (l.type == YOLO)
 		{
-			int count = get_yolo_detections(l, w, h, net->w, net->h, thresh, map, relative, dets, letter);
-			dets += count;
+			/// @todo V3 JAZZ 830 milliseconds:  most of the time is spent in this function
+			dets += get_yolo_detections(l, w, h, net->w, net->h, thresh, map, relative, dets, letter);
+
 			if (prev_classes < 0)
 			{
 				prev_classes = l.classes;
 			}
 			else if (prev_classes != l.classes)
 			{
-				printf(" Error: Different [yolo] layers have different number of classes = %d and %d - check your cfg-file! \n", prev_classes, l.classes);
+				darknet_fatal_error(DARKNET_LOC, "Different [yolo] layers have different number of classes (%d and %d)", prev_classes, l.classes);
 			}
 		}
 
@@ -1240,6 +1345,19 @@ void fill_network_boxes(network *net, int w, int h, float thresh, float hier, in
 			dets += l.w*l.h*l.n;
 		}
 	}
+}
+
+
+void fill_network_boxes_v3(network *net, int w, int h, float thresh, float hier, int *map, int relative, detection *dets, int letter, Darknet::Output_Object_Cache & cache)
+{
+	TAT(TATPARMS);
+
+	/// @todo V3 JAZZ 79 milliseconds
+
+	/** @todo This assumes that "GAUSSIAN_YOLO", "REGION", and "DETECTION" layers don't exist, which is wrong.  But
+	 * they only exist in much older configurations which are hopefully not used anymore?  Should we deprecate these?
+	 */
+	dets += get_yolo_detections_v3(net, w, h, net->w, net->h, thresh, map, relative, dets, letter, cache);
 }
 
 
@@ -1283,8 +1401,28 @@ detection * get_network_boxes(network *net, int w, int h, float thresh, float hi
 {
 	TAT(TATPARMS);
 
-	detection *dets = make_network_boxes(net, thresh, num);
-	fill_network_boxes(net, w, h, thresh, hier, map, relative, dets, letter);
+#if 0
+	/* Prior to V3 Jazz, we'd call these 2 functions to create and fill in the bounding boxes.  The problem is both of
+	 * them have to walk the entire output array looking for any object greater than the threshold.  As the network
+	 * dimensions increase, the size of the output array increases as well.  So in V3, we introduced a "cache" to remember
+	 * where the objects are located.  This means we only have to walk through the array once and remember all the
+	 * locations of interest.
+	 */
+
+	/// @todo V3 JAZZ 1621 milliseconds
+
+	detection *dets = make_network_boxes(net, thresh, num);						// 766 milliseconds
+	fill_network_boxes(net, w, h, thresh, hier, map, relative, dets, letter);	// 845 milliseconds [of which get_yolo_detections() takes up 830 milliseconds]
+#else
+	// With V3 Jazz, we now create a "cache" list to track objects in the output array.
+
+	/// @todo V3 JAZZ 808 milliseconds
+
+	Darknet::Output_Object_Cache cache;
+	detection * dets = make_network_boxes_v3(net, thresh, num, cache);						// 718 milliseconds
+	fill_network_boxes_v3(net, w, h, thresh, hier, map, relative, dets, letter, cache);		// 78 milliseconds
+#endif
+
 	return dets;
 }
 

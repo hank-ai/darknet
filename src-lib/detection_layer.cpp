@@ -233,6 +233,8 @@ void get_detection_boxes(layer l, int w, int h, float thresh, float **probs, box
 {
 	TAT(TATPARMS);
 
+	/// @todo V3 JAZZ -- should this be using the new "object cache"?
+
 	int i,j,n;
 	float *predictions = l.output;
 	//int per_cell = 5*num+classes;
@@ -302,6 +304,8 @@ void backward_detection_layer_gpu(detection_layer l, network_state state)
 void get_detection_detections(layer l, int w, int h, float thresh, detection *dets)
 {
 	TAT(TATPARMS);
+
+	/// @todo V3 JAZZ -- should this be using the new "object cache"?  Looks like "detection" is from extremely old config files.
 
 	int i, j, n;
 	float *predictions = l.output;
