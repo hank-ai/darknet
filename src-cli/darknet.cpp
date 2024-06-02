@@ -21,6 +21,8 @@ extern void run_art(int argc, char **argv);
 
 void average(int argc, char *argv[])
 {
+	TAT(TATPARMS);
+
 	char *cfgfile = argv[2];
 	char *outfile = argv[3];
 	Darknet::CfgAndState::get().gpu_index = -1;
@@ -88,6 +90,8 @@ void average(int argc, char *argv[])
 
 void speed(char *cfgfile, int tics)
 {
+	TAT(TATPARMS);
+
 	if (tics == 0)
 	{
 		tics = 1000;
@@ -111,6 +115,8 @@ void speed(char *cfgfile, int tics)
 
 void operations(char *cfgfile)
 {
+	TAT(TATPARMS);
+
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	long ops = 0;
@@ -159,6 +165,8 @@ void operations(char *cfgfile)
 
 void oneoff(char *cfgfile, char *weightfile, char *outfile)
 {
+	TAT(TATPARMS);
+
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	int oldn = net.layers[net.n - 2].n;
@@ -188,6 +196,8 @@ void oneoff(char *cfgfile, char *weightfile, char *outfile)
 
 void partial(char *cfgfile, char *weightfile, char *outfile, int max)
 {
+	TAT(TATPARMS);
+
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg_custom(cfgfile, 1, 1);
 
@@ -205,6 +215,8 @@ void partial(char *cfgfile, char *weightfile, char *outfile, int max)
 
 void rescale_net(char *cfgfile, char *weightfile, char *outfile)
 {
+	TAT(TATPARMS);
+
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 
@@ -229,6 +241,8 @@ void rescale_net(char *cfgfile, char *weightfile, char *outfile)
 
 void rgbgr_net(char *cfgfile, char *weightfile, char *outfile)
 {
+	TAT(TATPARMS);
+
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 
@@ -254,6 +268,8 @@ void rgbgr_net(char *cfgfile, char *weightfile, char *outfile)
 
 void reset_normalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
+	TAT(TATPARMS);
+
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 
@@ -299,6 +315,8 @@ void reset_normalize_net(char *cfgfile, char *weightfile, char *outfile)
 
 layer normalize_layer(layer l, int n)
 {
+	TAT(TATPARMS);
+
 	int j;
 	l.batch_normalize=1;
 	l.scales = (float*)xcalloc(n, sizeof(float));
@@ -313,6 +331,8 @@ layer normalize_layer(layer l, int n)
 
 void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
+	TAT(TATPARMS);
+
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 
@@ -361,6 +381,8 @@ void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 
 void statistics_net(char *cfgfile, char *weightfile)
 {
+	TAT(TATPARMS);
+
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 
@@ -419,6 +441,8 @@ void statistics_net(char *cfgfile, char *weightfile)
 
 void denormalize_net(char *cfgfile, char *weightfile, char *outfile)
 {
+	TAT(TATPARMS);
+
 	Darknet::CfgAndState::get().gpu_index = -1;
 	network net = parse_network_cfg(cfgfile);
 	if (weightfile)
@@ -485,6 +509,8 @@ void denormalize_net(char *cfgfile, char *weightfile, char *outfile)
 
 void visualize(char *cfgfile, char *weightfile)
 {
+	TAT(TATPARMS);
+
 	network net = parse_network_cfg(cfgfile);
 	if (weightfile)
 	{
@@ -515,6 +541,8 @@ int main(int argc, char **argv)
 {
 	try
 	{
+		TAT(TATPARMS);
+
 		// disable console IO buffering since we're still mixing old printf() calls with std::cout
 		std::setvbuf(stdout, NULL, _IONBF, 0);
 		std::setvbuf(stderr, NULL, _IONBF, 0);
