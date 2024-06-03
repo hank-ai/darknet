@@ -450,6 +450,9 @@ void Darknet::cfg_layers()
 		")"
 		);
 
+	// YOLOv3 has a date of 2018-05-06, so let's use the start of that month as the cutoff for what we consider "modern"
+	const std::string modern_cutoff_date = "2018-05-01";
+
 	std::cout << "Saving results for " << filenames.size() << " config files to cfg_layers_output.html" << std::endl;
 
 	std::ofstream ofs("cfg_layers_output.html");
@@ -463,6 +466,7 @@ void Darknet::cfg_layers()
 		<< "</head>" << std::endl
 		<< "<body>" << std::endl
 		<< "<p>Darknet " << DARKNET_VERSION_STRING << "<br>" << std::endl
+		<< "Using a \"modern\" cutoff date of " << modern_cutoff_date << "<br>" << std::endl
 		<< "Parsing " << filenames.size() << " config files in " << config_dir.string() << "</p>" << std::endl
 		<< "<table>" << std::endl;
 
@@ -472,7 +476,9 @@ void Darknet::cfg_layers()
 		<< "\t\t<th>#</th>" << std::endl
 		<< "\t\t<th>filename</th>" << std::endl
 		<< "\t\t<th>last author</th>" << std::endl
-		<< "\t\t<th>last commit</th>" << std::endl;
+		<< "\t\t<th>last commit</th>" << std::endl
+		<< "\t\t<th>modern</th>" << std::endl
+		<< "\t\t<th>is_yolo</th>" << std::endl;
 
 	std::set<LAYER_TYPE> completely_unused_layer_types;
 	std::map<LAYER_TYPE, size_t> number_of_times_layer_was_referenced;
@@ -511,12 +517,18 @@ void Darknet::cfg_layers()
 
 		std::string date = "unknown";
 		std::string name = "unknown";
+		bool modern = true;
 
 		std::smatch matches;
 		if (std::regex_match(output, matches, rx))
 		{
 			date = matches[1];
 			name = matches[2];
+
+			if (date < modern_cutoff_date)
+			{
+				modern = false;
+			}
 		}
 
 		std::ifstream ifs(fn);
@@ -541,11 +553,31 @@ void Darknet::cfg_layers()
 
 		// output what we know about this file
 
+		const bool is_yolo = (m.count("yolo") + m.count("Gaussian_yolo") == 0 ? false : true);
+
 		ofs	<< "\t<tr>" << std::endl
 			<< "\t\t<td>" << (file_counter + 1) << "</td>" << std::endl
 			<< "\t\t<td>" << short_fn << "</td>" << std::endl
 			<< "\t\t<td>" << name << "</td>" << std::endl
 			<< "\t\t<td>" << date << "</td>" << std::endl;
+
+		if (modern)
+		{
+			ofs << "\t\t<td style=\"text-align: center;\">yes</td>" << std::endl;
+		}
+		else
+		{
+			ofs << "\t\t<td style=\"text-align: center; background-color: yellow;\">no</td>" << std::endl;
+		}
+
+		if (is_yolo)
+		{
+			ofs << "\t\t<td style=\"text-align: center;\">yes</td>" << std::endl;
+		}
+		else
+		{
+			ofs << "\t\t<td style=\"text-align: center; background-color: yellow;\">no</td>" << std::endl;
+		}
 
 		// loop through all the layers
 		for (int layer_index = 0; layer_index <= IMPLICIT; layer_index ++)
@@ -564,7 +596,7 @@ void Darknet::cfg_layers()
 				number_of_times_layer_was_referenced[type] ++;
 
 				// YOLOv3 has a date of 2018-05-06, so let's use the start of that month as the cutoff for what we consider "modern"
-				if (date >= "2018-05-01")
+				if (modern)
 				{
 					number_of_times_layer_was_referenced_by_modern_config[type] ++;
 				}
