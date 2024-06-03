@@ -9,6 +9,7 @@
 #include <iostream>
 #include <mutex>
 #include <condition_variable>
+#include <fstream>
 #include <deque>
 #include <list>
 #include <map>
