@@ -434,7 +434,20 @@ void Darknet::cfg_layers()
 		}
 	}
 
-	std::sort(filenames.begin(), filenames.end());
+	std::sort(filenames.begin(), filenames.end(),
+		[](const std::string & lhs, const std::string & rhs)
+		{
+			// sort subdirectories below files, so first check for "/"
+			const size_t lhs_count_slash = std::count(lhs.begin(), lhs.end(), '/');
+			const size_t rhs_count_slash = std::count(rhs.begin(), rhs.end(), '/');
+			if (lhs_count_slash != rhs_count_slash)
+			{
+				return lhs_count_slash < rhs_count_slash;
+			}
+
+			return lhs < rhs;
+		}
+	);
 
 	const std::regex rx(
 		"("			// group #1
