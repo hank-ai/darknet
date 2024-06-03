@@ -26,6 +26,8 @@ list *read_cfg(char *filename);
 
 LAYER_TYPE string_to_layer_type(char * type)
 {
+	/// @see @ref get_layer_string()
+
 	TAT(TATPARMS);
 
 	if (strcmp(type, "[shortcut]")==0) return SHORTCUT;
@@ -71,6 +73,7 @@ LAYER_TYPE string_to_layer_type(char * type)
 	if (strcmp(type, "[empty]") == 0
 		|| strcmp(type, "[silence]") == 0) return EMPTY;
 	if (strcmp(type, "[implicit]") == 0) return IMPLICIT;
+
 	return BLANK;
 }
 

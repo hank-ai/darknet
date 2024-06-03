@@ -34,4 +34,8 @@ namespace Darknet
 	void update_loss_in_new_charts(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show);
 
 	void update_accuracy_in_new_charts(const int class_index, const float accuracy);
+
+	std::string get_command_output(const std::string & cmd);
+
+	void cfg_layers();
 }

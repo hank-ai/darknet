@@ -75,6 +75,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("3d"			, ArgsAndParms::EType::kCommand	, "Pass in 2 images as input."),
 		ArgsAndParms("average"		, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("calcanchors"	, ArgsAndParms::EType::kFunction, ""),
+		ArgsAndParms("cfglayers"	, ArgsAndParms::EType::kCommand, "Obtain some information on all config files and layers used."),
 		ArgsAndParms("classify"		, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("classifier"	, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("demo"			, ArgsAndParms::EType::kFunction, "Process a video using the given neural network."),

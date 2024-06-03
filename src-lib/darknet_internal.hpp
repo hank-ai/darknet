@@ -25,6 +25,7 @@
 #include <ctime>
 #include <chrono>
 #include <iostream>
+#include <regex>
 #include <thread>
 #include <opencv2/opencv.hpp>
 

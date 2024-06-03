@@ -192,68 +192,57 @@ float get_current_rate(network net)
 }
 
 
-char * get_layer_string(LAYER_TYPE a)
+char * get_layer_string(LAYER_TYPE type)
 {
+	/// @see @ref string_to_layer_type()
+
 	TAT(TATPARMS);
 
-	switch(a)
+	switch(type)
 	{
-		case CONVOLUTIONAL:
-			return "convolutional";
-		case ACTIVE:
-			return "activation";
-		case LOCAL:
-			return "local";
-		case DECONVOLUTIONAL:
-			return "deconvolutional";
-		case CONNECTED:
-			return "connected";
-		case RNN:
-			return "rnn";
-		case GRU:
-			return "gru";
-		case LSTM:
-			return "lstm";
-		case CRNN:
-			return "crnn";
-		case MAXPOOL:
-			return "maxpool";
-		case REORG:
-			return "reorg";
-		case AVGPOOL:
-			return "avgpool";
-		case SOFTMAX:
-			return "softmax";
-		case DETECTION:
-			return "detection";
-		case REGION:
-			return "region";
-		case YOLO:
-			return "yolo";
-		case GAUSSIAN_YOLO:
-			return "Gaussian_yolo";
-		case DROPOUT:
-			return "dropout";
-		case CROP:
-			return "crop";
-		case COST:
-			return "cost";
-		case ROUTE:
-			return "route";
-		case SHORTCUT:
-			return "shortcut";
-		case SCALE_CHANNELS:
-			return "scale_channels";
-		case SAM:
-			return "sam";
-		case NORMALIZATION:
-			return "normalization";
-		case BATCHNORM:
-			return "batchnorm";
-		default:
-			break;
+		case CONVOLUTIONAL:		return "convolutional";		// or "conv"
+		case DECONVOLUTIONAL:	return "deconvolutional";
+		case CONNECTED:			return "connected";			// or "conn"
+		case MAXPOOL:			return "maxpool";			// or "max"
+		case LOCAL_AVGPOOL:		return "local_avgpool";		// or "local_avg"
+		case SOFTMAX:			return "softmax";			// or "soft"
+		case DETECTION:			return "detection";
+		case DROPOUT:			return "dropout";
+		case CROP:				return "crop";
+		case ROUTE:				return "route";
+		case COST:				return "cost";
+		case NORMALIZATION:		return "normalization";		// or "lrn"
+		case AVGPOOL:			return "avgpool";			// or "avg"
+		case LOCAL:				return "local";
+		case SHORTCUT:			return "shortcut";
+		case SCALE_CHANNELS:	return "scale_channels";
+		case SAM:				return "sam";
+		case ACTIVE:			return "activation";
+		case RNN:				return "rnn";
+		case GRU:				return "gru";
+		case LSTM:				return "lstm";
+		case CONV_LSTM:			return "conv_lstm";
+		case HISTORY:			return "history";
+		case CRNN:				return "crnn";
+		case BATCHNORM:			return "batchnorm";
+		case NETWORK:			return "net";				// or "network"
+		case XNOR:				return "xnor"; ///< @todo is this the correct name?  Is this unused?
+		case REGION:			return "region";
+		case YOLO:				return "yolo";
+		case GAUSSIAN_YOLO:		return "Gaussian_yolo";
+		case ISEG:				return "iseg";
+		case REORG:				return "reorg3d";
+		case REORG_OLD:			return "reorg";
+		case UPSAMPLE:			return "upsample";
+		case LOGXENT:			return "logxent"; ///< @todo Is this unused?
+		case L2NORM:			return "l2norm"; ///< @todo Is this unused?
+		case EMPTY:				return "silence";			// or "empty"
+		case BLANK:				return "blank";
+		case CONTRASTIVE:		return "contrastive";
+		case IMPLICIT:			return "implicit";
 	}
-	return "none";
+
+	return "unknown";
 }
 
 

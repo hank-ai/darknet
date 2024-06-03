@@ -136,7 +136,8 @@ typedef struct contrastive_params {
 } contrastive_params;
 
 
-// layer.h
+/// @see @ref get_layer_string() to convert from @p LAYER_TYPE to string
+/// @see @ref string_to_layer_type() to convert from string to @p LAYER_TYPE
 typedef enum {
 	CONVOLUTIONAL,
 	DECONVOLUTIONAL,
