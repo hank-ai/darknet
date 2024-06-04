@@ -380,7 +380,7 @@ darknet detector -map -dont_show --verbose train animals.data animals.cfg
 
 # Roadmap
 
-Last updated 2024-05-13:
+Last updated 2024-06-04:
 
 ## Completed
 
@@ -405,6 +405,8 @@ Last updated 2024-05-13:
 * [X] remove old "alphabet" code, and delete the 700+ images in data/labels
 * [X] build out-of-source
 * [X] have better version number output
+* [X] performance optimizations related to training (on-going task)
+* [X] performance optimizations related to inference (on-going task)
 
 ## Short-term goals
 
@@ -412,14 +414,17 @@ Last updated 2024-05-13:
 * [ ] clean up .hpp files
 * [ ] re-write darknet.h
 * [ ] look into old zed camera support
-* [ ] better and more consistent command line parsing
+* [ ] better and more consistent command line parsing (in progress)
 
 ## Mid-term goals
 
+* [ ] remove all `char*` code and replace with `std::string`
+* [ ] don't hide warnings and clean up compiler warnings
 * [ ] fix build for ARM-based Jetson devices
 * [ ] better use of `cv::Mat` instead of the custom `image` structure in C
 * [ ] do not cast `cv::Mat` to `void*` but use it as a proper C++ object
 * [ ] completely remove internal/obsolete `image` structure
+* [ ] replace old `list` functionality with `std::vector` or `std::list`
 * [ ] fix support for 1-channel greyscale images
 * [ ] add support for N-channel images where N > 3 (e.g., images with an additional depth or thermal channel)
 * [ ] on-going code cleanup
@@ -427,5 +432,6 @@ Last updated 2024-05-13:
 ## Long-term goals
 
 * [ ] fix CUDA/CUDNN issues with all GPUs
+* [ ] re-write CUDA+cuDNN code
 * [ ] look into adding support for non-NVIDIA GPUs
 * [ ] rotated bounding boxes, or some sort of "angle" support
