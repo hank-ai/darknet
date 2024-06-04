@@ -15,7 +15,7 @@ ENDIF ()
 IF (WIN32)
 #	ADD_COMPILE_OPTIONS (/W4)				# warning level (high)
 #	ADD_COMPILE_OPTIONS (/WX)				# treat warnings as errors
-	ADD_COMPILE_OPTIONS (/permissive-)		# stick to C++ standards (turn off Microsoft-specific extensions)
+#	ADD_COMPILE_OPTIONS (/permissive-)		# stick to C++ standards (turn off Microsoft-specific extensions)
 #	ADD_COMPILE_OPTIONS (/Zc:__cplusplus)	# force Visual Studio to update __cplusplus (but this seems to break nvcc.exe)
 #	ADD_COMPILE_OPTIONS (/wd4013)
 #	ADD_COMPILE_OPTIONS (/wd4018)
