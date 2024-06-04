@@ -325,6 +325,11 @@ void Darknet::update_accuracy_in_new_charts(const int class_index, const float a
 
 std::string Darknet::get_command_output(const std::string & cmd)
 {
+	#ifdef WIN32
+	#define popen _popen
+	#define pclose _pclose
+	#endif
+
 	std::string output;
 
 	// loosely based on https://stackoverflow.com/questions/478898/how-do-i-execute-a-command-and-get-the-output-of-the-command-within-c-using-po
@@ -437,9 +442,9 @@ void Darknet::cfg_layers()
 	std::sort(filenames.begin(), filenames.end(),
 		[](const std::string & lhs, const std::string & rhs)
 		{
-			// sort subdirectories below files, so first check for "/"
-			const size_t lhs_count_slash = std::count(lhs.begin(), lhs.end(), '/');
-			const size_t rhs_count_slash = std::count(rhs.begin(), rhs.end(), '/');
+			// sort subdirectories below files, so first check for "/" or "\\"
+			const size_t lhs_count_slash = std::count(lhs.begin(), lhs.end(), std::filesystem::path::preferred_separator);
+			const size_t rhs_count_slash = std::count(rhs.begin(), rhs.end(), std::filesystem::path::preferred_separator);
 			if (lhs_count_slash != rhs_count_slash)
 			{
 				return lhs_count_slash < rhs_count_slash;
@@ -542,6 +547,11 @@ void Darknet::cfg_layers()
 			{
 				modern = false;
 			}
+		}
+
+		if (fn.find("unsupported") != std::string::npos)
+		{
+			modern = false;
 		}
 
 		std::ifstream ifs(fn);
