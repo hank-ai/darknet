@@ -4,20 +4,7 @@
 #error "The darknet project requires the use of a C++ compiler."
 #endif
 
-#include <atomic>
-#include <filesystem>
-#include <iostream>
-#include <fstream>
-#include <mutex>
-#include <condition_variable>
-#include <fstream>
-#include <deque>
-#include <list>
-#include <map>
-#include <set>
-#include <string>
-#include <vector>
-#include <ciso646>
+// C headers
 #include <cassert>
 #include <cfloat>
 #include <cmath>
@@ -25,20 +12,36 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+
+// C++ headers
+#include <atomic>
 #include <chrono>
+#include <ciso646>
+#include <condition_variable>
+#include <deque>
+#include <filesystem>
+#include <fstream>
 #include <iostream>
+#include <list>
+#include <map>
+#include <mutex>
 #include <regex>
+#include <set>
+#include <string>
 #include <thread>
+#include <vector>
+
+// 3rd-party lib headers
 #include <opencv2/opencv.hpp>
 
 namespace Darknet
 {
-	using MStr = std::map<std::string, std::string>;
-	using MStrInt = std::map<std::string, int>;
-	using SStr = std::set<std::string>;
-	using VInt = std::vector<int>;
-	using VStr = std::vector<std::string>;
-	using VThreads = std::vector<std::thread>;
+	using MStr		= std::map<std::string, std::string>;
+	using MStrInt	= std::map<std::string, int>;
+	using SStr		= std::set<std::string>;
+	using VInt		= std::vector<int>;
+	using VStr		= std::vector<std::string>;
+	using VThreads	= std::vector<std::thread>;
 
 	/** This is used to help keep some state between calls to functions fill_network_boxes(), get_yolo_detections(), etc.
 	 * We use the cache to track objects within the output array, so we don't have to walk over the entire array every
