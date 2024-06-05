@@ -19,7 +19,7 @@ namespace
 	};
 
 
-	inline box get_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
+	static inline box get_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -42,7 +42,7 @@ namespace
 	}
 
 
-	inline void fix_nan_inf(float & val)
+	static inline void fix_nan_inf(float & val)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -55,7 +55,7 @@ namespace
 	}
 
 
-	inline void clip_value(float & val, const float max_val)
+	static inline void clip_value(float & val, const float max_val)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -73,7 +73,7 @@ namespace
 
 
 	/// loss function:  delta for box
-	inline ious delta_yolo_box(const box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
+	static inline ious delta_yolo_box(const box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -211,7 +211,7 @@ namespace
 	}
 
 
-	inline void averages_yolo_deltas(const int class_index, const int box_index, const int stride, const int classes, float * delta)
+	static inline void averages_yolo_deltas(const int class_index, const int box_index, const int stride, const int classes, float * delta)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -235,7 +235,7 @@ namespace
 
 
 	/// loss function:  delta for class
-	inline void delta_yolo_class(const float * output, float * delta, const int index, const int class_id, const int classes, const int stride, float * avg_cat, const int focal_loss, const float label_smooth_eps, const float *classes_multipliers, const float cls_normalizer)
+	static inline void delta_yolo_class(const float * output, float * delta, const int index, const int class_id, const int classes, const int stride, float * avg_cat, const int focal_loss, const float label_smooth_eps, const float *classes_multipliers, const float cls_normalizer)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -324,7 +324,7 @@ namespace
 	}
 
 
-	inline int compare_yolo_class(const float * output, const int classes, const int class_index, const int stride, const float objectness, const int class_id, const float conf_thresh)
+	static inline int compare_yolo_class(const float * output, const int classes, const int class_index, const int stride, const float objectness, const int class_id, const float conf_thresh)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -341,7 +341,7 @@ namespace
 	}
 
 
-	inline int entry_index(const layer & l, const int batch, const int location, const int entry)
+	static inline int yolo_entry_index(const layer & l, const int batch, const int location, const int entry)
 	{
 		// similar function exists in region_layer.cpp, but the math is slightly different
 
@@ -354,7 +354,7 @@ namespace
 	}
 
 
-	inline void avg_flipped_yolo(layer & l)
+	static inline void avg_flipped_yolo(layer & l)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -571,9 +571,9 @@ void process_batch(void* ptr)
 		{
 			for (int n = 0; n < l.n; ++n)
 			{
-				const int class_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 4 + 1);
-				const int obj_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 4);
-				const int box_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 0);
+				const int class_index = yolo_entry_index(l, b, n * l.w * l.h + j * l.w + i, 4 + 1);
+				const int obj_index = yolo_entry_index(l, b, n * l.w * l.h + j * l.w + i, 4);
+				const int box_index = yolo_entry_index(l, b, n * l.w * l.h + j * l.w + i, 0);
 				const int stride = l.w * l.h;
 				box pred = get_yolo_box(l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.w * l.h, l.new_coords);
 				float best_match_iou = 0;
@@ -747,7 +747,7 @@ void process_batch(void* ptr)
 				class_id = l.map[class_id];
 			}
 
-			int box_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
+			int box_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
 			const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
 			ious all_ious = delta_yolo_box(truth, l.output, l.biases, best_n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
 			(*state.net.total_bbox)++;
@@ -772,7 +772,7 @@ void process_batch(void* ptr)
 			tot_ciou += all_ious.ciou;
 			tot_ciou_loss += 1 - all_ious.ciou;
 
-			int obj_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4);
+			int obj_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4);
 			avg_obj += l.output[obj_index];
 			if (l.objectness_smooth)
 			{
@@ -787,7 +787,7 @@ void process_batch(void* ptr)
 				l.delta[obj_index] = class_multiplier * l.obj_normalizer * (1 - l.output[obj_index]);
 			}
 
-			int class_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4 + 1);
+			int class_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4 + 1);
 			delta_yolo_class(l.output, l.delta, class_index, class_id, l.classes, l.w * l.h, &avg_cat, l.focal_loss, l.label_smooth_eps, l.classes_multipliers, l.cls_normalizer);
 
 			//printf(" label: class_id = %d, truth.x = %f, truth.y = %f, truth.w = %f, truth.h = %f \n", class_id, truth.x, truth.y, truth.w, truth.h);
@@ -825,7 +825,7 @@ void process_batch(void* ptr)
 						class_id = l.map[class_id];
 					}
 
-					int box_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
+					int box_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
 					const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
 					ious all_ious = delta_yolo_box(truth, l.output, l.biases, n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
 					(*state.net.total_bbox)++;
@@ -843,7 +843,7 @@ void process_batch(void* ptr)
 					tot_ciou += all_ious.ciou;
 					tot_ciou_loss += 1 - all_ious.ciou;
 
-					int obj_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4);
+					int obj_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4);
 					avg_obj += l.output[obj_index];
 					if (l.objectness_smooth)
 					{
@@ -858,7 +858,7 @@ void process_batch(void* ptr)
 						l.delta[obj_index] = class_multiplier * l.obj_normalizer * (1 - l.output[obj_index]);
 					}
 
-					int class_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4 + 1);
+					int class_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4 + 1);
 					delta_yolo_class(l.output, l.delta, class_index, class_id, l.classes, l.w * l.h, &avg_cat, l.focal_loss, l.label_smooth_eps, l.classes_multipliers, l.cls_normalizer);
 
 					++(args->count);
@@ -885,9 +885,9 @@ void process_batch(void* ptr)
 			{
 				for (int n = 0; n < l.n; ++n)
 				{
-					int obj_index = entry_index(l, b, n*l.w*l.h + j*l.w + i, 4);
-					int box_index = entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
-					int class_index = entry_index(l, b, n*l.w*l.h + j*l.w + i, 4 + 1);
+					int obj_index = yolo_entry_index(l, b, n*l.w*l.h + j*l.w + i, 4);
+					int box_index = yolo_entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
+					int class_index = yolo_entry_index(l, b, n*l.w*l.h + j*l.w + i, 4 + 1);
 					const int stride = l.w*l.h;
 
 					if (l.delta[obj_index] != 0)
@@ -915,7 +915,7 @@ void forward_yolo_layer(const layer l, network_state state)
 	{
 		for (int n = 0; n < l.n; ++n)
 		{
-			int bbox_index = entry_index(l, b, n*l.w*l.h, 0);
+			int bbox_index = yolo_entry_index(l, b, n*l.w*l.h, 0);
 			if (l.new_coords)
 			{
 				//activate_array(l.output + bbox_index, 4 * l.w*l.h, LOGISTIC);    // x,y,w,h
@@ -923,7 +923,7 @@ void forward_yolo_layer(const layer l, network_state state)
 			else
 			{
 				activate_array(l.output + bbox_index, 2 * l.w*l.h, LOGISTIC);        // x,y,
-				int obj_index = entry_index(l, b, n*l.w*l.h, 4);
+				int obj_index = yolo_entry_index(l, b, n*l.w*l.h, 4);
 				activate_array(l.output + obj_index, (1 + l.classes)*l.w*l.h, LOGISTIC);
 			}
 			scal_add_cpu(2 * l.w*l.h, l.scale_x_y, -0.5*(l.scale_x_y - 1), l.output + bbox_index, 1);    // scale x,y
@@ -1156,7 +1156,7 @@ void forward_yolo_layer(const layer l, network_state state)
 			{
 				for (int n = 0; n < l.n; ++n)
 				{
-					int index = entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
+					int index = yolo_entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
 					no_iou_loss_delta[index + 0 * stride] = 0;
 					no_iou_loss_delta[index + 1 * stride] = 0;
 					no_iou_loss_delta[index + 2 * stride] = 0;
@@ -1309,7 +1309,7 @@ int yolo_num_detections(layer l, float thresh)
 		//#pragma omp parallel for reduction (+:count)
 		for (int i = 0; i < l.w * l.h; ++i)
 		{
-			const int obj_index  = entry_index(l, 0, n * l.w * l.h + i, 4);
+			const int obj_index  = yolo_entry_index(l, 0, n * l.w * l.h + i, 4);
 			if (l.output[obj_index] > thresh)
 			{
 				++count;
@@ -1335,7 +1335,7 @@ int yolo_num_detections_v3(network * net, const int index, const float thresh, D
 	{
 		for (int i = 0; i < l.w * l.h; ++i)
 		{
-			const int obj_index = entry_index(l, 0, n * l.w * l.h + i, 4);
+			const int obj_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 4);
 			if (l.output[obj_index] > thresh)
 			{
 				++count;
@@ -1364,7 +1364,7 @@ int yolo_num_detections_batch(layer l, float thresh, int batch)
 	{
 		for (int n = 0; n < l.n; ++n)
 		{
-			int obj_index  = entry_index(l, batch, n * l.w * l.h + i, 4);
+			int obj_index  = yolo_entry_index(l, batch, n * l.w * l.h + i, 4);
 			if (l.output[obj_index] > thresh)
 			{
 				++count;
@@ -1394,13 +1394,13 @@ int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh,
 
 		for (int n = 0; n < l.n; ++n)
 		{
-			int obj_index  = entry_index(l, 0, n*l.w*l.h + i, 4);
+			int obj_index  = yolo_entry_index(l, 0, n*l.w*l.h + i, 4);
 			float objectness = predictions[obj_index];
 
 			if (objectness > thresh)
 			{
 				//printf("\n objectness = %f, thresh = %f, i = %d, n = %d \n", objectness, thresh, i, n);
-				int box_index = entry_index(l, 0, n*l.w*l.h + i, 0);
+				int box_index = yolo_entry_index(l, 0, n*l.w*l.h + i, 0);
 				dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w*l.h, l.new_coords);
 				dets[count].objectness = objectness;
 				dets[count].classes = l.classes;
@@ -1411,7 +1411,7 @@ int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh,
 
 				for (int j = 0; j < l.classes; ++j)
 				{
-					int class_index = entry_index(l, 0, n*l.w*l.h + i, 4 + 1 + j);
+					int class_index = yolo_entry_index(l, 0, n*l.w*l.h + i, 4 + 1 + j);
 					float prob = objectness*predictions[class_index];
 					dets[count].prob[j] = (prob > thresh) ? prob : 0;
 				}
@@ -1447,7 +1447,7 @@ int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, floa
 		const int col			= i % l.w;
 		const float objectness	= predictions[obj_index];
 
-		int box_index = entry_index(l, 0, n * l.w * l.h + i, 0);
+		int box_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 0);
 		dets[count].bbox		= get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w * l.h, l.new_coords);
 		dets[count].objectness	= objectness;
 		dets[count].classes		= l.classes;
@@ -1459,7 +1459,7 @@ int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, floa
 
 		for (int j = 0; j < l.classes; ++j)
 		{
-			int class_index = entry_index(l, 0, n * l.w * l.h + i, 4 + 1 + j);
+			int class_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 4 + 1 + j);
 			float prob = objectness * predictions[class_index];
 			dets[count].prob[j] = (prob > thresh) ? prob : 0;
 		}
@@ -1484,13 +1484,13 @@ int get_yolo_detections_batch(layer l, int w, int h, int netw, int neth, float t
 		int row = i / l.w;
 		int col = i % l.w;
 		for(n = 0; n < l.n; ++n){
-			int obj_index  = entry_index(l, batch, n*l.w*l.h + i, 4);
+			int obj_index  = yolo_entry_index(l, batch, n*l.w*l.h + i, 4);
 			float objectness = predictions[obj_index];
 			//if(objectness <= thresh) continue;    // incorrect behavior for Nan values
 			if (objectness > thresh)
 			{
 				//printf("\n objectness = %f, thresh = %f, i = %d, n = %d \n", objectness, thresh, i, n);
-				int box_index = entry_index(l, batch, n*l.w*l.h + i, 0);
+				int box_index = yolo_entry_index(l, batch, n*l.w*l.h + i, 0);
 				dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w*l.h, l.new_coords);
 				dets[count].objectness = objectness;
 				dets[count].classes = l.classes;
@@ -1501,7 +1501,7 @@ int get_yolo_detections_batch(layer l, int w, int h, int netw, int neth, float t
 
 				for (j = 0; j < l.classes; ++j)
 				{
-					int class_index = entry_index(l, batch, n*l.w*l.h + i, 4 + 1 + j);
+					int class_index = yolo_entry_index(l, batch, n*l.w*l.h + i, 4 + 1 + j);
 					float prob = objectness*predictions[class_index];
 					dets[count].prob[j] = (prob > thresh) ? prob : 0;
 				}
@@ -1532,7 +1532,7 @@ void forward_yolo_layer_gpu(const layer l, network_state state)
 	{
 		for (int n = 0; n < l.n; ++n)
 		{
-			int bbox_index = entry_index(l, b, n*l.w*l.h, 0);
+			int bbox_index = yolo_entry_index(l, b, n*l.w*l.h, 0);
 			// y = 1./(1. + exp(-x))
 			// x = ln(y/(1-y))  // ln - natural logarithm (base = e)
 			// if(y->1) x -> inf
@@ -1545,7 +1545,7 @@ void forward_yolo_layer_gpu(const layer l, network_state state)
 			{
 				activate_array_ongpu(l.output_gpu + bbox_index, 2 * l.w*l.h, LOGISTIC);    // x,y
 
-				int obj_index = entry_index(l, b, n*l.w*l.h, 4);
+				int obj_index = yolo_entry_index(l, b, n*l.w*l.h, 4);
 				activate_array_ongpu(l.output_gpu + obj_index, (1 + l.classes)*l.w*l.h, LOGISTIC); // classes and objectness
 			}
 

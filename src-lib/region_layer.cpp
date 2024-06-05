@@ -184,7 +184,7 @@ float tisnan(float x)
 
 namespace
 {
-	inline int entry_index(const layer & l, const int batch, const int location, const int entry)
+	static inline int region_entry_index(const layer & l, const int batch, const int location, const int entry)
 	{
 		// similar function exists in yolo_layer.cpp, but the math is slightly different
 
@@ -573,9 +573,9 @@ void get_region_detections(layer l, int w, int h, int netw, int neth, float thre
 			for (j = 0; j < l.classes; ++j) {
 				dets[index].prob[j] = 0;
 			}
-			int obj_index = entry_index(l, 0, n*l.w*l.h + i, l.coords);
-			int box_index = entry_index(l, 0, n*l.w*l.h + i, 0);
-			int mask_index = entry_index(l, 0, n*l.w*l.h + i, 4);
+			int obj_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords);
+			int box_index = region_entry_index(l, 0, n*l.w*l.h + i, 0);
+			int mask_index = region_entry_index(l, 0, n*l.w*l.h + i, 4);
 			float scale = l.background ? 1 : predictions[obj_index];
 			dets[index].bbox = get_region_box(predictions, l.biases, n, box_index, col, row, l.w, l.h);// , l.w*l.h);
 			dets[index].objectness = scale > thresh ? scale : 0;
@@ -585,13 +585,13 @@ void get_region_detections(layer l, int w, int h, int netw, int neth, float thre
 				}
 			}
 
-			int class_index = entry_index(l, 0, n*l.w*l.h + i, l.coords + !l.background);
+			int class_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + !l.background);
 			if (l.softmax_tree) {
 
 				hierarchy_predictions(predictions + class_index, l.classes, l.softmax_tree, 0);// , l.w*l.h);
 				if (map) {
 					for (j = 0; j < 200; ++j) {
-						int class_index = entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + map[j]);
+						int class_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + map[j]);
 						float prob = scale*predictions[class_index];
 						dets[index].prob[j] = (prob > thresh) ? prob : 0;
 					}
@@ -604,7 +604,7 @@ void get_region_detections(layer l, int w, int h, int netw, int neth, float thre
 			else {
 				if (dets[index].objectness) {
 					for (j = 0; j < l.classes; ++j) {
-						int class_index = entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + j);
+						int class_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + j);
 						float prob = scale*predictions[class_index];
 						dets[index].prob[j] = (prob > thresh) ? prob : 0;
 					}
@@ -622,7 +622,7 @@ void zero_objectness(layer l)
 	int i, n;
 	for (i = 0; i < l.w*l.h; ++i) {
 		for (n = 0; n < l.n; ++n) {
-			int obj_index = entry_index(l, 0, n*l.w*l.h + i, l.coords);
+			int obj_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords);
 			l.output[obj_index] = 0;
 		}
 	}
