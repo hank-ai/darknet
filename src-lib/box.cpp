@@ -5,6 +5,231 @@
 
 #include "darknet_internal.hpp"
 
+namespace
+{
+	static inline dbox derivative(const box & a, const box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-03-19 inlined");
+
+		dbox d;
+		d.dx = a.x < b.x ? 1.0 : -1.0;
+		d.dy = a.y < b.y ? 1.0 : -1.0;
+		d.dw = a.w < b.w ? 1.0 : -1.0;
+		d.dh = a.h < b.h ? 1.0 : -1.0;
+
+		return d;
+	}
+
+
+	/// where c is the smallest box that fully encompases a and b
+	static inline boxabs box_c(const box & a, const box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		boxabs ba;
+		ba.top		= fmin(a.y - a.h / 2.0f, b.y - b.h / 2.0f);
+		ba.bot		= fmax(a.y + a.h / 2.0f, b.y + b.h / 2.0f);
+		ba.left		= fmin(a.x - a.w / 2.0f, b.x - b.w / 2.0f);
+		ba.right	= fmax(a.x + a.w / 2.0f, b.x + b.w / 2.0f);
+
+		return ba;
+	}
+
+
+	/// representation from x, y, w, h to top, left, bottom, right
+	static inline boxabs to_tblr(const box & a)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		boxabs tblr;
+		tblr.top	= a.y - (a.h / 2.0f);
+		tblr.bot	= a.y + (a.h / 2.0f);
+		tblr.left	= a.x - (a.w / 2.0f);
+		tblr.right	= a.x + (a.w / 2.0f);
+
+		return tblr;
+	}
+
+
+	static inline float overlap(const float x1, const float w1, const float x2, const float w2)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		const float l1 = x1 - w1 / 2.0f;
+		const float l2 = x2 - w2 / 2.0f;
+		const float left = std::max(l1, l2);
+
+		const float r1 = x1 + w1 / 2.0f;
+		const float r2 = x2 + w2 / 2.0f;
+		const float right = std::min(r1, r2);
+
+		return right - left;
+	}
+
+
+	static inline float box_intersection(const box & a, const box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		const float w = overlap(a.x, a.w, b.x, b.w);
+		if (w <= 0.0f)
+		{
+			return 0.0f;
+		}
+
+		const float h = overlap(a.y, a.h, b.y, b.h);
+		if (h <= 0.0f)
+		{
+			return 0.0f;
+		}
+
+		return w * h;
+	}
+
+
+	static inline float box_union(const box & a, const box & b, const float intersection)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		const float u = a.w * a.h + b.w * b.h - intersection;
+
+		return u;
+	}
+
+
+	static inline float box_union(const box & a, const box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		const float i = box_intersection(a, b);
+		const float u = a.w * a.h + b.w * b.h - i;
+
+		return u;
+	}
+
+
+	static inline float box_diounms(const box & a, const box & b, const float beta1)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12");
+
+		const boxabs ba = box_c(a, b);
+		const float w = ba.right - ba.left;
+		const float h = ba.bot - ba.top;
+		const float c = w * w + h * h;
+		const float iou = box_iou(a, b);
+		if (c == 0.0f)
+		{
+			return iou;
+		}
+
+		float d = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+		float diou_term = pow(d / c, beta1);
+
+		return iou - diou_term;
+	}
+
+
+	static inline dbox dintersect(const box & a, const box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12");
+
+		const float w = overlap(a.x, a.w, b.x, b.w);
+		const float h = overlap(a.y, a.h, b.y, b.h);
+		const dbox dover = derivative(a, b);
+
+		dbox di;
+		di.dw = dover.dw * h;
+		di.dx = dover.dx * h;
+		di.dh = dover.dh * w;
+		di.dy = dover.dy * w;
+
+		return di;
+	}
+
+
+	static inline dbox dunion(const box & a, const box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12");
+
+		const dbox di = dintersect(a, b);
+
+		dbox du;
+		du.dw = a.h - di.dw;
+		du.dh = a.w - di.dh;
+		du.dx = -di.dx;
+		du.dy = -di.dy;
+
+		return du;
+	}
+
+
+	struct sortable_bbox
+	{
+		int index;
+		int class_id;
+		float **probs;
+	};
+
+
+	static inline int nms_comparator(const void *pa, const void *pb)
+	{
+		// this is only called from 1 place
+		TAT(TATPARMS);
+
+		sortable_bbox a = *(sortable_bbox *)pa;
+		sortable_bbox b = *(sortable_bbox *)pb;
+
+		float diff = a.probs[a.index][b.class_id] - b.probs[b.index][b.class_id];
+
+		if(diff < 0.0f)
+		{
+			return 1;
+		}
+
+		if(diff > 0.0f)
+		{
+			return -1;
+		}
+
+		return 0;
+	}
+
+
+	static inline void sort_box_detections(detection * dets, const int total)
+	{
+		TAT(TATPARMS);
+
+		if (total > 1)
+		{
+			// We want to sort from high probability to low probability.  The default sort behaviour would be to
+			// sort from low to high.  We reverse the sort order by comparing RHS to LHS instead of LHS to RHS.
+
+			std::sort(dets, dets + total,
+					[](const detection & lhs, const detection & rhs) -> bool
+					{
+						if (rhs.sort_class < 0)
+						{
+							return rhs.objectness < lhs.objectness;
+						}
+
+						return rhs.prob[rhs.sort_class] < lhs.prob[rhs.sort_class];
+					});
+		}
+	}
+
+} // anonymous namespace
+
+
 box float_to_box(const float * f)
 {
 	// this function is used in several places
@@ -35,110 +260,6 @@ box float_to_box_stride(const float *f, const int stride)
 }
 
 
-inline dbox derivative(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-03-19 inlined");
-
-	dbox d;
-	d.dx = a.x < b.x ? 1.0 : -1.0;
-	d.dy = a.y < b.y ? 1.0 : -1.0;
-	d.dw = a.w < b.w ? 1.0 : -1.0;
-	d.dh = a.h < b.h ? 1.0 : -1.0;
-
-	return d;
-}
-
-
-/// where c is the smallest box that fully encompases a and b
-inline boxabs box_c(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	boxabs ba;
-	ba.top		= fmin(a.y - a.h / 2.0f, b.y - b.h / 2.0f);
-	ba.bot		= fmax(a.y + a.h / 2.0f, b.y + b.h / 2.0f);
-	ba.left		= fmin(a.x - a.w / 2.0f, b.x - b.w / 2.0f);
-	ba.right	= fmax(a.x + a.w / 2.0f, b.x + b.w / 2.0f);
-
-	return ba;
-}
-
-
-/// representation from x, y, w, h to top, left, bottom, right
-inline boxabs to_tblr(const box & a)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	boxabs tblr;
-	tblr.top	= a.y - (a.h / 2.0f);
-	tblr.bot	= a.y + (a.h / 2.0f);
-	tblr.left	= a.x - (a.w / 2.0f);
-	tblr.right	= a.x + (a.w / 2.0f);
-
-	return tblr;
-}
-
-
-inline float overlap(const float x1, const float w1, const float x2, const float w2)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	const float l1 = x1 - w1 / 2.0f;
-	const float l2 = x2 - w2 / 2.0f;
-	const float left = std::max(l1, l2);
-
-	const float r1 = x1 + w1 / 2.0f;
-	const float r2 = x2 + w2 / 2.0f;
-	const float right = std::min(r1, r2);
-
-	return right - left;
-}
-
-inline float box_intersection(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	const float w = overlap(a.x, a.w, b.x, b.w);
-	if (w <= 0.0f)
-	{
-		return 0.0f;
-	}
-
-	const float h = overlap(a.y, a.h, b.y, b.h);
-	if (h <= 0.0f)
-	{
-		return 0.0f;
-	}
-
-	return w * h;
-}
-
-inline float box_union(const box & a, const box & b, const float intersection)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	const float u = a.w * a.h + b.w * b.h - intersection;
-
-	return u;
-}
-
-inline float box_union(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	const float i = box_intersection(a, b);
-	const float u = a.w * a.h + b.w * b.h - i;
-
-	return u;
-}
-
 float box_iou_kind(const box & a, const box & b, const IOU_LOSS iou_kind)
 {
 	// this function is used in several places
@@ -157,6 +278,7 @@ float box_iou_kind(const box & a, const box & b, const IOU_LOSS iou_kind)
 	return box_iou(a, b);
 }
 
+
 float box_iou(const box & a, const box & b)
 {
 	// this function is used in many places
@@ -173,6 +295,7 @@ float box_iou(const box & a, const box & b)
 
 	return I / U;
 }
+
 
 float box_giou(const box & a, const box & b)
 {
@@ -195,6 +318,7 @@ float box_giou(const box & a, const box & b)
 
 	return iou - giou_term;
 }
+
 
 float box_diou(const box & a, const box & b)
 {
@@ -221,26 +345,6 @@ float box_diou(const box & a, const box & b)
 	return iou - diou_term;
 }
 
-inline float box_diounms(const box & a, const box & b, const float beta1)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12");
-
-	const boxabs ba = box_c(a, b);
-	const float w = ba.right - ba.left;
-	const float h = ba.bot - ba.top;
-	const float c = w * w + h * h;
-	const float iou = box_iou(a, b);
-	if (c == 0.0f)
-	{
-		return iou;
-	}
-
-	float d = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-	float diou_term = pow(d / c, beta1);
-
-	return iou - diou_term;
-}
 
 float box_ciou(const box & a, const box & b)
 {
@@ -271,6 +375,7 @@ float box_ciou(const box & a, const box & b)
 
 	return iou - ciou_term;
 }
+
 
 dxrep dx_box_iou(const box & pred, const box & truth, const IOU_LOSS iou_loss)
 {
@@ -463,6 +568,7 @@ dxrep dx_box_iou(const box & pred, const box & truth, const IOU_LOSS iou_loss)
 	return ddx;
 }
 
+
 float box_rmse(const box & a, const box & b)
 {
 	// this function is used in multiple places
@@ -472,40 +578,6 @@ float box_rmse(const box & a, const box & b)
 				pow(a.y-b.y, 2) +
 				pow(a.w-b.w, 2) +
 				pow(a.h-b.h, 2));
-}
-
-inline dbox dintersect(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12");
-
-	const float w = overlap(a.x, a.w, b.x, b.w);
-	const float h = overlap(a.y, a.h, b.y, b.h);
-	const dbox dover = derivative(a, b);
-
-	dbox di;
-	di.dw = dover.dw * h;
-	di.dx = dover.dx * h;
-	di.dh = dover.dh * w;
-	di.dy = dover.dy * w;
-
-	return di;
-}
-
-inline dbox dunion(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12");
-
-	const dbox di = dintersect(a, b);
-
-	dbox du;
-	du.dw = a.h - di.dw;
-	du.dh = a.w - di.dh;
-	du.dx = -di.dx;
-	du.dy = -di.dy;
-
-	return du;
 }
 
 
@@ -534,6 +606,7 @@ void test_dunion()
 	printf("Union Manual %f %f %f %f\n", xinter, yinter, winter, hinter);
 }
 
+
 void test_dintersect()
 {
 	TAT(TATPARMS);
@@ -558,6 +631,7 @@ void test_dintersect()
 	hinter = (hinter - inter)/(.0001);
 	printf("Inter Manual %f %f %f %f\n", xinter, yinter, winter, hinter);
 }
+
 
 void test_box()
 {
@@ -589,6 +663,7 @@ void test_box()
 	hiou = ((1-hiou)*(1-hiou) - iou)/(.00001);
 	printf("manual %f %f %f %f\n", xiou, yiou, wiou, hiou);
 }
+
 
 dbox diou(const box & a, const box & b)
 {
@@ -625,39 +700,6 @@ dbox diou(const box & a, const box & b)
 	dd.dh = (di.dh*u - du.dh*i) / (u*u);
 
 	return dd;
-}
-
-namespace
-{
-	struct sortable_bbox
-	{
-		int index;
-		int class_id;
-		float **probs;
-	};
-}
-
-inline int nms_comparator(const void *pa, const void *pb)
-{
-	// this is only called from 1 place
-	TAT(TATPARMS);
-
-	sortable_bbox a = *(sortable_bbox *)pa;
-	sortable_bbox b = *(sortable_bbox *)pb;
-
-	float diff = a.probs[a.index][b.class_id] - b.probs[b.index][b.class_id];
-
-	if(diff < 0.0f)
-	{
-		return 1;
-	}
-
-	if(diff > 0.0f)
-	{
-		return -1;
-	}
-
-	return 0;
 }
 
 
@@ -705,32 +747,6 @@ void do_nms_sort_v2(box *boxes, float **probs, int total, int classes, float thr
 	}
 
 	free(s);
-}
-
-
-namespace
-{
-	static inline void sort_box_detections(detection * dets, const int total)
-	{
-		TAT(TATPARMS);
-
-		if (total > 1)
-		{
-			// We want to sort from high probability to low probability.  The default sort behaviour would be to
-			// sort from low to high.  We reverse the sort order by comparing RHS to LHS instead of LHS to RHS.
-
-			std::sort(dets, dets + total,
-					[](const detection & lhs, const detection & rhs) -> bool
-					{
-						if (rhs.sort_class < 0)
-						{
-							return rhs.objectness < lhs.objectness;
-						}
-
-						return rhs.prob[rhs.sort_class] < lhs.prob[rhs.sort_class];
-					});
-		}
-	}
 }
 
 
@@ -831,6 +847,7 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
 	}
 }
 
+
 void do_nms(box *boxes, float **probs, int total, int classes, float thresh)
 {
 	// this is called from many locations
@@ -929,6 +946,7 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 	}
 }
 
+
 box encode_box(const box & b, const box & anchor)
 {
 	// not called, but exposed in the API
@@ -942,6 +960,7 @@ box encode_box(const box & b, const box & anchor)
 
 	return encode;
 }
+
 
 box decode_box(const box & b, const box & anchor)
 {
