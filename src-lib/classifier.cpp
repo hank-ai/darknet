@@ -1,22 +1,12 @@
-#include "network.hpp"
-#include "utils.hpp"
-#include "parser.hpp"
-#include "option_list.hpp"
-#include "blas.hpp"
-#include "assert.h"
-#include "classifier.hpp"
-#include "data.hpp"
-#include "image.hpp"
-#include "dark_cuda.hpp"
-
 #include "darknet_internal.hpp"
 
+
 #ifdef WIN32
-#include <time.h>
 #include "gettimeofday.h"
 #else
 #include <sys/time.h>
 #endif
+
 
 float validate_classifier_single(char *datacfg, char *filename, char *weightfile, network *existing_net, int topk_custom);
 

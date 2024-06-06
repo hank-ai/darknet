@@ -1,16 +1,5 @@
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
-
-#include "convolutional_layer.hpp"
-#include "batchnorm_layer.hpp"
-#include "gemm.hpp"
-#include "blas.hpp"
+#include "darknet_internal.hpp"
 #include "im2col.hpp"
-#include "col2im.hpp"
-#include "dark_cuda.hpp"
-#include "box.hpp"
-#include "Timing.hpp"
 
 
 extern "C"

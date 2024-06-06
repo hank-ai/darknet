@@ -1,12 +1,5 @@
-#include "cost_layer.hpp"
-#include "utils.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
-#include "Timing.hpp"
-#include <math.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include "darknet_internal.hpp"
+
 
 COST_TYPE get_cost_type(char *s)
 {

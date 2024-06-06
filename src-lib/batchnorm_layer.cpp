@@ -1,8 +1,5 @@
-#include "batchnorm_layer.hpp"
-#include "blas.hpp"
-#include "utils.hpp"
-#include "Timing.hpp"
-#include <stdio.h>
+#include "darknet_internal.hpp"
+
 
 layer make_batchnorm_layer(int batch, int w, int h, int c, int train)
 {

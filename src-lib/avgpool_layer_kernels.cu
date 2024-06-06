@@ -1,11 +1,5 @@
-#include "darknet.h"
-#include "Timing.hpp"
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
+#include "darknet_internal.hpp"
 
-#include "avgpool_layer.hpp"
-#include "dark_cuda.hpp"
 
 __global__ void forward_avgpool_layer_kernel(int n, int w, int h, int c, float *input, float *output)
 {

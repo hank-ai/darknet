@@ -13,7 +13,8 @@ namespace
 }
 
 
-void empty_func(dropout_layer l, network_state state) {
+void empty_func(dropout_layer l, network_state state)
+{
 	//l.output_gpu = state.input;
 }
 
@@ -1461,6 +1462,10 @@ network parse_network_cfg(char *filename)
 
 network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 {
+	/// @todo V3 JAZZ
+	Darknet::CfgFile cfg_file(filename);
+	std::cout << cfg_file.debug() << std::endl;
+
 	TAT(TATPARMS);
 
 	if (filename == nullptr)
@@ -2657,6 +2662,7 @@ network *load_network(char *cfg, char *weights, int clear)
 	TAT(TATPARMS);
 
 	printf(" Try to load cfg: %s, clear = %d \n", cfg, clear);
+
 	network* net = (network*)xcalloc(1, sizeof(network));
 	*net = parse_network_cfg(cfg);
 	if (weights && weights[0] != 0) {

@@ -1,15 +1,5 @@
-#include "lstm_layer.hpp"
-#include "connected_layer.hpp"
-#include "utils.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
-#include "gemm.hpp"
-#include "Timing.hpp"
+#include "darknet_internal.hpp"
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static void increment_layer(layer *l, int steps)
 {

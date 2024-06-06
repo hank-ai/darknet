@@ -1,14 +1,4 @@
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
-
-#include <cfloat>
-
-#include "maxpool_layer.hpp"
-#include "convolutional_layer.hpp"
-#include "blas.hpp"
-#include "dark_cuda.hpp"
-#include "Timing.hpp"
+#include "darknet_internal.hpp"
 
 
 __global__ void forward_maxpool_depth_layer_kernel(int n, int w, int h, int c, int out_c, int batch, float *input, float *output, int *indexes)

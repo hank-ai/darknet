@@ -16,28 +16,8 @@
  */
 
 
-#include "darknet.h"
+#include "darknet_internal.hpp"
 #include "yolo_v2_class.hpp"
-
-#include "network.hpp"
-
-extern "C" {
-#include "detection_layer.hpp"
-#include "region_layer.hpp"
-#include "cost_layer.hpp"
-#include "utils.hpp"
-#include "parser.hpp"
-#include "box.hpp"
-#include "image_opencv.hpp"
-#include "demo.hpp"
-#include "option_list.hpp"
-}
-//#include <sys/time.h>
-
-#include <vector>
-#include <iostream>
-#include <algorithm>
-#include <cmath>
 
 #define NFRAMES 3
 
