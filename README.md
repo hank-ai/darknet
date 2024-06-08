@@ -6,6 +6,7 @@
 	* [Darknet Version](#darknet-version)
 * [MSCOCO Pre-trained Weights](#mscoco-pre-trained-weights)
 * [Building](#building)
+	* [Google Colab](#google-colab)
 	* [Linux CMake Method](#linux-cmake-method)
 	* [Windows CMake Method](#windows-cmake-method)
 * [Using Darknet](#using-darknet)
@@ -84,12 +85,19 @@ The MSCOCO pre-trained weights are provided for demo-purpose only.  People are e
 
 The various build methods available in the past have been merged together into a single unified solution.  Darknet requires OpenCV, and uses CMake to generate the necessary project files.
 
+* [Google Colab](#google-colab)
 * [Linux](#linux-cmake-method)
 * [Windows](#windows-cmake-method)
 
 **Beware if you are following old tutorials with more complicated build steps, or build steps that don't match what is in this readme.**  The new build steps as described below started in August 2023.
 
 Software developers are encouraged to visit https://darknetcv.ai/ to get information on the internals of the Darknet/YOLO object detection framework.
+
+## Google Colab
+
+The Google Colab instructions are the same as the [Linux](#linux-cmake-method) instructions.  But some Jupyter notebooks are available showing how to do certain tasks, such as training a new network.
+
+See the notebooks in the `colab` subdirectory.
 
 ## Linux CMake Method
 
