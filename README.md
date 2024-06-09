@@ -95,7 +95,7 @@ Software developers are encouraged to visit https://darknetcv.ai/ to get informa
 
 ## Google Colab
 
-The Google Colab instructions are the same as the [Linux](#linux-cmake-method) instructions.  But some Jupyter notebooks are available showing how to do certain tasks, such as training a new network.
+The Google Colab instructions are the same as the [Linux](#linux-cmake-method) instructions.  Several Jupyter notebooks are available showing how to do certain tasks, such as training a new network.
 
 See the notebooks in the `colab` subdirectory.
 
