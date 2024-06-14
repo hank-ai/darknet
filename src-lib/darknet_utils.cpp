@@ -217,6 +217,24 @@ void Darknet::display_warning_msg(const std::string & msg)
 }
 
 
+std::string Darknet::convert_to_lowercase_alphanum(const std::string & arg)
+{
+	TAT(TATPARMS);
+
+	std::string str;
+	str.reserve(arg.length());
+	for (auto & c : arg)
+	{
+		if (std::isalnum(c))
+		{
+			str.push_back(std::tolower(c));
+		}
+	}
+
+	return str;
+}
+
+
 std::string Darknet::text_to_simple_label(std::string txt)
 {
 	TAT(TATPARMS);

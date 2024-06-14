@@ -1465,6 +1465,7 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 	/// @todo V3 JAZZ
 	Darknet::CfgFile cfg_file(filename);
 	std::cout << cfg_file.debug() << std::endl;
+	cfg_file.create_network();
 
 	TAT(TATPARMS);
 
@@ -1502,6 +1503,8 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 		darknet_fatal_error(DARKNET_LOC, "first section must be [net] or [network]");
 	}
 	parse_net_options(options, &net);
+
+	// xxxxxxx
 
 #ifdef GPU
 	printf("net.optimized_memory = %d \n", net.optimized_memory);
@@ -1957,9 +1960,10 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 }
 
 
-
 list *read_cfg(char *filename)
 {
+	/// @todo V3 JAZZ This is called from a single place -- parse_network_cfg_custom() -- so as soon as CfgFile is working we can get rid of this.
+
 	TAT(TATPARMS);
 
 	FILE *file = fopen(filename, "r");
@@ -2015,6 +2019,7 @@ list *read_cfg(char *filename)
 
 	return sections;
 }
+
 
 void save_convolutional_weights_binary(layer l, FILE *fp)
 {

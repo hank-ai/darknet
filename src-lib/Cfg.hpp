@@ -10,6 +10,9 @@ namespace Darknet
 		public:
 
 			/// Consructor.
+			CfgLine();
+
+			/// Consructor.
 			CfgLine(const std::string & l, const size_t ln, const std::string & lhs, const std::string & rhs);
 
 			/// Destructor.
@@ -25,7 +28,11 @@ namespace Darknet
 			std::optional<float> f;	///< if val is a single numeric value, it will be stored here
 			bool used;				///< remember if this line was consumed when the configuraiton was parsed
 	};
-	using CfgLines = std::list<CfgLine>;
+
+	/** Lines are not stored in the order in which they are read.  Instead, they are stored as a map which allows us to
+	 * quickly look up a value based on the key.  There should be no duplicate keys within a section.
+	 */
+	using CfgLines = std::map<std::string, CfgLine>;
 
 
 	/** A class that represents a specific section in a configuration file.  The start of each section has a @p [name]
@@ -42,14 +49,20 @@ namespace Darknet
 			/// Destructor.
 			~CfgSection();
 
+			int find_int(const std::string & key, const int default_value);
+			float find_float(const std::string & key, const float default_value);
+			std::string find_str(const std::string & key, const std::string & default_value="");
+			VFloat find_float_array(const std::string & key);
+
 			/// Iterate over the section to log every line.
 			std::string debug() const;
 
 			ELayerType type;		///< the layer type for this section (e.g., [convolutional] or [yolo])
+			std::string name;		///< the name of the section (so we don't have to keep looking up the type)
 			size_t line_number;		///< line number where this section starts
 			CfgLines lines;			///< all of the lines within a section
 	};
-	using CfgSections = std::list<CfgSection>;
+	using CfgSections = std::vector<CfgSection>;
 
 
 	/** A class that represents a Darknet/YOLO configuration file.  Contains various @ref "sections", which in turn has
@@ -62,23 +75,30 @@ namespace Darknet
 			/// Consructor.
 			CfgFile();
 
-			/// Consructor.  Immediately calls @ref parse().
+			/// Consructor.  Immediately calls @ref read().
 			CfgFile(const std::filesystem::path & fn);
 
 			/// Destructor.
 			~CfgFile();
 
-			/// Parse the given configuration file.  Forgets about any configuration file specified in the constructor (if any).
-			CfgFile & parse(const std::filesystem::path & fn);
+			/// Read the given configuration file.  Forgets about any configuration file specified in the constructor (if any).
+			CfgFile & read(const std::filesystem::path & fn);
 
-			/// Parse the configuration file that was specified in the constructor.
-			CfgFile & parse();
+			/// Read the configuration file that was specified in the constructor.
+			CfgFile & read();
 
 			/// Determine if a .cfg file has been parsed.
 			bool empty() const { return sections.empty(); }
 
 			/// Iterate over the content to record some debug information about the configuration.
 			std::string debug() const;
+
+			/// Create a Darknet network object from the configuration that was parsed.
+			network * create_network();
+
+			network create_network(network & net, const int batch=1, int time_steps=1);
+
+			CfgFile & parse_net_section(const size_t section_idx, network & net);
 
 			std::filesystem::path filename;
 

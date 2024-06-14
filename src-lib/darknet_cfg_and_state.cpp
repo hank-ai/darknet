@@ -73,24 +73,6 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 }
 
 
-std::string convert_to_lowercase_alphanum(const std::string & arg)
-{
-	TAT(TATPARMS);
-
-	std::string str;
-	str.reserve(arg.length());
-	for (auto & c : arg)
-	{
-		if (std::isalnum(c))
-		{
-			str.push_back(std::tolower(c));
-		}
-	}
-
-	return str;
-}
-
-
 Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char ** argp)
 {
 	TAT(TATPARMS);

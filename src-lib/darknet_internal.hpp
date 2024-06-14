@@ -42,6 +42,7 @@ namespace Darknet
 	using SStr		= std::set<std::string>;
 	using VInt		= std::vector<int>;
 	using VStr		= std::vector<std::string>;
+	using VFloat	= std::vector<float>;
 	using VThreads	= std::vector<std::thread>;
 
 	/** This is used to help keep some state between calls to functions fill_network_boxes(), get_yolo_detections(), etc.

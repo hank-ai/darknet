@@ -687,7 +687,7 @@ typedef enum {
 
 // network.h
 typedef struct network {
-	int n;
+	int n;	///< the number of layers in the network
 	int batch;
 	uint64_t *seen;
 	float *badlabels_reject_threshold;
