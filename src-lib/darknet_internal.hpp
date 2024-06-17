@@ -65,6 +65,7 @@ namespace Darknet
 
 #include "darknet_args_and_parms.hpp"
 #include "darknet_cfg_and_state.hpp"
+#include "darknet_enums.hpp"
 #include "darknet_layers.hpp"
 #include "darknet_format_and_colour.hpp"
 #include "darknet_utils.hpp"

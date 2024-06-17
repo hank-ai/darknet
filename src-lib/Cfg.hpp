@@ -122,5 +122,19 @@ namespace Darknet
 
 			/// The total number of lines that was parsed from the .cfg file, including comments.
 			size_t total_lines;
+
+			/// Items which are needed while parsing the layers.
+			struct CommonParms
+			{
+				int batch;
+				int inputs;
+				int h;
+				int w;
+				int c;
+				int index;
+				int time_steps;
+				int train;
+			};
+			CommonParms parms;
 	};
 }

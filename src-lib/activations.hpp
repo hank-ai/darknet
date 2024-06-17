@@ -5,9 +5,6 @@
 #include <cmath>
 #include "utils.hpp"
 
-//typedef enum{
-//    LOGISTIC, RELU, RELIE, LINEAR, RAMP, TANH, PLSE, LEAKY, ELU, LOGGY, STAIR, HARDTAN, LHTAN, SELU, SWISH, MISH
-//}ACTIVATION;
 
 #ifdef __cplusplus
 extern "C" {

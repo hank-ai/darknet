@@ -104,7 +104,7 @@ std::string Darknet::CfgLine::debug() const
 	TAT(TATPARMS);
 
 	std::stringstream ss;
-	ss << line_number << ": key=" << key << " val=" << val;
+	ss << line_number << " used=" << (used ? "YES" : "no") << " key=" << key << " val=" << val;
 
 	if (f.has_value())
 	{
@@ -338,6 +338,8 @@ Darknet::CfgFile::CfgFile() :
 {
 	TAT(TATPARMS);
 
+	parms = {0};
+
 	return;
 }
 
@@ -450,7 +452,7 @@ Darknet::CfgFile & Darknet::CfgFile::read()
 					darknet_fatal_error(DARKNET_LOC, "cannot add a configuration line without a section at line #%ld in %s", total_lines, filename.string().c_str());
 				}
 
-				const std::string key = convert_to_lowercase_alphanum(matches.str(2));
+				const std::string key = matches.str(2);
 				const std::string val = matches.str(3);
 
 				auto & s = (sections.empty() == false ? sections.back() : network_section);
@@ -530,23 +532,6 @@ network * Darknet::CfgFile::create_network()
 }
 
 
-namespace
-{
-	struct Size_Params
-	{
-		int batch;
-		int inputs;
-		int h;
-		int w;
-		int c;
-		int index;
-		int time_steps;
-		int train;
-		network net;
-	};
-}
-
-
 network Darknet::CfgFile::create_network(network & net, int batch, int time_steps)
 {
 	TAT(TATPARMS);
@@ -572,17 +557,15 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 	net = make_network(sections.size());
 	net.gpu_index = cfg_and_state.gpu_index;
 
-	Size_Params params = {0};
-
 	if (batch > 0)
 	{
 		// allocates memory for inference only
-		params.train = 0;
+		parms.train = 0;
 	}
 	else
 	{
 		// allocates memory for inference & training
-		params.train = 1;
+		parms.train = 1;
 	}
 
 //	parse_net_options(options, &net);
@@ -590,16 +573,16 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 
 #ifdef GPU
 	printf("net.optimized_memory = %d \n", net.optimized_memory);
-	if (net.optimized_memory >= 2 && params.train)
+	if (net.optimized_memory >= 2 && parms.train)
 	{
 		pre_allocate_pinned_memory((size_t)1024 * 1024 * 1024 * 8);   // pre-allocate 8 GB CPU-RAM for pinned memory
 	}
 #endif  // GPU
 
-	params.h = net.h;
-	params.w = net.w;
-	params.c = net.c;
-	params.inputs = net.inputs;
+	parms.h = net.h;
+	parms.w = net.w;
+	parms.c = net.c;
+	parms.inputs = net.inputs;
 
 	if (batch > 0)					net.batch		= batch;
 	if (time_steps > 0)				net.time_steps	= time_steps;
@@ -607,11 +590,10 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 	if (net.time_steps < 1)			net.time_steps	= 1;
 	if (net.batch < net.time_steps)	net.batch		= net.time_steps;
 
-	params.batch		= net.batch;
-	params.time_steps	= net.time_steps;
-	params.net			= net;
+	parms.batch		= net.batch;
+	parms.time_steps	= net.time_steps;
 
-	printf("mini_batch=%d, batch=%d, time_steps=%d, train=%d \n", net.batch, net.batch * net.subdivisions, net.time_steps, params.train);
+	printf("mini_batch=%d, batch=%d, time_steps=%d, train=%d \n", net.batch, net.batch * net.subdivisions, net.time_steps, parms.train);
 
 	int last_stop_backward = -1;
 	int avg_outputs = 0;
@@ -626,6 +608,8 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 	int receptive_h_scale = 1;
 	const int show_receptive_field = network_section.find_float("show_receptive_field", 0);
 
+//	network_section.find_unused_lines();
+
 #if 0 // SC
 	n = n->next;
 	int count = 0;
@@ -633,7 +617,7 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 #endif
 
 	// find the last section in which "stopbackward" appears
-	if (params.train == 1)
+	if (parms.train == 1)
 	{
 		for (size_t idx = 0; idx < sections.size(); idx ++)
 		{
@@ -644,19 +628,19 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 		}
 	}
 
-	int old_params_train = params.train;
+	int old_parms_train = parms.train;
 
 	fprintf(stderr, "   layer   filters  size/strd(dil)      input                output\n");
 
 	for (size_t idx = 0; idx < sections.size(); idx ++)
 	{
-		params.train = old_params_train;
+		parms.train = old_parms_train;
 		if (idx < last_stop_backward)
 		{
-			params.train = 0;
+			parms.train = 0;
 		}
 
-		params.index = idx;
+		parms.index = idx;
 
 		layer l = { (LAYER_TYPE)0 };
 
@@ -840,7 +824,7 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 #ifdef GPU
 		// futher GPU-memory optimization: net.optimized_memory == 2
 		l.optimized_memory = net.optimized_memory;
-		if (net.optimized_memory == 1 && params.train && l.type != DROPOUT)
+		if (net.optimized_memory == 1 && parms.train && l.type != DROPOUT)
 		{
 			if (l.delta_gpu)
 			{
@@ -848,7 +832,7 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 				l.delta_gpu = NULL;
 			}
 		}
-		else if (net.optimized_memory >= 2 && params.train && l.type != DROPOUT)
+		else if (net.optimized_memory >= 2 && parms.train && l.type != DROPOUT)
 		{
 			if (l.output_gpu)
 			{
@@ -925,17 +909,17 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 		{
 			if (l.antialiasing)
 			{
-				params.h = l.input_layer->out_h;
-				params.w = l.input_layer->out_w;
-				params.c = l.input_layer->out_c;
-				params.inputs = l.input_layer->outputs;
+				parms.h = l.input_layer->out_h;
+				parms.w = l.input_layer->out_w;
+				parms.c = l.input_layer->out_c;
+				parms.inputs = l.input_layer->outputs;
 			}
 			else
 			{
-				params.h = l.out_h;
-				params.w = l.out_w;
-				params.c = l.out_c;
-				params.inputs = l.outputs;
+				parms.h = l.out_h;
+				parms.w = l.out_w;
+				parms.c = l.out_c;
+				parms.inputs = l.outputs;
 			}
 		}
 		if (l.bflops > 0)
@@ -976,7 +960,7 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 	}
 
 #ifdef GPU
-	if (net.optimized_memory && params.train)
+	if (net.optimized_memory && parms.train)
 	{
 		for (int k = 0; k < net.n; ++k)
 		{
@@ -1204,16 +1188,7 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section(network & net)
 		darknet_fatal_error(DARKNET_LOC, "no input parameters supplied");
 	}
 
-	const std::string policy = s.find_str("policy", "constant");
-	net.policy = (
-			policy == "random"		? RANDOM	:
-			policy == "poly"		? POLY		:
-			policy == "constant"	? CONSTANT	:
-			policy == "step"		? STEP		:
-			policy == "exp"			? EXP		:
-			policy == "sigmoid"		? SIG		:
-			policy == "steps"		? STEPS		:
-			policy == "sgdr"		? SGDR		: CONSTANT);
+	net.policy = static_cast<learning_rate_policy>(Darknet::get_learning_rate_policy_from_name(s.find_str("policy", "constant")));
 
 	net.burn_in = s.find_int("burn_in", 0);
 
@@ -1293,6 +1268,109 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section(network & net)
 
 convolutional_layer Darknet::CfgFile::parse_convolutional_section(const size_t section_idx, network & net)
 {
-	convolutional_layer l;
-	return l;
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int n = s.find_int("filters", 1);
+	int groups = s.find_int("groups", 1);
+	int size = s.find_int("size", 1);
+	int stride = -1;
+	//int stride = s.find_int("stride",1);
+	int stride_x = s.find_int("stride_x", -1);
+	int stride_y = s.find_int("stride_y", -1);
+	if (stride_x < 1 || stride_y < 1)
+	{
+		stride = s.find_int("stride", 1);
+		if (stride_x < 1) stride_x = stride;
+		if (stride_y < 1) stride_y = stride;
+	}
+	else
+	{
+		stride = s.find_int("stride", 1);
+	}
+	int dilation = s.find_int("dilation", 1);
+	int antialiasing = s.find_int("antialiasing", 0);
+	if (size == 1)
+	{
+		dilation = 1;
+	}
+	int pad = s.find_int("pad", 0);
+	int padding = s.find_int("padding", 0);
+	if (pad)
+	{
+		padding = size / 2;
+	}
+
+	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(s.find_str("activation", "logistic")));
+
+	int assisted_excitation = s.find_float("assisted_excitation", 0);
+
+	int share_index = s.find_int("share_index", -1000000000);
+	convolutional_layer *share_layer = nullptr;
+	if (share_index >= 0)
+	{
+		share_layer = &net.layers[share_index];
+	}
+	else if(share_index != -1000000000)
+	{
+		share_layer = &net.layers[parms.index + share_index];
+	}
+
+	int h = parms.h;
+	int w = parms.w;
+	int c = parms.c;
+	int batch = parms.batch;
+	if (!(h && w && c))
+	{
+		darknet_fatal_error(DARKNET_LOC, "layer before convolutional layer must output image");
+	}
+	int batch_normalize = s.find_int("batch_normalize", 0);
+	int cbn = s.find_int("cbn", 0);
+	if (cbn)
+	{
+		batch_normalize = 2;
+	}
+	int binary = s.find_int("binary", 0);
+	int xnor = s.find_int("xnor", 0);
+	int use_bin_output = s.find_int("bin_output", 0);
+	int sway = s.find_int("sway", 0);
+	int rotate = s.find_int("rotate", 0);
+	int stretch = s.find_int("stretch", 0);
+	int stretch_sway = s.find_int("stretch_sway", 0);
+
+	if ((sway + rotate + stretch + stretch_sway) > 1)
+	{
+		darknet_fatal_error(DARKNET_LOC, "[convolutional] layer can only set one of sway=1, rotate=1, or stretch=1");
+	}
+	int deform = sway || rotate || stretch || stretch_sway;
+	if (deform && size == 1)
+	{
+		darknet_fatal_error(DARKNET_LOC, "[convolutional] layer sway, rotate, or stretch must only be used with size >= 3");
+	}
+
+	convolutional_layer layer = make_convolutional_layer(batch, 1, h, w, c, n, groups, size, stride_x, stride_y, dilation, padding, activation, batch_normalize, binary, xnor, net.adam, use_bin_output, parms.index, antialiasing, share_layer, assisted_excitation, deform, parms.train);
+
+	layer.flipped = s.find_int("flipped", 0);
+	layer.dot = s.find_float("dot", 0);
+	layer.sway = sway;
+	layer.rotate = rotate;
+	layer.stretch = stretch;
+	layer.stretch_sway = stretch_sway;
+	layer.angle = s.find_float("angle", 15);
+	layer.grad_centr = s.find_int("grad_centr", 0);
+	layer.reverse = s.find_float("reverse", 0);
+	layer.coordconv = s.find_int("coordconv", 0);
+
+	layer.stream = s.find_int("stream", -1);
+	layer.wait_stream_id = s.find_int("wait_stream", -1);
+
+	if(net.adam)
+	{
+		layer.B1 = net.B1;
+		layer.B2 = net.B2;
+		layer.eps = net.eps;
+	}
+
+	return layer;
 }
