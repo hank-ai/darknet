@@ -63,6 +63,7 @@ namespace Darknet
 			float find_float(const std::string & key, const float default_value);
 			std::string find_str(const std::string & key, const std::string & default_value="");
 			VFloat find_float_array(const std::string & key);
+			VInt find_int_array(const std::string & key);
 
 			/// Iterate over the section to log every line.
 			std::string debug() const;
@@ -110,7 +111,8 @@ namespace Darknet
 
 			CfgFile & parse_net_section(network & net);
 
-			convolutional_layer parse_convolutional_section(const size_t section_idx, network & net);
+			convolutional_layer	parse_convolutional_section	(const size_t section_idx, network & net);
+			route_layer			parse_route_section			(const size_t section_idx, network & net);
 
 			std::filesystem::path filename;
 

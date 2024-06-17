@@ -264,6 +264,7 @@ Darknet::VFloat Darknet::CfgSection::find_float_array(const std::string & key)
 	if (iter != lines.end())
 	{
 		CfgLine & l = iter->second;
+		l.used = true;
 		line = l.line_number;
 		auto val = l.val;
 
@@ -292,6 +293,69 @@ Darknet::VFloat Darknet::CfgSection::find_float_array(const std::string & key)
 			{
 				const float f = std::stof(tmp);
 				v.push_back(f);
+			}
+			catch(...)
+			{
+				break;
+			}
+
+			pos = comma;
+		}
+	}
+
+	if (cfg_and_state.is_verbose)
+	{
+		std::cout << "[" << name << "] #" << line << " " << key << "=[";
+		for (size_t idx = 0; idx < v.size(); idx ++)
+		{
+			if (idx > 0) std::cout << ", ";
+			std::cout << v[idx];
+		}
+		std::cout << "]" << std::endl;
+	}
+
+	return v;
+}
+
+
+Darknet::VInt Darknet::CfgSection::find_int_array(const std::string & key)
+{
+	VInt v;
+	auto line = line_number;
+
+	auto iter = lines.find(key);
+	if (iter != lines.end())
+	{
+		CfgLine & l = iter->second;
+		l.used = true;
+		line = l.line_number;
+		auto val = l.val;
+
+		size_t pos = 0;
+		while (pos < val.size())
+		{
+			const size_t digit = val.find_first_of("-0123456789", pos);
+			if (digit == std::string::npos)
+			{
+				// no numbers left to read
+				break;
+			}
+
+			const size_t comma = val.find_first_not_of("-0123456789", digit);
+			std::string tmp;
+			if (comma == std::string::npos)
+			{
+				tmp = val.substr(digit);
+			}
+			else
+			{
+				tmp = val.substr(digit, comma - digit);
+			}
+
+			try
+			{
+				const int i = std::stoi(tmp);
+				v.push_back(i);
 			}
 			catch(...)
 			{
@@ -590,7 +654,7 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 	if (net.time_steps < 1)			net.time_steps	= 1;
 	if (net.batch < net.time_steps)	net.batch		= net.time_steps;
 
-	parms.batch		= net.batch;
+	parms.batch			= net.batch;
 	parms.time_steps	= net.time_steps;
 
 	printf("mini_batch=%d, batch=%d, time_steps=%d, train=%d \n", net.batch, net.batch * net.subdivisions, net.time_steps, parms.train);
@@ -628,13 +692,13 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 		}
 	}
 
-	int old_parms_train = parms.train;
+	const auto original_parms_train = parms.train;
 
 	fprintf(stderr, "   layer   filters  size/strd(dil)      input                output\n");
 
 	for (size_t idx = 0; idx < sections.size(); idx ++)
 	{
-		parms.train = old_parms_train;
+		parms.train = original_parms_train;
 		if (idx < last_stop_backward)
 		{
 			parms.train = 0;
@@ -642,13 +706,28 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 
 		parms.index = idx;
 
-		layer l = { (LAYER_TYPE)0 };
+		layer l = {(LAYER_TYPE)0};
 
 		auto & section = sections.at(idx);
 
 		switch (section.type)
 		{
 			case ELayerType::CONVOLUTIONAL:		{	l = parse_convolutional_section(idx, net);							break;	}
+
+			case ELayerType::ROUTE:
+			{
+				l = parse_route_section(idx, net);
+				for (int k = 0; k < l.n; ++k)
+				{
+					net.layers[l.input_layers[k]].use_bin_output = 0;
+					if (idx >= last_stop_backward)
+					{
+						net.layers[l.input_layers[k]].keep_delta_gpu = 1;
+					}
+				}
+				break;
+			}
+
 #if 0 // SC
 			case ELayerType::LOCAL:				{	l = parse_local(options, params);									break;	}
 			case ELayerType::ACTIVE:			{	l = parse_activation(options, params);								break;	}
@@ -682,19 +761,6 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 				l = parse_softmax(options, params);
 				net.hierarchy = l.softmax_tree;
 				l.keep_delta_gpu = 1;
-				break;
-			}
-			case ELayerType::ROUTE:
-			{
-				l = parse_route(options, params);
-				for (int k = 0; k < l.n; ++k)
-				{
-					net.layers[l.input_layers[k]].use_bin_output = 0;
-					if (count >= last_stop_backward)
-					{
-						net.layers[l.input_layers[k]].keep_delta_gpu = 1;
-					}
-				}
 				break;
 			}
 			case ELayerType::SHORTCUT:
@@ -1222,7 +1288,7 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section(network & net)
 	}
 	else if (net.policy == STEPS || net.policy == SGDR)
 	{
-		auto steps		= s.find_float_array("steps");
+		auto steps		= s.find_int_array("steps");
 		auto scales		= s.find_float_array("scales");
 		auto seq_scales	= s.find_float_array("seq_scales");
 
@@ -1371,6 +1437,103 @@ convolutional_layer Darknet::CfgFile::parse_convolutional_section(const size_t s
 		layer.B2 = net.B2;
 		layer.eps = net.eps;
 	}
+
+	return layer;
+}
+
+
+route_layer Darknet::CfgFile::parse_route_section(const size_t section_idx, network & net)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	const auto v = s.find_int_array("layers");
+	if (v.empty())
+	{
+		darknet_fatal_error(DARKNET_LOC, "route layer at line #%ld must specify input layers", s.line_number);
+	}
+
+	int * layers = (int*)xcalloc(v.size(), sizeof(int));
+	int * sizes = (int*)xcalloc(v.size(), sizeof(int));
+
+	for (size_t idx = 0; idx < v.size(); idx ++)
+	{
+		int route_index = v[idx];
+		if (route_index < 0)
+		{
+			route_index = parms.index + route_index;
+		}
+
+		if (route_index >= parms.index)
+		{
+			darknet_fatal_error(DARKNET_LOC, "cannot route layer #%d in [%s] at line #%ld", route_index, s.name.c_str(), s.line_number);
+		}
+
+		layers[idx] = route_index;
+		sizes[idx] = net.layers[route_index].outputs;
+	}
+
+	int batch = parms.batch;
+
+	int groups = s.find_int("groups", 1);
+	int group_id = s.find_int("group_id", 0);
+
+	route_layer layer = make_route_layer(batch, v.size(), layers, sizes, groups, group_id);
+
+	convolutional_layer first = net.layers[layers[0]];
+	layer.out_w = first.out_w;
+	layer.out_h = first.out_h;
+	layer.out_c = first.out_c;
+
+	for (int i = 1; i < v.size(); ++i)
+	{
+		int index = layers[i];
+		convolutional_layer next = net.layers[index];
+		if(next.out_w == first.out_w && next.out_h == first.out_h)
+		{
+			layer.out_c += next.out_c;
+		}
+		else
+		{
+			display_warning_msg("Line #" + std::to_string(s.line_number) + ":  the width and height of the input layers are different.\n");
+			layer.out_h = layer.out_w = layer.out_c = 0;
+		}
+	}
+
+	layer.out_c = layer.out_c / layer.groups;
+
+	layer.w = first.w;
+	layer.h = first.h;
+	layer.c = layer.out_c;
+
+	layer.stream = s.find_int("stream", -1);
+	layer.wait_stream_id = s.find_int("wait_stream", -1);
+
+	/// @todo fix up all this fprintf()
+	if (v.size() > 3)
+	{
+		fprintf(stderr, " \t    ");
+	}
+	else if (v.size() > 1)
+	{
+		fprintf(stderr, " \t            ");
+	}
+	else
+	{
+		fprintf(stderr, " \t\t            ");
+	}
+
+	fprintf(stderr, "           ");
+	if (layer.groups > 1)
+	{
+		fprintf(stderr, "%d/%d", layer.group_id, layer.groups);
+	}
+	else
+	{
+		fprintf(stderr, "   ");
+	}
+	fprintf(stderr, " -> %4d x%4d x%4d \n", layer.out_w, layer.out_h, layer.out_c);
 
 	return layer;
 }
