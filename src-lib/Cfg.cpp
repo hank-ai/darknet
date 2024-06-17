@@ -4,6 +4,54 @@
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
+
+	static void set_train_only_bn(network & net)
+	{
+		TAT(TATPARMS);
+
+		int train_only_bn = 0;
+
+		for (auto idx = net.n - 1; idx >= 0; --idx)
+		{
+			if (net.layers[idx].train_only_bn)
+			{
+				// set l.train_only_bn for all previous layers
+				train_only_bn = net.layers[idx].train_only_bn;
+			}
+
+			if (train_only_bn)
+			{
+				net.layers[idx].train_only_bn = train_only_bn;
+
+				if (net.layers[idx].type == CONV_LSTM)
+				{
+					net.layers[idx].wf->train_only_bn = train_only_bn;
+					net.layers[idx].wi->train_only_bn = train_only_bn;
+					net.layers[idx].wg->train_only_bn = train_only_bn;
+					net.layers[idx].wo->train_only_bn = train_only_bn;
+					net.layers[idx].uf->train_only_bn = train_only_bn;
+					net.layers[idx].ui->train_only_bn = train_only_bn;
+					net.layers[idx].ug->train_only_bn = train_only_bn;
+					net.layers[idx].uo->train_only_bn = train_only_bn;
+
+					if (net.layers[idx].peephole)
+					{
+						net.layers[idx].vf->train_only_bn = train_only_bn;
+						net.layers[idx].vi->train_only_bn = train_only_bn;
+						net.layers[idx].vo->train_only_bn = train_only_bn;
+					}
+				}
+				else if (net.layers[idx].type == CRNN)
+				{
+					net.layers[idx].input_layer	->train_only_bn = train_only_bn;
+					net.layers[idx].self_layer	->train_only_bn = train_only_bn;
+					net.layers[idx].output_layer->train_only_bn = train_only_bn;
+				}
+			}
+		}
+
+		return;
+	}
 }
 
 
@@ -67,6 +115,14 @@ std::string Darknet::CfgLine::debug() const
 }
 
 
+Darknet::CfgSection::CfgSection() :
+	type(ELayerType::BLANK),
+	line_number(0)
+{
+	return;
+}
+
+
 Darknet::CfgSection::CfgSection(const std::string & l, const size_t ln) :
 	type(Darknet::get_layer_from_name(l)),
 	name(l),
@@ -83,6 +139,20 @@ Darknet::CfgSection::~CfgSection()
 	TAT(TATPARMS);
 
 	return;
+}
+
+
+const Darknet::CfgSection & Darknet::CfgSection::find_unused_lines() const
+{
+	for (const auto & [key, line] : lines)
+	{
+		if (line.used == false)
+		{
+			darknet_fatal_error(DARKNET_LOC, "config line #%ld from section [%s] is unused or invalid: %s", line.line_number, name.c_str(), line.line.c_str());
+		}
+	}
+
+	return *this;
 }
 
 
@@ -363,13 +433,19 @@ Darknet::CfgFile & Darknet::CfgFile::read()
 			const std::string section_name = matches.str(1);
 			if (section_name.size() > 0)
 			{
-				CfgSection s(section_name, total_lines);
-				sections.push_back(s);
+				if (network_section.empty())
+				{
+					network_section = CfgSection(section_name, total_lines);
+				}
+				else
+				{
+					sections.emplace_back(CfgSection(section_name, total_lines));
+				}
 			}
 			else
 			{
 				// a section must exist prior to reading a key=val pair
-				if (sections.empty())
+				if (network_section.line_number == 0 and sections.empty())
 				{
 					darknet_fatal_error(DARKNET_LOC, "cannot add a configuration line without a section at line #%ld in %s", total_lines, filename.string().c_str());
 				}
@@ -377,7 +453,7 @@ Darknet::CfgFile & Darknet::CfgFile::read()
 				const std::string key = convert_to_lowercase_alphanum(matches.str(2));
 				const std::string val = matches.str(3);
 
-				auto & s = sections.back();
+				auto & s = (sections.empty() == false ? sections.back() : network_section);
 
 				/* 2024-06-13:  As far as I know, each section should have unique keys.  The lines in each sections are stored in a
 				 * map, meaning duplicates are not allowed.  If this is not the case and a particular layer can have duplicate keys
@@ -482,14 +558,18 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 		darknet_fatal_error(DARKNET_LOC, "cannot create a network from empty configuration file \"%s\"", filename.string().c_str());
 	}
 
-	if (sections[0].type != ELayerType::NETWORK)
+	if (network_section.empty())
 	{
-		darknet_fatal_error(DARKNET_LOC, "first section in configuration should be [net] or [network], not [%s]", sections[0].name.c_str());
+		darknet_fatal_error(DARKNET_LOC, "configuration file %s does not contain a [net] or [network] section", filename.string().c_str());
+	}
+
+	if (network_section.type != ELayerType::NETWORK)
+	{
+		darknet_fatal_error(DARKNET_LOC, "expected to find [net] or [network], but instead found [%s] on line #%ld of %s", network_section.name.c_str(), network_section.line_number, filename.string().c_str());
 	}
 
 	// this will overwrite whatever is in "net" with a bunch of new pointers;
-	// the [net] is not a layer which is why we decrement
-	net = make_network(sections.size() - 1);
+	net = make_network(sections.size());
 	net.gpu_index = cfg_and_state.gpu_index;
 
 	Size_Params params = {0};
@@ -505,18 +585,87 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 		params.train = 1;
 	}
 
-	parse_net_section(0, net);
+//	parse_net_options(options, &net);
+	parse_net_section(net);
 
+#ifdef GPU
+	printf("net.optimized_memory = %d \n", net.optimized_memory);
+	if (net.optimized_memory >= 2 && params.train)
+	{
+		pre_allocate_pinned_memory((size_t)1024 * 1024 * 1024 * 8);   // pre-allocate 8 GB CPU-RAM for pinned memory
+	}
+#endif  // GPU
+
+	params.h = net.h;
+	params.w = net.w;
+	params.c = net.c;
+	params.inputs = net.inputs;
+
+	if (batch > 0)					net.batch		= batch;
+	if (time_steps > 0)				net.time_steps	= time_steps;
+	if (net.batch < 1)				net.batch		= 1;
+	if (net.time_steps < 1)			net.time_steps	= 1;
+	if (net.batch < net.time_steps)	net.batch		= net.time_steps;
+
+	params.batch		= net.batch;
+	params.time_steps	= net.time_steps;
+	params.net			= net;
+
+	printf("mini_batch=%d, batch=%d, time_steps=%d, train=%d \n", net.batch, net.batch * net.subdivisions, net.time_steps, params.train);
+
+	int last_stop_backward = -1;
+	int avg_outputs = 0;
+	int avg_counter = 0;
+	float bflops = 0;
+	size_t workspace_size = 0;
+	size_t max_inputs = 0;
+	size_t max_outputs = 0;
+	int receptive_w = 1;
+	int receptive_h = 1;
+	int receptive_w_scale = 1;
+	int receptive_h_scale = 1;
+	const int show_receptive_field = network_section.find_float("show_receptive_field", 0);
 
 #if 0 // SC
+	n = n->next;
+	int count = 0;
+	free_section(s);
+#endif
 
-	Size_Params params;
-
-	for (const auto & section : sections)
+	// find the last section in which "stopbackward" appears
+	if (params.train == 1)
 	{
+		for (size_t idx = 0; idx < sections.size(); idx ++)
+		{
+			if (sections.at(idx).find_int("stopbackward", 0))
+			{
+				last_stop_backward = idx;
+			}
+		}
+	}
+
+	int old_params_train = params.train;
+
+	fprintf(stderr, "   layer   filters  size/strd(dil)      input                output\n");
+
+	for (size_t idx = 0; idx < sections.size(); idx ++)
+	{
+		params.train = old_params_train;
+		if (idx < last_stop_backward)
+		{
+			params.train = 0;
+		}
+
+		params.index = idx;
+
+		layer l = { (LAYER_TYPE)0 };
+
+		auto & section = sections.at(idx);
+
 		switch (section.type)
 		{
-			case ELayerType::CONVOLUTIONAL:		{	l = parse_convolutional(options, params);							break;	}
+			case ELayerType::CONVOLUTIONAL:		{	l = parse_convolutional_section(idx, net);							break;	}
+#if 0 // SC
 			case ELayerType::LOCAL:				{	l = parse_local(options, params);									break;	}
 			case ELayerType::ACTIVE:			{	l = parse_activation(options, params);								break;	}
 			case ELayerType::RNN:				{	l = parse_rnn(options, params);										break;	}
@@ -627,369 +776,198 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 				fprintf(stderr, "empty \n");
 				break;
 			}
+#endif
 			default:
 			{
-				darknet_fatal_error(DARKNET_LOC, "layer type not recognized: \"%s\"", s->type);
+				darknet_fatal_error(DARKNET_LOC, "layer type \"%s\" not recognized on line #%ld in \"%s\"", section.name.c_str(), section.line_number, filename.string().c_str());
 			}
-		}
-	}
 
-	const auto & net_section = sections[0];
+		} // switch section type
 
-	if (batch > 0) params.train = 0;    // allocates memory for Inference only
-	else params.train = 1;              // allocates memory for Inference & Training
 
-	section *s = (section *)n->val;
-	list *options = s->options;
-	if(!is_network(s))
-	{
-		darknet_fatal_error(DARKNET_LOC, "first section must be [net] or [network]");
-	}
-	parse_net_options(options, &net);
-
-	#ifdef GPU
-	printf("net.optimized_memory = %d \n", net.optimized_memory);
-	if (net.optimized_memory >= 2 && params.train)
-	{
-		pre_allocate_pinned_memory((size_t)1024 * 1024 * 1024 * 8);   // pre-allocate 8 GB CPU-RAM for pinned memory
-	}
-	#endif  // GPU
-
-	params.h = net.h;
-	params.w = net.w;
-	params.c = net.c;
-	params.inputs = net.inputs;
-	if (batch > 0)					net.batch		= batch;
-	if (time_steps > 0)				net.time_steps	= time_steps;
-	if (net.batch < 1)				net.batch		= 1;
-	if (net.time_steps < 1)			net.time_steps	= 1;
-	if (net.batch < net.time_steps)	net.batch		= net.time_steps;
-	params.batch		= net.batch;
-	params.time_steps	= net.time_steps;
-	params.net			= net;
-
-	printf("mini_batch = %d, batch = %d, time_steps = %d, train = %d \n", net.batch, net.batch * net.subdivisions, net.time_steps, params.train);
-
-	int last_stop_backward = -1;
-	int avg_outputs = 0;
-	int avg_counter = 0;
-	float bflops = 0;
-	size_t workspace_size = 0;
-	size_t max_inputs = 0;
-	size_t max_outputs = 0;
-	int receptive_w = 1, receptive_h = 1;
-	int receptive_w_scale = 1, receptive_h_scale = 1;
-	const int show_receptive_field = option_find_float_quiet(options, "show_receptive_field", 0);
-
-	n = n->next;
-	int count = 0;
-	free_section(s);
-
-	// find l.stopbackward = option_find_int_quiet(options, "stopbackward", 0);
-	node *n_tmp = n;
-	int count_tmp = 0;
-	if (params.train == 1)
-	{
-		while (n_tmp)
+		// calculate receptive field
+		if (show_receptive_field)
 		{
-			s = (section *)n_tmp->val;
-			options = s->options;
-			int stopbackward = option_find_int_quiet(options, "stopbackward", 0);
-			if (stopbackward == 1)
+			int dilation = max_val_cmp(1, l.dilation);
+			int stride = max_val_cmp(1, l.stride);
+			int size = max_val_cmp(1, l.size);
+
+			if (l.type == UPSAMPLE || (l.type == REORG))
 			{
-				last_stop_backward = count_tmp;
-				printf("last_stop_backward = %d \n", last_stop_backward);
-			}
-			n_tmp = n_tmp->next;
-			++count_tmp;
-		}
-	}
-
-	int old_params_train = params.train;
-
-	fprintf(stderr, "   layer   filters  size/strd(dil)      input                output\n");
-	while(n)
-	{
-		params.train = old_params_train;
-		if (count < last_stop_backward) params.train = 0;
-
-		params.index = count;
-		fprintf(stderr, "%4d ", count);
-		s = (section *)n->val;
-		options = s->options;
-		layer l = { (LAYER_TYPE)0 };
-		LAYER_TYPE lt = string_to_layer_type(s->type);
-		if(lt == CONVOLUTIONAL){
-			l = parse_convolutional(options, params);
-		}else if(lt == LOCAL){
-			l = parse_local(options, params);
-		}else if(lt == ACTIVE){
-			l = parse_activation(options, params);
-		}else if(lt == RNN){
-			l = parse_rnn(options, params);
-		}else if(lt == GRU){
-			l = parse_gru(options, params);
-		}else if(lt == LSTM){
-			l = parse_lstm(options, params);
-		}else if (lt == CONV_LSTM) {
-			l = parse_conv_lstm(options, params);
-		}else if (lt == HISTORY) {
-			l = parse_history(options, params);
-		}else if(lt == CRNN){
-			l = parse_crnn(options, params);
-		}else if(lt == CONNECTED){
-			l = parse_connected(options, params);
-		}else if(lt == CROP){
-			l = parse_crop(options, params);
-		}else if(lt == COST){
-			l = parse_cost(options, params);
-			l.keep_delta_gpu = 1;
-		}else if(lt == REGION){
-			l = parse_region(options, params);
-			l.keep_delta_gpu = 1;
-		}else if (lt == YOLO) {
-			l = parse_yolo(options, params);
-			l.keep_delta_gpu = 1;
-		}else if (lt == GAUSSIAN_YOLO) {
-			l = parse_gaussian_yolo(options, params);
-			l.keep_delta_gpu = 1;
-		}else if(lt == DETECTION){
-			l = parse_detection(options, params);
-		}else if(lt == SOFTMAX){
-			l = parse_softmax(options, params);
-			net.hierarchy = l.softmax_tree;
-			l.keep_delta_gpu = 1;
-		}else if (lt == CONTRASTIVE) {
-			l = parse_contrastive(options, params);
-			l.keep_delta_gpu = 1;
-		}else if(lt == NORMALIZATION){
-			l = parse_normalization(options, params);
-		}else if(lt == BATCHNORM){
-			l = parse_batchnorm(options, params);
-		}else if(lt == MAXPOOL){
-			l = parse_maxpool(options, params);
-		}else if (lt == LOCAL_AVGPOOL) {
-			l = parse_local_avgpool(options, params);
-		}else if(lt == REORG){
-			l = parse_reorg(options, params);        }
-			else if (lt == REORG_OLD) {
-				l = parse_reorg_old(options, params);
-			}else if(lt == AVGPOOL){
-				l = parse_avgpool(options, params);
-			}else if(lt == ROUTE){
-				l = parse_route(options, params);
-				int k;
-				for (k = 0; k < l.n; ++k) {
-					net.layers[l.input_layers[k]].use_bin_output = 0;
-					if (count >= last_stop_backward)
-						net.layers[l.input_layers[k]].keep_delta_gpu = 1;
-				}
-			}else if (lt == UPSAMPLE) {
-				l = parse_upsample(options, params, net);
-			}else if(lt == SHORTCUT){
-				l = parse_shortcut(options, params, net);
-				net.layers[count - 1].use_bin_output = 0;
-				net.layers[l.index].use_bin_output = 0;
-				if (count >= last_stop_backward)
-					net.layers[l.index].keep_delta_gpu = 1;
-			}else if (lt == SCALE_CHANNELS) {
-				l = parse_scale_channels(options, params, net);
-				net.layers[count - 1].use_bin_output = 0;
-				net.layers[l.index].use_bin_output = 0;
-				net.layers[l.index].keep_delta_gpu = 1;
-			}
-			else if (lt == SAM) {
-				l = parse_sam(options, params, net);
-				net.layers[count - 1].use_bin_output = 0;
-				net.layers[l.index].use_bin_output = 0;
-				net.layers[l.index].keep_delta_gpu = 1;
-			} else if (lt == IMPLICIT) {
-				l = parse_implicit(options, params, net);
-			}else if(lt == DROPOUT){
-				l = parse_dropout(options, params);
-				l.output = net.layers[count-1].output;
-				l.delta = net.layers[count-1].delta;
-				#ifdef GPU
-				l.output_gpu = net.layers[count-1].output_gpu;
-				l.delta_gpu = net.layers[count-1].delta_gpu;
-				l.keep_delta_gpu = 1;
-				#endif
-			}
-			else if (lt == EMPTY) {
-				layer empty_layer = {(LAYER_TYPE)0};
-				l = empty_layer;
-				l.type = EMPTY;
-				l.w = l.out_w = params.w;
-				l.h = l.out_h = params.h;
-				l.c = l.out_c = params.c;
-				l.batch = params.batch;
-				l.inputs = l.outputs = params.inputs;
-				l.output = net.layers[count - 1].output;
-				l.delta = net.layers[count - 1].delta;
-				l.forward = empty_func;
-				l.backward = empty_func;
-				#ifdef GPU
-				l.output_gpu = net.layers[count - 1].output_gpu;
-				l.delta_gpu = net.layers[count - 1].delta_gpu;
-				l.keep_delta_gpu = 1;
-				l.forward_gpu = empty_func;
-				l.backward_gpu = empty_func;
-				#endif
-				fprintf(stderr, "empty \n");
+				l.receptive_w = receptive_w;
+				l.receptive_h = receptive_h;
+				l.receptive_w_scale = receptive_w_scale = receptive_w_scale / stride;
+				l.receptive_h_scale = receptive_h_scale = receptive_h_scale / stride;
 			}
 			else
 			{
-				darknet_fatal_error(DARKNET_LOC, "layer type not recognized: \"%s\"", s->type);
-			}
-
-			// calculate receptive field
-			if(show_receptive_field)
-			{
-				int dilation = max_val_cmp(1, l.dilation);
-				int stride = max_val_cmp(1, l.stride);
-				int size = max_val_cmp(1, l.size);
-
-				if (l.type == UPSAMPLE || (l.type == REORG))
+				if (l.type == ROUTE)
 				{
-
-					l.receptive_w = receptive_w;
-					l.receptive_h = receptive_h;
-					l.receptive_w_scale = receptive_w_scale = receptive_w_scale / stride;
-					l.receptive_h_scale = receptive_h_scale = receptive_h_scale / stride;
-
-				}
-				else {
-					if (l.type == ROUTE) {
-						receptive_w = receptive_h = receptive_w_scale = receptive_h_scale = 0;
-						int k;
-						for (k = 0; k < l.n; ++k) {
-							layer route_l = net.layers[l.input_layers[k]];
-							receptive_w = max_val_cmp(receptive_w, route_l.receptive_w);
-							receptive_h = max_val_cmp(receptive_h, route_l.receptive_h);
-							receptive_w_scale = max_val_cmp(receptive_w_scale, route_l.receptive_w_scale);
-							receptive_h_scale = max_val_cmp(receptive_h_scale, route_l.receptive_h_scale);
-						}
-					}
-					else
+					receptive_w = receptive_h = receptive_w_scale = receptive_h_scale = 0;
+					for (int k = 0; k < l.n; ++k)
 					{
-						int increase_receptive = size + (dilation - 1) * 2 - 1;// stride;
-						increase_receptive = max_val_cmp(0, increase_receptive);
-
-						receptive_w += increase_receptive * receptive_w_scale;
-						receptive_h += increase_receptive * receptive_h_scale;
-						receptive_w_scale *= stride;
-						receptive_h_scale *= stride;
+						layer route_l = net.layers[l.input_layers[k]];
+						receptive_w = max_val_cmp(receptive_w, route_l.receptive_w);
+						receptive_h = max_val_cmp(receptive_h, route_l.receptive_h);
+						receptive_w_scale = max_val_cmp(receptive_w_scale, route_l.receptive_w_scale);
+						receptive_h_scale = max_val_cmp(receptive_h_scale, route_l.receptive_h_scale);
 					}
-
-					l.receptive_w = receptive_w;
-					l.receptive_h = receptive_h;
-					l.receptive_w_scale = receptive_w_scale;
-					l.receptive_h_scale = receptive_h_scale;
 				}
-				//printf(" size = %d, dilation = %d, stride = %d, receptive_w = %d, receptive_w_scale = %d - ", size, dilation, stride, receptive_w, receptive_w_scale);
+				else
+				{
+					int increase_receptive = size + (dilation - 1) * 2 - 1;// stride;
+					increase_receptive = max_val_cmp(0, increase_receptive);
 
-				int cur_receptive_w = receptive_w;
-				int cur_receptive_h = receptive_h;
+					receptive_w += increase_receptive * receptive_w_scale;
+					receptive_h += increase_receptive * receptive_h_scale;
+					receptive_w_scale *= stride;
+					receptive_h_scale *= stride;
+				}
 
-				fprintf(stderr, "%4d - receptive field: %d x %d \n", count, cur_receptive_w, cur_receptive_h);
+				l.receptive_w = receptive_w;
+				l.receptive_h = receptive_h;
+				l.receptive_w_scale = receptive_w_scale;
+				l.receptive_h_scale = receptive_h_scale;
 			}
+			//printf(" size = %d, dilation = %d, stride = %d, receptive_w = %d, receptive_w_scale = %d - ", size, dilation, stride, receptive_w, receptive_w_scale);
 
-			#ifdef GPU
-			// futher GPU-memory optimization: net.optimized_memory == 2
-			l.optimized_memory = net.optimized_memory;
-			if (net.optimized_memory == 1 && params.train && l.type != DROPOUT) {
-				if (l.delta_gpu) {
-					cuda_free(l.delta_gpu);
-					l.delta_gpu = NULL;
-				}
-			} else if (net.optimized_memory >= 2 && params.train && l.type != DROPOUT)
+			int cur_receptive_w = receptive_w;
+			int cur_receptive_h = receptive_h;
+
+			fprintf(stderr, "%4d - receptive field: %d x %d \n", idx, cur_receptive_w, cur_receptive_h);
+		}
+
+#ifdef GPU
+		// futher GPU-memory optimization: net.optimized_memory == 2
+		l.optimized_memory = net.optimized_memory;
+		if (net.optimized_memory == 1 && params.train && l.type != DROPOUT)
+		{
+			if (l.delta_gpu)
 			{
-				if (l.output_gpu) {
-					cuda_free(l.output_gpu);
-					//l.output_gpu = cuda_make_array_pinned(l.output, l.batch*l.outputs); // l.steps
-					l.output_gpu = cuda_make_array_pinned_preallocated(NULL, l.batch*l.outputs); // l.steps
-				}
-				if (l.activation_input_gpu) {
-					cuda_free(l.activation_input_gpu);
-					l.activation_input_gpu = cuda_make_array_pinned_preallocated(NULL, l.batch*l.outputs); // l.steps
-				}
+				cuda_free(l.delta_gpu);
+				l.delta_gpu = NULL;
+			}
+		}
+		else if (net.optimized_memory >= 2 && params.train && l.type != DROPOUT)
+		{
+			if (l.output_gpu)
+			{
+				cuda_free(l.output_gpu);
+				//l.output_gpu = cuda_make_array_pinned(l.output, l.batch*l.outputs); // l.steps
+				l.output_gpu = cuda_make_array_pinned_preallocated(NULL, l.batch*l.outputs); // l.steps
+			}
+			if (l.activation_input_gpu)
+			{
+				cuda_free(l.activation_input_gpu);
+				l.activation_input_gpu = cuda_make_array_pinned_preallocated(NULL, l.batch*l.outputs); // l.steps
+			}
 
-				if (l.x_gpu) {
-					cuda_free(l.x_gpu);
-					l.x_gpu = cuda_make_array_pinned_preallocated(NULL, l.batch*l.outputs); // l.steps
-				}
+			if (l.x_gpu)
+			{
+				cuda_free(l.x_gpu);
+				l.x_gpu = cuda_make_array_pinned_preallocated(NULL, l.batch*l.outputs); // l.steps
+			}
 
-				// maximum optimization
-				if (net.optimized_memory >= 3 && l.type != DROPOUT) {
-					if (l.delta_gpu) {
-						cuda_free(l.delta_gpu);
-						//l.delta_gpu = cuda_make_array_pinned_preallocated(NULL, l.batch*l.outputs); // l.steps
-						//printf("\n\n PINNED DELTA GPU = %d \n", l.batch*l.outputs);
-					}
-				}
-
-				if (l.type == CONVOLUTIONAL) {
-					set_specified_workspace_limit(&l, net.workspace_size_limit);   // workspace size limit 1 GB
+			// maximum optimization
+			if (net.optimized_memory >= 3 && l.type != DROPOUT)
+			{
+				if (l.delta_gpu)
+				{
+					cuda_free(l.delta_gpu);
+					//l.delta_gpu = cuda_make_array_pinned_preallocated(NULL, l.batch*l.outputs); // l.steps
+					//printf("\n\n PINNED DELTA GPU = %d \n", l.batch*l.outputs);
 				}
 			}
-			#endif // GPU
 
-			l.clip = option_find_float_quiet(options, "clip", 0);
-			l.dynamic_minibatch = net.dynamic_minibatch;
-			l.onlyforward = option_find_int_quiet(options, "onlyforward", 0);
-			l.dont_update = option_find_int_quiet(options, "dont_update", 0);
-			l.burnin_update = option_find_int_quiet(options, "burnin_update", 0);
-			l.stopbackward = option_find_int_quiet(options, "stopbackward", 0);
-			l.train_only_bn = option_find_int_quiet(options, "train_only_bn", 0);
-			l.dontload = option_find_int_quiet(options, "dontload", 0);
-			l.dontloadscales = option_find_int_quiet(options, "dontloadscales", 0);
-			l.learning_rate_scale = option_find_float_quiet(options, "learning_rate", 1);
-			option_unused(options);
+			if (l.type == CONVOLUTIONAL)
+			{
+				set_specified_workspace_limit(&l, net.workspace_size_limit);   // workspace size limit 1 GB
+			}
+		}
+#endif // GPU
 
-			if (l.stopbackward == 1) printf(" ------- previous layers are frozen ------- \n");
+		l.clip					= section.find_float("clip", 0);
+		l.dynamic_minibatch		= net.dynamic_minibatch;
+		l.onlyforward			= section.find_int("onlyforward", 0);
+		l.dont_update			= section.find_int("dont_update", 0);
+		l.burnin_update			= section.find_int("burnin_update", 0);
+		l.stopbackward			= section.find_int("stopbackward", 0);
+		l.train_only_bn			= section.find_int("train_only_bn", 0);
+		l.dontload				= section.find_int("dontload", 0);
+		l.dontloadscales		= section.find_int("dontloadscales", 0);
+		l.learning_rate_scale	= section.find_float("learning_rate", 1);
 
-			net.layers[count] = l;
-		if (l.workspace_size > workspace_size) workspace_size = l.workspace_size;
-		if (l.inputs > max_inputs) max_inputs = l.inputs;
-		if (l.outputs > max_outputs) max_outputs = l.outputs;
-		free_section(s);
-		n = n->next;
-		++count;
-		if(n){
-			if (l.antialiasing) {
+		section.find_unused_lines();
+
+		if (l.stopbackward == 1)
+		{
+			printf(" ------- previous layers are frozen ------- \n");
+		}
+
+		net.layers[idx] = l;
+		if (l.workspace_size > workspace_size)
+		{
+			workspace_size = l.workspace_size;
+		}
+		if (l.inputs > max_inputs)
+		{
+			max_inputs = l.inputs;
+		}
+		if (l.outputs > max_outputs)
+		{
+			max_outputs = l.outputs;
+		}
+
+//		n = n->next;
+//		++count;
+
+//		if (n)
+		{
+			if (l.antialiasing)
+			{
 				params.h = l.input_layer->out_h;
 				params.w = l.input_layer->out_w;
 				params.c = l.input_layer->out_c;
 				params.inputs = l.input_layer->outputs;
 			}
-			else {
+			else
+			{
 				params.h = l.out_h;
 				params.w = l.out_w;
 				params.c = l.out_c;
 				params.inputs = l.outputs;
 			}
 		}
-		if (l.bflops > 0) bflops += l.bflops;
+		if (l.bflops > 0)
+		{
+			bflops += l.bflops;
+		}
 
-		if (l.w > 1 && l.h > 1) {
+		if (l.w > 1 && l.h > 1)
+		{
 			avg_outputs += l.outputs;
 			avg_counter++;
 		}
-	}
 
-	if (last_stop_backward > -1) {
-		int k;
-		for (k = 0; k < last_stop_backward; ++k) {
+	} // while loop (sections)
+
+	if (last_stop_backward > -1)
+	{
+		for (int k = 0; k < last_stop_backward; ++k)
+		{
 			layer l = net.layers[k];
-			if (l.keep_delta_gpu) {
-				if (!l.delta) {
+			if (l.keep_delta_gpu)
+			{
+				if (!l.delta)
+				{
 					net.layers[k].delta = (float*)xcalloc(l.outputs*l.batch, sizeof(float));
 				}
-				#ifdef GPU
-				if (!l.delta_gpu) {
+#ifdef GPU
+				if (!l.delta_gpu)
+				{
 					net.layers[k].delta_gpu = (float *)cuda_make_array(NULL, l.outputs*l.batch);
 				}
-				#endif
+#endif
 			}
 
 			net.layers[k].onlyforward = 1;
@@ -997,18 +975,18 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 		}
 	}
 
-	free_list(sections);
-
-	#ifdef GPU
+#ifdef GPU
 	if (net.optimized_memory && params.train)
 	{
-		int k;
-		for (k = 0; k < net.n; ++k) {
+		for (int k = 0; k < net.n; ++k)
+		{
 			layer l = net.layers[k];
 			// delta GPU-memory optimization: net.optimized_memory == 1
-			if (!l.keep_delta_gpu) {
+			if (!l.keep_delta_gpu)
+			{
 				const size_t delta_size = l.outputs*l.batch; // l.steps
-				if (net.max_delta_gpu_size < delta_size) {
+				if (net.max_delta_gpu_size < delta_size)
+				{
 					net.max_delta_gpu_size = delta_size;
 					if (net.global_delta_gpu) cuda_free(net.global_delta_gpu);
 					if (net.state_delta_gpu) cuda_free(net.state_delta_gpu);
@@ -1016,19 +994,26 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 					net.global_delta_gpu = (float *)cuda_make_array(NULL, net.max_delta_gpu_size);
 					net.state_delta_gpu = (float *)cuda_make_array(NULL, net.max_delta_gpu_size);
 				}
-				if (l.delta_gpu) {
+				if (l.delta_gpu)
+				{
 					if (net.optimized_memory >= 3) {}
 					else cuda_free(l.delta_gpu);
 				}
 				l.delta_gpu = net.global_delta_gpu;
 			}
-			else {
-				if (!l.delta_gpu) l.delta_gpu = (float *)cuda_make_array(NULL, l.outputs*l.batch);
+			else
+			{
+				if (!l.delta_gpu)
+				{
+					l.delta_gpu = (float *)cuda_make_array(NULL, l.outputs*l.batch);
+				}
 			}
 
 			// maximum optimization
-			if (net.optimized_memory >= 3 && l.type != DROPOUT) {
-				if (l.delta_gpu && l.keep_delta_gpu) {
+			if (net.optimized_memory >= 3 && l.type != DROPOUT)
+			{
+				if (l.delta_gpu && l.keep_delta_gpu)
+				{
 					//cuda_free(l.delta_gpu);   // already called above
 					l.delta_gpu = cuda_make_array_pinned_preallocated(NULL, l.batch*l.outputs); // l.steps
 					//printf("\n\n PINNED DELTA GPU = %d \n", l.batch*l.outputs);
@@ -1038,7 +1023,7 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 			net.layers[k] = l;
 		}
 	}
-	#endif
+#endif
 
 	set_train_only_bn(net); // set l.train_only_bn for all required layers
 
@@ -1047,15 +1032,19 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 	avg_outputs = avg_outputs / avg_counter;
 	printf("Total BFLOPS %5.3f \n", bflops);
 	printf("avg_outputs = %d \n", avg_outputs);
-	#ifdef GPU
+#ifdef GPU
 	get_cuda_stream();
 	//get_cuda_memcpy_stream();
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		int size = get_network_input_size(net) * net.batch;
 		net.input_state_gpu = cuda_make_array(0, size);
-		if (cudaSuccess == cudaHostAlloc((void**)&net.input_pinned_cpu, size * sizeof(float), cudaHostRegisterMapped)) net.input_pinned_cpu_flag = 1;
-		else {
+		if (cudaSuccess == cudaHostAlloc((void**)&net.input_pinned_cpu, size * sizeof(float), cudaHostRegisterMapped))
+		{
+			net.input_pinned_cpu_flag = 1;
+		}
+		else
+		{
 			cudaGetLastError(); // reset CUDA-error
 			net.input_pinned_cpu = (float*)xcalloc(size, sizeof(float));
 		}
@@ -1063,7 +1052,8 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 		// pre-allocate memory for inference on Tensor Cores (fp16)
 		*net.max_input16_size = 0;
 		*net.max_output16_size = 0;
-		if (net.cudnn_half) {
+		if (net.cudnn_half)
+		{
 			*net.max_input16_size = max_inputs;
 			CHECK_CUDA(cudaMalloc((void **)net.input16_gpu, *net.max_input16_size * sizeof(short))); //sizeof(half)
 			*net.max_output16_size = max_outputs;
@@ -1082,13 +1072,13 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 			net.workspace = (float*)xcalloc(1, workspace_size);
 		}
 	}
-	#else
+#else
 	if (workspace_size)
 	{
 		printf("Allocating workspace:  %s\n", size_to_IEC_string(workspace_size));
 		net.workspace = (float*)xcalloc(1, workspace_size);
 	}
-	#endif
+#endif
 
 	LAYER_TYPE lt = net.layers[net.n - 1].type;
 	if (lt == YOLO || lt == REGION || lt == DETECTION)
@@ -1102,17 +1092,15 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 		}
 	}
 
-#endif // SC
-
 	return net;
 }
 
 
-Darknet::CfgFile & Darknet::CfgFile::parse_net_section(const size_t section_idx, network & net)
+Darknet::CfgFile & Darknet::CfgFile::parse_net_section(network & net)
 {
 	TAT(TATPARMS);
 
-	Darknet::CfgSection & s = sections.at(section_idx);
+	auto & s = network_section;
 
 	net.max_batches = s.find_int("max_batches", 0);
 	net.batch = s.find_int("batch",1);
@@ -1300,4 +1288,11 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section(const size_t section_idx,
 	}
 
 	return *this;
+}
+
+
+convolutional_layer Darknet::CfgFile::parse_convolutional_section(const size_t section_idx, network & net)
+{
+	convolutional_layer l;
+	return l;
 }

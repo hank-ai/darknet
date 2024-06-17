@@ -18,6 +18,8 @@ namespace Darknet
 			/// Destructor.
 			~CfgLine();
 
+			bool empty() const { return line_number == 0 or line.empty() or key.empty() or val.empty(); }
+
 			/// Log what we know about this line.
 			std::string debug() const;
 
@@ -44,10 +46,18 @@ namespace Darknet
 		public:
 
 			/// Consructor.
+			CfgSection();
+
+			/// Consructor.
 			CfgSection(const std::string & l, const size_t ln);
 
 			/// Destructor.
 			~CfgSection();
+
+			/// Determine if a section is empty.
+			bool empty() const { return line_number == 0 or name.empty() or lines.empty(); }
+
+			const CfgSection & find_unused_lines() const;
 
 			int find_int(const std::string & key, const int default_value);
 			float find_float(const std::string & key, const float default_value);
@@ -98,10 +108,16 @@ namespace Darknet
 
 			network create_network(network & net, const int batch=1, int time_steps=1);
 
-			CfgFile & parse_net_section(const size_t section_idx, network & net);
+			CfgFile & parse_net_section(network & net);
+
+			convolutional_layer parse_convolutional_section(const size_t section_idx, network & net);
 
 			std::filesystem::path filename;
 
+			/// The [net] or [network] is not a "real" section, nor is it a layer.  We'll store it apart from the rest of the sections.
+			CfgSection network_section;
+
+			/// This is were we'll store every section *except* for the [net] one.  @see @ref network_section
 			CfgSections sections;
 
 			/// The total number of lines that was parsed from the .cfg file, including comments.
