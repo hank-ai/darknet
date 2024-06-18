@@ -713,6 +713,7 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 		switch (section.type)
 		{
 			case ELayerType::CONVOLUTIONAL:		{	l = parse_convolutional_section(idx, net);							break;	}
+			case ELayerType::MAXPOOL:			{	l = parse_maxpool_section(idx, net);								break;	}
 
 			case ELayerType::ROUTE:
 			{
@@ -743,7 +744,6 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 			case ELayerType::DETECTION:			{	l = parse_detection(options, params);								break;	}
 			case ELayerType::NORMALIZATION:		{	l = parse_normalization(options, params);							break;	}
 			case ELayerType::BATCHNORM:			{	l = parse_batchnorm(options, params);								break;	}
-			case ELayerType::MAXPOOL:			{	l = parse_maxpool(options, params);									break;	}
 			case ELayerType::LOCAL_AVGPOOL:		{	l = parse_local_avgpool(options, params);							break;	}
 			case ELayerType::REORG:				{	l = parse_reorg(options, params);									break;	}
 			case ELayerType::REORG_OLD:			{	l = parse_reorg_old(options, params);								break;	}
@@ -1534,6 +1534,39 @@ route_layer Darknet::CfgFile::parse_route_section(const size_t section_idx, netw
 		fprintf(stderr, "   ");
 	}
 	fprintf(stderr, " -> %4d x%4d x%4d \n", layer.out_w, layer.out_h, layer.out_c);
+
+	return layer;
+}
+
+
+maxpool_layer Darknet::CfgFile::parse_maxpool_section(const size_t section_idx, network & net)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int stride = s.find_int("stride",1);
+	int stride_x = s.find_int("stride_x", stride);
+	int stride_y = s.find_int("stride_y", stride);
+	int size = s.find_int("size",stride);
+	int padding = s.find_int("padding", size-1);
+	int maxpool_depth = s.find_int("maxpool_depth", 0);
+	int out_channels = s.find_int("out_channels", 1);
+	int antialiasing = s.find_int("antialiasing", 0);
+	const int avgpool = 0;
+
+	int h = parms.h;
+	int w = parms.w;
+	int c = parms.c;
+	int batch = parms.batch;
+
+	if (!(h && w && c))
+	{
+		darknet_fatal_error(DARKNET_LOC, "layer before [maxpool] at line #%ld must output image", s.line_number);
+	}
+
+	maxpool_layer layer = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, parms.train);
+	layer.maxpool_zero_nonmax = s.find_int("maxpool_zero_nonmax", 0);
 
 	return layer;
 }
