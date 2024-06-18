@@ -762,8 +762,9 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 
 		switch (section.type)
 		{
-			case ELayerType::CONVOLUTIONAL:		{	l = parse_convolutional_section(idx, net);							break;	}
-			case ELayerType::MAXPOOL:			{	l = parse_maxpool_section(idx, net);								break;	}
+			case ELayerType::CONVOLUTIONAL:		{	l = parse_convolutional_section(idx, net);	break;	}
+			case ELayerType::MAXPOOL:			{	l = parse_maxpool_section(idx, net);		break;	}
+			case ELayerType::UPSAMPLE:			{	l = parse_upsample_section(idx, net);		break;	}
 			case ELayerType::ROUTE:
 			{
 				l = parse_route_section(idx, net);
@@ -803,7 +804,6 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 			case ELayerType::REORG:				{	l = parse_reorg(options, params);									break;	}
 			case ELayerType::REORG_OLD:			{	l = parse_reorg_old(options, params);								break;	}
 			case ELayerType::AVGPOOL:			{	l = parse_avgpool(options, params);									break;	}
-			case ELayerType::UPSAMPLE:			{	l = parse_upsample(options, params, net);							break;	}
 
 			case ELayerType::COST:				{	l = parse_cost(options, params);			l.keep_delta_gpu = 1;	break;	}
 			case ELayerType::REGION:			{	l = parse_region(options, params);			l.keep_delta_gpu = 1;	break;	}
@@ -1734,6 +1734,22 @@ layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx, network & n
 			l.biases[i] = v[i];
 		}
 	}
+
+	return l;
+}
+
+
+layer Darknet::CfgFile::parse_upsample_section(const size_t section_idx, network & net)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int stride = s.find_int("stride", 2);
+
+	layer l = make_upsample_layer(parms.batch, parms.w, parms.h, parms.c, stride);
+
+	l.scale = s.find_float("scale", 1);
 
 	return l;
 }
