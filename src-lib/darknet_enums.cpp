@@ -210,3 +210,102 @@ std::string Darknet::get_name_from_learning_rate_policy(const Darknet::ELearning
 
 	throw std::invalid_argument("unknown learning rate policy #" + std::to_string(static_cast<int>(policy)));
 }
+
+
+const Darknet::NamesAndIoULoss & Darknet::all_names_and_IoU_loss()
+{
+	TAT(TATPARMS);
+
+	const static NamesAndIoULoss m =
+	{
+		{"iou"	, EIoULoss::IOU	},
+		{"giou"	, EIoULoss::GIOU},
+		{"mse"	, EIoULoss::MSE	},
+		{"diou"	, EIoULoss::DIOU},
+		{"ciou"	, EIoULoss::CIOU},
+	};
+
+	return m;
+}
+
+
+Darknet::EIoULoss Darknet::get_IoU_loss_from_name(const std::string & name)
+{
+	TAT(TATPARMS);
+
+	const auto & m = all_names_and_IoU_loss();
+
+	if (m.count(name) == 0)
+	{
+		/// @throw sd::invalid_argument if the name is not a valid Darknet IoU loss type
+		throw std::invalid_argument("IoU loss type \"" + name + "\" is not supported");
+	}
+
+	return m.at(name);
+}
+
+
+std::string Darknet::get_name_from_IoU_loss(const Darknet::EIoULoss loss)
+{
+	TAT(TATPARMS);
+
+	const auto & m = all_names_and_IoU_loss();
+	for (const auto & [k, v] : m)
+	{
+		if (loss == v)
+		{
+			return k;
+		}
+	}
+
+	throw std::invalid_argument("unknown IoU loss type #" + std::to_string(static_cast<int>(loss)));
+}
+
+
+const Darknet::NamesAndNMSKind & Darknet::all_names_and_NMS_kind()
+{
+	TAT(TATPARMS);
+
+	const static NamesAndNMSKind m =
+	{
+		{"default"		, ENMSKind::DEFAULT_NMS	},
+		{"greedynms"	, ENMSKind::GREEDY_NMS	},
+		{"diounms"		, ENMSKind::DIOU_NMS	},
+		{"cornersnms"	, ENMSKind::CORNERS_NMS	},
+	};
+
+	return m;
+}
+
+
+Darknet::ENMSKind Darknet::get_NMS_kind_from_name(const std::string & name)
+{
+	TAT(TATPARMS);
+
+	const auto & m = all_names_and_NMS_kind();
+
+	if (m.count(name) == 0)
+	{
+		/// @throw sd::invalid_argument if the name is not a valid Darknet NMS type
+		throw std::invalid_argument("NMS type \"" + name + "\" is not supported");
+	}
+
+	return m.at(name);
+}
+
+
+std::string Darknet::get_name_from_NMS_kind(const Darknet::ENMSKind nms_kind)
+{
+	TAT(TATPARMS);
+
+	const auto & m = all_names_and_NMS_kind();
+	for (const auto & [k, v] : m)
+	{
+		if (nms_kind == v)
+		{
+			return k;
+		}
+	}
+
+	throw std::invalid_argument("unknown NMS kind type #" + std::to_string(static_cast<int>(nms_kind)));
+}

@@ -52,6 +52,56 @@ namespace
 
 		return;
 	}
+
+
+	static float * get_classes_multipliers(Darknet::VInt & vi, const int classes, const float max_delta)
+	{
+		TAT(TATPARMS);
+
+		float *classes_multipliers = nullptr;
+
+		if (not vi.empty())
+		{
+			const int * counters_per_class = vi.data();
+			if (vi.size() != classes)
+			{
+				darknet_fatal_error(DARKNET_LOC, "number of values in counters_per_class=%ld doesn't match classes=%d", vi.size(), classes);
+			}
+
+			float max_counter = 0.0f;
+			for (auto & i : vi)
+			{
+				if (i < 1)
+				{
+					i = 1;
+				}
+				if (max_counter < i)
+				{
+					max_counter = i;
+				}
+			}
+
+			classes_multipliers = (float *)calloc(vi.size(), sizeof(float));
+
+			for (size_t i = 0; i < vi.size(); ++i)
+			{
+				classes_multipliers[i] = max_counter / counters_per_class[i];
+				if (classes_multipliers[i] > max_delta)
+				{
+					classes_multipliers[i] = max_delta;
+				}
+			}
+
+			printf("classes_multipliers: ");
+			for (size_t i = 0; i < vi.size(); ++i)
+			{
+				printf("%.1f, ", classes_multipliers[i]);
+			}
+			printf("\n");
+		}
+
+		return classes_multipliers;
+	}
 }
 
 
@@ -714,7 +764,6 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 		{
 			case ELayerType::CONVOLUTIONAL:		{	l = parse_convolutional_section(idx, net);							break;	}
 			case ELayerType::MAXPOOL:			{	l = parse_maxpool_section(idx, net);								break;	}
-
 			case ELayerType::ROUTE:
 			{
 				l = parse_route_section(idx, net);
@@ -726,6 +775,12 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 						net.layers[l.input_layers[k]].keep_delta_gpu = 1;
 					}
 				}
+				break;
+			}
+			case ELayerType::YOLO:
+			{
+				l = parse_yolo_section(idx, net);
+				l.keep_delta_gpu = 1;
 				break;
 			}
 
@@ -752,7 +807,6 @@ network Darknet::CfgFile::create_network(network & net, int batch, int time_step
 
 			case ELayerType::COST:				{	l = parse_cost(options, params);			l.keep_delta_gpu = 1;	break;	}
 			case ELayerType::REGION:			{	l = parse_region(options, params);			l.keep_delta_gpu = 1;	break;	}
-			case ELayerType::YOLO:				{	l = parse_yolo(options, params);			l.keep_delta_gpu = 1;	break;	}
 			case ELayerType::GAUSSIAN_YOLO:		{	l = parse_gaussian_yolo(options, params);	l.keep_delta_gpu = 1;	break;	}
 			case ELayerType::CONTRASTIVE:		{	l = parse_contrastive(options, params);		l.keep_delta_gpu = 1;	break;	}
 
@@ -1569,4 +1623,117 @@ maxpool_layer Darknet::CfgFile::parse_maxpool_section(const size_t section_idx, 
 	layer.maxpool_zero_nonmax = s.find_int("maxpool_zero_nonmax", 0);
 
 	return layer;
+}
+
+
+layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx, network & net)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int classes		= s.find_int("classes", 20);
+	int total		= s.find_int("num", 1);
+	int max_boxes	= s.find_int("max", 200);
+
+	int num			= total;
+	auto v			= s.find_int_array("mask"); // e.g., [0, 1, 2]
+	int * mask		= nullptr;
+
+	if (not v.empty())
+	{
+		mask = (int*)xcalloc(v.size(), sizeof(int));
+		for (size_t i = 0; i < v.size(); i ++)
+		{
+			mask[i] = v[i];
+		}
+		num = v.size();
+	}
+
+	layer l = make_yolo_layer(parms.batch, parms.w, parms.h, num, total, mask, classes, max_boxes);
+
+	if (l.outputs != parms.inputs)
+	{
+		darknet_fatal_error(DARKNET_LOC, "filters in convolutional layer prior to [%s] on line %ld does not match either the classes or the mask (inputs=%d, outputs=%d)", s.name.c_str(), s.line_number, parms.inputs, l.outputs);
+	}
+
+	// The old Darknet had a CLI option called "-show_details".  This was replaced by "--verbose".
+	l.show_details = cfg_and_state.is_verbose ? 1 : 0;
+
+	l.max_delta = s.find_float("max_delta", FLT_MAX);   // set 10
+
+	VInt vi = s.find_int_array("counters_per_class");
+	l.classes_multipliers = get_classes_multipliers(vi, classes, l.max_delta);
+
+	l.label_smooth_eps = s.find_float("label_smooth_eps", 0.0f);
+	l.scale_x_y = s.find_float("scale_x_y", 1);
+	l.objectness_smooth = s.find_int("objectness_smooth", 0);
+	l.new_coords = s.find_int("new_coords", 0);
+	l.iou_normalizer = s.find_float("iou_normalizer", 0.75);
+	l.obj_normalizer = s.find_float("obj_normalizer", 1);
+	l.cls_normalizer = s.find_float("cls_normalizer", 1);
+	l.delta_normalizer = s.find_float("delta_normalizer", 1);
+
+	const std::string iou_loss = s.find_str("iou_loss", "mse");
+	l.iou_loss = static_cast<IOU_LOSS>(get_IoU_loss_from_name(iou_loss)); // "iou"
+
+	fprintf(stderr, "[yolo] params: iou loss: %s (%d), iou_norm: %2.2f, obj_norm: %2.2f, cls_norm: %2.2f, delta_norm: %2.2f, scale_x_y: %2.2f\n",
+			iou_loss.c_str(), l.iou_loss, l.iou_normalizer, l.obj_normalizer, l.cls_normalizer, l.delta_normalizer, l.scale_x_y);
+
+	const std::string iou_thresh_kind = s.find_str("iou_thresh_kind", "iou");
+	l.iou_thresh_kind = static_cast<IOU_LOSS>(get_IoU_loss_from_name(iou_thresh_kind));
+
+	l.beta_nms = s.find_float("beta_nms", 0.6);
+
+	const std::string nms_kind = s.find_str("nms_kind", "default");
+	l.nms_kind = static_cast<NMS_KIND>(get_NMS_kind_from_name(nms_kind));
+
+	printf("nms_kind: %s (%d), beta = %f\n", nms_kind.c_str(), l.nms_kind, l.beta_nms);
+
+	l.jitter = s.find_float("jitter", .2);
+	l.resize = s.find_float("resize", 1.0);
+	l.focal_loss = s.find_int("focal_loss", 0);
+
+	l.ignore_thresh = s.find_float("ignore_thresh", .5);
+	l.truth_thresh = s.find_float("truth_thresh", 1);
+	l.iou_thresh = s.find_float("iou_thresh", 1); // recommended to use iou_thresh=0.213 in [yolo]
+	l.random = s.find_float("random", 0);
+
+	l.track_history_size = s.find_int("track_history_size", 5);
+	l.sim_thresh = s.find_float("sim_thresh", 0.8);
+	l.dets_for_track = s.find_int("dets_for_track", 1);
+	l.dets_for_show = s.find_int("dets_for_show", 1);
+	l.track_ciou_norm = s.find_float("track_ciou_norm", 0.01);
+	int embedding_layer_id = s.find_int("embedding_layer", 999999);
+	if (embedding_layer_id < 0) embedding_layer_id = parms.index + embedding_layer_id;
+	if (embedding_layer_id != 999999)
+	{
+		printf(" embedding_layer_id = %d, ", embedding_layer_id);
+		layer le = net.layers[embedding_layer_id];
+		l.embedding_layer_id = embedding_layer_id;
+		l.embedding_output = (float*)xcalloc(le.batch * le.outputs, sizeof(float));
+		l.embedding_size = le.n / l.n;
+		printf(" embedding_size = %d \n", l.embedding_size);
+		if (le.n % l.n != 0)
+		{
+			darknet_fatal_error(DARKNET_LOC, "filters=%d number in embedding_layer=%d isn't divisable by number of anchors %d", le.n, embedding_layer_id, l.n);
+		}
+	}
+
+	const std::string map_file = s.find_str("map");
+	if (not map_file.empty())
+	{
+		l.map = read_map(const_cast<char*>(map_file.c_str()));
+	}
+
+	VFloat vf = s.find_float_array("anchors");
+	if (not vf.empty())
+	{
+		for (size_t i = 0; i < v.size(); i ++)
+		{
+			l.biases[i] = v[i];
+		}
+	}
+
+	return l;
 }

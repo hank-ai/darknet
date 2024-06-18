@@ -114,6 +114,7 @@ namespace Darknet
 			convolutional_layer	parse_convolutional_section	(const size_t section_idx, network & net);
 			route_layer			parse_route_section			(const size_t section_idx, network & net);
 			maxpool_layer		parse_maxpool_section		(const size_t section_idx, network & net);
+			layer				parse_yolo_section			(const size_t section_idx, network & net);
 
 			std::filesystem::path filename;
 

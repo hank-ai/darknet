@@ -115,4 +115,36 @@ namespace Darknet
 	ELearningRatePolicy get_learning_rate_policy_from_name(const std::string & name);
 	std::string get_name_from_learning_rate_policy(const ELearningRatePolicy policy);
 	/// @}
+
+	enum class EIoULoss
+	{
+		// Please keep the old C and the new C++ enums in sync!
+		IOU		= IOU_LOSS::IOU,
+		GIOU	= IOU_LOSS::GIOU,
+		MSE		= IOU_LOSS::MSE,
+		DIOU	= IOU_LOSS::DIOU,
+		CIOU	= IOU_LOSS::CIOU,
+	};
+
+	/// @{ Convert between names and IoU loss types.
+	using NamesAndIoULoss = std::map<std::string, EIoULoss>;
+	const NamesAndIoULoss & all_names_and_IoU_loss();
+	EIoULoss get_IoU_loss_from_name(const std::string & name);
+	std::string get_name_from_IoU_loss(const EIoULoss loss);
+	/// @}
+
+	enum class ENMSKind
+	{
+		DEFAULT_NMS	= NMS_KIND::DEFAULT_NMS	,
+		GREEDY_NMS	= NMS_KIND::GREEDY_NMS	,
+		DIOU_NMS	= NMS_KIND::DIOU_NMS	,
+		CORNERS_NMS	= NMS_KIND::CORNERS_NMS	, // gaussian yolo
+	};
+
+	/// @{ Convert between names and IoU loss types.
+	using NamesAndNMSKind = std::map<std::string, ENMSKind>;
+	const NamesAndNMSKind & all_names_and_NMS_kind();
+	ENMSKind get_NMS_kind_from_name(const std::string & name);
+	std::string get_name_from_NMS_kind(const ENMSKind nms_kind);
+	/// @}
 };
