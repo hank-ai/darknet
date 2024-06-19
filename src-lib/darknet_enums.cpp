@@ -73,7 +73,7 @@ Darknet::ELayerType Darknet::get_layer_from_name(const std::string & name)
 }
 
 
-std::string Darknet::get_name_from_layer(const ELayerType type)
+std::string Darknet::to_string(const ELayerType type)
 {
 	TAT(TATPARMS);
 
@@ -142,7 +142,7 @@ Darknet::EActivation Darknet::get_activation_from_name(const std::string & name)
 }
 
 
-std::string Darknet::get_name_from_activation(const Darknet::EActivation activation)
+std::string Darknet::to_string(const Darknet::EActivation activation)
 {
 	TAT(TATPARMS);
 
@@ -195,7 +195,7 @@ Darknet::ELearningRatePolicy Darknet::get_learning_rate_policy_from_name(const s
 }
 
 
-std::string Darknet::get_name_from_learning_rate_policy(const Darknet::ELearningRatePolicy policy)
+std::string Darknet::to_string(const Darknet::ELearningRatePolicy policy)
 {
 	TAT(TATPARMS);
 
@@ -245,7 +245,7 @@ Darknet::EIoULoss Darknet::get_IoU_loss_from_name(const std::string & name)
 }
 
 
-std::string Darknet::get_name_from_IoU_loss(const Darknet::EIoULoss loss)
+std::string Darknet::to_string(const Darknet::EIoULoss loss)
 {
 	TAT(TATPARMS);
 
@@ -294,7 +294,7 @@ Darknet::ENMSKind Darknet::get_NMS_kind_from_name(const std::string & name)
 }
 
 
-std::string Darknet::get_name_from_NMS_kind(const Darknet::ENMSKind nms_kind)
+std::string Darknet::to_string(const Darknet::ENMSKind nms_kind)
 {
 	TAT(TATPARMS);
 

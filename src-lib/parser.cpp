@@ -1,5 +1,6 @@
 #include "option_list.hpp"
 #include "darknet_internal.hpp"
+#include "dump.hpp"
 
 #ifdef WIN32
 #include <shlwapi.h>
@@ -1463,9 +1464,13 @@ network parse_network_cfg(char *filename)
 network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 {
 	/// @todo V3 JAZZ
+#if 1
 	Darknet::CfgFile cfg_file(filename);
 	std::cout << cfg_file.debug() << std::endl;
-	cfg_file.create_network();
+	network *xxx = cfg_file.create_network();
+	Darknet::dump(xxx);
+	return *xxx;
+#endif
 
 	TAT(TATPARMS);
 
@@ -1503,8 +1508,6 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 		darknet_fatal_error(DARKNET_LOC, "first section must be [net] or [network]");
 	}
 	parse_net_options(options, &net);
-
-	// xxxxxxx
 
 #ifdef GPU
 	printf("net.optimized_memory = %d \n", net.optimized_memory);
@@ -1955,6 +1958,8 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 			darknet_fatal_error(DARKNET_LOC, "width=%d and height=%d in cfg file must be divisible by 32 for YOLO networks", net.w, net.h);
 		}
 	}
+
+	Darknet::dump(&net);
 
 	return net;
 }

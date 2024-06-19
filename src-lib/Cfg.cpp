@@ -436,7 +436,7 @@ std::string Darknet::CfgSection::debug() const
 	TAT(TATPARMS);
 
 	std::stringstream ss;
-	ss << line_number << ": [" << get_name_from_layer(type) << "]" << std::endl;
+	ss << line_number << ": [" << Darknet::to_string(type) << "]" << std::endl;
 
 	for (const auto & [key, line] : lines)
 	{
@@ -1354,7 +1354,7 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section(network & net)
 		// make sure all arrays are the same size
 		int n = steps.size();
 		scales.resize(n);
-		seq_scales.resize(n);
+		seq_scales.resize(n, 1.0f);
 
 		net.num_steps	= n;
 		net.steps		= (int*)xcalloc(n, sizeof(int));

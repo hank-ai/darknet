@@ -58,7 +58,7 @@ namespace Darknet
 	using NamesAndLayers = std::map<std::string, ELayerType>;
 	const NamesAndLayers & all_names_and_layers();
 	ELayerType get_layer_from_name(const std::string & name);
-	std::string get_name_from_layer(const ELayerType type);
+	std::string to_string(const ELayerType type);
 	/// @}
 
 	enum class EActivation
@@ -93,7 +93,7 @@ namespace Darknet
 	using NamesAndActivationTypes = std::map<std::string, EActivation>;
 	const NamesAndActivationTypes & all_names_and_activations();
 	EActivation get_activation_from_name(const std::string & name);
-	std::string get_name_from_activation(const EActivation activation);
+	std::string to_string(const EActivation activation);
 	/// @}
 
 	enum class ELearningRatePolicy
@@ -113,7 +113,7 @@ namespace Darknet
 	using NamesAndLearningRatePolicies = std::map<std::string, ELearningRatePolicy>;
 	const NamesAndLearningRatePolicies & all_names_and_learning_rate_policies();
 	ELearningRatePolicy get_learning_rate_policy_from_name(const std::string & name);
-	std::string get_name_from_learning_rate_policy(const ELearningRatePolicy policy);
+	std::string to_string(const ELearningRatePolicy policy);
 	/// @}
 
 	enum class EIoULoss
@@ -130,7 +130,7 @@ namespace Darknet
 	using NamesAndIoULoss = std::map<std::string, EIoULoss>;
 	const NamesAndIoULoss & all_names_and_IoU_loss();
 	EIoULoss get_IoU_loss_from_name(const std::string & name);
-	std::string get_name_from_IoU_loss(const EIoULoss loss);
+	std::string to_string(const EIoULoss loss);
 	/// @}
 
 	enum class ENMSKind
@@ -145,6 +145,6 @@ namespace Darknet
 	using NamesAndNMSKind = std::map<std::string, ENMSKind>;
 	const NamesAndNMSKind & all_names_and_NMS_kind();
 	ENMSKind get_NMS_kind_from_name(const std::string & name);
-	std::string get_name_from_NMS_kind(const ENMSKind nms_kind);
+	std::string to_string(const ENMSKind nms_kind);
 	/// @}
 };
