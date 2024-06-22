@@ -1466,10 +1466,10 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 	/// @todo V3 JAZZ
 #if 1
 	Darknet::CfgFile cfg_file(filename);
-	std::cout << cfg_file.debug() << std::endl;
-	network *xxx = cfg_file.create_network();
-	Darknet::dump(xxx);
-	return *xxx;
+//	std::cout << cfg_file.debug() << std::endl;
+	network * tmp = cfg_file.create_network(batch, time_steps);
+//	Darknet::dump(cfg_file);
+	return *tmp;
 #endif
 
 	TAT(TATPARMS);
@@ -1959,7 +1959,31 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 		}
 	}
 
-	Darknet::dump(&net);
+#if 1
+	Darknet::CfgFile::CommonParms parms;
+	parms.batch					= params.batch;
+	parms.inputs				= params.inputs;
+	parms.h						= params.h;
+	parms.w						= params.w;
+	parms.c						= params.c;
+	parms.index					= params.index;
+	parms.time_steps			= params.time_steps;
+	parms.train					= params.train;
+	parms.last_stop_backward	= last_stop_backward;
+	parms.avg_outputs			= avg_outputs;
+	parms.avg_counter			= avg_counter;
+	parms.bflops				= bflops;
+	parms.workspace_size		= workspace_size;
+	parms.max_inputs			= max_inputs;
+	parms.max_outputs			= max_outputs;
+	parms.receptive_w			= receptive_w;
+	parms.receptive_h			= receptive_h;
+	parms.receptive_w_scale		= receptive_w_scale;
+	parms.receptive_h_scale		= receptive_h_scale;
+	parms.show_receptive_field	= show_receptive_field;
+
+	Darknet::dump(&net, parms);
+#endif
 
 	return net;
 }

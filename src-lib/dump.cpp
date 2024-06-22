@@ -62,7 +62,7 @@ std::string dump(int * i, int count=1)
 }
 
 
-void dump(network * net)
+void dump(network * net, const Darknet::CfgFile::CommonParms & parms)
 {
 	std::ofstream ofs("dump.txt");
 
@@ -178,7 +178,7 @@ void dump(network * net)
 		<< "clip="							<< net->clip							<< std::endl
 		<< "delta_gpu="						<< dump(net->delta_gpu)					<< std::endl
 		<< "output_gpu="					<< dump(net->output_gpu)				<< std::endl
-		<< "input_state_gpu="				<< dump(net->input_state_gpu)			<< std::endl //-- causes segfaults
+//		<< "input_state_gpu="				<< dump(net->input_state_gpu)			<< std::endl -- causes segfaults
 		<< "input_pinned_cpu="				<< dump(net->input_pinned_cpu)			<< std::endl
 		<< "input_pinned_cpu_flag="			<< net->input_pinned_cpu_flag			<< std::endl
 		<< "input_gpu="						<< net->input_gpu						<< std::endl
@@ -318,7 +318,7 @@ void dump(network * net)
 			<< "reorg="					<< l.reorg					<< std::endl
 			<< "log="					<< l.log					<< std::endl
 			<< "tanh="					<< l.tanh					<< std::endl
-			<< "mask="					<< dump(l.mask)				<< std::endl
+			<< "mask="					<< dump(l.mask, l.n)		<< std::endl
 			<< "total="					<< l.total					<< std::endl
 			<< "bflops="				<< l.bflops					<< std::endl
 			<< "adam="					<< l.adam					<< std::endl
@@ -363,14 +363,338 @@ void dump(network * net)
 			<< "receptive_h="			<< l.receptive_h			<< std::endl
 			<< "receptive_w_scale="		<< l.receptive_w_scale		<< std::endl
 			<< "receptive_h_scale="		<< l.receptive_h_scale		<< std::endl
+//			<< "cweights="				<< l.cweights				<< std::endl
+			<< "indexes="				<< dump(l.indexes)			<< std::endl
+			<< "input_layers="			<< dump(l.input_layers)		<< std::endl
+			<< "input_sizes="			<< dump(l.input_sizes)		<< std::endl
+			<< "layers_output="			<< (void*)l.layers_output	<< std::endl
+			<< "layers_delta="			<< (void*)l.layers_delta	<< std::endl
+			<< "weights_type="			<< l.weights_type			<< std::endl
+			<< "weights_normalization="	<< l.weights_normalization	<< std::endl
+#if 0
+			int   * map;
+			int   * counts;
+			float ** sums;
+			float * rand;
+			float * cost;
+			int *labels;
+			int *class_ids;
+			int contrastive_neg_max;
+			float *cos_sim;
+			float *exp_cos_sim;
+			float *p_constrastive;
+			contrastive_params *contrast_p_gpu;
+			float * state;
+			float * prev_state;
+			float * forgot_state;
+			float * forgot_delta;
+			float * state_delta;
+			float * combine_cpu;
+			float * combine_delta_cpu;
+			float *concat;
+			float *concat_delta;
+			float *binary_weights;
+#endif
+			<< "biases="				<< dump(l.biases, l.nbiases)	<< std::endl
+			<< "bias_updates="			<< dump(l.bias_updates)			<< std::endl
+			<< "scales="				<< dump(l.scales)				<< std::endl
+			<< "scale_updates="			<< dump(l.scale_updates)		<< std::endl
+			<< "weights_ema="			<< dump(l.weights_ema)			<< std::endl
+			<< "biases_ema="			<< dump(l.biases_ema)			<< std::endl
+			<< "scales_ema="			<< dump(l.scales_ema)			<< std::endl
+//			<< "weights="				<< dump(l.weights)				<< std::endl // prior to loading weights this will be garbage
+			<< "weight_updates="		<< dump(l.weight_updates)		<< std::endl
+			<< "scale_x_y="				<< l.scale_x_y					<< std::endl
+			<< "objectness_smooth="		<< l.objectness_smooth			<< std::endl
+			<< "new_coords="			<< l.new_coords					<< std::endl
+			<< "show_details="			<< l.show_details					<< std::endl
+			<< "max_delta="				<< l.max_delta					<< std::endl
+			<< "uc_normalizer="			<< l.uc_normalizer				<< std::endl
+			<< "iou_normalizer="		<< l.iou_normalizer				<< std::endl
+			<< "obj_normalizer="		<< l.obj_normalizer				<< std::endl
+			<< "cls_normalizer="		<< l.cls_normalizer				<< std::endl
+			<< "delta_normalizer="		<< l.delta_normalizer				<< std::endl
+			<< "iou_loss="				<< Darknet::to_string(static_cast<Darknet::EIoULoss>(l.iou_loss)) << std::endl
+			<< "iou_thresh_kind="		<< Darknet::to_string(static_cast<Darknet::EIoULoss>(l.iou_thresh_kind)) << std::endl
+			<< "nms_kind="				<< Darknet::to_string(static_cast<Darknet::ENMSKind>(l.nms_kind)) << std::endl
+			<< "beta_nms="				<< l.beta_nms						<< std::endl
+			<< "yolo_point="			<< l.yolo_point					<< std::endl
+#if 0
+			char *align_bit_weights_gpu;
+			float *mean_arr_gpu;
+			float *align_workspace_gpu;
+			float *transposed_align_workspace_gpu;
+			int align_workspace_size;
+			char *align_bit_weights;
+			float *mean_arr;
+			int align_bit_weights_size;
+			int lda_align;
+			int new_lda;
+			int bit_align;
+			float *col_image;
+			float * delta;
+			float * output;
+			float * activation_input;
+			int delta_pinned;
+			int output_pinned;
+			float * loss;
+			float * squared;
+			float * norms;
+			float * spatial_mean;
+			float * mean;
+			float * variance;
+			float * mean_delta;
+			float * variance_delta;
+			float * rolling_mean;
+			float * rolling_variance;
+			float * x;
+			float * x_norm;
+			float * m;
+			float * v;
+			float * bias_m;
+			float * bias_v;
+			float * scale_m;
+			float * scale_v;
+			float *z_cpu;
+			float *r_cpu;
+			float *h_cpu;
+			float *stored_h_cpu;
+			float * prev_state_cpu;
+			float *temp_cpu;
+			float *temp2_cpu;
+			float *temp3_cpu;
+			float *dh_cpu;
+			float *hh_cpu;
+			float *prev_cell_cpu;
+			float *cell_cpu;
+			float *f_cpu;
+			float *i_cpu;
+			float *g_cpu;
+			float *o_cpu;
+			float *c_cpu;
+			float *stored_c_cpu;
+			float *dc_cpu;
+			float *binary_input;
+			uint32_t *bin_re_packed_input;
+			char *t_bit_input;
+			struct layer *input_layer;
+			struct layer *self_layer;
+			struct layer *output_layer;
+			struct layer *reset_layer;
+			struct layer *update_layer;
+			struct layer *state_layer;
+			struct layer *input_gate_layer;
+			struct layer *state_gate_layer;
+			struct layer *input_save_layer;
+			struct layer *state_save_layer;
+			struct layer *input_state_layer;
+			struct layer *state_state_layer;
+			struct layer *input_z_layer;
+			struct layer *state_z_layer;
+			struct layer *input_r_layer;
+			struct layer *state_r_layer;
+			struct layer *input_h_layer;
+			struct layer *state_h_layer;
+
+			struct layer *wz;
+			struct layer *uz;
+			struct layer *wr;
+			struct layer *ur;
+			struct layer *wh;
+			struct layer *uh;
+			struct layer *uo;
+			struct layer *wo;
+			struct layer *vo;
+			struct layer *uf;
+			struct layer *wf;
+			struct layer *vf;
+			struct layer *ui;
+			struct layer *wi;
+			struct layer *vi;
+			struct layer *ug;
+			struct layer *wg;
+
+			tree *softmax_tree;
+
+			size_t workspace_size;
+
+			//#ifdef GPU
+			int *indexes_gpu;
+
+			int stream;
+			int wait_stream_id;
+
+			float *z_gpu;
+			float *r_gpu;
+			float *h_gpu;
+			float *stored_h_gpu;
+			float *bottelneck_hi_gpu;
+			float *bottelneck_delta_gpu;
+
+			float *temp_gpu;
+			float *temp2_gpu;
+			float *temp3_gpu;
+
+			float *dh_gpu;
+			float *hh_gpu;
+			float *prev_cell_gpu;
+			float *prev_state_gpu;
+			float *last_prev_state_gpu;
+			float *last_prev_cell_gpu;
+			float *cell_gpu;
+			float *f_gpu;
+			float *i_gpu;
+			float *g_gpu;
+			float *o_gpu;
+			float *c_gpu;
+			float *stored_c_gpu;
+			float *dc_gpu;
+
+			// adam
+			float *m_gpu;
+			float *v_gpu;
+			float *bias_m_gpu;
+			float *scale_m_gpu;
+			float *bias_v_gpu;
+			float *scale_v_gpu;
+
+			float * combine_gpu;
+			float * combine_delta_gpu;
+
+			float * forgot_state_gpu;
+			float * forgot_delta_gpu;
+			float * state_gpu;
+			float * state_delta_gpu;
+			float * gate_gpu;
+			float * gate_delta_gpu;
+			float * save_gpu;
+			float * save_delta_gpu;
+			float * concat_gpu;
+			float * concat_delta_gpu;
+
+			float *binary_input_gpu;
+			float *binary_weights_gpu;
+			float *bin_conv_shortcut_in_gpu;
+			float *bin_conv_shortcut_out_gpu;
+
+			float * mean_gpu;
+			float * variance_gpu;
+			float * m_cbn_avg_gpu;
+			float * v_cbn_avg_gpu;
+
+			float * rolling_mean_gpu;
+			float * rolling_variance_gpu;
+
+			float * variance_delta_gpu;
+			float * mean_delta_gpu;
+
+			float * col_image_gpu;
+
+			float * x_gpu;
+			float * x_norm_gpu;
+			float * weights_gpu;
+			float * weight_updates_gpu;
+			float * weight_deform_gpu;
+			float * weight_change_gpu;
+
+			float * weights_gpu16;
+			float * weight_updates_gpu16;
+
+			float * biases_gpu;
+			float * bias_updates_gpu;
+			float * bias_change_gpu;
+
+			float * scales_gpu;
+			float * scale_updates_gpu;
+			float * scale_change_gpu;
+
+			float * input_antialiasing_gpu;
+			float * output_gpu;
+			float * output_avg_gpu;
+			float * activation_input_gpu;
+			float * loss_gpu;
+			float * delta_gpu;
+			float * cos_sim_gpu;
+			float * rand_gpu;
+			float * drop_blocks_scale;
+			float * drop_blocks_scale_gpu;
+			float * squared_gpu;
+			float * norms_gpu;
+
+			float *gt_gpu;
+			float *a_avg_gpu;
+
+			int *input_sizes_gpu;
+			float **layers_output_gpu;
+			float **layers_delta_gpu;
+			//#ifdef CUDNN
+			cudnnTensorDescriptor_t srcTensorDesc, dstTensorDesc;
+			cudnnTensorDescriptor_t srcTensorDesc16, dstTensorDesc16;
+			cudnnTensorDescriptor_t dsrcTensorDesc, ddstTensorDesc;
+			cudnnTensorDescriptor_t dsrcTensorDesc16, ddstTensorDesc16;
+			cudnnTensorDescriptor_t normTensorDesc, normDstTensorDesc, normDstTensorDescF16;
+			cudnnFilterDescriptor_t weightDesc, weightDesc16;
+			cudnnFilterDescriptor_t dweightDesc, dweightDesc16;
+			cudnnConvolutionDescriptor_t convDesc;
+			cudnnConvolutionFwdAlgo_t fw_algo, fw_algo16;
+			cudnnConvolutionBwdDataAlgo_t bd_algo, bd_algo16;
+			cudnnConvolutionBwdFilterAlgo_t bf_algo, bf_algo16;
+			cudnnPoolingDescriptor_t poolingDesc;
+			//#else   // CUDNN
+			void* srcTensorDesc, *dstTensorDesc;
+			void* srcTensorDesc16, *dstTensorDesc16;
+			void* dsrcTensorDesc, *ddstTensorDesc;
+			void* dsrcTensorDesc16, *ddstTensorDesc16;
+			void* normTensorDesc, *normDstTensorDesc, *normDstTensorDescF16;
+			void* weightDesc, *weightDesc16;
+			void* dweightDesc, *dweightDesc16;
+			void* convDesc;
+			UNUSED_ENUM_TYPE fw_algo, fw_algo16;
+			UNUSED_ENUM_TYPE bd_algo, bd_algo16;
+			UNUSED_ENUM_TYPE bf_algo, bf_algo16;
+			void* poolingDesc;
+#endif
 			;
-	}
+	} // for() layers
+
+	ofs	<< "----------------------------"							<< std::endl
+		<< "batch="					<< parms.batch					<< std::endl
+		<< "inputs="				<< parms.inputs					<< std::endl
+		<< "h="						<< parms.h						<< std::endl
+		<< "w="						<< parms.w						<< std::endl
+		<< "c="						<< parms.c						<< std::endl
+		<< "index="					<< parms.index					<< std::endl
+		<< "time_steps="			<< parms.time_steps				<< std::endl
+		<< "train="					<< parms.train					<< std::endl
+		<< "last_stop_backward="	<< parms.last_stop_backward		<< std::endl
+		<< "avg_outputs="			<< parms.avg_outputs			<< std::endl
+		<< "avg_counter="			<< parms.avg_counter			<< std::endl
+		<< "bflops="				<< parms.bflops					<< std::endl
+		<< "workspace_size="		<< parms.workspace_size			<< std::endl
+		<< "max_inputs="			<< parms.max_inputs				<< std::endl
+		<< "max_outputs="			<< parms.max_outputs			<< std::endl
+		<< "receptive_w="			<< parms.receptive_w			<< std::endl
+		<< "receptive_h="			<< parms.receptive_h			<< std::endl
+		<< "receptive_w_scale="		<< parms.receptive_w_scale		<< std::endl
+		<< "receptive_h_scale="		<< parms.receptive_h_scale		<< std::endl
+		<< "show_receptive_field="	<< parms.show_receptive_field	<< std::endl
+		;
+
+	return;
 }
 
 
-void Darknet::dump(network * net)
+void Darknet::dump(network * net, const Darknet::CfgFile::CommonParms & parms)
 {
-	::dump(net);
+	::dump(net, parms);
+
+	return;
+}
+
+
+void Darknet::dump(Darknet::CfgFile & cfg)
+{
+	::dump(cfg.net, cfg.parms);
 
 	return;
 }

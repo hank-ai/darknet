@@ -104,18 +104,15 @@ namespace Darknet
 			/// Iterate over the content to record some debug information about the configuration.
 			std::string debug() const;
 
-			/// Create a Darknet network object from the configuration that was parsed.
-			network * create_network();
+			/// Create and populate the Darknet network object @ref net from the configuration that was parsed.
+			network * create_network(const int batch=1, int time_steps=1);
 
-			network create_network(network & net, const int batch=1, int time_steps=1);
-
-			CfgFile & parse_net_section(network & net);
-
-			convolutional_layer	parse_convolutional_section	(const size_t section_idx, network & net);
-			route_layer			parse_route_section			(const size_t section_idx, network & net);
-			maxpool_layer		parse_maxpool_section		(const size_t section_idx, network & net);
-			layer				parse_yolo_section			(const size_t section_idx, network & net);
-			layer				parse_upsample_section		(const size_t section_idx, network & net);
+			CfgFile &			parse_net_section			();
+			convolutional_layer	parse_convolutional_section	(const size_t section_idx);
+			route_layer			parse_route_section			(const size_t section_idx);
+			maxpool_layer		parse_maxpool_section		(const size_t section_idx);
+			layer				parse_yolo_section			(const size_t section_idx);
+			layer				parse_upsample_section		(const size_t section_idx);
 
 			std::filesystem::path filename;
 
@@ -128,6 +125,9 @@ namespace Darknet
 			/// The total number of lines that was parsed from the .cfg file, including comments.
 			size_t total_lines;
 
+			/// This will remain @p nullptr until @ref create_network() is called.
+			network * net;
+
 			/// Items which are needed while parsing the layers.
 			struct CommonParms
 			{
@@ -139,6 +139,18 @@ namespace Darknet
 				int index;
 				int time_steps;
 				int train;
+				int last_stop_backward;
+				int avg_outputs;
+				int avg_counter;
+				float bflops;
+				size_t workspace_size;
+				size_t max_inputs;
+				size_t max_outputs;
+				int receptive_w;
+				int receptive_h;
+				int receptive_w_scale;
+				int receptive_h_scale;
+				int show_receptive_field;
 			};
 			CommonParms parms;
 	};
