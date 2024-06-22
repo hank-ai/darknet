@@ -745,6 +745,17 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				l.keep_delta_gpu = 1;
 				break;
 			}
+			case ELayerType::SHORTCUT:
+			{
+				l = parse_shortcut_section(idx);
+				net.layers[idx - 1].use_bin_output = 0;
+				net.layers[l.index].use_bin_output = 0;
+				if (idx >= parms.last_stop_backward)
+				{
+					net.layers[l.index].keep_delta_gpu = 1;
+				}
+				break;
+			}
 
 #if 0 // SC
 			case ELayerType::LOCAL:				{	l = parse_local(options, params);									break;	}
@@ -776,17 +787,6 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				l = parse_softmax(options, params);
 				net.hierarchy = l.softmax_tree;
 				l.keep_delta_gpu = 1;
-				break;
-			}
-			case ELayerType::SHORTCUT:
-			{
-				l = parse_shortcut(options, params, net);
-				net.layers[count - 1].use_bin_output = 0;
-				net.layers[l.index].use_bin_output = 0;
-				if (count >= last_stop_backward)
-				{
-					net.layers[l.index].keep_delta_gpu = 1;
-				}
 				break;
 			}
 			case ELayerType::SCALE_CHANNELS:
@@ -1709,6 +1709,78 @@ layer Darknet::CfgFile::parse_upsample_section(const size_t section_idx)
 	layer l = make_upsample_layer(parms.batch, parms.w, parms.h, parms.c, stride);
 
 	l.scale = s.find_float("scale", 1);
+
+	return l;
+}
+
+
+layer Darknet::CfgFile::parse_shortcut_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	auto str = s.find_str("activation", "linear");
+	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(str));
+
+	str = s.find_str("weights_type", "none");
+	WEIGHTS_TYPE_T weights_type = static_cast<WEIGHTS_TYPE_T>(get_weights_type_from_name(str));
+
+	str = s.find_str("weights_normalization", "none");
+	WEIGHTS_NORMALIZATION_T weights_normalization = static_cast<WEIGHTS_NORMALIZATION_T>(get_weights_normalization_from_name(str));
+
+	const auto v = s.find_int_array("from");
+	const int n = v.size();
+	if (v.empty())
+	{
+		darknet_fatal_error(DARKNET_LOC, "shortcut layer must specify \"from=...\" input layer");
+	}
+
+	int * layers				= (int*)xcalloc(n, sizeof(int));
+	int * sizes					= (int*)xcalloc(n, sizeof(int));
+	float ** layers_output		= (float **)xcalloc(n, sizeof(float *));
+	float ** layers_delta		= (float **)xcalloc(n, sizeof(float *));
+	float ** layers_output_gpu	= (float **)xcalloc(n, sizeof(float *));
+	float ** layers_delta_gpu	= (float **)xcalloc(n, sizeof(float *));
+
+	for (int i = 0; i < n; ++i)
+	{
+		int index = v[i];
+
+		if (index < 0)
+		{
+			index = parms.index + index;
+		}
+
+		layers[i]			= index;
+		sizes[i]			= net.layers[index].outputs;
+		layers_output[i]	= net.layers[index].output;
+		layers_delta[i]		= net.layers[index].delta;
+	}
+
+	#ifdef GPU
+	for (int i = 0; i < n; ++i)
+	{
+		layers_output_gpu[i]	= net.layers[layers[i]].output_gpu;
+		layers_delta_gpu[i]		= net.layers[layers[i]].delta_gpu;
+	}
+	#endif
+
+	layer l = make_shortcut_layer(parms.batch, n, layers, sizes, parms.w, parms.h, parms.c, layers_output, layers_delta, layers_output_gpu, layers_delta_gpu, weights_type, weights_normalization, activation, parms.train);
+
+	free(layers_output_gpu);
+	free(layers_delta_gpu);
+
+	for (int i = 0; i < n; ++i)
+	{
+		int index = layers[i];
+		assert(parms.w == net.layers[index].out_w && parms.h == net.layers[index].out_h);
+
+		if (parms.w != net.layers[index].out_w || parms.h != net.layers[index].out_h || parms.c != net.layers[index].out_c)
+		{
+			printf(" (%4d x%4d x%4d) + (%4d x%4d x%4d)\n", parms.w, parms.h, parms.c, net.layers[index].out_w, net.layers[index].out_h, net.layers[index].out_c);
+		}
+	}
 
 	return l;
 }

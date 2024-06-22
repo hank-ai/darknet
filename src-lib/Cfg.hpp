@@ -113,6 +113,7 @@ namespace Darknet
 			maxpool_layer		parse_maxpool_section		(const size_t section_idx);
 			layer				parse_yolo_section			(const size_t section_idx);
 			layer				parse_upsample_section		(const size_t section_idx);
+			layer				parse_shortcut_section		(const size_t section_idx);
 
 			std::filesystem::path filename;
 

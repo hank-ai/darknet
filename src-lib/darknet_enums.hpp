@@ -147,4 +147,32 @@ namespace Darknet
 	ENMSKind get_NMS_kind_from_name(const std::string & name);
 	std::string to_string(const ENMSKind nms_kind);
 	/// @}
+
+	enum class EWeightsType
+	{
+		NO_WEIGHTS	= WEIGHTS_TYPE_T::NO_WEIGHTS,
+		PER_FEATURE	= WEIGHTS_TYPE_T::PER_FEATURE,
+		PER_CHANNEL	= WEIGHTS_TYPE_T::PER_CHANNEL,
+	};
+
+	/// @{ Convert between names and weights types.
+	using NamesAndWeightsType = std::map<std::string, EWeightsType>;
+	const NamesAndWeightsType & all_names_and_weights_types();
+	EWeightsType get_weights_type_from_name(const std::string & name);
+	std::string to_string(const EWeightsType type);
+	/// @}
+
+	enum class EWeightsNormalization
+	{
+		NO_NORMALIZATION		= WEIGHTS_NORMALIZATION_T::NO_NORMALIZATION,
+		RELU_NORMALIZATION		= WEIGHTS_NORMALIZATION_T::RELU_NORMALIZATION,
+		SOFTMAX_NORMALIZATION	= WEIGHTS_NORMALIZATION_T::SOFTMAX_NORMALIZATION,
+	};
+
+	/// @{ Convert between names and weights normalization.
+	using NamesAndWeightsNormalization = std::map<std::string, EWeightsNormalization>;
+	const NamesAndWeightsNormalization & all_names_and_weights_normalization();
+	EWeightsNormalization get_weights_normalization_from_name(const std::string & name);
+	std::string to_string(const EWeightsNormalization normalization);
+	/// @}
 };
