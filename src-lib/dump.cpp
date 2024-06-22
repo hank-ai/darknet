@@ -694,7 +694,7 @@ void Darknet::dump(network * net, const Darknet::CfgFile::CommonParms & parms)
 
 void Darknet::dump(Darknet::CfgFile & cfg)
 {
-	::dump(cfg.net, cfg.parms);
+	::dump(&cfg.net, cfg.parms);
 
 	return;
 }

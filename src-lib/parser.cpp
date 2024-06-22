@@ -1463,16 +1463,15 @@ network parse_network_cfg(char *filename)
 
 network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 {
+	TAT(TATPARMS);
+
 	/// @todo V3 JAZZ
 #if 1
 	Darknet::CfgFile cfg_file(filename);
-//	std::cout << cfg_file.debug() << std::endl;
-	network * tmp = cfg_file.create_network(batch, time_steps);
-//	Darknet::dump(cfg_file);
-	return *tmp;
+	cfg_file.create_network(batch, time_steps);
+	Darknet::dump(cfg_file);
+	return cfg_file.net;
 #endif
-
-	TAT(TATPARMS);
 
 	if (filename == nullptr)
 	{

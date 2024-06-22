@@ -104,8 +104,8 @@ namespace Darknet
 			/// Iterate over the content to record some debug information about the configuration.
 			std::string debug() const;
 
-			/// Create and populate the Darknet network object @ref net from the configuration that was parsed.
-			network * create_network(const int batch=1, int time_steps=1);
+			/// Create and populate the Darknet network object @ref net from the configuration that was parsed during @ref read().
+			network & create_network(const int batch=1, int time_steps=1);
 
 			CfgFile &			parse_net_section			();
 			convolutional_layer	parse_convolutional_section	(const size_t section_idx);
@@ -125,10 +125,10 @@ namespace Darknet
 			/// The total number of lines that was parsed from the .cfg file, including comments.
 			size_t total_lines;
 
-			/// This will remain @p nullptr until @ref create_network() is called.
-			network * net;
+			/// This will remain uninitialized until @ref create_network() is called.
+			network net;
 
-			/// Items which are needed while parsing the layers.
+			/// Items which are needed while creating the @ref net object.
 			struct CommonParms
 			{
 				int batch;

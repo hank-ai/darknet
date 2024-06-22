@@ -448,11 +448,11 @@ std::string Darknet::CfgSection::debug() const
 
 
 Darknet::CfgFile::CfgFile() :
-	total_lines(0),
-	net(nullptr)
+	total_lines(0)
 {
 	TAT(TATPARMS);
 
+	net = {0};
 	parms = {0};
 
 	return;
@@ -609,7 +609,7 @@ std::string Darknet::CfgFile::debug() const
 }
 
 
-network * Darknet::CfgFile::create_network(int batch, int time_steps)
+network & Darknet::CfgFile::create_network(int batch, int time_steps)
 {
 	TAT(TATPARMS);
 
@@ -630,14 +630,8 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 		darknet_fatal_error(DARKNET_LOC, "expected to find [net] or [network], but instead found [%s] on line #%ld of %s", network_section.name.c_str(), network_section.line_number, filename.string().c_str());
 	}
 
-	if (net)
-	{
-		darknet_fatal_error(DARKNET_LOC, "network object already exists");
-	}
-
-	net = (network*)xcalloc(1, sizeof(network));
-	*net = make_network(sections.size());
-	net->gpu_index = cfg_and_state.gpu_index;
+	net = make_network(sections.size());
+	net.gpu_index = cfg_and_state.gpu_index;
 
 	if (batch > 0)
 	{
@@ -653,29 +647,29 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 	parse_net_section();
 
 #ifdef GPU
-	printf("net.optimized_memory = %d \n", net->optimized_memory);
-	if (net->optimized_memory >= 2 && parms.train)
+	printf("net.optimized_memory = %d \n", net.optimized_memory);
+	if (net.optimized_memory >= 2 && parms.train)
 	{
 		pre_allocate_pinned_memory((size_t)1024 * 1024 * 1024 * 8);   // pre-allocate 8 GB CPU-RAM for pinned memory
 	}
 #endif  // GPU
 
-	parms.h = net->h;
-	parms.w = net->w;
-	parms.c = net->c;
-	parms.inputs = net->inputs;
+	parms.h = net.h;
+	parms.w = net.w;
+	parms.c = net.c;
+	parms.inputs = net.inputs;
 	parms.last_stop_backward = -1;
 
-	if (batch > 0)						net->batch		= batch;
-	if (time_steps > 0)					net->time_steps	= time_steps;
-	if (net->batch < 1)					net->batch		= 1;
-	if (net->time_steps < 1)			net->time_steps	= 1;
-	if (net->batch < net->time_steps)	net->batch		= net->time_steps;
+	if (batch > 0)						net.batch		= batch;
+	if (time_steps > 0)					net.time_steps	= time_steps;
+	if (net.batch < 1)					net.batch		= 1;
+	if (net.time_steps < 1)				net.time_steps	= 1;
+	if (net.batch < net.time_steps)		net.batch		= net.time_steps;
 
-	parms.batch			= net->batch;
-	parms.time_steps	= net->time_steps;
+	parms.batch			= net.batch;
+	parms.time_steps	= net.time_steps;
 
-	printf("mini_batch=%d, batch=%d, time_steps=%d, train=%d \n", net->batch, net->batch * net->subdivisions, net->time_steps, parms.train);
+	printf("mini_batch=%d, batch=%d, time_steps=%d, train=%d \n", net.batch, net.batch * net.subdivisions, net.time_steps, parms.train);
 
 	parms.avg_outputs = 0;
 	parms.avg_counter = 0;
@@ -737,10 +731,10 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 				l = parse_route_section(idx);
 				for (int k = 0; k < l.n; ++k)
 				{
-					net->layers[l.input_layers[k]].use_bin_output = 0;
+					net.layers[l.input_layers[k]].use_bin_output = 0;
 					if (idx >= parms.last_stop_backward)
 					{
-						net->layers[l.input_layers[k]].keep_delta_gpu = 1;
+						net.layers[l.input_layers[k]].keep_delta_gpu = 1;
 					}
 				}
 				break;
@@ -876,7 +870,7 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 					parms.receptive_w = parms.receptive_h = parms.receptive_w_scale = parms.receptive_h_scale = 0;
 					for (int k = 0; k < l.n; ++k)
 					{
-						layer & route_l = net->layers[l.input_layers[k]];
+						layer & route_l = net.layers[l.input_layers[k]];
 						parms.receptive_w = max_val_cmp(parms.receptive_w, route_l.receptive_w);
 						parms.receptive_h = max_val_cmp(parms.receptive_h, route_l.receptive_h);
 						parms.receptive_w_scale = max_val_cmp(parms.receptive_w_scale, route_l.receptive_w_scale);
@@ -906,8 +900,8 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 
 #ifdef GPU
 		// futher GPU-memory optimization: net.optimized_memory == 2
-		l.optimized_memory = net->optimized_memory;
-		if (net->optimized_memory == 1 && parms.train && l.type != DROPOUT)
+		l.optimized_memory = net.optimized_memory;
+		if (net.optimized_memory == 1 && parms.train && l.type != DROPOUT)
 		{
 			if (l.delta_gpu)
 			{
@@ -915,7 +909,7 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 				l.delta_gpu = NULL;
 			}
 		}
-		else if (net->optimized_memory >= 2 && parms.train && l.type != DROPOUT)
+		else if (net.optimized_memory >= 2 && parms.train && l.type != DROPOUT)
 		{
 			if (l.output_gpu)
 			{
@@ -936,7 +930,7 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 			}
 
 			// maximum optimization
-			if (net->optimized_memory >= 3 && l.type != DROPOUT)
+			if (net.optimized_memory >= 3 && l.type != DROPOUT)
 			{
 				if (l.delta_gpu)
 				{
@@ -948,13 +942,13 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 
 			if (l.type == CONVOLUTIONAL)
 			{
-				set_specified_workspace_limit(&l, net->workspace_size_limit);   // workspace size limit 1 GB
+				set_specified_workspace_limit(&l, net.workspace_size_limit);   // workspace size limit 1 GB
 			}
 		}
 #endif // GPU
 
 		l.clip					= section.find_float("clip", 0);
-		l.dynamic_minibatch		= net->dynamic_minibatch;
+		l.dynamic_minibatch		= net.dynamic_minibatch;
 		l.onlyforward			= section.find_int("onlyforward", 0);
 		l.dont_update			= section.find_int("dont_update", 0);
 		l.burnin_update			= section.find_int("burnin_update", 0);
@@ -971,7 +965,7 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 			printf(" ------- previous layers are frozen ------- \n");
 		}
 
-		net->layers[idx] = l;
+		net.layers[idx] = l;
 		if (l.workspace_size > parms.workspace_size)
 		{
 			parms.workspace_size = l.workspace_size;
@@ -1022,17 +1016,17 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 	{
 		for (int k = 0; k < parms.last_stop_backward; ++k)
 		{
-			layer & l = net->layers[k];
+			layer & l = net.layers[k];
 			if (l.keep_delta_gpu)
 			{
 				if (!l.delta)
 				{
-					net->layers[k].delta = (float*)xcalloc(l.outputs*l.batch, sizeof(float));
+					net.layers[k].delta = (float*)xcalloc(l.outputs*l.batch, sizeof(float));
 				}
 #ifdef GPU
 				if (!l.delta_gpu)
 				{
-					net->layers[k].delta_gpu = (float *)cuda_make_array(NULL, l.outputs*l.batch);
+					net.layers[k].delta_gpu = (float *)cuda_make_array(NULL, l.outputs*l.batch);
 				}
 #endif
 			}
@@ -1043,27 +1037,27 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 	}
 
 #ifdef GPU
-	if (net->optimized_memory && parms.train)
+	if (net.optimized_memory && parms.train)
 	{
-		for (int k = 0; k < net->n; ++k)
+		for (int k = 0; k < net.n; ++k)
 		{
-			layer & l = net->layers[k];
+			layer & l = net.layers[k];
 			// delta GPU-memory optimization: net.optimized_memory == 1
 			if (!l.keep_delta_gpu)
 			{
 				const size_t delta_size = l.outputs * l.batch; // l.steps
-				if (net->max_delta_gpu_size < delta_size)
+				if (net.max_delta_gpu_size < delta_size)
 				{
-					net->max_delta_gpu_size = delta_size;
-					if (net->global_delta_gpu) cuda_free(net->global_delta_gpu);
-					if (net->state_delta_gpu) cuda_free(net->state_delta_gpu);
-					assert(net->max_delta_gpu_size > 0);
-					net->global_delta_gpu = (float *)cuda_make_array(NULL, net->max_delta_gpu_size);
-					net->state_delta_gpu = (float *)cuda_make_array(NULL, net->max_delta_gpu_size);
+					net.max_delta_gpu_size = delta_size;
+					if (net.global_delta_gpu) cuda_free(net.global_delta_gpu);
+					if (net.state_delta_gpu) cuda_free(net.state_delta_gpu);
+					assert(net.max_delta_gpu_size > 0);
+					net.global_delta_gpu = (float *)cuda_make_array(NULL, net.max_delta_gpu_size);
+					net.state_delta_gpu = (float *)cuda_make_array(NULL, net.max_delta_gpu_size);
 				}
 				if (l.delta_gpu)
 				{
-					if (net->optimized_memory >= 3)
+					if (net.optimized_memory >= 3)
 					{
 					}
 					else
@@ -1071,7 +1065,7 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 						cuda_free(l.delta_gpu);
 					}
 				}
-				l.delta_gpu = net->global_delta_gpu;
+				l.delta_gpu = net.global_delta_gpu;
 			}
 			else
 			{
@@ -1082,7 +1076,7 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 			}
 
 			// maximum optimization
-			if (net->optimized_memory >= 3 && l.type != DROPOUT)
+			if (net.optimized_memory >= 3 && l.type != DROPOUT)
 			{
 				if (l.delta_gpu && l.keep_delta_gpu)
 				{
@@ -1095,10 +1089,10 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 	}
 #endif
 
-	set_train_only_bn(*net); // set l.train_only_bn for all required layers
+	set_train_only_bn(net); // set l.train_only_bn for all required layers
 
-	net->outputs = get_network_output_size(*net);
-	net->output = get_network_output(*net);
+	net.outputs = get_network_output_size(net);
+	net.output = get_network_output(net);
 	parms.avg_outputs = parms.avg_outputs / parms.avg_counter;
 	printf("Total BFLOPS %5.3f \n", parms.bflops);
 	printf("avg_outputs = %d \n", parms.avg_outputs);
@@ -1107,58 +1101,58 @@ network * Darknet::CfgFile::create_network(int batch, int time_steps)
 	//get_cuda_memcpy_stream();
 	if (cfg_and_state.gpu_index >= 0)
 	{
-		int size = get_network_input_size(*net) * net->batch;
-		net->input_state_gpu = cuda_make_array(0, size);
-		if (cudaSuccess == cudaHostAlloc((void**)&net->input_pinned_cpu, size * sizeof(float), cudaHostRegisterMapped))
+		int size = get_network_input_size(net) * net.batch;
+		net.input_state_gpu = cuda_make_array(0, size);
+		if (cudaSuccess == cudaHostAlloc((void**)&net.input_pinned_cpu, size * sizeof(float), cudaHostRegisterMapped))
 		{
-			net->input_pinned_cpu_flag = 1;
+			net.input_pinned_cpu_flag = 1;
 		}
 		else
 		{
 			cudaGetLastError(); // reset CUDA-error
-			net->input_pinned_cpu = (float*)xcalloc(size, sizeof(float));
+			net.input_pinned_cpu = (float*)xcalloc(size, sizeof(float));
 		}
 
 		// pre-allocate memory for inference on Tensor Cores (fp16)
-		*net->max_input16_size = 0;
-		*net->max_output16_size = 0;
-		if (net->cudnn_half)
+		*net.max_input16_size = 0;
+		*net.max_output16_size = 0;
+		if (net.cudnn_half)
 		{
-			*net->max_input16_size = parms.max_inputs;
-			CHECK_CUDA(cudaMalloc((void **)net->input16_gpu, *net->max_input16_size * sizeof(short))); //sizeof(half)
-			*net->max_output16_size = parms.max_outputs;
-			CHECK_CUDA(cudaMalloc((void **)net->output16_gpu, *net->max_output16_size * sizeof(short))); //sizeof(half)
+			*net.max_input16_size = parms.max_inputs;
+			CHECK_CUDA(cudaMalloc((void **)net.input16_gpu, *net.max_input16_size * sizeof(short))); //sizeof(half)
+			*net.max_output16_size = parms.max_outputs;
+			CHECK_CUDA(cudaMalloc((void **)net.output16_gpu, *net.max_output16_size * sizeof(short))); //sizeof(half)
 		}
 
 		if (parms.workspace_size)
 		{
 			std::cout << "Allocating workspace to transfer between CPU and GPU:  " << size_to_IEC_string(parms.workspace_size) << std::endl;
 
-			net->workspace = cuda_make_array(0, parms.workspace_size / sizeof(float) + 1);
+			net.workspace = cuda_make_array(0, parms.workspace_size / sizeof(float) + 1);
 		}
 		else
 		{
 			printf("Allocating workspace:  %s\n", size_to_IEC_string(parms.workspace_size));
-			net->workspace = (float*)xcalloc(1, parms.workspace_size);
+			net.workspace = (float*)xcalloc(1, parms.workspace_size);
 		}
 	}
 #else
 	if (workspace_size)
 	{
 		printf("Allocating workspace:  %s\n", size_to_IEC_string(parms.workspace_size));
-		net->workspace = (float*)xcalloc(1, parms.workspace_size);
+		net.workspace = (float*)xcalloc(1, parms.workspace_size);
 	}
 #endif
 
-	LAYER_TYPE lt = net->layers[net->n - 1].type;
+	LAYER_TYPE lt = net.layers[net.n - 1].type;
 	if (lt == YOLO || lt == REGION || lt == DETECTION)
 	{
-		if (net->w % 32 != 0 ||
-			net->h % 32 != 0 ||
-			net->w < 32      ||
-			net->h < 32      )
+		if (net.w % 32 != 0 ||
+			net.h % 32 != 0 ||
+			net.w < 32      ||
+			net.h < 32      )
 		{
-			darknet_fatal_error(DARKNET_LOC, "width=%d and height=%d in cfg file must be divisible by 32 for YOLO networks", net->w, net->h);
+			darknet_fatal_error(DARKNET_LOC, "width=%d and height=%d in cfg file must be divisible by 32 for YOLO networks", net.w, net.h);
 		}
 	}
 
@@ -1172,128 +1166,128 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 
 	auto & s = network_section;
 
-	net->max_batches = s.find_int("max_batches", 0);
-	net->batch = s.find_int("batch",1);
-	net->learning_rate = s.find_float("learning_rate", .001);
-	net->learning_rate_min = s.find_float("learning_rate_min", .00001);
-	net->batches_per_cycle = s.find_int("sgdr_cycle", net->max_batches);
-	net->batches_cycle_mult = s.find_int("sgdr_mult", 2);
-	net->momentum = s.find_float("momentum", .9);
-	net->decay = s.find_float("decay", .0001);
+	net.max_batches = s.find_int("max_batches", 0);
+	net.batch = s.find_int("batch",1);
+	net.learning_rate = s.find_float("learning_rate", .001);
+	net.learning_rate_min = s.find_float("learning_rate_min", .00001);
+	net.batches_per_cycle = s.find_int("sgdr_cycle", net.max_batches);
+	net.batches_cycle_mult = s.find_int("sgdr_mult", 2);
+	net.momentum = s.find_float("momentum", .9);
+	net.decay = s.find_float("decay", .0001);
 	const int subdivs = s.find_int("subdivisions",1);
-	net->time_steps = s.find_int("time_steps",1);
-	net->track = s.find_int("track", 0);
-	net->augment_speed = s.find_int("augment_speed", 2);
-	net->init_sequential_subdivisions = net->sequential_subdivisions = s.find_int("sequential_subdivisions", subdivs);
-	if (net->sequential_subdivisions > subdivs)
+	net.time_steps = s.find_int("time_steps",1);
+	net.track = s.find_int("track", 0);
+	net.augment_speed = s.find_int("augment_speed", 2);
+	net.init_sequential_subdivisions = net.sequential_subdivisions = s.find_int("sequential_subdivisions", subdivs);
+	if (net.sequential_subdivisions > subdivs)
 	{
-		net->init_sequential_subdivisions = net->sequential_subdivisions = subdivs;
+		net.init_sequential_subdivisions = net.sequential_subdivisions = subdivs;
 	}
-	net->try_fix_nan = s.find_int("try_fix_nan", 0);
-	net->batch /= subdivs;          // mini_batch
-	const int mini_batch = net->batch;
-	net->batch *= net->time_steps;  // mini_batch * time_steps
-	net->subdivisions = subdivs;    // number of mini_batches
+	net.try_fix_nan = s.find_int("try_fix_nan", 0);
+	net.batch /= subdivs;          // mini_batch
+	const int mini_batch = net.batch;
+	net.batch *= net.time_steps;  // mini_batch * time_steps
+	net.subdivisions = subdivs;    // number of mini_batches
 
-	net->weights_reject_freq = s.find_int("weights_reject_freq", 0);
-	net->equidistant_point = s.find_int("equidistant_point", 0);
-	net->badlabels_rejection_percentage = s.find_float("badlabels_rejection_percentage", 0);
-	net->num_sigmas_reject_badlabels = s.find_float("num_sigmas_reject_badlabels", 0);
-	net->ema_alpha = s.find_float("ema_alpha", 0);
-	*net->badlabels_reject_threshold = 0;
-	*net->delta_rolling_max = 0;
-	*net->delta_rolling_avg = 0;
-	*net->delta_rolling_std = 0;
-	*net->seen = 0;
-	*net->cur_iteration = 0;
-	*net->cuda_graph_ready = 0;
-	net->use_cuda_graph = s.find_int("use_cuda_graph", 0);
-	net->loss_scale = s.find_float("loss_scale", 1);
-	net->dynamic_minibatch = s.find_int("dynamic_minibatch", 0);
-	net->optimized_memory = s.find_int("optimized_memory", 0);
-	net->workspace_size_limit = (size_t)1024*1024 * s.find_float("workspace_size_limit_MB", 1024);  // 1024 MB by default
+	net.weights_reject_freq = s.find_int("weights_reject_freq", 0);
+	net.equidistant_point = s.find_int("equidistant_point", 0);
+	net.badlabels_rejection_percentage = s.find_float("badlabels_rejection_percentage", 0);
+	net.num_sigmas_reject_badlabels = s.find_float("num_sigmas_reject_badlabels", 0);
+	net.ema_alpha = s.find_float("ema_alpha", 0);
+	*net.badlabels_reject_threshold = 0;
+	*net.delta_rolling_max = 0;
+	*net.delta_rolling_avg = 0;
+	*net.delta_rolling_std = 0;
+	*net.seen = 0;
+	*net.cur_iteration = 0;
+	*net.cuda_graph_ready = 0;
+	net.use_cuda_graph = s.find_int("use_cuda_graph", 0);
+	net.loss_scale = s.find_float("loss_scale", 1);
+	net.dynamic_minibatch = s.find_int("dynamic_minibatch", 0);
+	net.optimized_memory = s.find_int("optimized_memory", 0);
+	net.workspace_size_limit = (size_t)1024*1024 * s.find_float("workspace_size_limit_MB", 1024);  // 1024 MB by default
 
-	net->adam = s.find_int("adam", 0);
-	if (net->adam)
+	net.adam = s.find_int("adam", 0);
+	if (net.adam)
 	{
-		net->B1 = s.find_float("B1", .9);
-		net->B2 = s.find_float("B2", .999);
-		net->eps = s.find_float("eps", .000001);
+		net.B1 = s.find_float("B1", .9);
+		net.B2 = s.find_float("B2", .999);
+		net.eps = s.find_float("eps", .000001);
 	}
 
-	net->h = s.find_int("height",0);
-	net->w = s.find_int("width",0);
-	net->c = s.find_int("channels",0);
-	net->inputs = s.find_int("inputs", net->h * net->w * net->c);
-	net->max_crop = s.find_int("max_crop",net->w * 2);
-	net->min_crop = s.find_int("min_crop",net->w);
-	net->flip = s.find_int("flip", 1);
-	net->blur = s.find_int("blur", 0);
-	net->gaussian_noise = s.find_int("gaussian_noise", 0);
-	net->mixup = s.find_int("mixup", 0);
+	net.h = s.find_int("height",0);
+	net.w = s.find_int("width",0);
+	net.c = s.find_int("channels",0);
+	net.inputs = s.find_int("inputs", net.h * net.w * net.c);
+	net.max_crop = s.find_int("max_crop",net.w * 2);
+	net.min_crop = s.find_int("min_crop",net.w);
+	net.flip = s.find_int("flip", 1);
+	net.blur = s.find_int("blur", 0);
+	net.gaussian_noise = s.find_int("gaussian_noise", 0);
+	net.mixup = s.find_int("mixup", 0);
 	int cutmix = s.find_int("cutmix", 0);
 	int mosaic = s.find_int("mosaic", 0);
 	if (mosaic && cutmix)
 	{
-		net->mixup = 4;
+		net.mixup = 4;
 	}
 	else if (cutmix)
 	{
-		net->mixup = 2;
+		net.mixup = 2;
 	}
 	else if (mosaic)
 	{
-		net->mixup = 3;
+		net.mixup = 3;
 	}
-	net->letter_box = s.find_int("letter_box", 0);
-	net->mosaic_bound = s.find_int("mosaic_bound", 0);
-	net->contrastive = s.find_int("contrastive", 0);
-	net->contrastive_jit_flip = s.find_int("contrastive_jit_flip", 0);
-	net->contrastive_color = s.find_int("contrastive_color", 0);
-	net->unsupervised = s.find_int("unsupervised", 0);
-	if (net->contrastive && mini_batch < 2)
+	net.letter_box = s.find_int("letter_box", 0);
+	net.mosaic_bound = s.find_int("mosaic_bound", 0);
+	net.contrastive = s.find_int("contrastive", 0);
+	net.contrastive_jit_flip = s.find_int("contrastive_jit_flip", 0);
+	net.contrastive_color = s.find_int("contrastive_color", 0);
+	net.unsupervised = s.find_int("unsupervised", 0);
+	if (net.contrastive && mini_batch < 2)
 	{
 		darknet_fatal_error(DARKNET_LOC, "mini_batch size (batch/subdivisions) should be higher than 1 for contrastive loss");
 	}
 
-	net->label_smooth_eps = s.find_float("label_smooth_eps", 0.0f);
-	net->resize_step = s.find_float("resize_step", 32);
-	net->attention = s.find_int("attention", 0);
-	net->adversarial_lr = s.find_float("adversarial_lr", 0);
-	net->max_chart_loss = s.find_float("max_chart_loss", 20.0);
+	net.label_smooth_eps = s.find_float("label_smooth_eps", 0.0f);
+	net.resize_step = s.find_float("resize_step", 32);
+	net.attention = s.find_int("attention", 0);
+	net.adversarial_lr = s.find_float("adversarial_lr", 0);
+	net.max_chart_loss = s.find_float("max_chart_loss", 20.0);
 
-	net->angle = s.find_float("angle", 0);
-	net->aspect = s.find_float("aspect", 1);
-	net->saturation = s.find_float("saturation", 1);
-	net->exposure = s.find_float("exposure", 1);
-	net->hue = s.find_float("hue", 0);
-	net->power = s.find_float("power", 4);
+	net.angle = s.find_float("angle", 0);
+	net.aspect = s.find_float("aspect", 1);
+	net.saturation = s.find_float("saturation", 1);
+	net.exposure = s.find_float("exposure", 1);
+	net.hue = s.find_float("hue", 0);
+	net.power = s.find_float("power", 4);
 
-	if (!net->inputs && !(net->h && net->w && net->c))
+	if (!net.inputs && !(net.h && net.w && net.c))
 	{
 		darknet_fatal_error(DARKNET_LOC, "no input parameters supplied");
 	}
 
-	net->policy = static_cast<learning_rate_policy>(Darknet::get_learning_rate_policy_from_name(s.find_str("policy", "constant")));
+	net.policy = static_cast<learning_rate_policy>(Darknet::get_learning_rate_policy_from_name(s.find_str("policy", "constant")));
 
-	net->burn_in = s.find_int("burn_in", 0);
+	net.burn_in = s.find_int("burn_in", 0);
 
 #ifdef GPU
-	if (net->gpu_index >= 0)
+	if (net.gpu_index >= 0)
 	{
 		char device_name[1024];
-		int compute_capability = get_gpu_compute_capability(net->gpu_index, device_name);
+		int compute_capability = get_gpu_compute_capability(net.gpu_index, device_name);
 #ifdef CUDNN_HALF
 		if (compute_capability >= 700)
 		{
-			net->cudnn_half = 1;
+			net.cudnn_half = 1;
 		}
 		else
 		{
-			net->cudnn_half = 0;
+			net.cudnn_half = 0;
 		}
 #endif// CUDNN_HALF
-		fprintf(stderr, " %d : compute_capability = %d, cudnn_half = %d, GPU: %s \n", net->gpu_index, compute_capability, net->cudnn_half, device_name);
+		fprintf(stderr, " %d : compute_capability = %d, cudnn_half = %d, GPU: %s \n", net.gpu_index, compute_capability, net.cudnn_half, device_name);
 	}
 	else
 	{
@@ -1301,18 +1295,18 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 	}
 #endif// GPU
 
-	if (net->policy == STEP)
+	if (net.policy == STEP)
 	{
-		net->step = s.find_int("step", 1);
-		net->scale = s.find_float("scale", 1);
+		net.step = s.find_int("step", 1);
+		net.scale = s.find_float("scale", 1);
 	}
-	else if (net->policy == STEPS || net->policy == SGDR)
+	else if (net.policy == STEPS || net.policy == SGDR)
 	{
 		auto steps		= s.find_int_array("steps");
 		auto scales		= s.find_float_array("scales");
 		auto seq_scales	= s.find_float_array("seq_scales");
 
-		if (net->policy == STEPS && (steps.empty() || scales.empty()))
+		if (net.policy == STEPS && (steps.empty() || scales.empty()))
 		{
 			darknet_fatal_error(DARKNET_LOC, "STEPS policy must have steps and scales in cfg file");
 		}
@@ -1322,28 +1316,28 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 		scales.resize(n);
 		seq_scales.resize(n, 1.0f);
 
-		net->num_steps	= n;
-		net->steps		= (int*)xcalloc(n, sizeof(int));
-		net->scales		= (float*)xcalloc(n, sizeof(float));
-		net->seq_scales	= (float*)xcalloc(n, sizeof(float));
+		net.num_steps	= n;
+		net.steps		= (int*)xcalloc(n, sizeof(int));
+		net.scales		= (float*)xcalloc(n, sizeof(float));
+		net.seq_scales	= (float*)xcalloc(n, sizeof(float));
 
 		for (auto i = 0; i < steps.size(); i ++)
 		{
-			net->steps[i]		= static_cast<int>(steps[i]);
-			net->scales[i]		= scales[i];
-			net->seq_scales[i]	= seq_scales[i];
+			net.steps[i]		= static_cast<int>(steps[i]);
+			net.scales[i]		= scales[i];
+			net.seq_scales[i]	= seq_scales[i];
 		}
 	}
-	else if (net->policy == EXP)
+	else if (net.policy == EXP)
 	{
-		net->gamma = s.find_float("gamma", 1);
+		net.gamma = s.find_float("gamma", 1);
 	}
-	else if (net->policy == SIG)
+	else if (net.policy == SIG)
 	{
-		net->gamma = s.find_float("gamma", 1);
-		net->step = s.find_int("step", 1);
+		net.gamma = s.find_float("gamma", 1);
+		net.step = s.find_int("step", 1);
 	}
-	else if (net->policy == POLY || net->policy == RANDOM)
+	else if (net.policy == POLY || net.policy == RANDOM)
 	{
 		//net.power = s.find_float("power", 1);
 	}
@@ -1396,11 +1390,11 @@ convolutional_layer Darknet::CfgFile::parse_convolutional_section(const size_t s
 	convolutional_layer *share_layer = nullptr;
 	if (share_index >= 0)
 	{
-		share_layer = &net->layers[share_index];
+		share_layer = &net.layers[share_index];
 	}
 	else if(share_index != -1000000000)
 	{
-		share_layer = &net->layers[parms.index + share_index];
+		share_layer = &net.layers[parms.index + share_index];
 	}
 
 	int h = parms.h;
@@ -1435,7 +1429,7 @@ convolutional_layer Darknet::CfgFile::parse_convolutional_section(const size_t s
 		darknet_fatal_error(DARKNET_LOC, "[convolutional] layer sway, rotate, or stretch must only be used with size >= 3");
 	}
 
-	convolutional_layer layer = make_convolutional_layer(batch, 1, h, w, c, n, groups, size, stride_x, stride_y, dilation, padding, activation, batch_normalize, binary, xnor, net->adam, use_bin_output, parms.index, antialiasing, share_layer, assisted_excitation, deform, parms.train);
+	convolutional_layer layer = make_convolutional_layer(batch, 1, h, w, c, n, groups, size, stride_x, stride_y, dilation, padding, activation, batch_normalize, binary, xnor, net.adam, use_bin_output, parms.index, antialiasing, share_layer, assisted_excitation, deform, parms.train);
 
 	layer.flipped = s.find_int("flipped", 0);
 	layer.dot = s.find_float("dot", 0);
@@ -1451,11 +1445,11 @@ convolutional_layer Darknet::CfgFile::parse_convolutional_section(const size_t s
 	layer.stream = s.find_int("stream", -1);
 	layer.wait_stream_id = s.find_int("wait_stream", -1);
 
-	if(net->adam)
+	if (net.adam)
 	{
-		layer.B1 = net->B1;
-		layer.B2 = net->B2;
-		layer.eps = net->eps;
+		layer.B1 = net.B1;
+		layer.B2 = net.B2;
+		layer.eps = net.eps;
 	}
 
 	return layer;
@@ -1491,7 +1485,7 @@ route_layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 		}
 
 		layers[idx] = route_index;
-		sizes[idx] = net->layers[route_index].outputs;
+		sizes[idx] = net.layers[route_index].outputs;
 	}
 
 	int batch = parms.batch;
@@ -1501,7 +1495,7 @@ route_layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 
 	route_layer layer = make_route_layer(batch, v.size(), layers, sizes, groups, group_id);
 
-	convolutional_layer first = net->layers[layers[0]];
+	convolutional_layer first = net.layers[layers[0]];
 	layer.out_w = first.out_w;
 	layer.out_h = first.out_h;
 	layer.out_c = first.out_c;
@@ -1509,7 +1503,7 @@ route_layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 	for (int i = 1; i < v.size(); ++i)
 	{
 		int index = layers[i];
-		convolutional_layer next = net->layers[index];
+		convolutional_layer next = net.layers[index];
 		if(next.out_w == first.out_w && next.out_h == first.out_h)
 		{
 			layer.out_c += next.out_c;
@@ -1674,7 +1668,7 @@ layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	if (embedding_layer_id != 999999)
 	{
 		printf(" embedding_layer_id = %d, ", embedding_layer_id);
-		layer & le = net->layers[embedding_layer_id];
+		layer & le = net.layers[embedding_layer_id];
 		l.embedding_layer_id = embedding_layer_id;
 		l.embedding_output = (float*)xcalloc(le.batch * le.outputs, sizeof(float));
 		l.embedding_size = le.n / l.n;
