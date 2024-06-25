@@ -451,6 +451,14 @@ void Darknet::cfg_layers()
 	{
 		const auto fn = entry.path();
 		const auto ext = fn.extension();
+
+		if (fn.string().find("unsupported") != std::string::npos)
+		{
+			// if the config is unsupported, then don't show it at all
+			// comment out this next line if you want to see all configs
+			continue;
+		}
+
 		if (ext == ".cfg")
 		{
 			filenames.push_back(fn.string());

@@ -93,7 +93,7 @@ int hierarchy_top_prediction(float *predictions, tree *hier, float thresh, int s
 	return 0;
 }
 
-tree *read_tree(char *filename)
+tree *read_tree(const char *filename)
 {
 	TAT(TATPARMS);
 

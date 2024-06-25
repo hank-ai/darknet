@@ -206,6 +206,17 @@ const Darknet::CfgSection & Darknet::CfgSection::find_unused_lines() const
 }
 
 
+int Darknet::CfgSection::find_int(const std::string & key)
+{
+	if (lines.count(key) == 0)
+	{
+		darknet_fatal_error(DARKNET_LOC, "section [%s] at line %ld was expecting to find a key named \"%s\" but it does not exist", name.c_str(), line_number, key.c_str());
+	}
+
+	return find_int(key, 0);
+}
+
+
 int Darknet::CfgSection::find_int(const std::string & key, const int default_value)
 {
 	auto iter = lines.find(key);
@@ -723,9 +734,21 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 		switch (section.type)
 		{
-			case ELayerType::CONVOLUTIONAL:		{	l = parse_convolutional_section(idx);	break;	}
-			case ELayerType::MAXPOOL:			{	l = parse_maxpool_section(idx);			break;	}
-			case ELayerType::UPSAMPLE:			{	l = parse_upsample_section(idx);		break;	}
+			case ELayerType::CONVOLUTIONAL:		{	l = parse_convolutional_section(idx);								break;	}
+			case ELayerType::MAXPOOL:			{	l = parse_maxpool_section(idx);										break;	}
+			case ELayerType::UPSAMPLE:			{	l = parse_upsample_section(idx);									break;	}
+			case ELayerType::CONNECTED:			{	l = parse_connected_section(idx);									break;	}
+			case ELayerType::CRNN:				{	l = parse_crnn_section(idx);										break;	}
+			case ELayerType::RNN:				{	l = parse_rnn_section(idx);											break;	}
+			case ELayerType::LOCAL_AVGPOOL:		{	l = parse_local_avgpool_section(idx);								break;	}
+			case ELayerType::LSTM:				{	l = parse_lstm_section(idx);										break;	}
+			case ELayerType::REORG:				{	l = parse_reorg_section(idx);										break;	}
+			case ELayerType::AVGPOOL:			{	l = parse_avgpool_section(idx);										break;	}
+			case ELayerType::YOLO:				{	l = parse_yolo_section(idx);				l.keep_delta_gpu = 1;	break;	}
+			case ELayerType::COST:				{	l = parse_cost_section(idx);				l.keep_delta_gpu = 1;	break;	}
+			case ELayerType::REGION:			{	l = parse_region_section(idx);				l.keep_delta_gpu = 1;	break;	}
+			case ELayerType::GAUSSIAN_YOLO:		{	l = parse_gaussian_yolo_section(idx);		l.keep_delta_gpu = 1;	break;	}
+			case ELayerType::CONTRASTIVE:		{	l = parse_contrastive_section(idx);			l.keep_delta_gpu = 1;	break;	}
 			case ELayerType::ROUTE:
 			{
 				l = parse_route_section(idx);
@@ -739,12 +762,6 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				}
 				break;
 			}
-			case ELayerType::YOLO:
-			{
-				l = parse_yolo_section(idx);
-				l.keep_delta_gpu = 1;
-				break;
-			}
 			case ELayerType::SHORTCUT:
 			{
 				l = parse_shortcut_section(idx);
@@ -756,68 +773,56 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				}
 				break;
 			}
-
-#if 0 // SC
-			case ELayerType::LOCAL:				{	l = parse_local(options, params);									break;	}
-			case ELayerType::ACTIVE:			{	l = parse_activation(options, params);								break;	}
-			case ELayerType::RNN:				{	l = parse_rnn(options, params);										break;	}
-			case ELayerType::GRU:				{	l = parse_gru(options, params);										break;	}
-			case ELayerType::LSTM:				{	l = parse_lstm(options, params);									break;	}
-			case ELayerType::CONV_LSTM:			{	l = parse_conv_lstm(options, params);								break;	}
-			case ELayerType::HISTORY:			{	l = parse_history(options, params);									break;	}
-			case ELayerType::CRNN:				{	l = parse_crnn(options, params);									break;	}
-			case ELayerType::CONNECTED:			{	l = parse_connected(options, params);								break;	}
-			case ELayerType::CROP:				{	l = parse_crop(options, params);									break;	}
-			case ELayerType::IMPLICIT:			{	l = parse_implicit(options, params, net);							break;	}
-			case ELayerType::DETECTION:			{	l = parse_detection(options, params);								break;	}
-			case ELayerType::NORMALIZATION:		{	l = parse_normalization(options, params);							break;	}
-			case ELayerType::BATCHNORM:			{	l = parse_batchnorm(options, params);								break;	}
-			case ELayerType::LOCAL_AVGPOOL:		{	l = parse_local_avgpool(options, params);							break;	}
-			case ELayerType::REORG:				{	l = parse_reorg(options, params);									break;	}
-			case ELayerType::REORG_OLD:			{	l = parse_reorg_old(options, params);								break;	}
-			case ELayerType::AVGPOOL:			{	l = parse_avgpool(options, params);									break;	}
-
-			case ELayerType::COST:				{	l = parse_cost(options, params);			l.keep_delta_gpu = 1;	break;	}
-			case ELayerType::REGION:			{	l = parse_region(options, params);			l.keep_delta_gpu = 1;	break;	}
-			case ELayerType::GAUSSIAN_YOLO:		{	l = parse_gaussian_yolo(options, params);	l.keep_delta_gpu = 1;	break;	}
-			case ELayerType::CONTRASTIVE:		{	l = parse_contrastive(options, params);		l.keep_delta_gpu = 1;	break;	}
-
 			case ELayerType::SOFTMAX:
 			{
-				l = parse_softmax(options, params);
+				l = parse_softmax_section(idx);
 				net.hierarchy = l.softmax_tree;
 				l.keep_delta_gpu = 1;
 				break;
 			}
 			case ELayerType::SCALE_CHANNELS:
 			{
-				l = parse_scale_channels(options, params, net);
-				net.layers[count - 1].use_bin_output = 0;
+				l = parse_scale_channels_section(idx);
+				net.layers[idx - 1].use_bin_output = 0;
 				net.layers[l.index].use_bin_output = 0;
 				net.layers[l.index].keep_delta_gpu = 1;
 				break;
 			}
 			case ELayerType::SAM:
 			{
-				l = parse_sam(options, params, net);
-				net.layers[count - 1].use_bin_output = 0;
+				l = parse_sam_section(idx);
+				net.layers[idx - 1].use_bin_output = 0;
 				net.layers[l.index].use_bin_output = 0;
 				net.layers[l.index].keep_delta_gpu = 1;
 				break;
 			}
 			case ELayerType::DROPOUT:
 			{
-				l = parse_dropout(options, params);
-				l.output = net.layers[count-1].output;
-				l.delta = net.layers[count-1].delta;
+				l = parse_dropout_section(idx);
+				l.output			= net.layers[idx - 1].output;
+				l.delta				= net.layers[idx - 1].delta;
 				#ifdef GPU
-				l.output_gpu = net.layers[count-1].output_gpu;
-				l.delta_gpu = net.layers[count-1].delta_gpu;
-				l.keep_delta_gpu = 1;
+				l.output_gpu		= net.layers[idx - 1].output_gpu;
+				l.delta_gpu			= net.layers[idx - 1].delta_gpu;
+				l.keep_delta_gpu	= 1;
 				#endif
 				break;
 			}
-			case ELayerType::EMPTY:
+
+#if 0
+			case ELayerType::DECONVOLUTIONAL:	<-- unused
+			case ELayerType::LOCAL:				{	l = parse_local(options, params);									break;	}	<-- unused
+			case ELayerType::ACTIVE:			{	l = parse_activation(options, params);								break;	}	<-- unused
+			case ELayerType::GRU:				{	l = parse_gru(options, params);										break;	}	<-- unused
+			case ELayerType::CONV_LSTM:			{	l = parse_conv_lstm(options, params);								break;	}	<-- unused
+			case ELayerType::HISTORY:			{	l = parse_history(options, params);									break;	}	<-- unused
+			case ELayerType::CROP:				{	l = parse_crop(options, params);									break;	}	<-- unused
+			case ELayerType::IMPLICIT:			{	l = parse_implicit(options, params, net);							break;	}	<-- unused
+			case ELayerType::DETECTION:			{	l = parse_detection(options, params);								break;	}	<-- unused
+			case ELayerType::NORMALIZATION:		{	l = parse_normalization(options, params);							break;	}	<-- unused
+			case ELayerType::BATCHNORM:			{	l = parse_batchnorm(options, params);								break;	}	<-- unused
+			case ELayerType::REORG_OLD:			{	l = parse_reorg_old(options, params);								break;	}	<-- unused
+			case ELayerType::EMPTY:	<-- *UNUSED*
 			{
 				layer empty_layer = {(LAYER_TYPE)0};
 				l = empty_layer;
@@ -979,26 +984,21 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			parms.max_outputs = l.outputs;
 		}
 
-//		n = n->next;
-//		++count;
-
-//		if (n)
+		if (l.antialiasing)
 		{
-			if (l.antialiasing)
-			{
-				parms.h = l.input_layer->out_h;
-				parms.w = l.input_layer->out_w;
-				parms.c = l.input_layer->out_c;
-				parms.inputs = l.input_layer->outputs;
-			}
-			else
-			{
-				parms.h = l.out_h;
-				parms.w = l.out_w;
-				parms.c = l.out_c;
-				parms.inputs = l.outputs;
-			}
+			parms.h = l.input_layer->out_h;
+			parms.w = l.input_layer->out_w;
+			parms.c = l.input_layer->out_c;
+			parms.inputs = l.input_layer->outputs;
 		}
+		else
+		{
+			parms.h = l.out_h;
+			parms.w = l.out_w;
+			parms.c = l.out_c;
+			parms.inputs = l.outputs;
+		}
+
 		if (l.bflops > 0)
 		{
 			parms.bflops += l.bflops;
@@ -1686,12 +1686,9 @@ layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	}
 
 	const VFloat vf = s.find_float_array("anchors");
-	if (not vf.empty())
+	for (size_t i = 0; i < vf.size(); i ++)
 	{
-		for (size_t i = 0; i < vf.size(); i ++)
-		{
-			l.biases[i] = vf[i];
-		}
+		l.biases[i] = vf[i];
 	}
 
 	return l;
@@ -1783,4 +1780,481 @@ layer Darknet::CfgFile::parse_shortcut_section(const size_t section_idx)
 	}
 
 	return l;
+}
+
+
+connected_layer Darknet::CfgFile::parse_connected_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int output = s.find_int("output", 1);
+	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(s.find_str("activation", "logistic")));
+	int batch_normalize = s.find_int("batch_normalize", 0);
+
+	connected_layer layer = make_connected_layer(parms.batch, 1, parms.inputs, output, activation, batch_normalize);
+
+	return layer;
+}
+
+
+layer Darknet::CfgFile::parse_crnn_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int size			= s.find_int("size"				, 3);
+	int stride			= s.find_int("stride"			, 1);
+	int dilation		= s.find_int("dilation"			, 1);
+	int pad				= s.find_int("pad"				, 0);
+	int padding			= s.find_int("padding"			, 0);
+	int output_filters	= s.find_int("output"			, 1);
+	int hidden_filters	= s.find_int("hidden"			, 1);
+	int groups			= s.find_int("groups"			, 1);
+	int batch_normalize	= s.find_int("batch_normalize"	, 0);
+	int xnor			= s.find_int("xnor"				, 0);
+
+	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(s.find_str("activation", "logistic")));
+
+	if (pad)
+	{
+		padding = size / 2;
+	}
+
+	layer l = make_crnn_layer(parms.batch, parms.h, parms.w, parms.c, hidden_filters, output_filters, groups, parms.time_steps, size, stride, dilation, padding, activation, batch_normalize, xnor, parms.train);
+
+	l.shortcut = s.find_int("shortcut", 0);
+
+	return l;
+}
+
+
+layer Darknet::CfgFile::parse_rnn_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int output			= s.find_int("output"			, 1);
+	int hidden			= s.find_int("hidden"			, 1);
+	int batch_normalize	= s.find_int("batch_normalize"	, 0);
+	int logistic		= s.find_int("logistic"			, 0);
+
+	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(s.find_str("activation", "logistic")));
+
+	layer l = make_rnn_layer(parms.batch, parms.inputs, hidden, output, parms.time_steps, activation, batch_normalize, logistic);
+
+	l.shortcut = s.find_int("shortcut", 0);
+
+	return l;
+}
+
+
+maxpool_layer Darknet::CfgFile::parse_local_avgpool_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int stride			= s.find_int("stride"	, 1			);
+	int stride_x		= s.find_int("stride_x"	, stride	);
+	int stride_y		= s.find_int("stride_y"	, stride	);
+	int size			= s.find_int("size"		, stride	);
+	int padding			= s.find_int("padding"	, size - 1	);
+	int maxpool_depth	= 0;
+	int out_channels	= 1;
+	int antialiasing	= 0;
+	int avgpool			= 1;
+	int w				= parms.w;
+	int h				= parms.h;
+	int c				= parms.c;
+	int batch			= parms.batch;
+
+	if (!(h && w && c))
+	{
+		darknet_fatal_error(DARKNET_LOC, "layer before [local_avgpool] on line %ld must output image", s.line_number);
+	}
+
+	maxpool_layer layer = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, parms.train);
+
+	return layer;
+}
+
+
+layer Darknet::CfgFile::parse_lstm_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int output			= s.find_int("output"			, 1);
+	int batch_normalize	= s.find_int("batch_normalize"	, 0);
+
+	layer l = make_lstm_layer(parms.batch, parms.inputs, output, parms.time_steps, batch_normalize);
+
+	return l;
+}
+
+
+layer Darknet::CfgFile::parse_reorg_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int stride	= s.find_int("stride"	, 1);
+	int reverse	= s.find_int("reverse"	, 0);
+
+	int w		= parms.w;
+	int h		= parms.h;
+	int c		= parms.c;
+	int batch	= parms.batch;
+	if (!(h && w && c))
+	{
+		darknet_fatal_error(DARKNET_LOC, "layer before reorg layer on line %ld must output image", s.line_number);
+	}
+
+	layer layer = make_reorg_layer(batch, w, h, c, stride, reverse);
+
+	return layer;
+}
+
+
+avgpool_layer Darknet::CfgFile::parse_avgpool_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int w		= parms.w;
+	int h		= parms.h;
+	int c		= parms.c;
+	int batch	= parms.batch;
+	if (!(h && w && c))
+	{
+		darknet_fatal_error(DARKNET_LOC, "layer before avgpool layer on line %ld must output image", s.line_number);
+	}
+
+	avgpool_layer layer = make_avgpool_layer(batch, w, h, c);
+
+	return layer;
+}
+
+
+cost_layer Darknet::CfgFile::parse_cost_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	COST_TYPE type = static_cast<COST_TYPE>(get_cost_types_from_name(s.find_str("type", "sse")));
+
+	float scale = s.find_float("scale", 1);
+
+	cost_layer layer = make_cost_layer(parms.batch, parms.inputs, type, scale);
+
+	layer.ratio = s.find_float("ratio", 0);
+
+	return layer;
+}
+
+
+layer Darknet::CfgFile::parse_region_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int coords		= s.find_int("coords"	, 4		);
+	int classes		= s.find_int("classes"	, 20	);
+	int num			= s.find_int("num"		, 1		);
+	int max_boxes	= s.find_int("max"		, 200	);
+
+	layer l = make_region_layer(parms.batch, parms.w, parms.h, num, classes, coords, max_boxes);
+
+	if (l.outputs != parms.inputs)
+	{
+		darknet_fatal_error(DARKNET_LOC, "filters in [convolutional] layer does not match classes or mask in [region] layer on line %ld (%d vs %d)", s.line_number, l.outputs, parms.inputs);
+	}
+
+	l.log = s.find_int("log", 0);
+	l.sqrt = s.find_int("sqrt", 0);
+
+	l.softmax			= s.find_int("softmax"			, 0);
+	l.focal_loss		= s.find_int("focal_loss"		, 0);
+//	l.max_boxes			= s.find_int("max"				, 30);
+	l.rescore			= s.find_int("rescore"			, 0);
+	l.classfix			= s.find_int("classfix"			, 0);
+	l.absolute			= s.find_int("absolute"			, 0);
+	l.bias_match		= s.find_int("bias_match"		, 0);
+	l.jitter			= s.find_float("jitter"			, 0.2f);
+	l.resize			= s.find_float("resize"			, 1.0f);
+	l.thresh			= s.find_float("thresh"			, 0.5f);
+	l.random			= s.find_float("random"			, 0.0f);
+	l.coord_scale		= s.find_float("coord_scale"	, 1.0f);
+	l.object_scale		= s.find_float("object_scale"	, 1.0f);
+	l.noobject_scale	= s.find_float("noobject_scale"	, 1.0f);
+	l.mask_scale		= s.find_float("mask_scale"		, 1.0f);
+	l.class_scale		= s.find_float("class_scale"	, 1.0f);
+
+	const auto tree_file = s.find_str("tree");
+	if (tree_file.empty() == false)
+	{
+		l.softmax_tree = read_tree(tree_file.c_str());
+	}
+
+	const auto map_file = s.find_str("map");
+	if (map_file.empty() == false)
+	{
+		l.map = read_map(const_cast<char*>(map_file.c_str()));
+	}
+
+	const VFloat vf = s.find_float_array("anchors");
+	for (size_t i = 0; i < vf.size() && i < num * 2; i ++)
+	{
+		l.biases[i] = vf[i];
+	}
+
+	return l;
+}
+
+
+layer Darknet::CfgFile::parse_gaussian_yolo_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int classes		= s.find_int("classes", 20);
+	int max_boxes	= s.find_int("max", 200);
+	int total		= s.find_int("num", 1);
+	int num			= total;
+
+
+	const auto v	= s.find_int_array("mask"); // e.g., [0, 1, 2]
+	int * mask		= nullptr;
+	if (not v.empty())
+	{
+		mask = (int*)xcalloc(v.size(), sizeof(int));
+		for (size_t i = 0; i < v.size(); i ++)
+		{
+			mask[i] = v[i];
+		}
+		num = v.size();
+	}
+
+	layer l = make_gaussian_yolo_layer(parms.batch, parms.w, parms.h, num, total, mask, classes, max_boxes);
+
+	if (l.outputs != parms.inputs)
+	{
+		darknet_fatal_error(DARKNET_LOC, "filters in [convolutional] layer does not match classes or mask in [Gaussian_yolo] layer on line %ld", s.line_number);
+	}
+
+	l.objectness_smooth	= s.find_int("objectness_smooth"	, 0		);
+	l.label_smooth_eps	= s.find_float("label_smooth_eps"	, 0.0f	);
+	l.scale_x_y			= s.find_float("scale_x_y"			, 1.0f	);
+	l.uc_normalizer		= s.find_float("uc_normalizer"		, 1.0f	);
+	l.iou_normalizer	= s.find_float("iou_normalizer"		, 0.75f	);
+	l.obj_normalizer	= s.find_float("obj_normalizer"		, 1.0f	);
+	l.cls_normalizer	= s.find_float("cls_normalizer"		, 1.0f	);
+	l.delta_normalizer	= s.find_float("delta_normalizer"	, 1.0f	);
+	l.max_delta			= s.find_float("max_delta"			, FLT_MAX);   // set 10
+
+	VInt vi = s.find_int_array("counters_per_class");
+	l.classes_multipliers = get_classes_multipliers(vi, classes, l.max_delta);
+
+	const std::string iou_loss = s.find_str("iou_loss", "mse");
+	l.iou_loss = static_cast<IOU_LOSS>(get_IoU_loss_from_name(iou_loss)); // "iou"
+
+	const std::string iou_thresh_kind = s.find_str("iou_thresh_kind", "iou");
+	l.iou_thresh_kind = static_cast<IOU_LOSS>(get_IoU_loss_from_name(iou_thresh_kind));
+
+	l.beta_nms = s.find_float("beta_nms", 0.6f);
+	const std::string nms_kind = s.find_str("nms_kind", "default");
+	l.nms_kind = static_cast<NMS_KIND>(get_NMS_kind_from_name(nms_kind));
+	printf("nms_kind: %s (%d), beta = %f\n", nms_kind.c_str(), l.nms_kind, l.beta_nms);
+
+	const std::string yolo_point = s.find_str("yolo_point", "center");
+	l.yolo_point = static_cast<YOLO_POINT>(get_yolo_point_types_from_name(yolo_point));
+
+	fprintf(stderr, "[Gaussian_yolo] iou loss: %s (%d), iou_norm: %2.2f, obj_norm: %2.2f, cls_norm: %2.2f, delta_norm: %2.2f, scale: %2.2f, point: %d\n", iou_loss, l.iou_loss, l.iou_normalizer, l.obj_normalizer, l.cls_normalizer, l.delta_normalizer, l.scale_x_y, l.yolo_point);
+
+	l.jitter		= s.find_float("jitter"			, 0.2f);
+	l.resize		= s.find_float("resize"			, 1.0f);
+	l.ignore_thresh	= s.find_float("ignore_thresh"	, 0.5f);
+	l.truth_thresh	= s.find_float("truth_thresh"	, 1.0f);
+	l.iou_thresh	= s.find_float("iou_thresh"		, 1.0f); // recommended to use iou_thresh=0.213 in [yolo]
+	l.random		= s.find_float("random"			, 0.0f);
+
+	const std::string map_file = s.find_str("map");
+	if (not map_file.empty())
+	{
+		l.map = read_map(const_cast<char*>(map_file.c_str()));
+	}
+
+	const VFloat vf = s.find_float_array("anchors");
+	for (size_t i = 0; i < vf.size(); i ++)
+	{
+		l.biases[i] = vf[i];
+	}
+
+	return l;
+}
+
+
+layer Darknet::CfgFile::parse_contrastive_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int classes = s.find_int("classes", 1000);
+	layer *yolo_layer = nullptr;
+	int yolo_layer_id = s.find_int("yolo_layer", 0);
+	if (yolo_layer_id < 0)
+	{
+		yolo_layer_id = parms.index + yolo_layer_id;
+	}
+	if (yolo_layer_id != 0)
+	{
+		yolo_layer = net.layers + yolo_layer_id;
+	}
+	if (yolo_layer->type != YOLO)
+	{
+		darknet_fatal_error(DARKNET_LOC, "[contrastive] layer at line %ld does not point to [yolo] layer", s.line_number);
+	}
+
+	contrastive_layer layer = make_contrastive_layer(parms.batch, parms.w, parms.h, parms.c, classes, parms.inputs, yolo_layer);
+
+	layer.temperature			= s.find_float("temperature"		, 1.0f);
+	layer.cls_normalizer		= s.find_float("cls_normalizer"		, 1.0f);
+	layer.max_delta				= s.find_float("max_delta"			, FLT_MAX);   // set 10
+	layer.contrastive_neg_max	= s.find_int("contrastive_neg_max"	, 3);
+	layer.steps					= parms.time_steps;
+
+	return layer;
+}
+
+
+softmax_layer Darknet::CfgFile::parse_softmax_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int groups = s.find_int("groups", 1);
+
+	softmax_layer layer = make_softmax_layer(parms.batch, parms.inputs, groups);
+
+	layer.temperature = s.find_float("temperature", 1);
+
+	const std::string tree_file = s.find_str("tree");
+	if (not tree_file.empty())
+	{
+		layer.softmax_tree = read_tree(tree_file.c_str());
+	}
+
+	layer.w			= parms.w;
+	layer.h			= parms.h;
+	layer.c			= parms.c;
+	layer.spatial	= s.find_float("spatial", 0.0f);
+	layer.noloss	= s.find_int("noloss", 0);
+
+	return layer;
+}
+
+
+layer Darknet::CfgFile::parse_scale_channels_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int index = s.find_int("from");
+	if (index < 0)
+	{
+		index = parms.index + index;
+	}
+	int scale_wh = s.find_int("scale_wh", 0);
+
+	int batch = parms.batch;
+	layer & from = net.layers[index];
+
+	layer l = make_scale_channels_layer(batch, index, parms.w, parms.h, parms.c, from.out_w, from.out_h, from.out_c, scale_wh);
+
+	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(s.find_str("activation", "linear")));
+	l.activation = activation;
+	if (activation == SWISH || activation == MISH)
+	{
+		darknet_fatal_error(DARKNET_LOC, "[scale_channels] layer on line #%ld does not support SWISH or MISH activation", s.line_number);
+	}
+
+	return l;
+}
+
+
+layer Darknet::CfgFile::parse_sam_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int index = s.find_int("from");
+	if (index < 0)
+	{
+		index = parms.index + index;
+	}
+
+	int batch = parms.batch;
+	layer & from = net.layers[index];
+
+	layer l = make_sam_layer(batch, index, parms.w, parms.h, parms.c, from.out_w, from.out_h, from.out_c);
+
+	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(s.find_str("activation", "linear")));
+	l.activation = activation;
+	if (activation == SWISH || activation == MISH)
+	{
+		darknet_fatal_error(DARKNET_LOC, "[sam] layer on line #%ld does not support SWISH or MISH activation", s.line_number);
+	}
+
+	return l;
+}
+
+
+dropout_layer Darknet::CfgFile::parse_dropout_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	auto & s = sections.at(section_idx);
+
+	int dropblock				= s.find_int(	"dropblock"			, 0		);
+	float probability			= s.find_float(	"probability"		, 0.2f	);
+	float dropblock_size_rel	= s.find_float(	"dropblock_size_rel", 0.0f	);
+	int dropblock_size_abs		= s.find_float(	"dropblock_size_abs", 0.0f	); ///< @todo why read in a float and then store it in an int?
+
+	if (dropblock_size_abs > parms.w || dropblock_size_abs > parms.h)
+	{
+		printf(" [dropout] - dropblock_size_abs = %d that is bigger than layer size %d x %d \n", dropblock_size_abs, parms.w, parms.h);
+		dropblock_size_abs = min_val_cmp(parms.w, parms.h);
+	}
+	if (dropblock && !dropblock_size_rel && !dropblock_size_abs)
+	{
+		printf(" [dropout] - None of the parameters (dropblock_size_rel or dropblock_size_abs) are set, will be used: dropblock_size_abs = 7 \n");
+		dropblock_size_abs = 7;
+	}
+	if (dropblock_size_rel && dropblock_size_abs)
+	{
+		printf(" [dropout] - Both parameters are set, only the parameter will be used: dropblock_size_abs = %d \n", dropblock_size_abs);
+		dropblock_size_rel = 0;
+	}
+
+	dropout_layer layer = make_dropout_layer(parms.batch, parms.inputs, probability, dropblock, dropblock_size_rel, dropblock_size_abs, parms.w, parms.h, parms.c);
+
+	layer.out_w = parms.w;
+	layer.out_h = parms.h;
+	layer.out_c = parms.c;
+
+	return layer;
 }

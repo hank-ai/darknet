@@ -59,6 +59,7 @@ namespace Darknet
 
 			const CfgSection & find_unused_lines() const;
 
+			int find_int(const std::string & key);
 			int find_int(const std::string & key, const int default_value);
 			float find_float(const std::string & key, const float default_value);
 			std::string find_str(const std::string & key, const std::string & default_value="");
@@ -114,6 +115,21 @@ namespace Darknet
 			layer				parse_yolo_section			(const size_t section_idx);
 			layer				parse_upsample_section		(const size_t section_idx);
 			layer				parse_shortcut_section		(const size_t section_idx);
+			connected_layer		parse_connected_section		(const size_t section_idx);
+			layer				parse_crnn_section			(const size_t section_idx);
+			layer				parse_rnn_section			(const size_t section_idx);
+			maxpool_layer		parse_local_avgpool_section	(const size_t section_idx);
+			layer				parse_lstm_section			(const size_t section_idx);
+			layer				parse_reorg_section			(const size_t section_idx);
+			avgpool_layer		parse_avgpool_section		(const size_t section_idx);
+			cost_layer			parse_cost_section			(const size_t section_idx);
+			layer				parse_region_section		(const size_t section_idx);
+			layer				parse_gaussian_yolo_section	(const size_t section_idx);
+			layer				parse_contrastive_section	(const size_t section_idx);
+			softmax_layer		parse_softmax_section		(const size_t section_idx);
+			layer				parse_scale_channels_section(const size_t section_idx);
+			layer				parse_sam_section			(const size_t section_idx);
+			dropout_layer		parse_dropout_section		(const size_t section_idx);
 
 			std::filesystem::path filename;
 

@@ -420,3 +420,109 @@ std::string Darknet::to_string(const EWeightsNormalization normalization)
 //	throw std::invalid_argument("unknown weights normalization #" + std::to_string(static_cast<int>(normalization)));
 	darknet_fatal_error(DARKNET_LOC, "unknown weights normalization #%d", static_cast<int>(normalization));
 }
+
+
+const Darknet::NamesAndCostTypes & Darknet::all_names_and_cost_types()
+{
+	TAT(TATPARMS);
+
+	const static NamesAndCostTypes m =
+	{
+		{"sse"		, ECostType::SSE	},
+		{"masked"	, ECostType::MASKED	},
+		{"smooth"	, ECostType::SMOOTH	},
+#if 0
+		/// @todo these next 3 didn't exist in the codebase -- should they exist?  what should they be called?
+		{"l1"		, ECostType::L1		},
+		{"seg"		, ECostType::SEG	},
+		{"wgan"		, ECostType::WGAN	},
+#endif
+	};
+
+	return m;
+}
+
+
+Darknet::ECostType Darknet::get_cost_types_from_name(const std::string & name)
+{
+	TAT(TATPARMS);
+
+	const auto & m = all_names_and_cost_types();
+
+	if (m.count(name) == 0)
+	{
+		/// @throw sd::invalid_argument if the name is not a valid Darknet cost type
+//		throw std::invalid_argument("cost type \"" + name + "\" is not supported");
+		darknet_fatal_error(DARKNET_LOC, "cost type \"%s\" is not supported", name.c_str());
+	}
+
+	return m.at(name);
+}
+
+
+std::string Darknet::to_string(const ECostType type)
+{
+	TAT(TATPARMS);
+
+	const auto & m = all_names_and_cost_types();
+	for (const auto & [k, v] : m)
+	{
+		if (type == v)
+		{
+			return k;
+		}
+	}
+
+//	throw std::invalid_argument("unknown cost type #" + std::to_string(static_cast<int>(type)));
+	darknet_fatal_error(DARKNET_LOC, "unknown cost type #%d", static_cast<int>(type));
+}
+
+
+const Darknet::NamesAndYoloPointTypes & Darknet::all_names_and_yolo_point_types()
+{
+	TAT(TATPARMS);
+
+	const static NamesAndYoloPointTypes m =
+	{
+		{"center"		, EYoloPoint::YOLO_CENTER		},
+		{"left_top"		, EYoloPoint::YOLO_LEFT_TOP		},
+		{"right_bottom"	, EYoloPoint::YOLO_RIGHT_BOTTOM	},
+	};
+
+	return m;
+}
+
+
+Darknet::EYoloPoint Darknet::get_yolo_point_types_from_name(const std::string & name)
+{
+	TAT(TATPARMS);
+
+	const auto & m = all_names_and_yolo_point_types();
+
+	if (m.count(name) == 0)
+	{
+		/// @throw sd::invalid_argument if the name is not a valid Darknet YOLO point type
+//		throw std::invalid_argument("yolo point type \"" + name + "\" is not supported");
+		darknet_fatal_error(DARKNET_LOC, "YOLO point type \"%s\" is not supported", name.c_str());
+	}
+
+	return m.at(name);
+}
+
+
+std::string Darknet::to_string(const EYoloPoint type)
+{
+	TAT(TATPARMS);
+
+	const auto & m = all_names_and_yolo_point_types();
+	for (const auto & [k, v] : m)
+	{
+		if (type == v)
+		{
+			return k;
+		}
+	}
+
+//	throw std::invalid_argument("unknown YOLO point type #" + std::to_string(static_cast<int>(type)));
+	darknet_fatal_error(DARKNET_LOC, "unknown YOLO point type #%d", static_cast<int>(type));
+}

@@ -764,6 +764,7 @@ layer parse_region(list *options, size_params params)
 	}
 	return l;
 }
+
 detection_layer parse_detection(list *options, size_params params)
 {
 	TAT(TATPARMS);
@@ -1465,14 +1466,13 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 {
 	TAT(TATPARMS);
 
-	/// @todo V3 JAZZ
 #if 1
+	/// @todo V3 JAZZ
 	Darknet::CfgFile cfg_file(filename);
 	cfg_file.create_network(batch, time_steps);
-	Darknet::dump(cfg_file);
+//	Darknet::dump(cfg_file);
 	return cfg_file.net;
-#endif
-
+#else
 	if (filename == nullptr)
 	{
 		darknet_fatal_error(DARKNET_LOC, "expected a .cfg filename but got a NULL filename instead");
@@ -1958,7 +1958,7 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 		}
 	}
 
-#if 1
+	#if 0	// enable this to get a debug dump of the network
 	Darknet::CfgFile::CommonParms parms;
 	parms.batch					= params.batch;
 	parms.inputs				= params.inputs;
@@ -1982,9 +1982,10 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 	parms.show_receptive_field	= show_receptive_field;
 
 	Darknet::dump(&net, parms);
-#endif
+	#endif
 
 	return net;
+#endif
 }
 
 

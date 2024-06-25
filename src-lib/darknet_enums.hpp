@@ -12,46 +12,46 @@ namespace Darknet
 	enum class ELayerType
 	{
 		// Please keep the old C and the new C++ enums in sync!
-		CONVOLUTIONAL	= LAYER_TYPE::CONVOLUTIONAL		,
-		DECONVOLUTIONAL	= LAYER_TYPE::DECONVOLUTIONAL	,	// unused
-		CONNECTED		= LAYER_TYPE::CONNECTED			,
-		MAXPOOL			= LAYER_TYPE::MAXPOOL			,
-		LOCAL_AVGPOOL	= LAYER_TYPE::LOCAL_AVGPOOL		,	// only used in 1 old config?
-		SOFTMAX			= LAYER_TYPE::SOFTMAX			,
-		DETECTION		= LAYER_TYPE::DETECTION			,
-		DROPOUT			= LAYER_TYPE::DROPOUT			,
-		CROP			= LAYER_TYPE::CROP				,
-		ROUTE			= LAYER_TYPE::ROUTE				,
-		COST			= LAYER_TYPE::COST				,
-		NORMALIZATION	= LAYER_TYPE::NORMALIZATION		,	// unused
-		AVGPOOL			= LAYER_TYPE::AVGPOOL			,
-		LOCAL			= LAYER_TYPE::LOCAL				,
-		SHORTCUT		= LAYER_TYPE::SHORTCUT			,
-		SCALE_CHANNELS	= LAYER_TYPE::SCALE_CHANNELS	,	// only used in 2 places?
-		SAM				= LAYER_TYPE::SAM				,	// only used in 3 places?
-		ACTIVE			= LAYER_TYPE::ACTIVE			,	// unused
-		RNN				= LAYER_TYPE::RNN				,	// only used in 2 places?
-		GRU				= LAYER_TYPE::GRU				,	// only used in 1 old config?
-		LSTM			= LAYER_TYPE::LSTM				,	// only used in 1 old config?
-		CONV_LSTM		= LAYER_TYPE::CONV_LSTM			,	// unused
-		HISTORY			= LAYER_TYPE::HISTORY			,	// unused
-		CRNN			= LAYER_TYPE::CRNN				,	// only used in 2 pleaces?
-		BATCHNORM		= LAYER_TYPE::BATCHNORM			,	// only used in 1 old config?
-		NETWORK			= LAYER_TYPE::NETWORK			,	// this is a section name, but does not correspond to a layer type
-		XNOR			= LAYER_TYPE::XNOR				,	// unused
-		REGION			= LAYER_TYPE::REGION			,	// only used in 1 place?
-		YOLO			= LAYER_TYPE::YOLO				,
-		GAUSSIAN_YOLO	= LAYER_TYPE::GAUSSIAN_YOLO		,	// only used in 1 config?
-		ISEG			= LAYER_TYPE::ISEG				,	// unused
-		REORG			= LAYER_TYPE::REORG				,	// only used in 1 old config?
-		REORG_OLD		= LAYER_TYPE::REORG_OLD			,
-		UPSAMPLE		= LAYER_TYPE::UPSAMPLE			,
-		LOGXENT			= LAYER_TYPE::LOGXENT			,	// unused
-		L2NORM			= LAYER_TYPE::L2NORM			,	// unused
-		EMPTY			= LAYER_TYPE::EMPTY				,	// unused
-		BLANK			= LAYER_TYPE::BLANK				,	// unused
-		CONTRASTIVE		= LAYER_TYPE::CONTRASTIVE		,	// only used in 1 old config?
-		IMPLICIT		= LAYER_TYPE::IMPLICIT			,	// unused
+		CONVOLUTIONAL	= LAYER_TYPE::CONVOLUTIONAL				,	// this is used absolutely everywhere
+		DECONVOLUTIONAL	= LAYER_TYPE::DECONVOLUTIONAL			,	// *UNUSED*
+		CONNECTED		= LAYER_TYPE::CONNECTED					,	// used in 3 rarely used configurations
+		MAXPOOL			= LAYER_TYPE::MAXPOOL					,	// used often
+		LOCAL_AVGPOOL	= LAYER_TYPE::LOCAL_AVGPOOL				,	// only used in yolov4-tiny_contrastive.cfg -- obsolete?
+		SOFTMAX			= LAYER_TYPE::SOFTMAX					,	// used in several non-YOLO configs
+		DETECTION		= LAYER_TYPE::DETECTION					,	// *UNUSED*
+		DROPOUT			= LAYER_TYPE::DROPOUT					,	// used in 3 non-YOLO configs
+		CROP			= LAYER_TYPE::CROP						,	// *UNUSED*
+		ROUTE			= LAYER_TYPE::ROUTE						,	// used often
+		COST			= LAYER_TYPE::COST						,	// used in several non-YOLO configs
+		NORMALIZATION	= LAYER_TYPE::NORMALIZATION				,	// *UNUSED*
+		AVGPOOL			= LAYER_TYPE::AVGPOOL					,	// used in several non-YOLO configs
+		LOCAL			= LAYER_TYPE::LOCAL						,	// *UNUSED*
+		SHORTCUT		= LAYER_TYPE::SHORTCUT					,	// used almost everywhere
+		SCALE_CHANNELS	= LAYER_TYPE::SCALE_CHANNELS			,	// only used in 2 configs
+		SAM				= LAYER_TYPE::SAM						,	// only used in 3 configs
+		ACTIVE			= LAYER_TYPE::ACTIVE					,	// *UNUSED*
+		RNN				= LAYER_TYPE::RNN						,	// only used in rnn.train.cfg -- obsolete?
+		GRU				= LAYER_TYPE::GRU						,	// *UNUSED*
+		LSTM			= LAYER_TYPE::LSTM						,	// only used in lstm.train.cfg -- obsolete?
+		CONV_LSTM		= LAYER_TYPE::CONV_LSTM					,	// *UNUSED*
+		HISTORY			= LAYER_TYPE::HISTORY					,	// *UNUSED*
+		CRNN			= LAYER_TYPE::CRNN						,	// only used in 2 non-YOLO configs
+		BATCHNORM		= LAYER_TYPE::BATCHNORM					,	// *UNUSED*
+		NETWORK			= LAYER_TYPE::NETWORK					,	// used in every config
+		XNOR			= LAYER_TYPE::XNOR						,	// *UNUSED*
+		REGION			= LAYER_TYPE::REGION					,	// only used in tiny-yolo_xnor.cfg (which is NOT a YOLO config)
+		YOLO			= LAYER_TYPE::YOLO						,	// used often
+		GAUSSIAN_YOLO	= LAYER_TYPE::GAUSSIAN_YOLO				,	// only used in Gaussian_yolov3_BDD.cfg
+		ISEG			= LAYER_TYPE::ISEG						,	// *UNUSED*
+		REORG			= LAYER_TYPE::REORG /* aka "3D" */		,	// only used in yolov4-sam-mish-csp-reorg-bfm.cfg
+		REORG_OLD		= LAYER_TYPE::REORG_OLD					,	// *UNUSED*
+		UPSAMPLE		= LAYER_TYPE::UPSAMPLE					,	// used often
+		LOGXENT			= LAYER_TYPE::LOGXENT					,	// *UNUSED*
+		L2NORM			= LAYER_TYPE::L2NORM					,	// *UNUSED*
+		EMPTY			= LAYER_TYPE::EMPTY /* aka "SILENCE" */	,	// *UNUSED*
+		BLANK			= LAYER_TYPE::BLANK						,	// *UNUSED*
+		CONTRASTIVE		= LAYER_TYPE::CONTRASTIVE				,	// only used in yolov4-tiny_contrastive.cfg
+		IMPLICIT		= LAYER_TYPE::IMPLICIT					,	// *UNUSED*
 	};
 
 	/// @{ Convert between names and layer types.
@@ -175,4 +175,36 @@ namespace Darknet
 	EWeightsNormalization get_weights_normalization_from_name(const std::string & name);
 	std::string to_string(const EWeightsNormalization normalization);
 	/// @}
+
+	enum class ECostType
+	{
+		SSE			= COST_TYPE::SSE,
+		MASKED		= COST_TYPE::MASKED,
+//		L1			= COST_TYPE::L1,		UNUSED?
+//		SEG			= COST_TYPE::SEG		UNUSED?
+		SMOOTH		= COST_TYPE::SMOOTH,
+//		WGAN		= COST_TYPE::WGAN,		UNUSED?
+	};
+
+	/// @{ Convert between names and cost types.
+	using NamesAndCostTypes = std::map<std::string, ECostType>;
+	const NamesAndCostTypes & all_names_and_cost_types();
+	ECostType get_cost_types_from_name(const std::string & name);
+	std::string to_string(const ECostType type);
+	/// @}
+
+	enum class EYoloPoint
+	{
+		YOLO_CENTER			= YOLO_POINT::YOLO_CENTER,
+		YOLO_LEFT_TOP		= YOLO_POINT::YOLO_LEFT_TOP,
+		YOLO_RIGHT_BOTTOM	= YOLO_POINT::YOLO_RIGHT_BOTTOM,
+	};
+
+	/// @{ Convert between names and YOLO point types.
+	using NamesAndYoloPointTypes = std::map<std::string, EYoloPoint>;
+	const NamesAndYoloPointTypes & all_names_and_yolo_point_types();
+	EYoloPoint get_yolo_point_types_from_name(const std::string & name);
+	std::string to_string(const EYoloPoint type);
+	/// @}
+
 };
