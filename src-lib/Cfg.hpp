@@ -18,17 +18,18 @@ namespace Darknet
 			/// Destructor.
 			~CfgLine();
 
+			/// Determine if a line is empty.
 			bool empty() const { return line_number == 0 or line.empty() or key.empty() or val.empty(); }
 
 			/// Log what we know about this line.
 			std::string debug() const;
 
-			size_t line_number;		///< line number
-			std::string line;		///< original line of text
-			std::string key;		///< the text that comes on the left side of the "="
-			std::string val;		///< the text that comes on the right side of the "="
-			std::optional<float> f;	///< if val is a single numeric value, it will be stored here
-			bool used;				///< remember if this line was consumed when the configuraiton was parsed
+			size_t line_number;		///< The line number within the .cfg file.
+			std::string line;		///< Original line of text.
+			std::string key;		///< The text that comes on the left side of the "=".
+			std::string val;		///< The text that comes on the right side of the "=".
+			std::optional<float> f;	///< If val is a single numeric value, it will be stored here.
+			bool used;				///< Remember if this line was consumed when the configuraiton was parsed.  @see @ref Darknet::CfgSection::find_unused_lines()
 	};
 
 	/** Lines are not stored in the order in which they are read.  Instead, they are stored as a map which allows us to
@@ -57,28 +58,41 @@ namespace Darknet
 			/// Determine if a section is empty.
 			bool empty() const { return line_number == 0 or name.empty() or lines.empty(); }
 
+			/// Verify that there are no "unused" lines in this section.
 			const CfgSection & find_unused_lines() const;
 
+			/// Find an @p int config item.  The key @em must exist.
 			int find_int(const std::string & key);
+
+			/// Find an @p int config item.  If the key does not exist, then the given default value will be returned.
 			int find_int(const std::string & key, const int default_value);
+
+			/// Find a @p float config item.  If the key does not exist, then the given default value will be returned.
 			float find_float(const std::string & key, const float default_value);
+
+			/// Find a text config item.  If the key does not exist, then the given default value will be returned.
 			std::string find_str(const std::string & key, const std::string & default_value="");
+
+			/// Find an array of @p float values.  If the key does not exist, then an empty @p std::vector will be returned.
 			VFloat find_float_array(const std::string & key);
+
+			/// Find an array of @p int values.  If the key does not exist, then an empty @p std::vector will be returned.
 			VInt find_int_array(const std::string & key);
 
 			/// Iterate over the section to log every line.
 			std::string debug() const;
 
-			ELayerType type;		///< the layer type for this section (e.g., [convolutional] or [yolo])
-			std::string name;		///< the name of the section (so we don't have to keep looking up the type)
-			size_t line_number;		///< line number where this section starts
-			CfgLines lines;			///< all of the lines within a section
+			ELayerType	type;			///< The layer type for this section (e.g., [convolutional] or [yolo]).
+			std::string	name;			///< The name of the section (so we don't have to keep looking up the type).
+			size_t		line_number;	///< Line number where this section starts.
+			CfgLines	lines;			///< All of the lines within a section.
 	};
 	using CfgSections = std::vector<CfgSection>;
 
 
 	/** A class that represents a Darknet/YOLO configuration file.  Contains various @ref "sections", which in turn has
-	 * lines representing all of the options for each given section.
+	 * lines representing all of the options for each given section.  Typical use is to call @ref read() followed by
+	 * @ref create_network().
 	 */
 	class CfgFile final
 	{
@@ -93,10 +107,17 @@ namespace Darknet
 			/// Destructor.
 			~CfgFile();
 
-			/// Read the given configuration file.  Forgets about any configuration file specified in the constructor (if any).
+			/** Read the given configuration file and parses the individual sections and lines.
+			 * Forgets about any configuration file specified in the constructor (if any).
+			 *
+			 * @note Remember to call @ref create_network() after @p read() has finished.
+			 */
 			CfgFile & read(const std::filesystem::path & fn);
 
-			/// Read the configuration file that was specified in the constructor.
+			/** Read the configuration file that was specified in the constructor.
+			 *
+			 * @note Remember to call @ref create_network() after @p read() has finished.
+			 */
 			CfgFile & read();
 
 			/// Determine if a .cfg file has been parsed.
@@ -105,47 +126,40 @@ namespace Darknet
 			/// Iterate over the content to record some debug information about the configuration.
 			std::string debug() const;
 
-			/// Create and populate the Darknet network object @ref net from the configuration that was parsed during @ref read().
+			/** Create and populate the Darknet @p network object @ref net from the configuration that was parsed.
+			 *
+			 * @note Remember to call @ref read() prior to @p create_network().
+			 */
 			network & create_network(const int batch=1, int time_steps=1);
 
-			CfgFile &			parse_net_section			();
-			convolutional_layer	parse_convolutional_section	(const size_t section_idx);
-			route_layer			parse_route_section			(const size_t section_idx);
-			maxpool_layer		parse_maxpool_section		(const size_t section_idx);
-			layer				parse_yolo_section			(const size_t section_idx);
-			layer				parse_upsample_section		(const size_t section_idx);
-			layer				parse_shortcut_section		(const size_t section_idx);
-			connected_layer		parse_connected_section		(const size_t section_idx);
-			layer				parse_crnn_section			(const size_t section_idx);
-			layer				parse_rnn_section			(const size_t section_idx);
-			maxpool_layer		parse_local_avgpool_section	(const size_t section_idx);
-			layer				parse_lstm_section			(const size_t section_idx);
-			layer				parse_reorg_section			(const size_t section_idx);
-			avgpool_layer		parse_avgpool_section		(const size_t section_idx);
-			cost_layer			parse_cost_section			(const size_t section_idx);
-			layer				parse_region_section		(const size_t section_idx);
-			layer				parse_gaussian_yolo_section	(const size_t section_idx);
-			layer				parse_contrastive_section	(const size_t section_idx);
-			softmax_layer		parse_softmax_section		(const size_t section_idx);
-			layer				parse_scale_channels_section(const size_t section_idx);
-			layer				parse_sam_section			(const size_t section_idx);
-			dropout_layer		parse_dropout_section		(const size_t section_idx);
-
+			/// The configuration file.
 			std::filesystem::path filename;
 
-			/// The [net] or [network] is not a "real" section, nor is it a layer.  We'll store it apart from the rest of the sections.
+			/** The [net] or [network] is not a "real" section, nor is it a layer.
+			 * This is only populated after @ref read() has been called.
+			 *
+			 * @see @ref sections
+			 */
 			CfgSection network_section;
 
-			/// This is were we'll store every section *except* for the [net] one.  @see @ref network_section
+			/** This is were we'll store every section *except* for the [net] one.
+			 * This is only populated after @ref read() has been called.
+			 *
+			 * @see @ref network_section
+			 */
 			CfgSections sections;
 
-			/// The total number of lines that was parsed from the .cfg file, including comments.
+			/// The total number of lines that was parsed from the .cfg file, including comments and blank lines.
 			size_t total_lines;
 
 			/// This will remain uninitialized until @ref create_network() is called.
 			network net;
 
-			/// Items which are needed while creating the @ref net object.
+			/** Temporary fields which are needed while creating the @ref net object.
+			 * It is unlikely that this needs to be exposed or modified externally,
+			 * but it must be exposed for use in @ref dump() and the old
+			 * @p parse_network_cfg_custom() function.
+			 */
 			struct CommonParms
 			{
 				int batch;
@@ -170,5 +184,32 @@ namespace Darknet
 				int show_receptive_field;
 			};
 			CommonParms parms;
+
+		private:
+
+			/// @{ Methods to parse different types of sections in .cfg files.
+			CfgFile &			parse_net_section			();
+			convolutional_layer	parse_convolutional_section	(const size_t section_idx);
+			route_layer			parse_route_section			(const size_t section_idx);
+			maxpool_layer		parse_maxpool_section		(const size_t section_idx);
+			layer				parse_yolo_section			(const size_t section_idx);
+			layer				parse_upsample_section		(const size_t section_idx);
+			layer				parse_shortcut_section		(const size_t section_idx);
+			connected_layer		parse_connected_section		(const size_t section_idx);
+			layer				parse_crnn_section			(const size_t section_idx);
+			layer				parse_rnn_section			(const size_t section_idx);
+			maxpool_layer		parse_local_avgpool_section	(const size_t section_idx);
+			layer				parse_lstm_section			(const size_t section_idx);
+			layer				parse_reorg_section			(const size_t section_idx);
+			avgpool_layer		parse_avgpool_section		(const size_t section_idx);
+			cost_layer			parse_cost_section			(const size_t section_idx);
+			layer				parse_region_section		(const size_t section_idx);
+			layer				parse_gaussian_yolo_section	(const size_t section_idx);
+			layer				parse_contrastive_section	(const size_t section_idx);
+			softmax_layer		parse_softmax_section		(const size_t section_idx);
+			layer				parse_scale_channels_section(const size_t section_idx);
+			layer				parse_sam_section			(const size_t section_idx);
+			dropout_layer		parse_dropout_section		(const size_t section_idx);
+			/// @}
 	};
 }

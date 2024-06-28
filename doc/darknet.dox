@@ -27,10 +27,12 @@ The Doxygen pages below are meant to assist software **developers** in understan
 	- @ref train_network() (CPU only)
 	- @ref train_network_waitkey() (1 GPU)
 	- @ref train_networks() (multi-GPU)
-- @ref display_loaded_images()
-- @ref display_iteration_summary()
-- @ref display_last_accuracy()
 - @ref Darknet::TimingAndTracking
+
+Configuration files:
+- @ref Darknet::CfgFile
+	- @ref Darknet::CfgSection
+		- @ref Darknet::CfgLine
 
 @p darknet_utils.hpp:
 - @ref format_time()
