@@ -51,6 +51,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	is_shown				= true;
 	colour_is_enabled		= true;
 	is_verbose				= false;
+	is_trace				= false;
 
 #ifdef GPU
 	gpu_index				= 0;
@@ -232,6 +233,12 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 		args.count("show_details"	) > 0) // old Darknet had "-show_details", which I didn't know about when I created "--verbose"
 	{
 		is_verbose = true;
+	}
+
+	if (args.count("trace") > 0)
+	{
+		is_verbose	= true;
+		is_trace	= true;
 	}
 
 	if (args.count("dontshow") > 0)

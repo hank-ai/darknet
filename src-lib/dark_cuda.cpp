@@ -121,8 +121,12 @@ cudaStream_t get_cuda_stream()
 	TAT(TATPARMS);
 
 	int i = cuda_get_device();
-	if (!streamInit[i]) {
-		printf("Create CUDA-stream - %d \n", i);
+	if (!streamInit[i])
+	{
+		if (cfg_and_state.is_trace)
+		{
+			std::cout << "create CUDA stream for device #" << i << std::endl;
+		}
 #ifdef CUDNN
 		cudaError_t status = cudaStreamCreateWithFlags(&streamsArray[i], cudaStreamNonBlocking);
 #else
@@ -174,12 +178,17 @@ cudnnHandle_t cudnn_handle()
 	TAT(TATPARMS);
 
 	int i = cuda_get_device();
-	if(!cudnnInit[i]) {
+	if(!cudnnInit[i])
+	{
 		cudnnCreate(&cudnnHandle[i]);
 		cudnnInit[i] = 1;
 		cudnnStatus_t status = cudnnSetStream(cudnnHandle[i], get_cuda_stream());
 		CHECK_CUDNN(status);
-		printf(" Create cudnn-handle %d \n", i);
+
+		if (cfg_and_state.is_trace)
+		{
+			std::cout << "create cuDNN handle for device #" << i << std::endl;
+		}
 	}
 	return cudnnHandle[i];
 }

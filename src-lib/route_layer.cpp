@@ -4,7 +4,6 @@ route_layer make_route_layer(int batch, int n, int *input_layers, int *input_siz
 {
 	TAT(TATPARMS);
 
-	fprintf(stderr,"route ");
 	route_layer l = { (LAYER_TYPE)0 };
 	l.type = ROUTE;
 	l.batch = batch;
@@ -16,14 +15,15 @@ route_layer make_route_layer(int batch, int n, int *input_layers, int *input_siz
 	l.wait_stream_id = -1;
 	int i;
 	int outputs = 0;
-	for(i = 0; i < n; ++i){
-		fprintf(stderr," %d", input_layers[i]);
+
+	for (i = 0; i < n; ++i)
+	{
 		outputs += input_sizes[i];
 	}
+
 	outputs = outputs / groups;
 	l.outputs = outputs;
 	l.inputs = outputs;
-	//fprintf(stderr, " inputs = %d \t outputs = %d, groups = %d, group_id = %d \n", l.inputs, l.outputs, l.groups, l.group_id);
 	l.delta = (float*)xcalloc(outputs * batch, sizeof(float));
 	l.output = (float*)xcalloc(outputs * batch, sizeof(float));
 
@@ -36,6 +36,7 @@ route_layer make_route_layer(int batch, int n, int *input_layers, int *input_siz
 	l.delta_gpu =  cuda_make_array(l.delta, outputs*batch);
 	l.output_gpu = cuda_make_array(l.output, outputs*batch);
 	#endif
+
 	return l;
 }
 

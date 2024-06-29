@@ -394,7 +394,6 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 {
 	TAT(TATPARMS);
 
-	int i;
 	layer l = { (LAYER_TYPE)0 };
 	l.type = YOLO;
 
@@ -421,14 +420,15 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	 */
 	l.nbiases = total * 2;
 
-	if(mask)
+	if (mask)
 	{
 		l.mask = mask;
 	}
 	else
 	{
 		l.mask = (int*)xcalloc(n, sizeof(int));
-		for(i = 0; i < n; ++i)
+
+		for (int i = 0; i < n; ++i)
 		{
 			l.mask[i] = i;
 		}
@@ -441,13 +441,13 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	l.truths = l.max_boxes*l.truth_size;    // 90*(4 + 1);
 	l.labels = (int*)xcalloc(batch * l.w*l.h*l.n, sizeof(int));
 
-	for (i = 0; i < batch * l.w*l.h*l.n; ++i)
+	for (int i = 0; i < batch * l.w*l.h*l.n; ++i)
 	{
 		l.labels[i] = -1;
 	}
 	l.class_ids = (int*)xcalloc(batch * l.w*l.h*l.n, sizeof(int));
 
-	for (i = 0; i < batch * l.w*l.h*l.n; ++i)
+	for (int i = 0; i < batch * l.w*l.h*l.n; ++i)
 	{
 		l.class_ids[i] = -1;
 	}
@@ -455,7 +455,7 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
 
-	for(i = 0; i < total*2; ++i)
+	for (int i = 0; i < total * 2; ++i)
 	{
 		l.biases[i] = .5;
 	}
@@ -470,23 +470,27 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
 
 	free(l.output);
-	if (cudaSuccess == cudaHostAlloc((void**)&l.output, batch*l.outputs*sizeof(float), cudaHostRegisterMapped)) l.output_pinned = 1;
-	else {
+	if (cudaSuccess == cudaHostAlloc((void**)&l.output, batch*l.outputs*sizeof(float), cudaHostRegisterMapped))
+	{
+		l.output_pinned = 1;
+	}
+	else
+	{
 		cudaGetLastError(); // reset CUDA-error
 		l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	}
 
 	free(l.delta);
-	if (cudaSuccess == cudaHostAlloc((void**)&l.delta, batch*l.outputs*sizeof(float), cudaHostRegisterMapped)) l.delta_pinned = 1;
-	else {
+	if (cudaSuccess == cudaHostAlloc((void**)&l.delta, batch*l.outputs*sizeof(float), cudaHostRegisterMapped))
+	{
+		l.delta_pinned = 1;
+	}
+	else
+	{
 		cudaGetLastError(); // reset CUDA-error
 		l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	}
 #endif
-
-	fprintf(stderr, "yolo\n");
-	/// @todo why!?
-//	srand(time(0));
 
 	return l;
 }

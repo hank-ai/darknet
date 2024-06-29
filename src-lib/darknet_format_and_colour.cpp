@@ -108,6 +108,21 @@ std::string Darknet::format_in_colour(const int & i, const EColour & colour, con
 }
 
 
+std::string Darknet::format_in_colour(const size_t & st, const EColour & colour, const size_t & len)
+{
+	TAT(TATPARMS);
+
+	std::string str = std::to_string(st);
+	std::string padding;
+	if (str.length() < len)
+	{
+		padding = std::string(len - str.length(), ' ');
+	}
+
+	return padding + in_colour(colour, str);
+}
+
+
 std::string Darknet::format_in_colour(const float & f, const EColour & colour, const size_t & len)
 {
 	TAT(TATPARMS);
@@ -197,6 +212,146 @@ std::string Darknet::format_map_confusion_matrix_values(
 		format_in_colour(recall						, 6	) + " " +
 		format_in_colour(specificity				, 11) + " " +
 		format_in_colour(false_pos_rate				, 12, true);
+
+	return output;
+}
+
+
+std::string Darknet::format_layer_summary(const size_t idx, const Darknet::CfgSection & section, const layer & l)
+{
+	TAT(TATPARMS);
+
+	const std::string name = [&]() -> std::string
+	{
+		if (l.type == LAYER_TYPE::UPSAMPLE and l.reverse)
+		{
+			return "downsample";
+		}
+		if (l.type == LAYER_TYPE::MAXPOOL and l.avgpool)
+		{
+			return "avg";
+		}
+		if (l.type == LAYER_TYPE::MAXPOOL and l.maxpool_depth)
+		{
+			return "max-depth";
+		}
+		return section.name;
+	}();
+	const std::string filters_and_groups = [&]()
+	{
+		std::string str;
+		if (l.n != 0)
+		{
+			str = std::to_string(l.n);
+
+			if (l.type == LAYER_TYPE::ROUTE)
+			{
+				str = std::to_string(l.groups);
+			}
+			else if (l.groups > 1)
+			{
+				str += " / " + std::to_string(l.groups);
+			}
+		}
+		return str;
+	}();
+	const std::string size = [&]()
+	{
+		std::stringstream ss;
+		if (l.type == LAYER_TYPE::UPSAMPLE)
+		{
+			ss << l.stride << "X";
+		}
+		else if (l.type == LAYER_TYPE::ROUTE or l.type == LAYER_TYPE::SHORTCUT)
+		{
+			for (size_t i = 0; i < l.n; i++)
+			{
+				ss << (i == 0 ? "#" : ", ") << l.input_layers[i];
+			}
+		}
+		else if (l.type == LAYER_TYPE::YOLO)
+		{
+			ss << l.total << " anchors";
+		}
+		else
+		{
+			if (l.size > 0)
+			{
+				ss << l.size << " x " << l.size << " / ";
+				if (l.stride_x != l.stride_y)
+				{
+					ss << l.stride_x << " x " << l.stride_y;
+
+					if (l.dilation > 1)
+					{
+						ss << " / " << l.dilation;
+					}
+				}
+				else
+				{
+					ss << l.stride;
+				}
+			}
+			else
+			{
+				ss << "  x";
+			}
+		}
+		return ss.str();
+	}();
+	const std::string input_size = [&]()
+	{
+		std::stringstream ss;
+		if (l.type == LAYER_TYPE::ROUTE)
+		{
+			if (l.groups > 1)
+			{
+				ss << l.group_id << "/" << l.groups;
+			}
+		}
+		else if (l.type == LAYER_TYPE::SHORTCUT)
+		{
+			if (l.weights_normalization != WEIGHTS_NORMALIZATION_T::NO_NORMALIZATION)
+			{
+				ss << "n=" << Darknet::to_string(static_cast<Darknet::EWeightsNormalization>(l.weights_normalization));
+			}
+			else if (l.weights_type != WEIGHTS_TYPE_T::NO_WEIGHTS)
+			{
+				ss << "t=" << Darknet::to_string(static_cast<Darknet::EWeightsType>(l.weights_type));
+			}
+		}
+		else
+		{
+			ss << l.w << " x " << l.h << " x " << l.c;
+		}
+		return ss.str();
+	}();
+	const std::string output_size = [&]()
+	{
+		std::stringstream ss;
+		ss << l.out_w << " x " << l.out_h << " x " << l.out_c;
+		return ss.str();
+	}();
+	const std::string bflops = [&]()
+	{
+		std::stringstream ss;
+		if (l.bflops > 0.0f)
+		{
+			ss << std::fixed << std::setprecision(3) << l.bflops << " BF";
+		}
+		return ss.str();
+	}();
+
+	const std::string output =
+		format_in_colour(idx					, EColour::kNormal			, 3	) + " " +
+		format_in_colour(section.line_number	, EColour::kBrightBlue		, 4	) + " " +
+		format_in_colour(name					, EColour::kBrightWhite		, 15) + " " +
+		format_in_colour(filters_and_groups		, EColour::kNormal			, 7	) + " " +
+		format_in_colour(size					, EColour::kBrightGreen		, 10) + " " +
+		format_in_colour(input_size				, EColour::kBrightCyan		, 15) +
+		format_in_colour(" -> "					, EColour::kNormal			, 4	) +
+		format_in_colour(output_size			, EColour::kBrightCyan		, 15) + " " +
+		format_in_colour(bflops					, EColour::kBrightMagenta	, 8);
 
 	return output;
 }

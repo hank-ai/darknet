@@ -235,7 +235,7 @@ int Darknet::CfgSection::find_int(const std::string & key, const int default_val
 
 			const int i = static_cast<int>(iptr);
 
-			if (cfg_and_state.is_verbose)
+			if (cfg_and_state.is_trace)
 			{
 				std::cout << "[" << name << "] #" << l.line_number << " " << key << "=" << i << std::endl;
 			}
@@ -249,7 +249,7 @@ int Darknet::CfgSection::find_int(const std::string & key, const int default_val
 		}
 	}
 
-	if (cfg_and_state.is_verbose)
+	if (cfg_and_state.is_trace)
 	{
 		std::cout << "[" << name << "] #" << line_number << " DEFAULT " << key << "=" << default_value << std::endl;
 	}
@@ -268,7 +268,7 @@ float Darknet::CfgSection::find_float(const std::string & key, const float defau
 		{
 			const float f = l.f.value();
 
-			if (cfg_and_state.is_verbose)
+			if (cfg_and_state.is_trace)
 			{
 				std::cout << "[" << name << "] #" << l.line_number << " " << key << "=" << f << std::endl;
 			}
@@ -282,7 +282,7 @@ float Darknet::CfgSection::find_float(const std::string & key, const float defau
 		}
 	}
 
-	if (cfg_and_state.is_verbose)
+	if (cfg_and_state.is_trace)
 	{
 		std::cout << "[" << name << "] #" << line_number << " DEFAULT " << key << "=" << default_value << std::endl;
 	}
@@ -298,7 +298,7 @@ std::string Darknet::CfgSection::find_str(const std::string & key, const std::st
 	{
 		CfgLine & l = iter->second;
 
-		if (cfg_and_state.is_verbose)
+		if (cfg_and_state.is_trace)
 		{
 			std::cout << "[" << name << "] #" << l.line_number << " " << key << "=" << l.val << std::endl;
 		}
@@ -307,7 +307,7 @@ std::string Darknet::CfgSection::find_str(const std::string & key, const std::st
 		return l.val;
 	}
 
-	if (cfg_and_state.is_verbose)
+	if (cfg_and_state.is_trace)
 	{
 		std::cout << "[" << name << "] #" << line_number << " DEFAULT " << key << "=" << default_value << std::endl;
 	}
@@ -364,7 +364,7 @@ Darknet::VFloat Darknet::CfgSection::find_float_array(const std::string & key)
 		}
 	}
 
-	if (cfg_and_state.is_verbose)
+	if (cfg_and_state.is_trace)
 	{
 		std::cout << "[" << name << "] #" << line << " " << key << "=[";
 		for (size_t idx = 0; idx < v.size(); idx ++)
@@ -427,7 +427,7 @@ Darknet::VInt Darknet::CfgSection::find_int_array(const std::string & key)
 		}
 	}
 
-	if (cfg_and_state.is_verbose)
+	if (cfg_and_state.is_trace)
 	{
 		std::cout << "[" << name << "] #" << line << " " << key << "=[";
 		for (size_t idx = 0; idx < v.size(); idx ++)
@@ -658,7 +658,10 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 	parse_net_section();
 
 #ifdef GPU
-	printf("net.optimized_memory = %d \n", net.optimized_memory);
+	if (cfg_and_state.is_verbose)
+	{
+		std::cout << "net.optimized_memory = " << net.optimized_memory << std::endl;
+	}
 	if (net.optimized_memory >= 2 && parms.train)
 	{
 		pre_allocate_pinned_memory((size_t)1024 * 1024 * 1024 * 8);   // pre-allocate 8 GB CPU-RAM for pinned memory
@@ -680,27 +683,29 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 	parms.batch			= net.batch;
 	parms.time_steps	= net.time_steps;
 
-	printf("mini_batch=%d, batch=%d, time_steps=%d, train=%d \n", net.batch, net.batch * net.subdivisions, net.time_steps, parms.train);
+	if (cfg_and_state.is_verbose)
+	{
+		std::cout
+			<< "mini_batch="	<< net.batch
+			<< ", batch="		<< net.batch * net.subdivisions
+			<< ", time_steps="	<< net.time_steps
+			<< ", train="		<< parms.train
+			<< std::endl;
+	}
 
-	parms.avg_outputs = 0;
-	parms.avg_counter = 0;
-	parms.bflops = 0;
-	parms.workspace_size = 0;
-	parms.max_inputs = 0;
-	parms.max_outputs = 0;
-	parms.receptive_w = 1;
-	parms.receptive_h = 1;
-	parms.receptive_w_scale = 1;
-	parms.receptive_h_scale = 1;
-	parms.show_receptive_field = network_section.find_int("show_receptive_field", 0);
+	parms.avg_outputs			= 0;
+	parms.avg_counter			= 0;
+	parms.bflops				= 0;
+	parms.workspace_size		= 0;
+	parms.max_inputs			= 0;
+	parms.max_outputs			= 0;
+	parms.receptive_w			= 1;
+	parms.receptive_h			= 1;
+	parms.receptive_w_scale		= 1;
+	parms.receptive_h_scale		= 1;
+	parms.show_receptive_field	= network_section.find_int("show_receptive_field", 0);
 
 	network_section.find_unused_lines();
-
-#if 0 // SC
-	n = n->next;
-	int count = 0;
-	free_section(s);
-#endif
 
 	// find the last section in which "stopbackward" appears
 	if (parms.train == 1)
@@ -715,8 +720,6 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 	}
 
 	const auto original_parms_train = parms.train;
-
-	fprintf(stderr, "   layer   filters  size/strd(dil)      input                output\n");
 
 	for (int idx = 0; idx < sections.size(); idx ++)
 	{
@@ -808,9 +811,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				#endif
 				break;
 			}
-
 #if 0
-			case ELayerType::DECONVOLUTIONAL:	<-- unused
 			case ELayerType::LOCAL:				{	l = parse_local(options, params);									break;	}	<-- unused
 			case ELayerType::ACTIVE:			{	l = parse_activation(options, params);								break;	}	<-- unused
 			case ELayerType::GRU:				{	l = parse_gru(options, params);										break;	}	<-- unused
@@ -822,30 +823,8 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			case ELayerType::NORMALIZATION:		{	l = parse_normalization(options, params);							break;	}	<-- unused
 			case ELayerType::BATCHNORM:			{	l = parse_batchnorm(options, params);								break;	}	<-- unused
 			case ELayerType::REORG_OLD:			{	l = parse_reorg_old(options, params);								break;	}	<-- unused
-			case ELayerType::EMPTY:	<-- *UNUSED*
-			{
-				layer empty_layer = {(LAYER_TYPE)0};
-				l = empty_layer;
-				l.type = EMPTY;
-				l.w = l.out_w = params.w;
-				l.h = l.out_h = params.h;
-				l.c = l.out_c = params.c;
-				l.batch = params.batch;
-				l.inputs = l.outputs = params.inputs;
-				l.output = net.layers[count - 1].output;
-				l.delta = net.layers[count - 1].delta;
-				l.forward = empty_func;
-				l.backward = empty_func;
-				#ifdef GPU
-				l.output_gpu = net.layers[count - 1].output_gpu;
-				l.delta_gpu = net.layers[count - 1].delta_gpu;
-				l.keep_delta_gpu = 1;
-				l.forward_gpu = empty_func;
-				l.backward_gpu = empty_func;
-				#endif
-				fprintf(stderr, "empty \n");
-				break;
-			}
+			case ELayerType::DECONVOLUTIONAL:	<-- unused
+			case ELayerType::EMPTY:	<-- unused
 #endif
 			default:
 			{
@@ -967,7 +946,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 		if (l.stopbackward == 1)
 		{
-			printf(" ------- previous layers are frozen ------- \n");
+			std::cout << " ------- previous layers are frozen -------" << std::endl;
 		}
 
 		net.layers[idx] = l;
@@ -1008,6 +987,19 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 		{
 			parms.avg_outputs += l.outputs;
 			parms.avg_counter ++;
+		}
+
+		if (cfg_and_state.is_verbose)
+		{
+			if (idx == 0)
+			{
+				std::cout
+					<< "configuration filename=" << filename << std::endl
+					<< "  # line    layer     filters   sz/rte/other    input              output       bflops" << std::endl;
+													// "size, stride, dilation, route, anchors, more...
+			}
+
+			std::cout << format_layer_summary(idx, section, l) << std::endl;
 		}
 
 	} // while loop (sections)
@@ -1094,8 +1086,13 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 	net.outputs = get_network_output_size(net);
 	net.output = get_network_output(net);
 	parms.avg_outputs = parms.avg_outputs / parms.avg_counter;
-	printf("Total BFLOPS %5.3f \n", parms.bflops);
-	printf("avg_outputs = %d \n", parms.avg_outputs);
+
+	if (cfg_and_state.is_verbose)
+	{
+		std::cout
+			<< "Total BFLOPS = "	<< parms.bflops			<< std::endl
+			<< "avg_outputs = "		<< parms.avg_outputs	<< std::endl;
+	}
 #ifdef GPU
 	get_cuda_stream();
 	//get_cuda_memcpy_stream();
@@ -1132,14 +1129,14 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 		}
 		else
 		{
-			printf("Allocating workspace:  %s\n", size_to_IEC_string(parms.workspace_size));
+			std::cout << "Allocating workspace:  " << size_to_IEC_string(parms.workspace_size) << std::endl;
 			net.workspace = (float*)xcalloc(1, parms.workspace_size);
 		}
 	}
 #else
 	if (workspace_size)
 	{
-		printf("Allocating workspace:  %s\n", size_to_IEC_string(parms.workspace_size));
+		std::cout << "Allocating workspace:  " << size_to_IEC_string(parms.workspace_size) << std::endl;
 		net.workspace = (float*)xcalloc(1, parms.workspace_size);
 	}
 #endif
@@ -1524,31 +1521,6 @@ route_layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 	layer.stream = s.find_int("stream", -1);
 	layer.wait_stream_id = s.find_int("wait_stream", -1);
 
-	/// @todo fix up all this fprintf()
-	if (v.size() > 3)
-	{
-		fprintf(stderr, " \t    ");
-	}
-	else if (v.size() > 1)
-	{
-		fprintf(stderr, " \t            ");
-	}
-	else
-	{
-		fprintf(stderr, " \t\t            ");
-	}
-
-	fprintf(stderr, "           ");
-	if (layer.groups > 1)
-	{
-		fprintf(stderr, "%d/%d", layer.group_id, layer.groups);
-	}
-	else
-	{
-		fprintf(stderr, "   ");
-	}
-	fprintf(stderr, " -> %4d x%4d x%4d \n", layer.out_w, layer.out_h, layer.out_c);
-
 	return layer;
 }
 
@@ -1636,8 +1608,7 @@ layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	const std::string iou_loss = s.find_str("iou_loss", "mse");
 	l.iou_loss = static_cast<IOU_LOSS>(get_IoU_loss_from_name(iou_loss)); // "iou"
 
-	fprintf(stderr, "[yolo] params: iou loss: %s (%d), iou_norm: %2.2f, obj_norm: %2.2f, cls_norm: %2.2f, delta_norm: %2.2f, scale_x_y: %2.2f\n",
-			iou_loss.c_str(), l.iou_loss, l.iou_normalizer, l.obj_normalizer, l.cls_normalizer, l.delta_normalizer, l.scale_x_y);
+//	fprintf(stderr, "[yolo] params: iou loss: %s (%d), iou_norm: %2.2f, obj_norm: %2.2f, cls_norm: %2.2f, delta_norm: %2.2f, scale_x_y: %2.2f\n", iou_loss.c_str(), l.iou_loss, l.iou_normalizer, l.obj_normalizer, l.cls_normalizer, l.delta_normalizer, l.scale_x_y);
 
 	const std::string iou_thresh_kind = s.find_str("iou_thresh_kind", "iou");
 	l.iou_thresh_kind = static_cast<IOU_LOSS>(get_IoU_loss_from_name(iou_thresh_kind));
@@ -1647,7 +1618,7 @@ layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	const std::string nms_kind = s.find_str("nms_kind", "default");
 	l.nms_kind = static_cast<NMS_KIND>(get_NMS_kind_from_name(nms_kind));
 
-	printf("nms_kind: %s (%d), beta = %f\n", nms_kind.c_str(), l.nms_kind, l.beta_nms);
+//	printf("nms_kind: %s (%d), beta = %f\n", nms_kind.c_str(), l.nms_kind, l.beta_nms);
 
 	l.jitter = s.find_float("jitter", .2);
 	l.resize = s.find_float("resize", 1.0);
@@ -1667,12 +1638,12 @@ layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	if (embedding_layer_id < 0) embedding_layer_id = parms.index + embedding_layer_id;
 	if (embedding_layer_id != 999999)
 	{
-		printf(" embedding_layer_id = %d, ", embedding_layer_id);
+//		printf(" embedding_layer_id = %d, ", embedding_layer_id);
 		layer & le = net.layers[embedding_layer_id];
 		l.embedding_layer_id = embedding_layer_id;
 		l.embedding_output = (float*)xcalloc(le.batch * le.outputs, sizeof(float));
 		l.embedding_size = le.n / l.n;
-		printf(" embedding_size = %d \n", l.embedding_size);
+//		printf(" embedding_size = %d \n", l.embedding_size);
 		if (le.n % l.n != 0)
 		{
 			darknet_fatal_error(DARKNET_LOC, "filters=%d number in embedding_layer=%d isn't divisable by number of anchors %d", le.n, embedding_layer_id, l.n);

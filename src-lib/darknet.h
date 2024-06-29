@@ -171,7 +171,7 @@ typedef enum {
 	ISEG,
 	REORG,
 	REORG_OLD,
-	UPSAMPLE,
+	UPSAMPLE,	// or downsample if l.reverse=1
 	LOGXENT,
 	L2NORM,
 	EMPTY,

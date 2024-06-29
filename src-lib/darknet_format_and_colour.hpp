@@ -49,6 +49,7 @@ namespace Darknet
 
 	std::string format_in_colour(const std::string & str, const EColour & colour, const size_t & len);
 	std::string format_in_colour(const int & i, const EColour & colour, const size_t & len);
+	std::string format_in_colour(const size_t & st, const EColour & colour, const size_t & len);
 	std::string format_in_colour(const float & f, const EColour & colour, const size_t & len);
 	std::string format_in_colour(const float & f, const size_t & len, const bool inverted = false);
 
@@ -66,6 +67,11 @@ namespace Darknet
 			const float & recall,
 			const float & specificity,
 			const float & false_pos_rate);
+
+	std::string format_layer_summary(
+			const size_t idx,
+			const Darknet::CfgSection & section,
+			const layer & l);
 
 	/// Display the given message in bright red (if colour is enabled).  The message is not linefeed terminated.
 	void display_error_msg(const std::string & msg);

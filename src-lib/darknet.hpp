@@ -12,6 +12,12 @@ int yolo_num_detections_v3(network * net, const int index, const float thresh, D
 
 int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, Darknet::Output_Object_Cache & cache);
 
+// Forward declarations of some required classes to prevent circular dependencies.
+namespace Darknet
+{
+	class CfgSection;
+	class CfgFile;
+}
 
 // For future use when we convert darknet.h to darknet.hpp.  For now,
 // you should be including either darknet.h or darknet_internal.hpp.

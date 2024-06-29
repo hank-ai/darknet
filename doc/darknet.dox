@@ -8,7 +8,7 @@
 
 - If you want to @em use Darknet/YOLO, please see the <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/">FAQ</a> with many common questions and answers.
 - Note <a target="_blank" href="https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/">Hank.ai's announcement in May 2023</a> on officially sponsoring the %Darknet/YOLO codebase.
-- **The Darknet source repo location has changed!** Both the original pjreddie and alexeyab repos are abandoned.  The new repo to use for Darknet is hosted by Hank.ai.  See this link for details:  https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid
+- **The %Darknet source repo location has changed!** Both the original pjreddie and alexeyab repos are abandoned.  The new repo to use for %Darknet is hosted by Hank.ai.  See this link for details:  https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid
 - Direct link to the new GitHub source code repo for Darknet/YOLO:  <a target="_blank" href="https://github.com/hank-ai/darknet">https://github.com/hank-ai/darknet</a>.
 - For assistance, please join the Darknet/YOLO Discord server:  <a target="_blank" href="https://discord.gg/zSq8rtW">https://discord.gg/zSq8rtW</a>.
 
@@ -18,7 +18,7 @@ Other related projects:
 - <a target="_blank" href="https://github.com/stephanecharette/DarkMark#what-is-darkmark">DarkMark</a> is a free open-source tool for managing Darknet/YOLO project, annotating images, videos, and PDFs, and generating Darknet/YOLO training files.
 - <a target="_blank" href="https://www.youtube.com/c/StephaneCharette/videos">Stéphane's YouTube channel</a> with many "How-To" videos.
 
-The Doxygen pages below are meant to assist software **developers** in understanding the <em>source code</em>.  If you're looking for help with **using** Darknet/YOLO, see the links above.
+The Doxygen pages below are meant to assist **software developers** in understanding the <em>source code</em>.  If you're looking for help with **using** Darknet/YOLO as a user, please see the links above.
 
 - @ref main()
 - @ref darknet_fatal_error()

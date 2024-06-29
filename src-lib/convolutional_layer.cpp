@@ -942,50 +942,39 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
 #endif  // GPU
 	l.workspace_size = get_convolutional_workspace_size(l);
 
-	//fprintf(stderr, "conv  %5d %2d x%2d /%2d  %4d x%4d x%4d   ->  %4d x%4d x%4d\n", n, size, size, stride, w, h, c, l.out_w, l.out_h, l.out_c);
 	l.bflops = (2.0 * l.nweights * l.out_h*l.out_w) / 1000000000.;
-	if (l.xnor) l.bflops = l.bflops / 32;
-	if (l.xnor && l.use_bin_output) fprintf(stderr, "convXB");
-	else if (l.xnor) fprintf(stderr, "convX ");
-	else if (l.share_layer) fprintf(stderr, "convS ");
-	else if (l.assisted_excitation) fprintf(stderr, "convAE");
-	else fprintf(stderr, "conv  ");
-
-	if (groups > 1) fprintf(stderr, "%5d/%4d ", n, groups);
-	else           fprintf(stderr, "%5d      ", n);
-
-	if (stride_x != stride_y) fprintf(stderr, "%2dx%2d/%2dx%2d ", size, size, stride_x, stride_y);
-	else {
-		if (dilation > 1) fprintf(stderr, "%2d x%2d/%2d(%1d)", size, size, stride_x, dilation);
-		else             fprintf(stderr, "%2d x%2d/%2d   ", size, size, stride_x);
+	if (l.xnor)
+	{
+		l.bflops = l.bflops / 32;
 	}
 
-	fprintf(stderr, "%4d x%4d x%4d -> %4d x%4d x%4d %5.3f BF\n", w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-
-	//fprintf(stderr, "%5d/%2d %2d x%2d /%2d(%d)%4d x%4d x%4d  -> %4d x%4d x%4d %5.3f BF\n", n, groups, size, size, stride, dilation, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-
-	if (l.antialiasing) {
-		printf("AA:  ");
-		l.input_layer = (layer*)calloc(1, sizeof(layer));
+	if (l.antialiasing)
+	{
+//		printf("AA:  ");
+		l.input_layer = (layer*)xcalloc(1, sizeof(layer));
 		int blur_size = 3;
 		int blur_pad = blur_size / 2;
-		if (l.antialiasing == 2) {
+		if (l.antialiasing == 2)
+		{
 			blur_size = 2;
 			blur_pad = 0;
 		}
 		*(l.input_layer) = make_convolutional_layer(batch, steps, out_h, out_w, n, n, n, blur_size, blur_stride_x, blur_stride_y, 1, blur_pad, LINEAR, 0, 0, 0, 0, 0, index, 0, NULL, 0, 0, train);
 		const int blur_nweights = n * blur_size * blur_size;  // (n / n) * n * blur_size * blur_size;
-		int i;
-		if (blur_size == 2) {
-			for (i = 0; i < blur_nweights; i += (blur_size*blur_size)) {
+		if (blur_size == 2)
+		{
+			for (int i = 0; i < blur_nweights; i += (blur_size*blur_size))
+			{
 				l.input_layer->weights[i + 0] = 1 / 4.f;
 				l.input_layer->weights[i + 1] = 1 / 4.f;
 				l.input_layer->weights[i + 2] = 1 / 4.f;
 				l.input_layer->weights[i + 3] = 1 / 4.f;
 			}
 		}
-		else {
-			for (i = 0; i < blur_nweights; i += (blur_size*blur_size)) {
+		else
+		{
+			for (int i = 0; i < blur_nweights; i += (blur_size*blur_size))
+			{
 				l.input_layer->weights[i + 0] = 1 / 16.f;
 				l.input_layer->weights[i + 1] = 2 / 16.f;
 				l.input_layer->weights[i + 2] = 1 / 16.f;
@@ -999,7 +988,10 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
 				l.input_layer->weights[i + 8] = 1 / 16.f;
 			}
 		}
-		for (i = 0; i < n; ++i) l.input_layer->biases[i] = 0;
+		for (i = 0; i < n; ++i)
+		{
+			l.input_layer->biases[i] = 0;
+		}
 #ifdef GPU
 		if (cfg_and_state.gpu_index >= 0)
 		{
