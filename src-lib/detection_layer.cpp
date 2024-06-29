@@ -1,15 +1,5 @@
-#include "detection_layer.hpp"
-#include "activations.hpp"
-#include "softmax_layer.hpp"
-#include "blas.hpp"
-#include "box.hpp"
-#include "dark_cuda.hpp"
-#include "utils.hpp"
-#include "Timing.hpp"
-#include <stdio.h>
-#include <assert.h>
-#include <string.h>
-#include <stdlib.h>
+#include "darknet_internal.hpp"
+
 
 detection_layer make_detection_layer(int batch, int inputs, int n, int side, int classes, int coords, int rescore)
 {

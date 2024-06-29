@@ -16,6 +16,9 @@ namespace Darknet
 	/// The colour to use for each class.  @see @ref remember_class_names()
 	extern std::vector<cv::Scalar> class_colours;
 
+	/// Convert to lowercase and remove all but alphanumerics.
+	std::string convert_to_lowercase_alphanum(const std::string & arg);
+
 	/** Convert the given text to plain alphanumeric ASCII string.  Remove whitespace, keep just alphanumeric and underscore.
 	 * Good to use as a base for a filename.
 	 */

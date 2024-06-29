@@ -217,6 +217,24 @@ void Darknet::display_warning_msg(const std::string & msg)
 }
 
 
+std::string Darknet::convert_to_lowercase_alphanum(const std::string & arg)
+{
+	TAT(TATPARMS);
+
+	std::string str;
+	str.reserve(arg.length());
+	for (auto & c : arg)
+	{
+		if (std::isalnum(c))
+		{
+			str.push_back(std::tolower(c));
+		}
+	}
+
+	return str;
+}
+
+
 std::string Darknet::text_to_simple_label(std::string txt)
 {
 	TAT(TATPARMS);
@@ -433,6 +451,14 @@ void Darknet::cfg_layers()
 	{
 		const auto fn = entry.path();
 		const auto ext = fn.extension();
+
+		if (fn.string().find("unsupported") != std::string::npos)
+		{
+			// if the config is unsupported, then don't show it at all
+			// comment out this next line if you want to see all configs
+			continue;
+		}
+
 		if (ext == ".cfg")
 		{
 			filenames.push_back(fn.string());

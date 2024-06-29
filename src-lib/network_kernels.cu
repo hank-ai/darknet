@@ -1,19 +1,4 @@
-#include "dark_cuda.hpp"
-
-#include <iostream>
-#include <cstdio>
-#include <ctime>
-#include <cassert>
-#include <thread>
-#include <vector>
-
-#include "network.hpp"
-#include "data.hpp"
-#include "blas.hpp"
-#include "utils.hpp"
-#include "convolutional_layer.hpp"
-#include "Timing.hpp"
-#include "darknet_cfg_and_state.hpp"
+#include "darknet_internal.hpp"
 
 
 extern "C"
@@ -32,18 +17,12 @@ extern "C"
 }
 
 
-#if 0
-namespace
+typedef struct time_benchmark_layers
 {
-	static auto & cfg_and_state = Darknet::CfgAndState::get();
-}
-#endif
-
-
-typedef struct time_benchmark_layers {
 	float time;
 	int layer_id, layer_type;
 } time_benchmark_layers;
+
 
 int time_comparator(const void *pa, const void *pb)
 {

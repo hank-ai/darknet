@@ -136,8 +136,7 @@ typedef struct contrastive_params {
 } contrastive_params;
 
 
-/// @see @ref get_layer_string() to convert from @p LAYER_TYPE to string
-/// @see @ref string_to_layer_type() to convert from string to @p LAYER_TYPE
+/// @todo This enum will eventually be replaced by @ref Darknet::ELayerType
 typedef enum {
 	CONVOLUTIONAL,
 	DECONVOLUTIONAL,
@@ -172,7 +171,7 @@ typedef enum {
 	ISEG,
 	REORG,
 	REORG_OLD,
-	UPSAMPLE,
+	UPSAMPLE,	// or downsample if l.reverse=1
 	LOGXENT,
 	L2NORM,
 	EMPTY,
@@ -687,7 +686,7 @@ typedef enum {
 
 // network.h
 typedef struct network {
-	int n;
+	int n;	///< the number of layers in the network
 	int batch;
 	uint64_t *seen;
 	float *badlabels_reject_threshold;
@@ -1070,7 +1069,7 @@ void free_ptrs(void **ptrs, int n);
 void top_k(float *a, int n, int k, int *index);
 
 // tree.h
-tree *read_tree(char *filename);
+tree *read_tree(const char *filename);
 
 // option_list.h
 metadata get_metadata(char *file);

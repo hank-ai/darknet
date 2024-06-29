@@ -3,19 +3,9 @@
 #pragma GCC diagnostic ignored "-Wunused-variable"
 #endif
 
-#include "connected_layer.hpp"
-#include "batchnorm_layer.hpp"
-#include "convolutional_layer.hpp"
-#include "utils.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
+#include "darknet_internal.hpp"
 #include "gemm.hpp"
-#include "Timing.hpp"
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 size_t get_connected_workspace_size(layer l)
 {

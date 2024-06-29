@@ -1,10 +1,5 @@
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
+#include "darknet_internal.hpp"
 
-#include "crop_layer.hpp"
-#include "dark_cuda.hpp"
-#include "Timing.hpp"
 
 /// @todo #COLOR - specific RGB - HSV logic in here that won't work (well) with multispectral
 __device__ float get_pixel_kernel(float *image, int w, int h, int x, int y, int c)

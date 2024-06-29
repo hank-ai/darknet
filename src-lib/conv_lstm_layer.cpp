@@ -2,19 +2,8 @@
 // Page 3: https://arxiv.org/pdf/1705.06368v3.pdf
 // https://wikimedia.org/api/rest_v1/media/math/render/svg/1edbece2559479959fe829e9c6657efb380debe7
 
-#include "conv_lstm_layer.hpp"
-#include "connected_layer.hpp"
-#include "convolutional_layer.hpp"
-#include "utils.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
-#include "gemm.hpp"
-#include "Timing.hpp"
+#include "darknet_internal.hpp"
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
 static void increment_layer(layer *l, int steps)
 {

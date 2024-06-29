@@ -1,12 +1,8 @@
-#include "local_layer.hpp"
-#include "utils.hpp"
+#include "darknet_internal.hpp"
 #include "im2col.hpp"
 #include "col2im.hpp"
-#include "blas.hpp"
 #include "gemm.hpp"
-#include "Timing.hpp"
-#include <stdio.h>
-#include <time.h>
+
 
 int local_out_height(local_layer l)
 {

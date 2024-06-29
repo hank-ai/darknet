@@ -51,6 +51,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	is_shown				= true;
 	colour_is_enabled		= true;
 	is_verbose				= false;
+	is_trace				= false;
 
 #ifdef GPU
 	gpu_index				= 0;
@@ -73,24 +74,6 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 }
 
 
-std::string convert_to_lowercase_alphanum(const std::string & arg)
-{
-	TAT(TATPARMS);
-
-	std::string str;
-	str.reserve(arg.length());
-	for (auto & c : arg)
-	{
-		if (std::isalnum(c))
-		{
-			str.push_back(std::tolower(c));
-		}
-	}
-
-	return str;
-}
-
-
 Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char ** argp)
 {
 	TAT(TATPARMS);
@@ -107,13 +90,13 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 //			"darknet", "detector", "demo", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights", "DSCN1583A.MOV"
 
 			// process a single image file
-			"darknet", "detector", "test", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights", "set_01/DSCN1580_frame_000000.jpg"
+//			"darknet", "detector", "test", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights", "set_01/DSCN1580_frame_000000.jpg"
 
 			// train the network
 //			"darknet", "detector", "train", "-map", "-dont_show", "LegoGears.data", "LegoGears.cfg"
 
 			// calculate mAP%
-//			"darknet", "detector", "map", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights"
+			"darknet", "detector", "map", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights"
 		};
 
 		int c = cmd.size();
@@ -250,6 +233,12 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 		args.count("show_details"	) > 0) // old Darknet had "-show_details", which I didn't know about when I created "--verbose"
 	{
 		is_verbose = true;
+	}
+
+	if (args.count("trace") > 0)
+	{
+		is_verbose	= true;
+		is_trace	= true;
 	}
 
 	if (args.count("dontshow") > 0)

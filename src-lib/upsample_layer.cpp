@@ -13,12 +13,17 @@ layer make_upsample_layer(int batch, int w, int h, int c, int stride)
 	l.out_w = w*stride;
 	l.out_h = h*stride;
 	l.out_c = c;
-	if(stride < 0){
+
+	if (stride < 0)
+	{
+		// this is important -- if stride was negative, then we're downsampling instead of upsampling
+
 		stride = -stride;
 		l.reverse=1;
 		l.out_w = w/stride;
 		l.out_h = h/stride;
 	}
+
 	l.stride = stride;
 	l.outputs = l.out_w*l.out_h*l.out_c;
 	l.inputs = l.w*l.h*l.c;
@@ -34,8 +39,7 @@ layer make_upsample_layer(int batch, int w, int h, int c, int stride)
 	l.delta_gpu =  cuda_make_array(l.delta, l.outputs*batch);
 	l.output_gpu = cuda_make_array(l.output, l.outputs*batch);
 	#endif
-	if(l.reverse) fprintf(stderr, "downsample              %2dx  %4d x%4d x%4d -> %4d x%4d x%4d\n", stride, w, h, c, l.out_w, l.out_h, l.out_c);
-	else fprintf(stderr, "upsample                %2dx  %4d x%4d x%4d -> %4d x%4d x%4d\n", stride, w, h, c, l.out_w, l.out_h, l.out_c);
+
 	return l;
 }
 

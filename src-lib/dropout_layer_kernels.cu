@@ -1,10 +1,5 @@
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
-#include <cstring>
+#include "darknet_internal.hpp"
 
-#include "dropout_layer.hpp"
-#include "Timing.hpp"
 
 extern "C"
 {
@@ -12,8 +7,6 @@ extern "C"
 	int64_t get_current_iteration(network net);
 }
 
-
-#include "dark_cuda.hpp"
 
 __global__ void dropblock_fast_kernel(float *rand, float prob, int w, int h, int spatial, int filters, int batch, int block_size, float *drop_blocks_scale, float *output)
 {

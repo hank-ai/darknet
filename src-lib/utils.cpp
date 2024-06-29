@@ -71,15 +71,19 @@ double what_time_is_it_now()
 
 int *read_map(char *filename)
 {
-	TAT(TATPARMS);
+	/// @todo what is this "map" file that we're reading in?
+
+	TAT_COMMENT(TATPARMS, "realloc nightmare");
 
 	int n = 0;
 	int *map = 0;
 	char *str;
 	FILE *file = fopen(filename, "r");
 	if(!file) file_error(filename, DARKNET_LOC);
-	while((str=fgetl(file))){
+	while((str=fgetl(file)))
+	{
 		++n;
+		/// @todo the while loop reallocs the array at every iteration, this needs to be refactored!
 		map = (int*)xrealloc(map, n * sizeof(int));
 		map[n-1] = atoi(str);
 		free(str);

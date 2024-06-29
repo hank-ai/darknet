@@ -1,9 +1,5 @@
-#include "utils.hpp"
-#include "image.hpp"
-#include "crop_layer.hpp"
-#include "dark_cuda.hpp"
-#include "Timing.hpp"
-#include <stdio.h>
+#include "darknet_internal.hpp"
+
 
 image get_crop_image(crop_layer l)
 {

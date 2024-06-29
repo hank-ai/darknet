@@ -25,6 +25,7 @@
 #include <list>
 #include <map>
 #include <mutex>
+#include <optional>
 #include <regex>
 #include <set>
 #include <string>
@@ -41,6 +42,7 @@ namespace Darknet
 	using SStr		= std::set<std::string>;
 	using VInt		= std::vector<int>;
 	using VStr		= std::vector<std::string>;
+	using VFloat	= std::vector<float>;
 	using VThreads	= std::vector<std::thread>;
 
 	/** This is used to help keep some state between calls to functions fill_network_boxes(), get_yolo_detections(), etc.
@@ -57,20 +59,27 @@ namespace Darknet
 	using Output_Object_Cache = std::list<Output_Object>;
 }
 
-#include "darknet.h"
-#include "darknet.hpp"
-#include "darknet_version.h"
+#include "darknet.h"			// the old C header
+#include "darknet.hpp"			// the new C++ header
+#include "darknet_version.h"	// version macros
 
 #include "darknet_args_and_parms.hpp"
 #include "darknet_cfg_and_state.hpp"
+#include "darknet_enums.hpp"
 #include "darknet_layers.hpp"
 #include "darknet_format_and_colour.hpp"
 #include "darknet_utils.hpp"
 #include "Timing.hpp"
 
+#include "Cfg.hpp"
 #include "box.hpp"
 #include "blas.hpp"
 #include "utils.hpp"
 #include "parser.hpp"
 #include "data.hpp"
 #include "demo.hpp"
+#include "network.hpp"
+#include "option_list.hpp"
+#include "classifier.hpp"
+#include "image.hpp"
+#include "dark_cuda.hpp"

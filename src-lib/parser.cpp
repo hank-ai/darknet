@@ -1,5 +1,6 @@
 #include "option_list.hpp"
 #include "darknet_internal.hpp"
+#include "dump.hpp"
 
 #ifdef WIN32
 #include <shlwapi.h>
@@ -13,7 +14,8 @@ namespace
 }
 
 
-void empty_func(dropout_layer l, network_state state) {
+void empty_func(dropout_layer l, network_state state)
+{
 	//l.output_gpu = state.input;
 }
 
@@ -762,6 +764,7 @@ layer parse_region(list *options, size_params params)
 	}
 	return l;
 }
+
 detection_layer parse_detection(list *options, size_params params)
 {
 	TAT(TATPARMS);
@@ -1463,6 +1466,13 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 {
 	TAT(TATPARMS);
 
+#if 1
+	/// @todo V3 JAZZ
+	Darknet::CfgFile cfg_file(filename);
+	cfg_file.create_network(batch, time_steps);
+//	Darknet::dump(cfg_file);
+	return cfg_file.net;
+#else
 	if (filename == nullptr)
 	{
 		darknet_fatal_error(DARKNET_LOC, "expected a .cfg filename but got a NULL filename instead");
@@ -1948,13 +1958,41 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 		}
 	}
 
-	return net;
-}
+	#if 0	// enable this to get a debug dump of the network
+	Darknet::CfgFile::CommonParms parms;
+	parms.batch					= params.batch;
+	parms.inputs				= params.inputs;
+	parms.h						= params.h;
+	parms.w						= params.w;
+	parms.c						= params.c;
+	parms.index					= params.index;
+	parms.time_steps			= params.time_steps;
+	parms.train					= params.train;
+	parms.last_stop_backward	= last_stop_backward;
+	parms.avg_outputs			= avg_outputs;
+	parms.avg_counter			= avg_counter;
+	parms.bflops				= bflops;
+	parms.workspace_size		= workspace_size;
+	parms.max_inputs			= max_inputs;
+	parms.max_outputs			= max_outputs;
+	parms.receptive_w			= receptive_w;
+	parms.receptive_h			= receptive_h;
+	parms.receptive_w_scale		= receptive_w_scale;
+	parms.receptive_h_scale		= receptive_h_scale;
+	parms.show_receptive_field	= show_receptive_field;
 
+	Darknet::dump(&net, parms);
+	#endif
+
+	return net;
+#endif
+}
 
 
 list *read_cfg(char *filename)
 {
+	/// @todo V3 JAZZ This is called from a single place -- parse_network_cfg_custom() -- so as soon as CfgFile is working we can get rid of this.
+
 	TAT(TATPARMS);
 
 	FILE *file = fopen(filename, "r");
@@ -2010,6 +2048,7 @@ list *read_cfg(char *filename)
 
 	return sections;
 }
+
 
 void save_convolutional_weights_binary(layer l, FILE *fp)
 {
@@ -2657,6 +2696,7 @@ network *load_network(char *cfg, char *weights, int clear)
 	TAT(TATPARMS);
 
 	printf(" Try to load cfg: %s, clear = %d \n", cfg, clear);
+
 	network* net = (network*)xcalloc(1, sizeof(network));
 	*net = parse_network_cfg(cfg);
 	if (weights && weights[0] != 0) {
