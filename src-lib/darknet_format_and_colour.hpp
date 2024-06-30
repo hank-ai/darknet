@@ -47,7 +47,7 @@ namespace Darknet
 	/// Format the mAP% accuracy with ANSI colours.
 	std::string format_map_accuracy(const float & accuracy);
 
-	std::string format_in_colour(const std::string & str, const EColour & colour, const size_t & len);
+	std::string format_in_colour(const std::string & str, const EColour & colour, const int & len);
 	std::string format_in_colour(const int & i, const EColour & colour, const size_t & len);
 	std::string format_in_colour(const size_t & st, const EColour & colour, const size_t & len);
 	std::string format_in_colour(const float & f, const EColour & colour, const size_t & len);

@@ -79,14 +79,22 @@ std::string Darknet::in_colour(const EColour colour)
 }
 
 
-std::string Darknet::format_in_colour(const std::string & str, const EColour & colour, const size_t & len)
+std::string Darknet::format_in_colour(const std::string & str, const EColour & colour, const int & len)
 {
 	TAT(TATPARMS);
 
+	// The text string will be left-aligned.  If the length is negative, then it will be right-aligned.
+	const int l = (len < 0 ? -len : len);
+
 	std::string padding;
-	if (str.length() < len)
+	if (str.length() < l)
 	{
-		padding = std::string(len - str.length(), ' ');
+		padding = std::string(l - str.length(), ' ');
+	}
+
+	if (len < 0)
+	{
+		return padding + in_colour(colour, str);
 	}
 
 	return in_colour(colour, str) + padding;

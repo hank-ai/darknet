@@ -107,15 +107,18 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("visualize"	, ArgsAndParms::EType::kCommand	, ""),
 
 		// global options
-		ArgsAndParms("colour"	, "color"	),
-		ArgsAndParms("nocolour"	, "nocolor"	),
-		ArgsAndParms("verbose"	, "show_details"),	// I originally didn't know about "show_details" when I implemented "verbose"
-		ArgsAndParms("trace"				),		// even more verbose
+		ArgsAndParms("colour"	, "color"							, "Enable colour output in the console.  This is the default."),
+		ArgsAndParms("nocolour"	, "nocolor"							, "Disable colour output in the console."),
+
+		// I originally didn't know about "show_details" when I implemented "verbose".
+		ArgsAndParms("verbose"	, "show_details"					, "Logs more verbose messages."),
+		ArgsAndParms("trace"	, ArgsAndParms::EType::kParameter	, "Intended for debug purposes.  This allows Darknet to log trace messages for some commands."),
 
 		// other options
 
+		ArgsAndParms("dontshow"	, "noshow"							, "Do not open a GUI window.  Especially useful when used on a headless server.  This will cause the output image to be saved to disk."),
+
 		ArgsAndParms("camera"	, "c"			, 0		),
-		ArgsAndParms("dontshow"	, "noshow"				),
 		ArgsAndParms("thresh"	, "threshold"	, 0.24f	),
 
 		ArgsAndParms("avgframes"			), //-- takes an int  3
@@ -163,7 +166,9 @@ void Darknet::display_usage()
 		<< std::endl
 		<< "\t\t" << CfgAndState::get().argv[0] << " <command> [<options>] [<function>] [<more options and filenames>]" << std::endl
 		<< std::endl
-		<< "Commands:" << std::endl;
+		<< "Commands:" << std::endl
+		<< Darknet::in_colour(Darknet::EColour::kBrightCyan)
+		;
 
 	// show all commands (short form)
 	int col = 0;
@@ -181,19 +186,19 @@ void Darknet::display_usage()
 		}
 	}
 
-	std::cout << std::endl << std::endl;
+	std::cout << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
 
 	// show the details for the commands where we have descriptions, one per line
 	for (const auto & item : all)
 	{
 		if (item.type == ArgsAndParms::EType::kCommand and not item.description.empty())
 		{
-			std::cout << "  " << std::setw(10) << item.name << ":  " << item.description << std::endl;
+			std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -10) << ":  " << item.description << std::endl;
 		}
 	}
 
 	// show all the functions (short form)
-	std::cout  << std::endl << "Functions:" << std::endl;
+	std::cout << std::endl << "Functions:" << std::endl << Darknet::in_colour(Darknet::EColour::kBrightCyan);
 	col = 0;
 	for (const auto & item : all)
 	{
@@ -209,18 +214,18 @@ void Darknet::display_usage()
 		}
 	}
 
-	std::cout << std::endl << std::endl;
+	std::cout << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
 
 	// show the details for the functions where we have descriptions, one per line
 	for (const auto & item : all)
 	{
 		if (item.type == ArgsAndParms::EType::kFunction and not item.description.empty())
 		{
-			std::cout << "  " << std::setw(10) << item.name << ":  " << item.description << std::endl;
+			std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -10) << ":  " << item.description << std::endl;
 		}
 	}
 
-	std::cout << std::endl << "Options:" << std::endl;
+	std::cout << std::endl << "Options:" << std::endl << Darknet::in_colour(Darknet::EColour::kBrightCyan);
 	col = 0;
 	for (const auto & item : all)
 	{
@@ -235,7 +240,54 @@ void Darknet::display_usage()
 			std::cout << "  " << item.name;
 		}
 	}
-	std::cout <<  std::endl;
+	std::cout << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
+
+	for (const auto & item : all)
+	{
+		if (item.type == ArgsAndParms::EType::kParameter and not item.description.empty())
+		{
+			std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -10) << ":  " << item.description << std::endl;
+		}
+	}
+
+	std::cout << std::endl << "Several options have aliases for convenience:" << std::endl;
+
+	for (const auto & item : all)
+	{
+		if (item.type == ArgsAndParms::EType::kParameter and not item.name_alternate.empty())
+		{
+			std::cout
+				<< "  "		<< Darknet::format_in_colour(item.name			, Darknet::EColour::kBrightWhite, -10)
+				<< " -> "	<< Darknet::format_in_colour(item.name_alternate, Darknet::EColour::kBrightWhite, 10)
+				<< std::endl;
+		}
+	}
+	std::cout
+		<< std::endl
+		<< "Several example commands:"																<< std::endl
+		<< ""																						<< std::endl
+		<< "  Train a new network:"																	<< std::endl
+		<< Darknet::format_in_colour("    darknet detector train -map -dont_show cars.data cars.cfg", Darknet::EColour::kYellow, 0) << std::endl
+		<< ""																						<< std::endl
+		<< "  Train a network starting from pre-existing weights:"									<< std::endl
+		<< Darknet::format_in_colour("    darknet detector train -map -dont_show -clear cars.data cars.cfg cars_best.weights", Darknet::EColour::kYellow, 0) << std::endl
+		<< ""																						<< std::endl
+		<< "  Check the mAP% results:"																<< std::endl
+		<< Darknet::format_in_colour("    darknet detector map cars.data cars.cfg cars_best.weights", Darknet::EColour::kYellow, 0) << std::endl
+		<< ""																						<< std::endl
+		<< "  Apply the neural network to an image and show the results:"							<< std::endl
+		<< Darknet::format_in_colour("    darknet detector test cars.data cars.cfg cars_best.weights image1.jpg", Darknet::EColour::kYellow, 0) << std::endl
+		<< ""																						<< std::endl
+		<< "  Apply the neural network to an image and save the results to disk:"					<< std::endl
+		<< Darknet::format_in_colour("    darknet detector test -dont_show cars.data cars.cfg cars_best.weights image1.jpg", Darknet::EColour::kYellow, 0) << std::endl
+		<< ""																						<< std::endl
+		<< "  Apply the neural network to a video:"													<< std::endl
+		<< Darknet::format_in_colour("    darknet detector demo cars.data cars.cfg cars_best.weights -ext_output video1.mp4", Darknet::EColour::kYellow, 0) << std::endl
+		<< ""																						<< std::endl
+		<< "  Create an output video:"																<< std::endl
+		<< Darknet::format_in_colour("    darknet detector demo cars.data cars.cfg cars_best.weights video1.mp4 -out_filename output.avi", Darknet::EColour::kYellow, 0) << std::endl
+		<< ""																						<< std::endl
+		;
 
 	return;
 }
