@@ -47,6 +47,12 @@ mat_cv * load_image_mat_cv(const char * const filename, int channels)
 {
 	TAT(TATPARMS);
 
+	if (filename == nullptr or
+		filename[0] == '\0')
+	{
+		darknet_fatal_error(DARKNET_LOC, "cannot load an image without a filename");
+	}
+
 	cv::Mat * mat = nullptr;
 
 	try

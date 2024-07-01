@@ -134,19 +134,20 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 
 		const std::string str = convert_to_lowercase_alphanum(original_arg);
 
-		auto iter = all_known_args.find(str);
-		if (iter == all_known_args.end())
+		// see if this parameter exists, either as primary name or an alternate spelling
+		const auto iter = [&]()
 		{
-			// before we decide this is an unknown command, look through the alternate spellings
-			for (iter = all_known_args.begin(); iter != all_known_args.end(); iter ++)
+			for (auto i = all_known_args.begin(); i != all_known_args.end(); i++)
 			{
-				if (iter->name_alternate == str)
+				if (i->name == str or i->name_alternate == str)
 				{
-					// found an item with a matching alternate spelling!
-					break;
+					return i;
 				}
 			}
-		}
+
+			// name was not found
+			return all_known_args.end();
+		}();
 
 		if (iter == all_known_args.end())
 		{

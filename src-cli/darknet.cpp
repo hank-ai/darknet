@@ -88,11 +88,11 @@ void average(int argc, char *argv[])
 }
 
 
-void speed(char *cfgfile, int tics)
+void speed(const char * cfgfile, int tics)
 {
 	TAT(TATPARMS);
 
-	if (tics == 0)
+	if (tics <= 0)
 	{
 		tics = 1000;
 	}
@@ -102,7 +102,7 @@ void speed(char *cfgfile, int tics)
 	int i;
 	image im = make_image(net.w, net.h, net.c);
 	time_t start = time(0);
-	for(i = 0; i < tics; ++i)
+	for (i = 0; i < tics; ++i)
 	{
 		network_predict(net, im.data);
 	}
@@ -379,7 +379,7 @@ void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 	save_weights(net, outfile);
 }
 
-void statistics_net(char *cfgfile, char *weightfile)
+void statistics_net(const char * cfgfile, const char * weightfile)
 {
 	TAT(TATPARMS);
 
@@ -624,8 +624,8 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "reset")			{ reset_normalize_net(argv[2], argv[3], argv[4]); }
 		else if (cfg_and_state.command == "rgbgr")			{ rgbgr_net			(argv[2], argv[3], argv[4]); }
 		else if (cfg_and_state.command == "rnn")			{ run_char_rnn		(argc, argv);	}
-		else if (cfg_and_state.command == "speed")			{ speed				(argv[2], (argc > 3 && argv[3]) ? atoi(argv[3]) : 0); }
-		else if (cfg_and_state.command == "statistics")		{ statistics_net	(argv[2], argv[3]); }
+		else if (cfg_and_state.command == "speed")			{ speed				(cfg_and_state.cfg_filename.string().c_str(), 0); }
+		else if (cfg_and_state.command == "statistics")		{ statistics_net	(cfg_and_state.cfg_filename.string().c_str(), cfg_and_state.weights_filename.string().c_str()); }
 		else if (cfg_and_state.command == "test")			{ test_resize		(argv[2]);		} ///< @todo V3 what is this?
 		else if (cfg_and_state.command == "version")		{ /* nothing else to do, we've already displayed the version information */ }
 		else if (cfg_and_state.command == "vid")			{ run_vid_rnn		(argc, argv);	} ///< @todo V3 what is this?

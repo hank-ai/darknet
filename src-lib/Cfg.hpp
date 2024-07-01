@@ -18,6 +18,9 @@ namespace Darknet
 			/// Destructor.
 			~CfgLine();
 
+			/// Reset the line to be empty.
+			CfgLine & clear();
+
 			/// Determine if a line is empty.
 			bool empty() const { return line_number == 0 or line.empty() or key.empty() or val.empty(); }
 
@@ -54,6 +57,9 @@ namespace Darknet
 
 			/// Destructor.
 			~CfgSection();
+
+			/// Reset the section to be empty.
+			CfgSection & clear();
 
 			/// Determine if a section is empty.
 			bool empty() const { return line_number == 0 or name.empty() or lines.empty(); }
@@ -101,11 +107,17 @@ namespace Darknet
 			/// Consructor.
 			CfgFile();
 
-			/// Consructor.  Immediately calls @ref read().
+			/// Consructor.  This automatically calls @ref read().
 			CfgFile(const std::filesystem::path & fn);
 
 			/// Destructor.
 			~CfgFile();
+
+			/// Reset the config file to be empty.  @note This does @em not call @ref free_network().
+			CfgFile & clear();
+
+			/// Determine if a .cfg file has been parsed.
+			bool empty() const { return sections.empty(); }
 
 			/** Read the given configuration file and parses the individual sections and lines.
 			 * Forgets about any configuration file specified in the constructor (if any).
@@ -120,15 +132,16 @@ namespace Darknet
 			 */
 			CfgFile & read();
 
-			/// Determine if a .cfg file has been parsed.
-			bool empty() const { return sections.empty(); }
-
 			/// Iterate over the content to record some debug information about the configuration.
 			std::string debug() const;
 
 			/** Create and populate the Darknet @p network object @ref net from the configuration that was parsed.
 			 *
-			 * @note Remember to call @ref read() prior to @p create_network().
+			 * @note The @ref read() method must be called prior to @p create_network().
+			 *
+			 * @warning The @p CfgFile destructor does not call @ref free_network()!  This means the caller of
+			 * @ref CfgFile::create_network() assumes ownership of the nework that is created.  Callers must remember to call
+			 * @ref free_network() once they are done with the neural network created by this method.
 			 */
 			network & create_network(const int batch=1, int time_steps=1);
 
@@ -149,10 +162,18 @@ namespace Darknet
 			 */
 			CfgSections sections;
 
-			/// The total number of lines that was parsed from the .cfg file, including comments and blank lines.
+			/** The total number of lines that was parsed from the @p .cfg file, including comments and blank lines.
+			 * This also acts as a line counter while the @p .cfg file is being parsed by @ref read().
+			 */
 			size_t total_lines;
 
-			/// This will remain uninitialized until @ref create_network() is called.
+			/** This will remain uninitialized until @ref create_network() is called.
+			 *
+			 * @note You must call @ref free_network() once finished!  The network is @em not freed by the @p CfgFile destructor.
+			 *
+			 * @see @ref Darknet::CfgFile::create_network()
+			 * @see @ref free_network()
+			 */
 			network net;
 
 			/** Temporary fields which are needed while creating the @ref net object.
@@ -187,7 +208,7 @@ namespace Darknet
 
 		private:
 
-			/// @{ Methods to parse different types of sections in .cfg files.
+			/// @{ Methods to parse different types of sections in @p .cfg files.
 			CfgFile &			parse_net_section			();
 			convolutional_layer	parse_convolutional_section	(const size_t section_idx);
 			route_layer			parse_route_section			(const size_t section_idx);

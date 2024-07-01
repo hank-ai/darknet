@@ -59,7 +59,17 @@ namespace Darknet
 			/// Needed to store these objects in an ordered set.
 			bool operator<(const ArgsAndParms & rhs) const
 			{
-				return name < rhs.name;
+				// Multiple copies of the same name can exist.  For example, "detector map" command exists
+				// at the same time as the "-map" parameter for "detector train".  So when we compare the keys,
+				// we need to take into consideration the type as well as the name.
+				//
+				// IMPORTANT TO NOTE:  This means we cannot use find() to locate a command.  We need to iterate
+				// over the entire container.
+				//
+				const auto str1 = name		+ std::to_string(static_cast<int>(type		));
+				const auto str2 = rhs.name	+ std::to_string(static_cast<int>(rhs.type	));
+
+				return str1 < str2;
 			}
 	};
 

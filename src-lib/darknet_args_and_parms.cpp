@@ -75,7 +75,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("3d"			, ArgsAndParms::EType::kCommand	, "Pass in 2 images as input."),
 		ArgsAndParms("average"		, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("calcanchors"	, ArgsAndParms::EType::kFunction, ""),
-		ArgsAndParms("cfglayers"	, ArgsAndParms::EType::kCommand, "Obtain some information on all config files and layers used."),
+		ArgsAndParms("cfglayers"	, ArgsAndParms::EType::kCommand, "Display some information on all config files and layers used."),
 		ArgsAndParms("classify"		, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("classifier"	, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("demo"			, ArgsAndParms::EType::kFunction, "Process a video using the given neural network."),
@@ -96,7 +96,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("reset"		, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("rgbgr"		, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("rnn"			, ArgsAndParms::EType::kCommand	, ""),
-		ArgsAndParms("speed"		, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("speed"		, ArgsAndParms::EType::kCommand	, "Perform a quick test to see how fast the specified neural network runs."),
 		ArgsAndParms("statistics"	, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("test"			, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("test"			, ArgsAndParms::EType::kFunction, ""),
@@ -117,6 +117,8 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		// other options
 
 		ArgsAndParms("dontshow"	, "noshow"							, "Do not open a GUI window.  Especially useful when used on a headless server.  This will cause the output image to be saved to disk."),
+		ArgsAndParms("clear"	, ArgsAndParms::EType::kParameter	, "Used during training to reset the \"image count\" to zero, necessary when pre-existing weights are used."),
+		ArgsAndParms("map"		, ArgsAndParms::EType::kParameter	, "Regularly calculate mAP% score while training."),
 
 		ArgsAndParms("camera"	, "c"			, 0		),
 		ArgsAndParms("thresh"	, "threshold"	, 0.24f	),
@@ -125,7 +127,6 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("benchmark"			),
 		ArgsAndParms("benchmarklayers"		),
 		ArgsAndParms("checkmistakes"		),
-		ArgsAndParms("clear"				),
 		ArgsAndParms("dontdrawbbox"			),
 		ArgsAndParms("jsonport"				),
 		ArgsAndParms("letterbox"			),
@@ -140,7 +141,6 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("prefix"				),
 		ArgsAndParms("iouthresh"			),
 		ArgsAndParms("hier"					),
-//		ArgsAndParms("c"					),
 		ArgsAndParms("s"					),
 		ArgsAndParms("numofclusters"		),
 		ArgsAndParms("width"				),

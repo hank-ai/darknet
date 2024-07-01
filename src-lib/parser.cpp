@@ -1455,16 +1455,21 @@ void set_train_only_bn(network net)
 	}
 }
 
-network parse_network_cfg(char *filename)
+network parse_network_cfg(const char * filename)
 {
 	TAT(TATPARMS);
 
 	return parse_network_cfg_custom(filename, 0, 0);
 }
 
-network parse_network_cfg_custom(char *filename, int batch, int time_steps)
+network parse_network_cfg_custom(const char * filename, int batch, int time_steps)
 {
 	TAT(TATPARMS);
+
+	if (filename == nullptr or filename[0] == '\0')
+	{
+		darknet_fatal_error(DARKNET_LOC, "expected a .cfg filename but got a NULL filename instead");
+	}
 
 #if 1
 	/// @todo V3 JAZZ
@@ -1473,19 +1478,6 @@ network parse_network_cfg_custom(char *filename, int batch, int time_steps)
 //	Darknet::dump(cfg_file);
 	return cfg_file.net;
 #else
-	if (filename == nullptr)
-	{
-		darknet_fatal_error(DARKNET_LOC, "expected a .cfg filename but got a NULL filename instead");
-	}
-
-	if (strcasestr(filename, ".cfg") == nullptr)
-	{
-		// Not necessarily an error...maybe the user has named their .cfg files something else.
-		// But in most cases, if someone uses a .names or .weights file in the place of a .cfg
-		// then Darknet will obviously not run correctly, so at least attempt to warn them.
-
-		Darknet::display_warning_msg("expected a .cfg filename but got this instead: " + std::string(filename) + "\n");
-	}
 
 	list *sections = read_cfg(filename);
 	node *n = sections->front;
@@ -2546,18 +2538,36 @@ void load_implicit_weights(layer l, FILE *fp)
 #endif
 }
 
-void load_weights_upto(network *net, char *filename, int cutoff)
+void load_weights_upto(network * net, const char * filename, int cutoff)
 {
 	TAT(TATPARMS);
 
+	if (net			== nullptr or
+		filename	== nullptr or
+		filename[0]	== '\0')
+	{
+		// nothing we can do
+		Darknet::display_warning_msg("Cannot load weights due to NULL configuration or weights filename.\n");
+		return;
+	}
+
+	if (cfg_and_state.is_verbose)
+	{
+		std::cout << "Loading weights from \"" << filename << "\"" << std::endl;
+	}
+
 #ifdef GPU
-	if(net->gpu_index >= 0){
+	if(net->gpu_index >= 0)
+	{
 		cuda_set_device(net->gpu_index);
 	}
 #endif
-	fprintf(stderr, "Loading weights from %s...", filename);
+
 	FILE *fp = fopen(filename, "rb");
-	if(!fp) file_error(filename, DARKNET_LOC);
+	if (!fp)
+	{
+		file_error(filename, DARKNET_LOC);
+	}
 
 	int major;
 	int minor;
@@ -2565,52 +2575,85 @@ void load_weights_upto(network *net, char *filename, int cutoff)
 	fread(&major, sizeof(int), 1, fp);
 	fread(&minor, sizeof(int), 1, fp);
 	fread(&revision, sizeof(int), 1, fp);
-	if ((major * 10 + minor) >= 2) {
-		printf("\n seen 64");
+
+	if ((major * 10 + minor) >= 2)
+	{
+//		printf("\n seen 64");
 		uint64_t iseen = 0;
 		fread(&iseen, sizeof(uint64_t), 1, fp);
 		*net->seen = iseen;
 	}
-	else {
-		printf("\n seen 32");
+	else
+	{
+//		printf("\n seen 32");
 		uint32_t iseen = 0;
 		fread(&iseen, sizeof(uint32_t), 1, fp);
 		*net->seen = iseen;
 	}
+
 	*net->cur_iteration = get_current_batch(*net);
-	printf(", trained: %.0f K-images (%.0f Kilo-batches_64) \n", (float)(*net->seen / 1000), (float)(*net->seen / 64000));
+//	printf(", trained: %.0f K-images (%.0f Kilo-batches_64) \n", (float)(*net->seen / 1000), (float)(*net->seen / 64000));
 	int transpose = (major > 1000) || (minor > 1000);
 
-	int i;
-	for(i = 0; i < net->n && i < cutoff; ++i){
-		layer l = net->layers[i];
-		if (l.dontload) continue;
-		if(l.type == CONVOLUTIONAL && l.share_layer == NULL){
+	size_t layers_with_weights = 0;
+
+	for (int i = 0; i < net->n && i < cutoff; ++i)
+	{
+		layer & l = net->layers[i];
+		if (l.dontload)
+		{
+			continue;
+		}
+
+		if (l.type == CONVOLUTIONAL && l.share_layer == NULL)
+		{
+			layers_with_weights ++;
 			load_convolutional_weights(l, fp);
 		}
-		if (l.type == SHORTCUT && l.nweights > 0) {
+
+		if (l.type == SHORTCUT && l.nweights > 0)
+		{
+			layers_with_weights ++;
 			load_shortcut_weights(l, fp);
 		}
-		if (l.type == IMPLICIT) {
+
+		if (l.type == IMPLICIT)
+		{
+			layers_with_weights ++;
 			load_implicit_weights(l, fp);
 		}
-		if(l.type == CONNECTED){
+
+		if(l.type == CONNECTED)
+		{
+			layers_with_weights ++;
 			load_connected_weights(l, fp, transpose);
 		}
-		if(l.type == BATCHNORM){
+
+		if(l.type == BATCHNORM)
+		{
+			layers_with_weights ++;
 			load_batchnorm_weights(l, fp);
 		}
-		if(l.type == CRNN){
+
+		if(l.type == CRNN)
+		{
+			layers_with_weights ++;
 			load_convolutional_weights(*(l.input_layer), fp);
 			load_convolutional_weights(*(l.self_layer), fp);
 			load_convolutional_weights(*(l.output_layer), fp);
 		}
-		if(l.type == RNN){
+
+		if(l.type == RNN)
+		{
+			layers_with_weights ++;
 			load_connected_weights(*(l.input_layer), fp, transpose);
 			load_connected_weights(*(l.self_layer), fp, transpose);
 			load_connected_weights(*(l.output_layer), fp, transpose);
 		}
-		if(l.type == GRU){
+
+		if(l.type == GRU)
+		{
+			layers_with_weights ++;
 			load_connected_weights(*(l.input_z_layer), fp, transpose);
 			load_connected_weights(*(l.input_r_layer), fp, transpose);
 			load_connected_weights(*(l.input_h_layer), fp, transpose);
@@ -2618,7 +2661,10 @@ void load_weights_upto(network *net, char *filename, int cutoff)
 			load_connected_weights(*(l.state_r_layer), fp, transpose);
 			load_connected_weights(*(l.state_h_layer), fp, transpose);
 		}
-		if(l.type == LSTM){
+
+		if(l.type == LSTM)
+		{
+			layers_with_weights ++;
 			load_connected_weights(*(l.wf), fp, transpose);
 			load_connected_weights(*(l.wi), fp, transpose);
 			load_connected_weights(*(l.wg), fp, transpose);
@@ -2628,14 +2674,20 @@ void load_weights_upto(network *net, char *filename, int cutoff)
 			load_connected_weights(*(l.ug), fp, transpose);
 			load_connected_weights(*(l.uo), fp, transpose);
 		}
-		if (l.type == CONV_LSTM) {
-			if (l.peephole) {
+
+		if (l.type == CONV_LSTM)
+		{
+			layers_with_weights ++;
+
+			if (l.peephole)
+			{
 				load_convolutional_weights(*(l.vf), fp);
 				load_convolutional_weights(*(l.vi), fp);
 				load_convolutional_weights(*(l.vo), fp);
 			}
 			load_convolutional_weights(*(l.wf), fp);
-			if (!l.bottleneck) {
+			if (!l.bottleneck)
+			{
 				load_convolutional_weights(*(l.wi), fp);
 				load_convolutional_weights(*(l.wg), fp);
 				load_convolutional_weights(*(l.wo), fp);
@@ -2645,7 +2697,9 @@ void load_weights_upto(network *net, char *filename, int cutoff)
 			load_convolutional_weights(*(l.ug), fp);
 			load_convolutional_weights(*(l.uo), fp);
 		}
-		if(l.type == LOCAL){
+		if (l.type == LOCAL)
+		{
+			layers_with_weights ++;
 			int locations = l.out_w*l.out_h;
 			int size = l.size*l.size*l.c*l.n*locations;
 			fread(l.biases, sizeof(float), l.outputs, fp);
@@ -2657,13 +2711,21 @@ void load_weights_upto(network *net, char *filename, int cutoff)
 			}
 #endif
 		}
-		if (feof(fp)) break;
+		if (feof(fp))
+		{
+			break;
+		}
 	}
-	fprintf(stderr, "Done! Loaded %d layers from weights-file \n", i);
+
+	if (cfg_and_state.is_verbose)
+	{
+		std::cout << "Loaded weights for " << layers_with_weights << " of " << net->n << " layers from " << filename << std::endl;
+	}
+
 	fclose(fp);
 }
 
-void load_weights(network *net, char *filename)
+void load_weights(network * net, const char * filename)
 {
 	TAT(TATPARMS);
 
@@ -2675,18 +2737,22 @@ network *load_network_custom(char *cfg, char *weights, int clear, int batch)
 {
 	TAT(TATPARMS);
 
-	printf(" Try to load cfg: %s, weights: %s, clear = %d \n", cfg, weights, clear);
+	if (cfg_and_state.is_verbose)
+	{
+		std::cout << "Loading configuration from \"" << cfg << "\"" << std::endl;
+	}
+
 	network* net = (network*)xcalloc(1, sizeof(network));
 	*net = parse_network_cfg_custom(cfg, batch, 1);
-	if (weights && weights[0] != 0) {
-		printf(" Try to load weights: %s \n", weights);
-		load_weights(net, weights);
-	}
+	load_weights(net, weights);
 	fuse_conv_batchnorm(*net);
-	if (clear) {
+
+	if (clear)
+	{
 		(*net->seen) = 0;
 		(*net->cur_iteration) = 0;
 	}
+
 	return net;
 }
 
@@ -2695,17 +2761,22 @@ network *load_network(char *cfg, char *weights, int clear)
 {
 	TAT(TATPARMS);
 
-	printf(" Try to load cfg: %s, clear = %d \n", cfg, clear);
+	if (cfg_and_state.is_verbose)
+	{
+		std::cout << "Loading configuration from \"" << cfg << "\"" << std::endl;
+	}
 
 	network* net = (network*)xcalloc(1, sizeof(network));
 	*net = parse_network_cfg(cfg);
-	if (weights && weights[0] != 0) {
-		printf(" Try to load weights: %s \n", weights);
-		load_weights(net, weights);
-	}
-	if (clear) {
+	load_weights(net, weights);
+
+	/// @todo why do we not call fuse_conv_batchnorm() here?
+
+	if (clear)
+	{
 		(*net->seen) = 0;
 		(*net->cur_iteration) = 0;
 	}
+
 	return net;
 }

@@ -1004,8 +1004,8 @@ typedef struct box_label {
 
 
 // parser.c
-network *load_network(char *cfg, char *weights, int clear);
-network *load_network_custom(char *cfg, char *weights, int clear, int batch);
+network *load_network(const char * cfg, const char * weights, int clear);
+network *load_network_custom(const char * cfg, const char * weights, int clear, int batch);
 void free_network(network net);
 void free_network_ptr(network* net);
 

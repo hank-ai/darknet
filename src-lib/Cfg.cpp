@@ -149,6 +149,19 @@ Darknet::CfgLine::~CfgLine()
 }
 
 
+Darknet::CfgLine & Darknet::CfgLine::clear()
+{
+	line_number	= 0;
+	used		= false;
+	line		.clear();
+	key			.clear();
+	val			.clear();
+	f			.reset();
+
+	return *this;
+}
+
+
 std::string Darknet::CfgLine::debug() const
 {
 	TAT(TATPARMS);
@@ -189,6 +202,17 @@ Darknet::CfgSection::~CfgSection()
 	TAT(TATPARMS);
 
 	return;
+}
+
+
+Darknet::CfgSection & Darknet::CfgSection::clear()
+{
+	line_number	= 0;
+	type		= ELayerType::EMPTY;
+	name		.clear();
+	lines		.clear();
+
+	return *this;
 }
 
 
@@ -489,6 +513,19 @@ Darknet::CfgFile::~CfgFile()
 }
 
 
+Darknet::CfgFile & Darknet::CfgFile::clear()
+{
+	filename		.clear();
+	network_section	.clear();
+	sections		.clear();
+	total_lines		= 0;
+	net				= {0};
+	parms			= {0};
+
+	return *this;
+}
+
+
 Darknet::CfgFile & Darknet::CfgFile::read(const std::filesystem::path & fn)
 {
 	TAT(TATPARMS);
@@ -512,6 +549,15 @@ Darknet::CfgFile & Darknet::CfgFile::read()
 	}
 
 	filename = std::filesystem::canonical(filename);
+
+	if (filename.extension() != ".cfg")
+	{
+		// Not necessarily an error...maybe the user has named their .cfg files something else.
+		// But in most cases, if someone uses a .names or .weights file in the place of a .cfg
+		// then Darknet will obviously not run correctly, so at least attempt to warn them.
+
+		Darknet::display_warning_msg("expected a .cfg filename but got this instead: " + filename.string() + "\n");
+	}
 
 	/* find lines such as these:
 	 *
