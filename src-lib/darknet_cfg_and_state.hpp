@@ -41,17 +41,23 @@ namespace Darknet
 			 */
 			const ArgsAndParms & get(const std::string & arg) const;
 
+			/// Get a float parameter.  This provided default value will be used if this parameter does not exist.
 			float get(const std::string & arg, const float f) const;
 
+			/// Get an integer parameter.  The provided default value will be used if this parameter does not exist.
 			int get(const std::string & arg, const int i) const;
+
+			/// Get a float parameter.  This @em must exist, otherwise @ref darknet_fatal_error() is called.
+			float get_float(const std::string & arg) const;
+
+			/// Get an integer parameter.  This @em must exist, otherwise @ref darknet_fatal_error() is called.
+			int get_int(const std::string & arg) const;
 
 			/// Return a name for the current thread.  Thread name must previous have been added using @ref set_thread_name().
 			std::string get_thread_name();
 
-
 			/// Set a name to use for the given thread.  @see @ref del_thread_name()
 			void set_thread_name(const std::thread::id & tid, const std::string & name);
-
 
 			/// Alias for @ref set_thread_name().
 			void set_thread_name(const std::thread & t, const std::string & name)

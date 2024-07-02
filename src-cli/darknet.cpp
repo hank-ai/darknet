@@ -507,15 +507,12 @@ void denormalize_net(char *cfgfile, char *weightfile, char *outfile)
 	save_weights(net, outfile);
 }
 
-void visualize(char *cfgfile, char *weightfile)
+void visualize(const char * cfgfile, const char * weightfile)
 {
 	TAT(TATPARMS);
 
 	network net = parse_network_cfg(cfgfile);
-	if (weightfile)
-	{
-		load_weights(&net, weightfile);
-	}
+	load_weights(&net, weightfile);
 
 	visualize_network(net);
 	wait_until_press_key_cv();
@@ -629,7 +626,20 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "test")			{ test_resize		(argv[2]);		} ///< @todo V3 what is this?
 		else if (cfg_and_state.command == "version")		{ /* nothing else to do, we've already displayed the version information */ }
 		else if (cfg_and_state.command == "vid")			{ run_vid_rnn		(argc, argv);	} ///< @todo V3 what is this?
-		else if (cfg_and_state.command == "visualize")		{ visualize			(argv[2], (argc > 3) ? argv[3] : 0); } ///< @todo V3 what is this?
+		else if (cfg_and_state.command == "visualize")
+		{
+			if (cfg_and_state.cfg_filename.empty())
+			{
+				darknet_fatal_error(DARKNET_LOC, "must specify a .cfg file to load");
+			}
+			if (cfg_and_state.weights_filename.empty())
+			{
+				darknet_fatal_error(DARKNET_LOC, "must specify a .weights file to load");
+			}
+			visualize(
+				cfg_and_state.cfg_filename		.string().c_str(),
+				cfg_and_state.weights_filename	.string().c_str());
+		}
 		else if (cfg_and_state.command == "detect")
 		{
 			float thresh = find_float_arg(argc, argv, "-thresh", .24);

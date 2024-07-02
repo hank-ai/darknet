@@ -228,6 +228,38 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 				function = iter->name;
 			}
 		}
+
+		if (args_and_parms.type == ArgsAndParms::EType::kParameter and args_and_parms.expect_parm)
+		{
+			// the next parm should be a numeric value
+			const int next_arg_idx = idx + 1;
+			if (next_arg_idx < argc)
+			{
+				size_t pos = 0;
+				try
+				{
+					args_and_parms.value = std::stof(argp[next_arg_idx], &pos);
+				}
+				catch (...)
+				{
+					// do nothing, this is not a number
+				}
+
+				if (pos == strlen(argp[next_arg_idx]))
+				{
+					// consume the next argument
+					idx ++;
+				}
+				else
+				{
+					darknet_fatal_error(DARKNET_LOC, "expected a numeric parameter after %s, not %s", argp[idx], argp[next_arg_idx]);
+				}
+			}
+			else
+			{
+				darknet_fatal_error(DARKNET_LOC, "expected a numeric parameter after %s", argp[idx]);
+			}
+		}
 	}
 
 	if (args.count("verbose"		) > 0 or
@@ -378,9 +410,34 @@ float Darknet::CfgAndState::get(const std::string & arg, const float f) const
 
 int Darknet::CfgAndState::get(const std::string & arg, const int i) const
 {
+	TAT(TATPARMS);
+
 	const float f = get(arg, static_cast<float>(i));
 
 	return static_cast<int>(f);
+}
+
+
+float Darknet::CfgAndState::get_float(const std::string & arg) const
+{
+	TAT(TATPARMS);
+
+	const std::string name = convert_to_lowercase_alphanum(arg);
+
+	if (args.count(name) == 0)
+	{
+		darknet_fatal_error(DARKNET_LOC, "failed to find a parameter named \"%s\"", arg.c_str());
+	}
+
+	return args.at(name).value;
+}
+
+
+int Darknet::CfgAndState::get_int(const std::string & arg) const
+{
+	TAT(TATPARMS);
+
+	return static_cast<int>(get_float(arg));
 }
 
 

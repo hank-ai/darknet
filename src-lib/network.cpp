@@ -916,16 +916,16 @@ void visualize_network(network net)
 {
 	TAT(TATPARMS);
 
-	image *prev = 0;
-	char buff[256];
+	image * prev = 0;
 
 	for (int i = 0; i < net.n; ++i)
 	{
-		sprintf(buff, "Layer %d", i);
-		layer l = net.layers[i];
+		layer & l = net.layers[i];
+
 		if (l.type == CONVOLUTIONAL)
 		{
-			prev = visualize_convolutional_layer(l, buff, prev);
+			std::string buffer = "Layer #" + std::to_string(i) + " (" + Darknet::to_string(static_cast<Darknet::ELayerType>(l.type)) + ")";
+			prev = visualize_convolutional_layer(l, buffer.c_str(), prev);
 		}
 	}
 }

@@ -36,7 +36,7 @@ void set_specified_workspace_limit(convolutional_layer *l, size_t workspace_size
 void resize_convolutional_layer(convolutional_layer *layer, int w, int h);
 void forward_convolutional_layer(const convolutional_layer layer, network_state state);
 void update_convolutional_layer(convolutional_layer layer, int batch, float learning_rate, float momentum, float decay);
-image *visualize_convolutional_layer(convolutional_layer layer, char *window, image *prev_weights);
+image *visualize_convolutional_layer(convolutional_layer layer, const char * window, image * prev_weights);
 void binarize_weights(float *weights, int n, int size, float *binary);
 void swap_binary(convolutional_layer *l);
 void binarize_weights2(float *weights, int n, int size, char *binary, float *scales);

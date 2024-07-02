@@ -1797,18 +1797,22 @@ void rescale_weights(convolutional_layer l, float scale, float trans)
 	}
 }
 
-image *visualize_convolutional_layer(convolutional_layer l, char *window, image *prev_weights)
+image *visualize_convolutional_layer(convolutional_layer l, const char * window, image * prev_weights)
 {
 	TAT(TATPARMS);
 
 	image *single_weights = get_weights(l);
-	show_images(single_weights, l.n, window);
+
+	std::string title = window;
+	title += " " + std::to_string(single_weights->w) + "x" + std::to_string(single_weights->h) + "x" + std::to_string(single_weights->c);
+	show_images(single_weights, l.n, title.c_str());
 
 	image delta = get_convolutional_image(l);
 	image dc = collapse_image_layers(delta, 1);
-	char buff[256];
-	sprintf(buff, "%s: Output", window);
-	show_image(dc, buff);
+
+	title += " [Output]";
+
+	show_image(dc, title.c_str());
 	//save_image(dc, buff);
 	free_image(dc);
 	return single_weights;

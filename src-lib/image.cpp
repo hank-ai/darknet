@@ -1718,7 +1718,7 @@ void show_image_normalized(image im, const char *name)
 	free_image(c);
 }
 
-void show_images(image *ims, int n, char *window)
+void show_images(image *ims, int n, const char * window)
 {
 	TAT(TATPARMS);
 
@@ -1734,7 +1734,8 @@ void free_image(image m)
 {
 	TAT(TATPARMS);
 
-	if(m.data){
+	if(m.data)
+	{
 		free(m.data);
 	}
 }

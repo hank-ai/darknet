@@ -1793,7 +1793,8 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 	printf(" read labels from %d images \n", number_of_images);
 
 	int i, j;
-	for (i = 0; i < number_of_images; ++i) {
+	for (i = 0; i < number_of_images; ++i)
+	{
 		char *path = paths[i];
 		char labelpath[4096];
 		replace_image_to_label(path, labelpath);
@@ -1835,7 +1836,8 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 	boxes_data = make_matrix(number_of_boxes, 2);
 
 	printf("\n");
-	for (i = 0; i < number_of_boxes; ++i) {
+	for (i = 0; i < number_of_boxes; ++i)
+	{
 		boxes_data.vals[i][0] = rel_width_height_array[i * 2];
 		boxes_data.vals[i][1] = rel_width_height_array[i * 2 + 1];
 		//if (w > 410 || h > 410) printf("i:%d,  w = %f, h = %f \n", i, w, h);
@@ -1854,14 +1856,16 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 
 	printf("\n");
 	float avg_iou = 0;
-	for (i = 0; i < number_of_boxes; ++i) {
+	for (i = 0; i < number_of_boxes; ++i)
+	{
 		float box_w = rel_width_height_array[i * 2]; //points->data.fl[i * 2];
 		float box_h = rel_width_height_array[i * 2 + 1]; //points->data.fl[i * 2 + 1];
 														//int cluster_idx = labels->data.i[i];
 		int cluster_idx = 0;
 		float min_dist = FLT_MAX;
 		float best_iou = 0;
-		for (j = 0; j < num_of_clusters; ++j) {
+		for (j = 0; j < num_of_clusters; ++j)
+		{
 			float anchor_w = anchors_data.centers.vals[j][0];   // centers->data.fl[j * 2];
 			float anchor_h = anchors_data.centers.vals[j][1];   // centers->data.fl[j * 2 + 1];
 			float min_w = (box_w < anchor_w) ? box_w : anchor_w;
@@ -1870,33 +1874,40 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 			float box_union = box_w*box_h + anchor_w*anchor_h - box_intersect;
 			float iou = box_intersect / box_union;
 			float distance = 1 - iou;
-			if (distance < min_dist) {
-			min_dist = distance;
-			cluster_idx = j;
-			best_iou = iou;
+			if (distance < min_dist)
+			{
+				min_dist = distance;
+				cluster_idx = j;
+				best_iou = iou;
 			}
 		}
 
 		float anchor_w = anchors_data.centers.vals[cluster_idx][0]; //centers->data.fl[cluster_idx * 2];
 		float anchor_h = anchors_data.centers.vals[cluster_idx][1]; //centers->data.fl[cluster_idx * 2 + 1];
-		if (best_iou > 1 || best_iou < 0) { // || box_w > width || box_h > height) {
-			printf(" Wrong label: i = %d, box_w = %f, box_h = %f, anchor_w = %f, anchor_h = %f, iou = %f \n",
-				i, box_w, box_h, anchor_w, anchor_h, best_iou);
+		if (best_iou > 1 || best_iou < 0)
+		{
+			printf(" Wrong label: i = %d, box_w = %f, box_h = %f, anchor_w = %f, anchor_h = %f, iou = %f \n", i, box_w, box_h, anchor_w, anchor_h, best_iou);
 		}
-		else avg_iou += best_iou;
+		else
+		{
+			avg_iou += best_iou;
+		}
 	}
 
 	char buff[1024];
 	FILE* fwc = fopen("counters_per_class.txt", "wb");
-	if (fwc) {
+	if (fwc)
+	{
 		sprintf(buff, "counters_per_class = ");
 		printf("\n%s", buff);
 		fwrite(buff, sizeof(char), strlen(buff), fwc);
-		for (i = 0; i < classes; ++i) {
+		for (i = 0; i < classes; ++i)
+		{
 			sprintf(buff, "%d", counter_per_class[i]);
 			printf("%s", buff);
 			fwrite(buff, sizeof(char), strlen(buff), fwc);
-			if (i < classes - 1) {
+			if (i < classes - 1)
+			{
 				fwrite(", ", sizeof(char), 2, fwc);
 				printf(", ");
 			}
@@ -1904,26 +1915,29 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 		printf("\n");
 		fclose(fwc);
 	}
-	else {
+	else
+	{
 		printf(" Error: file counters_per_class.txt can't be open \n");
 	}
 
 	avg_iou = 100 * avg_iou / number_of_boxes;
 	printf("\n avg IoU = %2.2f %% \n", avg_iou);
 
-
 	FILE* fw = fopen("anchors.txt", "wb");
-	if (fw) {
+	if (fw)
+	{
 		printf("\nSaving anchors to the file: anchors.txt \n");
 		printf("anchors = ");
-		for (i = 0; i < num_of_clusters; ++i) {
+		for (i = 0; i < num_of_clusters; ++i)
+		{
 			float anchor_w = anchors_data.centers.vals[i][0]; //centers->data.fl[i * 2];
 			float anchor_h = anchors_data.centers.vals[i][1]; //centers->data.fl[i * 2 + 1];
 			if (width > 32) sprintf(buff, "%3.0f,%3.0f", anchor_w, anchor_h);
 			else sprintf(buff, "%2.4f,%2.4f", anchor_w, anchor_h);
 			printf("%s", buff);
 			fwrite(buff, sizeof(char), strlen(buff), fw);
-			if (i + 1 < num_of_clusters) {
+			if (i + 1 < num_of_clusters)
+			{
 				fwrite(", ", sizeof(char), 2, fw);
 				printf(", ");
 			}
@@ -1931,11 +1945,13 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 		printf("\n");
 		fclose(fw);
 	}
-	else {
+	else
+	{
 		printf(" Error: file anchors.txt can't be open \n");
 	}
 
-	if (show) {
+	if (show)
+	{
 		show_anchors(number_of_boxes, num_of_clusters, rel_width_height_array, anchors_data, width, height);
 	}
 	free(rel_width_height_array);
@@ -2307,8 +2323,6 @@ void run_detector(int argc, char **argv)
 
 	int benchmark = find_arg(argc, argv, "-benchmark");
 	int benchmark_layers = find_arg(argc, argv, "-benchmark_layers");
-	//if (benchmark_layers) benchmark = 1;
-	int show = find_arg(argc, argv, "-show");
 	int letter_box = find_arg(argc, argv, "-letter_box");
 	int map_points = find_int_arg(argc, argv, "-points", 0);
 	int show_imgs = find_arg(argc, argv, "-show_imgs");
@@ -2326,9 +2340,6 @@ void run_detector(int argc, char **argv)
 	float hier_thresh = find_float_arg(argc, argv, "-hier", .5);
 	int cam_index = find_int_arg(argc, argv, "-c", 0);
 	int frame_skip = find_int_arg(argc, argv, "-s", 0);
-	int num_of_clusters = find_int_arg(argc, argv, "-num_of_clusters", 0);
-	int width = find_int_arg(argc, argv, "-width", -1);
-	int height = find_int_arg(argc, argv, "-height", -1);
 	// extended output in test mode (output of rect bound coords)
 	// and for recall mode (extended output table-like format with results for best_class fit)
 	int ext_output = find_arg(argc, argv, "-ext_output");
@@ -2392,8 +2403,16 @@ void run_detector(int argc, char **argv)
 	else if (cfg_and_state.function == "valid"		) { validate_detector(datacfg, cfg, weights, outfile); }
 	else if (cfg_and_state.function == "recall"		) { validate_detector_recall(datacfg, cfg, weights); }
 	else if (cfg_and_state.function == "map"		) { validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL); }
-	else if (cfg_and_state.function == "calcanchors") { calc_anchors(datacfg, num_of_clusters, width, height, show); }
 	else if (cfg_and_state.function == "draw"		) { draw_object(datacfg, cfg, weights, input_fn, thresh, dont_show, 100, letter_box, benchmark_layers); }
+	else if (cfg_and_state.function == "calcanchors")
+	{
+		const int show				= cfg_and_state.is_set("show") ? 1 : 0;
+		const int width				= cfg_and_state.get_int("width");
+		const int height			= cfg_and_state.get_int("height");
+		const int num_of_clusters	= cfg_and_state.get_int("numofclusters");
+
+		calc_anchors(datacfg, num_of_clusters, width, height, show);
+	}
 	else if (cfg_and_state.function == "demo"		)
 	{
 		/* Examples:

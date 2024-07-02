@@ -74,7 +74,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 	{
 		ArgsAndParms("3d"			, ArgsAndParms::EType::kCommand	, "Pass in 2 images as input."),
 		ArgsAndParms("average"		, ArgsAndParms::EType::kCommand	, ""),
-		ArgsAndParms("calcanchors"	, ArgsAndParms::EType::kFunction, ""),
+		ArgsAndParms("calcanchors"	, ArgsAndParms::EType::kFunction, "Recalculate YOLO anchors."),
 		ArgsAndParms("cfglayers"	, ArgsAndParms::EType::kCommand, "Display some information on all config files and layers used."),
 		ArgsAndParms("classify"		, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("classifier"	, ArgsAndParms::EType::kCommand	, ""),
@@ -102,9 +102,9 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("test"			, ArgsAndParms::EType::kFunction, ""),
 		ArgsAndParms("train"		, ArgsAndParms::EType::kFunction, "Train a new neural network, or continue training an existing neural network."),
 		ArgsAndParms("valid"		, ArgsAndParms::EType::kFunction, ""),
-		ArgsAndParms("version"		, ArgsAndParms::EType::kCommand, "Display version information."),
+		ArgsAndParms("version"		, ArgsAndParms::EType::kCommand	, "Display version information."),
 		ArgsAndParms("vid"			, ArgsAndParms::EType::kCommand	, ""),
-		ArgsAndParms("visualize"	, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("visualize"	, ArgsAndParms::EType::kCommand	, "Display the weights from diferent layers in a neural network."),
 
 		// global options
 		ArgsAndParms("colour"	, "color"							, "Enable colour output in the console.  This is the default."),
@@ -132,7 +132,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("letterbox"			),
 		ArgsAndParms("mjpegport"			), //-- takes an int?
 		ArgsAndParms("points"				), //-- takes an int?  0
-		ArgsAndParms("show"					),
+		ArgsAndParms("show"					, ArgsAndParms::EType::kParameter, "Visually display the anchors."),
 		ArgsAndParms("showimgs"				),
 		ArgsAndParms("httpposthost"			),
 		ArgsAndParms("timelimitsec"			),
@@ -142,9 +142,9 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("iouthresh"			),
 		ArgsAndParms("hier"					),
 		ArgsAndParms("s"					),
-		ArgsAndParms("numofclusters"		),
-		ArgsAndParms("width"				),
-		ArgsAndParms("height"				),
+		ArgsAndParms("numofclusters"		, "", 6	, "The number of YOLO anchors in the configuration."	),
+		ArgsAndParms("width"				, "", 416	, "The width of the network."							),
+		ArgsAndParms("height"				, "", 416	, "The height of the network."							),
 		ArgsAndParms("extoutput"			),
 		ArgsAndParms("savelabels"			),
 		ArgsAndParms("chart"				),
@@ -262,30 +262,56 @@ void Darknet::display_usage()
 				<< std::endl;
 		}
 	}
+
+	const auto YELLOW = [](const std::string & msg) -> std::string
+	{
+		return Darknet::in_colour(Darknet::EColour::kYellow, msg);
+	};
+
 	std::cout
-		<< std::endl
+		<< ""																						<< std::endl
+		<< "For most Darknet commands, dashes and underscores for CLI parameters are"				<< std::endl
+		<< "ignored.  Additionally, the order in which parameters are specified should"				<< std::endl
+		<< "be insignificant.  For example, these parameters:"										<< std::endl
+		<< ""																						<< std::endl
+		<< "    " << in_colour(EColour::kBrightWhite, "-verbose -show -num_of_clusters 6")			<< std::endl
+		<< ""																						<< std::endl
+		<< "...are exactly the same as:"															<< std::endl
+		<< ""																						<< std::endl
+		<< "    " << in_colour(EColour::kBrightWhite, "numofclusters 6 verbose show")				<< std::endl
+		<< ""																						<< std::endl
+		<< "Some legacy commands have not yet been fixed or converted to use the new"				<< std::endl
+		<< "command-line parsing, but with time all commands will be retrofited to"					<< std::endl
+		<< "use this new format."																	<< std::endl
+		<< ""																						<< std::endl
 		<< "Several example commands:"																<< std::endl
 		<< ""																						<< std::endl
+		<< "  Recalculate YOLO anchors:"															<< std::endl
+		<< YELLOW("    darknet detector calcanchors cars.data -show -num_of_clusters 6 -width 320 -height 160") << std::endl
+		<< ""																						<< std::endl
 		<< "  Train a new network:"																	<< std::endl
-		<< Darknet::format_in_colour("    darknet detector train -map -dont_show cars.data cars.cfg", Darknet::EColour::kYellow, 0) << std::endl
+		<< YELLOW("    darknet detector train -map -dont_show cars.data cars.cfg")					<< std::endl
 		<< ""																						<< std::endl
 		<< "  Train a network starting from pre-existing weights:"									<< std::endl
-		<< Darknet::format_in_colour("    darknet detector train -map -dont_show -clear cars.data cars.cfg cars_best.weights", Darknet::EColour::kYellow, 0) << std::endl
+		<< YELLOW("    darknet detector train -map -dont_show -clear cars.data cars.cfg cars_best.weights") << std::endl
 		<< ""																						<< std::endl
 		<< "  Check the mAP% results:"																<< std::endl
-		<< Darknet::format_in_colour("    darknet detector map cars.data cars.cfg cars_best.weights", Darknet::EColour::kYellow, 0) << std::endl
+		<< YELLOW("    darknet detector map cars.data cars.cfg cars_best.weights")					<< std::endl
 		<< ""																						<< std::endl
 		<< "  Apply the neural network to an image and show the results:"							<< std::endl
-		<< Darknet::format_in_colour("    darknet detector test cars.data cars.cfg cars_best.weights image1.jpg", Darknet::EColour::kYellow, 0) << std::endl
+		<< YELLOW("    darknet detector test cars.data cars.cfg cars_best.weights image1.jpg")		<< std::endl
 		<< ""																						<< std::endl
 		<< "  Apply the neural network to an image and save the results to disk:"					<< std::endl
-		<< Darknet::format_in_colour("    darknet detector test -dont_show cars.data cars.cfg cars_best.weights image1.jpg", Darknet::EColour::kYellow, 0) << std::endl
+		<< YELLOW("    darknet detector test -dont_show cars.data cars.cfg cars_best.weights image1.jpg") << std::endl
 		<< ""																						<< std::endl
 		<< "  Apply the neural network to a video:"													<< std::endl
-		<< Darknet::format_in_colour("    darknet detector demo cars.data cars.cfg cars_best.weights -ext_output video1.mp4", Darknet::EColour::kYellow, 0) << std::endl
+		<< YELLOW("    darknet detector demo cars.data cars.cfg cars_best.weights -ext_output video1.mp4") << std::endl
 		<< ""																						<< std::endl
 		<< "  Create an output video:"																<< std::endl
-		<< Darknet::format_in_colour("    darknet detector demo cars.data cars.cfg cars_best.weights video1.mp4 -out_filename output.avi", Darknet::EColour::kYellow, 0) << std::endl
+		<< YELLOW("    darknet detector demo cars.data cars.cfg cars_best.weights video1.mp4 -out_filename output.avi") << std::endl
+		<< ""																						<< std::endl
+		<< "  Display the weights from diferent layers in a neural network:"						<< std::endl
+		<< YELLOW("    darknet visualize --verbose cars.cfg cars_best.weights")						<< std::endl
 		<< ""																						<< std::endl
 		;
 
