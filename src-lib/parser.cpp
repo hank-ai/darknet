@@ -2733,7 +2733,7 @@ void load_weights(network * net, const char * filename)
 }
 
 // load network & force - set batch size
-network *load_network_custom(char *cfg, char *weights, int clear, int batch)
+network *load_network_custom(const char * cfg, const char * weights, int clear, int batch)
 {
 	TAT(TATPARMS);
 
@@ -2757,7 +2757,7 @@ network *load_network_custom(char *cfg, char *weights, int clear, int batch)
 }
 
 // load network & get batch size from cfg-file
-network *load_network(char *cfg, char *weights, int clear)
+network *load_network(const char * cfg, const char * weights, int clear)
 {
 	TAT(TATPARMS);
 
