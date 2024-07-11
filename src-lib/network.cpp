@@ -194,7 +194,8 @@ float get_current_rate(network net)
 
 char * get_layer_string(LAYER_TYPE type)
 {
-	/// @see @ref string_to_layer_type()
+	/// @see @ref Darknet::to_string()
+	/// @see @ref Darknet::get_layer_from_name()
 
 	TAT(TATPARMS);
 

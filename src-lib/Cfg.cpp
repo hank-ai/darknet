@@ -857,21 +857,6 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				#endif
 				break;
 			}
-#if 0
-			case ELayerType::LOCAL:				{	l = parse_local(options, params);									break;	}	<-- unused
-			case ELayerType::ACTIVE:			{	l = parse_activation(options, params);								break;	}	<-- unused
-			case ELayerType::GRU:				{	l = parse_gru(options, params);										break;	}	<-- unused
-			case ELayerType::CONV_LSTM:			{	l = parse_conv_lstm(options, params);								break;	}	<-- unused
-			case ELayerType::HISTORY:			{	l = parse_history(options, params);									break;	}	<-- unused
-			case ELayerType::CROP:				{	l = parse_crop(options, params);									break;	}	<-- unused
-			case ELayerType::IMPLICIT:			{	l = parse_implicit(options, params, net);							break;	}	<-- unused
-			case ELayerType::DETECTION:			{	l = parse_detection(options, params);								break;	}	<-- unused
-			case ELayerType::NORMALIZATION:		{	l = parse_normalization(options, params);							break;	}	<-- unused
-			case ELayerType::BATCHNORM:			{	l = parse_batchnorm(options, params);								break;	}	<-- unused
-			case ELayerType::REORG_OLD:			{	l = parse_reorg_old(options, params);								break;	}	<-- unused
-			case ELayerType::DECONVOLUTIONAL:	<-- unused
-			case ELayerType::EMPTY:	<-- unused
-#endif
 			default:
 			{
 				darknet_fatal_error(DARKNET_LOC, "layer type \"%s\" not recognized on line #%ld in \"%s\"", section.name.c_str(), section.line_number, filename.string().c_str());

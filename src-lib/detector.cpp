@@ -2406,14 +2406,14 @@ void run_detector(int argc, char **argv)
 	else if (cfg_and_state.function == "draw"		) { draw_object(datacfg, cfg, weights, input_fn, thresh, dont_show, 100, letter_box, benchmark_layers); }
 	else if (cfg_and_state.function == "calcanchors")
 	{
-		const int show				= cfg_and_state.is_set("show") ? 1 : 0;
-		const int width				= cfg_and_state.get_int("width");
-		const int height			= cfg_and_state.get_int("height");
-		const int num_of_clusters	= cfg_and_state.get_int("numofclusters");
+		const int show				= cfg_and_state.is_set	("show"			) ? 1 : 0;
+		const int width				= cfg_and_state.get_int	("width"		);
+		const int height			= cfg_and_state.get_int	("height"		);
+		const int num_of_clusters	= cfg_and_state.get_int	("numofclusters");
 
 		calc_anchors(datacfg, num_of_clusters, width, height, show);
 	}
-	else if (cfg_and_state.function == "demo"		)
+	else if (cfg_and_state.function == "demo")
 	{
 		/* Examples:
 		 *
