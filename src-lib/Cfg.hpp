@@ -119,14 +119,15 @@ namespace Darknet
 			/// Determine if a .cfg file has been parsed.
 			bool empty() const { return sections.empty(); }
 
-			/** Read the given configuration file and parses the individual sections and lines.
-			 * Forgets about any configuration file specified in the constructor (if any).
+			/** Read the given configuration file and parses the individual sections and lines.  Forgets about any configuration
+			 * file specified in the constructor (if any).
 			 *
 			 * @note Remember to call @ref create_network() after @p read() has finished.
 			 */
 			CfgFile & read(const std::filesystem::path & fn);
 
-			/** Read the configuration file that was specified in the constructor.
+			/** Read the specified configuration file.  If you use the constructor where a filename is specified, then you don't
+			 * need to manually call @p read().  The constructor will automatically call this method for you.
 			 *
 			 * @note Remember to call @ref create_network() after @p read() has finished.
 			 */
@@ -148,14 +149,14 @@ namespace Darknet
 			/// The configuration file.
 			std::filesystem::path filename;
 
-			/** The [net] or [network] is not a "real" section, nor is it a layer.
+			/** The @p [net] or @p [network] is not a "real" section, nor is it a layer.
 			 * This is only populated after @ref read() has been called.
 			 *
 			 * @see @ref sections
 			 */
 			CfgSection network_section;
 
-			/** This is were we'll store every section *except* for the [net] one.
+			/** This is where we'll store every section @em except for the @p [net] one.
 			 * This is only populated after @ref read() has been called.
 			 *
 			 * @see @ref network_section
