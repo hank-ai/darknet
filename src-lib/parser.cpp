@@ -753,6 +753,19 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 		}
 	}
 
+	// if everything has gone well, there will be zero bytes left to read at this point
+	const auto position = ftell(fp);
+	const auto filesize = std::filesystem::file_size(filename);
+	if (position != filesize and cutoff >= net->n)
+	{
+		Darknet::display_warning_msg("failure detected while reading weights"
+			" (f=" + std::string(filename)		+
+			", n=" + std::to_string(net->n)		+
+			", p=" + std::to_string(position)	+
+			", s=" + std::to_string(filesize)	+
+			")\n");
+	}
+
 	if (cfg_and_state.is_verbose)
 	{
 		std::cout << "Loaded weights for " << layers_with_weights << " of " << net->n << " layers from " << filename << std::endl;
