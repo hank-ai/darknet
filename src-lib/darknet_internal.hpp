@@ -83,3 +83,4 @@ namespace Darknet
 #include "classifier.hpp"
 #include "image.hpp"
 #include "dark_cuda.hpp"
+#include "tree.hpp"

@@ -243,21 +243,30 @@ void forward_region_layer(const region_layer l, network_state state)
 	int count = 0;
 	int class_count = 0;
 	*(l.cost) = 0;
-	for (b = 0; b < l.batch; ++b) {
-		if(l.softmax_tree){
+	for (b = 0; b < l.batch; ++b)
+	{
+		if (l.softmax_tree)
+		{
 			int onlyclass_id = 0;
-			for(t = 0; t < l.max_boxes; ++t){
+			for (t = 0; t < l.max_boxes; ++t)
+			{
 				box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
-				if(!truth.x) break; // continue;
+				if (!truth.x)
+				{
+					break; // continue;
+				}
 				int class_id = state.truth[t*l.truth_size + b*l.truths + 4];
 				float maxp = 0;
 				int maxi = 0;
-				if(truth.x > 100000 && truth.y > 100000){
-					for(n = 0; n < l.n*l.w*l.h; ++n){
+				if (truth.x > 100000 && truth.y > 100000)
+				{
+					for (n = 0; n < l.n*l.w*l.h; ++n)
+					{
 						int index = size*n + b*l.outputs + 5;
 						float scale =  l.output[index-1];
 						float p = scale*get_hierarchy_probability(l.output + index, l.softmax_tree, class_id);
-						if(p > maxp){
+						if (p > maxp)
+						{
 							maxp = p;
 							maxi = n;
 						}
@@ -398,15 +407,20 @@ void get_region_boxes(layer l, int w, int h, float thresh, float **probs, box *b
 	int i;
 	float *const predictions = l.output;
 	#pragma omp parallel for
-	for (i = 0; i < l.w*l.h; ++i){
+	for (i = 0; i < l.w*l.h; ++i)
+	{
 		int j, n;
 		int row = i / l.w;
 		int col = i % l.w;
-		for(n = 0; n < l.n; ++n){
+		for (n = 0; n < l.n; ++n)
+		{
 			int index = i*l.n + n;
 			int p_index = index * (l.classes + 5) + 4;
 			float scale = predictions[p_index];
-			if(l.classfix == -1 && scale < .5) scale = 0;
+			if (l.classfix == -1 && scale < .5)
+			{
+				scale = 0;
+			}
 			int box_index = index * (l.classes + 5);
 			boxes[index] = get_region_box(predictions, l.biases, n, box_index, col, row, l.w, l.h);
 			boxes[index].x *= w;
@@ -415,33 +429,45 @@ void get_region_boxes(layer l, int w, int h, float thresh, float **probs, box *b
 			boxes[index].h *= h;
 
 			int class_index = index * (l.classes + 5) + 5;
-			if(l.softmax_tree){
-
+			if (l.softmax_tree)
+			{
 				hierarchy_predictions(predictions + class_index, l.classes, l.softmax_tree, 0);
 				int found = 0;
-				if(map){
-					for(j = 0; j < 200; ++j){
+				if (map)
+				{
+					for(j = 0; j < 200; ++j)
+					{
 						float prob = scale*predictions[class_index+map[j]];
 						probs[index][j] = (prob > thresh) ? prob : 0;
 					}
-				} else {
-					for(j = l.classes - 1; j >= 0; --j){
-						if(!found && predictions[class_index + j] > .5){
+				}
+				else
+				{
+					for(j = l.classes - 1; j >= 0; --j)
+					{
+						if(!found && predictions[class_index + j] > .5)
+						{
 							found = 1;
-						} else {
+						}
+						else
+						{
 							predictions[class_index + j] = 0;
 						}
 						float prob = predictions[class_index+j];
 						probs[index][j] = (scale > thresh) ? prob : 0;
 					}
 				}
-			} else {
-				for(j = 0; j < l.classes; ++j){
+			}
+			else
+			{
+				for (j = 0; j < l.classes; ++j)
+				{
 					float prob = scale*predictions[class_index+j];
 					probs[index][j] = (prob > thresh) ? prob : 0;
 				}
 			}
-			if(only_objectness){
+			if (only_objectness)
+			{
 				probs[index][0] = scale;
 			}
 		}
@@ -565,12 +591,15 @@ void get_region_detections(layer l, int w, int h, int netw, int neth, float thre
 			l.output[i] = (l.output[i] + flip[i]) / 2.;
 		}
 	}
-	for (i = 0; i < l.w*l.h; ++i) {
+	for (i = 0; i < l.w*l.h; ++i)
+	{
 		int row = i / l.w;
 		int col = i % l.w;
-		for (n = 0; n < l.n; ++n) {
+		for (n = 0; n < l.n; ++n)
+		{
 			int index = n*l.w*l.h + i;
-			for (j = 0; j < l.classes; ++j) {
+			for (j = 0; j < l.classes; ++j)
+			{
 				dets[index].prob[j] = 0;
 			}
 			int obj_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords);
@@ -579,31 +608,39 @@ void get_region_detections(layer l, int w, int h, int netw, int neth, float thre
 			float scale = l.background ? 1 : predictions[obj_index];
 			dets[index].bbox = get_region_box(predictions, l.biases, n, box_index, col, row, l.w, l.h);// , l.w*l.h);
 			dets[index].objectness = scale > thresh ? scale : 0;
-			if (dets[index].mask) {
-				for (j = 0; j < l.coords - 4; ++j) {
+			if (dets[index].mask)
+			{
+				for (j = 0; j < l.coords - 4; ++j)
+				{
 					dets[index].mask[j] = l.output[mask_index + j*l.w*l.h];
 				}
 			}
 
 			int class_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + !l.background);
-			if (l.softmax_tree) {
-
+			if (l.softmax_tree)
+			{
 				hierarchy_predictions(predictions + class_index, l.classes, l.softmax_tree, 0);// , l.w*l.h);
-				if (map) {
-					for (j = 0; j < 200; ++j) {
+				if (map)
+				{
+					for (j = 0; j < 200; ++j)
+					{
 						int class_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + map[j]);
 						float prob = scale*predictions[class_index];
 						dets[index].prob[j] = (prob > thresh) ? prob : 0;
 					}
 				}
-				else {
+				else
+				{
 					int j = hierarchy_top_prediction(predictions + class_index, l.softmax_tree, tree_thresh, l.w*l.h);
 					dets[index].prob[j] = (scale > thresh) ? scale : 0;
 				}
 			}
-			else {
-				if (dets[index].objectness) {
-					for (j = 0; j < l.classes; ++j) {
+			else
+			{
+				if (dets[index].objectness)
+				{
+					for (j = 0; j < l.classes; ++j)
+					{
 						int class_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + j);
 						float prob = scale*predictions[class_index];
 						dets[index].prob[j] = (prob > thresh) ? prob : 0;

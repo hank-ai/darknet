@@ -1165,7 +1165,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 		}
 	}
 #else
-	if (workspace_size)
+	if (parms.workspace_size)
 	{
 		std::cout << "Allocating workspace:  " << size_to_IEC_string(parms.workspace_size) << std::endl;
 		net.workspace = (float*)xcalloc(1, parms.workspace_size);
