@@ -4,7 +4,7 @@
 #include "gemm.hpp"
 
 
-int local_out_height(local_layer l)
+int local_out_height(layer l)
 {
 	TAT(TATPARMS);
 
@@ -14,7 +14,7 @@ int local_out_height(local_layer l)
 	return h/l.stride + 1;
 }
 
-int local_out_width(local_layer l)
+int local_out_width(layer l)
 {
 	TAT(TATPARMS);
 
@@ -24,12 +24,12 @@ int local_out_width(local_layer l)
 	return w/l.stride + 1;
 }
 
-local_layer make_local_layer(int batch, int h, int w, int c, int n, int size, int stride, int pad, ACTIVATION activation)
+layer make_local_layer(int batch, int h, int w, int c, int n, int size, int stride, int pad, ACTIVATION activation)
 {
 	TAT(TATPARMS);
 
 	int i;
-	local_layer l = { (LAYER_TYPE)0 };
+	layer l = { (LAYER_TYPE)0 };
 	l.type = LOCAL;
 
 	l.h = h;
@@ -91,7 +91,7 @@ local_layer make_local_layer(int batch, int h, int w, int c, int n, int size, in
 	return l;
 }
 
-void forward_local_layer(const local_layer l, network_state state)
+void forward_local_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -124,7 +124,7 @@ void forward_local_layer(const local_layer l, network_state state)
 	activate_array(l.output, l.outputs*l.batch, l.activation);
 }
 
-void backward_local_layer(local_layer l, network_state state)
+void backward_local_layer(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -171,7 +171,7 @@ void backward_local_layer(local_layer l, network_state state)
 	}
 }
 
-void update_local_layer(local_layer l, int batch, float learning_rate, float momentum, float decay)
+void update_local_layer(layer l, int batch, float learning_rate, float momentum, float decay)
 {
 	TAT(TATPARMS);
 

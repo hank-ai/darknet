@@ -40,8 +40,8 @@ typedef struct network network;
 struct network_state;
 typedef struct network_state network_state;
 
-struct layer;
-typedef struct layer layer;
+//struct layer;
+//typedef struct layer layer;
 
 struct image;
 typedef struct image image;
@@ -1092,6 +1092,9 @@ int fill_remaining_id(detection *new_dets, int new_dets_num, int new_track_id, f
 
 // gemm.h
 void init_cpu();
+
+void darknet_set_verbose(const bool flag);
+void darknet_set_trace(const bool flag);
 
 #ifdef __cplusplus
 }

@@ -48,13 +48,13 @@ size_t get_connected_workspace_size(layer l)
 	return 0;
 }
 
-connected_layer make_connected_layer(int batch, int steps, int inputs, int outputs, ACTIVATION activation, int batch_normalize)
+layer make_connected_layer(int batch, int steps, int inputs, int outputs, ACTIVATION activation, int batch_normalize)
 {
 	TAT(TATPARMS);
 
 	int total_batch = batch*steps;
 	int i;
-	connected_layer l = { (LAYER_TYPE)0 };
+	layer l = { (LAYER_TYPE)0 };
 	l.type = CONNECTED;
 
 	l.inputs = inputs;
@@ -157,7 +157,7 @@ connected_layer make_connected_layer(int batch, int steps, int inputs, int outpu
 	return l;
 }
 
-void update_connected_layer(connected_layer l, int batch, float learning_rate, float momentum, float decay)
+void update_connected_layer(layer l, int batch, float learning_rate, float momentum, float decay)
 {
 	TAT(TATPARMS);
 
@@ -174,7 +174,7 @@ void update_connected_layer(connected_layer l, int batch, float learning_rate, f
 	scal_cpu(l.inputs*l.outputs, momentum, l.weight_updates, 1);
 }
 
-void forward_connected_layer(connected_layer l, network_state state)
+void forward_connected_layer(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -211,7 +211,7 @@ void forward_connected_layer(connected_layer l, network_state state)
 	activate_array(l.output, l.outputs*l.batch, l.activation);
 }
 
-void backward_connected_layer(connected_layer l, network_state state)
+void backward_connected_layer(layer l, network_state state)
 {
 	TAT(TATPARMS);
 

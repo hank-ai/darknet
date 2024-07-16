@@ -1,6 +1,15 @@
 #pragma once
 
-#include "darknet_internal.hpp"
+#ifndef __cplusplus
+#error "The darknet project requires the use of a C++ compiler."
+#endif
+
+
+#include "darknet.h"
+#include "darknet.hpp"
+
+#include <map>
+#include <string>
 
 
 namespace Darknet

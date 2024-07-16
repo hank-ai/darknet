@@ -1,7 +1,7 @@
 #include "darknet_internal.hpp"
 
 
-image get_crop_image(crop_layer l)
+image get_crop_image(layer l)
 {
 	TAT(TATPARMS);
 
@@ -11,15 +11,15 @@ image get_crop_image(crop_layer l)
 	return float_to_image(w,h,c,l.output);
 }
 
-void backward_crop_layer(const crop_layer l, network_state state){}
-void backward_crop_layer_gpu(const crop_layer l, network_state state){}
+void backward_crop_layer(const layer l, network_state state){}
+void backward_crop_layer_gpu(const layer l, network_state state){}
 
-crop_layer make_crop_layer(int batch, int h, int w, int c, int crop_height, int crop_width, int flip, float angle, float saturation, float exposure)
+layer make_crop_layer(int batch, int h, int w, int c, int crop_height, int crop_width, int flip, float angle, float saturation, float exposure)
 {
 	TAT(TATPARMS);
 
 	fprintf(stderr, "Crop Layer: %d x %d -> %d x %d x %d image\n", h,w,crop_height,crop_width,c);
-	crop_layer l = { (LAYER_TYPE)0 };
+	layer l = { (LAYER_TYPE)0 };
 	l.type = CROP;
 	l.batch = batch;
 	l.h = h;
@@ -67,7 +67,7 @@ void resize_crop_layer(layer *l, int w, int h)
 }
 
 
-void forward_crop_layer(const crop_layer l, network_state state)
+void forward_crop_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 

@@ -37,21 +37,21 @@ __global__ void backward_avgpool_layer_kernel(int n, int w, int h, int c, float 
 	}
 }
 
-extern "C" void forward_avgpool_layer_gpu(avgpool_layer layer, network_state state)
+extern "C" void forward_avgpool_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
-	size_t n = layer.c*layer.batch;
+	size_t n = l.c * l.batch;
 
 	forward_avgpool_layer_kernel<<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(n, layer.w, layer.h, layer.c, state.input, layer.output_gpu);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void backward_avgpool_layer_gpu(avgpool_layer layer, network_state state)
+extern "C" void backward_avgpool_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
-	size_t n = layer.c*layer.batch;
+	size_t n = l.c * l.batch;
 
 	backward_avgpool_layer_kernel<<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(n, layer.w, layer.h, layer.c, state.delta, layer.delta_gpu);
 	CHECK_CUDA(cudaPeekAtLastError());

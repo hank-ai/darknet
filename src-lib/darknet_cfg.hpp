@@ -1,6 +1,11 @@
 #pragma once
 
-#include "darknet_internal.hpp"
+#ifndef __cplusplus
+#error "The darknet project requires the use of a C++ compiler."
+#endif
+
+
+#include "darknet.hpp"
 
 
 namespace Darknet
@@ -210,28 +215,28 @@ namespace Darknet
 		private:
 
 			/// @{ Methods to parse different types of sections in @p .cfg files.
-			CfgFile &			parse_net_section			();
-			convolutional_layer	parse_convolutional_section	(const size_t section_idx);
-			route_layer			parse_route_section			(const size_t section_idx);
-			maxpool_layer		parse_maxpool_section		(const size_t section_idx);
-			layer				parse_yolo_section			(const size_t section_idx);
-			layer				parse_upsample_section		(const size_t section_idx);
-			layer				parse_shortcut_section		(const size_t section_idx);
-			connected_layer		parse_connected_section		(const size_t section_idx);
-			layer				parse_crnn_section			(const size_t section_idx);
-			layer				parse_rnn_section			(const size_t section_idx);
-			maxpool_layer		parse_local_avgpool_section	(const size_t section_idx);
-			layer				parse_lstm_section			(const size_t section_idx);
-			layer				parse_reorg_section			(const size_t section_idx);
-			avgpool_layer		parse_avgpool_section		(const size_t section_idx);
-			cost_layer			parse_cost_section			(const size_t section_idx);
-			layer				parse_region_section		(const size_t section_idx);
-			layer				parse_gaussian_yolo_section	(const size_t section_idx);
-			layer				parse_contrastive_section	(const size_t section_idx);
-			softmax_layer		parse_softmax_section		(const size_t section_idx);
-			layer				parse_scale_channels_section(const size_t section_idx);
-			layer				parse_sam_section			(const size_t section_idx);
-			dropout_layer		parse_dropout_section		(const size_t section_idx);
+			CfgFile &	parse_net_section			();
+			layer		parse_convolutional_section	(const size_t section_idx);
+			layer		parse_route_section			(const size_t section_idx);
+			layer		parse_maxpool_section		(const size_t section_idx);
+			layer		parse_yolo_section			(const size_t section_idx);
+			layer		parse_upsample_section		(const size_t section_idx);
+			layer		parse_shortcut_section		(const size_t section_idx);
+			layer		parse_connected_section		(const size_t section_idx);
+			layer		parse_crnn_section			(const size_t section_idx);
+			layer		parse_rnn_section			(const size_t section_idx);
+			layer		parse_local_avgpool_section	(const size_t section_idx);
+			layer		parse_lstm_section			(const size_t section_idx);
+			layer		parse_reorg_section			(const size_t section_idx);
+			layer		parse_avgpool_section		(const size_t section_idx);
+			layer		parse_cost_section			(const size_t section_idx);
+			layer		parse_region_section		(const size_t section_idx);
+			layer		parse_gaussian_yolo_section	(const size_t section_idx);
+			layer		parse_contrastive_section	(const size_t section_idx);
+			layer		parse_softmax_section		(const size_t section_idx);
+			layer		parse_scale_channels_section(const size_t section_idx);
+			layer		parse_sam_section			(const size_t section_idx);
+			layer		parse_dropout_section		(const size_t section_idx);
 			/// @}
 	};
 }

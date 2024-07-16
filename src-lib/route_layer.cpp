@@ -1,10 +1,10 @@
 #include "darknet_internal.hpp"
 
-route_layer make_route_layer(int batch, int n, int *input_layers, int *input_sizes, int groups, int group_id)
+layer make_route_layer(int batch, int n, int *input_layers, int *input_sizes, int groups, int group_id)
 {
 	TAT(TATPARMS);
 
-	route_layer l = { (LAYER_TYPE)0 };
+	layer l = { (LAYER_TYPE)0 };
 	l.type = ROUTE;
 	l.batch = batch;
 	l.n = n;
@@ -40,7 +40,7 @@ route_layer make_route_layer(int batch, int n, int *input_layers, int *input_siz
 	return l;
 }
 
-void resize_route_layer(route_layer *l, network *net)
+void resize_route_layer(layer *l, network *net)
 {
 	TAT(TATPARMS);
 
@@ -78,7 +78,7 @@ void resize_route_layer(route_layer *l, network *net)
 
 }
 
-void forward_route_layer(const route_layer l, network_state state)
+void forward_route_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -98,7 +98,7 @@ void forward_route_layer(const route_layer l, network_state state)
 	}
 }
 
-void backward_route_layer(const route_layer l, network_state state)
+void backward_route_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -119,7 +119,7 @@ void backward_route_layer(const route_layer l, network_state state)
 }
 
 #ifdef GPU
-void forward_route_layer_gpu(const route_layer l, network_state state)
+void forward_route_layer_gpu(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -148,7 +148,7 @@ void forward_route_layer_gpu(const route_layer l, network_state state)
 	}
 }
 
-void backward_route_layer_gpu(const route_layer l, network_state state)
+void backward_route_layer_gpu(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 

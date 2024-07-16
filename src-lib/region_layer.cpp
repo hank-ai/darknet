@@ -2,11 +2,11 @@
 
 #define DOABS 1
 
-region_layer make_region_layer(int batch, int w, int h, int n, int classes, int coords, int max_boxes)
+layer make_region_layer(int batch, int w, int h, int n, int classes, int coords, int max_boxes)
 {
 	TAT(TATPARMS);
 
-	region_layer l = { (LAYER_TYPE)0 };
+	layer l = { (LAYER_TYPE)0 };
 	l.type = REGION;
 
 	l.n = n;
@@ -198,7 +198,7 @@ namespace
 }
 
 void softmax_tree(float *input, int batch, int inputs, float temp, tree *hierarchy, float *output);
-void forward_region_layer(const region_layer l, network_state state)
+void forward_region_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -393,7 +393,7 @@ void forward_region_layer(const region_layer l, network_state state)
 	printf("Region Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, Avg Recall: %f,  count: %d\n", avg_iou/count, avg_cat/class_count, avg_obj/count, avg_anyobj/(l.w*l.h*l.n*l.batch), recall/count, count);
 }
 
-void backward_region_layer(const region_layer l, network_state state)
+void backward_region_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -476,7 +476,7 @@ void get_region_boxes(layer l, int w, int h, float thresh, float **probs, box *b
 
 #ifdef GPU
 
-void forward_region_layer_gpu(const region_layer l, network_state state)
+void forward_region_layer_gpu(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -521,7 +521,7 @@ void forward_region_layer_gpu(const region_layer l, network_state state)
 	if(cpu_state.truth) free(cpu_state.truth);
 }
 
-void backward_region_layer_gpu(region_layer l, network_state state)
+void backward_region_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 

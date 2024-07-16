@@ -157,7 +157,7 @@ namespace
 	}
 
 
-	inline image *get_weights(const convolutional_layer & l)
+	inline image *get_weights(const layer & l)
 	{
 		TAT(TATPARMS);
 
@@ -173,7 +173,7 @@ namespace
 }
 
 
-void swap_binary(convolutional_layer * l)
+void swap_binary(layer * l)
 {
 	TAT(TATPARMS);
 
@@ -231,7 +231,7 @@ void binarize_input(float *input, int n, int size, float *binary)
 }
 
 
-int convolutional_out_height(convolutional_layer l)
+int convolutional_out_height(layer l)
 {
 	TAT(TATPARMS);
 
@@ -239,7 +239,7 @@ int convolutional_out_height(convolutional_layer l)
 }
 
 
-int convolutional_out_width(convolutional_layer l)
+int convolutional_out_width(layer l)
 {
 	TAT(TATPARMS);
 
@@ -247,7 +247,7 @@ int convolutional_out_width(convolutional_layer l)
 }
 
 
-image get_convolutional_image(convolutional_layer l)
+image get_convolutional_image(layer l)
 {
 	TAT(TATPARMS);
 
@@ -259,7 +259,7 @@ image get_convolutional_image(convolutional_layer l)
 }
 
 
-image get_convolutional_delta(convolutional_layer l)
+image get_convolutional_delta(layer l)
 {
 	TAT(TATPARMS);
 
@@ -583,7 +583,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
 // **********************************************
 
 
-void free_convolutional_batchnorm(convolutional_layer *l)
+void free_convolutional_batchnorm(layer *l)
 {
 	TAT(TATPARMS);
 
@@ -616,13 +616,13 @@ void free_convolutional_batchnorm(convolutional_layer *l)
 }
 
 
-convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w, int c, int n, int groups, int size, int stride_x, int stride_y, int dilation, int padding, ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam, int use_bin_output, int index, int antialiasing, convolutional_layer *share_layer, int assisted_excitation, int deform, int train)
+layer make_convolutional_layer(int batch, int steps, int h, int w, int c, int n, int groups, int size, int stride_x, int stride_y, int dilation, int padding, ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam, int use_bin_output, int index, int antialiasing, layer *share_layer, int assisted_excitation, int deform, int train)
 {
 	TAT(TATPARMS);
 
 	int total_batch = batch*steps;
 	int i;
-	convolutional_layer l = { (LAYER_TYPE)0 };
+	layer l = { (LAYER_TYPE)0 };
 	l.type = CONVOLUTIONAL;
 	l.train = train;
 
@@ -1004,7 +1004,7 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
 	return l;
 }
 
-void denormalize_convolutional_layer(convolutional_layer l)
+void denormalize_convolutional_layer(layer l)
 {
 	TAT(TATPARMS);
 
@@ -1026,7 +1026,7 @@ void test_convolutional_layer()
 {
 	TAT(TATPARMS);
 
-	convolutional_layer l = make_convolutional_layer(1, 1, 5, 5, 3, 2, 1, 5, 2, 2, 1, 1, LEAKY, 1, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0);
+	layer l = make_convolutional_layer(1, 1, 5, 5, 3, 2, 1, 5, 2, 2, 1, 1, LEAKY, 1, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0);
 	l.batch_normalize = 1;
 	float data[] = {1,1,1,1,1,
 		1,1,1,1,1,
@@ -1048,7 +1048,7 @@ void test_convolutional_layer()
 	forward_convolutional_layer(l, state);
 }
 
-void resize_convolutional_layer(convolutional_layer *l, int w, int h)
+void resize_convolutional_layer(layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -1145,7 +1145,7 @@ void resize_convolutional_layer(convolutional_layer *l, int w, int h)
 #endif
 }
 
-void set_specified_workspace_limit(convolutional_layer * l, size_t workspace_size_limit)
+void set_specified_workspace_limit(layer * l, size_t workspace_size_limit)
 {
 	TAT(TATPARMS);
 
@@ -1223,7 +1223,7 @@ void gemm_nn_custom(int M, int N, int K, float ALPHA, float *A, int lda, float *
 }
 
 
-void binary_align_weights(convolutional_layer *l)
+void binary_align_weights(layer *l)
 {
 	TAT(TATPARMS);
 
@@ -1320,7 +1320,7 @@ void binary_align_weights(convolutional_layer *l)
 	free(align_weights);
 }
 
-void forward_convolutional_layer(convolutional_layer l, network_state state)
+void forward_convolutional_layer(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -1547,7 +1547,7 @@ void forward_convolutional_layer(convolutional_layer l, network_state state)
 	}
 }
 
-void assisted_excitation_forward(convolutional_layer l, network_state state)
+void assisted_excitation_forward(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -1666,7 +1666,7 @@ void assisted_excitation_forward(convolutional_layer l, network_state state)
 }
 
 
-void backward_convolutional_layer(convolutional_layer l, network_state state)
+void backward_convolutional_layer(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -1734,7 +1734,7 @@ void backward_convolutional_layer(convolutional_layer l, network_state state)
 	}
 }
 
-void update_convolutional_layer(convolutional_layer l, int batch, float learning_rate_init, float momentum, float decay)
+void update_convolutional_layer(layer l, int batch, float learning_rate_init, float momentum, float decay)
 {
 	TAT(TATPARMS);
 
@@ -1756,7 +1756,7 @@ void update_convolutional_layer(convolutional_layer l, int batch, float learning
 
 
 
-image get_convolutional_weight(convolutional_layer l, int i)
+image get_convolutional_weight(layer l, int i)
 {
 	TAT(TATPARMS);
 
@@ -1766,7 +1766,7 @@ image get_convolutional_weight(convolutional_layer l, int i)
 	return float_to_image(w, h, c, l.weights + i*h*w*c);
 }
 
-void rgbgr_weights(convolutional_layer l)
+void rgbgr_weights(layer l)
 {
 	TAT(TATPARMS);
 
@@ -1780,7 +1780,7 @@ void rgbgr_weights(convolutional_layer l)
 	}
 }
 
-void rescale_weights(convolutional_layer l, float scale, float trans)
+void rescale_weights(layer l, float scale, float trans)
 {
 	TAT(TATPARMS);
 
@@ -1797,7 +1797,7 @@ void rescale_weights(convolutional_layer l, float scale, float trans)
 	}
 }
 
-image *visualize_convolutional_layer(convolutional_layer l, const char * window, image * prev_weights)
+image *visualize_convolutional_layer(layer l, const char * window, image * prev_weights)
 {
 	TAT(TATPARMS);
 

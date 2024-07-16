@@ -1,10 +1,10 @@
 #include "darknet_internal.hpp"
 
-dropout_layer make_dropout_layer(int batch, int inputs, float probability, int dropblock, float dropblock_size_rel, int dropblock_size_abs, int w, int h, int c)
+layer make_dropout_layer(int batch, int inputs, float probability, int dropblock, float dropblock_size_rel, int dropblock_size_abs, int w, int h, int c)
 {
 	TAT(TATPARMS);
 
-	dropout_layer l = { (LAYER_TYPE)0 };
+	layer l = { (LAYER_TYPE)0 };
 	l.type = DROPOUT;
 	l.probability = probability;
 	l.dropblock = dropblock;
@@ -44,7 +44,7 @@ dropout_layer make_dropout_layer(int batch, int inputs, float probability, int d
 	return l;
 }
 
-void resize_dropout_layer(dropout_layer *l, int inputs)
+void resize_dropout_layer(layer *l, int inputs)
 {
 	TAT(TATPARMS);
 
@@ -64,7 +64,7 @@ void resize_dropout_layer(dropout_layer *l, int inputs)
 #endif
 }
 
-void forward_dropout_layer(dropout_layer l, network_state state)
+void forward_dropout_layer(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -78,7 +78,7 @@ void forward_dropout_layer(dropout_layer l, network_state state)
 	}
 }
 
-void backward_dropout_layer(dropout_layer l, network_state state)
+void backward_dropout_layer(layer l, network_state state)
 {
 	TAT(TATPARMS);
 

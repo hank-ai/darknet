@@ -1,4 +1,4 @@
-#include "Cfg.hpp"
+#include "darknet_internal.hpp"
 
 
 namespace
@@ -1374,7 +1374,7 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 }
 
 
-convolutional_layer Darknet::CfgFile::parse_convolutional_section(const size_t section_idx)
+layer Darknet::CfgFile::parse_convolutional_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1415,7 +1415,7 @@ convolutional_layer Darknet::CfgFile::parse_convolutional_section(const size_t s
 	int assisted_excitation = s.find_float("assisted_excitation", 0);
 
 	int share_index = s.find_int("share_index", -1000000000);
-	convolutional_layer *share_layer = nullptr;
+	layer *share_layer = nullptr;
 	if (share_index >= 0)
 	{
 		share_layer = &net.layers[share_index];
@@ -1457,34 +1457,34 @@ convolutional_layer Darknet::CfgFile::parse_convolutional_section(const size_t s
 		darknet_fatal_error(DARKNET_LOC, "[convolutional] layer sway, rotate, or stretch must only be used with size >= 3");
 	}
 
-	convolutional_layer layer = make_convolutional_layer(batch, 1, h, w, c, n, groups, size, stride_x, stride_y, dilation, padding, activation, batch_normalize, binary, xnor, net.adam, use_bin_output, parms.index, antialiasing, share_layer, assisted_excitation, deform, parms.train);
+	layer l = make_convolutional_layer(batch, 1, h, w, c, n, groups, size, stride_x, stride_y, dilation, padding, activation, batch_normalize, binary, xnor, net.adam, use_bin_output, parms.index, antialiasing, share_layer, assisted_excitation, deform, parms.train);
 
-	layer.flipped = s.find_int("flipped", 0);
-	layer.dot = s.find_float("dot", 0);
-	layer.sway = sway;
-	layer.rotate = rotate;
-	layer.stretch = stretch;
-	layer.stretch_sway = stretch_sway;
-	layer.angle = s.find_float("angle", 15);
-	layer.grad_centr = s.find_int("grad_centr", 0);
-	layer.reverse = s.find_float("reverse", 0);
-	layer.coordconv = s.find_int("coordconv", 0);
+	l.flipped = s.find_int("flipped", 0);
+	l.dot = s.find_float("dot", 0);
+	l.sway = sway;
+	l.rotate = rotate;
+	l.stretch = stretch;
+	l.stretch_sway = stretch_sway;
+	l.angle = s.find_float("angle", 15);
+	l.grad_centr = s.find_int("grad_centr", 0);
+	l.reverse = s.find_float("reverse", 0);
+	l.coordconv = s.find_int("coordconv", 0);
 
-	layer.stream = s.find_int("stream", -1);
-	layer.wait_stream_id = s.find_int("wait_stream", -1);
+	l.stream = s.find_int("stream", -1);
+	l.wait_stream_id = s.find_int("wait_stream", -1);
 
 	if (net.adam)
 	{
-		layer.B1 = net.B1;
-		layer.B2 = net.B2;
-		layer.eps = net.eps;
+		l.B1 = net.B1;
+		l.B2 = net.B2;
+		l.eps = net.eps;
 	}
 
-	return layer;
+	return l;
 }
 
 
-route_layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
+layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1521,42 +1521,42 @@ route_layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 	int groups = s.find_int("groups", 1);
 	int group_id = s.find_int("group_id", 0);
 
-	route_layer layer = make_route_layer(batch, v.size(), layers, sizes, groups, group_id);
+	layer l = make_route_layer(batch, v.size(), layers, sizes, groups, group_id);
 
-	convolutional_layer first = net.layers[layers[0]];
-	layer.out_w = first.out_w;
-	layer.out_h = first.out_h;
-	layer.out_c = first.out_c;
+	layer & first = net.layers[layers[0]];
+	l.out_w = first.out_w;
+	l.out_h = first.out_h;
+	l.out_c = first.out_c;
 
 	for (int i = 1; i < v.size(); ++i)
 	{
 		int index = layers[i];
-		convolutional_layer next = net.layers[index];
-		if(next.out_w == first.out_w && next.out_h == first.out_h)
+		layer & next = net.layers[index];
+		if (next.out_w == first.out_w && next.out_h == first.out_h)
 		{
-			layer.out_c += next.out_c;
+			l.out_c += next.out_c;
 		}
 		else
 		{
 			display_warning_msg("Line #" + std::to_string(s.line_number) + ":  the width and height of the input layers are different.\n");
-			layer.out_h = layer.out_w = layer.out_c = 0;
+			l.out_h = l.out_w = l.out_c = 0;
 		}
 	}
 
-	layer.out_c = layer.out_c / layer.groups;
+	l.out_c = l.out_c / l.groups;
 
-	layer.w = first.w;
-	layer.h = first.h;
-	layer.c = layer.out_c;
+	l.w = first.w;
+	l.h = first.h;
+	l.c = l.out_c;
 
-	layer.stream = s.find_int("stream", -1);
-	layer.wait_stream_id = s.find_int("wait_stream", -1);
+	l.stream = s.find_int("stream", -1);
+	l.wait_stream_id = s.find_int("wait_stream", -1);
 
-	return layer;
+	return l;
 }
 
 
-maxpool_layer Darknet::CfgFile::parse_maxpool_section(const size_t section_idx)
+layer Darknet::CfgFile::parse_maxpool_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1582,10 +1582,10 @@ maxpool_layer Darknet::CfgFile::parse_maxpool_section(const size_t section_idx)
 		darknet_fatal_error(DARKNET_LOC, "layer before [maxpool] at line #%ld must output image", s.line_number);
 	}
 
-	maxpool_layer layer = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, parms.train);
-	layer.maxpool_zero_nonmax = s.find_int("maxpool_zero_nonmax", 0);
+	layer l = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, parms.train);
+	l.maxpool_zero_nonmax = s.find_int("maxpool_zero_nonmax", 0);
 
-	return layer;
+	return l;
 }
 
 
@@ -1785,7 +1785,7 @@ layer Darknet::CfgFile::parse_shortcut_section(const size_t section_idx)
 }
 
 
-connected_layer Darknet::CfgFile::parse_connected_section(const size_t section_idx)
+layer Darknet::CfgFile::parse_connected_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1795,9 +1795,9 @@ connected_layer Darknet::CfgFile::parse_connected_section(const size_t section_i
 	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(s.find_str("activation", "logistic")));
 	int batch_normalize = s.find_int("batch_normalize", 0);
 
-	connected_layer layer = make_connected_layer(parms.batch, 1, parms.inputs, output, activation, batch_normalize);
+	layer l = make_connected_layer(parms.batch, 1, parms.inputs, output, activation, batch_normalize);
 
-	return layer;
+	return l;
 }
 
 
@@ -1854,7 +1854,7 @@ layer Darknet::CfgFile::parse_rnn_section(const size_t section_idx)
 }
 
 
-maxpool_layer Darknet::CfgFile::parse_local_avgpool_section(const size_t section_idx)
+layer Darknet::CfgFile::parse_local_avgpool_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1879,9 +1879,9 @@ maxpool_layer Darknet::CfgFile::parse_local_avgpool_section(const size_t section
 		darknet_fatal_error(DARKNET_LOC, "layer before [local_avgpool] on line %ld must output image", s.line_number);
 	}
 
-	maxpool_layer layer = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, parms.train);
+	layer l = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, parms.train);
 
-	return layer;
+	return l;
 }
 
 
@@ -1918,13 +1918,13 @@ layer Darknet::CfgFile::parse_reorg_section(const size_t section_idx)
 		darknet_fatal_error(DARKNET_LOC, "layer before reorg layer on line %ld must output image", s.line_number);
 	}
 
-	layer layer = make_reorg_layer(batch, w, h, c, stride, reverse);
+	layer l = make_reorg_layer(batch, w, h, c, stride, reverse);
 
-	return layer;
+	return l;
 }
 
 
-avgpool_layer Darknet::CfgFile::parse_avgpool_section(const size_t section_idx)
+layer Darknet::CfgFile::parse_avgpool_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1939,13 +1939,13 @@ avgpool_layer Darknet::CfgFile::parse_avgpool_section(const size_t section_idx)
 		darknet_fatal_error(DARKNET_LOC, "layer before avgpool layer on line %ld must output image", s.line_number);
 	}
 
-	avgpool_layer layer = make_avgpool_layer(batch, w, h, c);
+	layer l = make_avgpool_layer(batch, w, h, c);
 
-	return layer;
+	return l;
 }
 
 
-cost_layer Darknet::CfgFile::parse_cost_section(const size_t section_idx)
+layer Darknet::CfgFile::parse_cost_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1955,11 +1955,11 @@ cost_layer Darknet::CfgFile::parse_cost_section(const size_t section_idx)
 
 	float scale = s.find_float("scale", 1);
 
-	cost_layer layer = make_cost_layer(parms.batch, parms.inputs, type, scale);
+	layer l = make_cost_layer(parms.batch, parms.inputs, type, scale);
 
-	layer.ratio = s.find_float("ratio", 0);
+	l.ratio = s.find_float("ratio", 0);
 
-	return layer;
+	return l;
 }
 
 
@@ -2128,19 +2128,19 @@ layer Darknet::CfgFile::parse_contrastive_section(const size_t section_idx)
 		darknet_fatal_error(DARKNET_LOC, "[contrastive] layer at line %ld does not point to [yolo] layer", s.line_number);
 	}
 
-	contrastive_layer layer = make_contrastive_layer(parms.batch, parms.w, parms.h, parms.c, classes, parms.inputs, yolo_layer);
+	layer l = make_contrastive_layer(parms.batch, parms.w, parms.h, parms.c, classes, parms.inputs, yolo_layer);
 
-	layer.temperature			= s.find_float("temperature"		, 1.0f);
-	layer.cls_normalizer		= s.find_float("cls_normalizer"		, 1.0f);
-	layer.max_delta				= s.find_float("max_delta"			, FLT_MAX);   // set 10
-	layer.contrastive_neg_max	= s.find_int("contrastive_neg_max"	, 3);
-	layer.steps					= parms.time_steps;
+	l.temperature			= s.find_float("temperature"		, 1.0f);
+	l.cls_normalizer		= s.find_float("cls_normalizer"		, 1.0f);
+	l.max_delta				= s.find_float("max_delta"			, FLT_MAX);   // set 10
+	l.contrastive_neg_max	= s.find_int("contrastive_neg_max"	, 3);
+	l.steps					= parms.time_steps;
 
-	return layer;
+	return l;
 }
 
 
-softmax_layer Darknet::CfgFile::parse_softmax_section(const size_t section_idx)
+layer Darknet::CfgFile::parse_softmax_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -2148,23 +2148,23 @@ softmax_layer Darknet::CfgFile::parse_softmax_section(const size_t section_idx)
 
 	int groups = s.find_int("groups", 1);
 
-	softmax_layer layer = make_softmax_layer(parms.batch, parms.inputs, groups);
+	layer l = make_softmax_layer(parms.batch, parms.inputs, groups);
 
-	layer.temperature = s.find_float("temperature", 1);
+	l.temperature = s.find_float("temperature", 1);
 
 	const std::string tree_file = s.find_str("tree");
 	if (not tree_file.empty())
 	{
-		layer.softmax_tree = read_tree(tree_file.c_str());
+		l.softmax_tree = read_tree(tree_file.c_str());
 	}
 
-	layer.w			= parms.w;
-	layer.h			= parms.h;
-	layer.c			= parms.c;
-	layer.spatial	= s.find_float("spatial", 0.0f);
-	layer.noloss	= s.find_int("noloss", 0);
+	l.w			= parms.w;
+	l.h			= parms.h;
+	l.c			= parms.c;
+	l.spatial	= s.find_float("spatial", 0.0f);
+	l.noloss	= s.find_int("noloss", 0);
 
-	return layer;
+	return l;
 }
 
 
@@ -2225,7 +2225,7 @@ layer Darknet::CfgFile::parse_sam_section(const size_t section_idx)
 }
 
 
-dropout_layer Darknet::CfgFile::parse_dropout_section(const size_t section_idx)
+layer Darknet::CfgFile::parse_dropout_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -2252,11 +2252,11 @@ dropout_layer Darknet::CfgFile::parse_dropout_section(const size_t section_idx)
 		dropblock_size_rel = 0;
 	}
 
-	dropout_layer layer = make_dropout_layer(parms.batch, parms.inputs, probability, dropblock, dropblock_size_rel, dropblock_size_abs, parms.w, parms.h, parms.c);
+	layer l = make_dropout_layer(parms.batch, parms.inputs, probability, dropblock, dropblock_size_rel, dropblock_size_abs, parms.w, parms.h, parms.c);
 
-	layer.out_w = parms.w;
-	layer.out_h = parms.h;
-	layer.out_c = parms.c;
+	l.out_w = parms.w;
+	l.out_h = parms.h;
+	l.out_c = parms.c;
 
-	return layer;
+	return l;
 }

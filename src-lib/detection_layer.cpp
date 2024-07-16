@@ -1,11 +1,11 @@
 #include "darknet_internal.hpp"
 
 
-detection_layer make_detection_layer(int batch, int inputs, int n, int side, int classes, int coords, int rescore)
+layer make_detection_layer(int batch, int inputs, int n, int side, int classes, int coords, int rescore)
 {
 	TAT(TATPARMS);
 
-	detection_layer l = { (LAYER_TYPE)0 };
+	layer l = { (LAYER_TYPE)0 };
 	l.type = DETECTION;
 
 	l.n = n;
@@ -40,7 +40,7 @@ detection_layer make_detection_layer(int batch, int inputs, int n, int side, int
 	return l;
 }
 
-void forward_detection_layer(const detection_layer l, network_state state)
+void forward_detection_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -212,7 +212,7 @@ void forward_detection_layer(const detection_layer l, network_state state)
 	}
 }
 
-void backward_detection_layer(const detection_layer l, network_state state)
+void backward_detection_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 

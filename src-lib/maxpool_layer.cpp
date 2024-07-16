@@ -6,7 +6,7 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 }
 
-image get_maxpool_image(maxpool_layer l)
+image get_maxpool_image(layer l)
 {
 	TAT(TATPARMS);
 
@@ -16,7 +16,7 @@ image get_maxpool_image(maxpool_layer l)
 	return float_to_image(w,h,c,l.output);
 }
 
-image get_maxpool_delta(maxpool_layer l)
+image get_maxpool_delta(layer l)
 {
 	TAT(TATPARMS);
 
@@ -80,11 +80,11 @@ void cudnn_local_avgpool_setup(layer *l)
 #endif // CUDNN
 }
 
-maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x, int stride_y, int padding, int maxpool_depth, int out_channels, int antialiasing, int avgpool, int train)
+layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x, int stride_y, int padding, int maxpool_depth, int out_channels, int antialiasing, int avgpool, int train)
 {
 	TAT(TATPARMS);
 
-	maxpool_layer l = { (LAYER_TYPE)0 };
+	layer l = { (LAYER_TYPE)0 };
 	l.avgpool = avgpool;
 
 	if (avgpool)
@@ -215,7 +215,7 @@ maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size, int s
 	return l;
 }
 
-void resize_maxpool_layer(maxpool_layer *l, int w, int h)
+void resize_maxpool_layer(layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -252,7 +252,7 @@ void resize_maxpool_layer(maxpool_layer *l, int w, int h)
 #endif
 }
 
-void forward_maxpool_layer(const maxpool_layer l, network_state state)
+void forward_maxpool_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -287,7 +287,8 @@ void forward_maxpool_layer(const maxpool_layer l, network_state state)
 	}
 
 
-	if (!state.train && l.stride_x == l.stride_y) {
+	if (!state.train && l.stride_x == l.stride_y)
+	{
 		forward_maxpool_layer_avx(state.input, l.output, l.indexes, l.size, l.w, l.h, l.out_w, l.out_h, l.c, l.pad, l.stride, l.batch);
 	}
 	else
@@ -328,7 +329,8 @@ void forward_maxpool_layer(const maxpool_layer l, network_state state)
 		}
 	}
 
-	if (l.antialiasing) {
+	if (l.antialiasing)
+	{
 		network_state s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
@@ -340,7 +342,7 @@ void forward_maxpool_layer(const maxpool_layer l, network_state state)
 	}
 }
 
-void backward_maxpool_layer(const maxpool_layer l, network_state state)
+void backward_maxpool_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -356,7 +358,7 @@ void backward_maxpool_layer(const maxpool_layer l, network_state state)
 }
 
 
-void forward_local_avgpool_layer(const maxpool_layer l, network_state state)
+void forward_local_avgpool_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -396,7 +398,7 @@ void forward_local_avgpool_layer(const maxpool_layer l, network_state state)
 	}
 }
 
-void backward_local_avgpool_layer(const maxpool_layer l, network_state state)
+void backward_local_avgpool_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 

@@ -173,22 +173,23 @@ __global__ void forward_crop_layer_kernel(float *input, float *rand, int size, i
 	output[count] = bilinear_interpolate_kernel(input, w, h, rx, ry, k);
 }
 
-extern "C" void forward_crop_layer_gpu(crop_layer layer, network_state state)
+extern "C" void forward_crop_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
-	cuda_random(layer.rand_gpu, layer.batch*8);
+	cuda_random(l.rand_gpu, l.batch * 8);
 
-	float radians = layer.angle*3.14159265/180.;
+	const float radians = l.angle * 3.14159265f / 180.0f;
 
 	float scale = 2;
 	float translate = -1;
-	if(layer.noadjust){
+	if (l.noadjust)
+	{
 		scale = 1;
 		translate = 0;
 	}
 
-	int size = layer.batch * layer.w * layer.h;
+	int size = l.batch * l.w * l.h;
 
 	levels_image_kernel<<<cuda_gridsize(size), BLOCK, 0, get_cuda_stream() >>>(state.input, layer.rand_gpu, layer.batch, layer.w, layer.h, state.train, layer.saturation, layer.exposure, translate, scale, layer.shift);
 	CHECK_CUDA(cudaPeekAtLastError());

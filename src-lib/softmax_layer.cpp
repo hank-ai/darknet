@@ -19,13 +19,13 @@ void softmax_tree(float *input, int batch, int inputs, float temp, tree *hierarc
 	}
 }
 
-softmax_layer make_softmax_layer(int batch, int inputs, int groups)
+layer make_softmax_layer(int batch, int inputs, int groups)
 {
 	TAT(TATPARMS);
 
 	assert(inputs%groups == 0);
 	fprintf(stderr, "softmax                                        %4d\n",  inputs);
-	softmax_layer l = { (LAYER_TYPE)0 };
+	layer l = { (LAYER_TYPE)0 };
 	l.type = SOFTMAX;
 	l.batch = batch;
 	l.groups = groups;
@@ -49,7 +49,7 @@ softmax_layer make_softmax_layer(int batch, int inputs, int groups)
 	return l;
 }
 
-void forward_softmax_layer(const softmax_layer l, network_state net)
+void forward_softmax_layer(const layer l, network_state net)
 {
 	TAT(TATPARMS);
 
@@ -71,7 +71,7 @@ void forward_softmax_layer(const softmax_layer l, network_state net)
 	}
 }
 
-void backward_softmax_layer(const softmax_layer l, network_state net)
+void backward_softmax_layer(const layer l, network_state net)
 {
 	TAT(TATPARMS);
 
@@ -80,14 +80,14 @@ void backward_softmax_layer(const softmax_layer l, network_state net)
 
 #ifdef GPU
 
-void pull_softmax_layer_output(const softmax_layer layer)
+void pull_softmax_layer_output(const layer l)
 {
 	TAT(TATPARMS);
 
-	cuda_pull_array(layer.output_gpu, layer.output, layer.inputs*layer.batch);
+	cuda_pull_array(l.output_gpu, l.output, l.inputs * l.batch);
 }
 
-void forward_softmax_layer_gpu(const softmax_layer l, network_state net)
+void forward_softmax_layer_gpu(const layer l, network_state net)
 {
 	TAT(TATPARMS);
 
@@ -120,11 +120,11 @@ void forward_softmax_layer_gpu(const softmax_layer l, network_state net)
 	}
 }
 
-void backward_softmax_layer_gpu(const softmax_layer layer, network_state state)
+void backward_softmax_layer_gpu(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
-	axpy_ongpu(layer.batch*layer.inputs, state.net.loss_scale, layer.delta_gpu, 1, state.delta, 1);
+	axpy_ongpu(l.batch * l.inputs, state.net.loss_scale, l.delta_gpu, 1, state.delta, 1);
 }
 
 #endif
@@ -132,11 +132,11 @@ void backward_softmax_layer_gpu(const softmax_layer layer, network_state state)
 // -------------------------------------
 
 // Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf
-contrastive_layer make_contrastive_layer(int batch, int w, int h, int c, int classes, int inputs, layer *yolo_layer)
+layer make_contrastive_layer(int batch, int w, int h, int c, int classes, int inputs, layer *yolo_layer)
 {
 	TAT(TATPARMS);
 
-	contrastive_layer l = { (LAYER_TYPE)0 };
+	layer l = { (LAYER_TYPE)0 };
 	l.type = CONTRASTIVE;
 	l.batch = batch;
 	l.inputs = inputs;
@@ -226,7 +226,7 @@ static inline float clip_value(float val, const float max_val)
 	return val;
 }
 
-void forward_contrastive_layer(contrastive_layer l, network_state state)
+void forward_contrastive_layer(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -582,7 +582,7 @@ void forward_contrastive_layer(contrastive_layer l, network_state state)
 	free(z);
 }
 
-void backward_contrastive_layer(contrastive_layer l, network_state state)
+void backward_contrastive_layer(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -592,14 +592,14 @@ void backward_contrastive_layer(contrastive_layer l, network_state state)
 
 #ifdef GPU
 
-void pull_contrastive_layer_output(const contrastive_layer l)
+void pull_contrastive_layer_output(const layer l)
 {
 	TAT(TATPARMS);
 
 	cuda_pull_array(l.output_gpu, l.output, l.inputs*l.batch);
 }
 
-void push_contrastive_layer_output(const contrastive_layer l)
+void push_contrastive_layer_output(const layer l)
 {
 	TAT(TATPARMS);
 
@@ -607,7 +607,7 @@ void push_contrastive_layer_output(const contrastive_layer l)
 }
 
 
-void forward_contrastive_layer_gpu(contrastive_layer l, network_state state)
+void forward_contrastive_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -638,11 +638,11 @@ void forward_contrastive_layer_gpu(contrastive_layer l, network_state state)
 	if (cpu_state.truth) free(cpu_state.truth);
 }
 
-void backward_contrastive_layer_gpu(contrastive_layer layer, network_state state)
+void backward_contrastive_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
-	axpy_ongpu(layer.batch*layer.inputs, state.net.loss_scale, layer.delta_gpu, 1, state.delta, 1);
+	axpy_ongpu(l.batch * l.inputs, state.net.loss_scale, l.delta_gpu, 1, state.delta, 1);
 }
 
 #endif

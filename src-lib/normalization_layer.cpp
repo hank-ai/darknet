@@ -5,156 +5,164 @@ layer make_normalization_layer(int batch, int w, int h, int c, int size, float a
 	TAT(TATPARMS);
 
 	fprintf(stderr, "Local Response Normalization Layer: %d x %d x %d image, %d size\n", w,h,c,size);
-	layer layer = { (LAYER_TYPE)0 };
-	layer.type = NORMALIZATION;
-	layer.batch = batch;
-	layer.h = layer.out_h = h;
-	layer.w = layer.out_w = w;
-	layer.c = layer.out_c = c;
-	layer.kappa = kappa;
-	layer.size = size;
-	layer.alpha = alpha;
-	layer.beta = beta;
-	layer.output = (float*)xcalloc(h * w * c * batch, sizeof(float));
-	layer.delta = (float*)xcalloc(h * w * c * batch, sizeof(float));
-	layer.squared = (float*)xcalloc(h * w * c * batch, sizeof(float));
-	layer.norms = (float*)xcalloc(h * w * c * batch, sizeof(float));
-	layer.inputs = w*h*c;
-	layer.outputs = layer.inputs;
+	layer l = { (LAYER_TYPE)0 };
+	l.type = NORMALIZATION;
+	l.batch = batch;
+	l.h = l.out_h = h;
+	l.w = l.out_w = w;
+	l.c = l.out_c = c;
+	l.kappa = kappa;
+	l.size = size;
+	l.alpha = alpha;
+	l.beta = beta;
+	l.output = (float*)xcalloc(h * w * c * batch, sizeof(float));
+	l.delta = (float*)xcalloc(h * w * c * batch, sizeof(float));
+	l.squared = (float*)xcalloc(h * w * c * batch, sizeof(float));
+	l.norms = (float*)xcalloc(h * w * c * batch, sizeof(float));
+	l.inputs = w*h*c;
+	l.outputs = l.inputs;
 
-	layer.forward = forward_normalization_layer;
-	layer.backward = backward_normalization_layer;
+	l.forward = forward_normalization_layer;
+	l.backward = backward_normalization_layer;
 	#ifdef GPU
-	layer.forward_gpu = forward_normalization_layer_gpu;
-	layer.backward_gpu = backward_normalization_layer_gpu;
+	l.forward_gpu = forward_normalization_layer_gpu;
+	l.backward_gpu = backward_normalization_layer_gpu;
 
-	layer.output_gpu =  cuda_make_array(layer.output, h * w * c * batch);
-	layer.delta_gpu =   cuda_make_array(layer.delta, h * w * c * batch);
-	layer.squared_gpu = cuda_make_array(layer.squared, h * w * c * batch);
-	layer.norms_gpu =   cuda_make_array(layer.norms, h * w * c * batch);
+	l.output_gpu =  cuda_make_array(l.output	, h * w * c * batch);
+	l.delta_gpu =   cuda_make_array(l.delta		, h * w * c * batch);
+	l.squared_gpu = cuda_make_array(l.squared	, h * w * c * batch);
+	l.norms_gpu =   cuda_make_array(l.norms		, h * w * c * batch);
 	#endif
-	return layer;
+	return l;
 }
 
-void resize_normalization_layer(layer *layer, int w, int h)
+void resize_normalization_layer(layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
-	int c = layer->c;
-	int batch = layer->batch;
-	layer->h = h;
-	layer->w = w;
-	layer->out_h = h;
-	layer->out_w = w;
-	layer->inputs = w*h*c;
-	layer->outputs = layer->inputs;
-	layer->output = (float*)xrealloc(layer->output, h * w * c * batch * sizeof(float));
-	layer->delta = (float*)xrealloc(layer->delta, h * w * c * batch * sizeof(float));
-	layer->squared = (float*)xrealloc(layer->squared, h * w * c * batch * sizeof(float));
-	layer->norms = (float*)xrealloc(layer->norms, h * w * c * batch * sizeof(float));
+	int c = l->c;
+	int batch = l->batch;
+	l->h = h;
+	l->w = w;
+	l->out_h = h;
+	l->out_w = w;
+	l->inputs = w*h*c;
+	l->outputs = l->inputs;
+	l->output = (float*)xrealloc( l->output, h * w * c * batch * sizeof(float));
+	l->delta = (float*)xrealloc( l->delta, h * w * c * batch * sizeof(float));
+	l->squared = (float*)xrealloc( l->squared, h * w * c * batch * sizeof(float));
+	l->norms = (float*)xrealloc( l->norms, h * w * c * batch * sizeof(float));
 #ifdef GPU
-	cuda_free(layer->output_gpu);
-	cuda_free(layer->delta_gpu);
-	cuda_free(layer->squared_gpu);
-	cuda_free(layer->norms_gpu);
-	layer->output_gpu =  cuda_make_array(layer->output, h * w * c * batch);
-	layer->delta_gpu =   cuda_make_array(layer->delta, h * w * c * batch);
-	layer->squared_gpu = cuda_make_array(layer->squared, h * w * c * batch);
-	layer->norms_gpu =   cuda_make_array(layer->norms, h * w * c * batch);
+	cuda_free(l->output_gpu);
+	cuda_free(l->delta_gpu);
+	cuda_free(l->squared_gpu);
+	cuda_free(l->norms_gpu);
+	l->output_gpu	= cuda_make_array(l->output	, h * w * c * batch);
+	l->delta_gpu	= cuda_make_array(l->delta	, h * w * c * batch);
+	l->squared_gpu	= cuda_make_array(l->squared, h * w * c * batch);
+	l->norms_gpu	= cuda_make_array(l->norms	, h * w * c * batch);
 #endif
 }
 
-void forward_normalization_layer(const layer layer, network_state state)
+void forward_normalization_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
-	int k,b;
-	int w = layer.w;
-	int h = layer.h;
-	int c = layer.c;
-	scal_cpu(w*h*c*layer.batch, 0, layer.squared, 1);
+	int w = l.w;
+	int h = l.h;
+	int c = l.c;
+	scal_cpu(w*h*c*l.batch, 0, l.squared, 1);
 
-	for(b = 0; b < layer.batch; ++b){
-		float *squared = layer.squared + w*h*c*b;
-		float *norms   = layer.norms + w*h*c*b;
+	for (int b = 0; b < l.batch; ++b)
+	{
+		float *squared = l.squared + w*h*c*b;
+		float *norms   = l.norms + w*h*c*b;
 		float *input   = state.input + w*h*c*b;
 		pow_cpu(w*h*c, 2, input, 1, squared, 1);
 
-		const_cpu(w*h, layer.kappa, norms, 1);
-		for(k = 0; k < layer.size/2; ++k){
-			axpy_cpu(w*h, layer.alpha, squared + w*h*k, 1, norms, 1);
+		const_cpu(w*h, l.kappa, norms, 1);
+		for (int k = 0; k < l.size/2; ++k)
+		{
+			axpy_cpu(w*h, l.alpha, squared + w*h*k, 1, norms, 1);
 		}
 
-		for(k = 1; k < layer.c; ++k){
+		for (int k = 1; k < l.c; ++k)
+		{
 			copy_cpu(w*h, norms + w*h*(k-1), 1, norms + w*h*k, 1);
-			int prev = k - ((layer.size-1)/2) - 1;
-			int next = k + (layer.size/2);
-			if(prev >= 0)      axpy_cpu(w*h, -layer.alpha, squared + w*h*prev, 1, norms + w*h*k, 1);
-			if(next < layer.c) axpy_cpu(w*h,  layer.alpha, squared + w*h*next, 1, norms + w*h*k, 1);
+			int prev = k - (( l.size-1)/2) - 1;
+			int next = k + ( l.size/2);
+			if(prev >= 0)      axpy_cpu(w*h, -l.alpha, squared + w*h*prev, 1, norms + w*h*k, 1);
+			if(next < l.c) axpy_cpu(w*h,  l.alpha, squared + w*h*next, 1, norms + w*h*k, 1);
 		}
 	}
-	pow_cpu(w*h*c*layer.batch, -layer.beta, layer.norms, 1, layer.output, 1);
-	mul_cpu(w*h*c*layer.batch, state.input, 1, layer.output, 1);
+	pow_cpu(w*h*c*l.batch, -l.beta, l.norms, 1, l.output, 1);
+	mul_cpu(w*h*c*l.batch, state.input, 1, l.output, 1);
 }
 
-void backward_normalization_layer(const layer layer, network_state state)
+void backward_normalization_layer(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
 	// TODO This is approximate ;-)
 	// Also this should add in to delta instead of overwritting.
 
-	int w = layer.w;
-	int h = layer.h;
-	int c = layer.c;
-	pow_cpu(w*h*c*layer.batch, -layer.beta, layer.norms, 1, state.delta, 1);
-	mul_cpu(w*h*c*layer.batch, layer.delta, 1, state.delta, 1);
+	int w = l.w;
+	int h = l.h;
+	int c = l.c;
+	pow_cpu(w*h*c*l.batch, -l.beta, l.norms, 1, state.delta, 1);
+	mul_cpu(w*h*c*l.batch, l.delta, 1, state.delta, 1);
 }
 
 #ifdef GPU
-void forward_normalization_layer_gpu(const layer layer, network_state state)
+void forward_normalization_layer_gpu(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
 	int k,b;
-	int w = layer.w;
-	int h = layer.h;
-	int c = layer.c;
-	scal_ongpu(w*h*c*layer.batch, 0, layer.squared_gpu, 1);
+	int w = l.w;
+	int h = l.h;
+	int c = l.c;
+	scal_ongpu(w*h*c*l.batch, 0, l.squared_gpu, 1);
 
-	for(b = 0; b < layer.batch; ++b){
-		float *squared = layer.squared_gpu + w*h*c*b;
-		float *norms   = layer.norms_gpu + w*h*c*b;
+	for(b = 0; b < l.batch; ++b){
+		float *squared = l.squared_gpu + w*h*c*b;
+		float *norms   = l.norms_gpu + w*h*c*b;
 		float *input   = state.input + w*h*c*b;
 		pow_ongpu(w*h*c, 2, input, 1, squared, 1);
 
-		const_ongpu(w*h, layer.kappa, norms, 1);
-		for(k = 0; k < layer.size/2; ++k){
-			axpy_ongpu(w*h, layer.alpha, squared + w*h*k, 1, norms, 1);
+		const_ongpu(w*h, l.kappa, norms, 1);
+		for(k = 0; k < l.size/2; ++k){
+			axpy_ongpu(w*h, l.alpha, squared + w*h*k, 1, norms, 1);
 		}
 
-		for(k = 1; k < layer.c; ++k){
+		for(k = 1; k < l.c; ++k){
 			copy_ongpu(w*h, norms + w*h*(k-1), 1, norms + w*h*k, 1);
-			int prev = k - ((layer.size-1)/2) - 1;
-			int next = k + (layer.size/2);
-			if(prev >= 0)      axpy_ongpu(w*h, -layer.alpha, squared + w*h*prev, 1, norms + w*h*k, 1);
-			if(next < layer.c) axpy_ongpu(w*h,  layer.alpha, squared + w*h*next, 1, norms + w*h*k, 1);
+			int prev = k - ((l.size-1)/2) - 1;
+			int next = k + (l.size/2);
+			if (prev >= 0)
+			{
+				axpy_ongpu(w*h, -l.alpha, squared + w*h*prev, 1, norms + w*h*k, 1);
+			}
+			if (next < l.c)
+			{
+				axpy_ongpu(w*h,  l.alpha, squared + w*h*next, 1, norms + w*h*k, 1);
+			}
 		}
 	}
-	pow_ongpu(w*h*c*layer.batch, -layer.beta, layer.norms_gpu, 1, layer.output_gpu, 1);
-	mul_ongpu(w*h*c*layer.batch, state.input, 1, layer.output_gpu, 1);
+	pow_ongpu(w*h*c*l.batch, -l.beta, l.norms_gpu, 1, l.output_gpu, 1);
+	mul_ongpu(w*h*c*l.batch, state.input, 1, l.output_gpu, 1);
 }
 
-void backward_normalization_layer_gpu(const layer layer, network_state state)
+void backward_normalization_layer_gpu(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
 	// TODO This is approximate ;-)
 
-	int w = layer.w;
-	int h = layer.h;
-	int c = layer.c;
-	pow_ongpu(w*h*c*layer.batch, -layer.beta, layer.norms_gpu, 1, state.delta, 1);
-	mul_ongpu(w*h*c*layer.batch, layer.delta_gpu, 1, state.delta, 1);
+	int w = l.w;
+	int h = l.h;
+	int c = l.c;
+	pow_ongpu(w*h*c*l.batch, -l.beta, l.norms_gpu, 1, state.delta, 1);
+	mul_ongpu(w*h*c*l.batch, l.delta_gpu, 1, state.delta, 1);
 }
 #endif

@@ -6,86 +6,89 @@ layer make_batchnorm_layer(int batch, int w, int h, int c, int train)
 	TAT(TATPARMS);
 
 	fprintf(stderr, "Batch Normalization Layer: %d x %d x %d image\n", w,h,c);
-	layer layer = { (LAYER_TYPE)0 };
-	layer.type = BATCHNORM;
-	layer.batch = batch;
-	layer.train = train;
-	layer.h = layer.out_h = h;
-	layer.w = layer.out_w = w;
-	layer.c = layer.out_c = c;
+	layer l = { (LAYER_TYPE)0 };
+	l.type = BATCHNORM;
+	l.batch = batch;
+	l.train = train;
+	l.h = l.out_h = h;
+	l.w = l.out_w = w;
+	l.c = l.out_c = c;
 
-	layer.n = layer.c;
-	layer.output = (float*)xcalloc(h * w * c * batch, sizeof(float));
-	layer.delta = (float*)xcalloc(h * w * c * batch, sizeof(float));
-	layer.inputs = w*h*c;
-	layer.outputs = layer.inputs;
+	l.n = l.c;
+	l.output = (float*)xcalloc(h * w * c * batch, sizeof(float));
+	l.delta = (float*)xcalloc(h * w * c * batch, sizeof(float));
+	l.inputs = w*h*c;
+	l.outputs = l.inputs;
 
-	layer.biases = (float*)xcalloc(c, sizeof(float));
-	layer.bias_updates = (float*)xcalloc(c, sizeof(float));
+	l.biases = (float*)xcalloc(c, sizeof(float));
+	l.bias_updates = (float*)xcalloc(c, sizeof(float));
 
-	layer.scales = (float*)xcalloc(c, sizeof(float));
-	layer.scale_updates = (float*)xcalloc(c, sizeof(float));
-	int i;
-	for(i = 0; i < c; ++i){
-		layer.scales[i] = 1;
+	l.scales = (float*)xcalloc(c, sizeof(float));
+	l.scale_updates = (float*)xcalloc(c, sizeof(float));
+
+	for (int i = 0; i < c; ++i)
+	{
+		l.scales[i] = 1;
 	}
 
-	layer.mean = (float*)xcalloc(c, sizeof(float));
-	layer.variance = (float*)xcalloc(c, sizeof(float));
+	l.mean = (float*)xcalloc(c, sizeof(float));
+	l.variance = (float*)xcalloc(c, sizeof(float));
 
-	layer.rolling_mean = (float*)xcalloc(c, sizeof(float));
-	layer.rolling_variance = (float*)xcalloc(c, sizeof(float));
+	l.rolling_mean = (float*)xcalloc(c, sizeof(float));
+	l.rolling_variance = (float*)xcalloc(c, sizeof(float));
 
-	layer.mean_delta = (float*)xcalloc(c, sizeof(float));
-	layer.variance_delta = (float*)xcalloc(c, sizeof(float));
+	l.mean_delta = (float*)xcalloc(c, sizeof(float));
+	l.variance_delta = (float*)xcalloc(c, sizeof(float));
 
-	layer.x = (float*)xcalloc(layer.batch*layer.outputs, sizeof(float));
-	layer.x_norm = (float*)xcalloc(layer.batch*layer.outputs, sizeof(float));
+	l.x = (float*)xcalloc(l.batch * l.outputs, sizeof(float));
+	l.x_norm = (float*)xcalloc(l.batch * l.outputs, sizeof(float));
 
-	layer.forward = forward_batchnorm_layer;
-	layer.backward = backward_batchnorm_layer;
-	layer.update = update_batchnorm_layer;
+	l.forward = forward_batchnorm_layer;
+	l.backward = backward_batchnorm_layer;
+	l.update = update_batchnorm_layer;
 #ifdef GPU
-	layer.forward_gpu = forward_batchnorm_layer_gpu;
-	layer.backward_gpu = backward_batchnorm_layer_gpu;
-	layer.update_gpu = update_batchnorm_layer_gpu;
+	l.forward_gpu = forward_batchnorm_layer_gpu;
+	l.backward_gpu = backward_batchnorm_layer_gpu;
+	l.update_gpu = update_batchnorm_layer_gpu;
 
-	layer.output_gpu =  cuda_make_array(layer.output, h * w * c * batch);
+	l.output_gpu =  cuda_make_array(l.output, h * w * c * batch);
 
-	layer.biases_gpu = cuda_make_array(layer.biases, c);
-	layer.scales_gpu = cuda_make_array(layer.scales, c);
+	l.biases_gpu = cuda_make_array(l.biases, c);
+	l.scales_gpu = cuda_make_array(l.scales, c);
 
-	if (train) {
-		layer.delta_gpu = cuda_make_array(layer.delta, h * w * c * batch);
+	if (train)
+	{
+		l.delta_gpu = cuda_make_array(l.delta, h * w * c * batch);
 
-		layer.bias_updates_gpu = cuda_make_array(layer.bias_updates, c);
-		layer.scale_updates_gpu = cuda_make_array(layer.scale_updates, c);
+		l.bias_updates_gpu = cuda_make_array(l.bias_updates, c);
+		l.scale_updates_gpu = cuda_make_array(l.scale_updates, c);
 
-		layer.mean_delta_gpu = cuda_make_array(layer.mean, c);
-		layer.variance_delta_gpu = cuda_make_array(layer.variance, c);
+		l.mean_delta_gpu = cuda_make_array(l.mean, c);
+		l.variance_delta_gpu = cuda_make_array(l.variance, c);
 	}
 
-	layer.mean_gpu = cuda_make_array(layer.mean, c);
-	layer.variance_gpu = cuda_make_array(layer.variance, c);
+	l.mean_gpu = cuda_make_array(l.mean, c);
+	l.variance_gpu = cuda_make_array(l.variance, c);
 
-	layer.rolling_mean_gpu = cuda_make_array(layer.mean, c);
-	layer.rolling_variance_gpu = cuda_make_array(layer.variance, c);
+	l.rolling_mean_gpu = cuda_make_array(l.mean, c);
+	l.rolling_variance_gpu = cuda_make_array(l.variance, c);
 
-	if (train) {
-		layer.x_gpu = cuda_make_array(layer.output, layer.batch*layer.outputs);
+	if (train)
+	{
+		l.x_gpu = cuda_make_array(l.output, l.batch * l.outputs);
 #ifndef CUDNN
-		layer.x_norm_gpu = cuda_make_array(layer.output, layer.batch*layer.outputs);
+		l.x_norm_gpu = cuda_make_array(l.output, l.batch * l.outputs);
 #endif  // not CUDNN
 	}
 
 #ifdef CUDNN
 	CHECK_CUDNN(cudnnCreateTensorDescriptor(&layer.normTensorDesc));
 	CHECK_CUDNN(cudnnCreateTensorDescriptor(&layer.normDstTensorDesc));
-	CHECK_CUDNN(cudnnSetTensor4dDescriptor(layer.normDstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, layer.batch, layer.out_c, layer.out_h, layer.out_w));
-	CHECK_CUDNN(cudnnSetTensor4dDescriptor(layer.normTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, layer.out_c, 1, 1));
+	CHECK_CUDNN(cudnnSetTensor4dDescriptor(layer.normDstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l.batch, l.out_c, l.out_h, l.out_w));
+	CHECK_CUDNN(cudnnSetTensor4dDescriptor(layer.normTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, l.out_c, 1, 1));
 #endif
 #endif
-	return layer;
+	return l;
 }
 
 void backward_scale_cpu(float *x_norm, float *delta, int batch, int n, int size, float *scale_updates)

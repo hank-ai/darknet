@@ -37,13 +37,7 @@
 
 namespace Darknet
 {
-	using MStr		= std::map<std::string, std::string>;
-	using MStrInt	= std::map<std::string, int>;
-	using SStr		= std::set<std::string>;
-	using VInt		= std::vector<int>;
-	using VStr		= std::vector<std::string>;
-	using VFloat	= std::vector<float>;
-	using VThreads	= std::vector<std::thread>;
+	using VThreads = std::vector<std::thread>;
 
 	/** This is used to help keep some state between calls to functions fill_network_boxes(), get_yolo_detections(), etc.
 	 * We use the cache to track objects within the output array, so we don't have to walk over the entire array every
@@ -57,11 +51,19 @@ namespace Darknet
 		int obj_index;		///< The object index.
 	};
 	using Output_Object_Cache = std::list<Output_Object>;
+
+	class CfgLine;
+	class CfgSection;
+	class CfgFile;
 }
+
 
 #include "darknet.h"			// the old C header
 #include "darknet.hpp"			// the new C++ header
 #include "darknet_version.h"	// version macros
+
+int yolo_num_detections_v3(network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache);
+int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, Darknet::Output_Object_Cache & cache);
 
 #include "darknet_args_and_parms.hpp"
 #include "darknet_cfg_and_state.hpp"
@@ -70,8 +72,7 @@ namespace Darknet
 #include "darknet_format_and_colour.hpp"
 #include "darknet_utils.hpp"
 #include "Timing.hpp"
-
-#include "Cfg.hpp"
+#include "darknet_cfg.hpp"
 #include "box.hpp"
 #include "blas.hpp"
 #include "utils.hpp"
