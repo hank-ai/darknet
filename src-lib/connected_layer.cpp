@@ -290,7 +290,7 @@ void statistics_connected_layer(layer l)
 
 #ifdef GPU
 
-void pull_connected_layer(connected_layer l)
+void pull_connected_layer(layer l)
 {
 	TAT(TATPARMS);
 
@@ -306,7 +306,7 @@ void pull_connected_layer(connected_layer l)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-void push_connected_layer(connected_layer l)
+void push_connected_layer(layer l)
 {
 	TAT(TATPARMS);
 
@@ -322,7 +322,7 @@ void push_connected_layer(connected_layer l)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-void update_connected_layer_gpu(connected_layer l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
+void update_connected_layer_gpu(layer l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);
 
@@ -348,7 +348,7 @@ void update_connected_layer_gpu(connected_layer l, int batch, float learning_rat
 	scal_ongpu(l.inputs*l.outputs, momentum, l.weight_updates_gpu, 1);
 }
 
-void forward_connected_layer_gpu(connected_layer l, network_state state)
+void forward_connected_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -391,7 +391,7 @@ void forward_connected_layer_gpu(connected_layer l, network_state state)
 	activate_array_ongpu(l.output_gpu, l.outputs*l.batch, l.activation);
 }
 
-void backward_connected_layer_gpu(connected_layer l, network_state state)
+void backward_connected_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 

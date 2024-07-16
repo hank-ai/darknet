@@ -254,7 +254,7 @@ void get_detection_boxes(layer l, int w, int h, float thresh, float **probs, box
 
 #ifdef GPU
 
-void forward_detection_layer_gpu(const detection_layer l, network_state state)
+void forward_detection_layer_gpu(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -282,7 +282,7 @@ void forward_detection_layer_gpu(const detection_layer l, network_state state)
 	if(cpu_state.truth) free(cpu_state.truth);
 }
 
-void backward_detection_layer_gpu(detection_layer l, network_state state)
+void backward_detection_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 

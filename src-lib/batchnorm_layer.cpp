@@ -82,10 +82,10 @@ layer make_batchnorm_layer(int batch, int w, int h, int c, int train)
 	}
 
 #ifdef CUDNN
-	CHECK_CUDNN(cudnnCreateTensorDescriptor(&layer.normTensorDesc));
-	CHECK_CUDNN(cudnnCreateTensorDescriptor(&layer.normDstTensorDesc));
-	CHECK_CUDNN(cudnnSetTensor4dDescriptor(layer.normDstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l.batch, l.out_c, l.out_h, l.out_w));
-	CHECK_CUDNN(cudnnSetTensor4dDescriptor(layer.normTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, l.out_c, 1, 1));
+	CHECK_CUDNN(cudnnCreateTensorDescriptor(&l.normTensorDesc));
+	CHECK_CUDNN(cudnnCreateTensorDescriptor(&l.normDstTensorDesc));
+	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l.normDstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l.batch, l.out_c, l.out_h, l.out_w));
+	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l.normTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, l.out_c, 1, 1));
 #endif
 #endif
 	return l;
