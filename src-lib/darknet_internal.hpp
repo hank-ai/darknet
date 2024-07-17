@@ -1,7 +1,7 @@
 #pragma once
 
 #ifndef __cplusplus
-#error "The darknet project requires the use of a C++ compiler."
+#error "The Darknet/YOLO project requires a C++ compiler."
 #endif
 
 // C headers

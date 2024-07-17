@@ -1,5 +1,4 @@
-// Darknet object detection framework
-
+#pragma once
 
 /** @file
  * The input file darknet_version.h.in is processed by CMake which then creates the
@@ -11,13 +10,10 @@
  */
 
 
-#pragma once
-
-
 /** @{
- * The @p DARKNET_WEIGHTS_VERSION_* macros identify the version numbers embedded in the .weights files.
- * These numbers should only be changed when the internal format of the weights have changed, and do not
- * represent a specific version of the Darknet framework.  The "tweak" value is currently unused.
+ * The @p DARKNET_WEIGHTS_VERSION_* macros identify the version numbers embedded in the header of .weights files.
+ * These numbers should only be changed when the internal format of the weights have changed, and do not represent
+ * a specific version of the Darknet framework.  The "tweak" value is currently unused.
  *
  * If you're looking for a version number, then most likely you want to ignore these, and use
  * @ref DARKNET_VERSION_STRING or @ref DARKNET_VERSION_SHORT instead.

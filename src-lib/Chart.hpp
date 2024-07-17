@@ -6,7 +6,7 @@
 
 
 #ifndef __cplusplus
-#error Attempting to include the C++ header file from within C code.
+#error "The Darknet/YOLO project requires a C++ compiler."
 #endif
 
 

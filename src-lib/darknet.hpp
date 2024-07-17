@@ -1,9 +1,13 @@
 #pragma once
 
 #ifndef __cplusplus
-#error "The darknet project requires the use of a C++ compiler."
+#error "The Darknet/YOLO project requires a C++ compiler."
 #endif
 
+/** @file
+ * Include this file to get access to the Darknet/YOLO C++ API.  Note there are additional Darknet/YOLO header files
+ * included at the bottom of this file.
+ */
 
 #include <filesystem>
 #include <map>
@@ -16,13 +20,13 @@
 /// The namespace for the C++ Darknet API.
 namespace Darknet
 {
-	/// @{ Convenient simple types for the C++ API.
+	/// @{ Convenient simple types used in the Darknet/YOLO C++ API.
 	using MStr		= std::map<std::string, std::string>;
 	using MStrInt	= std::map<std::string, int>;
 	using SStr		= std::set<std::string>;
+	using VFloat	= std::vector<float>;
 	using VInt		= std::vector<int>;
 	using VStr		= std::vector<std::string>;
-	using VFloat	= std::vector<float>;
 	/// @}
 
 	/** Set the @ref Darknet::CfgAndState::is_verbose flag.  When enabled, extra information will be sent to @p STDOUT.

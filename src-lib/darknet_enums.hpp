@@ -1,22 +1,22 @@
 #pragma once
 
 #ifndef __cplusplus
-#error "The darknet project requires the use of a C++ compiler."
+#error "The Darknet/YOLO project requires a C++ compiler."
 #endif
 
+/** @file
+ * Some of the common Darknet/YOLO enums, and methods to convert between them and @p std::string.
+ */
 
-#include "darknet.h"
 #include "darknet.hpp"
-
-#include <map>
-#include <string>
 
 
 namespace Darknet
 {
-	/** The plan is to eventually remove LAYER_TYPE completely once we fully switch over to C++.
-	 * @see @ref all_names_and_layers()
-	 * @see @ref get_layer_from_name()
+	/** The plan is to eventually remove @ref LAYER_TYPE completely once we fully switch over to C++.
+	 * @see @ref Darknet::all_names_and_layers()
+	 * @see @ref Darknet::get_layer_from_name()
+	 * @see @ref Darknet::to_string()
 	 */
 	enum class ELayerType
 	{
@@ -63,13 +63,18 @@ namespace Darknet
 		IMPLICIT		= LAYER_TYPE::IMPLICIT					,	///< *UNUSED*
 	};
 
-	/// @{ Convert between names and layer types.
+	/// @{ Convert between names and Darknet/YOLO layer types.
 	using NamesAndLayers = std::map<std::string, ELayerType>;
 	const NamesAndLayers & all_names_and_layers();
 	ELayerType get_layer_from_name(const std::string & name);
 	std::string to_string(const ELayerType type);
 	/// @}
 
+	/** The plan is to eventually remove @ref ACTIVATION completely once we fully switch over to C++.
+	 * @see @ref Darknet::all_names_and_activations()
+	 * @see @ref Darknet::get_activation_from_name()
+	 * @see @ref Darknet::to_string()
+	 */
 	enum class EActivation
 	{
 		// Please keep the old C and the new C++ enums in sync!
@@ -105,6 +110,11 @@ namespace Darknet
 	std::string to_string(const EActivation activation);
 	/// @}
 
+	/** The plan is to eventually remove @ref learning_rate_policy completely once we fully switch over to C++.
+	 * @see @ref Darknet::all_names_and_learning_rate_policies()
+	 * @see @ref Darknet::get_learning_rate_policy_from_name()
+	 * @see @ref Darknet::to_string()
+	 */
 	enum class ELearningRatePolicy
 	{
 		// Please keep the old C and the new C++ enums in sync!
@@ -125,6 +135,11 @@ namespace Darknet
 	std::string to_string(const ELearningRatePolicy policy);
 	/// @}
 
+	/** The plan is to eventually remove @ref IOU_LOSS completely once we fully switch over to C++.
+	 * @see @ref Darknet::all_names_and_IoU_loss()
+	 * @see @ref Darknet::get_IoU_loss_from_name()
+	 * @see @ref Darknet::to_string()
+	 */
 	enum class EIoULoss
 	{
 		// Please keep the old C and the new C++ enums in sync!
@@ -142,6 +157,11 @@ namespace Darknet
 	std::string to_string(const EIoULoss loss);
 	/// @}
 
+	/** The plan is to eventually remove @ref NMS_KIND completely once we fully switch over to C++.
+	 * @see @ref Darknet::all_names_and_NMS_kind()
+	 * @see @ref Darknet::get_NMS_kind_from_name()
+	 * @see @ref Darknet::to_string()
+	 */
 	enum class ENMSKind
 	{
 		DEFAULT_NMS	= NMS_KIND::DEFAULT_NMS	,
@@ -150,13 +170,18 @@ namespace Darknet
 		CORNERS_NMS	= NMS_KIND::CORNERS_NMS	, // gaussian yolo
 	};
 
-	/// @{ Convert between names and IoU loss types.
+	/// @{ Convert between names and NMS kind.
 	using NamesAndNMSKind = std::map<std::string, ENMSKind>;
 	const NamesAndNMSKind & all_names_and_NMS_kind();
 	ENMSKind get_NMS_kind_from_name(const std::string & name);
 	std::string to_string(const ENMSKind nms_kind);
 	/// @}
 
+	/** The plan is to eventually remove @ref WEIGHTS_TYPE_T completely once we fully switch over to C++.
+	 * @see @ref Darknet::all_names_and_weights_types()
+	 * @see @ref Darknet::get_weights_type_from_name()
+	 * @see @ref Darknet::to_string()
+	 */
 	enum class EWeightsType
 	{
 		NO_WEIGHTS	= WEIGHTS_TYPE_T::NO_WEIGHTS,
@@ -171,6 +196,11 @@ namespace Darknet
 	std::string to_string(const EWeightsType type);
 	/// @}
 
+	/** The plan is to eventually remove @ref WEIGHTS_NORMALIZATION_T completely once we fully switch over to C++.
+	 * @see @ref Darknet::all_names_and_weights_normalization()
+	 * @see @ref Darknet::get_weights_normalization_from_name()
+	 * @see @ref Darknet::to_string()
+	 */
 	enum class EWeightsNormalization
 	{
 		NO_NORMALIZATION		= WEIGHTS_NORMALIZATION_T::NO_NORMALIZATION,
@@ -185,6 +215,11 @@ namespace Darknet
 	std::string to_string(const EWeightsNormalization normalization);
 	/// @}
 
+	/** The plan is to eventually remove @ref COST_TYPE completely once we fully switch over to C++.
+	 * @see @ref Darknet::all_names_and_cost_types()
+	 * @see @ref Darknet::get_cost_types_from_name()
+	 * @see @ref Darknet::to_string()
+	 */
 	enum class ECostType
 	{
 		SSE			= COST_TYPE::SSE,
@@ -202,6 +237,11 @@ namespace Darknet
 	std::string to_string(const ECostType type);
 	/// @}
 
+	/** The plan is to eventually remove @ref YOLO_POINT completely once we fully switch over to C++.
+	 * @see @ref Darknet::all_names_and_yolo_point_types()
+	 * @see @ref Darknet::get_yolo_point_types_from_name()
+	 * @see @ref Darknet::to_string()
+	 */
 	enum class EYoloPoint
 	{
 		YOLO_CENTER			= YOLO_POINT::YOLO_CENTER,
@@ -215,5 +255,4 @@ namespace Darknet
 	EYoloPoint get_yolo_point_types_from_name(const std::string & name);
 	std::string to_string(const EYoloPoint type);
 	/// @}
-
 };
