@@ -109,27 +109,6 @@ void save_shortcut_weights(layer l, FILE *fp)
 	fwrite(l.weights, sizeof(float), num, fp);
 }
 
-void save_implicit_weights(layer l, FILE *fp)
-{
-	TAT(TATPARMS);
-
-#ifdef GPU
-	if (cfg_and_state.gpu_index >= 0)
-	{
-		pull_implicit_layer(l);
-		//printf("\n pull_implicit_layer \n");
-	}
-#endif
-	//int i;
-	//if (l.weight_updates) for (i = 0; i < l.nweights; ++i) printf(" %f, ", l.weight_updates[i]);
-	//printf(" l.nweights = %d - update \n", l.nweights);
-	//for (i = 0; i < l.nweights; ++i) printf(" %f, ", l.weights[i]);
-	//printf(" l.nweights = %d \n\n", l.nweights);
-
-	int num = l.nweights;
-	fwrite(l.weights, sizeof(float), num, fp);
-}
-
 void save_convolutional_weights(layer l, FILE *fp)
 {
 	TAT(TATPARMS);
@@ -481,27 +460,6 @@ void load_shortcut_weights(layer l, FILE *fp)
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_shortcut_layer(l);
-	}
-#endif
-}
-
-void load_implicit_weights(layer l, FILE *fp)
-{
-	TAT(TATPARMS);
-
-	int num = l.nweights;
-	int read_bytes;
-	read_bytes = fread(l.weights, sizeof(float), num, fp);
-	if (read_bytes > 0 && read_bytes < num)
-	{
-		printf("\n Warning: Unexpected end of weights-file! l.weights - l.index = %d \n", l.index);
-	}
-	//for (int i = 0; i < l.nweights; ++i) printf(" %f, ", l.weights[i]);
-	//printf(" read_bytes = %d \n\n", read_bytes);
-#ifdef GPU
-	if (cfg_and_state.gpu_index >= 0)
-	{
-		push_implicit_layer(l);
 	}
 #endif
 }

@@ -274,8 +274,13 @@ void forward_batchnorm_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
-	if (l.type == BATCHNORM) simple_copy_ongpu(l.outputs*l.batch, state.input, l.output_gpu);
+#if 0
+	if (l.type == BATCHNORM)
+	{
+		simple_copy_ongpu(l.outputs*l.batch, state.input, l.output_gpu);
+	}
 		//copy_ongpu(l.outputs*l.batch, state.input, 1, l.output_gpu, 1);
+#endif
 
 	if (state.net.adversarial) {
 		normalize_gpu(l.output_gpu, l.rolling_mean_gpu, l.rolling_variance_gpu, l.batch, l.out_c, l.out_h*l.out_w);
@@ -429,8 +434,14 @@ void backward_batchnorm_layer_gpu(layer l, network_state state)
 	fast_variance_delta_gpu(l.x_gpu, l.delta_gpu, l.mean_gpu, l.variance_gpu, l.batch, l.out_c, l.out_w*l.out_h, l.variance_delta_gpu);
 	normalize_delta_gpu(l.x_gpu, l.mean_gpu, l.variance_gpu, l.mean_delta_gpu, l.variance_delta_gpu, l.batch, l.out_c, l.out_w*l.out_h, l.delta_gpu);
 #endif  // CUDNN
-	if (l.type == BATCHNORM) simple_copy_ongpu(l.outputs*l.batch, l.delta_gpu, state.delta);
+
+#if 0
+	if (l.type == BATCHNORM)
+	{
+		simple_copy_ongpu(l.outputs*l.batch, l.delta_gpu, state.delta);
+	}
 		//copy_ongpu(l.outputs*l.batch, l.delta_gpu, 1, state.delta, 1);
+#endif
 
 	if (state.net.try_fix_nan) {
 		fix_nan_and_inf(l.scale_updates_gpu, l.n);
