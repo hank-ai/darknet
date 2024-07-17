@@ -187,7 +187,7 @@ void update_local_layer(layer l, int batch, float learning_rate, float momentum,
 
 #ifdef GPU
 
-void forward_local_layer_gpu(const local_layer l, network_state state)
+void forward_local_layer_gpu(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -220,7 +220,7 @@ void forward_local_layer_gpu(const local_layer l, network_state state)
 	activate_array_ongpu(l.output_gpu, l.outputs*l.batch, l.activation);
 }
 
-void backward_local_layer_gpu(local_layer l, network_state state)
+void backward_local_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -266,7 +266,7 @@ void backward_local_layer_gpu(local_layer l, network_state state)
 	}
 }
 
-void update_local_layer_gpu(local_layer l, int batch, float learning_rate, float momentum, float decay, float loss_scale)
+void update_local_layer_gpu(layer l, int batch, float learning_rate, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);
 
@@ -280,7 +280,7 @@ void update_local_layer_gpu(local_layer l, int batch, float learning_rate, float
 	scal_ongpu(size, momentum, l.weight_updates_gpu, 1);
 }
 
-void pull_local_layer(local_layer l)
+void pull_local_layer(layer l)
 {
 	TAT(TATPARMS);
 
@@ -290,7 +290,7 @@ void pull_local_layer(local_layer l)
 	cuda_pull_array(l.biases_gpu, l.biases, l.outputs);
 }
 
-void push_local_layer(local_layer l)
+void push_local_layer(layer l)
 {
 	TAT(TATPARMS);
 

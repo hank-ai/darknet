@@ -134,7 +134,7 @@ int float_abs_compare (const void * a, const void * b)
 	return (fa > fb) - (fa < fb);
 }
 
-void forward_cost_layer_gpu(cost_layer l, network_state state)
+void forward_cost_layer_gpu(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -175,7 +175,7 @@ void forward_cost_layer_gpu(cost_layer l, network_state state)
 	l.cost[0] = sum_array(l.output, l.batch*l.inputs);
 }
 
-void backward_cost_layer_gpu(const cost_layer l, network_state state)
+void backward_cost_layer_gpu(const layer l, network_state state)
 {
 	TAT(TATPARMS);
 
