@@ -274,32 +274,15 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 		{
 			save_shortcut_weights(l, fp);
 		}
-		if (l.type == IMPLICIT)
-		{
-			save_implicit_weights(l, fp);
-		}
 		if (l.type == CONNECTED)
 		{
 			save_connected_weights(l, fp);
-		}
-		if (l.type == BATCHNORM)
-		{
-			save_batchnorm_weights(l, fp);
 		}
 		if (l.type == RNN)
 		{
 			save_connected_weights(*(l.input_layer), fp);
 			save_connected_weights(*(l.self_layer), fp);
 			save_connected_weights(*(l.output_layer), fp);
-		}
-		if (l.type == GRU)
-		{
-			save_connected_weights(*(l.input_z_layer), fp);
-			save_connected_weights(*(l.input_r_layer), fp);
-			save_connected_weights(*(l.input_h_layer), fp);
-			save_connected_weights(*(l.state_z_layer), fp);
-			save_connected_weights(*(l.state_r_layer), fp);
-			save_connected_weights(*(l.state_h_layer), fp);
 		}
 		if (l.type == LSTM)
 		{
@@ -312,44 +295,11 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 			save_connected_weights(*(l.ug), fp);
 			save_connected_weights(*(l.uo), fp);
 		}
-		if (l.type == CONV_LSTM)
-		{
-			if (l.peephole)
-			{
-				save_convolutional_weights(*(l.vf), fp);
-				save_convolutional_weights(*(l.vi), fp);
-				save_convolutional_weights(*(l.vo), fp);
-			}
-			save_convolutional_weights(*(l.wf), fp);
-			if (!l.bottleneck)
-			{
-				save_convolutional_weights(*(l.wi), fp);
-				save_convolutional_weights(*(l.wg), fp);
-				save_convolutional_weights(*(l.wo), fp);
-			}
-			save_convolutional_weights(*(l.uf), fp);
-			save_convolutional_weights(*(l.ui), fp);
-			save_convolutional_weights(*(l.ug), fp);
-			save_convolutional_weights(*(l.uo), fp);
-		}
 		if (l.type == CRNN)
 		{
 			save_convolutional_weights(*(l.input_layer), fp);
 			save_convolutional_weights(*(l.self_layer), fp);
 			save_convolutional_weights(*(l.output_layer), fp);
-		}
-		if (l.type == LOCAL)
-		{
-#ifdef GPU
-			if (cfg_and_state.gpu_index >= 0)
-			{
-				pull_local_layer(l);
-			}
-#endif
-			int locations = l.out_w*l.out_h;
-			int size = l.size*l.size*l.c*l.n*locations;
-			fwrite(l.biases, sizeof(float), l.outputs, fp);
-			fwrite(l.weights, sizeof(float), size, fp);
 		}
 	}
 	fclose(fp);
@@ -643,22 +593,10 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 				}
 				break;
 			}
-			case IMPLICIT:
-			{
-				layers_with_weights ++;
-				load_implicit_weights(l, fp);
-				break;
-			}
 			case CONNECTED:
 			{
 				layers_with_weights ++;
 				load_connected_weights(l, fp, transpose);
-				break;
-			}
-			case BATCHNORM:
-			{
-				layers_with_weights ++;
-				load_batchnorm_weights(l, fp);
 				break;
 			}
 			case CRNN:
@@ -677,17 +615,6 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 				load_connected_weights(*(l.output_layer), fp, transpose);
 				break;
 			}
-			case GRU:
-			{
-				layers_with_weights ++;
-				load_connected_weights(*(l.input_z_layer), fp, transpose);
-				load_connected_weights(*(l.input_r_layer), fp, transpose);
-				load_connected_weights(*(l.input_h_layer), fp, transpose);
-				load_connected_weights(*(l.state_z_layer), fp, transpose);
-				load_connected_weights(*(l.state_r_layer), fp, transpose);
-				load_connected_weights(*(l.state_h_layer), fp, transpose);
-				break;
-			}
 			case LSTM:
 			{
 				layers_with_weights ++;
@@ -699,44 +626,6 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 				load_connected_weights(*(l.ui), fp, transpose);
 				load_connected_weights(*(l.ug), fp, transpose);
 				load_connected_weights(*(l.uo), fp, transpose);
-				break;
-			}
-			case CONV_LSTM:
-			{
-				layers_with_weights ++;
-
-				if (l.peephole)
-				{
-					load_convolutional_weights(*(l.vf), fp);
-					load_convolutional_weights(*(l.vi), fp);
-					load_convolutional_weights(*(l.vo), fp);
-				}
-				load_convolutional_weights(*(l.wf), fp);
-				if (!l.bottleneck)
-				{
-					load_convolutional_weights(*(l.wi), fp);
-					load_convolutional_weights(*(l.wg), fp);
-					load_convolutional_weights(*(l.wo), fp);
-				}
-				load_convolutional_weights(*(l.uf), fp);
-				load_convolutional_weights(*(l.ui), fp);
-				load_convolutional_weights(*(l.ug), fp);
-				load_convolutional_weights(*(l.uo), fp);
-				break;
-			}
-			case LOCAL:
-			{
-				layers_with_weights ++;
-				int locations = l.out_w*l.out_h;
-				int size = l.size*l.size*l.c*l.n*locations;
-				fread(l.biases, sizeof(float), l.outputs, fp);
-				fread(l.weights, sizeof(float), size, fp);
-#ifdef GPU
-				if (cfg_and_state.gpu_index >= 0)
-				{
-					push_local_layer(l);
-				}
-#endif
 				break;
 			}
 			default:

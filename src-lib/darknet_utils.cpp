@@ -384,7 +384,7 @@ void Darknet::cfg_layers()
 
 	std::map<LAYER_TYPE, std::string> layer_type_to_name;
 	std::map<std::string, LAYER_TYPE> layer_name_to_type;
-	for (int layer_type_index = 0; layer_type_index <= IMPLICIT; layer_type_index ++)
+	for (int layer_type_index = 0; layer_type_index <= LAYER_LAST_IDX; layer_type_index ++)
 	{
 		const LAYER_TYPE type = static_cast<LAYER_TYPE>(layer_type_index);
 		std::string name = get_layer_string(type);
@@ -529,7 +529,7 @@ void Darknet::cfg_layers()
 	std::map<LAYER_TYPE, size_t> number_of_times_layer_was_referenced_by_modern_config;
 
 	// loop through all the layers to add the headers at the top of the table
-	for (int layer_index = 0; layer_index <= IMPLICIT; layer_index ++)
+	for (int layer_index = 0; layer_index <= LAYER_LAST_IDX; layer_index ++)
 	{
 		const auto type = static_cast<LAYER_TYPE>(layer_index);
 		const auto name = layer_type_to_name[type];
@@ -629,7 +629,7 @@ void Darknet::cfg_layers()
 		}
 
 		// loop through all the layers
-		for (int layer_index = 0; layer_index <= IMPLICIT; layer_index ++)
+		for (int layer_index = 0; layer_index <= LAYER_LAST_IDX; layer_index ++)
 		{
 			const auto type = static_cast<LAYER_TYPE>(layer_index);
 			const auto name = layer_type_to_name[type];

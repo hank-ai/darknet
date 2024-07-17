@@ -123,35 +123,6 @@ void free_layer_custom(layer l, int keep_cudnn_desc)
 	{
 		free_sublayer(l.input_layer);
 	}
-	if (l.type == CONV_LSTM)
-	{
-		if (l.peephole)
-		{
-			free_sublayer(l.vf);
-			free_sublayer(l.vi);
-			free_sublayer(l.vo);
-		}
-		else
-		{
-			free(l.vf);
-			free(l.vi);
-			free(l.vo);
-			l.vf = nullptr;
-			l.vi = nullptr;
-			l.vo = nullptr;
-		}
-		free_sublayer(l.wf);
-		if (!l.bottleneck)
-		{
-			free_sublayer(l.wi);
-			free_sublayer(l.wg);
-			free_sublayer(l.wo);
-		}
-		free_sublayer(l.uf);
-		free_sublayer(l.ui);
-		free_sublayer(l.ug);
-		free_sublayer(l.uo);
-	}
 
 	if (l.type == CRNN)
 	{

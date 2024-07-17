@@ -202,45 +202,29 @@ char * get_layer_string(LAYER_TYPE type)
 	switch(type)
 	{
 		case CONVOLUTIONAL:		return "convolutional";		// or "conv"
-		case DECONVOLUTIONAL:	return "deconvolutional";
 		case CONNECTED:			return "connected";			// or "conn"
 		case MAXPOOL:			return "maxpool";			// or "max"
 		case LOCAL_AVGPOOL:		return "local_avgpool";		// or "local_avg"
 		case SOFTMAX:			return "softmax";			// or "soft"
-		case DETECTION:			return "detection";
 		case DROPOUT:			return "dropout";
-		case CROP:				return "crop";
 		case ROUTE:				return "route";
 		case COST:				return "cost";
-		case NORMALIZATION:		return "normalization";		// or "lrn"
 		case AVGPOOL:			return "avgpool";			// or "avg"
-		case LOCAL:				return "local";
 		case SHORTCUT:			return "shortcut";
 		case SCALE_CHANNELS:	return "scale_channels";
 		case SAM:				return "sam";
-		case ACTIVE:			return "activation";
 		case RNN:				return "rnn";
-		case GRU:				return "gru";
 		case LSTM:				return "lstm";
-		case CONV_LSTM:			return "conv_lstm";
-		case HISTORY:			return "history";
 		case CRNN:				return "crnn";
-		case BATCHNORM:			return "batchnorm";
 		case NETWORK:			return "net";				// or "network"
-		case XNOR:				return "xnor"; ///< @todo is this the correct name?  Is this unused?
 		case REGION:			return "region";
 		case YOLO:				return "yolo";
 		case GAUSSIAN_YOLO:		return "Gaussian_yolo";
-		case ISEG:				return "iseg";
 		case REORG:				return "reorg3d";
-		case REORG_OLD:			return "reorg";
 		case UPSAMPLE:			return "upsample";
-		case LOGXENT:			return "logxent"; ///< @todo Is this unused?
-		case L2NORM:			return "l2norm"; ///< @todo Is this unused?
 		case EMPTY:				return "silence";			// or "empty"
 		case BLANK:				return "blank";
 		case CONTRASTIVE:		return "contrastive";
-		case IMPLICIT:			return "implicit";
 	}
 
 	return "unknown";
@@ -732,11 +716,8 @@ int resize_network(network *net, int w, int h)
 		{
 			case CONVOLUTIONAL:		resize_convolutional_layer(&l, w, h);		break;
 			case CRNN:				resize_crnn_layer(&l, w, h);				break;
-			case CONV_LSTM:			resize_conv_lstm_layer(&l, w, h);			break;
-			case CROP:				resize_crop_layer(&l, w, h);				break;
 			case MAXPOOL:			resize_maxpool_layer(&l, w, h);				break;
 			case LOCAL_AVGPOOL:		resize_maxpool_layer(&l, w, h);				break;
-			case BATCHNORM:			resize_batchnorm_layer(&l, w, h);			break;
 			case REGION:			resize_region_layer(&l, w, h);				break;
 			case YOLO:				resize_yolo_layer(&l, w, h);				break;
 			case GAUSSIAN_YOLO:		resize_gaussian_yolo_layer(&l, w, h);		break;
@@ -746,9 +727,7 @@ int resize_network(network *net, int w, int h)
 			case SAM:				resize_sam_layer(&l, w, h);					break;
 			case UPSAMPLE:			resize_upsample_layer(&l, w, h);			break;
 			case REORG:				resize_reorg_layer(&l, w, h);				break;
-			case REORG_OLD:			resize_reorg_old_layer(&l, w, h);			break;
 			case AVGPOOL:			resize_avgpool_layer(&l, w, h);				break;
-			case NORMALIZATION:		resize_normalization_layer(&l, w, h);		break;
 			case COST:				resize_cost_layer(&l, inputs);				break;
 			case DROPOUT:
 			{
@@ -849,27 +828,6 @@ int get_network_input_size(network net)
 
 	return net.layers[0].inputs;
 }
-
-
-#if 0
-detection_layer get_network_detection_layer(network net)
-{
-	TAT(TATPARMS);
-
-	for (int i = 0; i < net.n; ++i)
-	{
-		if (net.layers[i].type == DETECTION)
-		{
-			return net.layers[i];
-		}
-	}
-
-	fprintf(stderr, "Detection layer not found!!\n");
-	detection_layer l = { (LAYER_TYPE)0 };
-
-	return l;
-}
-#endif
 
 
 image get_network_image_layer(network net, int i)
@@ -998,7 +956,7 @@ int num_detections(network *net, float thresh)
 			s += gaussian_yolo_num_detections(l, thresh);
 		}
 
-		if (l.type == DETECTION || l.type == REGION)
+		if (l.type == REGION)
 		{
 			s += l.w*l.h*l.n;
 		}
@@ -1032,7 +990,7 @@ int num_detections_v3(network *net, float thresh, Darknet::Output_Object_Cache &
 		}
 
 		/// @todo Is this still used in a modern .cfg file?  Should it be removed?
-		if (l.type == DETECTION || l.type == REGION)
+		if (l.type == REGION)
 		{
 			detections += l.w * l.h * l.n;
 		}
@@ -1055,7 +1013,7 @@ int num_detections_batch(network *net, float thresh, int batch)
 			s += yolo_num_detections_batch(l, thresh, batch);
 		}
 
-		if (l.type == DETECTION || l.type == REGION)
+		if (l.type == REGION)
 		{
 			s += l.w*l.h*l.n;
 		}
@@ -1078,7 +1036,7 @@ detection * make_network_boxes(network *net, float thresh, int *num)
 	for (int i = 0; i < net->n; ++i)
 	{
 		layer l_tmp = net->layers[i];
-		if (l_tmp.type == YOLO || l_tmp.type == GAUSSIAN_YOLO || l_tmp.type == DETECTION || l_tmp.type == REGION)
+		if (l_tmp.type == YOLO || l_tmp.type == GAUSSIAN_YOLO || l_tmp.type == REGION)
 		{
 			l = l_tmp;
 			break;
@@ -1147,7 +1105,6 @@ detection * make_network_boxes_v3(network * net, const float thresh, int * num, 
 			const layer & tmp = net->layers[i];
 			if (tmp.type == YOLO			or
 				tmp.type == GAUSSIAN_YOLO	or
-				tmp.type == DETECTION		or
 				tmp.type == REGION			)
 			{
 				return tmp;
@@ -1203,7 +1160,7 @@ detection *make_network_boxes_batch(network *net, float thresh, int *num, int ba
 	for (int i = 0; i < net->n; ++i)
 	{
 		layer l_tmp = net->layers[i];
-		if (l_tmp.type == YOLO || l_tmp.type == GAUSSIAN_YOLO || l_tmp.type == DETECTION || l_tmp.type == REGION)
+		if (l_tmp.type == YOLO || l_tmp.type == GAUSSIAN_YOLO || l_tmp.type == REGION)
 		{
 			l = l_tmp;
 			break;
@@ -1328,12 +1285,6 @@ void fill_network_boxes(network *net, int w, int h, float thresh, float hier, in
 			//get_region_detections(l, w, h, net->w, net->h, thresh, map, hier, relative, dets);
 			dets += l.w*l.h*l.n;
 		}
-
-		if (l.type == DETECTION)
-		{
-			get_detection_detections(l, w, h, thresh, dets);
-			dets += l.w*l.h*l.n;
-		}
 	}
 }
 
@@ -1376,11 +1327,6 @@ void fill_network_boxes_batch(network *net, int w, int h, float thresh, float hi
 		{
 			custom_get_region_detections(l, w, h, net->w, net->h, thresh, map, hier, relative, dets, letter);
 			//get_region_detections(l, w, h, net->w, net->h, thresh, map, hier, relative, dets);
-			dets += l.w*l.h*l.n;
-		}
-		if (l.type == DETECTION)
-		{
-			get_detection_detections(l, w, h, thresh, dets);
 			dets += l.w*l.h*l.n;
 		}
 	}
@@ -2179,11 +2125,6 @@ void free_network_recurrent_state(network net)
 
 	for (int k = 0; k < net.n; ++k)
 	{
-		if (net.layers[k].type == CONV_LSTM)
-		{
-			free_state_conv_lstm(net.layers[k]);
-		}
-
 		if (net.layers[k].type == CRNN)
 		{
 			free_state_crnn(net.layers[k]);
@@ -2198,11 +2139,6 @@ void randomize_network_recurrent_state(network net)
 
 	for (int k = 0; k < net.n; ++k)
 	{
-		if (net.layers[k].type == CONV_LSTM)
-		{
-			randomize_state_conv_lstm(net.layers[k]);
-		}
-
 		if (net.layers[k].type == CRNN)
 		{
 			free_state_crnn(net.layers[k]);
@@ -2214,14 +2150,6 @@ void randomize_network_recurrent_state(network net)
 void remember_network_recurrent_state(network net)
 {
 	TAT(TATPARMS);
-
-	for (int k = 0; k < net.n; ++k)
-	{
-		if (net.layers[k].type == CONV_LSTM)
-		{
-			remember_state_conv_lstm(net.layers[k]);
-		}
-	}
 }
 
 
@@ -2231,11 +2159,6 @@ void restore_network_recurrent_state(network net)
 
 	for (int k = 0; k < net.n; ++k)
 	{
-		if (net.layers[k].type == CONV_LSTM)
-		{
-			restore_state_conv_lstm(net.layers[k]);
-		}
-
 		if (net.layers[k].type == CRNN)
 		{
 			free_state_crnn(net.layers[k]);

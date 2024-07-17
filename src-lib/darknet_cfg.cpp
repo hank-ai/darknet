@@ -23,25 +23,7 @@ namespace
 			{
 				net.layers[idx].train_only_bn = train_only_bn;
 
-				if (net.layers[idx].type == CONV_LSTM)
-				{
-					net.layers[idx].wf->train_only_bn = train_only_bn;
-					net.layers[idx].wi->train_only_bn = train_only_bn;
-					net.layers[idx].wg->train_only_bn = train_only_bn;
-					net.layers[idx].wo->train_only_bn = train_only_bn;
-					net.layers[idx].uf->train_only_bn = train_only_bn;
-					net.layers[idx].ui->train_only_bn = train_only_bn;
-					net.layers[idx].ug->train_only_bn = train_only_bn;
-					net.layers[idx].uo->train_only_bn = train_only_bn;
-
-					if (net.layers[idx].peephole)
-					{
-						net.layers[idx].vf->train_only_bn = train_only_bn;
-						net.layers[idx].vi->train_only_bn = train_only_bn;
-						net.layers[idx].vo->train_only_bn = train_only_bn;
-					}
-				}
-				else if (net.layers[idx].type == CRNN)
+				if (net.layers[idx].type == CRNN)
 				{
 					net.layers[idx].input_layer	->train_only_bn = train_only_bn;
 					net.layers[idx].self_layer	->train_only_bn = train_only_bn;
@@ -1173,7 +1155,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 #endif
 
 	LAYER_TYPE lt = net.layers[net.n - 1].type;
-	if (lt == YOLO || lt == REGION || lt == DETECTION)
+	if (lt == YOLO || lt == REGION)
 	{
 		if (net.w % 32 != 0 ||
 			net.h % 32 != 0 ||

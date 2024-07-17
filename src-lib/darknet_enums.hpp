@@ -22,45 +22,30 @@ namespace Darknet
 	{
 		// Please keep the old C and the new C++ enums in sync!
 		CONVOLUTIONAL	= LAYER_TYPE::CONVOLUTIONAL				,	///< this is used everywhere
-		DECONVOLUTIONAL	= LAYER_TYPE::DECONVOLUTIONAL			,	///< *UNUSED*
 		CONNECTED		= LAYER_TYPE::CONNECTED					,	///< used in 3 rarely used configurations
 		MAXPOOL			= LAYER_TYPE::MAXPOOL					,	///< used often
 		LOCAL_AVGPOOL	= LAYER_TYPE::LOCAL_AVGPOOL				,	///< only used in yolov4-tiny_contrastive.cfg -- obsolete?
 		SOFTMAX			= LAYER_TYPE::SOFTMAX					,	///< used in several non-YOLO configs
-		DETECTION		= LAYER_TYPE::DETECTION					,	///< *UNUSED*
 		DROPOUT			= LAYER_TYPE::DROPOUT					,	///< used in 3 non-YOLO configs
-		CROP			= LAYER_TYPE::CROP						,	///< *UNUSED*
 		ROUTE			= LAYER_TYPE::ROUTE						,	///< used often
 		COST			= LAYER_TYPE::COST						,	///< used in several non-YOLO configs
-		NORMALIZATION	= LAYER_TYPE::NORMALIZATION				,	///< *UNUSED*
 		AVGPOOL			= LAYER_TYPE::AVGPOOL					,	///< used in several non-YOLO configs
-		LOCAL			= LAYER_TYPE::LOCAL						,	///< *UNUSED*
 		SHORTCUT		= LAYER_TYPE::SHORTCUT					,	///< used almost everywhere
 		SCALE_CHANNELS	= LAYER_TYPE::SCALE_CHANNELS			,	///< only used in 2 configs
 		SAM				= LAYER_TYPE::SAM						,	///< only used in 3 configs
-		ACTIVE			= LAYER_TYPE::ACTIVE					,	///< *UNUSED*
 		RNN				= LAYER_TYPE::RNN						,	///< only used in rnn.train.cfg -- obsolete?
-		GRU				= LAYER_TYPE::GRU						,	///< *UNUSED*
 		LSTM			= LAYER_TYPE::LSTM						,	///< only used in lstm.train.cfg -- obsolete?
-		CONV_LSTM		= LAYER_TYPE::CONV_LSTM					,	///< *UNUSED*
-		HISTORY			= LAYER_TYPE::HISTORY					,	///< *UNUSED*
 		CRNN			= LAYER_TYPE::CRNN						,	///< only used in 2 non-YOLO configs
-		BATCHNORM		= LAYER_TYPE::BATCHNORM					,	///< *UNUSED*
 		NETWORK			= LAYER_TYPE::NETWORK					,	///< used in every config
-		XNOR			= LAYER_TYPE::XNOR						,	///< *UNUSED*
 		REGION			= LAYER_TYPE::REGION					,	///< only used in tiny-yolo_xnor.cfg (which is NOT a YOLO config)
 		YOLO			= LAYER_TYPE::YOLO						,	///< used often
 		GAUSSIAN_YOLO	= LAYER_TYPE::GAUSSIAN_YOLO				,	///< only used in Gaussian_yolov3_BDD.cfg
-		ISEG			= LAYER_TYPE::ISEG						,	///< *UNUSED*
 		REORG			= LAYER_TYPE::REORG /* aka "3D" */		,	///< only used in yolov4-sam-mish-csp-reorg-bfm.cfg
-		REORG_OLD		= LAYER_TYPE::REORG_OLD					,	///< *UNUSED*
 		UPSAMPLE		= LAYER_TYPE::UPSAMPLE					,	///< used often, does downsampling instead if l.reverse=1
-		LOGXENT			= LAYER_TYPE::LOGXENT					,	///< *UNUSED*
-		L2NORM			= LAYER_TYPE::L2NORM					,	///< *UNUSED*
 		EMPTY			= LAYER_TYPE::EMPTY /* aka "SILENCE" */	,	///< *UNUSED*
 		BLANK			= LAYER_TYPE::BLANK						,	///< *UNUSED*
 		CONTRASTIVE		= LAYER_TYPE::CONTRASTIVE				,	///< only used in yolov4-tiny_contrastive.cfg
-		IMPLICIT		= LAYER_TYPE::IMPLICIT					,	///< *UNUSED*
+		LAYER_LAST_IDX	= LAYER_TYPE::LAYER_LAST_IDX			,	///< point to the last-used idx
 	};
 
 	/// @{ Convert between names and Darknet/YOLO layer types.

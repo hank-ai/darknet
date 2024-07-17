@@ -1,6 +1,7 @@
 #include "darknet_internal.hpp"
 
 
+#if 0
 layer make_batchnorm_layer(int batch, int w, int h, int c, int train)
 {
 	TAT(TATPARMS);
@@ -90,6 +91,7 @@ layer make_batchnorm_layer(int batch, int w, int h, int c, int train)
 #endif
 	return l;
 }
+#endif
 
 void backward_scale_cpu(float *x_norm, float *delta, int batch, int n, int size, float *scale_updates)
 {
@@ -197,7 +199,7 @@ void forward_batchnorm_layer(layer l, network_state state)
 {
 	TAT(TATPARMS);
 
-	if(l.type == BATCHNORM) copy_cpu(l.outputs*l.batch, state.input, 1, l.output, 1);
+//	if(l.type == BATCHNORM) copy_cpu(l.outputs*l.batch, state.input, 1, l.output, 1);
 	if(l.type == CONNECTED){
 		l.out_c = l.outputs;
 		l.out_h = l.out_w = 1;
@@ -232,7 +234,7 @@ void backward_batchnorm_layer(const layer l, network_state state)
 	mean_delta_cpu(l.delta, l.variance, l.batch, l.out_c, l.out_w*l.out_h, l.mean_delta);
 	variance_delta_cpu(l.x, l.delta, l.mean, l.variance, l.batch, l.out_c, l.out_w*l.out_h, l.variance_delta);
 	normalize_delta_cpu(l.x, l.mean, l.variance, l.mean_delta, l.variance_delta, l.batch, l.out_c, l.out_w*l.out_h, l.delta);
-	if(l.type == BATCHNORM) copy_cpu(l.outputs*l.batch, l.delta, 1, state.delta, 1);
+//	if(l.type == BATCHNORM) copy_cpu(l.outputs*l.batch, l.delta, 1, state.delta, 1);
 }
 
 void update_batchnorm_layer(layer l, int batch, float learning_rate, float momentum, float decay)
