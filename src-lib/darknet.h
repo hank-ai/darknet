@@ -1085,5 +1085,3 @@ void darknet_set_trace(const bool flag);
 #ifdef __cplusplus
 }
 #endif  // __cplusplus
-
-

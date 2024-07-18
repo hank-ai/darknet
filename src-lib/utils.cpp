@@ -438,7 +438,7 @@ namespace
 }
 
 
-void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...)
+[[noreturn]] void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...)
 {
 	const int saved_errno = errno;
 

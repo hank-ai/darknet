@@ -53,8 +53,6 @@ Darknet::ELayerType Darknet::get_layer_from_name(const std::string & name)
 
 	if (m.count(name) == 0)
 	{
-		/// @throw sd::invalid_argument if the name is not a valid Darknet layer name
-//		throw std::invalid_argument("layer name \"" + name + "\" is not supported");
 		darknet_fatal_error(DARKNET_LOC, "layer name \"%s\" is not supported", name.c_str());
 	}
 
@@ -75,7 +73,6 @@ std::string Darknet::to_string(const ELayerType type)
 		}
 	}
 
-//	throw std::invalid_argument("unknown layer #" + std::to_string(static_cast<int>(type)));
 	darknet_fatal_error(DARKNET_LOC, "unknown layer #%d", static_cast<int>(type));
 }
 
@@ -124,8 +121,6 @@ Darknet::EActivation Darknet::get_activation_from_name(const std::string & name)
 
 	if (m.count(name) == 0)
 	{
-		/// @throw sd::invalid_argument if the name is not a valid Darknet activation name
-//		throw std::invalid_argument("activation name \"" + name + "\" is not supported");
 		darknet_fatal_error(DARKNET_LOC, "activation name \"%s\" is not supported", name.c_str());
 	}
 
@@ -146,7 +141,6 @@ std::string Darknet::to_string(const Darknet::EActivation activation)
 		}
 	}
 
-//	throw std::invalid_argument("unknown activation #" + std::to_string(static_cast<int>(activation)));
 	darknet_fatal_error(DARKNET_LOC, "unknown activation type #%d", static_cast<int>(activation));
 }
 
@@ -179,8 +173,6 @@ Darknet::ELearningRatePolicy Darknet::get_learning_rate_policy_from_name(const s
 
 	if (m.count(name) == 0)
 	{
-		/// @throw sd::invalid_argument if the name is not a valid Darknet learning rate policy
-//		throw std::invalid_argument("learning rate policy \"" + name + "\" is not supported");
 		darknet_fatal_error(DARKNET_LOC, "learning rate policy \"%s\" is not supported", name.c_str());
 	}
 
@@ -201,7 +193,6 @@ std::string Darknet::to_string(const Darknet::ELearningRatePolicy policy)
 		}
 	}
 
-//	throw std::invalid_argument("unknown learning rate policy #" + std::to_string(static_cast<int>(policy)));
 	darknet_fatal_error(DARKNET_LOC, "unknown learning rate policy #%d", static_cast<int>(policy));
 }
 
@@ -231,8 +222,6 @@ Darknet::EIoULoss Darknet::get_IoU_loss_from_name(const std::string & name)
 
 	if (m.count(name) == 0)
 	{
-		/// @throw sd::invalid_argument if the name is not a valid Darknet IoU loss type
-//		throw std::invalid_argument("IoU loss type \"" + name + "\" is not supported");
 		darknet_fatal_error(DARKNET_LOC, "IoU loss \"%s\" is not supported", name.c_str());
 	}
 
@@ -253,7 +242,6 @@ std::string Darknet::to_string(const Darknet::EIoULoss loss)
 		}
 	}
 
-//	throw std::invalid_argument("unknown IoU loss type #" + std::to_string(static_cast<int>(loss)));
 	darknet_fatal_error(DARKNET_LOC, "unknown IoU loss #%d", static_cast<int>(loss));
 }
 
@@ -282,8 +270,6 @@ Darknet::ENMSKind Darknet::get_NMS_kind_from_name(const std::string & name)
 
 	if (m.count(name) == 0)
 	{
-		/// @throw sd::invalid_argument if the name is not a valid Darknet NMS type
-//		throw std::invalid_argument("NMS type \"" + name + "\" is not supported");
 		darknet_fatal_error(DARKNET_LOC, "NMS kind \"%s\" is not supported", name.c_str());
 	}
 
@@ -304,7 +290,6 @@ std::string Darknet::to_string(const Darknet::ENMSKind nms_kind)
 		}
 	}
 
-//	throw std::invalid_argument("unknown NMS kind type #" + std::to_string(static_cast<int>(nms_kind)));
 	darknet_fatal_error(DARKNET_LOC, "unknown NMS kind #%d", static_cast<int>(nms_kind));
 }
 
@@ -332,8 +317,6 @@ Darknet::EWeightsType Darknet::get_weights_type_from_name(const std::string & na
 
 	if (m.count(name) == 0)
 	{
-		/// @throw sd::invalid_argument if the name is not a valid Darknet weights type
-//		throw std::invalid_argument("weights type \"" + name + "\" is not supported");
 		darknet_fatal_error(DARKNET_LOC, "weights type \"%s\" is not supported", name.c_str());
 	}
 
@@ -354,7 +337,6 @@ std::string Darknet::to_string(const EWeightsType type)
 		}
 	}
 
-//	throw std::invalid_argument("unknown weights type #" + std::to_string(static_cast<int>(type)));
 	darknet_fatal_error(DARKNET_LOC, "unknown weights type #%d", static_cast<int>(type));
 }
 
@@ -383,8 +365,6 @@ Darknet::EWeightsNormalization Darknet::get_weights_normalization_from_name(cons
 
 	if (m.count(name) == 0)
 	{
-		/// @throw sd::invalid_argument if the name is not a valid Darknet weights type
-//		throw std::invalid_argument("weights normalization \"" + name + "\" is not supported");
 		darknet_fatal_error(DARKNET_LOC, "weights normalization \"%s\" is not supported", name.c_str());
 	}
 
@@ -405,7 +385,6 @@ std::string Darknet::to_string(const EWeightsNormalization normalization)
 		}
 	}
 
-//	throw std::invalid_argument("unknown weights normalization #" + std::to_string(static_cast<int>(normalization)));
 	darknet_fatal_error(DARKNET_LOC, "unknown weights normalization #%d", static_cast<int>(normalization));
 }
 
@@ -439,8 +418,6 @@ Darknet::ECostType Darknet::get_cost_types_from_name(const std::string & name)
 
 	if (m.count(name) == 0)
 	{
-		/// @throw sd::invalid_argument if the name is not a valid Darknet cost type
-//		throw std::invalid_argument("cost type \"" + name + "\" is not supported");
 		darknet_fatal_error(DARKNET_LOC, "cost type \"%s\" is not supported", name.c_str());
 	}
 
@@ -461,7 +438,6 @@ std::string Darknet::to_string(const ECostType type)
 		}
 	}
 
-//	throw std::invalid_argument("unknown cost type #" + std::to_string(static_cast<int>(type)));
 	darknet_fatal_error(DARKNET_LOC, "unknown cost type #%d", static_cast<int>(type));
 }
 
@@ -489,8 +465,6 @@ Darknet::EYoloPoint Darknet::get_yolo_point_types_from_name(const std::string & 
 
 	if (m.count(name) == 0)
 	{
-		/// @throw sd::invalid_argument if the name is not a valid Darknet YOLO point type
-//		throw std::invalid_argument("yolo point type \"" + name + "\" is not supported");
 		darknet_fatal_error(DARKNET_LOC, "YOLO point type \"%s\" is not supported", name.c_str());
 	}
 
@@ -511,6 +485,5 @@ std::string Darknet::to_string(const EYoloPoint type)
 		}
 	}
 
-//	throw std::invalid_argument("unknown YOLO point type #" + std::to_string(static_cast<int>(type)));
 	darknet_fatal_error(DARKNET_LOC, "unknown YOLO point type #%d", static_cast<int>(type));
 }

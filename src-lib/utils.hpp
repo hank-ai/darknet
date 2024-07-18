@@ -29,7 +29,7 @@ void *xrealloc_location(void *ptr, const size_t size, const char * const filenam
 #define xrealloc(p, s)  xrealloc_location(p, s, DARKNET_LOC)
 
 /// Calling this function ends the application.  This function will @em never return control back to the caller.  @see @ref DARKNET_LOC
-void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...);
+[[noreturn]] void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...);
 
 /// Convert the given size to a human-readable string.  This uses 1024 as a divider, so 1 KiB == 1024 bytes.
 const char * size_to_IEC_string(const size_t size);
