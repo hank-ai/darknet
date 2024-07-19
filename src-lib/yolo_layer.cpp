@@ -1299,7 +1299,7 @@ void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth
 }
 
 
-int yolo_num_detections(const Darknet::Layer /*&*/ l, float thresh)
+int yolo_num_detections(const Darknet::Layer & l, float thresh)
 {
 	TAT(TATPARMS);
 
@@ -1359,7 +1359,7 @@ int yolo_num_detections_v3(network * net, const int index, const float thresh, D
 }
 
 
-int yolo_num_detections_batch(const Darknet::Layer /*&*/ l, float thresh, int batch)
+int yolo_num_detections_batch(const Darknet::Layer & l, float thresh, int batch)
 {
 	TAT(TATPARMS);
 
@@ -1380,7 +1380,7 @@ int yolo_num_detections_batch(const Darknet::Layer /*&*/ l, float thresh, int ba
 }
 
 
-int get_yolo_detections(const Darknet::Layer /*&*/ l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
+int get_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
 {
 	TAT(TATPARMS);
 
@@ -1476,7 +1476,7 @@ int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, floa
 }
 
 
-int get_yolo_detections_batch(const Darknet::Layer /*&*/ l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, int batch)
+int get_yolo_detections_batch(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, int batch)
 {
 	TAT(TATPARMS);
 
