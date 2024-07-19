@@ -511,7 +511,7 @@ void update_layer(Darknet::Layer & l, network net)
 	}
 }
 
-void merge_weights(Darknet::Layer /*&*/ l, layer base)
+void merge_weights(Darknet::Layer /*&*/ l, Darknet::Layer /*&*/ base)
 {
 	TAT(TATPARMS);
 
