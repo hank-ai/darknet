@@ -45,7 +45,7 @@ void resize_route_layer(Darknet::Layer *l, network *net)
 	TAT(TATPARMS);
 
 	int i;
-	Darknet::Layer /*&*/ first = net->layers[l->input_layers[0]];
+	Darknet::Layer & first = net->layers[l->input_layers[0]];
 	l->out_w = first.out_w;
 	l->out_h = first.out_h;
 	l->out_c = first.out_c;
@@ -53,7 +53,7 @@ void resize_route_layer(Darknet::Layer *l, network *net)
 	l->input_sizes[0] = first.outputs;
 	for(i = 1; i < l->n; ++i){
 		int index = l->input_layers[i];
-		const Darknet::Layer /*&*/ next = net->layers[index];
+		const Darknet::Layer & next = net->layers[index];
 		l->outputs += next.outputs;
 		l->input_sizes[i] = next.outputs;
 		if(next.out_w == first.out_w && next.out_h == first.out_h){

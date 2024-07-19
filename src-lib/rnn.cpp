@@ -120,11 +120,12 @@ void reset_rnn_state(network net, int b)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < net.n; ++i) {
+	for (int i = 0; i < net.n; ++i)
+	{
 		#ifdef GPU
-		Darknet::Layer /*&*/ l = net.layers[i];
-		if(l.state_gpu){
+		Darknet::Layer & l = net.layers[i];
+		if(l.state_gpu)
+		{
 			fill_ongpu(l.outputs, 0, l.state_gpu + l.outputs*b, 1);
 		}
 		#endif
@@ -459,7 +460,8 @@ void vec_char_rnn(char *cfgfile, char *weightfile, char *seed)
 	fprintf(stderr, "%s\n", base);
 
 	network net = parse_network_cfg(cfgfile);
-	if(weightfile){
+	if (weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
 	int inputs = get_network_input_size(net);
@@ -467,11 +469,12 @@ void vec_char_rnn(char *cfgfile, char *weightfile, char *seed)
 	int c;
 	int seed_len = strlen(seed);
 	float* input = (float*)xcalloc(inputs, sizeof(float));
-	int i;
 	char *line;
-	while((line=fgetl(stdin)) != 0){
+	while((line=fgetl(stdin)) != 0)
+	{
 		reset_rnn_state(net, 0);
-		for(i = 0; i < seed_len; ++i){
+		for (int i = 0; i < seed_len; ++i)
+		{
 			c = seed[i];
 			input[(int)c] = 1;
 			network_predict(net, input);
@@ -479,7 +482,8 @@ void vec_char_rnn(char *cfgfile, char *weightfile, char *seed)
 		}
 		strip(line);
 		int str_len = strlen(line);
-		for(i = 0; i < str_len; ++i){
+		for (int i = 0; i < str_len; ++i)
+		{
 			c = line[i];
 			input[(int)c] = 1;
 			network_predict(net, input);
@@ -490,12 +494,13 @@ void vec_char_rnn(char *cfgfile, char *weightfile, char *seed)
 		network_predict(net, input);
 		input[(int)c] = 0;
 
-		Darknet::Layer /*&*/ l = net.layers[0];
+		Darknet::Layer & l = net.layers[0];
 		#ifdef GPU
 		cuda_pull_array(l.output_gpu, l.output, l.outputs);
 		#endif
 		printf("%s", line);
-		for(i = 0; i < l.outputs; ++i){
+		for(int i = 0; i < l.outputs; ++i)
+		{
 			printf(",%g", l.output[i]);
 		}
 		printf("\n");

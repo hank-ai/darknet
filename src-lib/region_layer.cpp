@@ -181,7 +181,7 @@ float tisnan(float x)
 
 namespace
 {
-	static inline int region_entry_index(const Darknet::Layer /*&*/ l, const int batch, const int location, const int entry)
+	static inline int region_entry_index(const Darknet::Layer & l, const int batch, const int location, const int entry)
 	{
 		// similar function exists in yolo_layer.cpp, but the math is slightly different
 
@@ -397,7 +397,7 @@ void backward_region_layer(Darknet::Layer & l, network_state state)
 	axpy_cpu(l.batch*l.inputs, 1, l.delta, 1, state.delta, 1);
 }
 
-void get_region_boxes(const Darknet::Layer /*&*/ l, int w, int h, float thresh, float **probs, box *boxes, int only_objectness, int *map)
+void get_region_boxes(const Darknet::Layer & l, int w, int h, float thresh, float **probs, box *boxes, int only_objectness, int *map)
 {
 	TAT(TATPARMS);
 
@@ -649,7 +649,7 @@ void get_region_detections(Darknet::Layer l, int w, int h, int netw, int neth, f
 	correct_region_boxes(dets, l.w*l.h*l.n, w, h, netw, neth, relative);
 }
 
-void zero_objectness(Darknet::Layer /*&*/ l)
+void zero_objectness(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 

@@ -6,7 +6,7 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 }
 
-image get_maxpool_image(Darknet::Layer /*&*/ l)
+image get_maxpool_image(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -16,7 +16,7 @@ image get_maxpool_image(Darknet::Layer /*&*/ l)
 	return float_to_image(w,h,c,l.output);
 }
 
-image get_maxpool_delta(Darknet::Layer /*&*/ l)
+image get_maxpool_delta(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 

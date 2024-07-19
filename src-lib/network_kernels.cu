@@ -58,7 +58,7 @@ void forward_network_gpu(network net, network_state state)
 	for (int i = 0; i < net.n; ++i)
 	{
 		state.index = i;
-		Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 //      printf("i=%d/%d: %s\n", i + 1, net.n, get_layer_string(l.type));
 
 		if (l.delta_gpu && state.train)
@@ -169,17 +169,25 @@ void backward_network_gpu(network net, network_state state)
 	for(i = net.n-1; i >= 0; --i)
 	{
 		state.index = i;
-		Darknet::Layer /*&*/ l = net.layers[i];
-		if (l.stopbackward == 1) break;
-		if (l.stopbackward > get_current_iteration(net)) break;
-		if(i == 0)
+		Darknet::Layer & l = net.layers[i];
+		if (l.stopbackward == 1)
+		{
+			break;
+		}
+
+		if (l.stopbackward > get_current_iteration(net))
+		{
+			break;
+		}
+
+		if (i == 0)
 		{
 			state.input = original_input;
 			state.delta = original_delta;
 		}
 		else
 		{
-			const Darknet::Layer /*&*/ prev = net.layers[i-1];
+			const Darknet::Layer & prev = net.layers[i-1];
 			state.input = prev.output_gpu;
 			state.delta = prev.delta_gpu;
 			if (net.optimized_memory && !prev.keep_delta_gpu)
@@ -187,6 +195,7 @@ void backward_network_gpu(network net, network_state state)
 				state.delta = net.state_delta_gpu;
 			}
 		}
+
 		if (l.onlyforward)
 		{
 			continue;
@@ -222,7 +231,7 @@ void backward_network_gpu(network net, network_state state)
 
 		if (i != 0)
 		{
-			Darknet::Layer /*&*/ prev = net.layers[i - 1];
+			Darknet::Layer & prev = net.layers[i - 1];
 			if (net.optimized_memory && state.delta && !prev.keep_delta_gpu)
 			{
 				if (prev.delta_gpu != state.delta)
@@ -312,7 +321,7 @@ void update_network_gpu(network net)
 	float rate = get_current_rate(net);
 	for (i = 0; i < net.n; ++i)
 	{
-		Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 		if (l.train == 0)
 		{
 			continue;
@@ -373,7 +382,7 @@ void forward_backward_network_gpu(network net, float *x, float *y)
 	int i;
 	for (i = 0; i < net.n; ++i)
 	{
-		Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 		if (net.cudnn_half)
 		{
 			if (l.type == CONVOLUTIONAL && l.weights_gpu && l.weights_gpu16)
@@ -514,7 +523,7 @@ void update_layer(Darknet::Layer & l, network net)
 	}
 }
 
-void merge_weights(Darknet::Layer /*&*/ l, Darknet::Layer /*&*/ base)
+void merge_weights(Darknet::Layer & l, Darknet::Layer & base)
 {
 	TAT(TATPARMS);
 
@@ -534,7 +543,7 @@ void merge_weights(Darknet::Layer /*&*/ l, Darknet::Layer /*&*/ base)
 	}
 }
 
-void scale_weights(Darknet::Layer /*&*/ l, float s)
+void scale_weights(Darknet::Layer & l, float s)
 {
 	TAT(TATPARMS);
 
@@ -595,22 +604,25 @@ void push_weights(Darknet::Layer & l)
 	}
 }
 
-void distribute_weights(Darknet::Layer /*&*/ l, Darknet::Layer /*&*/ base)
+void distribute_weights(Darknet::Layer & l, Darknet::Layer & base)
 {
 	TAT(TATPARMS);
 
-	if(l.type == CONVOLUTIONAL){
+	if(l.type == CONVOLUTIONAL)
+	{
 		cuda_push_array(l.biases_gpu, base.biases, l.n);
 		cuda_push_array(l.weights_gpu, base.weights, l.nweights);
 		if(base.scales) cuda_push_array(l.scales_gpu, base.scales, l.n);
-	} else if(l.type == CONNECTED){
+	}
+	else if(l.type == CONNECTED)
+	{
 		cuda_push_array(l.biases_gpu, base.biases, l.outputs);
 		cuda_push_array(l.weights_gpu, base.weights, l.outputs*l.inputs);
 	}
 }
 
 
-void merge_updates(Darknet::Layer /*&*/ l, Darknet::Layer /*&*/ base)
+void merge_updates(Darknet::Layer & l, Darknet::Layer & base)
 {
 	TAT(TATPARMS);
 
@@ -626,15 +638,21 @@ void merge_updates(Darknet::Layer /*&*/ l, Darknet::Layer /*&*/ base)
 	}
 }
 
-void distribute_updates(Darknet::Layer /*&*/ l, Darknet::Layer /*&*/ base)
+void distribute_updates(Darknet::Layer & l, Darknet::Layer & base)
 {
 	TAT(TATPARMS);
 
-	if(l.type == CONVOLUTIONAL){
+	if(l.type == CONVOLUTIONAL)
+	{
 		cuda_push_array(l.bias_updates_gpu, base.bias_updates, l.n);
 		cuda_push_array(l.weight_updates_gpu, base.weight_updates, l.nweights);
-		if(base.scale_updates) cuda_push_array(l.scale_updates_gpu, base.scale_updates, l.n);
-	} else if(l.type == CONNECTED){
+		if(base.scale_updates)
+		{
+			cuda_push_array(l.scale_updates_gpu, base.scale_updates, l.n);
+		}
+	}
+	else if (l.type == CONNECTED)
+	{
 		cuda_push_array(l.bias_updates_gpu, base.bias_updates, l.outputs);
 		cuda_push_array(l.weight_updates_gpu, base.weight_updates, l.outputs*l.inputs);
 	}
@@ -647,19 +665,19 @@ void sync_layer(network *nets, int n, int j)
 	//printf("Syncing layer %d\n", j);
 	int i;
 	network net = nets[0];
-	Darknet::Layer /*&*/ base = net.layers[j];
+	Darknet::Layer & base = net.layers[j];
 	cuda_set_device(net.gpu_index);
 	pull_weights(base);
 	for (i = 1; i < n; ++i) {
 		cuda_set_device(nets[i].gpu_index);
-		Darknet::Layer /*&*/ l = nets[i].layers[j];
+		Darknet::Layer & l = nets[i].layers[j];
 		pull_weights(l);
 		merge_weights(l, base);
 	}
 	scale_weights(base, 1./n);
 	for (i = 0; i < n; ++i) {
 		cuda_set_device(nets[i].gpu_index);
-		Darknet::Layer /*&*/ l = nets[i].layers[j];
+		Darknet::Layer & l = nets[i].layers[j];
 		distribute_weights(l, base);
 	}
 	//printf("Done syncing layer %d\n", j);
@@ -759,7 +777,7 @@ float *get_network_output_layer_gpu(network net, int i)
 {
 	TAT(TATPARMS);
 
-	Darknet::Layer /*&*/ l = net.layers[i];
+	Darknet::Layer & l = net.layers[i];
 	if(l.type != REGION && l.type != YOLO && (*net.cuda_graph_ready) == 0) cuda_pull_array(l.output_gpu, l.output, l.outputs*l.batch);
 	return l.output;
 }

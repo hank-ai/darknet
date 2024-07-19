@@ -202,7 +202,7 @@ void dump(network * net, const Darknet::CfgFile::CommonParms & parms)
 
 	for (size_t n = 0; n < net->n; n ++)
 	{
-		Darknet::Layer /*&*/ l = net->layers[n];
+		Darknet::Layer & l = net->layers[n];
 		ofs	<< "--------------------------"							<< std::endl
 			<< "n="						<< n << " of " << net->n	<< std::endl
 			<< "type="					<< get_layer_string(l.type)	<< std::endl

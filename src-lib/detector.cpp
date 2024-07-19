@@ -121,10 +121,10 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	data train;
 	data buffer;
 
-	Darknet::Layer /*&*/ l = net.layers[net.n - 1];
+	Darknet::Layer l = net.layers[net.n - 1];
 	for (int k = 0; k < net.n; ++k)
 	{
-		Darknet::Layer /*&*/ lk = net.layers[k];
+		Darknet::Layer & lk = net.layers[k];
 		if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
 		{
 			l = lk;
@@ -799,10 +799,10 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 	list *plist = get_paths(valid_images);
 	char **paths = (char **)list_to_array(plist);
 
-	Darknet::Layer /*&*/ l = net.layers[net.n - 1];
+	Darknet::Layer l = net.layers[net.n - 1];
 	for (int k = 0; k < net.n; ++k)
 	{
-		Darknet::Layer /*&*/ lk = net.layers[k];
+		Darknet::Layer & lk = net.layers[k];
 		if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
 		{
 			l = lk;
@@ -1158,10 +1158,10 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		paths_dif = (char **)list_to_array(plist_dif);
 	}
 
-	Darknet::Layer /*&*/ l = net.layers[net.n - 1];
+	Darknet::Layer l = net.layers[net.n - 1];
 	for (int k = 0; k < net.n; ++k)
 	{
-		Darknet::Layer /*&*/ lk = net.layers[k];
+		Darknet::Layer & lk = net.layers[k];
 		if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
 		{
 			l = lk;
@@ -2041,10 +2041,10 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 			sized = resize_image(im, net.w, net.h);
 		}
 
-		Darknet::Layer /*&*/ l = net.layers[net.n - 1];
+		Darknet::Layer l = net.layers[net.n - 1];
 		for (int k = 0; k < net.n; ++k)
 		{
-			Darknet::Layer /*&*/ lk = net.layers[k];
+			Darknet::Layer & lk = net.layers[k];
 			if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
 			{
 				l = lk;
@@ -2204,10 +2204,10 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 
 		image src_sized = copy_image(sized);
 
-		Darknet::Layer /*&*/ l = net.layers[net.n - 1];
+		Darknet::Layer l = net.layers[net.n - 1];
 		int k;
 		for (k = 0; k < net.n; ++k) {
-			Darknet::Layer /*&*/ lk = net.layers[k];
+			Darknet::Layer & lk = net.layers[k];
 			if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
 			{
 				l = lk;

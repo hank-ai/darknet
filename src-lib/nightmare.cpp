@@ -57,7 +57,7 @@ void optimize_picture(network *net, image orig, int max_layer, float scale, floa
 	if(flip) flip_image(im);
 
 	resize_network(net, im.w, im.h);
-	Darknet::Layer /*&*/ last = net->layers[net->n-1];
+	Darknet::Layer & last = net->layers[net->n-1];
 	//net->layers[net->n - 1].activation = LINEAR;
 
 	image delta = make_image(im.w, im.h, im.c);

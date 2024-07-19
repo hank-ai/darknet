@@ -55,7 +55,7 @@ void reset_network_state(network *net, int b)
 	for (int i = 0; i < net->n; ++i)
 	{
 #ifdef GPU
-		Darknet::Layer /*&*/ l = net->layers[i];
+		Darknet::Layer & l = net->layers[i];
 		if (l.state_gpu)
 		{
 			fill_ongpu(l.outputs, 0, l.state_gpu + l.outputs*b, 1);
@@ -270,7 +270,7 @@ void forward_network(network net, network_state state)
 	for (int i = 0; i < net.n; ++i)
 	{
 		state.index = i;
-		Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 		if (l.delta && state.train && l.train)
 		{
 			scal_cpu(l.outputs * l.batch, 0, l.delta, 1);
@@ -292,7 +292,7 @@ void update_network(network net)
 
 	for (int i = 0; i < net.n; ++i)
 	{
-		Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 		if (l.train == 0)
 		{
 			continue;
@@ -379,12 +379,12 @@ void backward_network(network net, network_state state)
 		}
 		else
 		{
-			Darknet::Layer /*&*/ prev = net.layers[i-1];
+			Darknet::Layer & prev = net.layers[i-1];
 			state.input = prev.output;
 			state.delta = prev.delta;
 		}
 
-		Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 		if (l.stopbackward)
 		{
 			break;
@@ -595,7 +595,7 @@ int recalculate_workspace_size(network *net)
 	size_t workspace_size = 0;
 	for (int i = 0; i < net->n; ++i)
 	{
-		Darknet::Layer /*&*/ l = net->layers[i];
+		Darknet::Layer & l = net->layers[i];
 		//printf(" %d: layer = %d,", i, l.type);
 
 		if (l.type == CONVOLUTIONAL)
@@ -612,7 +612,7 @@ int recalculate_workspace_size(network *net)
 			workspace_size = l.workspace_size;
 		}
 
-		net->layers[i] = l;
+//		net->layers[i] = l;
 	}
 
 #ifdef GPU
@@ -709,7 +709,7 @@ int resize_network(network *net, int w, int h)
 	//fflush(stderr);
 	for (int i = 0; i < net->n; ++i)
 	{
-		Darknet::Layer /*&*/ l = net->layers[i];
+		Darknet::Layer & l = net->layers[i];
 		//printf(" (resize %d: layer = %d) , ", i, l.type);
 
 		switch (l.type)
@@ -754,7 +754,7 @@ int resize_network(network *net, int w, int h)
 		}
 
 		inputs = l.outputs;
-		net->layers[i] = l;
+//		net->layers[i] = l;
 		//if(l.type != DROPOUT)
 		{
 			w = l.out_w;
@@ -834,7 +834,7 @@ image get_network_image_layer(network net, int i)
 {
 	TAT(TATPARMS);
 
-	Darknet::Layer /*&*/ l = net.layers[i];
+	Darknet::Layer & l = net.layers[i];
 	if (l.out_w && l.out_h && l.out_c)
 	{
 		return float_to_image(l.out_w, l.out_h, l.out_c, l.output);
@@ -879,7 +879,7 @@ void visualize_network(network net)
 
 	for (int i = 0; i < net.n; ++i)
 	{
-		Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 
 		if (l.type == CONVOLUTIONAL)
 		{
@@ -944,7 +944,7 @@ int num_detections(network *net, float thresh)
 	int s = 0;
 	for (int i = 0; i < net->n; ++i)
 	{
-		const Darknet::Layer /*&*/ l = net->layers[i];
+		const Darknet::Layer & l = net->layers[i];
 		if (l.type == YOLO)
 		{
 			/// @todo V3 JAZZ 725 milliseconds -- this is where we spend all our time
@@ -976,7 +976,7 @@ int num_detections_v3(network *net, float thresh, Darknet::Output_Object_Cache &
 
 	for (int i = 0; i < net->n; ++i)
 	{
-		const Darknet::Layer /*&*/ l = net->layers[i];
+		const Darknet::Layer & l = net->layers[i];
 		if (l.type == YOLO)
 		{
 			/// @todo V3 JAZZ 687 milliseconds -- this is where we spend all our time
@@ -1007,7 +1007,7 @@ int num_detections_batch(network *net, float thresh, int batch)
 	int s = 0;
 	for (int i = 0; i < net->n; ++i)
 	{
-		const Darknet::Layer /*&*/ l = net->layers[i];
+		const Darknet::Layer & l = net->layers[i];
 		if (l.type == YOLO)
 		{
 			s += yolo_num_detections_batch(l, thresh, batch);
@@ -1035,7 +1035,7 @@ detection * make_network_boxes(network *net, float thresh, int *num)
 	Darknet::Layer l;
 	for (int i = 0; i < net->n; ++i)
 	{
-		Darknet::Layer /*&*/ l_tmp = net->layers[i];
+		Darknet::Layer & l_tmp = net->layers[i];
 		if (l_tmp.type == YOLO || l_tmp.type == GAUSSIAN_YOLO || l_tmp.type == REGION || i == (net->n - 1))
 		{
 			l = l_tmp;
@@ -1096,13 +1096,13 @@ detection * make_network_boxes_v3(network * net, const float thresh, int * num, 
 	TAT(TATPARMS);
 
 	// find a layer that is one of these 4 types
-	const Darknet::Layer /*&*/ l = [&net]()
+	const Darknet::Layer & l = [&net]()
 	{
 		for (int i = 0; i < net->n; ++i)
 		{
 			/// @todo Is anything but YOLO still used as an output layer in a modern .cfg file?  Should these be removed?
 
-			const Darknet::Layer /*&*/ tmp = net->layers[i];
+			const Darknet::Layer & tmp = net->layers[i];
 			if (tmp.type == YOLO			or
 				tmp.type == GAUSSIAN_YOLO	or
 				tmp.type == REGION			)
@@ -1159,7 +1159,7 @@ detection *make_network_boxes_batch(network *net, float thresh, int *num, int ba
 	Darknet::Layer l = net->layers[net->n - 1];
 	for (int i = 0; i < net->n; ++i)
 	{
-		const Darknet::Layer /*&*/ l_tmp = net->layers[i];
+		const Darknet::Layer & l_tmp = net->layers[i];
 		if (l_tmp.type == YOLO || l_tmp.type == GAUSSIAN_YOLO || l_tmp.type == REGION)
 		{
 			l = l_tmp;
@@ -1209,7 +1209,7 @@ detection *make_network_boxes_batch(network *net, float thresh, int *num, int ba
 }
 
 
-void custom_get_region_detections(const Darknet::Layer /*&*/ l, int w, int h, int net_w, int net_h, float thresh, int *map, float hier, int relative, detection *dets, int letter)
+void custom_get_region_detections(const Darknet::Layer & l, int w, int h, int net_w, int net_h, float thresh, int *map, float hier, int relative, detection *dets, int letter)
 {
 	TAT(TATPARMS);
 
@@ -1257,7 +1257,7 @@ void fill_network_boxes(network *net, int w, int h, float thresh, float hier, in
 	int prev_classes = -1;
 	for (int j = 0; j < net->n; ++j)
 	{
-		const Darknet::Layer /*&*/ l = net->layers[j];
+		const Darknet::Layer & l = net->layers[j];
 		switch (l.type)
 		{
 			case YOLO:
@@ -1317,7 +1317,7 @@ void fill_network_boxes_batch(network *net, int w, int h, float thresh, float hi
 	int prev_classes = -1;
 	for (int j = 0; j < net->n; ++j)
 	{
-		const Darknet::Layer /*&*/ l = net->layers[j];
+		const Darknet::Layer & l = net->layers[j];
 		if (l.type == YOLO)
 		{
 			int count = get_yolo_detections_batch(l, w, h, net->w, net->h, thresh, map, relative, dets, letter, batch);
@@ -1656,7 +1656,7 @@ void print_network(network net)
 
 	for (int i = 0; i < net.n; ++i)
 	{
-		const Darknet::Layer /*&*/ l = net.layers[i];
+		const Darknet::Layer & l = net.layers[i];
 		float *output = l.output;
 		int n = l.outputs;
 		float mean = mean_array(output, n);
@@ -2034,7 +2034,7 @@ void calculate_binary_weights(network net)
 }
 
 
-void copy_cudnn_descriptors(Darknet::Layer /*&*/ src, Darknet::Layer *dst)
+void copy_cudnn_descriptors(const Darknet::Layer & src, Darknet::Layer *dst)
 {
 	TAT(TATPARMS);
 
@@ -2183,7 +2183,7 @@ int is_ema_initialized(network net)
 
 	for (int i = 0; i < net.n; ++i)
 	{
-		const Darknet::Layer /*&*/ l = net.layers[i];
+		const Darknet::Layer & l = net.layers[i];
 		if (l.type == CONVOLUTIONAL)
 		{
 			if (l.weights_ema)
@@ -2209,7 +2209,7 @@ void ema_update(network net, float ema_alpha)
 
 	for (int i = 0; i < net.n; ++i)
 	{
-		Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 		if (l.type == CONVOLUTIONAL)
 		{
 #ifdef GPU
@@ -2250,7 +2250,7 @@ void ema_apply(network net)
 
 	for (int i = 0; i < net.n; ++i)
 	{
-		Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 		if (l.type == CONVOLUTIONAL)
 		{
 			if (l.weights_ema)
@@ -2291,7 +2291,7 @@ void reject_similar_weights(network net, float sim_threshold)
 
 	for (int i = 0; i < net.n; ++i)
 	{
-		Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 
 		if (i == 0)
 		{

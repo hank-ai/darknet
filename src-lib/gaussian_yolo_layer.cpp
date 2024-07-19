@@ -351,7 +351,7 @@ namespace
 	}
 
 
-	inline int entry_gaussian_index(const Darknet::Layer /*&*/ l, const int batch, const int location, const int entry)
+	inline int entry_gaussian_index(const Darknet::Layer & l, const int batch, const int location, const int entry)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -906,7 +906,7 @@ void correct_gaussian_yolo_boxes(detection *dets, int n, int w, int h, int netw,
 }
 
 
-int gaussian_yolo_num_detections(const Darknet::Layer /*&*/ l, float thresh)
+int gaussian_yolo_num_detections(const Darknet::Layer & l, float thresh)
 {
 	TAT(TATPARMS);
 
@@ -929,7 +929,7 @@ int gaussian_yolo_num_detections(const Darknet::Layer /*&*/ l, float thresh)
 }
 
 
-int get_gaussian_yolo_detections(const Darknet::Layer /*&*/ l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
+int get_gaussian_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
 {
 	TAT(TATPARMS);
 

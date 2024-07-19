@@ -308,7 +308,7 @@ void transpose_matrix(float *a, int rows, int cols)
 	free(transpose);
 }
 
-void load_connected_weights(Darknet::Layer /*&*/ l, FILE *fp, int transpose)
+void load_connected_weights(Darknet::Layer & l, FILE *fp, int transpose)
 {
 	TAT(TATPARMS);
 
@@ -337,7 +337,7 @@ void load_connected_weights(Darknet::Layer /*&*/ l, FILE *fp, int transpose)
 #endif
 }
 
-void load_batchnorm_weights(Darknet::Layer /*&*/ l, FILE *fp)
+void load_batchnorm_weights(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
@@ -353,7 +353,7 @@ void load_batchnorm_weights(Darknet::Layer /*&*/ l, FILE *fp)
 #endif
 }
 
-void load_convolutional_weights_binary(Darknet::Layer /*&*/ l, FILE *fp)
+void load_convolutional_weights_binary(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
@@ -390,7 +390,7 @@ void load_convolutional_weights_binary(Darknet::Layer /*&*/ l, FILE *fp)
 #endif
 }
 
-void load_convolutional_weights(Darknet::Layer /*&*/ l, FILE *fp)
+void load_convolutional_weights(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
@@ -443,7 +443,7 @@ void load_convolutional_weights(Darknet::Layer /*&*/ l, FILE *fp)
 #endif
 }
 
-void load_shortcut_weights(Darknet::Layer /*&*/ l, FILE *fp)
+void load_shortcut_weights(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
@@ -525,7 +525,7 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 
 	for (int i = 0; i < net->n && i < cutoff; ++i)
 	{
-		Darknet::Layer /*&*/ l = net->layers[i];
+		Darknet::Layer & l = net->layers[i];
 		if (l.dontload)
 		{
 			continue;

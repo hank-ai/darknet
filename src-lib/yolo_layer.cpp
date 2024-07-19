@@ -1334,7 +1334,7 @@ int yolo_num_detections_v3(network * net, const int index, const float thresh, D
 
 	int count = 0;
 
-	const Darknet::Layer /*&*/ l = net->layers[index];
+	const Darknet::Layer & l = net->layers[index];
 
 	for (int n = 0; n < l.n; ++n)
 	{
@@ -1445,7 +1445,7 @@ int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, floa
 		const auto & n			= oo.n;
 		const auto & obj_index	= oo.obj_index;
 
-		const Darknet::Layer /*&*/ l = net->layers[oo.layer_index];
+		const Darknet::Layer & l = net->layers[oo.layer_index];
 		const float * predictions = l.output;
 
 		const int row			= i / l.w;
@@ -1526,8 +1526,7 @@ void forward_yolo_layer_gpu(Darknet::Layer & l, network_state state)
 
 	if (l.embedding_output)
 	{
-		/// @todo make "le" a reference?
-		Darknet::Layer /*&*/ le = state.net.layers[l.embedding_layer_id];
+		Darknet::Layer & le = state.net.layers[l.embedding_layer_id];
 		cuda_pull_array_async(le.output_gpu, l.embedding_output, le.batch*le.outputs);
 	}
 
