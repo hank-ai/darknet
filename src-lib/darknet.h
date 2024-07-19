@@ -1049,8 +1049,8 @@ image crop_image(image im, int dx, int dy, int w, int h);
 image resize_min(image im, int min);
 
 // layer.h
-void free_layer_custom(Darknet::Layer /*&*/ l, int keep_cudnn_desc);
-void free_layer(Darknet::Layer /*&*/ l);
+void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc);
+void free_layer(Darknet::Layer & l);
 
 // dark_cuda.h
 void cuda_pull_array(float *x_gpu, float *x, size_t n);

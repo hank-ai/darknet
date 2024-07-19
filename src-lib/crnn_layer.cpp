@@ -258,7 +258,7 @@ void backward_crnn_layer(Darknet::Layer & l, network_state state)
 
 #ifdef GPU
 
-void pull_crnn_layer(Darknet::Layer /*&*/ l)
+void pull_crnn_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -267,7 +267,7 @@ void pull_crnn_layer(Darknet::Layer /*&*/ l)
 	pull_convolutional_layer(*(l.output_layer));
 }
 
-void push_crnn_layer(Darknet::Layer /*&*/ l)
+void push_crnn_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 

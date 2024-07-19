@@ -7,7 +7,7 @@
 #include "gemm.hpp"
 
 
-size_t get_connected_workspace_size(Darknet::Layer /*&*/ l)
+size_t get_connected_workspace_size(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -250,7 +250,7 @@ void backward_connected_layer(Darknet::Layer & l, network_state state)
 }
 
 
-void denormalize_connected_layer(Darknet::Layer /*&*/ l)
+void denormalize_connected_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -269,7 +269,7 @@ void denormalize_connected_layer(Darknet::Layer /*&*/ l)
 }
 
 
-void statistics_connected_layer(Darknet::Layer /*&*/ l)
+void statistics_connected_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -292,7 +292,7 @@ void statistics_connected_layer(Darknet::Layer /*&*/ l)
 
 #ifdef GPU
 
-void pull_connected_layer(Darknet::Layer /*&*/ l)
+void pull_connected_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -309,7 +309,7 @@ void pull_connected_layer(Darknet::Layer /*&*/ l)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-void push_connected_layer(Darknet::Layer /*&*/ l)
+void push_connected_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 

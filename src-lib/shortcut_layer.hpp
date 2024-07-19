@@ -16,8 +16,8 @@ void resize_shortcut_layer(Darknet::Layer *l, int w, int h, network *net);
 void forward_shortcut_layer_gpu(Darknet::Layer & l, network_state state);
 void backward_shortcut_layer_gpu(Darknet::Layer & l, network_state state);
 void update_shortcut_layer_gpu(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale);
-void pull_shortcut_layer(Darknet::Layer /*&*/ l);
-void push_shortcut_layer(Darknet::Layer /*&*/ l);
+void pull_shortcut_layer(Darknet::Layer & l);
+void push_shortcut_layer(Darknet::Layer & l);
 #endif
 
 #ifdef __cplusplus

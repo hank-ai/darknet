@@ -251,7 +251,7 @@ void update_batchnorm_layer(Darknet::Layer & l, int batch, float learning_rate, 
 
 #ifdef GPU
 
-void pull_batchnorm_layer(Darknet::Layer l)
+void pull_batchnorm_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -260,7 +260,7 @@ void pull_batchnorm_layer(Darknet::Layer l)
 	cuda_pull_array(l.rolling_mean_gpu, l.rolling_mean, l.out_c);
 	cuda_pull_array(l.rolling_variance_gpu, l.rolling_variance, l.out_c);
 }
-void push_batchnorm_layer(Darknet::Layer l)
+void push_batchnorm_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 

@@ -7,6 +7,7 @@ namespace
 
 	struct train_yolo_args
 	{
+		/// @todo maybe pass in the layer index instead so we don't have to copy the entire layer structure?
 		Darknet::Layer l;
 		network_state state;
 		int b;
@@ -341,7 +342,7 @@ namespace
 	}
 
 
-	static inline int yolo_entry_index(const Darknet::Layer /*&*/ l, const int batch, const int location, const int entry)
+	static inline int yolo_entry_index(const Darknet::Layer & l, const int batch, const int location, const int entry)
 	{
 		// similar function exists in region_layer.cpp, but the math is slightly different
 
@@ -354,7 +355,7 @@ namespace
 	}
 
 
-	static inline void avg_flipped_yolo(Darknet::Layer /*&*/ l)
+	static inline void avg_flipped_yolo(Darknet::Layer & l)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -547,7 +548,7 @@ void process_batch(void* ptr)
 	TAT_COMMENT(TATPARMS, "complicated");
 
 	train_yolo_args *args = (train_yolo_args*)ptr;
-	const Darknet::Layer /*&*/ l = args->l;
+	const Darknet::Layer & l = args->l;
 	network_state state = args->state;
 	int b = args->b;
 

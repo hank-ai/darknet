@@ -1249,7 +1249,7 @@ void assisted_excitation_forward_gpu(Darknet::Layer /*&*/ l, network_state state
 	free(a_avg);
 }
 
-void pull_convolutional_layer(Darknet::Layer /*&*/ l)
+void pull_convolutional_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -1270,7 +1270,7 @@ void pull_convolutional_layer(Darknet::Layer /*&*/ l)
 	cudaStreamSynchronize(get_cuda_stream());
 }
 
-void push_convolutional_layer(Darknet::Layer /*&*/ l)
+void push_convolutional_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 

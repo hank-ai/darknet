@@ -14,8 +14,8 @@ void forward_convolutional_layer_gpu(Darknet::Layer & l, network_state state);
 void backward_convolutional_layer_gpu(Darknet::Layer & l, network_state state);
 void update_convolutional_layer_gpu(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay, float loss_scale);
 
-void push_convolutional_layer(Darknet::Layer /*&*/ l);
-void pull_convolutional_layer(Darknet::Layer /*&*/ l);
+void push_convolutional_layer(Darknet::Layer & l);
+void pull_convolutional_layer(Darknet::Layer & l);
 
 void add_bias_gpu(float *output, float *biases, int batch, int n, int size);
 void backward_bias_gpu(float *bias_updates, float *delta, int batch, int n, int size);
@@ -27,9 +27,9 @@ void cuda_convert_f32_to_f16(float* input_f32, size_t size, float *output_f16);
 #endif
 void free_convolutional_batchnorm(Darknet::Layer *l);
 
-size_t get_convolutional_workspace_size(Darknet::Layer /*&*/ l);
+size_t get_convolutional_workspace_size(const Darknet::Layer & l);
 Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int c, int n, int groups, int size, int stride_x, int stride_y, int dilation, int padding, ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam, int use_bin_output, int index, int antialiasing, Darknet::Layer * share_layer, int assisted_excitation, int deform, int train);
-void denormalize_convolutional_layer(Darknet::Layer /*&*/ l);
+void denormalize_convolutional_layer(Darknet::Layer & l);
 void set_specified_workspace_limit(Darknet::Layer *l, size_t workspace_size_limit);
 void resize_convolutional_layer(Darknet::Layer * l, int w, int h);
 void forward_convolutional_layer(Darknet::Layer & l, network_state state);

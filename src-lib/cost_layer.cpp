@@ -101,14 +101,14 @@ void backward_cost_layer(Darknet::Layer & l, network_state state)
 
 #ifdef GPU
 
-void pull_cost_layer(Darknet::Layer /*&*/ l)
+void pull_cost_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
 	cuda_pull_array(l.delta_gpu, l.delta, l.batch*l.inputs);
 }
 
-void push_cost_layer(Darknet::Layer /*&*/ l)
+void push_cost_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 

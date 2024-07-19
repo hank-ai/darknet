@@ -80,7 +80,7 @@ void backward_softmax_layer(Darknet::Layer & l, network_state net)
 
 #ifdef GPU
 
-void pull_softmax_layer_output(const Darknet::Layer /*&*/ l)
+void pull_softmax_layer_output(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -595,14 +595,14 @@ void backward_contrastive_layer(Darknet::Layer & l, network_state state)
 
 #ifdef GPU
 
-void pull_contrastive_layer_output(const Darknet::Layer /*&*/ l)
+void pull_contrastive_layer_output(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
 	cuda_pull_array(l.output_gpu, l.output, l.inputs*l.batch);
 }
 
-void push_contrastive_layer_output(const Darknet::Layer /*&*/ l)
+void push_contrastive_layer_output(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 

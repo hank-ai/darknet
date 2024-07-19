@@ -313,7 +313,7 @@ void update_shortcut_layer_gpu(Darknet::Layer & l, int batch, float learning_rat
 	}
 }
 
-void pull_shortcut_layer(Darknet::Layer /*&*/ l)
+void pull_shortcut_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -324,7 +324,7 @@ void pull_shortcut_layer(Darknet::Layer /*&*/ l)
 	CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));
 }
 
-void push_shortcut_layer(Darknet::Layer /*&*/ l)
+void push_shortcut_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 

@@ -18,7 +18,7 @@ namespace
 		}
 	}
 
-	inline size_t get_workspace_size32(const Darknet::Layer /*&*/ l)
+	inline size_t get_workspace_size32(const Darknet::Layer & l)
 	{
 		TAT(TATPARMS);
 
@@ -79,7 +79,7 @@ namespace
 	}
 
 
-	inline size_t get_workspace_size16(const Darknet::Layer /*&*/ l)
+	inline size_t get_workspace_size16(const Darknet::Layer & l)
 	{
 		TAT(TATPARMS);
 
@@ -271,13 +271,17 @@ image get_convolutional_delta(Darknet::Layer /*&*/ l)
 }
 
 
-size_t get_convolutional_workspace_size(Darknet::Layer /*&*/ l)
+size_t get_convolutional_workspace_size(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
 	size_t workspace_size = get_workspace_size32(l);
 	size_t workspace_size16 = get_workspace_size16(l);
-	if (workspace_size16 > workspace_size) workspace_size = workspace_size16;
+	if (workspace_size16 > workspace_size)
+	{
+		workspace_size = workspace_size16;
+	}
+
 	return workspace_size;
 }
 
@@ -1004,7 +1008,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 	return l;
 }
 
-void denormalize_convolutional_layer(Darknet::Layer /*&*/ l)
+void denormalize_convolutional_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 

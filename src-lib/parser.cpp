@@ -37,7 +37,7 @@ network parse_network_cfg_custom(const char * filename, int batch, int time_step
 }
 
 
-void save_convolutional_weights_binary(const Darknet::Layer /*&*/ l, FILE *fp)
+void save_convolutional_weights_binary(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
@@ -85,7 +85,7 @@ void save_convolutional_weights_binary(const Darknet::Layer /*&*/ l, FILE *fp)
 	}
 }
 
-void save_shortcut_weights(const Darknet::Layer /*&*/ l, FILE *fp)
+void save_shortcut_weights(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
@@ -109,7 +109,7 @@ void save_shortcut_weights(const Darknet::Layer /*&*/ l, FILE *fp)
 	fwrite(l.weights, sizeof(float), num, fp);
 }
 
-void save_convolutional_weights(const Darknet::Layer /*&*/ l, FILE *fp)
+void save_convolutional_weights(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
@@ -139,7 +139,7 @@ void save_convolutional_weights(const Darknet::Layer /*&*/ l, FILE *fp)
 	//}
 }
 
-void save_convolutional_weights_ema(const Darknet::Layer /*&*/ l, FILE *fp)
+void save_convolutional_weights_ema(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
@@ -169,7 +169,7 @@ void save_convolutional_weights_ema(const Darknet::Layer /*&*/ l, FILE *fp)
 	//}
 }
 
-void save_batchnorm_weights(const Darknet::Layer /*&*/ l, FILE *fp)
+void save_batchnorm_weights(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
@@ -185,7 +185,7 @@ void save_batchnorm_weights(const Darknet::Layer /*&*/ l, FILE *fp)
 	fwrite(l.rolling_variance, sizeof(float), l.c, fp);
 }
 
-void save_connected_weights(const Darknet::Layer /*&*/ l, FILE *fp)
+void save_connected_weights(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
@@ -237,7 +237,7 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 	int i;
 	for (i = 0; i < net.n && i < cutoff; ++i)
 	{
-		const Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 		if (l.type == CONVOLUTIONAL && l.share_layer == NULL)
 		{
 			if (save_ema)

@@ -19,8 +19,8 @@ void update_crnn_layer(Darknet::Layer & l, int batch, float learning_rate, float
 void forward_crnn_layer_gpu(Darknet::Layer & l, network_state state);
 void backward_crnn_layer_gpu(Darknet::Layer & l, network_state state);
 void update_crnn_layer_gpu(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay, float loss_scale);
-void push_crnn_layer(Darknet::Layer /*&*/ l);
-void pull_crnn_layer(Darknet::Layer /*&*/ l);
+void push_crnn_layer(Darknet::Layer & l);
+void pull_crnn_layer(Darknet::Layer & l);
 #endif
 
 #ifdef __cplusplus

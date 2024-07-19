@@ -182,7 +182,7 @@ void backward_rnn_layer(Darknet::Layer & l, network_state state)
 
 #ifdef GPU
 
-void pull_rnn_layer(Darknet::Layer /*&*/ l)
+void pull_rnn_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -191,7 +191,7 @@ void pull_rnn_layer(Darknet::Layer /*&*/ l)
 	pull_connected_layer(*(l.output_layer));
 }
 
-void push_rnn_layer(Darknet::Layer /*&*/ l)
+void push_rnn_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
