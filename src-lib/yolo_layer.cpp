@@ -7,7 +7,7 @@ namespace
 
 	struct train_yolo_args
 	{
-		layer l;
+		Darknet::Layer l;
 		network_state state;
 		int b;
 
@@ -341,7 +341,7 @@ namespace
 	}
 
 
-	static inline int yolo_entry_index(const layer & l, const int batch, const int location, const int entry)
+	static inline int yolo_entry_index(const Darknet::Layer /*&*/ l, const int batch, const int location, const int entry)
 	{
 		// similar function exists in region_layer.cpp, but the math is slightly different
 
@@ -354,7 +354,7 @@ namespace
 	}
 
 
-	static inline void avg_flipped_yolo(layer & l)
+	static inline void avg_flipped_yolo(Darknet::Layer /*&*/ l)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -390,11 +390,11 @@ namespace
 } // anonymous namespace
 
 
-layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)
+Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)
 {
 	TAT(TATPARMS);
 
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = YOLO;
 
 	l.n = n;
@@ -495,7 +495,7 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	return l;
 }
 
-void resize_yolo_layer(layer * l, int w, int h)
+void resize_yolo_layer(Darknet::Layer * l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -547,7 +547,7 @@ void process_batch(void* ptr)
 	TAT_COMMENT(TATPARMS, "complicated");
 
 	train_yolo_args *args = (train_yolo_args*)ptr;
-	const layer l = args->l;
+	const Darknet::Layer /*&*/ l = args->l;
 	network_state state = args->state;
 	int b = args->b;
 
@@ -908,7 +908,7 @@ void process_batch(void* ptr)
 
 
 
-void forward_yolo_layer(const layer l, network_state state)
+void forward_yolo_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -1224,7 +1224,7 @@ void forward_yolo_layer(const layer l, network_state state)
 	}
 }
 
-void backward_yolo_layer(const layer l, network_state state)
+void backward_yolo_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -1299,7 +1299,7 @@ void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth
 }
 
 
-int yolo_num_detections(layer l, float thresh)
+int yolo_num_detections(const Darknet::Layer /*&*/ l, float thresh)
 {
 	TAT(TATPARMS);
 
@@ -1333,7 +1333,7 @@ int yolo_num_detections_v3(network * net, const int index, const float thresh, D
 
 	int count = 0;
 
-	const layer & l = net->layers[index];
+	const Darknet::Layer /*&*/ l = net->layers[index];
 
 	for (int n = 0; n < l.n; ++n)
 	{
@@ -1359,7 +1359,7 @@ int yolo_num_detections_v3(network * net, const int index, const float thresh, D
 }
 
 
-int yolo_num_detections_batch(layer l, float thresh, int batch)
+int yolo_num_detections_batch(const Darknet::Layer /*&*/ l, float thresh, int batch)
 {
 	TAT(TATPARMS);
 
@@ -1380,7 +1380,7 @@ int yolo_num_detections_batch(layer l, float thresh, int batch)
 }
 
 
-int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
+int get_yolo_detections(const Darknet::Layer /*&*/ l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
 {
 	TAT(TATPARMS);
 
@@ -1444,7 +1444,7 @@ int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, floa
 		const auto & n			= oo.n;
 		const auto & obj_index	= oo.obj_index;
 
-		const layer & l = net->layers[oo.layer_index];
+		const Darknet::Layer /*&*/ l = net->layers[oo.layer_index];
 		const float * predictions = l.output;
 
 		const int row			= i / l.w;
@@ -1476,7 +1476,7 @@ int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, floa
 }
 
 
-int get_yolo_detections_batch(layer l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, int batch)
+int get_yolo_detections_batch(const Darknet::Layer /*&*/ l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, int batch)
 {
 	TAT(TATPARMS);
 
@@ -1519,14 +1519,14 @@ int get_yolo_detections_batch(layer l, int w, int h, int netw, int neth, float t
 
 #ifdef GPU
 
-void forward_yolo_layer_gpu(const layer l, network_state state)
+void forward_yolo_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
 	if (l.embedding_output)
 	{
 		/// @todo make "le" a reference?
-		layer le = state.net.layers[l.embedding_layer_id];
+		Darknet::Layer /*&*/ le = state.net.layers[l.embedding_layer_id];
 		cuda_pull_array_async(le.output_gpu, l.embedding_output, le.batch*le.outputs);
 	}
 
@@ -1600,7 +1600,7 @@ void forward_yolo_layer_gpu(const layer l, network_state state)
 	}
 }
 
-void backward_yolo_layer_gpu(const layer l, network_state state)
+void backward_yolo_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

@@ -18,7 +18,7 @@ namespace
 		}
 	}
 
-	inline size_t get_workspace_size32(const layer & l)
+	inline size_t get_workspace_size32(const Darknet::Layer /*&*/ l)
 	{
 		TAT(TATPARMS);
 
@@ -79,7 +79,7 @@ namespace
 	}
 
 
-	inline size_t get_workspace_size16(const layer & l)
+	inline size_t get_workspace_size16(const Darknet::Layer /*&*/ l)
 	{
 		TAT(TATPARMS);
 
@@ -157,7 +157,7 @@ namespace
 	}
 
 
-	inline image *get_weights(const layer & l)
+	inline image *get_weights(const Darknet::Layer /*&*/ l)
 	{
 		TAT(TATPARMS);
 
@@ -173,7 +173,7 @@ namespace
 }
 
 
-void swap_binary(layer * l)
+void swap_binary(Darknet::Layer * l)
 {
 	TAT(TATPARMS);
 
@@ -231,7 +231,7 @@ void binarize_input(float *input, int n, int size, float *binary)
 }
 
 
-int convolutional_out_height(layer l)
+int convolutional_out_height(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -239,7 +239,7 @@ int convolutional_out_height(layer l)
 }
 
 
-int convolutional_out_width(layer l)
+int convolutional_out_width(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -247,7 +247,7 @@ int convolutional_out_width(layer l)
 }
 
 
-image get_convolutional_image(layer l)
+image get_convolutional_image(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -259,7 +259,7 @@ image get_convolutional_image(layer l)
 }
 
 
-image get_convolutional_delta(layer l)
+image get_convolutional_delta(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -271,7 +271,7 @@ image get_convolutional_delta(layer l)
 }
 
 
-size_t get_convolutional_workspace_size(layer l)
+size_t get_convolutional_workspace_size(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -289,7 +289,7 @@ size_t get_convolutional_workspace_size(layer l)
 #ifdef CUDNN
 
 
-void create_convolutional_cudnn_tensors(layer *l)
+void create_convolutional_cudnn_tensors(Darknet::Layer *l)
 {
 	TAT(TATPARMS);
 
@@ -315,7 +315,7 @@ void create_convolutional_cudnn_tensors(layer *l)
 }
 
 
-void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_size_specify)
+void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t workspace_size_specify)
 {
 	TAT(TATPARMS);
 
@@ -583,7 +583,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
 // **********************************************
 
 
-void free_convolutional_batchnorm(layer *l)
+void free_convolutional_batchnorm(Darknet::Layer *l)
 {
 	TAT(TATPARMS);
 
@@ -616,13 +616,13 @@ void free_convolutional_batchnorm(layer *l)
 }
 
 
-layer make_convolutional_layer(int batch, int steps, int h, int w, int c, int n, int groups, int size, int stride_x, int stride_y, int dilation, int padding, ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam, int use_bin_output, int index, int antialiasing, layer *share_layer, int assisted_excitation, int deform, int train)
+Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int c, int n, int groups, int size, int stride_x, int stride_y, int dilation, int padding, ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam, int use_bin_output, int index, int antialiasing, Darknet::Layer *share_layer, int assisted_excitation, int deform, int train)
 {
 	TAT(TATPARMS);
 
 	int total_batch = batch*steps;
 	int i;
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = CONVOLUTIONAL;
 	l.train = train;
 
@@ -951,7 +951,7 @@ layer make_convolutional_layer(int batch, int steps, int h, int w, int c, int n,
 	if (l.antialiasing)
 	{
 //		printf("AA:  ");
-		l.input_layer = (layer*)xcalloc(1, sizeof(layer));
+		l.input_layer = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 		int blur_size = 3;
 		int blur_pad = blur_size / 2;
 		if (l.antialiasing == 2)
@@ -1004,7 +1004,7 @@ layer make_convolutional_layer(int batch, int steps, int h, int w, int c, int n,
 	return l;
 }
 
-void denormalize_convolutional_layer(layer l)
+void denormalize_convolutional_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -1026,7 +1026,7 @@ void test_convolutional_layer()
 {
 	TAT(TATPARMS);
 
-	layer l = make_convolutional_layer(1, 1, 5, 5, 3, 2, 1, 5, 2, 2, 1, 1, LEAKY, 1, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0);
+	Darknet::Layer l = make_convolutional_layer(1, 1, 5, 5, 3, 2, 1, 5, 2, 2, 1, 1, LEAKY, 1, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0);
 	l.batch_normalize = 1;
 	float data[] = {1,1,1,1,1,
 		1,1,1,1,1,
@@ -1048,7 +1048,7 @@ void test_convolutional_layer()
 	forward_convolutional_layer(l, state);
 }
 
-void resize_convolutional_layer(layer *l, int w, int h)
+void resize_convolutional_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -1145,7 +1145,7 @@ void resize_convolutional_layer(layer *l, int w, int h)
 #endif
 }
 
-void set_specified_workspace_limit(layer * l, size_t workspace_size_limit)
+void set_specified_workspace_limit(Darknet::Layer * l, size_t workspace_size_limit)
 {
 	TAT(TATPARMS);
 
@@ -1223,7 +1223,7 @@ void gemm_nn_custom(int M, int N, int K, float ALPHA, float *A, int lda, float *
 }
 
 
-void binary_align_weights(layer *l)
+void binary_align_weights(Darknet::Layer *l)
 {
 	TAT(TATPARMS);
 
@@ -1320,7 +1320,7 @@ void binary_align_weights(layer *l)
 	free(align_weights);
 }
 
-void forward_convolutional_layer(layer l, network_state state)
+void forward_convolutional_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -1547,7 +1547,7 @@ void forward_convolutional_layer(layer l, network_state state)
 	}
 }
 
-void assisted_excitation_forward(layer l, network_state state)
+void assisted_excitation_forward(Darknet::Layer /*&*/ l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -1666,7 +1666,7 @@ void assisted_excitation_forward(layer l, network_state state)
 }
 
 
-void backward_convolutional_layer(layer l, network_state state)
+void backward_convolutional_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -1734,7 +1734,7 @@ void backward_convolutional_layer(layer l, network_state state)
 	}
 }
 
-void update_convolutional_layer(layer l, int batch, float learning_rate_init, float momentum, float decay)
+void update_convolutional_layer(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay)
 {
 	TAT(TATPARMS);
 
@@ -1755,18 +1755,19 @@ void update_convolutional_layer(layer l, int batch, float learning_rate_init, fl
 }
 
 
-
-image get_convolutional_weight(layer l, int i)
+image get_convolutional_weight(const Darknet::Layer /*&*/ l, int i)
 {
 	TAT(TATPARMS);
 
-	int h = l.size;
-	int w = l.size;
-	int c = l.c / l.groups;
-	return float_to_image(w, h, c, l.weights + i*h*w*c);
+	const int h = l.size;
+	const int w = l.size;
+	const int c = l.c / l.groups;
+
+	return float_to_image(w, h, c, l.weights + i * h * w * c);
 }
 
-void rgbgr_weights(layer l)
+
+void rgbgr_weights(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -1780,12 +1781,11 @@ void rgbgr_weights(layer l)
 	}
 }
 
-void rescale_weights(layer l, float scale, float trans)
+void rescale_weights(Darknet::Layer /*&*/ l, float scale, float trans)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < l.n; ++i)
+	for (int i = 0; i < l.n; ++i)
 	{
 		image im = get_convolutional_weight(l, i);
 		if (im.c == 3)
@@ -1797,7 +1797,7 @@ void rescale_weights(layer l, float scale, float trans)
 	}
 }
 
-image *visualize_convolutional_layer(layer l, const char * window, image * prev_weights)
+image *visualize_convolutional_layer(Darknet::Layer /*&*/ l, const char * window, image * prev_weights)
 {
 	TAT(TATPARMS);
 

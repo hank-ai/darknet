@@ -1,11 +1,11 @@
 #include "darknet_internal.hpp"
 
-layer make_scale_channels_layer(int batch, int index, int w, int h, int c, int w2, int h2, int c2, int scale_wh)
+Darknet::Layer make_scale_channels_layer(int batch, int index, int w, int h, int c, int w2, int h2, int c2, int scale_wh)
 {
 	TAT(TATPARMS);
 
 	fprintf(stderr,"scale Layer: %d\n", index);
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = SCALE_CHANNELS;
 	l.batch = batch;
 	l.scale_wh = scale_wh;
@@ -40,11 +40,11 @@ layer make_scale_channels_layer(int batch, int index, int w, int h, int c, int w
 	return l;
 }
 
-void resize_scale_channels_layer(layer *l, network *net)
+void resize_scale_channels_layer(Darknet::Layer *l, network *net)
 {
 	TAT(TATPARMS);
 
-	layer first = net->layers[l->index];
+	Darknet::Layer first = net->layers[l->index];
 	l->out_w = first.out_w;
 	l->out_h = first.out_h;
 	l->outputs = l->out_w*l->out_h*l->out_c;
@@ -61,7 +61,7 @@ void resize_scale_channels_layer(layer *l, network *net)
 
 }
 
-void forward_scale_channels_layer(const layer l, network_state state)
+void forward_scale_channels_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -90,7 +90,7 @@ void forward_scale_channels_layer(const layer l, network_state state)
 	activate_array(l.output, l.outputs*l.batch, l.activation);
 }
 
-void backward_scale_channels_layer(const layer l, network_state state)
+void backward_scale_channels_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -127,7 +127,7 @@ void backward_scale_channels_layer(const layer l, network_state state)
 }
 
 #ifdef GPU
-void forward_scale_channels_layer_gpu(const layer l, network_state state)
+void forward_scale_channels_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -140,7 +140,7 @@ void forward_scale_channels_layer_gpu(const layer l, network_state state)
 	activate_array_ongpu(l.output_gpu, l.outputs*l.batch, l.activation);
 }
 
-void backward_scale_channels_layer_gpu(const layer l, network_state state)
+void backward_scale_channels_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

@@ -7,7 +7,7 @@
 #include "gemm.hpp"
 
 
-size_t get_connected_workspace_size(layer l)
+size_t get_connected_workspace_size(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -48,13 +48,13 @@ size_t get_connected_workspace_size(layer l)
 	return 0;
 }
 
-layer make_connected_layer(int batch, int steps, int inputs, int outputs, ACTIVATION activation, int batch_normalize)
+Darknet::Layer make_connected_layer(int batch, int steps, int inputs, int outputs, ACTIVATION activation, int batch_normalize)
 {
 	TAT(TATPARMS);
 
 	int total_batch = batch*steps;
 	int i;
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = CONNECTED;
 
 	l.inputs = inputs;
@@ -157,7 +157,7 @@ layer make_connected_layer(int batch, int steps, int inputs, int outputs, ACTIVA
 	return l;
 }
 
-void update_connected_layer(layer l, int batch, float learning_rate, float momentum, float decay)
+void update_connected_layer(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay)
 {
 	TAT(TATPARMS);
 
@@ -174,7 +174,7 @@ void update_connected_layer(layer l, int batch, float learning_rate, float momen
 	scal_cpu(l.inputs*l.outputs, momentum, l.weight_updates, 1);
 }
 
-void forward_connected_layer(layer l, network_state state)
+void forward_connected_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -211,7 +211,7 @@ void forward_connected_layer(layer l, network_state state)
 	activate_array(l.output, l.outputs*l.batch, l.activation);
 }
 
-void backward_connected_layer(layer l, network_state state)
+void backward_connected_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -250,14 +250,15 @@ void backward_connected_layer(layer l, network_state state)
 }
 
 
-void denormalize_connected_layer(layer l)
+void denormalize_connected_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
-	int i, j;
-	for(i = 0; i < l.outputs; ++i){
+	for (int i = 0; i < l.outputs; ++i)
+	{
 		float scale = l.scales[i]/sqrt(l.rolling_variance[i] + .000001f);
-		for(j = 0; j < l.inputs; ++j){
+		for (int j = 0; j < l.inputs; ++j)
+		{
 			l.weights[i*l.inputs + j] *= scale;
 		}
 		l.biases[i] -= l.rolling_mean[i] * scale;
@@ -268,11 +269,12 @@ void denormalize_connected_layer(layer l)
 }
 
 
-void statistics_connected_layer(layer l)
+void statistics_connected_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
-	if(l.batch_normalize){
+	if (l.batch_normalize)
+	{
 		printf("Scales ");
 		print_statistics(l.scales, l.outputs);
 		/*
@@ -290,7 +292,7 @@ void statistics_connected_layer(layer l)
 
 #ifdef GPU
 
-void pull_connected_layer(layer l)
+void pull_connected_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -298,7 +300,8 @@ void pull_connected_layer(layer l)
 	cuda_pull_array(l.biases_gpu, l.biases, l.outputs);
 	cuda_pull_array(l.weight_updates_gpu, l.weight_updates, l.inputs*l.outputs);
 	cuda_pull_array(l.bias_updates_gpu, l.bias_updates, l.outputs);
-	if (l.batch_normalize){
+	if (l.batch_normalize)
+	{
 		cuda_pull_array(l.scales_gpu, l.scales, l.outputs);
 		cuda_pull_array(l.rolling_mean_gpu, l.rolling_mean, l.outputs);
 		cuda_pull_array(l.rolling_variance_gpu, l.rolling_variance, l.outputs);
@@ -306,7 +309,7 @@ void pull_connected_layer(layer l)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-void push_connected_layer(layer l)
+void push_connected_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -314,7 +317,8 @@ void push_connected_layer(layer l)
 	cuda_push_array(l.biases_gpu, l.biases, l.outputs);
 	cuda_push_array(l.weight_updates_gpu, l.weight_updates, l.inputs*l.outputs);
 	cuda_push_array(l.bias_updates_gpu, l.bias_updates, l.outputs);
-	if (l.batch_normalize){
+	if (l.batch_normalize)
+	{
 		cuda_push_array(l.scales_gpu, l.scales, l.outputs);
 		cuda_push_array(l.rolling_mean_gpu, l.rolling_mean, l.outputs);
 		cuda_push_array(l.rolling_variance_gpu, l.rolling_variance, l.outputs);
@@ -322,7 +326,7 @@ void push_connected_layer(layer l)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-void update_connected_layer_gpu(layer l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
+void update_connected_layer_gpu(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);
 
@@ -348,7 +352,7 @@ void update_connected_layer_gpu(layer l, int batch, float learning_rate_init, fl
 	scal_ongpu(l.inputs*l.outputs, momentum, l.weight_updates_gpu, 1);
 }
 
-void forward_connected_layer_gpu(layer l, network_state state)
+void forward_connected_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -391,7 +395,7 @@ void forward_connected_layer_gpu(layer l, network_state state)
 	activate_array_ongpu(l.output_gpu, l.outputs*l.batch, l.activation);
 }
 
-void backward_connected_layer_gpu(layer l, network_state state)
+void backward_connected_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

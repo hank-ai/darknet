@@ -759,7 +759,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 		parms.index = idx;
 
-		layer l = {(LAYER_TYPE)0};
+		Darknet::Layer l = {(LAYER_TYPE)0};
 
 		auto & section = sections.at(idx);
 
@@ -867,7 +867,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 					parms.receptive_w = parms.receptive_h = parms.receptive_w_scale = parms.receptive_h_scale = 0;
 					for (int k = 0; k < l.n; ++k)
 					{
-						layer & route_l = net.layers[l.input_layers[k]];
+						Darknet::Layer /*&*/ route_l = net.layers[l.input_layers[k]];
 						parms.receptive_w = max_val_cmp(parms.receptive_w, route_l.receptive_w);
 						parms.receptive_h = max_val_cmp(parms.receptive_h, route_l.receptive_h);
 						parms.receptive_w_scale = max_val_cmp(parms.receptive_w_scale, route_l.receptive_w_scale);
@@ -1021,7 +1021,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 	{
 		for (int k = 0; k < parms.last_stop_backward; ++k)
 		{
-			layer & l = net.layers[k];
+			Darknet::Layer /*&*/ l = net.layers[k];
 			if (l.keep_delta_gpu)
 			{
 				if (!l.delta)
@@ -1046,7 +1046,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 	{
 		for (int k = 0; k < net.n; ++k)
 		{
-			layer & l = net.layers[k];
+			Darknet::Layer /*&*/ l = net.layers[k];
 			// delta GPU-memory optimization: net.optimized_memory == 1
 			if (!l.keep_delta_gpu)
 			{
@@ -1356,7 +1356,7 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 }
 
 
-layer Darknet::CfgFile::parse_convolutional_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_convolutional_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1397,12 +1397,12 @@ layer Darknet::CfgFile::parse_convolutional_section(const size_t section_idx)
 	int assisted_excitation = s.find_float("assisted_excitation", 0);
 
 	int share_index = s.find_int("share_index", -1000000000);
-	layer *share_layer = nullptr;
+	Darknet::Layer *share_layer = nullptr;
 	if (share_index >= 0)
 	{
 		share_layer = &net.layers[share_index];
 	}
-	else if(share_index != -1000000000)
+	else if (share_index != -1000000000)
 	{
 		share_layer = &net.layers[parms.index + share_index];
 	}
@@ -1439,7 +1439,7 @@ layer Darknet::CfgFile::parse_convolutional_section(const size_t section_idx)
 		darknet_fatal_error(DARKNET_LOC, "[convolutional] layer sway, rotate, or stretch must only be used with size >= 3");
 	}
 
-	layer l = make_convolutional_layer(batch, 1, h, w, c, n, groups, size, stride_x, stride_y, dilation, padding, activation, batch_normalize, binary, xnor, net.adam, use_bin_output, parms.index, antialiasing, share_layer, assisted_excitation, deform, parms.train);
+	Darknet::Layer l = make_convolutional_layer(batch, 1, h, w, c, n, groups, size, stride_x, stride_y, dilation, padding, activation, batch_normalize, binary, xnor, net.adam, use_bin_output, parms.index, antialiasing, share_layer, assisted_excitation, deform, parms.train);
 
 	l.flipped = s.find_int("flipped", 0);
 	l.dot = s.find_float("dot", 0);
@@ -1466,7 +1466,7 @@ layer Darknet::CfgFile::parse_convolutional_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1503,9 +1503,9 @@ layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 	int groups = s.find_int("groups", 1);
 	int group_id = s.find_int("group_id", 0);
 
-	layer l = make_route_layer(batch, v.size(), layers, sizes, groups, group_id);
+	Darknet::Layer l = make_route_layer(batch, v.size(), layers, sizes, groups, group_id);
 
-	layer & first = net.layers[layers[0]];
+	Darknet::Layer /*&*/ first = net.layers[layers[0]];
 	l.out_w = first.out_w;
 	l.out_h = first.out_h;
 	l.out_c = first.out_c;
@@ -1513,7 +1513,7 @@ layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 	for (int i = 1; i < v.size(); ++i)
 	{
 		int index = layers[i];
-		layer & next = net.layers[index];
+		Darknet::Layer /*&*/ next = net.layers[index];
 		if (next.out_w == first.out_w && next.out_h == first.out_h)
 		{
 			l.out_c += next.out_c;
@@ -1538,7 +1538,7 @@ layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_maxpool_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_maxpool_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1564,14 +1564,14 @@ layer Darknet::CfgFile::parse_maxpool_section(const size_t section_idx)
 		darknet_fatal_error(DARKNET_LOC, "layer before [maxpool] at line #%ld must output image", s.line_number);
 	}
 
-	layer l = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, parms.train);
+	Darknet::Layer l = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, parms.train);
 	l.maxpool_zero_nonmax = s.find_int("maxpool_zero_nonmax", 0);
 
 	return l;
 }
 
 
-layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1594,7 +1594,7 @@ layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 		num = v.size();
 	}
 
-	layer l = make_yolo_layer(parms.batch, parms.w, parms.h, num, total, mask, classes, max_boxes);
+	Darknet::Layer l = make_yolo_layer(parms.batch, parms.w, parms.h, num, total, mask, classes, max_boxes);
 
 	if (l.outputs != parms.inputs)
 	{
@@ -1652,7 +1652,7 @@ layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	if (embedding_layer_id != 999999)
 	{
 //		printf(" embedding_layer_id = %d, ", embedding_layer_id);
-		layer & le = net.layers[embedding_layer_id];
+		Darknet::Layer /*&*/ le = net.layers[embedding_layer_id];
 		l.embedding_layer_id = embedding_layer_id;
 		l.embedding_output = (float*)xcalloc(le.batch * le.outputs, sizeof(float));
 		l.embedding_size = le.n / l.n;
@@ -1679,7 +1679,7 @@ layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_upsample_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_upsample_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1687,7 +1687,7 @@ layer Darknet::CfgFile::parse_upsample_section(const size_t section_idx)
 
 	int stride = s.find_int("stride", 2);
 
-	layer l = make_upsample_layer(parms.batch, parms.w, parms.h, parms.c, stride);
+	Darknet::Layer l = make_upsample_layer(parms.batch, parms.w, parms.h, parms.c, stride);
 
 	l.scale = s.find_float("scale", 1);
 
@@ -1695,7 +1695,7 @@ layer Darknet::CfgFile::parse_upsample_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_shortcut_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_shortcut_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1747,7 +1747,7 @@ layer Darknet::CfgFile::parse_shortcut_section(const size_t section_idx)
 	}
 	#endif
 
-	layer l = make_shortcut_layer(parms.batch, n, layers, sizes, parms.w, parms.h, parms.c, layers_output, layers_delta, layers_output_gpu, layers_delta_gpu, weights_type, weights_normalization, activation, parms.train);
+	Darknet::Layer l = make_shortcut_layer(parms.batch, n, layers, sizes, parms.w, parms.h, parms.c, layers_output, layers_delta, layers_output_gpu, layers_delta_gpu, weights_type, weights_normalization, activation, parms.train);
 
 	free(layers_output_gpu);
 	free(layers_delta_gpu);
@@ -1767,7 +1767,7 @@ layer Darknet::CfgFile::parse_shortcut_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_connected_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_connected_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1777,13 +1777,13 @@ layer Darknet::CfgFile::parse_connected_section(const size_t section_idx)
 	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(s.find_str("activation", "logistic")));
 	int batch_normalize = s.find_int("batch_normalize", 0);
 
-	layer l = make_connected_layer(parms.batch, 1, parms.inputs, output, activation, batch_normalize);
+	Darknet::Layer l = make_connected_layer(parms.batch, 1, parms.inputs, output, activation, batch_normalize);
 
 	return l;
 }
 
 
-layer Darknet::CfgFile::parse_crnn_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_crnn_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1807,7 +1807,7 @@ layer Darknet::CfgFile::parse_crnn_section(const size_t section_idx)
 		padding = size / 2;
 	}
 
-	layer l = make_crnn_layer(parms.batch, parms.h, parms.w, parms.c, hidden_filters, output_filters, groups, parms.time_steps, size, stride, dilation, padding, activation, batch_normalize, xnor, parms.train);
+	Darknet::Layer l = make_crnn_layer(parms.batch, parms.h, parms.w, parms.c, hidden_filters, output_filters, groups, parms.time_steps, size, stride, dilation, padding, activation, batch_normalize, xnor, parms.train);
 
 	l.shortcut = s.find_int("shortcut", 0);
 
@@ -1815,7 +1815,7 @@ layer Darknet::CfgFile::parse_crnn_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_rnn_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_rnn_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1828,7 +1828,7 @@ layer Darknet::CfgFile::parse_rnn_section(const size_t section_idx)
 
 	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(s.find_str("activation", "logistic")));
 
-	layer l = make_rnn_layer(parms.batch, parms.inputs, hidden, output, parms.time_steps, activation, batch_normalize, logistic);
+	Darknet::Layer l = make_rnn_layer(parms.batch, parms.inputs, hidden, output, parms.time_steps, activation, batch_normalize, logistic);
 
 	l.shortcut = s.find_int("shortcut", 0);
 
@@ -1836,7 +1836,7 @@ layer Darknet::CfgFile::parse_rnn_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_local_avgpool_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_local_avgpool_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1861,13 +1861,13 @@ layer Darknet::CfgFile::parse_local_avgpool_section(const size_t section_idx)
 		darknet_fatal_error(DARKNET_LOC, "layer before [local_avgpool] on line %ld must output image", s.line_number);
 	}
 
-	layer l = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, parms.train);
+	Darknet::Layer l = make_maxpool_layer(batch, h, w, c, size, stride_x, stride_y, padding, maxpool_depth, out_channels, antialiasing, avgpool, parms.train);
 
 	return l;
 }
 
 
-layer Darknet::CfgFile::parse_lstm_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_lstm_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1876,13 +1876,13 @@ layer Darknet::CfgFile::parse_lstm_section(const size_t section_idx)
 	int output			= s.find_int("output"			, 1);
 	int batch_normalize	= s.find_int("batch_normalize"	, 0);
 
-	layer l = make_lstm_layer(parms.batch, parms.inputs, output, parms.time_steps, batch_normalize);
+	Darknet::Layer l = make_lstm_layer(parms.batch, parms.inputs, output, parms.time_steps, batch_normalize);
 
 	return l;
 }
 
 
-layer Darknet::CfgFile::parse_reorg_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_reorg_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1900,13 +1900,13 @@ layer Darknet::CfgFile::parse_reorg_section(const size_t section_idx)
 		darknet_fatal_error(DARKNET_LOC, "layer before reorg layer on line %ld must output image", s.line_number);
 	}
 
-	layer l = make_reorg_layer(batch, w, h, c, stride, reverse);
+	Darknet::Layer l = make_reorg_layer(batch, w, h, c, stride, reverse);
 
 	return l;
 }
 
 
-layer Darknet::CfgFile::parse_avgpool_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_avgpool_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1921,13 +1921,13 @@ layer Darknet::CfgFile::parse_avgpool_section(const size_t section_idx)
 		darknet_fatal_error(DARKNET_LOC, "layer before avgpool layer on line %ld must output image", s.line_number);
 	}
 
-	layer l = make_avgpool_layer(batch, w, h, c);
+	Darknet::Layer l = make_avgpool_layer(batch, w, h, c);
 
 	return l;
 }
 
 
-layer Darknet::CfgFile::parse_cost_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_cost_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1937,7 +1937,7 @@ layer Darknet::CfgFile::parse_cost_section(const size_t section_idx)
 
 	float scale = s.find_float("scale", 1);
 
-	layer l = make_cost_layer(parms.batch, parms.inputs, type, scale);
+	Darknet::Layer l = make_cost_layer(parms.batch, parms.inputs, type, scale);
 
 	l.ratio = s.find_float("ratio", 0);
 
@@ -1945,7 +1945,7 @@ layer Darknet::CfgFile::parse_cost_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_region_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_region_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -1956,7 +1956,7 @@ layer Darknet::CfgFile::parse_region_section(const size_t section_idx)
 	int num			= s.find_int("num"		, 1		);
 	int max_boxes	= s.find_int("max"		, 200	);
 
-	layer l = make_region_layer(parms.batch, parms.w, parms.h, num, classes, coords, max_boxes);
+	Darknet::Layer l = make_region_layer(parms.batch, parms.w, parms.h, num, classes, coords, max_boxes);
 
 	if (l.outputs != parms.inputs)
 	{
@@ -2005,7 +2005,7 @@ layer Darknet::CfgFile::parse_region_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_gaussian_yolo_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_gaussian_yolo_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -2029,7 +2029,7 @@ layer Darknet::CfgFile::parse_gaussian_yolo_section(const size_t section_idx)
 		num = v.size();
 	}
 
-	layer l = make_gaussian_yolo_layer(parms.batch, parms.w, parms.h, num, total, mask, classes, max_boxes);
+	Darknet::Layer l = make_gaussian_yolo_layer(parms.batch, parms.w, parms.h, num, total, mask, classes, max_boxes);
 
 	if (l.outputs != parms.inputs)
 	{
@@ -2088,14 +2088,14 @@ layer Darknet::CfgFile::parse_gaussian_yolo_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_contrastive_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_contrastive_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
 	auto & s = sections.at(section_idx);
 
 	int classes = s.find_int("classes", 1000);
-	layer *yolo_layer = nullptr;
+	Darknet::Layer *yolo_layer = nullptr;
 	int yolo_layer_id = s.find_int("yolo_layer", 0);
 	if (yolo_layer_id < 0)
 	{
@@ -2110,7 +2110,7 @@ layer Darknet::CfgFile::parse_contrastive_section(const size_t section_idx)
 		darknet_fatal_error(DARKNET_LOC, "[contrastive] layer at line %ld does not point to [yolo] layer", s.line_number);
 	}
 
-	layer l = make_contrastive_layer(parms.batch, parms.w, parms.h, parms.c, classes, parms.inputs, yolo_layer);
+	Darknet::Layer l = make_contrastive_layer(parms.batch, parms.w, parms.h, parms.c, classes, parms.inputs, yolo_layer);
 
 	l.temperature			= s.find_float("temperature"		, 1.0f);
 	l.cls_normalizer		= s.find_float("cls_normalizer"		, 1.0f);
@@ -2122,7 +2122,7 @@ layer Darknet::CfgFile::parse_contrastive_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_softmax_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_softmax_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -2130,7 +2130,7 @@ layer Darknet::CfgFile::parse_softmax_section(const size_t section_idx)
 
 	int groups = s.find_int("groups", 1);
 
-	layer l = make_softmax_layer(parms.batch, parms.inputs, groups);
+	Darknet::Layer l = make_softmax_layer(parms.batch, parms.inputs, groups);
 
 	l.temperature = s.find_float("temperature", 1);
 
@@ -2150,7 +2150,7 @@ layer Darknet::CfgFile::parse_softmax_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_scale_channels_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_scale_channels_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -2164,9 +2164,9 @@ layer Darknet::CfgFile::parse_scale_channels_section(const size_t section_idx)
 	int scale_wh = s.find_int("scale_wh", 0);
 
 	int batch = parms.batch;
-	layer & from = net.layers[index];
+	Darknet::Layer /*&*/ from = net.layers[index];
 
-	layer l = make_scale_channels_layer(batch, index, parms.w, parms.h, parms.c, from.out_w, from.out_h, from.out_c, scale_wh);
+	Darknet::Layer l = make_scale_channels_layer(batch, index, parms.w, parms.h, parms.c, from.out_w, from.out_h, from.out_c, scale_wh);
 
 	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(s.find_str("activation", "linear")));
 	l.activation = activation;
@@ -2179,7 +2179,7 @@ layer Darknet::CfgFile::parse_scale_channels_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_sam_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_sam_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -2192,9 +2192,9 @@ layer Darknet::CfgFile::parse_sam_section(const size_t section_idx)
 	}
 
 	int batch = parms.batch;
-	layer & from = net.layers[index];
+	Darknet::Layer /*&*/ from = net.layers[index];
 
-	layer l = make_sam_layer(batch, index, parms.w, parms.h, parms.c, from.out_w, from.out_h, from.out_c);
+	Darknet::Layer l = make_sam_layer(batch, index, parms.w, parms.h, parms.c, from.out_w, from.out_h, from.out_c);
 
 	ACTIVATION activation = static_cast<ACTIVATION>(get_activation_from_name(s.find_str("activation", "linear")));
 	l.activation = activation;
@@ -2207,7 +2207,7 @@ layer Darknet::CfgFile::parse_sam_section(const size_t section_idx)
 }
 
 
-layer Darknet::CfgFile::parse_dropout_section(const size_t section_idx)
+Darknet::Layer Darknet::CfgFile::parse_dropout_section(const size_t section_idx)
 {
 	TAT(TATPARMS);
 
@@ -2234,7 +2234,7 @@ layer Darknet::CfgFile::parse_dropout_section(const size_t section_idx)
 		dropblock_size_rel = 0;
 	}
 
-	layer l = make_dropout_layer(parms.batch, parms.inputs, probability, dropblock, dropblock_size_rel, dropblock_size_abs, parms.w, parms.h, parms.c);
+	Darknet::Layer l = make_dropout_layer(parms.batch, parms.inputs, probability, dropblock, dropblock_size_rel, dropblock_size_abs, parms.w, parms.h, parms.c);
 
 	l.out_w = parms.w;
 	l.out_h = parms.h;

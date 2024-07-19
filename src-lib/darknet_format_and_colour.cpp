@@ -225,7 +225,7 @@ std::string Darknet::format_map_confusion_matrix_values(
 }
 
 
-std::string Darknet::format_layer_summary(const size_t idx, const Darknet::CfgSection & section, const layer & l)
+std::string Darknet::format_layer_summary(const size_t idx, const Darknet::CfgSection & section, const Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 

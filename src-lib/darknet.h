@@ -30,6 +30,12 @@ typedef enum { UNUSED_DEF_VAL } UNUSED_ENUM_TYPE;
 #endif  // CUDNN
 #endif  // GPU
 
+namespace Darknet
+{
+	/// The @p layer structure has been moved to darknet_layer.hpp.
+	struct Layer;
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -151,7 +157,6 @@ typedef enum {
 	SCALE_CHANNELS,
 	SAM,
 	RNN,
-	GRU,
 	LSTM,
 	CRNN,
 	NETWORK,
@@ -184,6 +189,8 @@ typedef struct update_args {
 	int t;
 } update_args;
 
+
+#if 0
 // layer.h
 struct layer {
 	LAYER_TYPE type; ///< @see @ref get_layer_string()
@@ -663,6 +670,7 @@ struct layer {
 #endif  // CUDNN
 //#endif  // GPU
 };
+#endif
 
 
 // network.h
@@ -689,7 +697,7 @@ typedef struct network {
 	int *t;
 	float epoch;
 	int subdivisions;
-	layer *layers;
+	Darknet::Layer *layers;
 	float *output;
 	learning_rate_policy policy;
 	int benchmark_layers;
@@ -1014,7 +1022,7 @@ void fuse_conv_batchnorm(network net);
 void calculate_binary_weights(network net);
 char *detection_to_json(detection *dets, int nboxes, int classes, char **names, long long int frame_id, char *filename);
 
-layer* get_network_layer(network* net, int i);
+Darknet::Layer * get_network_layer(network* net, int i);
 detection *make_network_boxes(network *net, float thresh, int *num);
 void reset_rnn(network *net);
 float *network_predict_image(network *net, image im);
@@ -1041,8 +1049,8 @@ image crop_image(image im, int dx, int dy, int w, int h);
 image resize_min(image im, int min);
 
 // layer.h
-void free_layer_custom(layer l, int keep_cudnn_desc);
-void free_layer(layer l);
+void free_layer_custom(Darknet::Layer /*&*/ l, int keep_cudnn_desc);
+void free_layer(Darknet::Layer /*&*/ l);
 
 // dark_cuda.h
 void cuda_pull_array(float *x_gpu, float *x, size_t n);

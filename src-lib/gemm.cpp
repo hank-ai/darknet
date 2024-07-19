@@ -4,6 +4,10 @@
 #pragma GCC diagnostic ignored "-Wstrict-aliasing"
 #endif
 
+/** @file
+ * General matrix multiplication (GEMM)
+ */
+
 #include "gemm.hpp"
 #include "utils.hpp"
 #include "im2col.hpp"

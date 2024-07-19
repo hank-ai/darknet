@@ -111,6 +111,8 @@ See the notebooks in the `colab` subdirectory.
 		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
 		* Remember to re-build Darknet.
 
+> TODO: is libomp-dev also necessary for OpenMP?
+
 These instructions assume a system running Ubuntu 22.04.
 
 ```sh

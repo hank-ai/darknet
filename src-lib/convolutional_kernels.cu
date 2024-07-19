@@ -181,7 +181,7 @@ half *cuda_make_f16_from_f32_array(float *src, size_t n)
 	return dst16;
 }
 
-void forward_convolutional_layer_gpu(layer l, network_state state)
+void forward_convolutional_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -669,7 +669,7 @@ void forward_convolutional_layer_gpu(layer l, network_state state)
 	}
 }
 
-void backward_convolutional_layer_gpu(layer l, network_state state)
+void backward_convolutional_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -1080,7 +1080,7 @@ void assisted_activation2_gpu(float alpha, float *output, float *gt_gpu, float *
 	assisted_activation2_kernel << <num_blocks, BLOCK, 0, get_cuda_stream() >> > (alpha, output, gt_gpu, a_avg_gpu, size, channels, batches);
 }
 
-void assisted_excitation_forward_gpu(layer l, network_state state)
+void assisted_excitation_forward_gpu(Darknet::Layer /*&*/ l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -1249,7 +1249,7 @@ void assisted_excitation_forward_gpu(layer l, network_state state)
 	free(a_avg);
 }
 
-void pull_convolutional_layer(layer l)
+void pull_convolutional_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -1270,7 +1270,7 @@ void pull_convolutional_layer(layer l)
 	cudaStreamSynchronize(get_cuda_stream());
 }
 
-void push_convolutional_layer(layer l)
+void push_convolutional_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -1296,7 +1296,7 @@ void push_convolutional_layer(layer l)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-void update_convolutional_layer_gpu(layer l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
+void update_convolutional_layer_gpu(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);
 

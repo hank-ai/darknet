@@ -1,10 +1,10 @@
 #include "darknet_internal.hpp"
 
-layer make_upsample_layer(int batch, int w, int h, int c, int stride)
+Darknet::Layer make_upsample_layer(int batch, int w, int h, int c, int stride)
 {
 	TAT(TATPARMS);
 
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = UPSAMPLE;
 	l.batch = batch;
 	l.w = w;
@@ -43,7 +43,7 @@ layer make_upsample_layer(int batch, int w, int h, int c, int stride)
 	return l;
 }
 
-void resize_upsample_layer(layer *l, int w, int h)
+void resize_upsample_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -69,7 +69,7 @@ void resize_upsample_layer(layer *l, int w, int h)
 
 }
 
-void forward_upsample_layer(const layer l, network_state net)
+void forward_upsample_layer(Darknet::Layer & l, network_state net)
 {
 	TAT(TATPARMS);
 
@@ -81,7 +81,7 @@ void forward_upsample_layer(const layer l, network_state net)
 	}
 }
 
-void backward_upsample_layer(const layer l, network_state state)
+void backward_upsample_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -93,7 +93,7 @@ void backward_upsample_layer(const layer l, network_state state)
 }
 
 #ifdef GPU
-void forward_upsample_layer_gpu(const layer l, network_state state)
+void forward_upsample_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -105,7 +105,7 @@ void forward_upsample_layer_gpu(const layer l, network_state state)
 	}
 }
 
-void backward_upsample_layer_gpu(const layer l, network_state state)
+void backward_upsample_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

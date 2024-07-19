@@ -71,7 +71,7 @@ namespace
 		return;
 	}
 
-	void free_sublayer(layer* & l)
+	void free_sublayer(Darknet::Layer* & l)
 	{
 		TAT(TATPARMS);
 
@@ -102,7 +102,7 @@ namespace
 }
 
 
-void free_layer(layer l)
+void free_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -110,7 +110,7 @@ void free_layer(layer l)
 }
 
 
-void free_layer_custom(layer l, int keep_cudnn_desc)
+void free_layer_custom(Darknet::Layer /*&*/ l, int keep_cudnn_desc)
 {
 	TAT(TATPARMS);
 

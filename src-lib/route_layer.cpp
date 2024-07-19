@@ -1,10 +1,10 @@
 #include "darknet_internal.hpp"
 
-layer make_route_layer(int batch, int n, int *input_layers, int *input_sizes, int groups, int group_id)
+Darknet::Layer make_route_layer(int batch, int n, int *input_layers, int *input_sizes, int groups, int group_id)
 {
 	TAT(TATPARMS);
 
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = ROUTE;
 	l.batch = batch;
 	l.n = n;
@@ -40,12 +40,12 @@ layer make_route_layer(int batch, int n, int *input_layers, int *input_sizes, in
 	return l;
 }
 
-void resize_route_layer(layer *l, network *net)
+void resize_route_layer(Darknet::Layer *l, network *net)
 {
 	TAT(TATPARMS);
 
 	int i;
-	layer first = net->layers[l->input_layers[0]];
+	Darknet::Layer /*&*/ first = net->layers[l->input_layers[0]];
 	l->out_w = first.out_w;
 	l->out_h = first.out_h;
 	l->out_c = first.out_c;
@@ -53,7 +53,7 @@ void resize_route_layer(layer *l, network *net)
 	l->input_sizes[0] = first.outputs;
 	for(i = 1; i < l->n; ++i){
 		int index = l->input_layers[i];
-		layer next = net->layers[index];
+		const Darknet::Layer /*&*/ next = net->layers[index];
 		l->outputs += next.outputs;
 		l->input_sizes[i] = next.outputs;
 		if(next.out_w == first.out_w && next.out_h == first.out_h){
@@ -78,7 +78,7 @@ void resize_route_layer(layer *l, network *net)
 
 }
 
-void forward_route_layer(const layer l, network_state state)
+void forward_route_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -98,7 +98,7 @@ void forward_route_layer(const layer l, network_state state)
 	}
 }
 
-void backward_route_layer(const layer l, network_state state)
+void backward_route_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -119,7 +119,7 @@ void backward_route_layer(const layer l, network_state state)
 }
 
 #ifdef GPU
-void forward_route_layer_gpu(const layer l, network_state state)
+void forward_route_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -148,7 +148,7 @@ void forward_route_layer_gpu(const layer l, network_state state)
 	}
 }
 
-void backward_route_layer_gpu(const layer l, network_state state)
+void backward_route_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

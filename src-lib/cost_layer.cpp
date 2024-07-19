@@ -28,12 +28,12 @@ char *get_cost_string(COST_TYPE a)
 	}
 }
 
-layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float scale)
+Darknet::Layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float scale)
 {
 	TAT(TATPARMS);
 
 	fprintf(stderr, "cost                                           %4d\n",  inputs);
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = COST;
 
 	l.scale = scale;
@@ -57,7 +57,7 @@ layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float scale)
 	return l;
 }
 
-void resize_cost_layer(layer *l, int inputs)
+void resize_cost_layer(Darknet::Layer *l, int inputs)
 {
 	TAT(TATPARMS);
 
@@ -73,7 +73,7 @@ void resize_cost_layer(layer *l, int inputs)
 #endif
 }
 
-void forward_cost_layer(layer l, network_state state)
+void forward_cost_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -92,7 +92,7 @@ void forward_cost_layer(layer l, network_state state)
 	l.cost[0] = sum_array(l.output, l.batch*l.inputs);
 }
 
-void backward_cost_layer(const layer l, network_state state)
+void backward_cost_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -101,14 +101,14 @@ void backward_cost_layer(const layer l, network_state state)
 
 #ifdef GPU
 
-void pull_cost_layer(layer l)
+void pull_cost_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
 	cuda_pull_array(l.delta_gpu, l.delta, l.batch*l.inputs);
 }
 
-void push_cost_layer(layer l)
+void push_cost_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -134,7 +134,7 @@ int float_abs_compare (const void * a, const void * b)
 	return (fa > fb) - (fa < fb);
 }
 
-void forward_cost_layer_gpu(layer l, network_state state)
+void forward_cost_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -175,7 +175,7 @@ void forward_cost_layer_gpu(layer l, network_state state)
 	l.cost[0] = sum_array(l.output, l.batch*l.inputs);
 }
 
-void backward_cost_layer_gpu(const layer l, network_state state)
+void backward_cost_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

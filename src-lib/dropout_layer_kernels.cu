@@ -117,7 +117,7 @@ __global__ void yoloswag420blazeit360noscope(float *input, int size, float *rand
 }
 
 
-void forward_dropout_layer_gpu(layer l, network_state state)
+void forward_dropout_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -224,7 +224,7 @@ void forward_dropout_layer_gpu(layer l, network_state state)
 	}
 }
 
-void backward_dropout_layer_gpu(layer l, network_state state)
+void backward_dropout_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

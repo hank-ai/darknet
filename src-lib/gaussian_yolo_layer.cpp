@@ -351,7 +351,7 @@ namespace
 	}
 
 
-	inline int entry_gaussian_index(const layer & l, const int batch, const int location, const int entry)
+	inline int entry_gaussian_index(const Darknet::Layer /*&*/ l, const int batch, const int location, const int entry)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -364,12 +364,12 @@ namespace
 } // anonymous namespace
 
 
-layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)
+Darknet::Layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)
 {
 	TAT(TATPARMS);
 
 	int i;
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = GAUSSIAN_YOLO;
 
 	l.n = n;
@@ -384,10 +384,15 @@ layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int total, int *m
 	l.classes = classes;
 	l.cost = (float*)calloc(1, sizeof(float));
 	l.biases = (float*)calloc(total*2, sizeof(float));
-	if(mask) l.mask = mask;
-	else{
+	if (mask)
+	{
+		l.mask = mask;
+	}
+	else
+	{
 		l.mask = (int*)calloc(n, sizeof(int));
-		for(i = 0; i < n; ++i){
+		for (i = 0; i < n; ++i)
+		{
 			l.mask[i] = i;
 		}
 	}
@@ -435,7 +440,7 @@ layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int total, int *m
 	return l;
 }
 
-void resize_gaussian_yolo_layer(layer *l, int w, int h)
+void resize_gaussian_yolo_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -481,7 +486,7 @@ void resize_gaussian_yolo_layer(layer *l, int w, int h)
 }
 
 
-void forward_gaussian_yolo_layer(const layer l, network_state state)
+void forward_gaussian_yolo_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -849,7 +854,7 @@ void forward_gaussian_yolo_layer(const layer l, network_state state)
 }
 
 
-void backward_gaussian_yolo_layer(const layer l, network_state state)
+void backward_gaussian_yolo_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -901,7 +906,7 @@ void correct_gaussian_yolo_boxes(detection *dets, int n, int w, int h, int netw,
 }
 
 
-int gaussian_yolo_num_detections(layer l, float thresh)
+int gaussian_yolo_num_detections(const Darknet::Layer /*&*/ l, float thresh)
 {
 	TAT(TATPARMS);
 
@@ -924,7 +929,7 @@ int gaussian_yolo_num_detections(layer l, float thresh)
 }
 
 
-int get_gaussian_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
+int get_gaussian_yolo_detections(const Darknet::Layer /*&*/ l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
 {
 	TAT(TATPARMS);
 
@@ -976,7 +981,7 @@ int get_gaussian_yolo_detections(layer l, int w, int h, int netw, int neth, floa
 
 #ifdef GPU
 
-void forward_gaussian_yolo_layer_gpu(const layer l, network_state state)
+void forward_gaussian_yolo_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -1040,7 +1045,7 @@ void forward_gaussian_yolo_layer_gpu(const layer l, network_state state)
 	}
 }
 
-void backward_gaussian_yolo_layer_gpu(const layer l, network_state state)
+void backward_gaussian_yolo_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

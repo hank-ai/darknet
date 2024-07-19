@@ -2,11 +2,11 @@
 
 #define DOABS 1
 
-layer make_region_layer(int batch, int w, int h, int n, int classes, int coords, int max_boxes)
+Darknet::Layer make_region_layer(int batch, int w, int h, int n, int classes, int coords, int max_boxes)
 {
 	TAT(TATPARMS);
 
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = REGION;
 
 	l.n = n;
@@ -29,8 +29,9 @@ layer make_region_layer(int batch, int w, int h, int n, int classes, int coords,
 	l.truths = max_boxes*l.truth_size;
 	l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
-	int i;
-	for(i = 0; i < n*2; ++i){
+
+	for (int i = 0; i < n*2; ++i)
+	{
 		l.biases[i] = .5;
 	}
 
@@ -43,14 +44,10 @@ layer make_region_layer(int batch, int w, int h, int n, int classes, int coords,
 	l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
 #endif
 
-	fprintf(stderr, "detection\n");
-	/// @todo why!?
-//	srand(time(0));
-
 	return l;
 }
 
-void resize_region_layer(layer *l, int w, int h)
+void resize_region_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -184,7 +181,7 @@ float tisnan(float x)
 
 namespace
 {
-	static inline int region_entry_index(const layer & l, const int batch, const int location, const int entry)
+	static inline int region_entry_index(const Darknet::Layer /*&*/ l, const int batch, const int location, const int entry)
 	{
 		// similar function exists in yolo_layer.cpp, but the math is slightly different
 
@@ -198,7 +195,7 @@ namespace
 }
 
 void softmax_tree(float *input, int batch, int inputs, float temp, tree *hierarchy, float *output);
-void forward_region_layer(const layer l, network_state state)
+void forward_region_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -393,14 +390,14 @@ void forward_region_layer(const layer l, network_state state)
 	printf("Region Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, Avg Recall: %f,  count: %d\n", avg_iou/count, avg_cat/class_count, avg_obj/count, avg_anyobj/(l.w*l.h*l.n*l.batch), recall/count, count);
 }
 
-void backward_region_layer(const layer l, network_state state)
+void backward_region_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
 	axpy_cpu(l.batch*l.inputs, 1, l.delta, 1, state.delta, 1);
 }
 
-void get_region_boxes(layer l, int w, int h, float thresh, float **probs, box *boxes, int only_objectness, int *map)
+void get_region_boxes(const Darknet::Layer /*&*/ l, int w, int h, float thresh, float **probs, box *boxes, int only_objectness, int *map)
 {
 	TAT(TATPARMS);
 
@@ -476,7 +473,7 @@ void get_region_boxes(layer l, int w, int h, float thresh, float **probs, box *b
 
 #ifdef GPU
 
-void forward_region_layer_gpu(const layer l, network_state state)
+void forward_region_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -521,7 +518,7 @@ void forward_region_layer_gpu(const layer l, network_state state)
 	if(cpu_state.truth) free(cpu_state.truth);
 }
 
-void backward_region_layer_gpu(layer l, network_state state)
+void backward_region_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -562,7 +559,7 @@ void correct_region_boxes(detection *dets, int n, int w, int h, int netw, int ne
 }
 
 
-void get_region_detections(layer l, int w, int h, int netw, int neth, float thresh, int *map, float tree_thresh, int relative, detection *dets)
+void get_region_detections(Darknet::Layer l, int w, int h, int netw, int neth, float thresh, int *map, float tree_thresh, int relative, detection *dets)
 {
 	TAT(TATPARMS);
 
@@ -652,7 +649,7 @@ void get_region_detections(layer l, int w, int h, int netw, int neth, float thre
 	correct_region_boxes(dets, l.w*l.h*l.n, w, h, netw, neth, relative);
 }
 
-void zero_objectness(layer l)
+void zero_objectness(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 

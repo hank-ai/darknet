@@ -228,28 +228,28 @@ namespace Darknet
 			/** @{ Methods to parse different types of sections in @p .cfg files.  These are called from
 			 * @ref Darknet::CfgFile::read() and are not meant to be called directly.
 			 */
-			CfgFile &	parse_net_section			();
-			layer		parse_convolutional_section	(const size_t section_idx);
-			layer		parse_route_section			(const size_t section_idx);
-			layer		parse_maxpool_section		(const size_t section_idx);
-			layer		parse_yolo_section			(const size_t section_idx);
-			layer		parse_upsample_section		(const size_t section_idx);
-			layer		parse_shortcut_section		(const size_t section_idx);
-			layer		parse_connected_section		(const size_t section_idx);
-			layer		parse_crnn_section			(const size_t section_idx);
-			layer		parse_rnn_section			(const size_t section_idx);
-			layer		parse_local_avgpool_section	(const size_t section_idx);
-			layer		parse_lstm_section			(const size_t section_idx);
-			layer		parse_reorg_section			(const size_t section_idx);
-			layer		parse_avgpool_section		(const size_t section_idx);
-			layer		parse_cost_section			(const size_t section_idx);
-			layer		parse_region_section		(const size_t section_idx);
-			layer		parse_gaussian_yolo_section	(const size_t section_idx);
-			layer		parse_contrastive_section	(const size_t section_idx);
-			layer		parse_softmax_section		(const size_t section_idx);
-			layer		parse_scale_channels_section(const size_t section_idx);
-			layer		parse_sam_section			(const size_t section_idx);
-			layer		parse_dropout_section		(const size_t section_idx);
+			CfgFile &		parse_net_section			();
+			Darknet::Layer	parse_convolutional_section	(const size_t section_idx);
+			Darknet::Layer	parse_route_section			(const size_t section_idx);
+			Darknet::Layer	parse_maxpool_section		(const size_t section_idx);
+			Darknet::Layer	parse_yolo_section			(const size_t section_idx);
+			Darknet::Layer	parse_upsample_section		(const size_t section_idx);
+			Darknet::Layer	parse_shortcut_section		(const size_t section_idx);
+			Darknet::Layer	parse_connected_section		(const size_t section_idx);
+			Darknet::Layer	parse_crnn_section			(const size_t section_idx);
+			Darknet::Layer	parse_rnn_section			(const size_t section_idx);
+			Darknet::Layer	parse_local_avgpool_section	(const size_t section_idx);
+			Darknet::Layer	parse_lstm_section			(const size_t section_idx);
+			Darknet::Layer	parse_reorg_section			(const size_t section_idx);
+			Darknet::Layer	parse_avgpool_section		(const size_t section_idx);
+			Darknet::Layer	parse_cost_section			(const size_t section_idx);
+			Darknet::Layer	parse_region_section		(const size_t section_idx);
+			Darknet::Layer	parse_gaussian_yolo_section	(const size_t section_idx);
+			Darknet::Layer	parse_contrastive_section	(const size_t section_idx);
+			Darknet::Layer	parse_softmax_section		(const size_t section_idx);
+			Darknet::Layer	parse_scale_channels_section(const size_t section_idx);
+			Darknet::Layer	parse_sam_section			(const size_t section_idx);
+			Darknet::Layer	parse_dropout_section		(const size_t section_idx);
 			/// @}
 	};
 }

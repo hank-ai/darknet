@@ -19,13 +19,13 @@ void softmax_tree(float *input, int batch, int inputs, float temp, tree *hierarc
 	}
 }
 
-layer make_softmax_layer(int batch, int inputs, int groups)
+Darknet::Layer make_softmax_layer(int batch, int inputs, int groups)
 {
 	TAT(TATPARMS);
 
 	assert(inputs%groups == 0);
 	fprintf(stderr, "softmax                                        %4d\n",  inputs);
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = SOFTMAX;
 	l.batch = batch;
 	l.groups = groups;
@@ -49,7 +49,7 @@ layer make_softmax_layer(int batch, int inputs, int groups)
 	return l;
 }
 
-void forward_softmax_layer(const layer l, network_state net)
+void forward_softmax_layer(Darknet::Layer & l, network_state net)
 {
 	TAT(TATPARMS);
 
@@ -71,7 +71,7 @@ void forward_softmax_layer(const layer l, network_state net)
 	}
 }
 
-void backward_softmax_layer(const layer l, network_state net)
+void backward_softmax_layer(Darknet::Layer & l, network_state net)
 {
 	TAT(TATPARMS);
 
@@ -80,14 +80,14 @@ void backward_softmax_layer(const layer l, network_state net)
 
 #ifdef GPU
 
-void pull_softmax_layer_output(const layer l)
+void pull_softmax_layer_output(const Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
 	cuda_pull_array(l.output_gpu, l.output, l.inputs * l.batch);
 }
 
-void forward_softmax_layer_gpu(const layer l, network_state net)
+void forward_softmax_layer_gpu(Darknet::Layer & l, network_state net)
 {
 	TAT(TATPARMS);
 
@@ -120,7 +120,7 @@ void forward_softmax_layer_gpu(const layer l, network_state net)
 	}
 }
 
-void backward_softmax_layer_gpu(const layer l, network_state state)
+void backward_softmax_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -132,11 +132,11 @@ void backward_softmax_layer_gpu(const layer l, network_state state)
 // -------------------------------------
 
 // Supervised Contrastive Learning: https://arxiv.org/pdf/2004.11362.pdf
-layer make_contrastive_layer(int batch, int w, int h, int c, int classes, int inputs, layer *yolo_layer)
+Darknet::Layer make_contrastive_layer(int batch, int w, int h, int c, int classes, int inputs, Darknet::Layer *yolo_layer)
 {
 	TAT(TATPARMS);
 
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = CONTRASTIVE;
 	l.batch = batch;
 	l.inputs = inputs;
@@ -146,7 +146,8 @@ layer make_contrastive_layer(int batch, int w, int h, int c, int classes, int in
 	l.temperature = 1;
 
 	l.max_boxes = 0;
-	if (yolo_layer) {
+	if (yolo_layer)
+	{
 		l.detection = 1;
 		l.max_boxes = yolo_layer->max_boxes;
 		l.labels = yolo_layer->labels;  // track id
@@ -165,7 +166,8 @@ layer make_contrastive_layer(int batch, int w, int h, int c, int classes, int in
 			darknet_fatal_error(DARKNET_LOC, "number of filters in the previous (embedding) layer isn't divisable by number of anchors (%d)", l.n);
 		}
 	}
-	else {
+	else
+	{
 		l.detection = 0;
 		l.labels = (int*)xcalloc(l.batch, sizeof(int)); // labels
 		l.n = 1;                                        // num of embeddings per cell
@@ -183,7 +185,8 @@ layer make_contrastive_layer(int batch, int w, int h, int c, int classes, int in
 	l.cos_sim = NULL;
 	l.exp_cos_sim = NULL;
 	l.p_constrastive = NULL;
-	if (!l.detection) {
+	if (!l.detection)
+	{
 		l.cos_sim = (float*)xcalloc(step*step, sizeof(float));
 		l.exp_cos_sim = (float*)xcalloc(step*step, sizeof(float));
 		l.p_constrastive = (float*)xcalloc(step*step, sizeof(float));
@@ -226,7 +229,7 @@ static inline float clip_value(float val, const float max_val)
 	return val;
 }
 
-void forward_contrastive_layer(layer l, network_state state)
+void forward_contrastive_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -582,7 +585,7 @@ void forward_contrastive_layer(layer l, network_state state)
 	free(z);
 }
 
-void backward_contrastive_layer(layer l, network_state state)
+void backward_contrastive_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -592,14 +595,14 @@ void backward_contrastive_layer(layer l, network_state state)
 
 #ifdef GPU
 
-void pull_contrastive_layer_output(const layer l)
+void pull_contrastive_layer_output(const Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
 	cuda_pull_array(l.output_gpu, l.output, l.inputs*l.batch);
 }
 
-void push_contrastive_layer_output(const layer l)
+void push_contrastive_layer_output(const Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -607,7 +610,7 @@ void push_contrastive_layer_output(const layer l)
 }
 
 
-void forward_contrastive_layer_gpu(layer l, network_state state)
+void forward_contrastive_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -638,7 +641,7 @@ void forward_contrastive_layer_gpu(layer l, network_state state)
 	if (cpu_state.truth) free(cpu_state.truth);
 }
 
-void backward_contrastive_layer_gpu(layer l, network_state state)
+void backward_contrastive_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

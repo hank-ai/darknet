@@ -1,13 +1,13 @@
 #include "gemm.hpp"
 #include "darknet_internal.hpp"
 
-layer make_shortcut_layer(int batch, int n, int *input_layers, int* input_sizes, int w, int h, int c,
+Darknet::Layer make_shortcut_layer(int batch, int n, int *input_layers, int* input_sizes, int w, int h, int c,
 	float **layers_output, float **layers_delta, float **layers_output_gpu, float **layers_delta_gpu, WEIGHTS_TYPE_T weights_type, WEIGHTS_NORMALIZATION_T weights_normalization,
 	ACTIVATION activation, int train)
 {
 	TAT(TATPARMS);
 
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.train = train;
 	l.type = SHORTCUT;
 	l.batch = batch;
@@ -114,7 +114,7 @@ layer make_shortcut_layer(int batch, int n, int *input_layers, int* input_sizes,
 	return l;
 }
 
-void resize_shortcut_layer(layer *l, int w, int h, network *net)
+void resize_shortcut_layer(Darknet::Layer *l, int w, int h, network *net)
 {
 	TAT(TATPARMS);
 
@@ -172,7 +172,7 @@ void resize_shortcut_layer(layer *l, int w, int h, network *net)
 
 }
 
-void forward_shortcut_layer(const layer l, network_state state)
+void forward_shortcut_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -200,7 +200,7 @@ void forward_shortcut_layer(const layer l, network_state state)
 	else activate_array_cpu_custom(l.output, l.outputs*l.batch, l.activation);
 }
 
-void backward_shortcut_layer(const layer l, network_state state)
+void backward_shortcut_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -215,7 +215,7 @@ void backward_shortcut_layer(const layer l, network_state state)
 	//shortcut_cpu(l.batch, l.out_w, l.out_h, l.out_c, l.delta, l.w, l.h, l.c, state.net.layers[l.index].delta);
 }
 
-void update_shortcut_layer(layer l, int batch, float learning_rate_init, float momentum, float decay)
+void update_shortcut_layer(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay)
 {
 	TAT(TATPARMS);
 
@@ -232,7 +232,7 @@ void update_shortcut_layer(layer l, int batch, float learning_rate_init, float m
 }
 
 #ifdef GPU
-void forward_shortcut_layer_gpu(const layer l, network_state state)
+void forward_shortcut_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -260,7 +260,7 @@ void forward_shortcut_layer_gpu(const layer l, network_state state)
 
 }
 
-void backward_shortcut_layer_gpu(const layer l, network_state state)
+void backward_shortcut_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -275,7 +275,7 @@ void backward_shortcut_layer_gpu(const layer l, network_state state)
 	//shortcut_gpu(l.batch, l.out_w, l.out_h, l.out_c, l.delta_gpu, l.w, l.h, l.c, state.net.layers[l.index].delta_gpu);
 }
 
-void update_shortcut_layer_gpu(layer l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
+void update_shortcut_layer_gpu(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);
 
@@ -313,7 +313,7 @@ void update_shortcut_layer_gpu(layer l, int batch, float learning_rate_init, flo
 	}
 }
 
-void pull_shortcut_layer(layer l)
+void pull_shortcut_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 
@@ -324,7 +324,7 @@ void pull_shortcut_layer(layer l)
 	CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));
 }
 
-void push_shortcut_layer(layer l)
+void push_shortcut_layer(Darknet::Layer /*&*/ l)
 {
 	TAT(TATPARMS);
 

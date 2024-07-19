@@ -1,5 +1,9 @@
 #pragma once
 
+/** @file
+ * General matrix multiplication (GEMM)
+ */
+
 #include "activations.hpp"
 #include <stdint.h>
 #include <stddef.h>

@@ -1,11 +1,11 @@
 #include "darknet_internal.hpp"
 
-layer make_avgpool_layer(int batch, int w, int h, int c)
+Darknet::Layer make_avgpool_layer(int batch, int w, int h, int c)
 {
 	TAT(TATPARMS);
 
 	fprintf(stderr, "avg                          %4d x%4d x%4d ->   %4d\n",  w, h, c, c);
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = AVGPOOL;
 	l.batch = batch;
 	l.h = h;
@@ -30,7 +30,7 @@ layer make_avgpool_layer(int batch, int w, int h, int c)
 	return l;
 }
 
-void resize_avgpool_layer(layer *l, int w, int h)
+void resize_avgpool_layer(Darknet::Layer * l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -39,7 +39,7 @@ void resize_avgpool_layer(layer *l, int w, int h)
 	l->inputs = h*w*l->c;
 }
 
-void forward_avgpool_layer(const layer l, network_state state)
+void forward_avgpool_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -59,7 +59,7 @@ void forward_avgpool_layer(const layer l, network_state state)
 	}
 }
 
-void backward_avgpool_layer(const layer l, network_state state)
+void backward_avgpool_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

@@ -202,14 +202,14 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 		darknet_fatal_error(DARKNET_LOC, "failed to connect to webcam (%d, %s)", cam_index, filename);
 	}
 
-	layer l = net.layers[net.n-1];
+	Darknet::Layer /*&*/ l = net.layers[net.n-1];
 	int j;
 
 	cv_images = (mat_cv**)xcalloc(avg_frames, sizeof(mat_cv));
 
 	for (int i = 0; i < net.n; ++i)
 	{
-		layer lc = net.layers[i];
+		Darknet::Layer /*&*/ lc = net.layers[i];
 		if (lc.type == YOLO)
 		{
 			lc.mean_alpha = 1.0 / avg_frames;

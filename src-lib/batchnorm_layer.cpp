@@ -157,7 +157,7 @@ void normalize_delta_cpu(float *x, float *mean, float *variance, float *mean_del
 	}
 }
 
-void resize_batchnorm_layer(layer *l, int w, int h)
+void resize_batchnorm_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -195,7 +195,7 @@ void resize_batchnorm_layer(layer *l, int w, int h)
 #endif // GPU
 }
 
-void forward_batchnorm_layer(layer l, network_state state)
+void forward_batchnorm_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -223,7 +223,7 @@ void forward_batchnorm_layer(layer l, network_state state)
 	add_bias(l.output, l.biases, l.batch, l.out_c, l.out_w*l.out_h);
 }
 
-void backward_batchnorm_layer(const layer l, network_state state)
+void backward_batchnorm_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -237,7 +237,7 @@ void backward_batchnorm_layer(const layer l, network_state state)
 //	if(l.type == BATCHNORM) copy_cpu(l.outputs*l.batch, l.delta, 1, state.delta, 1);
 }
 
-void update_batchnorm_layer(layer l, int batch, float learning_rate, float momentum, float decay)
+void update_batchnorm_layer(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay)
 {
 	TAT(TATPARMS);
 
@@ -251,7 +251,7 @@ void update_batchnorm_layer(layer l, int batch, float learning_rate, float momen
 
 #ifdef GPU
 
-void pull_batchnorm_layer(layer l)
+void pull_batchnorm_layer(Darknet::Layer l)
 {
 	TAT(TATPARMS);
 
@@ -260,7 +260,7 @@ void pull_batchnorm_layer(layer l)
 	cuda_pull_array(l.rolling_mean_gpu, l.rolling_mean, l.out_c);
 	cuda_pull_array(l.rolling_variance_gpu, l.rolling_variance, l.out_c);
 }
-void push_batchnorm_layer(layer l)
+void push_batchnorm_layer(Darknet::Layer l)
 {
 	TAT(TATPARMS);
 
@@ -270,7 +270,7 @@ void push_batchnorm_layer(layer l)
 	cuda_push_array(l.rolling_variance_gpu, l.rolling_variance, l.out_c);
 }
 
-void forward_batchnorm_layer_gpu(layer l, network_state state)
+void forward_batchnorm_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -377,7 +377,7 @@ void forward_batchnorm_layer_gpu(layer l, network_state state)
 
 }
 
-void backward_batchnorm_layer_gpu(layer l, network_state state)
+void backward_batchnorm_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -449,7 +449,7 @@ void backward_batchnorm_layer_gpu(layer l, network_state state)
 	}
 }
 
-void update_batchnorm_layer_gpu(layer l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
+void update_batchnorm_layer_gpu(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);
 

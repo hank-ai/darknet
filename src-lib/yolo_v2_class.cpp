@@ -152,7 +152,7 @@ Detector::Detector(std::string cfg_filename, std::string weight_filename, int gp
 	net.gpu_index = cur_gpu_id;
 	fuse_conv_batchnorm(net);
 
-	layer l = net.layers[net.n - 1];
+	Darknet::Layer /*&*/ l = net.layers[net.n - 1];
 	int j;
 
 	detector_gpu.avg = (float *)calloc(l.outputs, sizeof(float));
@@ -264,7 +264,7 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 	else
 		sized = resize_image(im, net.w, net.h);
 
-	layer l = net.layers[net.n - 1];
+	Darknet::Layer /*&*/ l = net.layers[net.n - 1];
 
 	float *X = sized.data;
 
@@ -337,7 +337,7 @@ std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_si
 #endif
 	//std::cout << "net.gpu_index = " << net.gpu_index << std::endl;
 
-	layer l = net.layers[net.n - 1];
+	Darknet::Layer /*&*/ l = net.layers[net.n - 1];
 
 	float hier_thresh = 0.5;
 	image in_img;

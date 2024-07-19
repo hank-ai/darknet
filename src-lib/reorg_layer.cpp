@@ -1,10 +1,10 @@
 #include "darknet_internal.hpp"
 
-layer make_reorg_layer(int batch, int w, int h, int c, int stride, int reverse)
+Darknet::Layer make_reorg_layer(int batch, int w, int h, int c, int stride, int reverse)
 {
 	TAT(TATPARMS);
 
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (LAYER_TYPE)0 };
 	l.type = REORG;
 	l.batch = batch;
 	l.stride = stride;
@@ -40,7 +40,7 @@ layer make_reorg_layer(int batch, int w, int h, int c, int stride, int reverse)
 	return l;
 }
 
-void resize_reorg_layer(layer *l, int w, int h)
+void resize_reorg_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -75,7 +75,7 @@ void resize_reorg_layer(layer *l, int w, int h)
 #endif
 }
 
-void forward_reorg_layer(const layer l, network_state state)
+void forward_reorg_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -87,7 +87,7 @@ void forward_reorg_layer(const layer l, network_state state)
 	}
 }
 
-void backward_reorg_layer(const layer l, network_state state)
+void backward_reorg_layer(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -100,7 +100,7 @@ void backward_reorg_layer(const layer l, network_state state)
 }
 
 #ifdef GPU
-void forward_reorg_layer_gpu(layer l, network_state state)
+void forward_reorg_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 
@@ -112,7 +112,7 @@ void forward_reorg_layer_gpu(layer l, network_state state)
 	}
 }
 
-void backward_reorg_layer_gpu(layer l, network_state state)
+void backward_reorg_layer_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

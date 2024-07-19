@@ -71,7 +71,7 @@ namespace Darknet
 	std::string format_layer_summary(
 			const size_t idx,
 			const Darknet::CfgSection & section,
-			const layer & l);
+			const Darknet::Layer /*&*/ l);
 
 	/// Display the given message in bright red (if colour is enabled).  The message is not linefeed terminated.
 	void display_error_msg(const std::string & msg);
