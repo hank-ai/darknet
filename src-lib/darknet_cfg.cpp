@@ -867,7 +867,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 					parms.receptive_w = parms.receptive_h = parms.receptive_w_scale = parms.receptive_h_scale = 0;
 					for (int k = 0; k < l.n; ++k)
 					{
-						Darknet::Layer /*&*/ route_l = net.layers[l.input_layers[k]];
+						Darknet::Layer & route_l = net.layers[l.input_layers[k]];
 						parms.receptive_w = max_val_cmp(parms.receptive_w, route_l.receptive_w);
 						parms.receptive_h = max_val_cmp(parms.receptive_h, route_l.receptive_h);
 						parms.receptive_w_scale = max_val_cmp(parms.receptive_w_scale, route_l.receptive_w_scale);
@@ -1021,7 +1021,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 	{
 		for (int k = 0; k < parms.last_stop_backward; ++k)
 		{
-			Darknet::Layer /*&*/ l = net.layers[k];
+			Darknet::Layer & l = net.layers[k];
 			if (l.keep_delta_gpu)
 			{
 				if (!l.delta)
@@ -1046,7 +1046,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 	{
 		for (int k = 0; k < net.n; ++k)
 		{
-			Darknet::Layer /*&*/ l = net.layers[k];
+			Darknet::Layer & l = net.layers[k];
 			// delta GPU-memory optimization: net.optimized_memory == 1
 			if (!l.keep_delta_gpu)
 			{
@@ -1505,7 +1505,7 @@ Darknet::Layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 
 	Darknet::Layer l = make_route_layer(batch, v.size(), layers, sizes, groups, group_id);
 
-	Darknet::Layer /*&*/ first = net.layers[layers[0]];
+	const Darknet::Layer & first = net.layers[layers[0]];
 	l.out_w = first.out_w;
 	l.out_h = first.out_h;
 	l.out_c = first.out_c;
@@ -1513,7 +1513,7 @@ Darknet::Layer Darknet::CfgFile::parse_route_section(const size_t section_idx)
 	for (int i = 1; i < v.size(); ++i)
 	{
 		int index = layers[i];
-		Darknet::Layer /*&*/ next = net.layers[index];
+		const Darknet::Layer & next = net.layers[index];
 		if (next.out_w == first.out_w && next.out_h == first.out_h)
 		{
 			l.out_c += next.out_c;
@@ -1652,7 +1652,7 @@ Darknet::Layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	if (embedding_layer_id != 999999)
 	{
 //		printf(" embedding_layer_id = %d, ", embedding_layer_id);
-		Darknet::Layer /*&*/ le = net.layers[embedding_layer_id];
+		const Darknet::Layer & le = net.layers[embedding_layer_id];
 		l.embedding_layer_id = embedding_layer_id;
 		l.embedding_output = (float*)xcalloc(le.batch * le.outputs, sizeof(float));
 		l.embedding_size = le.n / l.n;
@@ -2164,7 +2164,7 @@ Darknet::Layer Darknet::CfgFile::parse_scale_channels_section(const size_t secti
 	int scale_wh = s.find_int("scale_wh", 0);
 
 	int batch = parms.batch;
-	Darknet::Layer /*&*/ from = net.layers[index];
+	const Darknet::Layer & from = net.layers[index];
 
 	Darknet::Layer l = make_scale_channels_layer(batch, index, parms.w, parms.h, parms.c, from.out_w, from.out_h, from.out_c, scale_wh);
 
@@ -2192,7 +2192,7 @@ Darknet::Layer Darknet::CfgFile::parse_sam_section(const size_t section_idx)
 	}
 
 	int batch = parms.batch;
-	Darknet::Layer /*&*/ from = net.layers[index];
+	const Darknet::Layer & from = net.layers[index];
 
 	Darknet::Layer l = make_sam_layer(batch, index, parms.w, parms.h, parms.c, from.out_w, from.out_h, from.out_c);
 

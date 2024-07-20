@@ -33,6 +33,7 @@ Darknet::Layer make_route_layer(int batch, int n, int *input_layers, int *input_
 	l.forward_gpu = forward_route_layer_gpu;
 	l.backward_gpu = backward_route_layer_gpu;
 
+	/// @todo Valgrind tells us this is not freed in @ref free_layer_custom()
 	l.delta_gpu =  cuda_make_array(l.delta, outputs*batch);
 	l.output_gpu = cuda_make_array(l.output, outputs*batch);
 	#endif

@@ -471,6 +471,7 @@ Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *m
 	l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
 
 	free(l.output);
+	/// @todo Valgrind tells us this is not freed in @ref free_layer_custom()
 	if (cudaSuccess == cudaHostAlloc((void**)&l.output, batch*l.outputs*sizeof(float), cudaHostRegisterMapped))
 	{
 		l.output_pinned = 1;

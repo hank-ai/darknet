@@ -174,15 +174,15 @@ void forward_lstm_layer(Darknet::Layer & l, network_state state)
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	Darknet::Layer /*&*/ wf = *(l.wf);
-	Darknet::Layer /*&*/ wi = *(l.wi);
-	Darknet::Layer /*&*/ wg = *(l.wg);
-	Darknet::Layer /*&*/ wo = *(l.wo);
+	Darknet::Layer & wf = *(l.wf);
+	Darknet::Layer & wi = *(l.wi);
+	Darknet::Layer & wg = *(l.wg);
+	Darknet::Layer & wo = *(l.wo);
 
-	Darknet::Layer /*&*/ uf = *(l.uf);
-	Darknet::Layer /*&*/ ui = *(l.ui);
-	Darknet::Layer /*&*/ ug = *(l.ug);
-	Darknet::Layer /*&*/ uo = *(l.uo);
+	Darknet::Layer & uf = *(l.uf);
+	Darknet::Layer & ui = *(l.ui);
+	Darknet::Layer & ug = *(l.ug);
+	Darknet::Layer & uo = *(l.uo);
 
 	fill_cpu(l.outputs * l.batch * l.steps, 0, wf.delta, 1);
 	fill_cpu(l.outputs * l.batch * l.steps, 0, wi.delta, 1);
@@ -263,15 +263,15 @@ void backward_lstm_layer(Darknet::Layer & l, network_state state)
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	Darknet::Layer /*&*/ wf = *(l.wf);
-	Darknet::Layer /*&*/ wi = *(l.wi);
-	Darknet::Layer /*&*/ wg = *(l.wg);
-	Darknet::Layer /*&*/ wo = *(l.wo);
+	Darknet::Layer & wf = *(l.wf);
+	Darknet::Layer & wi = *(l.wi);
+	Darknet::Layer & wg = *(l.wg);
+	Darknet::Layer & wo = *(l.wo);
 
-	Darknet::Layer /*&*/ uf = *(l.uf);
-	Darknet::Layer /*&*/ ui = *(l.ui);
-	Darknet::Layer /*&*/ ug = *(l.ug);
-	Darknet::Layer /*&*/ uo = *(l.uo);
+	Darknet::Layer & uf = *(l.uf);
+	Darknet::Layer & ui = *(l.ui);
+	Darknet::Layer & ug = *(l.ug);
+	Darknet::Layer & uo = *(l.uo);
 
 	increment_layer(&wf, l.steps - 1);
 	increment_layer(&wi, l.steps - 1);
@@ -424,15 +424,15 @@ void forward_lstm_layer_gpu(Darknet::Layer & l, network_state state)
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	Darknet::Layer /*&*/ wf = *(l.wf);
-	Darknet::Layer /*&*/ wi = *(l.wi);
-	Darknet::Layer /*&*/ wg = *(l.wg);
-	Darknet::Layer /*&*/ wo = *(l.wo);
+	Darknet::Layer & wf = *(l.wf);
+	Darknet::Layer & wi = *(l.wi);
+	Darknet::Layer & wg = *(l.wg);
+	Darknet::Layer & wo = *(l.wo);
 
-	Darknet::Layer /*&*/ uf = *(l.uf);
-	Darknet::Layer /*&*/ ui = *(l.ui);
-	Darknet::Layer /*&*/ ug = *(l.ug);
-	Darknet::Layer /*&*/ uo = *(l.uo);
+	Darknet::Layer & uf = *(l.uf);
+	Darknet::Layer & ui = *(l.ui);
+	Darknet::Layer & ug = *(l.ug);
+	Darknet::Layer & uo = *(l.uo);
 
 	fill_ongpu(l.outputs * l.batch * l.steps, 0, wf.delta_gpu, 1);
 	fill_ongpu(l.outputs * l.batch * l.steps, 0, wi.delta_gpu, 1);
@@ -513,15 +513,15 @@ void backward_lstm_layer_gpu(Darknet::Layer & l, network_state state)
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	Darknet::Layer /*&*/ wf = *(l.wf);
-	Darknet::Layer /*&*/ wi = *(l.wi);
-	Darknet::Layer /*&*/ wg = *(l.wg);
-	Darknet::Layer /*&*/ wo = *(l.wo);
+	Darknet::Layer & wf = *(l.wf);
+	Darknet::Layer & wi = *(l.wi);
+	Darknet::Layer & wg = *(l.wg);
+	Darknet::Layer & wo = *(l.wo);
 
-	Darknet::Layer /*&*/ uf = *(l.uf);
-	Darknet::Layer /*&*/ ui = *(l.ui);
-	Darknet::Layer /*&*/ ug = *(l.ug);
-	Darknet::Layer /*&*/ uo = *(l.uo);
+	Darknet::Layer & uf = *(l.uf);
+	Darknet::Layer & ui = *(l.ui);
+	Darknet::Layer & ug = *(l.ug);
+	Darknet::Layer & uo = *(l.uo);
 
 	increment_layer(&wf, l.steps - 1);
 	increment_layer(&wi, l.steps - 1);

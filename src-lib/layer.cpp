@@ -198,8 +198,8 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 		cudaFreeHost(l.output);
 		l.output = nullptr;
 	}
-
 #endif  // GPU
+
 	if (l.delta)						free_and_clear(l.delta);
 	if (l.output)						free_and_clear(l.output);
 	if (l.activation_input)				free_and_clear(l.activation_input);

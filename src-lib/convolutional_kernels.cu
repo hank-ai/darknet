@@ -1080,7 +1080,7 @@ void assisted_activation2_gpu(float alpha, float *output, float *gt_gpu, float *
 	assisted_activation2_kernel << <num_blocks, BLOCK, 0, get_cuda_stream() >> > (alpha, output, gt_gpu, a_avg_gpu, size, channels, batches);
 }
 
-void assisted_excitation_forward_gpu(Darknet::Layer /*&*/ l, network_state state)
+void assisted_excitation_forward_gpu(Darknet::Layer & l, network_state state)
 {
 	TAT(TATPARMS);
 

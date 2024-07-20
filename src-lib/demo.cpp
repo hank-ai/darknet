@@ -202,14 +202,13 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 		darknet_fatal_error(DARKNET_LOC, "failed to connect to webcam (%d, %s)", cam_index, filename);
 	}
 
-	Darknet::Layer /*&*/ l = net.layers[net.n-1];
-	int j;
+	Darknet::Layer l = net.layers[net.n-1];
 
 	cv_images = (mat_cv**)xcalloc(avg_frames, sizeof(mat_cv));
 
 	for (int i = 0; i < net.n; ++i)
 	{
-		Darknet::Layer /*&*/ lc = net.layers[i];
+		Darknet::Layer lc = net.layers[i];
 		if (lc.type == YOLO)
 		{
 			lc.mean_alpha = 1.0 / avg_frames;
@@ -238,7 +237,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	det_img = in_img;
 	det_s = in_s;
 
-	for (j = 0; j < avg_frames / 2; ++j)
+	for (int j = 0; j < avg_frames / 2; ++j)
 	{
 		free_detections(dets, nboxes);
 		fetch_in_thread_sync(0); //fetch_in_thread(0);
@@ -248,7 +247,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	}
 
 	int count = 0;
-	if(!prefix && !dont_show)
+	if (!prefix && !dont_show)
 	{
 		int full_screen = 0;
 		create_window_cv("Demo", full_screen, 1352, 1013);
@@ -461,7 +460,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	free_detections(dets, nboxes);
 
 	demo_index = (avg_frames + demo_index - 1) % avg_frames;
-	for (j = 0; j < avg_frames; ++j)
+	for (int j = 0; j < avg_frames; ++j)
 	{
 		release_mat(&cv_images[j]);
 	}

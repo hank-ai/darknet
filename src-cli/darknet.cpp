@@ -122,7 +122,7 @@ void operations(char *cfgfile)
 	long ops = 0;
 	for (int i = 0; i < net.n; ++i)
 	{
-		Darknet::Layer /*&*/ l = net.layers[i];
+		Darknet::Layer & l = net.layers[i];
 		if (l.type == CONVOLUTIONAL)
 		{
 			ops += 2l * l.n * l.size*l.size*l.c * l.out_h*l.out_w;
@@ -151,6 +151,8 @@ void operations(char *cfgfile)
 	}
 	printf("Floating Point Operations: %ld\n", ops);
 	printf("Floating Point Operations: %.2f Bn\n", (float)ops/1000000000.);
+
+	free_network(net);
 }
 
 

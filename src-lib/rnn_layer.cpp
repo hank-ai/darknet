@@ -90,9 +90,9 @@ void forward_rnn_layer(Darknet::Layer & l, network_state state)
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	Darknet::Layer /*&*/ input_layer = *(l.input_layer);
-	Darknet::Layer /*&*/ self_layer = *(l.self_layer);
-	Darknet::Layer /*&*/ output_layer = *(l.output_layer);
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
 
 	fill_cpu(l.outputs * l.batch * l.steps, 0, output_layer.delta, 1);
 	fill_cpu(l.hidden * l.batch * l.steps, 0, self_layer.delta, 1);
@@ -135,9 +135,9 @@ void backward_rnn_layer(Darknet::Layer & l, network_state state)
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	Darknet::Layer /*&*/ input_layer = *(l.input_layer);
-	Darknet::Layer /*&*/ self_layer = *(l.self_layer);
-	Darknet::Layer /*&*/ output_layer = *(l.output_layer);
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
 
 	increment_layer(&input_layer, l.steps-1);
 	increment_layer(&self_layer, l.steps-1);
@@ -217,9 +217,9 @@ void forward_rnn_layer_gpu(Darknet::Layer & l, network_state state)
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	Darknet::Layer /*&*/ input_layer = *(l.input_layer);
-	Darknet::Layer /*&*/ self_layer = *(l.self_layer);
-	Darknet::Layer /*&*/ output_layer = *(l.output_layer);
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
 
 	fill_ongpu(l.outputs * l.batch * l.steps, 0, output_layer.delta_gpu, 1);
 	fill_ongpu(l.hidden * l.batch * l.steps, 0, self_layer.delta_gpu, 1);
@@ -262,9 +262,9 @@ void backward_rnn_layer_gpu(Darknet::Layer & l, network_state state)
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	Darknet::Layer /*&*/ input_layer = *(l.input_layer);
-	Darknet::Layer /*&*/ self_layer = *(l.self_layer);
-	Darknet::Layer /*&*/ output_layer = *(l.output_layer);
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
 	increment_layer(&input_layer,  l.steps - 1);
 	increment_layer(&self_layer,   l.steps - 1);
 	increment_layer(&output_layer, l.steps - 1);
