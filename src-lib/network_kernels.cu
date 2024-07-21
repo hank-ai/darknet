@@ -36,7 +36,7 @@ int time_comparator(const void *pa, const void *pb)
 	return 0;
 }
 
-void forward_network_gpu(network net, network_state state)
+void forward_network_gpu(network net, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -145,7 +145,7 @@ void forward_network_gpu(network net, network_state state)
 	}
 }
 
-void backward_network_gpu(network net, network_state state)
+void backward_network_gpu(network net, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -351,7 +351,7 @@ void forward_backward_network_gpu(network net, float *x, float *y)
 {
 	TAT(TATPARMS);
 
-	network_state state;
+	Darknet::NetworkState state;
 	state.index = 0;
 	state.net = net;
 	int x_size = get_network_input_size(net)*net.batch;
@@ -807,7 +807,7 @@ float *network_predict_gpu(network net, float *input)
 		cuda_set_device(net.gpu_index);
 	}
 	int size = get_network_input_size(net) * net.batch;
-	network_state state;
+	Darknet::NetworkState state;
 	state.index = 0;
 	state.net = net;
 	//state.input = cuda_make_array(input, size);   // memory will be allocated in the parse_network_cfg_custom()

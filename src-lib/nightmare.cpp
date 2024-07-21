@@ -62,7 +62,7 @@ void optimize_picture(network *net, image orig, int max_layer, float scale, floa
 
 	image delta = make_image(im.w, im.h, im.c);
 
-	network_state state = {0};
+	Darknet::NetworkState state = {0};
 	state.net = *net;
 
 #ifdef GPU
@@ -173,7 +173,7 @@ void reconstruct_picture(network net, float *features, image recon, image update
 	{
 		image delta = make_image(recon.w, recon.h, recon.c);
 
-		network_state state = {0};
+		Darknet::NetworkState state = {0};
 		state.net = net;
 
 #ifdef GPU

@@ -6,92 +6,28 @@
 
 #include "darknet.h"
 
-#include <cstdint>
-//#include <stdint.h>
-#include "layer.hpp"
-//#include "image.hpp"
-//#include "data.hpp"
-//#include "tree.hpp"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 /*
 typedef enum {
     CONSTANT, STEP, EXP, POLY, STEPS, SIG, RANDOM
 } learning_rate_policy;
-
-typedef struct network{
-    float *workspace;
-    int n;
-    int batch;
-	uint64_t *seen;
-    float epoch;
-    int subdivisions;
-    float momentum;
-    float decay;
-    layer *layers;
-    int outputs;
-    float *output;
-    learning_rate_policy policy;
-
-    float learning_rate;
-    float gamma;
-    float scale;
-    float power;
-    int time_steps;
-    int step;
-    int max_batches;
-    float *scales;
-    int   *steps;
-    int num_steps;
-    int burn_in;
-    int cudnn_half;
-
-    int adam;
-    float B1;
-    float B2;
-    float eps;
-
-    int inputs;
-    int h, w, c;
-    int max_crop;
-    int min_crop;
-    int flip; // horizontal flip 50% probability augmentaiont for classifier training (default = 1)
-    float angle;
-    float aspect;
-    float exposure;
-    float saturation;
-    float hue;
-	int small_object;
-
-    int gpu_old_index;
-    tree *hierarchy;
-
-    #ifdef GPU
-    float *input_state_gpu;
-
-    float **input_gpu;
-    float **truth_gpu;
-	float **input16_gpu;
-	float **output16_gpu;
-	size_t *max_input16_size;
-	size_t *max_output16_size;
-	int wait_stream;
-    #endif
-} network;
-
-
-typedef struct network_state {
-    float *truth;
-    float *input;
-    float *delta;
-    float *workspace;
-    int train;
-    int index;
-    network net;
-} network_state;
 */
+
+namespace Darknet
+{
+	struct NetworkState
+	{
+		float *truth;
+		float *input;
+		float *delta;
+		float *workspace;
+		int train;
+		int index;
+		network net;
+	};
+}
+
+extern "C"
+{
 
 #ifdef GPU
 float train_networks(network *nets, int n, data d, int interval);
@@ -101,8 +37,8 @@ float *network_predict_gpu(network net, float *input);
 float * get_network_output_gpu_layer(network net, int i);
 float * get_network_delta_gpu_layer(network net, int i);
 float *get_network_output_gpu(network net);
-void forward_network_gpu(network net, network_state state);
-void backward_network_gpu(network net, network_state state);
+void forward_network_gpu(network net, Darknet::NetworkState state);
+void backward_network_gpu(network net, Darknet::NetworkState state);
 void update_network_gpu(network net);
 void forward_backward_network_gpu(network net, float *x, float *y);
 #endif
@@ -117,8 +53,8 @@ void compare_networks(network n1, network n2, data d);
 char * get_layer_string(LAYER_TYPE a);
 
 network make_network(int n);
-void forward_network(network net, network_state state);
-void backward_network(network net, network_state state);
+void forward_network(network net, Darknet::NetworkState state);
+void backward_network(network net, Darknet::NetworkState state);
 void update_network(network net);
 
 float train_network(network net, data d);
@@ -161,7 +97,4 @@ void ema_update(network net, float ema_alpha);
 void ema_apply(network net);
 void reject_similar_weights(network net, float sim_threshold);
 
-
-#ifdef __cplusplus
 }
-#endif

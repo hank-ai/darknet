@@ -20,11 +20,11 @@ namespace Darknet
 		ACTIVATION lstm_activation;
 		COST_TYPE cost_type;
 
-		void(*forward)		(Layer & l, struct network_state);
-		void(*backward)		(Layer & l, struct network_state);
+		void(*forward)		(Layer & l, Darknet::NetworkState network_state);
+		void(*backward)		(Layer & l, Darknet::NetworkState network_state);
 		void(*update)		(Layer & l, int, float, float, float);
-		void(*forward_gpu)	(Layer & l, struct network_state);
-		void(*backward_gpu)	(Layer & l, struct network_state);
+		void(*forward_gpu)	(Layer & l, Darknet::NetworkState network_state);
+		void(*backward_gpu)	(Layer & l, Darknet::NetworkState network_state);
 		void(*update_gpu)	(Layer & l, int, float, float, float, float);
 
 		Layer *share_layer;

@@ -195,7 +195,7 @@ namespace
 }
 
 void softmax_tree(float *input, int batch, int inputs, float temp, tree *hierarchy, float *output);
-void forward_region_layer(Darknet::Layer & l, network_state state)
+void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -390,7 +390,7 @@ void forward_region_layer(Darknet::Layer & l, network_state state)
 	printf("Region Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, Avg Recall: %f,  count: %d\n", avg_iou/count, avg_cat/class_count, avg_obj/count, avg_anyobj/(l.w*l.h*l.n*l.batch), recall/count, count);
 }
 
-void backward_region_layer(Darknet::Layer & l, network_state state)
+void backward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -473,7 +473,7 @@ void get_region_boxes(const Darknet::Layer & l, int w, int h, float thresh, floa
 
 #ifdef GPU
 
-void forward_region_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_region_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -505,7 +505,7 @@ void forward_region_layer_gpu(Darknet::Layer & l, network_state state)
 	}
 	cuda_pull_array(l.output_gpu, in_cpu, l.batch*l.inputs);
 	//cudaStreamSynchronize(get_cuda_stream());
-	network_state cpu_state = state;
+	Darknet::NetworkState cpu_state = state;
 	cpu_state.train = state.train;
 	cpu_state.truth = truth_cpu;
 	cpu_state.input = in_cpu;
@@ -518,7 +518,7 @@ void forward_region_layer_gpu(Darknet::Layer & l, network_state state)
 	if(cpu_state.truth) free(cpu_state.truth);
 }
 
-void backward_region_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_region_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

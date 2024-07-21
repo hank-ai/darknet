@@ -32,19 +32,22 @@ typedef enum { UNUSED_DEF_VAL } UNUSED_ENUM_TYPE;
 
 namespace Darknet
 {
-	/// The @p layer structure has been moved to darknet_layer.hpp.
+	/// The @p layer structure has been renamed and moved to darknet_layer.hpp.
 	struct Layer;
+
+	/// The @p network_state structure has been renamed and moved to network.hpp.
+	struct NetworkState;
 }
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-struct network;
-typedef struct network network;
+//struct network;
+//typedef struct network network;
 
-struct network_state;
-typedef struct network_state network_state;
+//struct network_state;
+//typedef struct network_state network_state;
 
 //struct layer;
 //typedef struct layer layer;
@@ -818,17 +821,6 @@ typedef struct network {
 	int dynamic_minibatch;
 	size_t workspace_size_limit;
 } network;
-
-// network.h
-typedef struct network_state {
-	float *truth;
-	float *input;
-	float *delta;
-	float *workspace;
-	int train;
-	int index;
-	network net;
-} network_state;
 
 // image.h
 typedef struct image {

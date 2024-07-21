@@ -8,8 +8,8 @@
 extern "C" {
 #endif
 Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes);
-void forward_yolo_layer(Darknet::Layer & l, network_state state);
-void backward_yolo_layer(Darknet::Layer & l, network_state state);
+void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state);
+void backward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void resize_yolo_layer(Darknet::Layer *l, int w, int h);
 int yolo_num_detections(const Darknet::Layer & l, float thresh);
 int yolo_num_detections_batch(const Darknet::Layer & l, float thresh, int batch);
@@ -18,8 +18,8 @@ int get_yolo_detections_batch(const Darknet::Layer & l, int w, int h, int netw, 
 void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth, int relative, int letter);
 
 #ifdef GPU
-void forward_yolo_layer_gpu(Darknet::Layer & l, network_state state);
-void backward_yolo_layer_gpu(Darknet::Layer & l, network_state state);
+void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
+void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 #endif
 
 #ifdef __cplusplus

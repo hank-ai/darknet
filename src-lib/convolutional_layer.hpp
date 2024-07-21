@@ -10,8 +10,8 @@
 extern "C" {
 #endif
 #ifdef GPU
-void forward_convolutional_layer_gpu(Darknet::Layer & l, network_state state);
-void backward_convolutional_layer_gpu(Darknet::Layer & l, network_state state);
+void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
+void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void update_convolutional_layer_gpu(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay, float loss_scale);
 
 void push_convolutional_layer(Darknet::Layer & l);
@@ -32,7 +32,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 void denormalize_convolutional_layer(Darknet::Layer & l);
 void set_specified_workspace_limit(Darknet::Layer *l, size_t workspace_size_limit);
 void resize_convolutional_layer(Darknet::Layer * l, int w, int h);
-void forward_convolutional_layer(Darknet::Layer & l, network_state state);
+void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void update_convolutional_layer(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay);
 image *visualize_convolutional_layer(const Darknet::Layer & l, const char * window, image * prev_weights);
 void binarize_weights(float *weights, int n, int size, float *binary);
@@ -41,7 +41,7 @@ void binarize_weights2(float *weights, int n, int size, char *binary, float *sca
 
 void binary_align_weights(Darknet::Layer *l);
 
-void backward_convolutional_layer(Darknet::Layer & l, network_state state);
+void backward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state);
 
 void add_bias(float *output, float *biases, int batch, int n, int size);
 void backward_bias(float *bias_updates, float *delta, int batch, int n, int size);
@@ -55,8 +55,8 @@ int convolutional_out_height(const Darknet::Layer & l);
 int convolutional_out_width(const Darknet::Layer & l);
 void rescale_weights(Darknet::Layer & l, float scale, float trans);
 void rgbgr_weights(const Darknet::Layer & l);
-void assisted_excitation_forward(Darknet::Layer & l, network_state state);
-void assisted_excitation_forward_gpu(Darknet::Layer & l, network_state state);
+void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state);
+void assisted_excitation_forward_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 
 #ifdef __cplusplus
 }

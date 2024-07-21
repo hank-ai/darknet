@@ -61,7 +61,7 @@ void resize_scale_channels_layer(Darknet::Layer *l, network *net)
 
 }
 
-void forward_scale_channels_layer(Darknet::Layer & l, network_state state)
+void forward_scale_channels_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -90,7 +90,7 @@ void forward_scale_channels_layer(Darknet::Layer & l, network_state state)
 	activate_array(l.output, l.outputs*l.batch, l.activation);
 }
 
-void backward_scale_channels_layer(Darknet::Layer & l, network_state state)
+void backward_scale_channels_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -127,7 +127,7 @@ void backward_scale_channels_layer(Darknet::Layer & l, network_state state)
 }
 
 #ifdef GPU
-void forward_scale_channels_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_scale_channels_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -140,7 +140,7 @@ void forward_scale_channels_layer_gpu(Darknet::Layer & l, network_state state)
 	activate_array_ongpu(l.output_gpu, l.outputs*l.batch, l.activation);
 }
 
-void backward_scale_channels_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_scale_channels_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

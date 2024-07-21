@@ -486,7 +486,7 @@ void resize_gaussian_yolo_layer(Darknet::Layer *l, int w, int h)
 }
 
 
-void forward_gaussian_yolo_layer(Darknet::Layer & l, network_state state)
+void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -854,7 +854,7 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, network_state state)
 }
 
 
-void backward_gaussian_yolo_layer(Darknet::Layer & l, network_state state)
+void backward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -981,7 +981,7 @@ int get_gaussian_yolo_detections(const Darknet::Layer & l, int w, int h, int net
 
 #ifdef GPU
 
-void forward_gaussian_yolo_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_gaussian_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1029,10 +1029,10 @@ void forward_gaussian_yolo_layer_gpu(Darknet::Layer & l, network_state state)
 		truth_cpu = (float *)calloc(num_truth, sizeof(float));
 		cuda_pull_array(state.truth, truth_cpu, num_truth);
 	}
-	network_state cpu_state = state;
-	cpu_state.net = state.net;
-	cpu_state.index = state.index;
-	cpu_state.train = state.train;
+	Darknet::NetworkState cpu_state = state;
+//	cpu_state.net = state.net;
+//	cpu_state.index = state.index;
+//	cpu_state.train = state.train;
 	cpu_state.truth = truth_cpu;
 	cpu_state.input = in_cpu;
 	forward_gaussian_yolo_layer(l, cpu_state);
@@ -1045,7 +1045,7 @@ void forward_gaussian_yolo_layer_gpu(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_gaussian_yolo_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_gaussian_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

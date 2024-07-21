@@ -69,19 +69,19 @@ void resize_upsample_layer(Darknet::Layer *l, int w, int h)
 
 }
 
-void forward_upsample_layer(Darknet::Layer & l, network_state net)
+void forward_upsample_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
 	fill_cpu(l.outputs*l.batch, 0, l.output, 1);
 	if(l.reverse){
-		upsample_cpu(l.output, l.out_w, l.out_h, l.c, l.batch, l.stride, 0, l.scale, net.input);
+		upsample_cpu(l.output, l.out_w, l.out_h, l.c, l.batch, l.stride, 0, l.scale, state.input);
 	}else{
-		upsample_cpu(net.input, l.w, l.h, l.c, l.batch, l.stride, 1, l.scale, l.output);
+		upsample_cpu( state.input, l.w, l.h, l.c, l.batch, l.stride, 1, l.scale, l.output);
 	}
 }
 
-void backward_upsample_layer(Darknet::Layer & l, network_state state)
+void backward_upsample_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -93,7 +93,7 @@ void backward_upsample_layer(Darknet::Layer & l, network_state state)
 }
 
 #ifdef GPU
-void forward_upsample_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_upsample_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -105,7 +105,7 @@ void forward_upsample_layer_gpu(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_upsample_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_upsample_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

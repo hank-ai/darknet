@@ -11,13 +11,13 @@ Darknet::Layer make_crnn_layer(int batch, int h, int w, int c, int hidden_filter
 void resize_crnn_layer(Darknet::Layer *l, int w, int h);
 void free_state_crnn(Darknet::Layer & l);
 
-void forward_crnn_layer(Darknet::Layer & l, network_state state);
-void backward_crnn_layer(Darknet::Layer & l, network_state state);
+void forward_crnn_layer(Darknet::Layer & l, Darknet::NetworkState state);
+void backward_crnn_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void update_crnn_layer(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay);
 
 #ifdef GPU
-void forward_crnn_layer_gpu(Darknet::Layer & l, network_state state);
-void backward_crnn_layer_gpu(Darknet::Layer & l, network_state state);
+void forward_crnn_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
+void backward_crnn_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void update_crnn_layer_gpu(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay, float loss_scale);
 void push_crnn_layer(Darknet::Layer & l);
 void pull_crnn_layer(Darknet::Layer & l);

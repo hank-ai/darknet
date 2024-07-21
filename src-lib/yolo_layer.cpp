@@ -9,7 +9,7 @@ namespace
 	{
 		/// @todo maybe pass in the layer index instead so we don't have to copy the entire layer structure?
 		Darknet::Layer l;
-		network_state state;
+		Darknet::NetworkState state;
 		int b;
 
 		float tot_iou;
@@ -550,7 +550,7 @@ void process_batch(void* ptr)
 
 	train_yolo_args *args = (train_yolo_args*)ptr;
 	const Darknet::Layer & l = args->l;
-	network_state state = args->state;
+	Darknet::NetworkState state = args->state;
 	int b = args->b;
 
 	//printf(" b = %d \n", b, b);
@@ -910,7 +910,7 @@ void process_batch(void* ptr)
 
 
 
-void forward_yolo_layer(Darknet::Layer & l, network_state state)
+void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1226,7 +1226,7 @@ void forward_yolo_layer(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_yolo_layer(Darknet::Layer & l, network_state state)
+void backward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1521,7 +1521,7 @@ int get_yolo_detections_batch(const Darknet::Layer & l, int w, int h, int netw, 
 
 #ifdef GPU
 
-void forward_yolo_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1584,10 +1584,10 @@ void forward_yolo_layer_gpu(Darknet::Layer & l, network_state state)
 		truth_cpu = (float *)xcalloc(num_truth, sizeof(float));
 		cuda_pull_array(state.truth, truth_cpu, num_truth);
 	}
-	network_state cpu_state = state;
-	cpu_state.net = state.net;
-	cpu_state.index = state.index;
-	cpu_state.train = state.train;
+	Darknet::NetworkState cpu_state = state;
+//	cpu_state.net = state.net;
+//	cpu_state.index = state.index;
+//	cpu_state.train = state.train;
 	cpu_state.truth = truth_cpu;
 	cpu_state.input = in_cpu;
 	forward_yolo_layer(l, cpu_state);
@@ -1601,7 +1601,7 @@ void forward_yolo_layer_gpu(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_yolo_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

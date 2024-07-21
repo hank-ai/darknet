@@ -79,7 +79,7 @@ void resize_route_layer(Darknet::Layer *l, network *net)
 
 }
 
-void forward_route_layer(Darknet::Layer & l, network_state state)
+void forward_route_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -99,7 +99,7 @@ void forward_route_layer(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_route_layer(Darknet::Layer & l, network_state state)
+void backward_route_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -120,7 +120,7 @@ void backward_route_layer(Darknet::Layer & l, network_state state)
 }
 
 #ifdef GPU
-void forward_route_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_route_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -149,7 +149,7 @@ void forward_route_layer_gpu(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_route_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_route_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

@@ -252,7 +252,7 @@ void resize_maxpool_layer(Darknet::Layer *l, int w, int h)
 #endif
 }
 
-void forward_maxpool_layer(Darknet::Layer & l, network_state state)
+void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -331,7 +331,7 @@ void forward_maxpool_layer(Darknet::Layer & l, network_state state)
 
 	if (l.antialiasing)
 	{
-		network_state s = { 0 };
+		Darknet::NetworkState s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
 		s.net = state.net;
@@ -342,7 +342,7 @@ void forward_maxpool_layer(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_maxpool_layer(Darknet::Layer & l, network_state state)
+void backward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -358,7 +358,7 @@ void backward_maxpool_layer(Darknet::Layer & l, network_state state)
 }
 
 
-void forward_local_avgpool_layer(Darknet::Layer & l, network_state state)
+void forward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -398,7 +398,7 @@ void forward_local_avgpool_layer(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_local_avgpool_layer(Darknet::Layer & l, network_state state)
+void backward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

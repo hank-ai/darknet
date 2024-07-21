@@ -4,7 +4,6 @@
 
 extern "C"
 {
-	int64_t get_current_iteration(network net);
 	image float_to_image(int w, int h, int c, float *data);
 	void show_image_cv(image p, const char *name);
 	image float_to_image_scaled(int w, int h, int c, float *data);
@@ -181,7 +180,7 @@ half *cuda_make_f16_from_f32_array(float *src, size_t n)
 	return dst16;
 }
 
-void forward_convolutional_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -653,7 +652,7 @@ void forward_convolutional_layer_gpu(Darknet::Layer & l, network_state state)
 	if(l.assisted_excitation && state.train) assisted_excitation_forward_gpu(l, state);
 
 	if (l.antialiasing) {
-		network_state s = { 0 };
+		Darknet::NetworkState s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
 		s.net = state.net;
@@ -669,7 +668,7 @@ void forward_convolutional_layer_gpu(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_convolutional_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -678,7 +677,7 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, network_state state)
 	}
 
 	if (l.antialiasing) {
-		network_state s = { 0 };
+		Darknet::NetworkState s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
 		s.net = state.net;
@@ -1080,7 +1079,7 @@ void assisted_activation2_gpu(float alpha, float *output, float *gt_gpu, float *
 	assisted_activation2_kernel << <num_blocks, BLOCK, 0, get_cuda_stream() >> > (alpha, output, gt_gpu, a_avg_gpu, size, channels, batches);
 }
 
-void assisted_excitation_forward_gpu(Darknet::Layer & l, network_state state)
+void assisted_excitation_forward_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

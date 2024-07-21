@@ -49,7 +49,7 @@ Darknet::Layer make_softmax_layer(int batch, int inputs, int groups)
 	return l;
 }
 
-void forward_softmax_layer(Darknet::Layer & l, network_state net)
+void forward_softmax_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -58,24 +58,24 @@ void forward_softmax_layer(Darknet::Layer & l, network_state net)
 		int count = 0;
 		for (i = 0; i < l.softmax_tree->groups; ++i) {
 			int group_size = l.softmax_tree->group_size[i];
-			softmax_cpu(net.input + count, group_size, l.batch, l.inputs, 1, 0, 1, l.temperature, l.output + count);
+			softmax_cpu(state.input + count, group_size, l.batch, l.inputs, 1, 0, 1, l.temperature, l.output + count);
 			count += group_size;
 		}
 	} else {
-		softmax_cpu(net.input, l.inputs/l.groups, l.batch, l.inputs, l.groups, l.inputs/l.groups, 1, l.temperature, l.output);
+		softmax_cpu(state.input, l.inputs/l.groups, l.batch, l.inputs, l.groups, l.inputs/l.groups, 1, l.temperature, l.output);
 	}
 
-	if(net.truth && !l.noloss){
-		softmax_x_ent_cpu(l.batch*l.inputs, l.output, net.truth, l.delta, l.loss);
+	if(state.truth && !l.noloss){
+		softmax_x_ent_cpu(l.batch*l.inputs, l.output, state.truth, l.delta, l.loss);
 		l.cost[0] = sum_array(l.loss, l.batch*l.inputs);
 	}
 }
 
-void backward_softmax_layer(Darknet::Layer & l, network_state net)
+void backward_softmax_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	axpy_cpu(l.inputs*l.batch, 1, l.delta, 1, net.delta, 1);
+	axpy_cpu(l.inputs*l.batch, 1, l.delta, 1, state.delta, 1);
 }
 
 #ifdef GPU
@@ -87,12 +87,12 @@ void pull_softmax_layer_output(const Darknet::Layer & l)
 	cuda_pull_array(l.output_gpu, l.output, l.inputs * l.batch);
 }
 
-void forward_softmax_layer_gpu(Darknet::Layer & l, network_state net)
+void forward_softmax_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
 	if(l.softmax_tree){
-		softmax_tree_gpu(net.input, 1, l.batch, l.inputs, l.temperature, l.output_gpu, *l.softmax_tree);
+		softmax_tree_gpu( state.input, 1, l.batch, l.inputs, l.temperature, l.output_gpu, *l.softmax_tree);
 		/*
 		int i;
 		int count = 0;
@@ -104,23 +104,23 @@ void forward_softmax_layer_gpu(Darknet::Layer & l, network_state net)
 		*/
 	} else {
 		if(l.spatial){
-			softmax_gpu_new_api(net.input, l.c, l.batch*l.c, l.inputs/l.c, l.w*l.h, 1, l.w*l.h, 1, l.output_gpu);
+			softmax_gpu_new_api( state.input, l.c, l.batch*l.c, l.inputs/l.c, l.w*l.h, 1, l.w*l.h, 1, l.output_gpu);
 		}else{
-			softmax_gpu_new_api(net.input, l.inputs/l.groups, l.batch, l.inputs, l.groups, l.inputs/l.groups, 1, l.temperature, l.output_gpu);
+			softmax_gpu_new_api( state.input, l.inputs/l.groups, l.batch, l.inputs, l.groups, l.inputs/l.groups, 1, l.temperature, l.output_gpu);
 		}
 	}
-	if(net.truth && !l.noloss){
-		softmax_x_ent_gpu(l.batch*l.inputs, l.output_gpu, net.truth, l.delta_gpu, l.loss_gpu);
+	if( state.truth && !l.noloss){
+		softmax_x_ent_gpu(l.batch*l.inputs, l.output_gpu, state.truth, l.delta_gpu, l.loss_gpu);
 		if(l.softmax_tree){
-			mask_gpu_new_api(l.batch*l.inputs, l.delta_gpu, SECRET_NUM, net.truth, 0);
-			mask_gpu_new_api(l.batch*l.inputs, l.loss_gpu, SECRET_NUM, net.truth, 0);
+			mask_gpu_new_api(l.batch*l.inputs, l.delta_gpu, SECRET_NUM, state.truth, 0);
+			mask_gpu_new_api(l.batch*l.inputs, l.loss_gpu, SECRET_NUM, state.truth, 0);
 		}
 		cuda_pull_array(l.loss_gpu, l.loss, l.batch*l.inputs);
 		l.cost[0] = sum_array(l.loss, l.batch*l.inputs);
 	}
 }
 
-void backward_softmax_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_softmax_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -229,7 +229,7 @@ static inline float clip_value(float val, const float max_val)
 	return val;
 }
 
-void forward_contrastive_layer(Darknet::Layer & l, network_state state)
+void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -585,7 +585,7 @@ void forward_contrastive_layer(Darknet::Layer & l, network_state state)
 	free(z);
 }
 
-void backward_contrastive_layer(Darknet::Layer & l, network_state state)
+void backward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -610,7 +610,7 @@ void push_contrastive_layer_output(const Darknet::Layer & l)
 }
 
 
-void forward_contrastive_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_contrastive_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -627,10 +627,10 @@ void forward_contrastive_layer_gpu(Darknet::Layer & l, network_state state)
 		truth_cpu = (float *)xcalloc(num_truth, sizeof(float));
 		cuda_pull_array(state.truth, truth_cpu, num_truth);
 	}
-	network_state cpu_state = state;
-	cpu_state.net = state.net;
-	cpu_state.index = state.index;
-	cpu_state.train = state.train;
+	Darknet::NetworkState cpu_state = state;
+//	cpu_state.net = state.net;
+//	cpu_state.index = state.index;
+//	cpu_state.train = state.train;
 	cpu_state.truth = truth_cpu;
 	cpu_state.input = in_cpu;
 
@@ -641,7 +641,7 @@ void forward_contrastive_layer_gpu(Darknet::Layer & l, network_state state)
 	if (cpu_state.truth) free(cpu_state.truth);
 }
 
-void backward_contrastive_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_contrastive_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

@@ -195,7 +195,7 @@ void resize_batchnorm_layer(Darknet::Layer *l, int w, int h)
 #endif // GPU
 }
 
-void forward_batchnorm_layer(Darknet::Layer & l, network_state state)
+void forward_batchnorm_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -223,7 +223,7 @@ void forward_batchnorm_layer(Darknet::Layer & l, network_state state)
 	add_bias(l.output, l.biases, l.batch, l.out_c, l.out_w*l.out_h);
 }
 
-void backward_batchnorm_layer(Darknet::Layer & l, network_state state)
+void backward_batchnorm_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -270,7 +270,7 @@ void push_batchnorm_layer(Darknet::Layer & l)
 	cuda_push_array(l.rolling_variance_gpu, l.rolling_variance, l.out_c);
 }
 
-void forward_batchnorm_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_batchnorm_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -377,7 +377,7 @@ void forward_batchnorm_layer_gpu(Darknet::Layer & l, network_state state)
 
 }
 
-void backward_batchnorm_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_batchnorm_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

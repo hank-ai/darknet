@@ -261,7 +261,7 @@ network make_network(int n)
 }
 
 
-void forward_network(network net, network_state state)
+void forward_network(network net, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -361,7 +361,7 @@ int get_predicted_class_network(network net)
 }
 
 
-void backward_network(network net, network_state state)
+void backward_network(network net, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -415,7 +415,7 @@ float train_network_datum(network net, float *x, float *y)
 	{
 #endif
 
-		network_state state={0};
+		Darknet::NetworkState state={0};
 		*net.seen += net.batch;
 		state.index = 0;
 		state.net = net;
@@ -557,7 +557,7 @@ float train_network_batch(network net, data d, int n)
 {
 	TAT(TATPARMS);
 
-	network_state state={0};
+	Darknet::NetworkState state={0};
 	state.index = 0;
 	state.net = net;
 	state.train = 1;
@@ -921,7 +921,7 @@ float *network_predict(network net, float *input)
 	}
 #endif
 
-	network_state state = {0};
+	Darknet::NetworkState state = {0};
 	state.net = net;
 	state.index = 0;
 	state.input = input;
@@ -1981,7 +1981,7 @@ void fuse_conv_batchnorm(network net)
 }
 
 
-void forward_blank_layer(Darknet::Layer & l, network_state state)
+void forward_blank_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	return;
 }

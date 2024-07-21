@@ -77,7 +77,7 @@ void resize_dropout_layer(Darknet::Layer *l, int inputs)
 #endif
 }
 
-void forward_dropout_layer(Darknet::Layer & l, network_state state)
+void forward_dropout_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -91,7 +91,7 @@ void forward_dropout_layer(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_dropout_layer(Darknet::Layer & l, network_state state)
+void backward_dropout_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

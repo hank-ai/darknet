@@ -75,7 +75,7 @@ void resize_reorg_layer(Darknet::Layer *l, int w, int h)
 #endif
 }
 
-void forward_reorg_layer(Darknet::Layer & l, network_state state)
+void forward_reorg_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -87,7 +87,7 @@ void forward_reorg_layer(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_reorg_layer(Darknet::Layer & l, network_state state)
+void backward_reorg_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -100,7 +100,7 @@ void backward_reorg_layer(Darknet::Layer & l, network_state state)
 }
 
 #ifdef GPU
-void forward_reorg_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_reorg_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -112,7 +112,7 @@ void forward_reorg_layer_gpu(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_reorg_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_reorg_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

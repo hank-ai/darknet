@@ -1047,7 +1047,7 @@ void test_convolutional_layer()
 		3,3,3,3,3,
 		3,3,3,3,3,
 		3,3,3,3,3};
-	network_state state = {0};
+	Darknet::NetworkState state = {0};
 	state.input = data;
 	forward_convolutional_layer(l, state);
 }
@@ -1324,7 +1324,7 @@ void binary_align_weights(Darknet::Layer *l)
 	free(align_weights);
 }
 
-void forward_convolutional_layer(Darknet::Layer & l, network_state state)
+void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1540,7 +1540,7 @@ void forward_convolutional_layer(Darknet::Layer & l, network_state state)
 
 	if (l.antialiasing)
 	{
-		network_state s = { 0 };
+		Darknet::NetworkState s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
 		s.net = state.net;
@@ -1551,7 +1551,7 @@ void forward_convolutional_layer(Darknet::Layer & l, network_state state)
 	}
 }
 
-void assisted_excitation_forward(Darknet::Layer & l, network_state state)
+void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1670,7 +1670,7 @@ void assisted_excitation_forward(Darknet::Layer & l, network_state state)
 }
 
 
-void backward_convolutional_layer(Darknet::Layer & l, network_state state)
+void backward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

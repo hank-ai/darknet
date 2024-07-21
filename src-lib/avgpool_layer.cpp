@@ -39,7 +39,7 @@ void resize_avgpool_layer(Darknet::Layer * l, int w, int h)
 	l->inputs = h*w*l->c;
 }
 
-void forward_avgpool_layer(Darknet::Layer & l, network_state state)
+void forward_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -59,7 +59,7 @@ void forward_avgpool_layer(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_avgpool_layer(Darknet::Layer & l, network_state state)
+void backward_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

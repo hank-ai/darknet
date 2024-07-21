@@ -172,7 +172,7 @@ void resize_shortcut_layer(Darknet::Layer *l, int w, int h, network *net)
 
 }
 
-void forward_shortcut_layer(Darknet::Layer & l, network_state state)
+void forward_shortcut_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -200,7 +200,7 @@ void forward_shortcut_layer(Darknet::Layer & l, network_state state)
 	else activate_array_cpu_custom(l.output, l.outputs*l.batch, l.activation);
 }
 
-void backward_shortcut_layer(Darknet::Layer & l, network_state state)
+void backward_shortcut_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -232,7 +232,7 @@ void update_shortcut_layer(Darknet::Layer & l, int batch, float learning_rate_in
 }
 
 #ifdef GPU
-void forward_shortcut_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_shortcut_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -260,7 +260,7 @@ void forward_shortcut_layer_gpu(Darknet::Layer & l, network_state state)
 
 }
 
-void backward_shortcut_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_shortcut_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

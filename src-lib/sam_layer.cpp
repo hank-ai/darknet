@@ -57,7 +57,7 @@ void resize_sam_layer(Darknet::Layer *l, int w, int h)
 
 }
 
-void forward_sam_layer(Darknet::Layer & l, network_state state)
+void forward_sam_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -74,7 +74,7 @@ void forward_sam_layer(Darknet::Layer & l, network_state state)
 	activate_array(l.output, l.outputs*l.batch, l.activation);
 }
 
-void backward_sam_layer(Darknet::Layer & l, network_state state)
+void backward_sam_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -97,7 +97,7 @@ void backward_sam_layer(Darknet::Layer & l, network_state state)
 }
 
 #ifdef GPU
-void forward_sam_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_sam_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -109,7 +109,7 @@ void forward_sam_layer_gpu(Darknet::Layer & l, network_state state)
 	activate_array_ongpu(l.output_gpu, l.outputs*l.batch, l.activation);
 }
 
-void backward_sam_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_sam_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

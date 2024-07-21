@@ -82,11 +82,11 @@ void update_rnn_layer(Darknet::Layer & l, int batch, float learning_rate, float 
 	update_connected_layer(*(l.output_layer), batch, learning_rate, momentum, decay);
 }
 
-void forward_rnn_layer(Darknet::Layer & l, network_state state)
+void forward_rnn_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
@@ -127,11 +127,11 @@ void forward_rnn_layer(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_rnn_layer(Darknet::Layer & l, network_state state)
+void backward_rnn_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
@@ -209,11 +209,11 @@ void update_rnn_layer_gpu(Darknet::Layer & l, int batch, float learning_rate, fl
 	update_connected_layer_gpu(*(l.output_layer), batch, learning_rate, momentum, decay, loss_scale);
 }
 
-void forward_rnn_layer_gpu(Darknet::Layer & l, network_state state)
+void forward_rnn_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
@@ -254,11 +254,11 @@ void forward_rnn_layer_gpu(Darknet::Layer & l, network_state state)
 	}
 }
 
-void backward_rnn_layer_gpu(Darknet::Layer & l, network_state state)
+void backward_rnn_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
