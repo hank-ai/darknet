@@ -52,8 +52,15 @@ TARGET_LINK_LIBRARIES (darknetobjlib PRIVATE ${DARKNET_LINK_LIBS})
 # Next step is to create the actual darknet library.
 # ==
 MESSAGE(STATUS "Setting up DARKNET LIB")
+SET (DARKNET_PUBLIC_HEADERS
+	darknet.h
+	darknet.hpp
+	darknet_cfg.hpp
+	darknet_enums.hpp
+	darknet_version.h
+	)
 ADD_LIBRARY (darknet SHARED $<TARGET_OBJECTS:darknetobjlib>)
-SET_TARGET_PROPERTIES (darknet PROPERTIES PUBLIC_HEADER "darknet.h;darknet_version.h;darknet.hpp;darknet_cfg.hpp;darknet_enums.hpp")
+SET_TARGET_PROPERTIES (darknet PROPERTIES PUBLIC_HEADER ${DARKNET_PUBLIC_HEADERS})
 IF (DARKNET_USE_CUDA)
 	SET_TARGET_PROPERTIES (darknet PROPERTIES CUDA_ARCHITECTURES "${DARKNET_CUDA_ARCHITECTURES}")
 	SET_TARGET_PROPERTIES (darknet PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)

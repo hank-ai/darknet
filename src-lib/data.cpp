@@ -737,42 +737,6 @@ matrix load_labels_paths(char **paths, int n, char **labels, int k, tree *hierar
 	return y;
 }
 
-matrix load_tags_paths(char **paths, int n, int k)
-{
-	TAT(TATPARMS);
-
-	matrix y = make_matrix(n, k);
-	int i;
-	int count = 0;
-	for(i = 0; i < n; ++i)
-	{
-		char label[4096];
-		find_replace(paths[i], "imgs", "labels", label);
-		find_replace(label, "_iconl.jpeg", ".txt", label);
-		FILE *file = fopen(label, "r");
-		if(!file)
-		{
-			find_replace(label, "labels", "labels2", label);
-			file = fopen(label, "r");
-			if(!file)
-			{
-				continue;
-			}
-		}
-		++count;
-		int tag;
-		while(fscanf(file, "%d", &tag) == 1)
-		{
-			if(tag < k)
-			{
-				y.vals[i][tag] = 1;
-			}
-		}
-		fclose(file);
-	}
-	printf("%d/%d\n", count, n);
-	return y;
-}
 
 char **get_labels_custom(char *filename, int *size)
 {
@@ -811,143 +775,6 @@ void Darknet::free_data(data & d)
 		d.y.vals = nullptr;
 	}
 	return;
-}
-
-data load_data_region(int n, char **paths, int m, int w, int h, int c, int size, int classes, float jitter, float hue, float saturation, float exposure)
-{
-	TAT(TATPARMS);
-
-	char **random_paths = get_random_paths(paths, n, m);
-	int i;
-	data d = {0};
-	d.shallow = 0;
-
-	d.X.rows = n;
-	d.X.vals = (float**)xcalloc(d.X.rows, sizeof(float*));
-	d.X.cols = h*w*3;
-
-
-	int k = size*size*(5+classes);
-	d.y = make_matrix(n, k);
-	for (i = 0; i < n; ++i)
-	{
-		image orig = load_image(random_paths[i], 0, 0, c);
-
-		int oh = orig.h;
-		int ow = orig.w;
-
-		int dw = (ow*jitter);
-		int dh = (oh*jitter);
-
-		int pleft  = rand_uniform(-dw, dw);
-		int pright = rand_uniform(-dw, dw);
-		int ptop   = rand_uniform(-dh, dh);
-		int pbot   = rand_uniform(-dh, dh);
-
-		int swidth =  ow - pleft - pright;
-		int sheight = oh - ptop - pbot;
-
-		float sx = (float)swidth  / ow;
-		float sy = (float)sheight / oh;
-
-		int flip = random_gen()%2;
-		image cropped = crop_image(orig, pleft, ptop, swidth, sheight);
-
-		float dx = ((float)pleft/ow)/sx;
-		float dy = ((float)ptop /oh)/sy;
-
-		image sized = resize_image(cropped, w, h);
-		if(flip) flip_image(sized);
-		random_distort_image(sized, hue, saturation, exposure);
-		d.X.vals[i] = sized.data;
-
-		fill_truth_region(random_paths[i], d.y.vals[i], classes, size, flip, dx, dy, 1./sx, 1./sy);
-
-		free_image(orig);
-		free_image(cropped);
-	}
-
-	free(random_paths);
-	return d;
-}
-
-data load_data_compare(int n, char **paths, int m, int classes, int w, int h, int c)
-{
-	TAT(TATPARMS);
-
-	if(m) paths = get_random_paths(paths, 2*n, m);
-	int i,j;
-	data d = {0};
-	d.shallow = 0;
-
-	d.X.rows = n;
-	d.X.vals = (float**)xcalloc(d.X.rows, sizeof(float*));
-	d.X.cols = h*w*6;
-
-	int k = 2*(classes);
-	d.y = make_matrix(n, k);
-	for(i = 0; i < n; ++i)
-	{
-		image im1 = load_image(paths[i*2],   w, h, c);
-		image im2 = load_image(paths[i*2+1], w, h, c);
-
-		d.X.vals[i] = (float*)xcalloc(d.X.cols, sizeof(float));
-		memcpy(d.X.vals[i],         im1.data, h*w*3*sizeof(float));
-		memcpy(d.X.vals[i] + h*w*3, im2.data, h*w*3*sizeof(float));
-
-		int id;
-		float iou;
-
-		char imlabel1[4096];
-		char imlabel2[4096];
-		find_replace(paths[i*2],   "imgs", "labels", imlabel1);
-		find_replace(imlabel1, "jpg", "txt", imlabel1);
-		FILE *fp1 = fopen(imlabel1, "r");
-
-		while(fscanf(fp1, "%d %f", &id, &iou) == 2)
-		{
-			if (d.y.vals[i][2*id] < iou) d.y.vals[i][2*id] = iou;
-		}
-
-		find_replace(paths[i*2+1], "imgs", "labels", imlabel2);
-		find_replace(imlabel2, "jpg", "txt", imlabel2);
-		FILE *fp2 = fopen(imlabel2, "r");
-
-		while(fscanf(fp2, "%d %f", &id, &iou) == 2){
-			if (d.y.vals[i][2*id + 1] < iou) d.y.vals[i][2*id + 1] = iou;
-		}
-
-		for (j = 0; j < classes; ++j)
-		{
-			if (d.y.vals[i][2*j] > .5 &&  d.y.vals[i][2*j+1] < 0.5f)
-			{
-				d.y.vals[i][2*j] = 1;
-				d.y.vals[i][2*j+1] = 0;
-			}
-			else if (d.y.vals[i][2*j] < .5 &&  d.y.vals[i][2*j+1] > 0.5f)
-			{
-				d.y.vals[i][2*j] = 0;
-				d.y.vals[i][2*j+1] = 1;
-			}
-			else
-			{
-				d.y.vals[i][2*j]   = SECRET_NUM;
-				d.y.vals[i][2*j+1] = SECRET_NUM;
-			}
-		}
-		fclose(fp1);
-		fclose(fp2);
-
-		free_image(im1);
-		free_image(im2);
-	}
-
-	if(m)
-	{
-		free(paths);
-	}
-
-	return d;
 }
 
 
@@ -1598,36 +1425,6 @@ void Darknet::load_single_image_data(load_args args)
 			*args.d = load_data_augment(args.paths, args.n, args.m, args.labels, args.classes, args.hierarchy, args.flip, args.min, args.max, args.w, args.h, args.c, args.angle, args.aspect, args.hue, args.saturation, args.exposure, args.mixup, args.blur, args.show_imgs, args.label_smooth_eps, args.contrastive);
 			break;
 		}
-		case SUPER_DATA:
-		{
-			// 2024:  used in super.cpp and voxel.cpp
-			*args.d = load_data_super(args.paths, args.n, args.m, args.w, args.h, args.c, args.scale);
-			break;
-		}
-		case WRITING_DATA:
-		{
-			// 2024:  used in writing.cpp
-			*args.d = load_data_writing(args.paths, args.n, args.m, args.w, args.h,args.c, args.out_w, args.out_h);
-			break;
-		}
-		case REGION_DATA:
-		{
-			// 2024:  used in coco.cpp and yolo.cpp
-			*args.d = load_data_region(args.n, args.paths, args.m, args.w, args.h, args.c, args.num_boxes, args.classes, args.jitter, args.hue, args.saturation, args.exposure);
-			break;
-		}
-		case COMPARE_DATA:
-		{
-			// 2024:  used in compare.cpp
-			*args.d = load_data_compare(args.n, args.paths, args.m, args.classes, args.w, args.h, args.c);
-			break;
-		}
-		case TAG_DATA:
-		{
-			// 2024:  used in tag.cpp
-			*args.d = load_data_tag(args.paths, args.n, args.m, args.classes, args.flip, args.min, args.max, args.w, args.h, args.c, args.angle, args.aspect, args.hue, args.saturation, args.exposure);
-			break;
-		}
 	}
 
 	return;
@@ -1782,24 +1579,6 @@ void Darknet::stop_image_loading_threads()
 }
 
 
-data load_data_writing(char **paths, int n, int m, int w, int h, int c, int out_w, int out_h)
-{
-	TAT(TATPARMS);
-
-	if(m) paths = get_random_paths(paths, n, m);
-	char **replace_paths = find_replace_paths(paths, n, ".png", "-label.png");
-	data d = {0};
-	d.shallow = 0;
-	d.X = load_image_paths(paths, n, w, h, c);
-	d.y = load_image_paths_gray(replace_paths, n, out_w, out_h);
-	if(m) free(paths);
-	int i;
-	for(i = 0; i < n; ++i) free(replace_paths[i]);
-	free(replace_paths);
-	return d;
-}
-
-
 data load_data_old(char **paths, int n, int m, char **labels, int k, int w, int h, int c)
 {
 	TAT(TATPARMS);
@@ -1813,42 +1592,6 @@ data load_data_old(char **paths, int n, int m, char **labels, int k, int w, int 
 	return d;
 }
 
-
-data load_data_super(char **paths, int n, int m, int w, int h, int c, int scale)
-{
-	TAT(TATPARMS);
-
-	if(m) paths = get_random_paths(paths, n, m);
-	data d = {0};
-	d.shallow = 0;
-
-	int i;
-	d.X.rows = n;
-	d.X.vals = (float**)xcalloc(n, sizeof(float*));
-	d.X.cols = w*h*c;
-
-	d.y.rows = n;
-	d.y.vals = (float**)xcalloc(n, sizeof(float*));
-	d.y.cols = w*scale * h*scale * c;
-
-	for(i = 0; i < n; ++i)
-	{
-		image im = load_image(paths[i], 0, 0, c);
-		image crop = random_crop_image(im, w*scale, h*scale);
-		int flip = random_gen()%2;
-		if (flip)
-		{
-			flip_image(crop);
-		}
-		image resize = resize_image(crop, w, h);
-		d.X.vals[i] = resize.data;
-		d.y.vals[i] = crop.data;
-		free_image(im);
-	}
-
-	if(m) free(paths);
-	return d;
-}
 
 data load_data_augment(char **paths, int n, int m, char **labels, int k, tree *hierarchy, int use_flip, int min, int max, int w, int h, int c, float angle,
 	float aspect, float hue, float saturation, float exposure, int use_mixup, int use_blur, int show_imgs, float label_smooth_eps, int contrastive)
@@ -2067,27 +1810,6 @@ data load_data_augment(char **paths, int n, int m, char **labels, int k, tree *h
 	return d;
 }
 
-data load_data_tag(char **paths, int n, int m, int k, int use_flip, int min, int max, int w, int h, int c, float angle, float aspect, float hue, float saturation, float exposure)
-{
-	TAT(TATPARMS);
-
-	if(m)
-	{
-		paths = get_random_paths(paths, n, m);
-	}
-	data d = {0};
-	d.w = w;
-	d.h = h;
-	d.shallow = 0;
-	d.X = load_image_augment_paths(paths, n, use_flip, min, max, w, h, c, angle, aspect, hue, saturation, exposure, 0);
-	d.y = load_tags_paths(paths, n, k);
-	if(m)
-	{
-		free(paths);
-	}
-
-	return d;
-}
 
 matrix concat_matrix(matrix m1, matrix m2)
 {
