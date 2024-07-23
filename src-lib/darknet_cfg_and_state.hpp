@@ -95,13 +95,21 @@ namespace Darknet
 			/// When @p -dont_show has been set, this value will be set to @p false.
 			bool is_shown;
 
-			/// Determines if ANSI colour output will be used with the console output.  Defaults to @p true on Linux and @p false on Windows.
+			/// Determines if ANSI colour output will be used with the console output.  Default is @p true.
 			bool colour_is_enabled;
 
-			/// Whether Darknet was started with the @p --verbose flag.  Default is @p false.  @see @ref is_trace
+			/** Whether Darknet was started with the @p --verbose flag.  Default is @p false.
+			 * @see @ref Darknet::set_verbose()
+			 * @see @ref darknet_set_verbose()
+			 * @see @ref is_trace
+			 */
 			bool is_verbose;
 
-			/// Whether Darknet was started with the @p --trace flag.  This will also enable @ref is_verbose.  Default is @p false.
+			/** Whether %Darknet was started with the @p --trace flag.  This will also enable @ref is_verbose.  Default is @p false.
+			 * @see @ref Darknet::set_trace()
+			 * @see @ref darknet_set_trace()
+			 * @see @ref is_verbose
+			 */
 			bool is_trace;
 
 			/// Every argument starting with @p argv[0], unmodified, and in the exact order they were specified.

@@ -1242,6 +1242,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			val_resized[t] = buf_resized[t];
 		}
 
+		// load the next set of images while we run predict()
 		for (int t = 0; t < nthreads && (i + t) < number_of_validation_images; ++t)
 		{
 			args.path = paths[i + t];
@@ -1251,6 +1252,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			cfg_and_state.set_thread_name(thr[t], "map loading thread #" + std::to_string(t));
 		}
 
+		// predict using the 4 (or sometimes less than 4) images we just loaded
 		for (int t = 0; t < nthreads && i + t - nthreads < number_of_validation_images; ++t)
 		{
 			const int image_index = i + t - nthreads;
@@ -1270,7 +1272,6 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			{
 				dets = get_network_boxes(&net, 1, 1, thresh, hier_thresh, 0, 0, &nboxes, letter_box);
 			}
-			//detection *dets = get_network_boxes(&net, val[t].w, val[t].h, thresh, hier_thresh, 0, 1, &nboxes, letter_box); // for letter_box=1
 			if (nms)
 			{
 				if (l.nms_kind == DEFAULT_NMS)
@@ -1282,8 +1283,6 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 					diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
 				}
 			}
-
-			//if (l.embedding_size) set_track_id(dets, nboxes, thresh, l.sim_thresh, l.track_ciou_norm, l.track_history_size, l.dets_for_track, l.dets_for_show);
 
 			char labelpath[4096];
 			replace_image_to_label(path, labelpath);
@@ -1414,16 +1413,12 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		}
 	}
 
-	//for (t = 0; t < nthreads; ++t) {
-	//    pthread_join(thr[t], 0);
-	//}
-
 	if ((tp_for_thresh + fp_for_thresh) > 0)
 	{
 		avg_iou = avg_iou / (tp_for_thresh + fp_for_thresh);
 	}
 
-	for(int class_id = 0; class_id < classes; class_id++)
+	for (int class_id = 0; class_id < classes; class_id++)
 	{
 		if ((tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id]) > 0)
 		{
@@ -1441,14 +1436,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	std::sort(detections, detections + detections_count,
 			[](const box_prob & lhs, const box_prob & rhs)
 			{
-				const auto diff = lhs.p - rhs.p;
-
-				if (diff <= 0.0f)
-				{
-					return false;
-				}
-
-				return true;
+				return lhs.p > rhs.p;
 			});
 
 	struct pr_t

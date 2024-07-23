@@ -7,8 +7,7 @@ namespace
 
 	struct train_yolo_args
 	{
-		/// @todo maybe pass in the layer index instead so we don't have to copy the entire layer structure?
-		Darknet::Layer l;
+		const Darknet::Layer * l;
 		Darknet::NetworkState state;
 		int b;
 
@@ -549,7 +548,7 @@ void process_batch(void* ptr)
 	TAT_COMMENT(TATPARMS, "complicated");
 
 	train_yolo_args *args = (train_yolo_args*)ptr;
-	const Darknet::Layer & l = args->l;
+	const Darknet::Layer & l = *args->l;
 	Darknet::NetworkState state = args->state;
 	int b = args->b;
 
@@ -981,7 +980,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 
 	for (int b = 0; b < l.batch; b++)
 	{
-		yolo_args[b].l = l;
+		yolo_args[b].l = &l;
 		yolo_args[b].state = state;
 		yolo_args[b].b = b;
 

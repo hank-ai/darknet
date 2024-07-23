@@ -31,14 +31,22 @@ namespace Darknet
 
 	/** Set the @ref Darknet::CfgAndState::is_verbose flag.  When enabled, extra information will be sent to @p STDOUT.
 	 * Default value is @p false.
+	 *
+	 * @note Disabling @p verbose will also disable @p trace.
+	 *
 	 * @see @ref Darknet::set_trace()
+	 * @see @ref darknet_set_verbose()
 	 * @since 2024-07-14
 	 */
 	void set_verbose(const bool flag);
 
 	/** Set the @ref Darknet::CfgAndState::is_trace flag.  When enabled, debug information will be sent to @p STDOUT.
 	 * Default value is @p false.
+	 *
+	 * @note Enabling @p trace will also enable @p verbose.
+	 *
 	 * @see @ref Darknet::set_verbose()
+	 * @see @ref darknet_set_trace()
 	 * @since 2024-07-14
 	 */
 	void set_trace(const bool flag);
