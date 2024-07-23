@@ -400,10 +400,8 @@ typedef struct data {
 */
 typedef enum
 {
-	CLASSIFICATION_DATA,
 	DETECTION_DATA,
 	IMAGE_DATA, ///< causes @ref load_image() and @ref resize_image() to be called
-	OLD_CLASSIFICATION_DATA,
 	LETTERBOX_DATA,
 } data_type;
 
@@ -480,8 +478,6 @@ network *load_network_custom(const char * cfg, const char * weights, int clear, 
 void free_network(network net);
 void free_network_ptr(network* net);
 
-// network.c
-load_args get_base_args(network *net);
 
 // box.h
 void do_nms_sort(detection *dets, int total, int classes, float thresh);

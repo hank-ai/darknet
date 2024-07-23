@@ -7,28 +7,6 @@ namespace
 }
 
 
-load_args get_base_args(network *net)
-{
-	TAT(TATPARMS);
-
-	load_args args = {0};
-
-	args.w			= net->w;
-	args.h			= net->h;
-	args.size		= net->w;
-	args.min		= net->min_crop;
-	args.max		= net->max_crop;
-	args.angle		= net->angle;
-	args.aspect		= net->aspect;
-	args.exposure	= net->exposure;
-	args.center		= net->center;
-	args.saturation	= net->saturation;
-	args.hue		= net->hue;
-
-	return args;
-}
-
-
 int64_t get_current_iteration(network net)
 {
 	TAT(TATPARMS);
@@ -440,30 +418,6 @@ float train_network_datum(network net, float *x, float *y)
 	}
 
 	return error;
-}
-
-
-float train_network_sgd(network net, data d, int n)
-{
-	TAT(TATPARMS);
-
-	int batch = net.batch;
-	float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
-	float* y = (float*)xcalloc(batch * d.y.cols, sizeof(float));
-
-	float sum = 0;
-	for (int i = 0; i < n; ++i)
-	{
-		get_random_batch(d, batch, X, y);
-		net.current_subdivision = i;
-		float err = train_network_datum(net, X, y);
-		sum += err;
-	}
-
-	free(X);
-	free(y);
-
-	return (float)sum/(n*batch);
 }
 
 

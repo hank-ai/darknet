@@ -10,10 +10,8 @@
 
 
 /// @todo V3 look through these and see what we no longer need
-extern void predict_classifier(char *datacfg, char *cfgfile, char *weightfile, char *filename, int top);
 extern void run_detector(int argc, char **argv);
 extern void run_nightmare(int argc, char **argv);
-extern void run_classifier(int argc, char **argv);
 extern void run_char_rnn(int argc, char **argv);
 extern void run_vid_rnn(int argc, char **argv);
 extern void run_art(int argc, char **argv);
@@ -546,8 +544,6 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "3d")				{ composite_3d		(argv[2], argv[3], argv[4], (argc > 5) ? atof(argv[5]) : 0); }
 		else if (cfg_and_state.command == "average")		{ average			(argc, argv);	}
 		else if (cfg_and_state.command == "cfglayers")		{ Darknet::cfg_layers();			}
-		else if (cfg_and_state.command == "classify")		{ predict_classifier("cfg/imagenet1k.data", argv[2], argv[3], argv[4], 5); }
-		else if (cfg_and_state.command == "classifier")		{ run_classifier	(argc, argv);	}
 		else if (cfg_and_state.command == "denormalize")	{ denormalize_net	(argv[2], argv[3], argv[4]); }
 		else if (cfg_and_state.command == "detector")		{ run_detector		(argc, argv);	}
 		else if (cfg_and_state.command == "imtest")			{ test_resize		(argv[2]);		} ///< @see "test"

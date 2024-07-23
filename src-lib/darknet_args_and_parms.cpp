@@ -76,8 +76,6 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("average"		, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("calcanchors"	, ArgsAndParms::EType::kFunction, "Recalculate YOLO anchors."),
 		ArgsAndParms("cfglayers"	, ArgsAndParms::EType::kCommand, "Display some information on all config files and layers used."),
-		ArgsAndParms("classify"		, ArgsAndParms::EType::kCommand	, ""),
-		ArgsAndParms("classifier"	, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("demo"			, ArgsAndParms::EType::kFunction, "Process a video using the given neural network."),
 		ArgsAndParms("denormalize"	, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("detect"		, ArgsAndParms::EType::kCommand	, ""),

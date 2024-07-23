@@ -340,9 +340,6 @@ predict.restype = POINTER(c_float)
 # Define and comment function to set the GPU device for Darknet
 set_gpu = lib.cuda_set_device
 
-# Define and comment function to initialize Darknet for CPU processing
-init_cpu = lib.init_cpu
-
 # Define and comment function to create a Darknet IMAGE object
 make_image = lib.make_image
 make_image.argtypes = [c_int, c_int, c_int]

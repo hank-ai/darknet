@@ -60,7 +60,6 @@ void update_network(network net);
 float train_network(network net, data d);
 float train_network_waitkey(network net, data d, int wait_key);
 float train_network_batch(network net, data d, int n);
-float train_network_sgd(network net, data d, int n);
 float train_network_datum(network net, float *x, float *y);
 
 matrix network_predict_data(network net, data test);

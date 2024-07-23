@@ -540,6 +540,7 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 						grad_contrastive_loss_negative_f(z_index, l.class_ids, l.labels, step, z, l.embedding_size, l.temperature, l.delta + delta_index, wh, contrast_p, contr_size, l.contrastive_neg_max);
 					}
 					else {
+						/// @todo does this still apply now that classifier code has been removed?
 						// classifier
 
 						// positive
