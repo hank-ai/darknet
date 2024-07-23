@@ -1443,7 +1443,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			{
 				const auto diff = lhs.p - rhs.p;
 
-				if (diff < 0.0f)
+				if (diff <= 0.0f)
 				{
 					return false;
 				}
