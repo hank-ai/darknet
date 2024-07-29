@@ -353,7 +353,7 @@ typedef struct ious {
 
 // box.h
 typedef struct detection{
-	box bbox;
+	box bbox; ///< bounding boxes are normalized (between 0.0f and 1.0f)
 	int classes;
 	int best_class_idx;
 	float *prob;
@@ -573,11 +573,32 @@ void init_cpu();
 extern "C" {
 #endif
 
+	///< An opaque pointer to a @ref network object, without needing to expose the internals of the network structure.
+	typedef void* NetworkPtr;
+
 	/// This is the @p C equivalent to @ref Darknet::set_verbose().
 	void darknet_set_verbose(const bool flag);
 
 	/// This is the @p C equivalent to @ref Darknet::set_trace().
 	void darknet_set_trace(const bool flag);
+
+	/// This is the @p C equivalent to @ref Darknet::set_gpu_index().
+	void darknet_set_gpu_index(int idx);
+
+	/// This is the @p C equivalent to @ref Darknet::set_detection_threshold().
+	void darknet_set_detection_threshold(float threshold);
+
+	/// This is the @p C equivalent to @ref Darknet::set_non_maximal_suppression_threshold().
+	void darknet_set_non_maximal_suppression_threshold(float threshold);
+
+	/// This is the @p C equivalent to @ref Darknet::fix_out_of_bound_values().
+	void darknet_fix_out_of_bound_values(const bool toggle);
+
+	/// This is the @p C equivalent to @ref Darknet::network_dimensions().
+	void darknet_network_dimensions(NetworkPtr ptr, int * w, int * h, int * c);
+
+	/// This is the @p C equivalent to @ref Darknet::load_network_and_weights().
+	NetworkPtr darknet_load_network_and_weights(const char * const cfg_filename, const char * const weights_filename);
 
 #ifdef __cplusplus
 }
