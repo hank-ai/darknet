@@ -20,6 +20,16 @@ Other related projects:
 
 The Doxygen pages below are meant to assist **software developers** in understanding the <em>source code</em>.  If you're looking for help with **using** Darknet/YOLO as a user, please see the links above.
 
+The new DarknetV3 public API:
+- @ref darknet.hpp
+- @ref Darknet
+- @ref Darknet::parse_arguments()
+- @ref Darknet::load_neural_network()
+- @ref Darknet::free_neural_network()
+- @ref Darknet::predict()
+- @ref Darknet::annotate()
+
+Other useful functions:
 - @ref main()
 - @ref darknet_fatal_error()
 - @ref update_train_loss_chart()
@@ -33,12 +43,5 @@ Configuration files:
 - @ref Darknet::CfgFile
 	- @ref Darknet::CfgSection
 		- @ref Darknet::CfgLine
-
-@p darknet_utils.hpp:
-- @ref format_time()
-- @ref format_time_remaining()
-- @ref format_loss()
-- @ref format_map_accuracy()
-- @ref in_colour()
 
 */

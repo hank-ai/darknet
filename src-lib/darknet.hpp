@@ -83,8 +83,40 @@ namespace Darknet
 	 */
 	using Parms = std::vector<Parm>;
 
-	/** Parse common Darknet command-line parameters with the values from @p argc and @p argv in @p main().
+	/** Parse common %Darknet command-line parameters with the values from @p argc and @p argv in @p main().
 	 * Output can be used with @ref Darknet::load_neural_network().
+	 *
+	 * This function will attempt to identify the following:
+	 *
+	 * - @p .cfg files (%Darknet configuration)
+	 * - @p .names files (%Darknet classes)
+	 * - @p .weights files (%Darknet weights)
+	 * - all other files or subdirectories
+	 * - any other non-file parameters
+	 *
+	 * If the @p .names or @p .weights files were not found, then attempts will be made to locate a suitable file to use
+	 * based on the given @p .cfg file.  This means as long as the 3 %Darknet files are named in a similar way, there is
+	 * no need to specify all 3 files.  The @p .cfg file is enough to find the neural network.
+	 *
+	 * In addition, if no %Darknet files were found but a "stem" was specified, then this stem will be used to attempt and
+	 * find all the necessary files.  For example, if the following files exist:
+	 *
+	 * - @p animals.cfg
+	 * - @p animals.names
+	 * - @p animals_best.weights
+	 *
+	 * These files will be found if this function is called with the parameter @p "anim", since all the files begin with
+	 * that stem.
+	 *
+	 * Given the example files listed above, the following commands are interpreted the exact same way:
+	 *
+	 * ~~~~.sh
+	 *    darknet_01_inference_images animals.cfg animals.names animals_best.weights dog.jpg
+	 *    darknet_01_inference_images animals.names dog.jpg animals_best.weights animals.cfg
+	 *    darknet_01_inference_images animals.cfg animals.names dog.jpg
+	 *    darknet_01_inference_images animals.cfg dog.jpg
+	 *    darknet_01_inference_images ani dog.jpg
+	 * ~~~~
 	 *
 	 * @since 2024-07-29
 	 */
@@ -92,6 +124,8 @@ namespace Darknet
 
 	/** Similar to the other @ref parse_arguments(), but uses a vector of strings as input.
 	 * Output can be used with @ref Darknet::load_neural_network().
+	 *
+	 * @note See the full description in the other @ref parse_arguments().
 	 *
 	 * @since 2024-07-29
 	 */
@@ -122,12 +156,12 @@ namespace Darknet
 	void set_trace(const bool flag);
 
 	/** Set the GPU index to use.  This may be set to @p -1 to indicate no GPU has been selected, or may be set to a 0-based
-	 * GPU.  In normal situations, this must be set prior to calling @ref Darknet::load_network_and_weights() where the GPU
+	 * GPU.  In normal situations, this must be set prior to calling @ref Darknet::load_neural_network() where the GPU
 	 * is usually initialized.
 	 *
 	 * If set to @p -1 and %Darknet was compiled with support for CUDA GPUs, then the GPU index will default to @p 0 when
-	 * @ref Darknet::load_network_and_weights() is called.  If no CUDA GPU is detected, then the GPU index will be set to
-	 * @p -1 and the CPU will be used instead.
+	 * @ref Darknet::load_neural_network() is called.  If no CUDA GPU is detected, then the GPU index will be set to @p -1
+	 * and the CPU will be used instead.
 	 *
 	 * Default is @p -1.
 	 *
