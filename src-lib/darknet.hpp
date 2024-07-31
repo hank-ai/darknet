@@ -21,7 +21,9 @@
 #include "darknet.h"
 
 
-/// The namespace for the C++ Darknet API.
+/** The namespace for the C++ %Darknet API.  Note this namespace contains both public and private API calls.
+ * The structures, enums, classes and functions declared in darknet.hpp are part of the public API.
+ */
 namespace Darknet
 {
 	/// @{ Convenient simple types used in the Darknet/YOLO C++ API.  @since 2024-07-14
