@@ -1,5 +1,11 @@
 #include "darknet.hpp"
 
+/** @file
+ * This application will display processed images in a GUI window.  Call it like this:
+ *
+ *     darknet_02_display_annotated_images LegoGears DSCN1580_frame_000034.jpg
+ */
+
 
 int main(int argc, char * argv[])
 {

@@ -1,5 +1,12 @@
 #include "darknet.hpp"
 
+/** @file
+ * This application will print to @p STDOUT details on each object detected in an image.
+ * Call it like this:
+ *
+ *     darknet_01_inference_images LegoGears DSCN1580_frame_000034.jpg
+ */
+
 
 int main(int argc, char * argv[])
 {
@@ -15,7 +22,7 @@ int main(int argc, char * argv[])
 		{
 			if (parm.type == Darknet::EParmType::kFilename)
 			{
-				std::cout << "predicting " << parm.string << std::endl;
+				std::cout << "predicting " << parm.string << ":" << std::endl;
 				const auto results = Darknet::predict(net, parm.string);
 
 				// output all of the predictions on the console as plain text

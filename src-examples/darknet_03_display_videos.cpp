@@ -1,5 +1,13 @@
 #include "darknet.hpp"
 
+/** @file
+ * This application will display one or more videos at the frame rate stored in the video file.  Each individual video
+ * frame is processed by the given neural network.  The output video is displayed on the screen, and @em not saved to
+ * disk.  Call it like this:
+ *
+ *     darknet_03_display_videos LegoGears DSCN1582A.MOV
+ */
+
 
 int main(int argc, char * argv[])
 {
@@ -10,8 +18,14 @@ int main(int argc, char * argv[])
 		Darknet::Parms parms = Darknet::parse_arguments(argc, argv);
 		Darknet::NetworkPtr net = Darknet::load_neural_network(parms);
 
+		bool escape_detected = false;
 		for (const auto & parm : parms)
 		{
+			if (escape_detected)
+			{
+				break;
+			}
+
 			if (parm.type == Darknet::EParmType::kFilename)
 			{
 				std::cout << "processing " << parm.string << ":" << std::endl;
@@ -38,6 +52,7 @@ int main(int argc, char * argv[])
 					<< "-> estimated video length ... " << video_length_milliseconds << " milliseconds" << std::endl;
 
 				size_t frame_counter = 0;
+				size_t total_objects_found = 0;
 				double total_sleep_in_milliseconds = 0.0;
 				const auto timestamp_when_video_started = std::chrono::high_resolution_clock::now();
 				auto timestamp_next_frame = timestamp_when_video_started + frame_duration;
@@ -51,9 +66,10 @@ int main(int argc, char * argv[])
 						break;
 					}
 
-					Darknet::predict_and_annotate(net, mat);
+					const auto results = Darknet::predict_and_annotate(net, mat);
 					cv::imshow("annotated", mat);
 					frame_counter ++;
+					total_objects_found += results.size();
 
 					// see how much time we should sleep based on the length of time between each frame
 					const auto now				= std::chrono::high_resolution_clock::now();
@@ -65,6 +81,7 @@ int main(int argc, char * argv[])
 						const char c = cv::waitKey(milliseconds);
 						if (c == 27) // ESC
 						{
+							escape_detected = true;
 							std::cout << "ESC!" << std::endl;
 							break;
 						}
@@ -81,7 +98,9 @@ int main(int argc, char * argv[])
 					<< "-> number of frames shown ... " << frame_counter													<< std::endl
 					<< "-> average sleep per frame .. " << total_sleep_in_milliseconds / frame_counter << " milliseconds"	<< std::endl
 					<< "-> total length of video .... " << video_length_in_milliseconds << " milliseconds"					<< std::endl
-					<< "-> final frame rate ......... " << final_fps << " FPS"												<< std::endl;
+					<< "-> final frame rate ......... " << final_fps << " FPS"												<< std::endl
+					<< "-> total objects founds ..... " << total_objects_found												<< std::endl
+					<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter			<< std::endl;
 			}
 		}
 
