@@ -83,23 +83,19 @@ namespace Darknet
 	 */
 	using Parms = std::vector<Parm>;
 
-	/** Parse common Darknet command-line parameters with the values from @p argc and @p argv in @p main()
+	/** Parse common Darknet command-line parameters with the values from @p argc and @p argv in @p main().
+	 * Output can be used with @ref Darknet::load_neural_network().
+	 *
 	 * @since 2024-07-29
 	 */
 	Darknet::Parms parse_arguments(int argc, char * argv[]);
 
-	/// Similar to the other @ref parse_arguments().
-	Darknet::Parms parse_arguments(const Darknet::VStr & v);
-
-	/** Go through @p argv and find the likely filenames and flags.  Any parameter which is not a filename will be stored
-	 * as a flag.
+	/** Similar to the other @ref parse_arguments(), but uses a vector of strings as input.
+	 * Output can be used with @ref Darknet::load_neural_network().
 	 *
-	 * @returns @p true if a @p .cfg and @p .weights file was found (meaning a neural network can be loaded).
-	 * @returns @p false if both a @p .cfg and @p .weights were not found (meaning we don't have enough to load a neural network).
-	 *
-	 * @since 2024-07-26
+	 * @since 2024-07-29
 	 */
-	bool parse_neural_network_args(int argc, char * argv[], std::filesystem::path & cfg, std::filesystem::path & names, std::filesystem::path & weights, Darknet::VStr & other_filenames, Darknet::VStr & misc);
+	Darknet::Parms parse_arguments(const Darknet::VStr & v);
 
 	/** Set the @ref Darknet::CfgAndState::is_verbose flag.  When enabled, extra information will be sent to @p STDOUT.
 	 * Default value is @p false.
@@ -152,6 +148,70 @@ namespace Darknet
 	 * @since 2024-07-25
 	 */
 	void fix_out_of_bound_values(const bool toggle);
+
+	/** Set the font characteristics to use when drawing the bounding boxes and labels in either @ref Darknet::annotate()
+	 * or @ref Darknet::predict_and_annotate().
+	 *
+	 * @param [in] line_type should be @p cv::LineTypes::LINE_4, @p cv::LineTypes::LINE_8, or @p cv::LineTypes::CV_LINE_AA.
+	 * @p LINE_4 is the fastest but lower quality, while @p LINE_AA (anti-alias) is the slowest with highest quality.
+	 * Default is @p LINE_4.
+	 *
+	 * @param [in] font_face is the OpenCV built-in font to use.  Default is @p cv::HersheyFonts::FONT_HERSHEY_PLAIN.
+	 *
+	 * @param [in] font_thickness determines how thick the lines are drawn when the text is rendered.  Default is @p 1.
+	 *
+	 * @param [in] font_scale determines how large or small the text is rendered.  For example, this could be set to @p 0.5
+	 * for extremely small text, and 1.75 for large text.  Default is @p 1.0.
+	 *
+	 * @since 2024-07-30
+	 */
+	void set_annotation_font(const cv::LineTypes line_type, const cv::HersheyFonts font_face, const int font_thickness, const double font_scale);
+
+	/** Set the colour to use when drawing the bounding boxes and label background colour in either
+	 * @ref Darknet::annotate() or @ref Darknet::predict_and_annotate().  The default is @p cv::Scalar(255,255,255) (white).
+	 *
+	 * @note Colours in OpenCV are specified in @p BGR, not @p RGB.  For example, pure red would be @p cv::Scalar(0,0,255).
+	 *
+	 * @since 2024-07-30
+	 */
+	void set_annotation_bb_line_colour(const cv::Scalar colour);
+
+	/** Set the colour to use when rendering the label text above the bounding boxes in either @ref Darknet::annotate()
+	 * or @ref Darknet::predict_and_annotate().  The default is @p cv::Scalar(0,0,0) (black).
+	 *
+	 * @note Colours in OpenCV are specified in @p BGR, not @p RGB.  For example, pure red would be @p cv::Scalar(0,0,255).
+	 *
+	 * @since 2024-07-30
+	 */
+	void set_annotation_label_text_colour(const cv::Scalar colour);
+
+	/** This determines if annotations are drawn as circles or rounded rectangles in either @ref Darknet::annotate()
+	 * or @ref Darknet::predict_and_annotate().  The defaul is to use square -- not rounded -- bounding boxes.
+	 *
+	 * @param [in] rounded Determines if rounded corners are used.  The default is @p false in which case normal "square"
+	 * bounding boxes are used.
+	 *
+	 * @param [in] roundness Determines how large the rounded corners will appear.  The value must be between @p 0.0
+	 * (small rounded corners) and @p 1.0 (large rounded corners).  At the extreme of @p 1.0, the bounding box will
+	 * appear as a circle.  The default is @p 0.5, but will only take effect if @p rounded is also set to @p true.
+	 *
+	 * @since 2024-07-30.
+	 */
+	void set_annotation_draw_rounded_bb(const bool rounded, const float roundness);
+
+	/** Determines if bounding boxes are drawn when calling either @ref Darknet::annotate() or
+	 * @ref Darknet::predict_and_annotate().  The default is @p true.
+	 *
+	 * @since 2024-07-30
+	 */
+	void set_annotation_draw_bb(const bool draw);
+
+	/** Determines if text labels are drawn above the bounding boxes when calling either @ref Darknet::annotate() or
+	 * @ref Darknet::predict_and_annotate().  The default is @p true.
+	 *
+	 * @since 2024-07-30
+	 */
+	void set_annotation_draw_label(const bool draw);
 
 	/** Load a neural network (.cfg) and the corresponding weights file.  Remember to call
 	 * @ref Darknet::free_neural_network() once the neural network is no longer needed.
@@ -211,6 +271,22 @@ namespace Darknet
 	 * @since 2024-07-25
 	 */
 	Predictions predict(const Darknet::NetworkPtr ptr, const std::filesystem::path & image_filename);
+
+	/** Annotate the given image using the predictions from @ref Darknet::predict().
+	 *
+	 * @see @ref Darknet::predict_and_annotate()
+	 *
+	 * @since 2024-07-30
+	 */
+	cv::Mat annotate(const Predictions & predictions, cv::Mat mat);
+
+	/** Combination of @ref Darknet::predict() and @ref Darknet::annotate().
+	 *
+	 * Remember to clone @p mat prior to calling @p predict_and_annotate() if you need a copy of the original image.
+	 *
+	 * @since 2024-07-30
+	 */
+	Predictions predict_and_annotate(const Darknet::NetworkPtr ptr, cv::Mat mat);
 
 	std::ostream & operator<<(std::ostream & os, const Darknet::Prediction & pred);
 	std::ostream & operator<<(std::ostream & os, const Darknet::Predictions & preds);

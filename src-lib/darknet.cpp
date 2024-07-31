@@ -5,9 +5,23 @@ namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
-	static float detection_threshold = 0.25f;
-	static float non_maximal_suppression_threshold = 0.45;
-	static bool fix_out_of_bound_normalized_coordinates = true;
+	// remember that OpenCV colours are BGR, not RGB
+	static const auto		white									= cv::Scalar(255, 255, 255);
+	static const auto		black									= cv::Scalar(0, 0, 0);
+
+	static float			detection_threshold						= 0.25f;
+	static float			non_maximal_suppression_threshold		= 0.45;
+	static bool				fix_out_of_bound_normalized_coordinates	= true;
+	static cv::LineTypes	cv_font_line_type						= cv::LineTypes::LINE_4;
+	static cv::HersheyFonts	cv_font_face							= cv::HersheyFonts::FONT_HERSHEY_PLAIN;
+	static int				cv_font_thickness						= 1;
+	static double			cv_font_scale							= 1.0;
+	static cv::Scalar		colour_bb_lines							= white;
+	static cv::Scalar		colour_label_text						= black;
+	static bool				annotate_draw_rounded_bb_toggle			= false;
+	static float			annotate_draw_rounded_bb_roundness		= 0.5f;
+	static bool				annotate_draw_bb						= true;
+	static bool				annotate_draw_label						= true;
 
 	// shamlessly stolen from DarkHelp
 	static inline void fix_out_of_bound_normalized_rect(float & cx, float & cy, float & w, float & h)
@@ -36,6 +50,53 @@ namespace
 			const float new_y = (new_y1 + new_y2) / 2.0f;
 			cy = new_y;
 			h = new_h;
+		}
+
+		return;
+	}
+
+	void draw_rounded_rectangle(cv::Mat & mat, const cv::Rect & r, const float roundness)
+	{
+		/* This is what decides how "round" the bounding box needs to be.  The divider
+		 * decides the length of the line segments and the radius of each rounded corner.
+		 *
+		 * 0.0	-> 12
+		 * 0.25	-> 9.5
+		 * 0.5	-> 7
+		 * 0.75	-> 4.5
+		 * 1.0	-> 2
+		 *
+		 * so:  y = mx + b which gives us:  y = -10x + 12
+		 */
+		const float divider = std::clamp(-10.0f * roundness + 12.0f, 2.0f, 12.0f);
+
+		const cv::Point tl(r.tl());
+		const cv::Point br(r.br());
+		const cv::Point tr(br.x, tl.y);
+		const cv::Point bl(tl.x, br.y);
+
+		// the radius of each corner
+		const int hoffset = std::round((tr.x - tl.x) / divider);
+		const int voffset = std::round((bl.y - tl.y) / divider);
+
+		if (hoffset * 2 >= r.width and
+			voffset * 2 >= r.height)
+		{
+			// corners are so big that we're actually drawing a circle (or an ellipse if the bb is not square)
+			cv::ellipse(mat, cv::Point(r.x + r.width / 2, r.y + r.height / 2), r.size() / 2, 0.0, 0.0, 360.0, colour_bb_lines, 1, cv_font_line_type);
+		}
+		else
+		{
+			// draw horizontal and vertical segments
+			cv::line(mat, cv::Point(tl.x + hoffset, tl.y), cv::Point(tr.x - hoffset, tr.y), colour_bb_lines, 1, cv_font_line_type);
+			cv::line(mat, cv::Point(tr.x, tr.y + voffset), cv::Point(br.x, br.y - voffset), colour_bb_lines, 1, cv_font_line_type);
+			cv::line(mat, cv::Point(br.x - hoffset, br.y), cv::Point(bl.x + hoffset, bl.y), colour_bb_lines, 1, cv_font_line_type);
+			cv::line(mat, cv::Point(bl.x, bl.y - voffset), cv::Point(tl.x, tl.y + voffset), colour_bb_lines, 1, cv_font_line_type);
+
+			cv::ellipse(mat, tl + cv::Point(+hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 180.0	, 270.0	, colour_bb_lines, 1, cv_font_line_type);
+			cv::ellipse(mat, tr + cv::Point(-hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 270.0	, 360.0	, colour_bb_lines, 1, cv_font_line_type);
+			cv::ellipse(mat, br + cv::Point(-hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 0.0	, 90.0	, colour_bb_lines, 1, cv_font_line_type);
+			cv::ellipse(mat, bl + cv::Point(+hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 90.0	, 180.0	, colour_bb_lines, 1, cv_font_line_type);
 		}
 
 		return;
@@ -181,7 +242,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 		const auto extension = path.extension();
 		if (extension == ".cfg")
 		{
-//			if (cfg_and_state.is_verbose)
+			if (cfg_and_state.is_verbose)
 			{
 				std::cout << "Found configuration: " << Darknet::in_colour(Darknet::EColour::kBrightWhite, path.string()) << std::endl;
 			}
@@ -189,7 +250,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 		}
 		else if (extension == ".names")
 		{
-//			if (cfg_and_state.is_verbose)
+			if (cfg_and_state.is_verbose)
 			{
 				std::cout << "Found names file:    " << Darknet::in_colour(Darknet::EColour::kBrightWhite, path.string()) << std::endl;
 			}
@@ -197,7 +258,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 		}
 		else if (extension == ".weights")
 		{
-//			if (cfg_and_state.is_verbose)
+			if (cfg_and_state.is_verbose)
 			{
 				std::cout << "Found weights file:  " << Darknet::in_colour(Darknet::EColour::kBrightWhite, path.string()) << std::endl;
 			}
@@ -466,11 +527,13 @@ void Darknet::set_detection_threshold(float threshold)
 		// user must be using percentages instead
 		threshold /= 100.0f;
 	}
+
 	if (threshold >= 0.0f and threshold <= 1.0f)
 	{
 		detection_threshold = threshold;
 		return;
 	}
+
 	throw std::invalid_argument("detection threshold must be between 0.0 and 1.0");
 }
 
@@ -498,6 +561,70 @@ void Darknet::fix_out_of_bound_values(const bool toggle)
 	TAT(TATPARMS);
 
 	fix_out_of_bound_normalized_coordinates = toggle;
+
+	return;
+}
+
+
+void Darknet::set_annotation_font(const cv::LineTypes line_type, const cv::HersheyFonts font_face, const int font_thickness, const double font_scale)
+{
+	TAT(TATPARMS);
+
+	cv_font_line_type	= line_type;
+	cv_font_face		= font_face;
+	cv_font_thickness	= font_thickness;
+	cv_font_scale		= font_scale;
+
+	return;
+}
+
+
+void Darknet::set_annotation_bb_line_colour(const cv::Scalar colour)
+{
+	TAT(TATPARMS);
+
+	colour_bb_lines = colour;
+
+	return;
+}
+
+
+void Darknet::set_annotation_label_text_colour(const cv::Scalar colour)
+{
+	TAT(TATPARMS);
+
+	colour_label_text = colour;
+
+	return;
+}
+
+
+void Darknet::set_annotation_draw_rounded_bb(const bool rounded, const float roundness)
+{
+	TAT(TATPARMS);
+
+	annotate_draw_rounded_bb_toggle		= rounded;
+	annotate_draw_rounded_bb_roundness	= roundness;
+
+	return;
+}
+
+
+void Darknet::set_annotation_draw_bb(const bool draw)
+{
+	TAT(TATPARMS);
+
+	annotate_draw_bb = draw;
+
+	return;
+}
+
+
+void Darknet::set_annotation_draw_label(const bool draw)
+{
+	TAT(TATPARMS);
+
+	annotate_draw_label = draw;
 
 	return;
 }
@@ -745,8 +872,70 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, const std::
 }
 
 
+cv::Mat Darknet::annotate(const Darknet::Predictions & predictions, cv::Mat mat)
+{
+	TAT(TATPARMS);
+
+	if (mat.empty())
+	{
+		throw std::invalid_argument("cannot annotate empty image");
+	}
+
+	for (const auto & pred : predictions)
+	{
+		if (annotate_draw_bb)
+		{
+			// draw the bounding box around the entire object
+			if (annotate_draw_rounded_bb_toggle == false)
+			{
+				cv::rectangle(mat, pred.rect, colour_bb_lines, 1, cv_font_line_type);
+			}
+			else
+			{
+				draw_rounded_rectangle(mat, pred.rect, annotate_draw_rounded_bb_roundness);
+			}
+		}
+
+		if (annotate_draw_label)
+		{
+			std::string text = "TEST #" + std::to_string(pred.best_class) + " ";
+			text += std::to_string(static_cast<int>(std::round(100.0f * pred.prob.at(pred.best_class)))) + "%";
+
+			int				font_baseline	= 0;
+			const cv::Size	size			= cv::getTextSize(text, cv_font_face, cv_font_scale, cv_font_thickness, &font_baseline);
+			cv::Rect		label			= pred.rect;
+			label.y							= label.y - size.height - font_baseline;
+			label.height					= size.height + font_baseline;
+			label.width						= size.width + 2;
+
+			// draw a rectangle above that to use as a label
+			cv::rectangle(mat, label, colour_bb_lines, cv::FILLED, cv_font_line_type);
+
+			// and finally we draw the text on top of the label background
+			cv::putText(mat, text, cv::Point(label.x + 1, label.y + label.height - font_baseline / 2), cv_font_face, cv_font_scale, colour_label_text, cv_font_thickness, cv_font_line_type);
+		}
+	}
+
+	return mat;
+}
+
+
+Darknet::Predictions Darknet::predict_and_annotate(const Darknet::NetworkPtr ptr, cv::Mat mat)
+{
+	TAT(TATPARMS);
+
+	const auto predictions = predict(ptr, mat);
+
+	annotate(predictions, mat);
+
+	return predictions;
+}
+
+
 std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Prediction & pred)
 {
+	TAT(TATPARMS);
+
 	os	<< "#" << pred.best_class
 		<< " prob=" << pred.prob.at(pred.best_class)
 		<< " x=" << pred.rect.x
@@ -771,6 +960,8 @@ std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Prediction 
 
 std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Predictions & preds)
 {
+	TAT(TATPARMS);
+
 	os << "prediction results: " << preds.size();
 
 	for (size_t idx = 0; idx < preds.size(); idx ++)
