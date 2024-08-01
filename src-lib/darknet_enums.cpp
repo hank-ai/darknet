@@ -46,7 +46,7 @@ const Darknet::NamesAndLayers & Darknet::all_names_and_layers()
 }
 
 
-Darknet::ELayerType Darknet::get_layer_from_name(const std::string & name)
+Darknet::ELayerType Darknet::get_layer_type_from_name(const std::string & name)
 {
 	TAT(TATPARMS);
 

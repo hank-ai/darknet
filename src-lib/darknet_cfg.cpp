@@ -169,7 +169,7 @@ Darknet::CfgSection::CfgSection() :
 
 
 Darknet::CfgSection::CfgSection(const std::string & l, const size_t ln) :
-	type(Darknet::get_layer_from_name(l)),
+	type(Darknet::get_layer_type_from_name(l)),
 	name(l),
 	line_number(ln)
 {

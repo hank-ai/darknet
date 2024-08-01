@@ -1,7 +1,6 @@
 #pragma once
 
-#include "network.hpp"
-#include "layer.hpp"
+#include "darknet_internal.hpp"
 
 #ifdef __cplusplus
 extern "C" {

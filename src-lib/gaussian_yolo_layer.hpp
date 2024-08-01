@@ -2,9 +2,7 @@
 
 //Gaussian YOLOv3 implementation
 
-#include "darknet.h"
-#include "layer.hpp"
-#include "network.hpp"
+#include "darknet_internal.hpp"
 
 Darknet::Layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes);
 void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state);

@@ -15,7 +15,7 @@ namespace Darknet
 {
 	/** This is the new C++ version of what used to be called @p LAYER_TYPE in the old @p C code.
 	 * @see @ref Darknet::all_names_and_layers()
-	 * @see @ref Darknet::get_layer_from_name()
+	 * @see @ref Darknet::get_layer_type_from_name()
 	 * @see @ref Darknet::to_string()
 	 */
 	enum class ELayerType
@@ -50,7 +50,7 @@ namespace Darknet
 	/// @{ Convert between names and Darknet/YOLO layer types.
 	using NamesAndLayers = std::map<std::string, ELayerType>;
 	const NamesAndLayers & all_names_and_layers();
-	ELayerType get_layer_from_name(const std::string & name);
+	ELayerType get_layer_type_from_name(const std::string & name);
 	std::string to_string(const ELayerType type);
 	/// @}
 

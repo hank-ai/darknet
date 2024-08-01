@@ -505,7 +505,6 @@ namespace Darknet
 #include "crnn_layer.hpp"
 #include "dropout_layer.hpp"
 #include "gaussian_yolo_layer.hpp"
-#include "layer.hpp"
 #include "lstm_layer.hpp"
 #include "maxpool_layer.hpp"
 #include "region_layer.hpp"

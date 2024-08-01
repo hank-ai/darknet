@@ -2,7 +2,7 @@
 
 namespace
 {
-	void free_and_clear(uint32_t* & ptr)
+	void static inline free_and_clear(uint32_t* & ptr)
 	{
 		TAT(TATPARMS);
 
@@ -15,7 +15,7 @@ namespace
 		return;
 	}
 
-	void free_and_clear(float* & ptr)
+	void static inline free_and_clear(float* & ptr)
 	{
 		TAT(TATPARMS);
 
@@ -28,7 +28,7 @@ namespace
 		return;
 	}
 
-	void free_and_clear(float** & array)
+	void static inline free_and_clear(float** & array)
 	{
 		TAT(TATPARMS);
 
@@ -45,7 +45,7 @@ namespace
 		return;
 	}
 
-	void free_and_clear(int* & ptr)
+	void static inline free_and_clear(int* & ptr)
 	{
 		TAT(TATPARMS);
 
@@ -58,7 +58,7 @@ namespace
 		return;
 	}
 
-	void free_and_clear(char* & ptr)
+	void static inline free_and_clear(char* & ptr)
 	{
 		TAT(TATPARMS);
 
@@ -71,7 +71,7 @@ namespace
 		return;
 	}
 
-	void free_sublayer(Darknet::Layer* & l)
+	void static inline free_sublayer(Darknet::Layer* & l)
 	{
 		TAT(TATPARMS);
 
@@ -86,7 +86,7 @@ namespace
 	}
 
 	#ifdef GPU
-	void cuda_free_and_clear(float* & ptr)
+	void static inline cuda_free_and_clear(float* & ptr)
 	{
 		TAT(TATPARMS);
 

@@ -84,3 +84,4 @@ int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, floa
 #include "image.hpp"
 #include "dark_cuda.hpp"
 #include "tree.hpp"
+#include "activations.hpp"

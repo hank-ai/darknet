@@ -1,8 +1,8 @@
 #pragma once
 
-#include "activations.hpp"
-#include "layer.hpp"
-#include "network.hpp"
+#include "darknet_internal.hpp"
+
+/// @todo what is this?
 #define USET
 
 #ifdef __cplusplus

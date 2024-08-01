@@ -1,9 +1,6 @@
 #pragma once
 
-#include "image.hpp"
-#include "dark_cuda.hpp"
-#include "layer.hpp"
-#include "network.hpp"
+#include "darknet_internal.hpp"
 
 #ifdef __cplusplus
 extern "C" {
