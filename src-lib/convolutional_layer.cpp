@@ -626,8 +626,8 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 
 	int total_batch = batch*steps;
 	int i;
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = CONVOLUTIONAL;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::CONVOLUTIONAL;
 	l.train = train;
 
 	if (xnor) groups = 1;   // disable groups for XNOR-net

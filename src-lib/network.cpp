@@ -170,45 +170,6 @@ float get_current_rate(network net)
 }
 
 
-char * get_layer_string(LAYER_TYPE type)
-{
-	/// @see @ref Darknet::to_string()
-	/// @see @ref Darknet::get_layer_from_name()
-
-	TAT(TATPARMS);
-
-	switch(type)
-	{
-		case CONVOLUTIONAL:		return "convolutional";		// or "conv"
-		case CONNECTED:			return "connected";			// or "conn"
-		case MAXPOOL:			return "maxpool";			// or "max"
-		case LOCAL_AVGPOOL:		return "local_avgpool";		// or "local_avg"
-		case SOFTMAX:			return "softmax";			// or "soft"
-		case DROPOUT:			return "dropout";
-		case ROUTE:				return "route";
-		case COST:				return "cost";
-		case AVGPOOL:			return "avgpool";			// or "avg"
-		case SHORTCUT:			return "shortcut";
-		case SCALE_CHANNELS:	return "scale_channels";
-		case SAM:				return "sam";
-		case RNN:				return "rnn";
-		case LSTM:				return "lstm";
-		case CRNN:				return "crnn";
-		case NETWORK:			return "net";				// or "network"
-		case REGION:			return "region";
-		case YOLO:				return "yolo";
-		case GAUSSIAN_YOLO:		return "Gaussian_yolo";
-		case REORG:				return "reorg3d";
-		case UPSAMPLE:			return "upsample";
-		case EMPTY:				return "silence";			// or "empty"
-		case BLANK:				return "blank";
-		case CONTRASTIVE:		return "contrastive";
-	}
-
-	return "unknown";
-}
-
-
 network make_network(int n)
 {
 	TAT(TATPARMS);
@@ -298,7 +259,7 @@ float *get_network_output(network net)
 	int i;
 	for (i = net.n-1; i > 0; --i)
 	{
-		if (net.layers[i].type != COST)
+		if (net.layers[i].type != Darknet::ELayerType::COST)
 		{
 			break;
 		}
@@ -552,11 +513,11 @@ int recalculate_workspace_size(network *net)
 		Darknet::Layer & l = net->layers[i];
 		//printf(" %d: layer = %d,", i, l.type);
 
-		if (l.type == CONVOLUTIONAL)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 			l.workspace_size = get_convolutional_workspace_size(l);
 		}
-		else if (l.type == CONNECTED)
+		else if (l.type == Darknet::ELayerType::CONNECTED)
 		{
 			l.workspace_size = get_connected_workspace_size(l);
 		}
@@ -603,11 +564,11 @@ void set_batch_network(network *net, int b)
 		net->layers[i].batch = b;
 
 #ifdef CUDNN
-		if(net->layers[i].type == CONVOLUTIONAL)
+		if(net->layers[i].type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 			cudnn_convolutional_setup(net->layers + i, cudnn_fastest, 0);
 		}
-		else if (net->layers[i].type == MAXPOOL)
+		else if (net->layers[i].type == Darknet::ELayerType::MAXPOOL)
 		{
 			cudnn_maxpool_setup(net->layers + i);
 		}
@@ -668,22 +629,22 @@ int resize_network(network *net, int w, int h)
 
 		switch (l.type)
 		{
-			case CONVOLUTIONAL:		resize_convolutional_layer(&l, w, h);		break;
-			case CRNN:				resize_crnn_layer(&l, w, h);				break;
-			case MAXPOOL:			resize_maxpool_layer(&l, w, h);				break;
-			case LOCAL_AVGPOOL:		resize_maxpool_layer(&l, w, h);				break;
-			case REGION:			resize_region_layer(&l, w, h);				break;
-			case YOLO:				resize_yolo_layer(&l, w, h);				break;
-			case GAUSSIAN_YOLO:		resize_gaussian_yolo_layer(&l, w, h);		break;
-			case ROUTE:				resize_route_layer(&l, net);				break;
-			case SHORTCUT:			resize_shortcut_layer(&l, w, h, net);		break;
-			case SCALE_CHANNELS:	resize_scale_channels_layer(&l, net);		break;
-			case SAM:				resize_sam_layer(&l, w, h);					break;
-			case UPSAMPLE:			resize_upsample_layer(&l, w, h);			break;
-			case REORG:				resize_reorg_layer(&l, w, h);				break;
-			case AVGPOOL:			resize_avgpool_layer(&l, w, h);				break;
-			case COST:				resize_cost_layer(&l, inputs);				break;
-			case DROPOUT:
+			case Darknet::ELayerType::CONVOLUTIONAL:	resize_convolutional_layer(&l, w, h);		break;
+			case Darknet::ELayerType::CRNN:				resize_crnn_layer(&l, w, h);				break;
+			case Darknet::ELayerType::MAXPOOL:			resize_maxpool_layer(&l, w, h);				break;
+			case Darknet::ELayerType::LOCAL_AVGPOOL:	resize_maxpool_layer(&l, w, h);				break;
+			case Darknet::ELayerType::REGION:			resize_region_layer(&l, w, h);				break;
+			case Darknet::ELayerType::YOLO:				resize_yolo_layer(&l, w, h);				break;
+			case Darknet::ELayerType::GAUSSIAN_YOLO:	resize_gaussian_yolo_layer(&l, w, h);		break;
+			case Darknet::ELayerType::ROUTE:			resize_route_layer(&l, net);				break;
+			case Darknet::ELayerType::SHORTCUT:			resize_shortcut_layer(&l, w, h, net);		break;
+			case Darknet::ELayerType::SCALE_CHANNELS:	resize_scale_channels_layer(&l, net);		break;
+			case Darknet::ELayerType::SAM:				resize_sam_layer(&l, w, h);					break;
+			case Darknet::ELayerType::UPSAMPLE:			resize_upsample_layer(&l, w, h);			break;
+			case Darknet::ELayerType::REORG:			resize_reorg_layer(&l, w, h);				break;
+			case Darknet::ELayerType::AVGPOOL:			resize_avgpool_layer(&l, w, h);				break;
+			case Darknet::ELayerType::COST:				resize_cost_layer(&l, inputs);				break;
+			case Darknet::ELayerType::DROPOUT:
 			{
 				resize_dropout_layer(&l, inputs);
 				l.out_w			= l.w = w;
@@ -766,7 +727,7 @@ int get_network_output_size(network net)
 	int i;
 	for (i = net.n-1; i > 0; --i)
 	{
-		if (net.layers[i].type != COST)
+		if (net.layers[i].type != Darknet::ELayerType::COST)
 		{
 			break;
 		}
@@ -835,7 +796,7 @@ void visualize_network(network net)
 	{
 		Darknet::Layer & l = net.layers[i];
 
-		if (l.type == CONVOLUTIONAL)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 			std::string buffer = "Layer #" + std::to_string(i) + " (" + Darknet::to_string(static_cast<Darknet::ELayerType>(l.type)) + ")";
 			prev = visualize_convolutional_layer(l, buffer.c_str(), prev);
@@ -899,18 +860,18 @@ int num_detections(network *net, float thresh)
 	for (int i = 0; i < net->n; ++i)
 	{
 		const Darknet::Layer & l = net->layers[i];
-		if (l.type == YOLO)
+		if (l.type == Darknet::ELayerType::YOLO)
 		{
 			/// @todo V3 JAZZ 725 milliseconds -- this is where we spend all our time
 			s += yolo_num_detections(l, thresh);
 		}
 
-		if (l.type == GAUSSIAN_YOLO)
+		if (l.type == Darknet::ELayerType::GAUSSIAN_YOLO)
 		{
 			s += gaussian_yolo_num_detections(l, thresh);
 		}
 
-		if (l.type == REGION)
+		if (l.type == Darknet::ELayerType::REGION)
 		{
 			s += l.w*l.h*l.n;
 		}
@@ -931,20 +892,20 @@ int num_detections_v3(network *net, float thresh, Darknet::Output_Object_Cache &
 	for (int i = 0; i < net->n; ++i)
 	{
 		const Darknet::Layer & l = net->layers[i];
-		if (l.type == YOLO)
+		if (l.type == Darknet::ELayerType::YOLO)
 		{
 			/// @todo V3 JAZZ 687 milliseconds -- this is where we spend all our time
 			detections += yolo_num_detections_v3(net, i, thresh, cache);
 		}
 
 		/// @todo Is this still used in a modern .cfg file?  Should it be removed?
-		if (l.type == GAUSSIAN_YOLO)
+		else if (l.type == Darknet::ELayerType::GAUSSIAN_YOLO)
 		{
 			detections += gaussian_yolo_num_detections(l, thresh);
 		}
 
 		/// @todo Is this still used in a modern .cfg file?  Should it be removed?
-		if (l.type == REGION)
+		else if (l.type == Darknet::ELayerType::REGION)
 		{
 			detections += l.w * l.h * l.n;
 		}
@@ -962,12 +923,11 @@ int num_detections_batch(network *net, float thresh, int batch)
 	for (int i = 0; i < net->n; ++i)
 	{
 		const Darknet::Layer & l = net->layers[i];
-		if (l.type == YOLO)
+		if (l.type == Darknet::ELayerType::YOLO)
 		{
 			s += yolo_num_detections_batch(l, thresh, batch);
 		}
-
-		if (l.type == REGION)
+		else if (l.type == Darknet::ELayerType::REGION)
 		{
 			s += l.w*l.h*l.n;
 		}
@@ -990,7 +950,10 @@ detection * make_network_boxes(network *net, float thresh, int *num)
 	for (int i = 0; i < net->n; ++i)
 	{
 		Darknet::Layer & l_tmp = net->layers[i];
-		if (l_tmp.type == YOLO || l_tmp.type == GAUSSIAN_YOLO || l_tmp.type == REGION || i == (net->n - 1))
+		if (l_tmp.type == Darknet::ELayerType::YOLO or
+			l_tmp.type == Darknet::ELayerType::GAUSSIAN_YOLO or
+			l_tmp.type == Darknet::ELayerType::REGION or
+			i == (net->n - 1))
 		{
 			l = l_tmp;
 			break;
@@ -1010,7 +973,7 @@ detection * make_network_boxes(network *net, float thresh, int *num)
 		dets[i].prob = (float*)xcalloc(l.classes, sizeof(float));
 
 		// tx,ty,tw,th uncertainty
-		if (l.type == GAUSSIAN_YOLO)
+		if (l.type == Darknet::ELayerType::GAUSSIAN_YOLO)
 		{
 			dets[i].uc = (float*)xcalloc(4, sizeof(float)); // Gaussian_YOLOv3
 		}
@@ -1057,9 +1020,9 @@ detection * make_network_boxes_v3(network * net, const float thresh, int * num, 
 			/// @todo Is anything but YOLO still used as an output layer in a modern .cfg file?  Should these be removed?
 
 			const Darknet::Layer & tmp = net->layers[i];
-			if (tmp.type == YOLO			or
-				tmp.type == GAUSSIAN_YOLO	or
-				tmp.type == REGION			)
+			if (tmp.type == Darknet::ELayerType::YOLO			or
+				tmp.type == Darknet::ELayerType::GAUSSIAN_YOLO	or
+				tmp.type == Darknet::ELayerType::REGION			)
 			{
 				return tmp;
 			}
@@ -1082,7 +1045,7 @@ detection * make_network_boxes_v3(network * net, const float thresh, int * num, 
 		dets[i].prob = (float*)xcalloc(l.classes, sizeof(float));
 
 		// tx,ty,tw,th uncertainty
-		if (l.type == GAUSSIAN_YOLO)
+		if (l.type == Darknet::ELayerType::GAUSSIAN_YOLO)
 		{
 			dets[i].uc = (float*)xcalloc(4, sizeof(float)); // Gaussian_YOLOv3
 		}
@@ -1114,7 +1077,9 @@ detection *make_network_boxes_batch(network *net, float thresh, int *num, int ba
 	for (int i = 0; i < net->n; ++i)
 	{
 		const Darknet::Layer & l_tmp = net->layers[i];
-		if (l_tmp.type == YOLO || l_tmp.type == GAUSSIAN_YOLO || l_tmp.type == REGION)
+		if (l_tmp.type == Darknet::ELayerType::YOLO or
+			l_tmp.type == Darknet::ELayerType::GAUSSIAN_YOLO or
+			l_tmp.type == Darknet::ELayerType::REGION)
 		{
 			l = l_tmp;
 			break;
@@ -1130,7 +1095,7 @@ detection *make_network_boxes_batch(network *net, float thresh, int *num, int ba
 	{
 		dets[i].prob = (float*)calloc(l.classes, sizeof(float));
 		// tx,ty,tw,th uncertainty
-		if (l.type == GAUSSIAN_YOLO)
+		if (l.type == Darknet::ELayerType::GAUSSIAN_YOLO)
 		{
 			dets[i].uc = (float*)xcalloc(4, sizeof(float)); // Gaussian_YOLOv3
 		}
@@ -1214,7 +1179,7 @@ void fill_network_boxes(network *net, int w, int h, float thresh, float hier, in
 		const Darknet::Layer & l = net->layers[j];
 		switch (l.type)
 		{
-			case YOLO:
+			case Darknet::ELayerType::YOLO:
 			{
 				/// @todo V3 JAZZ 830 milliseconds:  most of the time is spent in this function
 				dets += get_yolo_detections(l, w, h, net->w, net->h, thresh, map, relative, dets, letter);
@@ -1229,13 +1194,13 @@ void fill_network_boxes(network *net, int w, int h, float thresh, float hier, in
 				}
 				break;
 			}
-			case GAUSSIAN_YOLO:
+			case Darknet::ELayerType::GAUSSIAN_YOLO:
 			{
 				int count = get_gaussian_yolo_detections(l, w, h, net->w, net->h, thresh, map, relative, dets, letter);
 				dets += count;
 				break;
 			}
-			case REGION:
+			case Darknet::ELayerType::REGION:
 			{
 				custom_get_region_detections(l, w, h, net->w, net->h, thresh, map, hier, relative, dets, letter);
 				//get_region_detections(l, w, h, net->w, net->h, thresh, map, hier, relative, dets);
@@ -1272,7 +1237,7 @@ void fill_network_boxes_batch(network *net, int w, int h, float thresh, float hi
 	for (int j = 0; j < net->n; ++j)
 	{
 		const Darknet::Layer & l = net->layers[j];
-		if (l.type == YOLO)
+		if (l.type == Darknet::ELayerType::YOLO)
 		{
 			int count = get_yolo_detections_batch(l, w, h, net->w, net->h, thresh, map, relative, dets, letter, batch);
 			dets += count;
@@ -1285,7 +1250,7 @@ void fill_network_boxes_batch(network *net, int w, int h, float thresh, float hi
 				printf(" Error: Different [yolo] layers have different number of classes = %d and %d - check your cfg-file! \n", prev_classes, l.classes);
 			}
 		}
-		else if (l.type == REGION)
+		else if (l.type == Darknet::ELayerType::REGION)
 		{
 			custom_get_region_detections(l, w, h, net->w, net->h, thresh, map, hier, relative, dets, letter);
 			//get_region_detections(l, w, h, net->w, net->h, thresh, map, hier, relative, dets);
@@ -1835,7 +1800,7 @@ void fuse_conv_batchnorm(network net)
 	{
 		Darknet::Layer *l = &net.layers[j];
 
-		if (l->type == CONVOLUTIONAL)
+		if (l->type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 			//printf(" Merges Convolutional-%d and batch_norm \n", j);
 
@@ -1871,7 +1836,7 @@ void fuse_conv_batchnorm(network net)
 #endif
 			}
 		}
-		else if (l->type == SHORTCUT && l->weights && l->weights_normalization)
+		else if (l->type == Darknet::ELayerType::SHORTCUT && l->weights && l->weights_normalization)
 		{
 			if (l->nweights > 0)
 			{
@@ -1949,7 +1914,7 @@ void calculate_binary_weights(network net)
 	{
 		Darknet::Layer *l = &net.layers[j];
 
-		if (l->type == CONVOLUTIONAL)
+		if (l->type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 			//printf(" Merges Convolutional-%d and batch_norm \n", j);
 
@@ -1968,15 +1933,15 @@ void calculate_binary_weights(network net)
 
 #ifdef GPU
 				// fuse conv_xnor + shortcut -> conv_xnor
-				if ((j + 1) < net.n && net.layers[j].type == CONVOLUTIONAL)
+				if ((j + 1) < net.n && net.layers[j].type == Darknet::ELayerType::CONVOLUTIONAL)
 				{
 					Darknet::Layer *sc = &net.layers[j + 1];
-					if (sc->type == SHORTCUT && sc->w == sc->out_w && sc->h == sc->out_h && sc->c == sc->out_c)
+					if (sc->type == Darknet::ELayerType::SHORTCUT && sc->w == sc->out_w && sc->h == sc->out_h && sc->c == sc->out_c)
 					{
 						l->bin_conv_shortcut_in_gpu = net.layers[net.layers[j + 1].index].output_gpu;
 						l->bin_conv_shortcut_out_gpu = net.layers[j + 1].output_gpu;
 
-						net.layers[j + 1].type = BLANK;
+						net.layers[j + 1].type = Darknet::ELayerType::BLANK;
 						net.layers[j + 1].forward_gpu = forward_blank_layer;
 					}
 				}
@@ -2018,7 +1983,7 @@ void copy_weights_net(network net_train, network *net_map)
 		net_map->layers[k] = net_train.layers[k];
 		copy_cudnn_descriptors(tmp_layer, &net_map->layers[k]);
 
-		if (l->type == CRNN)
+		if (l->type == Darknet::ELayerType::CRNN)
 		{
 			Darknet::Layer tmp_input_layer, tmp_self_layer, tmp_output_layer;
 			copy_cudnn_descriptors(*net_map->layers[k].input_layer, &tmp_input_layer);
@@ -2064,7 +2029,7 @@ network combine_train_valid_networks(network net_train, network net_map)
 		net_combined.layers[k] = net_train.layers[k];
 		net_combined.layers[k].batch = 1;
 
-		if (l->type == CONVOLUTIONAL)
+		if (l->type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 #ifdef CUDNN
 			net_combined.layers[k].normTensorDesc = net_map.layers[k].normTensorDesc;
@@ -2089,7 +2054,7 @@ void free_network_recurrent_state(network net)
 
 	for (int k = 0; k < net.n; ++k)
 	{
-		if (net.layers[k].type == CRNN)
+		if (net.layers[k].type == Darknet::ELayerType::CRNN)
 		{
 			free_state_crnn(net.layers[k]);
 		}
@@ -2103,7 +2068,7 @@ void randomize_network_recurrent_state(network net)
 
 	for (int k = 0; k < net.n; ++k)
 	{
-		if (net.layers[k].type == CRNN)
+		if (net.layers[k].type == Darknet::ELayerType::CRNN)
 		{
 			free_state_crnn(net.layers[k]);
 		}
@@ -2123,7 +2088,7 @@ void restore_network_recurrent_state(network net)
 
 	for (int k = 0; k < net.n; ++k)
 	{
-		if (net.layers[k].type == CRNN)
+		if (net.layers[k].type == Darknet::ELayerType::CRNN)
 		{
 			free_state_crnn(net.layers[k]);
 		}
@@ -2138,7 +2103,7 @@ int is_ema_initialized(network net)
 	for (int i = 0; i < net.n; ++i)
 	{
 		const Darknet::Layer & l = net.layers[i];
-		if (l.type == CONVOLUTIONAL)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 			if (l.weights_ema)
 			{
@@ -2164,7 +2129,7 @@ void ema_update(network net, float ema_alpha)
 	for (int i = 0; i < net.n; ++i)
 	{
 		Darknet::Layer & l = net.layers[i];
-		if (l.type == CONVOLUTIONAL)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 #ifdef GPU
 			if (cfg_and_state.gpu_index >= 0)
@@ -2205,7 +2170,7 @@ void ema_apply(network net)
 	for (int i = 0; i < net.n; ++i)
 	{
 		Darknet::Layer & l = net.layers[i];
-		if (l.type == CONVOLUTIONAL)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 			if (l.weights_ema)
 			{
@@ -2252,11 +2217,11 @@ void reject_similar_weights(network net, float sim_threshold)
 			continue;
 		}
 
-		if (net.n > i + 1)		if (net.layers[i + 1].type == YOLO)		continue;
-		if (net.n > i + 2)		if (net.layers[i + 2].type == YOLO)		continue;
-		if (net.n > i + 3)		if (net.layers[i + 3].type == YOLO)		continue;
+		if (net.n > i + 1) if (net.layers[i + 1].type == Darknet::ELayerType::YOLO) continue;
+		if (net.n > i + 2) if (net.layers[i + 2].type == Darknet::ELayerType::YOLO) continue;
+		if (net.n > i + 3) if (net.layers[i + 3].type == Darknet::ELayerType::YOLO) continue;
 
-		if (l.type == CONVOLUTIONAL && l.activation != LINEAR)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL && l.activation != LINEAR)
 		{
 #ifdef GPU
 			if (cfg_and_state.gpu_index >= 0)

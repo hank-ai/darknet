@@ -7,9 +7,9 @@ Darknet::Layer make_shortcut_layer(int batch, int n, int *input_layers, int* inp
 {
 	TAT(TATPARMS);
 
-	Darknet::Layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.train = train;
-	l.type = SHORTCUT;
+	l.type = Darknet::ELayerType::SHORTCUT;
 	l.batch = batch;
 	l.activation = activation;
 	l.n = n;

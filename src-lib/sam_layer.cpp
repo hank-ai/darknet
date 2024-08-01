@@ -5,8 +5,8 @@ Darknet::Layer make_sam_layer(int batch, int index, int w, int h, int c, int w2,
 	TAT(TATPARMS);
 
 	fprintf(stderr,"scale Layer: %d\n", index);
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = SAM;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::SAM;
 	l.batch = batch;
 	l.w = w;
 	l.h = h;

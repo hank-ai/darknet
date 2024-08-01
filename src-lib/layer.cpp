@@ -124,7 +124,7 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 		free_sublayer(l.input_layer);
 	}
 
-	if (l.type == CRNN)
+	if (l.type == Darknet::ELayerType::CRNN)
 	{
 		free_sublayer(l.input_layer);
 		free_sublayer(l.self_layer);
@@ -137,7 +137,7 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 #endif // GPU
 	}
 
-	if (l.type == DROPOUT)
+	if (l.type == Darknet::ELayerType::DROPOUT)
 	{
 		if (l.rand)						free_and_clear(l.rand);
 #ifdef GPU

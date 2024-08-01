@@ -24,9 +24,9 @@ Darknet::Layer make_rnn_layer(int batch, int inputs, int hidden, int outputs, in
 
 	fprintf(stderr, "RNN Layer: %d inputs, %d outputs\n", inputs, outputs);
 	batch = batch / steps;
-	Darknet::Layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.batch = batch;
-	l.type = RNN;
+	l.type = Darknet::ELayerType::RNN;
 	l.steps = steps;
 	l.hidden = hidden;
 	l.inputs = inputs;

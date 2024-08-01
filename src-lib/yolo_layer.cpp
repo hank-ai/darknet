@@ -394,8 +394,8 @@ Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *m
 {
 	TAT(TATPARMS);
 
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = YOLO;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::YOLO;
 
 	l.n = n;
 	l.total = total;

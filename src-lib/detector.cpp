@@ -125,10 +125,12 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	for (int k = 0; k < net.n; ++k)
 	{
 		Darknet::Layer & lk = net.layers[k];
-		if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
+		if (lk.type == Darknet::ELayerType::YOLO or
+			lk.type == Darknet::ELayerType::GAUSSIAN_YOLO or
+			lk.type == Darknet::ELayerType::REGION)
 		{
 			l = lk;
-			printf("Detection layer #%d is type %d (%s)\n", k, l.type, get_layer_string(l.type));
+			printf("Detection layer #%d is type %d (%s)\n", k, l.type, Darknet::to_string(l.type).c_str());
 		}
 	}
 
@@ -487,7 +489,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			float cur_con_acc = -1;
 			for (int k = 0; k < net.n; ++k)
 			{
-				if (net.layers[k].type == CONTRASTIVE)
+				if (net.layers[k].type == Darknet::ELayerType::CONTRASTIVE)
 				{
 					cur_con_acc = *net.layers[k].loss;
 				}
@@ -803,10 +805,12 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 	for (int k = 0; k < net.n; ++k)
 	{
 		Darknet::Layer & lk = net.layers[k];
-		if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
+		if (lk.type == Darknet::ELayerType::YOLO or
+			lk.type == Darknet::ELayerType::GAUSSIAN_YOLO or
+			lk.type == Darknet::ELayerType::REGION)
 		{
 			l = lk;
-			printf("Detection layer #%d is type %d (%s)\n", k, l.type, get_layer_string(l.type));
+			printf("Detection layer #%d is type %d (%s)\n", k, l.type, Darknet::to_string(l.type).c_str());
 		}
 	}
 	int classes = l.classes;
@@ -1162,10 +1166,12 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	for (int k = 0; k < net.n; ++k)
 	{
 		Darknet::Layer & lk = net.layers[k];
-		if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
+		if (lk.type == Darknet::ELayerType::YOLO or
+			lk.type == Darknet::ELayerType::GAUSSIAN_YOLO or
+			lk.type == Darknet::ELayerType::REGION)
 		{
 			l = lk;
-			printf("Detection layer #%d is type %d (%s)\n", k, l.type, get_layer_string(l.type));
+			printf("Detection layer #%d is type %d (%s)\n", k, l.type, Darknet::to_string(l.type).c_str());
 		}
 	}
 	int classes = l.classes;
@@ -2033,10 +2039,12 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		for (int k = 0; k < net.n; ++k)
 		{
 			Darknet::Layer & lk = net.layers[k];
-			if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
+			if (lk.type == Darknet::ELayerType::YOLO or
+				lk.type == Darknet::ELayerType::GAUSSIAN_YOLO or
+				lk.type == Darknet::ELayerType::REGION)
 			{
 				l = lk;
-				printf("Detection layer #%d is type %d (%s)\n", k, l.type, get_layer_string(l.type));
+				printf("Detection layer #%d is type %d (%s)\n", k, l.type, Darknet::to_string(l.type).c_str());
 			}
 		}
 
@@ -2196,10 +2204,12 @@ void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename,
 		int k;
 		for (k = 0; k < net.n; ++k) {
 			Darknet::Layer & lk = net.layers[k];
-			if (lk.type == YOLO || lk.type == GAUSSIAN_YOLO || lk.type == REGION)
+			if (lk.type == Darknet::ELayerType::YOLO or
+				lk.type == Darknet::ELayerType::GAUSSIAN_YOLO or
+				lk.type == Darknet::ELayerType::REGION)
 			{
 				l = lk;
-				printf("Detection layer #%d is type %d (%s)\n", k, l.type, get_layer_string(l.type));
+				printf("Detection layer #%d is type %d (%s)\n", k, l.type, Darknet::to_string(l.type).c_str());
 			}
 		}
 

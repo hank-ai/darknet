@@ -4,8 +4,8 @@ Darknet::Layer make_upsample_layer(int batch, int w, int h, int c, int stride)
 {
 	TAT(TATPARMS);
 
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = UPSAMPLE;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::UPSAMPLE;
 	l.batch = batch;
 	l.w = w;
 	l.h = h;

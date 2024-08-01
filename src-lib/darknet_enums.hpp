@@ -13,39 +13,38 @@
 
 namespace Darknet
 {
-	/** The plan is to eventually remove @ref LAYER_TYPE completely once we fully switch over to C++.
+	/** This is the new C++ version of what used to be called @p LAYER_TYPE in the old @p C code.
 	 * @see @ref Darknet::all_names_and_layers()
 	 * @see @ref Darknet::get_layer_from_name()
 	 * @see @ref Darknet::to_string()
 	 */
 	enum class ELayerType
 	{
-		// Please keep the old C and the new C++ enums in sync!
-		CONVOLUTIONAL	= LAYER_TYPE::CONVOLUTIONAL				,	///< this is used everywhere
-		CONNECTED		= LAYER_TYPE::CONNECTED					,	///< used in 3 rarely used configurations
-		MAXPOOL			= LAYER_TYPE::MAXPOOL					,	///< used often
-		LOCAL_AVGPOOL	= LAYER_TYPE::LOCAL_AVGPOOL				,	///< only used in yolov4-tiny_contrastive.cfg -- obsolete?
-		SOFTMAX			= LAYER_TYPE::SOFTMAX					,	///< used in several non-YOLO configs
-		DROPOUT			= LAYER_TYPE::DROPOUT					,	///< used in 3 non-YOLO configs
-		ROUTE			= LAYER_TYPE::ROUTE						,	///< used often
-		COST			= LAYER_TYPE::COST						,	///< used in several non-YOLO configs
-		AVGPOOL			= LAYER_TYPE::AVGPOOL					,	///< used in several non-YOLO configs
-		SHORTCUT		= LAYER_TYPE::SHORTCUT					,	///< used almost everywhere
-		SCALE_CHANNELS	= LAYER_TYPE::SCALE_CHANNELS			,	///< only used in 2 configs
-		SAM				= LAYER_TYPE::SAM						,	///< only used in 3 configs
-		RNN				= LAYER_TYPE::RNN						,	///< only used in rnn.train.cfg -- obsolete?
-		LSTM			= LAYER_TYPE::LSTM						,	///< only used in lstm.train.cfg -- obsolete?
-		CRNN			= LAYER_TYPE::CRNN						,	///< only used in 2 non-YOLO configs
-		NETWORK			= LAYER_TYPE::NETWORK					,	///< used in every config
-		REGION			= LAYER_TYPE::REGION					,	///< only used in tiny-yolo_xnor.cfg (which is NOT a YOLO config)
-		YOLO			= LAYER_TYPE::YOLO						,	///< used often
-		GAUSSIAN_YOLO	= LAYER_TYPE::GAUSSIAN_YOLO				,	///< only used in Gaussian_yolov3_BDD.cfg
-		REORG			= LAYER_TYPE::REORG /* aka "3D" */		,	///< only used in yolov4-sam-mish-csp-reorg-bfm.cfg
-		UPSAMPLE		= LAYER_TYPE::UPSAMPLE					,	///< used often, does downsampling instead if l.reverse=1
-		EMPTY			= LAYER_TYPE::EMPTY /* aka "SILENCE" */	,	///< *UNUSED*
-		BLANK			= LAYER_TYPE::BLANK						,	///< *UNUSED*
-		CONTRASTIVE		= LAYER_TYPE::CONTRASTIVE				,	///< only used in yolov4-tiny_contrastive.cfg
-		LAYER_LAST_IDX	= LAYER_TYPE::LAYER_LAST_IDX			,	///< point to the last-used idx
+		CONVOLUTIONAL								,	///< this is used everywhere
+		CONNECTED									,	///< used in 3 rarely used configurations
+		MAXPOOL										,	///< used often
+		LOCAL_AVGPOOL								,	///< only used in yolov4-tiny_contrastive.cfg -- obsolete?
+		SOFTMAX										,	///< used in several non-YOLO configs
+		DROPOUT										,	///< used in 3 non-YOLO configs
+		ROUTE										,	///< used often
+		COST										,	///< used in several non-YOLO configs
+		AVGPOOL										,	///< used in several non-YOLO configs
+		SHORTCUT									,	///< used almost everywhere
+		SCALE_CHANNELS								,	///< only used in 2 configs
+		SAM											,	///< only used in 3 configs
+		RNN											,	///< only used in rnn.train.cfg -- obsolete?
+		LSTM										,	///< only used in lstm.train.cfg -- obsolete?
+		CRNN										,	///< only used in 2 non-YOLO configs
+		NETWORK										,	///< used in every config
+		REGION										,	///< only used in tiny-yolo_xnor.cfg (which is NOT a YOLO config)
+		YOLO										,	///< used often
+		GAUSSIAN_YOLO								,	///< only used in Gaussian_yolov3_BDD.cfg
+		REORG			/* aka "3D" */				,	///< only used in yolov4-sam-mish-csp-reorg-bfm.cfg
+		UPSAMPLE									,	///< used often, does downsampling instead if l.reverse=1
+		EMPTY			/* aka "SILENCE" */			,	///< *UNUSED*
+		BLANK										,	///< *UNUSED*
+		CONTRASTIVE									,	///< only used in yolov4-tiny_contrastive.cfg
+		LAYER_LAST_IDX	= ELayerType::CONTRASTIVE	,	///< point to the last-used idx
 	};
 
 	/// @{ Convert between names and Darknet/YOLO layer types.

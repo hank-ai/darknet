@@ -4,8 +4,8 @@ Darknet::Layer make_reorg_layer(int batch, int w, int h, int c, int stride, int 
 {
 	TAT(TATPARMS);
 
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = REORG;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::REORG;
 	l.batch = batch;
 	l.stride = stride;
 	l.h = h;

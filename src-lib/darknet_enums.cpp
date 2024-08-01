@@ -14,7 +14,7 @@ const Darknet::NamesAndLayers & Darknet::all_names_and_layers()
 		{"cost"				, ELayerType::COST				},
 		{"region"			, ELayerType::REGION			},
 		{"yolo"				, ELayerType::YOLO				},
-		{"Gaussian_yolo"	, ELayerType::GAUSSIAN_YOLO		},
+		{"Gaussian_yolo"	, ELayerType::GAUSSIAN_YOLO		}, // not a typo, this one has an uppercase 'G'
 		{"conv"				, ELayerType::CONVOLUTIONAL		},
 		{"convolutional"	, ELayerType::CONVOLUTIONAL		},
 		{"net"				, ELayerType::NETWORK			},
@@ -39,6 +39,7 @@ const Darknet::NamesAndLayers & Darknet::all_names_and_layers()
 		{"upsample"			, ELayerType::UPSAMPLE			},
 		{"empty"			, ELayerType::EMPTY				},
 		{"silence"			, ELayerType::EMPTY				},
+		{"blank"			, ELayerType::BLANK				},
 	};
 
 	return m;

@@ -238,7 +238,7 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 	for (i = 0; i < net.n && i < cutoff; ++i)
 	{
 		Darknet::Layer & l = net.layers[i];
-		if (l.type == CONVOLUTIONAL && l.share_layer == NULL)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL && l.share_layer == NULL)
 		{
 			if (save_ema)
 			{
@@ -249,21 +249,21 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 				save_convolutional_weights(l, fp);
 			}
 		}
-		if (l.type == SHORTCUT && l.nweights > 0)
+		if (l.type == Darknet::ELayerType::SHORTCUT && l.nweights > 0)
 		{
 			save_shortcut_weights(l, fp);
 		}
-		if (l.type == CONNECTED)
+		if (l.type == Darknet::ELayerType::CONNECTED)
 		{
 			save_connected_weights(l, fp);
 		}
-		if (l.type == RNN)
+		if (l.type == Darknet::ELayerType::RNN)
 		{
 			save_connected_weights(*(l.input_layer), fp);
 			save_connected_weights(*(l.self_layer), fp);
 			save_connected_weights(*(l.output_layer), fp);
 		}
-		if (l.type == LSTM)
+		if (l.type == Darknet::ELayerType::LSTM)
 		{
 			save_connected_weights(*(l.wf), fp);
 			save_connected_weights(*(l.wi), fp);
@@ -274,7 +274,7 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 			save_connected_weights(*(l.ug), fp);
 			save_connected_weights(*(l.uo), fp);
 		}
-		if (l.type == CRNN)
+		if (l.type == Darknet::ELayerType::CRNN)
 		{
 			save_convolutional_weights(*(l.input_layer), fp);
 			save_convolutional_weights(*(l.self_layer), fp);
@@ -533,7 +533,7 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 
 		switch(l.type)
 		{
-			case CONVOLUTIONAL:
+			case Darknet::ELayerType::CONVOLUTIONAL:
 			{
 				if (l.share_layer == NULL)
 				{
@@ -542,7 +542,7 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 				}
 				break;
 			}
-			case SHORTCUT:
+			case Darknet::ELayerType::SHORTCUT:
 			{
 				if (l.nweights > 0)
 				{
@@ -551,13 +551,13 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 				}
 				break;
 			}
-			case CONNECTED:
+			case Darknet::ELayerType::CONNECTED:
 			{
 				layers_with_weights ++;
 				load_connected_weights(l, fp, transpose);
 				break;
 			}
-			case CRNN:
+			case Darknet::ELayerType::CRNN:
 			{
 				layers_with_weights ++;
 				load_convolutional_weights(*(l.input_layer), fp);
@@ -565,7 +565,7 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 				load_convolutional_weights(*(l.output_layer), fp);
 				break;
 			}
-			case RNN:
+			case Darknet::ELayerType::RNN:
 			{
 				layers_with_weights ++;
 				load_connected_weights(*(l.input_layer), fp, transpose);
@@ -573,7 +573,7 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 				load_connected_weights(*(l.output_layer), fp, transpose);
 				break;
 			}
-			case LSTM:
+			case Darknet::ELayerType::LSTM:
 			{
 				layers_with_weights ++;
 				load_connected_weights(*(l.wf), fp, transpose);

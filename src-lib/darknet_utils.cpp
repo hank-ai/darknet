@@ -382,12 +382,12 @@ void Darknet::cfg_layers()
 {
 	TAT(TATPARMS);
 
-	std::map<LAYER_TYPE, std::string> layer_type_to_name;
-	std::map<std::string, LAYER_TYPE> layer_name_to_type;
-	for (int layer_type_index = 0; layer_type_index <= LAYER_LAST_IDX; layer_type_index ++)
+	std::map<Darknet::ELayerType, std::string> layer_type_to_name;
+	std::map<std::string, Darknet::ELayerType> layer_name_to_type;
+	for (int layer_type_index = 0; layer_type_index <= static_cast<int>(Darknet::ELayerType::LAYER_LAST_IDX); layer_type_index ++)
 	{
-		const LAYER_TYPE type = static_cast<LAYER_TYPE>(layer_type_index);
-		std::string name = get_layer_string(type);
+		const Darknet::ELayerType type = static_cast<Darknet::ELayerType>(layer_type_index);
+		std::string name = Darknet::to_string(type);
 
 		layer_type_to_name[type] = name;
 		layer_name_to_type[name] = type;
@@ -524,14 +524,14 @@ void Darknet::cfg_layers()
 		<< "\t\t<th>modern</th>" << std::endl
 		<< "\t\t<th>is_yolo</th>" << std::endl;
 
-	std::set<LAYER_TYPE> completely_unused_layer_types;
-	std::map<LAYER_TYPE, size_t> number_of_times_layer_was_referenced;
-	std::map<LAYER_TYPE, size_t> number_of_times_layer_was_referenced_by_modern_config;
+	std::set<Darknet::ELayerType> completely_unused_layer_types;
+	std::map<Darknet::ELayerType, size_t> number_of_times_layer_was_referenced;
+	std::map<Darknet::ELayerType, size_t> number_of_times_layer_was_referenced_by_modern_config;
 
 	// loop through all the layers to add the headers at the top of the table
-	for (int layer_index = 0; layer_index <= LAYER_LAST_IDX; layer_index ++)
+	for (int layer_index = 0; layer_index <= static_cast<int>(Darknet::ELayerType::LAYER_LAST_IDX); layer_index ++)
 	{
-		const auto type = static_cast<LAYER_TYPE>(layer_index);
+		const auto type = static_cast<Darknet::ELayerType>(layer_index);
 		const auto name = layer_type_to_name[type];
 
 		completely_unused_layer_types.insert(type);
@@ -629,9 +629,9 @@ void Darknet::cfg_layers()
 		}
 
 		// loop through all the layers
-		for (int layer_index = 0; layer_index <= LAYER_LAST_IDX; layer_index ++)
+		for (int layer_index = 0; layer_index <= static_cast<int>(Darknet::ELayerType::LAYER_LAST_IDX); layer_index ++)
 		{
-			const auto type = static_cast<LAYER_TYPE>(layer_index);
+			const auto type = static_cast<Darknet::ELayerType>(layer_index);
 			const auto name = layer_type_to_name[type];
 
 			if (m.count(name) == 0)

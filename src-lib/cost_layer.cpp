@@ -33,8 +33,8 @@ Darknet::Layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float
 	TAT(TATPARMS);
 
 	fprintf(stderr, "cost                                           %4d\n",  inputs);
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = COST;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::COST;
 
 	l.scale = scale;
 	l.batch = batch;

@@ -84,16 +84,16 @@ Darknet::Layer make_maxpool_layer(int batch, int h, int w, int c, int size, int 
 {
 	TAT(TATPARMS);
 
-	Darknet::Layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.avgpool = avgpool;
 
 	if (avgpool)
 	{
-		l.type = LOCAL_AVGPOOL;
+		l.type = Darknet::ELayerType::LOCAL_AVGPOOL;
 	}
 	else
 	{
-		l.type = MAXPOOL;
+		l.type = Darknet::ELayerType::MAXPOOL;
 	}
 	l.train = train;
 

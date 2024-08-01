@@ -5,8 +5,8 @@ Darknet::Layer make_scale_channels_layer(int batch, int index, int w, int h, int
 	TAT(TATPARMS);
 
 	fprintf(stderr,"scale Layer: %d\n", index);
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = SCALE_CHANNELS;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::SCALE_CHANNELS;
 	l.batch = batch;
 	l.scale_wh = scale_wh;
 	l.w = w;

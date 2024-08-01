@@ -205,7 +205,7 @@ void dump(network * net, const Darknet::CfgFile::CommonParms & parms)
 		Darknet::Layer & l = net->layers[n];
 		ofs	<< "--------------------------"							<< std::endl
 			<< "n="						<< n << " of " << net->n	<< std::endl
-			<< "type="					<< get_layer_string(l.type)	<< std::endl
+			<< "type="					<< Darknet::to_string(l.type) << std::endl
 			<< "activation="			<< Darknet::to_string(static_cast<Darknet::EActivation>(l.activation))		<< std::endl
 			<< "lstm_activation="		<< Darknet::to_string(static_cast<Darknet::EActivation>(l.lstm_activation))	<< std::endl
 			<< "cost_type="				<< l.cost_type				<< std::endl

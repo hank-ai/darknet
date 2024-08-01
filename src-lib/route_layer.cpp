@@ -4,8 +4,8 @@ Darknet::Layer make_route_layer(int batch, int n, int *input_layers, int *input_
 {
 	TAT(TATPARMS);
 
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = ROUTE;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::ROUTE;
 	l.batch = batch;
 	l.n = n;
 	l.input_layers = input_layers;

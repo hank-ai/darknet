@@ -4,8 +4,8 @@ Darknet::Layer make_dropout_layer(int batch, int inputs, float probability, int 
 {
 	TAT(TATPARMS);
 
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = DROPOUT;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::DROPOUT;
 	l.probability = probability;
 	l.dropblock = dropblock;
 	l.dropblock_size_rel = dropblock_size_rel;

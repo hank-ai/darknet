@@ -6,8 +6,8 @@ Darknet::Layer make_region_layer(int batch, int w, int h, int n, int classes, in
 {
 	TAT(TATPARMS);
 
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = REGION;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::REGION;
 
 	l.n = n;
 	l.batch = batch;

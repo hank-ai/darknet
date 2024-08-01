@@ -15,7 +15,7 @@ namespace Darknet
 {
 	struct Layer final
 	{
-		LAYER_TYPE type; ///< @see @ref get_layer_string()
+		Darknet::ELayerType type; ///< @see @ref Darknet::to_string()
 		ACTIVATION activation;
 		ACTIVATION lstm_activation;
 		COST_TYPE cost_type;

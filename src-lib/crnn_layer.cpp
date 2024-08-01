@@ -25,10 +25,10 @@ Darknet::Layer make_crnn_layer(int batch, int h, int w, int c, int hidden_filter
 
 	fprintf(stderr, "CRNN Layer: %d x %d x %d image, %d filters\n", h,w,c,output_filters);
 	batch = batch / steps;
-	Darknet::Layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.train = train;
 	l.batch = batch;
-	l.type = CRNN;
+	l.type = Darknet::ELayerType::CRNN;
 	l.steps = steps;
 	l.size = size;
 	l.stride = stride;

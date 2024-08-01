@@ -209,7 +209,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, float hier_thresh, int 
 	for (int i = 0; i < net.n; ++i)
 	{
 		Darknet::Layer lc = net.layers[i];
-		if (lc.type == YOLO)
+		if (lc.type == Darknet::ELayerType::YOLO)
 		{
 			lc.mean_alpha = 1.0 / avg_frames;
 			l = lc;

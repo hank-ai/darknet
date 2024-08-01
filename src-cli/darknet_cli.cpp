@@ -40,7 +40,7 @@ void average(int argc, char *argv[])
 		{
 			Darknet::Layer /*&*/ l = net.layers[j];
 			Darknet::Layer /*&*/ out = sum.layers[j];
-			if (l.type == CONVOLUTIONAL)
+			if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 			{
 				int num = l.n*l.c*l.size*l.size;
 				axpy_cpu(l.n, 1, l.biases, 1, out.biases, 1);
@@ -52,7 +52,7 @@ void average(int argc, char *argv[])
 					axpy_cpu(l.n, 1, l.rolling_variance, 1, out.rolling_variance, 1);
 				}
 			}
-			if (l.type == CONNECTED)
+			if (l.type == Darknet::ELayerType::CONNECTED)
 			{
 				axpy_cpu(l.outputs, 1, l.biases, 1, out.biases, 1);
 				axpy_cpu(l.outputs*l.inputs, 1, l.weights, 1, out.weights, 1);
@@ -64,7 +64,7 @@ void average(int argc, char *argv[])
 	for (j = 0; j < net.n; ++j)
 	{
 		Darknet::Layer /*&*/ l = sum.layers[j];
-		if (l.type == CONVOLUTIONAL)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 			int num = l.n*l.c*l.size*l.size;
 			scal_cpu(l.n, 1./n, l.biases, 1);
@@ -75,7 +75,7 @@ void average(int argc, char *argv[])
 				scal_cpu(l.n, 1./n, l.rolling_variance, 1);
 			}
 		}
-		if (l.type == CONNECTED)
+		if (l.type == Darknet::ELayerType::CONNECTED)
 		{
 			scal_cpu(l.outputs, 1./n, l.biases, 1);
 			scal_cpu(l.outputs*l.inputs, 1./n, l.weights, 1);
@@ -121,21 +121,21 @@ void operations(char *cfgfile)
 	for (int i = 0; i < net.n; ++i)
 	{
 		Darknet::Layer & l = net.layers[i];
-		if (l.type == CONVOLUTIONAL)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 			ops += 2l * l.n * l.size*l.size*l.c * l.out_h*l.out_w;
 		}
-		else if (l.type == CONNECTED)
+		else if (l.type == Darknet::ELayerType::CONNECTED)
 		{
 			ops += 2l * l.inputs * l.outputs;
 		}
-		else if (l.type == RNN)
+		else if (l.type == Darknet::ELayerType::RNN)
 		{
 			ops += 2l * l.input_layer->inputs * l.input_layer->outputs;
 			ops += 2l * l.self_layer->inputs * l.self_layer->outputs;
 			ops += 2l * l.output_layer->inputs * l.output_layer->outputs;
 		}
-		else if (l.type == LSTM)
+		else if (l.type == Darknet::ELayerType::LSTM)
 		{
 			ops += 2l * l.uf->inputs * l.uf->outputs;
 			ops += 2l * l.ui->inputs * l.ui->outputs;
@@ -219,7 +219,7 @@ void rescale_net(char *cfgfile, char *weightfile, char *outfile)
 	for (int i = 0; i < net.n; ++i)
 	{
 		Darknet::Layer /*&*/ l = net.layers[i];
-		if (l.type == CONVOLUTIONAL)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 			rescale_weights(l, 2, -.5);
 			break;
@@ -245,7 +245,7 @@ void rgbgr_net(char *cfgfile, char *weightfile, char *outfile)
 	for (int i = 0; i < net.n; ++i)
 	{
 		Darknet::Layer /*&*/ l = net.layers[i];
-		if (l.type == CONVOLUTIONAL)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
 			// swap red and blue channels?
 			rgbgr_weights(l);
@@ -272,15 +272,15 @@ void reset_normalize_net(char *cfgfile, char *weightfile, char *outfile)
 	for (int i = 0; i < net.n; ++i)
 	{
 		Darknet::Layer /*&*/ l = net.layers[i];
-		if (l.type == CONVOLUTIONAL && l.batch_normalize)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL && l.batch_normalize)
 		{
 			denormalize_convolutional_layer(l);
 		}
-		if (l.type == CONNECTED && l.batch_normalize)
+		if (l.type == Darknet::ELayerType::CONNECTED && l.batch_normalize)
 		{
 			denormalize_connected_layer(l);
 		}
-		if (l.type == LSTM && l.batch_normalize)
+		if (l.type == Darknet::ELayerType::LSTM && l.batch_normalize)
 		{
 			denormalize_connected_layer(*l.wf);
 			denormalize_connected_layer(*l.wi);
@@ -326,15 +326,15 @@ void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 	for (int i = 0; i < net.n; ++i)
 	{
 		Darknet::Layer /*&*/ l = net.layers[i];
-		if (l.type == CONVOLUTIONAL && !l.batch_normalize)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL && !l.batch_normalize)
 		{
 			net.layers[i] = normalize_layer(l, l.n);
 		}
-		if (l.type == CONNECTED && !l.batch_normalize)
+		if (l.type == Darknet::ELayerType::CONNECTED && !l.batch_normalize)
 		{
 			net.layers[i] = normalize_layer(l, l.outputs);
 		}
-		if (l.type == LSTM && l.batch_normalize)
+		if (l.type == Darknet::ELayerType::LSTM && l.batch_normalize)
 		{
 			*l.wf = normalize_layer(*l.wf, l.wf->outputs);
 			*l.wi = normalize_layer(*l.wi, l.wi->outputs);
@@ -366,12 +366,12 @@ void statistics_net(const char * cfgfile, const char * weightfile)
 	for (int i = 0; i < net.n; ++i)
 	{
 		Darknet::Layer /*&*/ l = net.layers[i];
-		if (l.type == CONNECTED && l.batch_normalize)
+		if (l.type == Darknet::ELayerType::CONNECTED && l.batch_normalize)
 		{
 			printf("Connected Layer %d\n", i);
 			statistics_connected_layer(l);
 		}
-		if (l.type == LSTM && l.batch_normalize)
+		if (l.type == Darknet::ELayerType::LSTM && l.batch_normalize)
 		{
 			printf("LSTM Layer %d\n", i);
 			printf("wf\n");
@@ -409,19 +409,19 @@ void denormalize_net(char *cfgfile, char *weightfile, char *outfile)
 	for (int i = 0; i < net.n; ++i)
 	{
 		Darknet::Layer /*&*/ l = net.layers[i];
-		if (l.type == CONVOLUTIONAL && l.batch_normalize)
+		if (l.type == Darknet::ELayerType::CONVOLUTIONAL && l.batch_normalize)
 		{
 			denormalize_convolutional_layer(l);
 			net.layers[i].batch_normalize=0;
 		}
-		if (l.type == CONNECTED && l.batch_normalize)
+		if (l.type == Darknet::ELayerType::CONNECTED && l.batch_normalize)
 		{
 			denormalize_connected_layer(l);
 			net.layers[i].batch_normalize=0;
 		}
 
 		/// @todo V3: I'm willing to bet this is supposed to be LSTM, not GRU...?
-		if (l.type == LSTM && l.batch_normalize)
+		if (l.type == Darknet::ELayerType::LSTM && l.batch_normalize)
 		{
 			denormalize_connected_layer(*l.wf);
 			denormalize_connected_layer(*l.wi);

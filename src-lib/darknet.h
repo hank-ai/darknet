@@ -126,6 +126,7 @@ typedef struct contrastive_params {
 } contrastive_params;
 
 
+#if 0
 /// @todo This enum will eventually be replaced by @ref Darknet::ELayerType
 typedef enum {
 	CONVOLUTIONAL,
@@ -154,6 +155,7 @@ typedef enum {
 	CONTRASTIVE,
 	LAYER_LAST_IDX = CONTRASTIVE,
 } LAYER_TYPE;
+#endif
 
 // layer.h
 typedef enum{

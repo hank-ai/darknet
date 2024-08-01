@@ -20,7 +20,8 @@ extern "C"
 typedef struct time_benchmark_layers
 {
 	float time;
-	int layer_id, layer_type;
+	int layer_id;
+	Darknet::ELayerType layer_type;
 } time_benchmark_layers;
 
 
@@ -59,7 +60,6 @@ void forward_network_gpu(network net, Darknet::NetworkState state)
 	{
 		state.index = i;
 		Darknet::Layer & l = net.layers[i];
-//      printf("i=%d/%d: %s\n", i + 1, net.n, get_layer_string(l.type));
 
 		if (l.delta_gpu && state.train)
 		{
@@ -385,12 +385,12 @@ void forward_backward_network_gpu(network net, float *x, float *y)
 		Darknet::Layer & l = net.layers[i];
 		if (net.cudnn_half)
 		{
-			if (l.type == CONVOLUTIONAL && l.weights_gpu && l.weights_gpu16)
+			if (l.type == Darknet::ELayerType::CONVOLUTIONAL && l.weights_gpu && l.weights_gpu16)
 			{
 				assert((l.nweights) > 0);
 				cuda_convert_f32_to_f16(l.weights_gpu, l.nweights, l.weights_gpu16);
 			}
-			else if (l.type == CRNN && l.input_layer->weights_gpu && l.input_layer->weights_gpu16)
+			else if (l.type == Darknet::ELayerType::CRNN && l.input_layer->weights_gpu && l.input_layer->weights_gpu16)
 			{
 				assert((l.input_layer->c*l.input_layer->n*l.input_layer->size*l.input_layer->size) > 0);
 				cuda_convert_f32_to_f16(l.input_layer->weights_gpu, l.input_layer->nweights, l.input_layer->weights_gpu16);
@@ -477,7 +477,7 @@ void pull_updates(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
-	if (l.type == CONVOLUTIONAL)
+	if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 	{
 		cuda_pull_array(l.bias_updates_gpu, l.bias_updates, l.n);
 		cuda_pull_array(l.weight_updates_gpu, l.weight_updates, l.nweights);
@@ -486,7 +486,7 @@ void pull_updates(Darknet::Layer & l)
 			cuda_pull_array(l.scale_updates_gpu, l.scale_updates, l.n);
 		}
 	}
-	else if (l.type == CONNECTED)
+	else if (l.type == Darknet::ELayerType::CONNECTED)
 	{
 		cuda_pull_array(l.bias_updates_gpu, l.bias_updates, l.outputs);
 		cuda_pull_array(l.weight_updates_gpu, l.weight_updates, l.outputs*l.inputs);
@@ -497,13 +497,13 @@ void push_updates(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
-	if (l.type == CONVOLUTIONAL)
+	if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 	{
 		cuda_push_array(l.bias_updates_gpu, l.bias_updates, l.n);
 		cuda_push_array(l.weight_updates_gpu, l.weight_updates, l.nweights);
 		if(l.scale_updates) cuda_push_array(l.scale_updates_gpu, l.scale_updates, l.n);
 	}
-	else if (l.type == CONNECTED)
+	else if (l.type == Darknet::ELayerType::CONNECTED)
 	{
 		cuda_push_array(l.bias_updates_gpu, l.bias_updates, l.outputs);
 		cuda_push_array(l.weight_updates_gpu, l.weight_updates, l.outputs*l.inputs);
@@ -527,7 +527,7 @@ void merge_weights(Darknet::Layer & l, Darknet::Layer & base)
 {
 	TAT(TATPARMS);
 
-	if (l.type == CONVOLUTIONAL)
+	if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 	{
 		axpy_cpu(l.n, 1, l.biases, 1, base.biases, 1);
 		axpy_cpu(l.nweights, 1, l.weights, 1, base.weights, 1);
@@ -536,7 +536,7 @@ void merge_weights(Darknet::Layer & l, Darknet::Layer & base)
 			axpy_cpu(l.n, 1, l.scales, 1, base.scales, 1);
 		}
 	}
-	else if (l.type == CONNECTED)
+	else if (l.type == Darknet::ELayerType::CONNECTED)
 	{
 		axpy_cpu(l.outputs, 1, l.biases, 1, base.biases, 1);
 		axpy_cpu(l.outputs*l.inputs, 1, l.weights, 1, base.weights, 1);
@@ -547,7 +547,7 @@ void scale_weights(Darknet::Layer & l, float s)
 {
 	TAT(TATPARMS);
 
-	if (l.type == CONVOLUTIONAL)
+	if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 	{
 		scal_cpu(l.n, s, l.biases, 1);
 		scal_cpu(l.nweights, s, l.weights, 1);
@@ -556,7 +556,7 @@ void scale_weights(Darknet::Layer & l, float s)
 			scal_cpu(l.n, s, l.scales, 1);
 		}
 	}
-	else if (l.type == CONNECTED)
+	else if (l.type == Darknet::ELayerType::CONNECTED)
 	{
 		scal_cpu(l.outputs, s, l.biases, 1);
 		scal_cpu(l.outputs*l.inputs, s, l.weights, 1);
@@ -568,7 +568,7 @@ void pull_weights(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
-	if (l.type == CONVOLUTIONAL)
+	if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 	{
 		cuda_pull_array(l.biases_gpu, l.biases, l.n);
 		cuda_pull_array(l.weights_gpu, l.weights, l.nweights);
@@ -577,7 +577,7 @@ void pull_weights(Darknet::Layer & l)
 			cuda_pull_array(l.scales_gpu, l.scales, l.n);
 		}
 	}
-	else if (l.type == CONNECTED)
+	else if (l.type == Darknet::ELayerType::CONNECTED)
 	{
 		cuda_pull_array(l.biases_gpu, l.biases, l.outputs);
 		cuda_pull_array(l.weights_gpu, l.weights, l.outputs*l.inputs);
@@ -588,7 +588,7 @@ void push_weights(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
-	if(l.type == CONVOLUTIONAL)
+	if(l.type == Darknet::ELayerType::CONVOLUTIONAL)
 	{
 		cuda_push_array(l.biases_gpu, l.biases, l.n);
 		cuda_push_array(l.weights_gpu, l.weights, l.nweights);
@@ -597,7 +597,7 @@ void push_weights(Darknet::Layer & l)
 			cuda_push_array(l.scales_gpu, l.scales, l.n);
 		}
 	}
-	else if(l.type == CONNECTED)
+	else if(l.type == Darknet::ELayerType::CONNECTED)
 	{
 		cuda_push_array(l.biases_gpu, l.biases, l.outputs);
 		cuda_push_array(l.weights_gpu, l.weights, l.outputs*l.inputs);
@@ -608,13 +608,13 @@ void distribute_weights(Darknet::Layer & l, Darknet::Layer & base)
 {
 	TAT(TATPARMS);
 
-	if(l.type == CONVOLUTIONAL)
+	if(l.type == Darknet::ELayerType::CONVOLUTIONAL)
 	{
 		cuda_push_array(l.biases_gpu, base.biases, l.n);
 		cuda_push_array(l.weights_gpu, base.weights, l.nweights);
 		if(base.scales) cuda_push_array(l.scales_gpu, base.scales, l.n);
 	}
-	else if(l.type == CONNECTED)
+	else if(l.type == Darknet::ELayerType::CONNECTED)
 	{
 		cuda_push_array(l.biases_gpu, base.biases, l.outputs);
 		cuda_push_array(l.weights_gpu, base.weights, l.outputs*l.inputs);
@@ -626,13 +626,13 @@ void merge_updates(Darknet::Layer & l, Darknet::Layer & base)
 {
 	TAT(TATPARMS);
 
-	if (l.type == CONVOLUTIONAL) {
+	if (l.type == Darknet::ELayerType::CONVOLUTIONAL) {
 		axpy_cpu(l.n, 1, l.bias_updates, 1, base.bias_updates, 1);
 		axpy_cpu(l.nweights, 1, l.weight_updates, 1, base.weight_updates, 1);
 		if (l.scale_updates) {
 			axpy_cpu(l.n, 1, l.scale_updates, 1, base.scale_updates, 1);
 		}
-	} else if(l.type == CONNECTED) {
+	} else if(l.type == Darknet::ELayerType::CONNECTED) {
 		axpy_cpu(l.outputs, 1, l.bias_updates, 1, base.bias_updates, 1);
 		axpy_cpu(l.outputs*l.inputs, 1, l.weight_updates, 1, base.weight_updates, 1);
 	}
@@ -642,7 +642,7 @@ void distribute_updates(Darknet::Layer & l, Darknet::Layer & base)
 {
 	TAT(TATPARMS);
 
-	if(l.type == CONVOLUTIONAL)
+	if(l.type == Darknet::ELayerType::CONVOLUTIONAL)
 	{
 		cuda_push_array(l.bias_updates_gpu, base.bias_updates, l.n);
 		cuda_push_array(l.weight_updates_gpu, base.weight_updates, l.nweights);
@@ -651,7 +651,7 @@ void distribute_updates(Darknet::Layer & l, Darknet::Layer & base)
 			cuda_push_array(l.scale_updates_gpu, base.scale_updates, l.n);
 		}
 	}
-	else if (l.type == CONNECTED)
+	else if (l.type == Darknet::ELayerType::CONNECTED)
 	{
 		cuda_push_array(l.bias_updates_gpu, base.bias_updates, l.outputs);
 		cuda_push_array(l.weight_updates_gpu, base.weight_updates, l.outputs*l.inputs);
@@ -778,7 +778,11 @@ float *get_network_output_layer_gpu(network net, int i)
 	TAT(TATPARMS);
 
 	Darknet::Layer & l = net.layers[i];
-	if(l.type != REGION && l.type != YOLO && (*net.cuda_graph_ready) == 0) cuda_pull_array(l.output_gpu, l.output, l.outputs*l.batch);
+	if (l.type != Darknet::ELayerType::REGION && l.type != Darknet::ELayerType::YOLO && (*net.cuda_graph_ready) == 0)
+	{
+		cuda_pull_array(l.output_gpu, l.output, l.outputs*l.batch);
+	}
+
 	return l.output;
 }
 
@@ -789,7 +793,7 @@ float *get_network_output_gpu(network net)
 	int i;
 	for (i = net.n - 1; i > 0; --i)
 	{
-		if (net.layers[i].type != COST)
+		if (net.layers[i].type != Darknet::ELayerType::COST)
 		{
 			break;
 		}

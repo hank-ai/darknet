@@ -231,15 +231,15 @@ std::string Darknet::format_layer_summary(const size_t idx, const Darknet::CfgSe
 
 	const std::string name = [&]() -> std::string
 	{
-		if (l.type == LAYER_TYPE::UPSAMPLE and l.reverse)
+		if (l.type == Darknet::ELayerType::UPSAMPLE and l.reverse)
 		{
 			return "downsample";
 		}
-		if (l.type == LAYER_TYPE::MAXPOOL and l.avgpool)
+		if (l.type == Darknet::ELayerType::MAXPOOL and l.avgpool)
 		{
 			return "avg";
 		}
-		if (l.type == LAYER_TYPE::MAXPOOL and l.maxpool_depth)
+		if (l.type == Darknet::ELayerType::MAXPOOL and l.maxpool_depth)
 		{
 			return "max-depth";
 		}
@@ -252,7 +252,7 @@ std::string Darknet::format_layer_summary(const size_t idx, const Darknet::CfgSe
 		{
 			str = std::to_string(l.n);
 
-			if (l.type == LAYER_TYPE::ROUTE)
+			if (l.type == Darknet::ELayerType::ROUTE)
 			{
 				str = std::to_string(l.groups);
 			}
@@ -266,18 +266,18 @@ std::string Darknet::format_layer_summary(const size_t idx, const Darknet::CfgSe
 	const std::string size = [&]()
 	{
 		std::stringstream ss;
-		if (l.type == LAYER_TYPE::UPSAMPLE)
+		if (l.type == Darknet::ELayerType::UPSAMPLE)
 		{
 			ss << l.stride << "X";
 		}
-		else if (l.type == LAYER_TYPE::ROUTE or l.type == LAYER_TYPE::SHORTCUT)
+		else if (l.type == Darknet::ELayerType::ROUTE or l.type == Darknet::ELayerType::SHORTCUT)
 		{
 			for (size_t i = 0; i < l.n; i++)
 			{
 				ss << (i == 0 ? "#" : ", ") << l.input_layers[i];
 			}
 		}
-		else if (l.type == LAYER_TYPE::YOLO)
+		else if (l.type == Darknet::ELayerType::YOLO)
 		{
 			ss << l.total << " anchors";
 		}
@@ -310,14 +310,14 @@ std::string Darknet::format_layer_summary(const size_t idx, const Darknet::CfgSe
 	const std::string input_size = [&]()
 	{
 		std::stringstream ss;
-		if (l.type == LAYER_TYPE::ROUTE)
+		if (l.type == Darknet::ELayerType::ROUTE)
 		{
 			if (l.groups > 1)
 			{
 				ss << l.group_id << "/" << l.groups;
 			}
 		}
-		else if (l.type == LAYER_TYPE::SHORTCUT)
+		else if (l.type == Darknet::ELayerType::SHORTCUT)
 		{
 			if (l.weights_normalization != WEIGHTS_NORMALIZATION_T::NO_NORMALIZATION)
 			{

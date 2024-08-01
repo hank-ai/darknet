@@ -369,8 +369,8 @@ Darknet::Layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int tota
 	TAT(TATPARMS);
 
 	int i;
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = GAUSSIAN_YOLO;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::GAUSSIAN_YOLO;
 
 	l.n = n;
 	l.total = total;

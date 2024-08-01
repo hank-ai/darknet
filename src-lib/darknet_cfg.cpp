@@ -23,7 +23,7 @@ namespace
 			{
 				net.layers[idx].train_only_bn = train_only_bn;
 
-				if (net.layers[idx].type == CRNN)
+				if (net.layers[idx].type == Darknet::ELayerType::CRNN)
 				{
 					net.layers[idx].input_layer	->train_only_bn = train_only_bn;
 					net.layers[idx].self_layer	->train_only_bn = train_only_bn;
@@ -759,7 +759,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 		parms.index = idx;
 
-		Darknet::Layer l = {(LAYER_TYPE)0};
+		Darknet::Layer l = {(Darknet::ELayerType)0};
 
 		auto & section = sections.at(idx);
 
@@ -853,7 +853,8 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			int stride = max_val_cmp(1, l.stride);
 			int size = max_val_cmp(1, l.size);
 
-			if (l.type == UPSAMPLE || (l.type == REORG))
+			if (l.type == Darknet::ELayerType::UPSAMPLE or
+				l.type == Darknet::ELayerType::REORG)
 			{
 				l.receptive_w = parms.receptive_w;
 				l.receptive_h = parms.receptive_h;
@@ -862,7 +863,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			}
 			else
 			{
-				if (l.type == ROUTE)
+				if (l.type == Darknet::ELayerType::ROUTE)
 				{
 					parms.receptive_w = parms.receptive_h = parms.receptive_w_scale = parms.receptive_h_scale = 0;
 					for (int k = 0; k < l.n; ++k)
@@ -898,7 +899,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 #ifdef GPU
 		// futher GPU-memory optimization: net.optimized_memory == 2
 		l.optimized_memory = net.optimized_memory;
-		if (net.optimized_memory == 1 && parms.train && l.type != DROPOUT)
+		if (net.optimized_memory == 1 && parms.train && l.type != Darknet::ELayerType::DROPOUT)
 		{
 			if (l.delta_gpu)
 			{
@@ -906,7 +907,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				l.delta_gpu = NULL;
 			}
 		}
-		else if (net.optimized_memory >= 2 && parms.train && l.type != DROPOUT)
+		else if (net.optimized_memory >= 2 && parms.train && l.type != Darknet::ELayerType::DROPOUT)
 		{
 			if (l.output_gpu)
 			{
@@ -927,7 +928,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			}
 
 			// maximum optimization
-			if (net.optimized_memory >= 3 && l.type != DROPOUT)
+			if (net.optimized_memory >= 3 && l.type != Darknet::ELayerType::DROPOUT)
 			{
 				if (l.delta_gpu)
 				{
@@ -937,7 +938,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				}
 			}
 
-			if (l.type == CONVOLUTIONAL)
+			if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 			{
 				set_specified_workspace_limit(&l, net.workspace_size_limit);   // workspace size limit 1 GB
 			}
@@ -1081,7 +1082,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			}
 
 			// maximum optimization
-			if (net.optimized_memory >= 3 && l.type != DROPOUT)
+			if (net.optimized_memory >= 3 && l.type != Darknet::ELayerType::DROPOUT)
 			{
 				if (l.delta_gpu && l.keep_delta_gpu)
 				{
@@ -1154,8 +1155,8 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 	}
 #endif
 
-	LAYER_TYPE lt = net.layers[net.n - 1].type;
-	if (lt == YOLO || lt == REGION)
+	Darknet::ELayerType lt = net.layers[net.n - 1].type;
+	if (lt == Darknet::ELayerType::YOLO || lt == Darknet::ELayerType::REGION)
 	{
 		if (net.w % 32 != 0 ||
 			net.h % 32 != 0 ||
@@ -2105,7 +2106,7 @@ Darknet::Layer Darknet::CfgFile::parse_contrastive_section(const size_t section_
 	{
 		yolo_layer = net.layers + yolo_layer_id;
 	}
-	if (yolo_layer->type != YOLO)
+	if (yolo_layer->type != Darknet::ELayerType::YOLO)
 	{
 		darknet_fatal_error(DARKNET_LOC, "[contrastive] layer at line %ld does not point to [yolo] layer", s.line_number);
 	}

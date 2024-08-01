@@ -25,8 +25,8 @@ Darknet::Layer make_softmax_layer(int batch, int inputs, int groups)
 
 	assert(inputs%groups == 0);
 	fprintf(stderr, "softmax                                        %4d\n",  inputs);
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = SOFTMAX;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::SOFTMAX;
 	l.batch = batch;
 	l.groups = groups;
 	l.inputs = inputs;
@@ -136,8 +136,8 @@ Darknet::Layer make_contrastive_layer(int batch, int w, int h, int c, int classe
 {
 	TAT(TATPARMS);
 
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = CONTRASTIVE;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::CONTRASTIVE;
 	l.batch = batch;
 	l.inputs = inputs;
 	l.w = w;

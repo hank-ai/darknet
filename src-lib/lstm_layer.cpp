@@ -25,9 +25,9 @@ Darknet::Layer make_lstm_layer(int batch, int inputs, int outputs, int steps, in
 
 	fprintf(stderr, "LSTM Layer: %d inputs, %d outputs\n", inputs, outputs);
 	batch = batch / steps;
-	Darknet::Layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.batch = batch;
-	l.type = LSTM;
+	l.type = Darknet::ELayerType::LSTM;
 	l.steps = steps;
 	l.inputs = inputs;
 	l.out_w = 1;

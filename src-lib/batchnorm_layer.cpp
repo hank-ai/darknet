@@ -7,7 +7,7 @@ layer make_batchnorm_layer(int batch, int w, int h, int c, int train)
 	TAT(TATPARMS);
 
 	fprintf(stderr, "Batch Normalization Layer: %d x %d x %d image\n", w,h,c);
-	layer l = { (LAYER_TYPE)0 };
+	layer l = { (Darknet::ELayerType)0 };
 	l.type = BATCHNORM;
 	l.batch = batch;
 	l.train = train;
@@ -200,7 +200,7 @@ void forward_batchnorm_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	TAT(TATPARMS);
 
 //	if(l.type == BATCHNORM) copy_cpu(l.outputs*l.batch, state.input, 1, l.output, 1);
-	if(l.type == CONNECTED){
+	if(l.type == Darknet::ELayerType::CONNECTED){
 		l.out_c = l.outputs;
 		l.out_h = l.out_w = 1;
 	}

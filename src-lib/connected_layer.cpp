@@ -54,8 +54,8 @@ Darknet::Layer make_connected_layer(int batch, int steps, int inputs, int output
 
 	int total_batch = batch*steps;
 	int i;
-	Darknet::Layer l = { (LAYER_TYPE)0 };
-	l.type = CONNECTED;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::CONNECTED;
 
 	l.inputs = inputs;
 	l.outputs = outputs;
