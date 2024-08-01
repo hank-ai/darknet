@@ -1,10 +1,25 @@
 #include "darknet.hpp"
 
 /** @file
- * This application will process one or more videos as fast as possible.  The results are not immediately shown to the
- * user, but the output video is saved to disk for review.  Call it like this:
+ * This application will process one or more videos as fast as possible and save a new output video to disk.
+ * The results are not shown to the user.  Call it like this:
  *
  *     darknet_04_process_videos LegoGears DSCN1582A.MOV
+ *
+ * The output should be similar to this:
+ *
+ *     processing DSCN1582A.MOV:
+ *     -> neural network size ...... 224 x 160 x 3
+ *     -> input video dimensions ... 640 x 480
+ *     -> input video frame count .. 1230
+ *     -> input video frame rate ... 29.970030 FPS
+ *     -> input video length ....... 41041 milliseconds
+ *     -> output filename .......... DSCN1582A_output.m4v
+ *     -> total frames processed ... 1230
+ *     -> time to process video .... 3207 milliseconds
+ *     -> final frame rate ......... 383.536015 FPS
+ *     -> total objects founds ..... 6189
+ *     -> average objects/frame .... 5.031707
  */
 
 

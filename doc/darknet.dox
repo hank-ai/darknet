@@ -6,6 +6,7 @@
 
 &nbsp;
 
+- Take a look at the example applications to see what to run:  <a href="dir_24ab17d9eb95b38eae021232ab6352ca.html">src-examples/</a>
 - If you want to @em use Darknet/YOLO, please see the <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/">FAQ</a> with many common questions and answers.
 - Note <a target="_blank" href="https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/">Hank.ai's announcement in May 2023</a> on officially sponsoring the %Darknet/YOLO codebase.
 - **The %Darknet source repo location has changed!** Both the original pjreddie and alexeyab repos are abandoned.  The new repo to use for %Darknet is hosted by Hank.ai.  See this link for details:  https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid
