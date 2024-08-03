@@ -78,7 +78,6 @@ int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, floa
 #include "utils.hpp"
 #include "parser.hpp"
 #include "data.hpp"
-#include "demo.hpp"
 #include "network.hpp"
 #include "option_list.hpp"
 #include "image.hpp"

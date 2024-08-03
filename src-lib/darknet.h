@@ -126,37 +126,6 @@ typedef struct contrastive_params {
 } contrastive_params;
 
 
-#if 0
-/// @todo This enum will eventually be replaced by @ref Darknet::ELayerType
-typedef enum {
-	CONVOLUTIONAL,
-	CONNECTED,
-	MAXPOOL,
-	LOCAL_AVGPOOL,
-	SOFTMAX,
-	DROPOUT,
-	ROUTE,
-	COST,
-	AVGPOOL,
-	SHORTCUT,
-	SCALE_CHANNELS,
-	SAM,
-	RNN,
-	LSTM,
-	CRNN,
-	NETWORK,
-	REGION,
-	YOLO,
-	GAUSSIAN_YOLO,
-	REORG,
-	UPSAMPLE,	// or downsample if l.reverse=1
-	EMPTY,
-	BLANK,
-	CONTRASTIVE,
-	LAYER_LAST_IDX = CONTRASTIVE,
-} LAYER_TYPE;
-#endif
-
 // layer.h
 typedef enum{
 	SSE, MASKED, L1, SEG, SMOOTH,WGAN
@@ -539,21 +508,6 @@ void top_k(float *a, int n, int k, int *index);
 
 // tree.h
 tree *read_tree(const char *filename);
-
-// http_stream.h
-void delete_json_sender();
-void send_json_custom(char const* send_buf, int port, int timeout);
-double get_time_point();
-void start_timer();
-void stop_timer();
-double get_time();
-void stop_timer_and_show();
-void stop_timer_and_show_name(char *name);
-void show_total_time();
-
-void set_track_id(detection *new_dets, int new_dets_num, float thresh, float sim_thresh, float track_ciou_norm, int deque_size, int dets_for_track, int dets_for_show);
-int fill_remaining_id(detection *new_dets, int new_dets_num, int new_track_id, float thresh);
-
 
 // gemm.h
 void init_cpu();

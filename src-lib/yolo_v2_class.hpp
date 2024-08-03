@@ -62,7 +62,6 @@ extern "C"
 	bool built_with_cuda();
 	bool built_with_cudnn();
 	bool built_with_opencv();
-	void send_json_custom(char const* send_buf, int port, int timeout);
 }
 
 class Detector {
@@ -178,6 +177,7 @@ public:
 	bool send_json_http(std::vector<bbox_t> cur_bbox_vec, std::vector<std::string> obj_names, int frame_id,
 		std::string filename = std::string(), int timeout = 400000, int port = 8070)
 	{
+#if 0
 		std::string send_str;
 
 		char *tmp_buf = (char *)calloc(1024, sizeof(char));
@@ -217,6 +217,9 @@ public:
 
 		send_json_custom(send_str.c_str(), port, timeout);
 		return true;
+#else
+		return false;
+#endif
 	}
 };
 // --------------------------------------------------------------------------------

@@ -1,8 +1,8 @@
 #include "darknet.hpp"
 
 /** @file
- * This application will process one or more videos as fast as possible and save a new output video to disk.
- * The results are not shown to the user.  Call it like this:
+ * This application will process one or more videos as fast as possible on a single thread and save a new output video
+ * to disk.  The results are not shown to the user.  Call it like this:
  *
  *     darknet_04_process_videos LegoGears DSCN1582A.MOV
  *
@@ -17,7 +17,7 @@
  *     -> output filename .......... DSCN1582A_output.m4v
  *     -> total frames processed ... 1230
  *     -> time to process video .... 3207 milliseconds
- *     -> final frame rate ......... 383.536015 FPS
+ *     -> processed frame rate ..... 383.536015 FPS
  *     -> total objects founds ..... 6189
  *     -> average objects/frame .... 5.031707
  */
@@ -55,6 +55,7 @@ int main(int argc, char * argv[])
 				const size_t video_height				= cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 				const size_t video_frames_count			= cap.get(cv::CAP_PROP_FRAME_COUNT);
 				const double fps						= cap.get(cv::CAP_PROP_FPS);
+				const size_t fps_rounded				= std::round(fps);
 				const size_t frame_in_nanoseconds		= std::round(1000000000.0 / fps);
 				const size_t video_length_milliseconds	= std::round(frame_in_nanoseconds / 1000000.0 * video_frames_count);
 
@@ -90,6 +91,15 @@ int main(int argc, char * argv[])
 					out.write(mat);
 					frame_counter ++;
 					total_objects_found += results.size();
+
+					if (frame_counter % fps_rounded == 0)
+					{
+						const int percentage = std::round(100.0f * frame_counter / video_frames_count);
+						std::cout
+						<< "-> frame #" << frame_counter << "/" << video_frames_count
+						<< " (" << percentage << "%)\r"
+						<< std::flush;
+					}
 				}
 
 				const auto timestamp_when_video_ended = std::chrono::high_resolution_clock::now();
@@ -100,7 +110,7 @@ int main(int argc, char * argv[])
 				std::cout
 					<< "-> total frames processed ... " << frame_counter											<< std::endl
 					<< "-> time to process video .... " << processing_time_in_milliseconds << " milliseconds"		<< std::endl
-					<< "-> final frame rate ......... " << final_fps << " FPS"										<< std::endl
+					<< "-> processed frame rate ..... " << final_fps << " FPS"										<< std::endl
 					<< "-> total objects founds ..... " << total_objects_found										<< std::endl
 					<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter	<< std::endl;
 			}

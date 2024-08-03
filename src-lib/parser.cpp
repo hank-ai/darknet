@@ -645,6 +645,11 @@ network *load_network_custom(const char * cfg, const char * weights, int clear, 
 	load_weights(net, weights);
 	fuse_conv_batchnorm(*net);
 
+	/** @todo Some code seems to also call this next function, and some not.  This was not originally called here, but I
+	 * copied it from several other code locations.  Need to invetigate whether or not it should be here.  2024-08-03
+	 */
+	calculate_binary_weights(*net);
+
 	if (clear)
 	{
 		(*net->seen) = 0;

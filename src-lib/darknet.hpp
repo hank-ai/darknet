@@ -295,12 +295,26 @@ namespace Darknet
 
 	/** Get %Darknet to look at the given image or video frame and return all predictions.
 	 *
+	 * This is similar to the other @ref predict() that takes a @p Darknet::image object as input.
+	 *
 	 * OpenCV @p cv::Mat images (and video frames) are typically stored in BGR format, not RGB.  This function expects the
 	 * images to be in the usual BGR format for 3-channel networks.
 	 *
 	 * @since 2024-07-24
 	 */
 	Predictions predict(const Darknet::NetworkPtr ptr, cv::Mat mat);
+
+	/** Get %Darknet to look at the given image or video frame and return all predictions.
+	 *
+	 * The provided image must be in %Darknet's RGB image format.  This is similar to the other @ref predict() that takes
+	 * a @p cv::Mat object as input.
+	 *
+	 * @note If the original image size is known, it is best to pass it in so the bounding boxes can be scaled to those
+	 * dimensions.
+	 *
+	 * @since 2024-08-02
+	 */
+	Predictions predict(const Darknet::NetworkPtr ptr, image & img, cv::Size original_image_size = cv::Size(0, 0));
 
 	/** Get %Darknet to look at the given image.  The image must be in a format supported by OpenCV, such as JPG or PNG.
 	 *

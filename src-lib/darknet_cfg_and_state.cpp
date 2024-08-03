@@ -86,9 +86,6 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 
 		static std::vector<char*> cmd =
 		{
-			// process a video
-//			"darknet", "detector", "demo", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights", "DSCN1583A.MOV"
-
 			// process a single image file
 //			"darknet", "detector", "test", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights", "set_01/DSCN1580_frame_000000.jpg"
 

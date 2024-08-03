@@ -765,8 +765,7 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, cv::Mat mat
 	}
 
 	const cv::Size network_dimensions(net->w, net->h);
-	const float original_image_width = mat.cols;
-	const float original_image_height = mat.rows;
+	const cv::Size original_image_size = mat.size();
 
 	if (mat.size() != network_dimensions)
 	{
@@ -786,12 +785,32 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, cv::Mat mat
 	}
 
 	image img = mat_to_image(mat);
+
+	return predict(ptr, img, original_image_size);
+}
+
+
+Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, image & img, cv::Size original_image_size)
+{
+	TAT(TATPARMS);
+
+	network * net = reinterpret_cast<network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot predict without a network pointer");
+	}
+
+	// If we don't know the original image size, then use the current image size.
+	// Note the bounding box results will be wrong if the image has been resized!
+	if (original_image_size.width	< 1) original_image_size.width	= img.w;
+	if (original_image_size.height	< 1) original_image_size.height	= img.h;
+
 	network_predict(*net, img.data); /// todo pass net by ref or pointer, not copy constructor!
 	free_image(img);
 
 	int nboxes = 0;
 	const float hierarchy_threshold = 0.5f;
-	auto darknet_results = get_network_boxes(net, mat.cols, mat.rows, detection_threshold, hierarchy_threshold, 0, 1, &nboxes, 0);
+	auto darknet_results = get_network_boxes(net, img.w, img.h, detection_threshold, hierarchy_threshold, 0, 1, &nboxes, 0);
 
 	if (non_maximal_suppression_threshold)
 	{
@@ -839,10 +858,10 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, cv::Mat mat
 			fix_out_of_bound_normalized_rect(det.bbox.x, det.bbox.y, det.bbox.w, det.bbox.h);
 		}
 
-		const int w = std::round(det.bbox.w * original_image_width				);
-		const int h = std::round(det.bbox.h * original_image_height				);
-		const int x = std::round(det.bbox.x * original_image_width	- w / 2.0f	);
-		const int y = std::round(det.bbox.y * original_image_height	- h / 2.0f	);
+		const int w = std::round(det.bbox.w * original_image_size.width				);
+		const int h = std::round(det.bbox.h * original_image_size.height			);
+		const int x = std::round(det.bbox.x * original_image_size.width	- w / 2.0f	);
+		const int y = std::round(det.bbox.y * original_image_size.height- h / 2.0f	);
 
 		pred.rect				= cv::Rect(cv::Point(x, y), cv::Size(w, h));
 		pred.normalized_point	= cv::Point2f(det.bbox.x, det.bbox.y);

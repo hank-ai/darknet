@@ -66,13 +66,16 @@ void forward_network_gpu(network net, Darknet::NetworkState state)
 			fill_ongpu(l.outputs * l.batch, 0, l.delta_gpu, 1);
 		}
 
+#if 0	/// @todo V3 benchmark layers
 		if (net.benchmark_layers)
 		{
 			start_time = get_time_point();
 		}
+#endif
 
 		l.forward_gpu(l, state);
 
+#if 0	/// @todo V3 benchmark layers
 		if (net.benchmark_layers)
 		{
 			CHECK_CUDA(cudaDeviceSynchronize());
@@ -93,6 +96,7 @@ void forward_network_gpu(network net, Darknet::NetworkState state)
 			sorted_avg_time_per_layer[i] = avg_time_per_layer[i];
 			printf("\n fw-layer %d - type: %d - %lf ms - avg_time %lf ms \n", i, l.type, took_time, avg_time_per_layer[i].time);
 		}
+#endif
 
 		if(net.wait_stream)
 		{
@@ -201,13 +205,16 @@ void backward_network_gpu(network net, Darknet::NetworkState state)
 			continue;
 		}
 
+#if 0	/// @todo V3 benchmark layers
 		if (net.benchmark_layers)
 		{
 			start_time = get_time_point();
 		}
+#endif
 
 		l.backward_gpu(l, state);
 
+#if 0	/// @todo V3 benchmark layers
 		if (net.benchmark_layers)
 		{
 			CHECK_CUDA(cudaDeviceSynchronize());
@@ -228,6 +235,7 @@ void backward_network_gpu(network net, Darknet::NetworkState state)
 			sorted_avg_time_per_layer[i] = avg_time_per_layer[i];
 			printf("\n bw-layer %d - type: %d - %lf ms - avg_time %lf ms \n", i, l.type, took_time, avg_time_per_layer[i].time);
 		}
+#endif
 
 		if (i != 0)
 		{

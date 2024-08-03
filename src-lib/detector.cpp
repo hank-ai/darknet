@@ -5,7 +5,6 @@
 
 #include "darknet_internal.hpp"
 #include "parser.hpp"
-#include "demo.hpp"
 #include "option_list.hpp"
 #include "data.hpp"
 
@@ -2050,9 +2049,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 
 		float *X = sized.data;
 
-		double time = get_time_point();
 		network_predict(net, X);
-		printf("%s: Predicted in %lf milli-seconds.\n", input, ((double)get_time_point() - time) / 1000);
 
 		int nboxes = 0;
 		detection *dets = get_network_boxes(&net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letter_box);
@@ -2145,175 +2142,6 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	free_network(net);
 }
 
-#if defined(GPU)
-
-// adversarial attack dnn
-void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, int dont_show, int it_num,
-	int letter_box, int benchmark_layers)
-{
-	TAT(TATPARMS);
-
-	list *options = read_data_cfg(datacfg);
-	char *name_list = option_find_str(options, "names", nullptr);
-	int names_size = 0;
-	char **names = get_labels_custom(name_list, &names_size); //get_labels(name_list);
-
-	Darknet::remember_class_names(names, names_size);
-
-	network net = parse_network_cfg(cfgfile);// parse_network_cfg_custom(cfgfile, 1, 1); // set batch=1
-	net.adversarial = 1;
-	set_batch_network(&net, 1);
-	if (weightfile) {
-		load_weights(&net, weightfile);
-	}
-	net.benchmark_layers = benchmark_layers;
-	//fuse_conv_batchnorm(net);
-	//calculate_binary_weights(net);
-	if (net.layers[net.n - 1].classes != names_size)
-	{
-		darknet_fatal_error(DARKNET_LOC, "number of names in %s (%d) does not match classes=%d in %s", name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
-	}
-
-	char buff[256];
-	char *input = buff;
-
-	float nms = 0.45f;    // 0.4F
-	while (1) {
-		if (filename) {
-			strncpy(input, filename, 256);
-			if (strlen(input) > 0)
-				if (input[strlen(input) - 1] == 0x0d) input[strlen(input) - 1] = 0;
-		}
-		else {
-			printf("Enter Image Path: ");
-			fflush(stdout);
-			input = fgets(input, 256, stdin);
-			if (!input) break;
-			strtok(input, "\n");
-		}
-		//image im;
-		//image sized = load_image_resize(input, net.w, net.h, net.c, &im);
-		image im = load_image(input, 0, 0, net.c);
-		image sized;
-		if (letter_box) sized = letterbox_image(im, net.w, net.h);
-		else sized = resize_image(im, net.w, net.h);
-
-		image src_sized = copy_image(sized);
-
-		Darknet::Layer l = net.layers[net.n - 1];
-		int k;
-		for (k = 0; k < net.n; ++k) {
-			Darknet::Layer & lk = net.layers[k];
-			if (lk.type == Darknet::ELayerType::YOLO or
-				lk.type == Darknet::ELayerType::GAUSSIAN_YOLO or
-				lk.type == Darknet::ELayerType::REGION)
-			{
-				l = lk;
-				printf("Detection layer #%d is type %d (%s)\n", k, l.type, Darknet::to_string(l.type).c_str());
-			}
-		}
-
-		net.num_boxes = l.max_boxes;
-		int num_truth = l.truths;
-		float *truth_cpu = (float *)xcalloc(num_truth, sizeof(float));
-
-		int *it_num_set = (int *)xcalloc(1, sizeof(int));
-		float *lr_set = (float *)xcalloc(1, sizeof(float));
-		int *boxonly = (int *)xcalloc(1, sizeof(int));
-
-		cv_draw_object(sized, truth_cpu, net.num_boxes, num_truth, it_num_set, lr_set, boxonly, l.classes, names);
-
-		net.learning_rate = *lr_set;
-		it_num = *it_num_set;
-
-		float *X = sized.data;
-
-		mat_cv* img = NULL;
-		float max_img_loss = 5;
-		int number_of_lines = 100;
-		int img_size = 1000;
-		char windows_name[100];
-		char *base = basecfg(cfgfile);
-		sprintf(windows_name, "chart_%s.png", base);
-		img = draw_initial_train_chart(windows_name, max_img_loss, it_num, number_of_lines, img_size, dont_show, NULL);
-
-		for (int iteration = 0; iteration < it_num; ++iteration)
-		{
-			forward_backward_network_gpu(net, X, truth_cpu);
-
-			float avg_loss = get_network_cost(net);
-			update_train_loss_chart(windows_name, img, img_size, avg_loss, max_img_loss, iteration, it_num, 0, 0, "mAP%", 0, dont_show, 0, 0);
-
-			//float inv_loss = 1.0 / max_val_cmp(0.01, avg_loss);
-			//net.learning_rate = *lr_set * inv_loss;
-
-			if (*boxonly) {
-				int dw = truth_cpu[2] * sized.w, dh = truth_cpu[3] * sized.h;
-				int dx = truth_cpu[0] * sized.w - dw / 2, dy = truth_cpu[1] * sized.h - dh / 2;
-				image crop = crop_image(sized, dx, dy, dw, dh);
-				copy_image_inplace(src_sized, sized);
-				embed_image(crop, sized, dx, dy);
-			}
-
-			show_image_cv(sized, "image_optimization");
-			wait_key_cv(20);
-		}
-
-		net.train = 0;
-		quantize_image(sized);
-		network_predict(net, X);
-
-		save_image_png(sized, "drawn");
-		//sized = load_image("drawn.png", 0, 0, net.c);
-
-		int nboxes = 0;
-		detection *dets = get_network_boxes(&net, sized.w, sized.h, thresh, 0, 0, 1, &nboxes, letter_box);
-		if (nms)
-		{
-			if (l.nms_kind == DEFAULT_NMS)
-			{
-				do_nms_sort(dets, nboxes, l.classes, nms);
-			}
-			else
-			{
-				diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
-			}
-		}
-		draw_detections_v3(sized, dets, nboxes, thresh, names, l.classes, 1);
-		save_image(sized, "pre_predictions");
-		if (!dont_show) {
-			show_image(sized, "pre_predictions");
-		}
-
-		free_detections(dets, nboxes);
-		free_image(im);
-		free_image(sized);
-		free_image(src_sized);
-
-		if (!dont_show) {
-			wait_until_press_key_cv();
-			destroy_all_windows_cv();
-		}
-
-		free(lr_set);
-		free(it_num_set);
-
-		if (filename) break;
-	}
-
-	// free memory
-	free_ptrs((void**)names, net.layers[net.n - 1].classes);
-	free_list_contents_kvp(options);
-	free_list(options);
-
-	free_network(net);
-}
-#else // defined(GPU)
-void draw_object(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, int dont_show, int it_num, int letter_box, int benchmark_layers)
-{
-	darknet_fatal_error(DARKNET_LOC, "detector draw cannot be used without OpenCV and CUDA");
-}
-#endif // defined(GPU)
 
 void run_detector(int argc, char **argv)
 {
@@ -2324,7 +2152,7 @@ void run_detector(int argc, char **argv)
 	int letter_box = find_arg(argc, argv, "-letter_box");
 	int map_points = find_int_arg(argc, argv, "-points", 0);
 	int show_imgs = find_arg(argc, argv, "-show_imgs");
-	int mjpeg_port = find_int_arg(argc, argv, "-mjpeg_port", -1);
+//	int mjpeg_port = find_int_arg(argc, argv, "-mjpeg_port", -1);
 	int avgframes = find_int_arg(argc, argv, "-avgframes", 3);
 	int dontdraw_bbox = find_arg(argc, argv, "-dontdraw_bbox");
 	int json_port = find_int_arg(argc, argv, "-json_port", -1);
@@ -2397,11 +2225,10 @@ void run_detector(int argc, char **argv)
 	if (not fn4.empty())	{ input_fn	= const_cast<char*>(fn4.c_str()); }
 
 	if		(cfg_and_state.function == "test"		) { test_detector(datacfg, cfg, weights, input_fn, thresh, hier_thresh, dont_show, ext_output, save_labels, outfile, letter_box, benchmark_layers); }
-	else if (cfg_and_state.function == "train"		) { train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, mjpeg_port, show_imgs, benchmark_layers, chart_path); }
+	else if (cfg_and_state.function == "train"		) { train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, 0, show_imgs, benchmark_layers, chart_path); }
 	else if (cfg_and_state.function == "valid"		) { validate_detector(datacfg, cfg, weights, outfile); }
 	else if (cfg_and_state.function == "recall"		) { validate_detector_recall(datacfg, cfg, weights); }
 	else if (cfg_and_state.function == "map"		) { validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL); }
-	else if (cfg_and_state.function == "draw"		) { draw_object(datacfg, cfg, weights, input_fn, thresh, dont_show, 100, letter_box, benchmark_layers); }
 	else if (cfg_and_state.function == "calcanchors")
 	{
 		const int show				= cfg_and_state.is_set	("show"			) ? 1 : 0;
@@ -2410,27 +2237,6 @@ void run_detector(int argc, char **argv)
 		const int num_of_clusters	= cfg_and_state.get_int	("numofclusters");
 
 		calc_anchors(datacfg, num_of_clusters, width, height, show);
-	}
-	else if (cfg_and_state.function == "demo")
-	{
-		/* Examples:
-		 *
-		 *		darknet detector demo cfg/coco.data cfg/yolov4-tiny.cfg yolov4-tiny.weights http://10.10.201.247:8888/test/
-		 *		darknet detector demo driving.data driving.cfg driving_best.weights http://10.10.201.247:8888/test/
-		 *
-		 *	Webcam:
-		 *
-		 *		darknet detector demo cfg/coco.data cfg/yolov4-tiny.cfg yolov4-tiny.weights -c 0
-		 */
-		list *options = read_data_cfg(datacfg);
-		int classes = option_find_int(options, "classes", 20);
-		char *name_list = option_find_str(options, "names", nullptr);
-		char **names = get_labels(name_list);
-
-		demo(cfg, weights, thresh, hier_thresh, cam_index, input_fn, names, classes, avgframes, frame_skip, prefix, out_filename, mjpeg_port, dontdraw_bbox, json_port, dont_show, ext_output, letter_box, time_limit_sec, http_post_host, benchmark, benchmark_layers);
-
-		free_list_contents_kvp(options);
-		free_list(options);
 	}
 	else
 	{

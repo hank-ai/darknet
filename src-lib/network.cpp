@@ -214,9 +214,7 @@ void forward_network(network net, Darknet::NetworkState state)
 		{
 			scal_cpu(l.outputs * l.batch, 0, l.delta, 1);
 		}
-		//double time = get_time_point();
 		l.forward(l, state);
-		//printf("%d - Predicted in %lf milli-seconds.\n", i, ((double)get_time_point() - time) / 1000);
 		state.input = l.output;
 	}
 }
