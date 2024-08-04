@@ -11,10 +11,10 @@ extern "C"
 	int get_network_output_size(network net);
 	float get_network_cost(network net);
 	float train_network(network net, data d);
-	void show_image(image p, const char *name);
 	void resize_window_cv(char const* window_name, int width, int height);
 	int wait_key_cv(int delay);
 }
+void show_image(Darknet::Image p, const char *name);
 
 
 typedef struct time_benchmark_layers
@@ -271,7 +271,7 @@ void backward_network_gpu(network net, Darknet::NetworkState state)
 		cuda_pull_array(original_input, original_input_cpu, img_size);
 		cuda_pull_array(original_delta, original_delta_cpu, img_size);
 
-		image attention_img = make_attention_image(img_size, original_delta_cpu, original_input_cpu, net.w, net.h, net.c, 0.7);
+		Darknet::Image attention_img = make_attention_image(img_size, original_delta_cpu, original_input_cpu, net.w, net.h, net.c, 0.7);
 		show_image(attention_img, "attention_img");
 		resize_window_cv("attention_img", 500, 500);
 
@@ -282,7 +282,7 @@ void backward_network_gpu(network net, Darknet::NetworkState state)
 		//save_image_png(attention_img, buff);
 		free_image(attention_img);
 
-		image attention_mask_img = make_attention_image(img_size, original_delta_cpu, original_delta_cpu, net.w, net.h, net.c, 1.0);
+		Darknet::Image attention_mask_img = make_attention_image(img_size, original_delta_cpu, original_delta_cpu, net.w, net.h, net.c, 1.0);
 		show_image(attention_mask_img, "attention_mask_img");
 		resize_window_cv("attention_mask_img", 500, 500);
 
@@ -457,7 +457,7 @@ float train_network_datum_gpu(network net, float *x, float *y)
 			}
 		}
 
-		image im;
+		Darknet::Image im;
 		im.w = net.w;
 		im.h = net.h;
 		im.c = net.c;

@@ -34,7 +34,7 @@ struct Frame
 {
 	size_t					index;			///< zero-based frame index into the video
 	cv::Mat					mat;			///< the original frame, and then the annotated frame
-	image					img;			///< Darknet-specific image, resized original frame
+	Darknet::Image			img;			///< Darknet-specific image, resized original frame
 	Darknet::Predictions	predictions;	///< all predictions made by Darknet/YOLO for this frame
 
 	/// std::set uses @p operator<() to ensure the frames are ordered numerically within the set
@@ -281,7 +281,7 @@ int main(int argc, char * argv[])
 				/* These are the tasks that must be performed:
 				 *
 				 *		1) read the frames from the video file
-				 *		2) resize the frames, convert to RGB, convert to Darknet::image format
+				 *		2) resize the frames, convert to RGB, convert to Darknet::Image format
 				 *		3) call Darknet/YOLO predict() and annotate() on each frame
 				 *		4) write the annotated image to the output video
 				 *

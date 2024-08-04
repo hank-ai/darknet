@@ -38,15 +38,15 @@ namespace Darknet
 
 	/// The @p network_state structure has been renamed and moved to network.hpp.
 	struct NetworkState;
+
+	/// The @p image structure has been renamed and moved to darknet_image.hpp.
+	struct Image;
 }
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-
-struct image;
-typedef struct image image;
 
 struct detection;
 typedef struct detection detection;
@@ -291,14 +291,6 @@ typedef struct network {
 	size_t workspace_size_limit;
 } network;
 
-// image.h
-typedef struct image {
-	int w;
-	int h;
-	int c;
-	float *data;
-} image;
-
 // box.h
 typedef struct box {
 	float x, y, w, h;
@@ -425,8 +417,8 @@ typedef struct load_args {
 	float exposure;
 	float hue;
 	data *d;
-	image *im;
-	image *resized;
+	Darknet::Image *im;
+	Darknet::Image *resized;
 	data_type type;
 	tree *hierarchy;
 } load_args;
@@ -459,7 +451,7 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 float *network_predict(network net, float *input);
 float *network_predict_ptr(network *net, float *input);
 detection *get_network_boxes(network *net, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter);
-det_num_pair* network_predict_batch(network *net, image im, int batch_size, int w, int h, float thresh, float hier, int *map, int relative, int letter);
+det_num_pair* network_predict_batch(network *net, Darknet::Image im, int batch_size, int w, int h, float thresh, float hier, int *map, int relative, int letter);
 void free_detections(detection *dets, int n);
 void free_batch_detections(det_num_pair *det_num_pairs, int n);
 void fuse_conv_batchnorm(network net);
@@ -469,28 +461,28 @@ char *detection_to_json(detection *dets, int nboxes, int classes, char **names, 
 Darknet::Layer * get_network_layer(network* net, int i);
 detection *make_network_boxes(network *net, float thresh, int *num);
 void reset_rnn(network *net);
-float *network_predict_image(network *net, image im);
-float *network_predict_image_letterbox(network *net, image im);
+float *network_predict_image(network *net, Darknet::Image im);
+float *network_predict_image_letterbox(network *net, Darknet::Image im);
 float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, network *existing_net);
 void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, char* chart_path);
 void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, int dont_show, int ext_output, int save_labels, char *outfile, int letter_box, int benchmark_layers);
 int network_width(network *net);
 int network_height(network *net);
-void optimize_picture(network *net, image orig, int max_layer, float scale, float rate, float thresh, int norm);
+void optimize_picture(network *net, Darknet::Image orig, int max_layer, float scale, float rate, float thresh, int norm);
 
 // image.h
-void make_image_red(image im);
-image make_attention_image(int img_size, float *original_delta_cpu, float *original_input_cpu, int w, int h, int c, float alpha);
-image resize_image(image im, int w, int h);
-void quantize_image(image im);
-void copy_image_from_bytes(image im, char *pdata);
-image letterbox_image(image im, int w, int h);
-void rgbgr_image(image im);
-image make_image(int w, int h, int c);
-image load_image(char *filename, int w, int h, int c);
-void free_image(image m);
-image crop_image(image im, int dx, int dy, int w, int h);
-image resize_min(image im, int min);
+void make_image_red(Darknet::Image im);
+Darknet::Image make_attention_image(int img_size, float *original_delta_cpu, float *original_input_cpu, int w, int h, int c, float alpha);
+Darknet::Image resize_image(Darknet::Image im, int w, int h);
+void quantize_image(Darknet::Image im);
+void copy_image_from_bytes(Darknet::Image im, char *pdata);
+Darknet::Image letterbox_image(Darknet::Image im, int w, int h);
+void rgbgr_image(Darknet::Image im);
+Darknet::Image make_image(int w, int h, int c);
+Darknet::Image load_image(char *filename, int w, int h, int c);
+void free_image(Darknet::Image m);
+Darknet::Image crop_image(Darknet::Image im, int dx, int dy, int w, int h);
+Darknet::Image resize_min(Darknet::Image im, int min);
 
 // layer.h
 void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc);

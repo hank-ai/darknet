@@ -784,13 +784,13 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, cv::Mat mat
 		cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
 	}
 
-	image img = mat_to_image(mat);
+	Darknet::Image img = mat_to_image(mat);
 
 	return predict(ptr, img, original_image_size);
 }
 
 
-Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, image & img, cv::Size original_image_size)
+Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, Darknet::Image & img, cv::Size original_image_size)
 {
 	TAT(TATPARMS);
 

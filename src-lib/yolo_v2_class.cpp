@@ -110,7 +110,7 @@ void check_cuda(cudaError_t status) {
 
 struct detector_gpu_t {
 	network net;
-	image images[NFRAMES];
+	Darknet::Image images[NFRAMES];
 	float *avg;
 	float* predictions[NFRAMES];
 	int demo_index;
@@ -216,7 +216,7 @@ std::vector<bbox_t> Detector::detect(std::string image_filename, float thresh, b
 
 image_t Detector::load_image(std::string image_filename)
 {
-	image im = load_image_cv(const_cast<char*>(image_filename.c_str()), 3);
+	Darknet::Image im = load_image_cv(const_cast<char*>(image_filename.c_str()), 3);
 
 	image_t img;
 	img.c = im.c;
@@ -249,13 +249,13 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 #endif
 	//std::cout << "net.gpu_index = " << net.gpu_index << std::endl;
 
-	image im;
+	Darknet::Image im;
 	im.c = img.c;
 	im.data = img.data;
 	im.h = img.h;
 	im.w = img.w;
 
-	image sized;
+	Darknet::Image sized;
 
 	if (net.w == im.w && net.h == im.h) {
 		sized = make_image(im.w, im.h, im.c);
@@ -340,7 +340,7 @@ std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_si
 	Darknet::Layer & l = net.layers[net.n - 1];
 
 	float hier_thresh = 0.5;
-	image in_img;
+	Darknet::Image in_img;
 	in_img.c = img.c;
 	in_img.w = img.w;
 	in_img.h = img.h;

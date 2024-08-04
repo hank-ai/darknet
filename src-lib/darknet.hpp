@@ -314,7 +314,7 @@ namespace Darknet
 	 *
 	 * @since 2024-08-02
 	 */
-	Predictions predict(const Darknet::NetworkPtr ptr, image & img, cv::Size original_image_size = cv::Size(0, 0));
+	Predictions predict(const Darknet::NetworkPtr ptr, Darknet::Image & img, cv::Size original_image_size = cv::Size(0, 0));
 
 	/** Get %Darknet to look at the given image.  The image must be in a format supported by OpenCV, such as JPG or PNG.
 	 *

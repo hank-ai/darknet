@@ -42,7 +42,7 @@ void calculate_loss(float *output, float *delta, int n, float thresh)
 }
 
 
-void optimize_picture(network *net, image orig, int max_layer, float scale, float rate, float thresh, int norm)
+void optimize_picture(network *net, Darknet::Image orig, int max_layer, float scale, float rate, float thresh, int norm)
 {
 	//scale_image(orig, 2);
 	//translate_image(orig, -1);
@@ -52,15 +52,18 @@ void optimize_picture(network *net, image orig, int max_layer, float scale, floa
 	int dy = rand()%16 - 8;
 	int flip = rand()%2;
 
-	image crop = crop_image(orig, dx, dy, orig.w, orig.h);
-	image im = resize_image(crop, (int)(orig.w * scale), (int)(orig.h * scale));
-	if(flip) flip_image(im);
+	Darknet::Image crop = crop_image(orig, dx, dy, orig.w, orig.h);
+	Darknet::Image im = resize_image(crop, (int)(orig.w * scale), (int)(orig.h * scale));
+	if (flip)
+	{
+		flip_image(im);
+	}
 
 	resize_network(net, im.w, im.h);
 	Darknet::Layer & last = net->layers[net->n-1];
 	//net->layers[net->n - 1].activation = LINEAR;
 
-	image delta = make_image(im.w, im.h, im.c);
+	Darknet::Image delta = make_image(im.w, im.h, im.c);
 
 	Darknet::NetworkState state = {0};
 	state.net = *net;
@@ -90,14 +93,14 @@ void optimize_picture(network *net, image orig, int max_layer, float scale, floa
 	backward_network(*net, state);
 #endif
 
-	if(flip)
+	if (flip)
 	{
 		flip_image(delta);
 	}
 
 	//normalize_array(delta.data, delta.w*delta.h*delta.c);
-	image resized = resize_image(delta, orig.w, orig.h);
-	image out = crop_image(resized, -dx, -dy, orig.w, orig.h);
+	Darknet::Image resized = resize_image(delta, orig.w, orig.h);
+	Darknet::Image out = crop_image(resized, -dx, -dy, orig.w, orig.h);
 
 	/*
 	image g = grayscale_image(out);
@@ -134,7 +137,7 @@ void optimize_picture(network *net, image orig, int max_layer, float scale, floa
 }
 
 
-void smooth(image recon, image update, float lambda, int num)
+void smooth(Darknet::Image recon, Darknet::Image update, float lambda, int num)
 {
 	for (int k = 0; k < recon.c; ++k)
 	{
@@ -167,11 +170,11 @@ void smooth(image recon, image update, float lambda, int num)
 }
 
 
-void reconstruct_picture(network net, float *features, image recon, image update, float rate, float momentum, float lambda, int smooth_size, int iters)
+void reconstruct_picture(network net, float *features, Darknet::Image recon, Darknet::Image update, float rate, float momentum, float lambda, int smooth_size, int iters)
 {
 	for (int iter = 0; iter < iters; ++iter)
 	{
-		image delta = make_image(recon.w, recon.h, recon.c);
+		Darknet::Image delta = make_image(recon.w, recon.h, recon.c);
 
 		Darknet::NetworkState state = {0};
 		state.net = net;
@@ -249,7 +252,7 @@ void run_nightmare(int argc, char **argv)
 	char *imbase = basecfg(input);
 
 	set_batch_network(&net, 1);
-	image im = load_image(input, 0, 0, net.c);
+	Darknet::Image im = load_image(input, 0, 0, net.c);
 
 	show_image(im, "original image");
 
@@ -276,17 +279,16 @@ void run_nightmare(int argc, char **argv)
 #endif
 
 	float *features = 0;
-	image update;
+	Darknet::Image update;
 	if (reconstruct)
 	{
 		resize_network(&net, im.w, im.h);
 
 		int zz = 0;
 		network_predict(net, im.data);
-		image out_im = get_network_image(net);
-		image crop = crop_image(out_im, zz, zz, out_im.w-2*zz, out_im.h-2*zz);
-		//flip_image(crop);
-		image f_im = resize_image(crop, out_im.w, out_im.h);
+		Darknet::Image out_im = get_network_image(net);
+		Darknet::Image crop = crop_image(out_im, zz, zz, out_im.w-2*zz, out_im.h-2*zz);
+		Darknet::Image f_im = resize_image(crop, out_im.w, out_im.h);
 		free_image(crop);
 		printf("%d features\n", out_im.w*out_im.h*out_im.c);
 
@@ -328,7 +330,7 @@ void run_nightmare(int argc, char **argv)
 
 		if (0)
 		{
-			image g = grayscale_image(im);
+			Darknet::Image g = grayscale_image(im);
 			free_image(im);
 			im = g;
 		}
@@ -347,13 +349,13 @@ void run_nightmare(int argc, char **argv)
 
 		if (rotate)
 		{
-			image rot = rotate_image(im, rotate);
+			Darknet::Image rot = rotate_image(im, rotate);
 			free_image(im);
 			im = rot;
 		}
 
-		image crop = crop_image(im, im.w * (1. - zoom)/2., im.h * (1.-zoom)/2., im.w*zoom, im.h*zoom);
-		image resized = resize_image(crop, im.w, im.h);
+		Darknet::Image crop = crop_image(im, im.w * (1. - zoom)/2., im.h * (1.-zoom)/2., im.w*zoom, im.h*zoom);
+		Darknet::Image resized = resize_image(crop, im.w, im.h);
 		free_image(im);
 		free_image(crop);
 		im = resized;

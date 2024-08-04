@@ -1,9 +1,9 @@
 #pragma once
 
-#include "image.hpp"
-#include "matrix.hpp"
+#include "darknet_internal.hpp"
+//#include "matrix.hpp"
 
-#include <opencv2/opencv.hpp>
+//#include <opencv2/opencv.hpp>
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,9 +28,9 @@ mat_cv * load_image_mat_cv(const char * const filename, int flag);
 
 /** Similar to @ref load_image_mat_cv() but is explicit about the image channels and returns a Darknet-style @ref image.
  * Channels should be @p 0 (colour), @p 1 (grayscale) or @p 3 (colour).  This uses @ref load_image_mat_cv() so the
- * channels will be converted fro BGR to RGB.
+ * channels will be converted from BGR to RGB.
  */
-image load_image_cv(char *filename, int channels);
+Darknet::Image load_image_cv(char *filename, int channels);
 
 
 
@@ -40,11 +40,11 @@ int get_height_mat(mat_cv *mat);
 /// Frees the @p cv::Mat object allocated in @ref load_image_mat_cv().
 void release_mat(mat_cv **mat);
 
-image mat_to_image(cv::Mat mat);
+Darknet::Image mat_to_image(cv::Mat mat);
 
-image mat_to_image_cv(mat_cv *mat);
+Darknet::Image mat_to_image_cv(mat_cv *mat);
 
-cv::Mat image_to_mat(image img);
+cv::Mat image_to_mat(Darknet::Image img);
 
 // Window
 void create_window_cv(char const* window_name, int full_screen, int width, int height);
@@ -54,7 +54,7 @@ void destroy_all_windows_cv();
 int wait_key_cv(int delay);
 int wait_until_press_key_cv();
 //void make_window(char *name, int w, int h, int fullscreen); -- use create_window_cv() instead
-void show_image_cv(image p, const char *name);
+void show_image_cv(Darknet::Image p, const char *name);
 //void show_image_cv_ipl(mat_cv *disp, const char *name);
 void show_image_mat(mat_cv *mat_ptr, const char *name);
 
@@ -77,9 +77,9 @@ int set_capture_property_cv(cap_cv *cap, int property_id, double value);
 int set_capture_position_frame_cv(cap_cv *cap, int index);
 
 // ... Video Capture
-image get_image_from_stream_cpp(cap_cv *cap);
-image get_image_from_stream_resize(cap_cv *cap, int w, int h, int c, mat_cv** in_img, int dont_close);
-image get_image_from_stream_letterbox(cap_cv *cap, int w, int h, int c, mat_cv** in_img, int dont_close);
+Darknet::Image get_image_from_stream_cpp(cap_cv *cap);
+Darknet::Image get_image_from_stream_resize(cap_cv *cap, int w, int h, int c, mat_cv** in_img, int dont_close);
+Darknet::Image get_image_from_stream_letterbox(cap_cv *cap, int w, int h, int c, mat_cv** in_img, int dont_close);
 void consume_frame(cap_cv *cap);
 
 // Image Saving
@@ -93,16 +93,16 @@ void draw_detections_cv_v3(mat_cv* show_img, detection *dets, int num, float thr
 mat_cv* draw_initial_train_chart(char *windows_name, float max_img_loss, int max_batches, int number_of_lines, int img_size, int dont_show, char* chart_path);
 
 // Data augmentation
-image image_data_augmentation(mat_cv* mat, int w, int h,
+Darknet::Image image_data_augmentation(mat_cv* mat, int w, int h,
     int pleft, int ptop, int swidth, int sheight, int flip,
     float dhue, float dsat, float dexp,
     int gaussian_noise, int blur, int num_boxes, int truth_size, float *truth);
 
 // blend two images with (alpha and beta)
-void blend_images_cv(image new_img, float alpha, image old_img, float beta);
+void blend_images_cv(Darknet::Image new_img, float alpha, Darknet::Image old_img, float beta);
 
 // bilateralFilter bluring
-image blur_image(image src_img, int ksize);
+Darknet::Image blur_image(Darknet::Image src_img, int ksize);
 
 // Show Anchors
 void show_anchors(int number_of_boxes, int num_of_clusters, float *rel_width_height_array, model anchors_data, int width, int height);

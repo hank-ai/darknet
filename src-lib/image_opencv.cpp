@@ -107,7 +107,7 @@ mat_cv * load_image_mat_cv(const char * const filename, int channels)
 }
 
 
-image load_image_cv(char *filename, int channels)
+Darknet::Image load_image_cv(char *filename, int channels)
 {
 	TAT(TATPARMS);
 
@@ -158,7 +158,7 @@ void release_mat(mat_cv **mat)
 }
 
 
-cv::Mat image_to_mat(image img)
+cv::Mat image_to_mat(Darknet::Image img)
 {
 	TAT(TATPARMS);
 
@@ -184,27 +184,31 @@ cv::Mat image_to_mat(image img)
 }
 // ----------------------------------------
 
-image mat_to_image(cv::Mat mat)
+Darknet::Image mat_to_image(cv::Mat mat)
 {
 	TAT(TATPARMS);
 
 	int w = mat.cols;
 	int h = mat.rows;
 	int c = mat.channels();
-	image im = make_image(w, h, c);
+	Darknet::Image im = make_image(w, h, c);
 	unsigned char *data = (unsigned char *)mat.data;
 	int step = mat.step;
-	for (int y = 0; y < h; ++y) {
-		for (int k = 0; k < c; ++k) {
-			for (int x = 0; x < w; ++x) {
+	for (int y = 0; y < h; ++y)
+	{
+		for (int k = 0; k < c; ++k)
+		{
+			for (int x = 0; x < w; ++x)
+			{
 				im.data[k*w*h + y*w + x] = data[y*step + x*c + k] / 255.0f;
 			}
 		}
 	}
+
 	return im;
 }
 
-image mat_to_image_cv(mat_cv *mat)
+Darknet::Image mat_to_image_cv(mat_cv *mat)
 {
 	TAT(TATPARMS);
 
@@ -281,7 +285,7 @@ int wait_until_press_key_cv()
 }
 
 
-static float get_pixel(image m, int x, int y, int c)
+static float get_pixel(Darknet::Image m, int x, int y, int c)
 {
 	TAT(TATPARMS);
 
@@ -290,13 +294,13 @@ static float get_pixel(image m, int x, int y, int c)
 }
 // ----------------------------------------
 
-void show_image_cv(image p, const char *name)
+void show_image_cv(Darknet::Image p, const char *name)
 {
 	TAT(TATPARMS);
 
 	try
 	{
-		image copy = copy_image(p);
+		Darknet::Image copy = copy_image(p);
 		constrain_image(copy);
 
 		cv::Mat mat = image_to_mat(copy);
@@ -656,7 +660,7 @@ int set_capture_position_frame_cv(cap_cv *cap, int index)
 // ====================================================================
 
 
-image get_image_from_stream_cpp(cap_cv *cap)
+Darknet::Image get_image_from_stream_cpp(cap_cv *cap)
 {
 	TAT(TATPARMS);
 
@@ -675,7 +679,7 @@ image get_image_from_stream_cpp(cap_cv *cap)
 		src = (cv::Mat*)get_capture_frame_cv(cap);
 
 	if (!src) return make_empty_image(0, 0, 0);
-	image im = mat_to_image(*src);
+	Darknet::Image im = mat_to_image(*src);
 	rgbgr_image(im);
 	if (src) delete src;
 	return im;
@@ -706,7 +710,7 @@ int wait_for_stream(cap_cv *cap, cv::Mat* src, int dont_close)
 }
 
 
-image get_image_from_stream_resize(cap_cv *cap, int w, int h, int c, mat_cv** in_img, int dont_close)
+Darknet::Image get_image_from_stream_resize(cap_cv *cap, int w, int h, int c, mat_cv** in_img, int dont_close)
 {
 	TAT(TATPARMS);
 
@@ -733,7 +737,7 @@ image get_image_from_stream_resize(cap_cv *cap, int w, int h, int c, mat_cv** in
 	cv::Mat new_img = cv::Mat(h, w, CV_8UC(c));
 	cv::resize(*src, new_img, new_img.size(), 0, 0, cv::INTER_LINEAR);
 	if (c>1) cv::cvtColor(new_img, new_img, cv::COLOR_RGB2BGR);
-	image im = mat_to_image(new_img);
+	Darknet::Image im = mat_to_image(new_img);
 
 	//show_image_cv(im, "im");
 	//show_image_mat(*in_img, "in_img");
@@ -741,7 +745,7 @@ image get_image_from_stream_resize(cap_cv *cap, int w, int h, int c, mat_cv** in
 }
 
 
-image get_image_from_stream_letterbox(cap_cv *cap, int w, int h, int c, mat_cv** in_img, int dont_close)
+Darknet::Image get_image_from_stream_letterbox(cap_cv *cap, int w, int h, int c, mat_cv** in_img, int dont_close)
 {
 	TAT(TATPARMS);
 
@@ -766,8 +770,8 @@ image get_image_from_stream_letterbox(cap_cv *cap, int w, int h, int c, mat_cv**
 	cv::resize(*src, **(cv::Mat**)in_img, (*(cv::Mat**)in_img)->size(), 0, 0, cv::INTER_LINEAR);
 
 	if (c>1) cv::cvtColor(*src, *src, cv::COLOR_RGB2BGR);
-	image tmp = mat_to_image(*src);
-	image im = letterbox_image(tmp, w, h);
+	Darknet::Image tmp = mat_to_image(*src);
+	Darknet::Image im = letterbox_image(tmp, w, h);
 	free_image(tmp);
 	release_mat((mat_cv **)&src);
 
@@ -890,9 +894,9 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
 
 				//printf("%d %s: %.0f%%\n", i, names[class_id], prob*100);
 				int offset = class_id * 123457 % classes;
-				float red = get_color(2, offset, classes);
-				float green = get_color(1, offset, classes);
-				float blue = get_color(0, offset, classes);
+				float red	= Darknet::get_color(2, offset, classes);
+				float green	= Darknet::get_color(1, offset, classes);
+				float blue	= Darknet::get_color(0, offset, classes);
 				//float rgb[3];
 
 				//width = prob*20+2;
@@ -1119,14 +1123,14 @@ mat_cv* draw_initial_train_chart(char *windows_name, float max_img_loss, int max
 // ====================================================================
 
 /// @todo #COLOR - cannot do hue in hyperspectal land
-image image_data_augmentation(mat_cv* mat, int w, int h,
+Darknet::Image image_data_augmentation(mat_cv* mat, int w, int h,
 	int pleft, int ptop, int swidth, int sheight, int flip,
 	float dhue, float dsat, float dexp,
 	int gaussian_noise, int blur, int num_boxes, int truth_size, float *truth)
 {
 	TAT(TATPARMS);
 
-	image out;
+	Darknet::Image out;
 	try {
 		cv::Mat img = *(cv::Mat *)mat;
 
@@ -1264,7 +1268,7 @@ image image_data_augmentation(mat_cv* mat, int w, int h,
 
 
 // blend two images with (alpha and beta)
-void blend_images_cv(image new_img, float alpha, image old_img, float beta)
+void blend_images_cv(Darknet::Image new_img, float alpha, Darknet::Image old_img, float beta)
 {
 	TAT(TATPARMS);
 
@@ -1274,7 +1278,7 @@ void blend_images_cv(image new_img, float alpha, image old_img, float beta)
 }
 
 // bilateralFilter bluring
-image blur_image(image src_img, int ksize)
+Darknet::Image blur_image(Darknet::Image src_img, int ksize)
 {
 	TAT(TATPARMS);
 
@@ -1283,7 +1287,7 @@ image blur_image(image src_img, int ksize)
 	cv::Size kernel_size = cv::Size(ksize, ksize);
 	cv::GaussianBlur(src, dst, kernel_size, 0);
 	//cv::bilateralFilter(src, dst, ksize, 75, 75);
-	image dst_img = mat_to_image(dst);
+	Darknet::Image dst_img = mat_to_image(dst);
 	return dst_img;
 }
 

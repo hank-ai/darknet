@@ -164,7 +164,7 @@ matrix load_image_paths(char **paths, int n, int w, int h, int c)
 
 	for (i = 0; i < n; ++i)
 	{
-		image im = load_image(paths[i], w, h, c);  ///< @todo #COLOR
+		Darknet::Image im = load_image(paths[i], w, h, c);  ///< @todo #COLOR
 		X.vals[i] = im.data;
 		X.cols = im.h*im.w*im.c;
 	}
@@ -1171,7 +1171,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 				blur = min_w_h / 8;   // disable blur if one of the objects is too small
 			}
 
-			image ai = image_data_augmentation(src, w, h, pleft, ptop, swidth, sheight, flip, dhue, dsat, dexp, gaussian_noise, blur, boxes, truth_size, truth);
+			Darknet::Image ai = image_data_augmentation(src, w, h, pleft, ptop, swidth, sheight, flip, dhue, dsat, dexp, gaussian_noise, blur, boxes, truth_size, truth);
 
 			if (use_mixup == 0)
 			{
@@ -1187,7 +1187,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 				}
 				else if (i_mixup == 1)
 				{
-					image old_img = make_empty_image(w, h, c);
+					Darknet::Image old_img = make_empty_image(w, h, c);
 					old_img.data = d.X.vals[i];
 					//show_image(ai, "new");
 					//show_image(old_img, "old");
@@ -1202,7 +1202,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			{
 				if (i_mixup == 0)
 				{
-					image tmp_img = make_image(w, h, c);
+					Darknet::Image tmp_img = make_image(w, h, c);
 					d.X.vals[i] = tmp_img.data;
 				}
 
@@ -1259,7 +1259,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			{
 				const int random_index = random_gen();
 
-				image tmp_ai = copy_image(ai);
+				Darknet::Image tmp_ai = copy_image(ai);
 				char buff[1000];
 				//sprintf(buff, "aug_%d_%d_%s_%d", random_index, i, basecfg((char*)filename), random_gen());
 				sprintf(buff, "aug_%d_%d_%d", random_index, i, random_gen());

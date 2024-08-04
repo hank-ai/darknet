@@ -157,11 +157,11 @@ namespace
 	}
 
 
-	inline image *get_weights(const Darknet::Layer & l)
+	inline Darknet::Image *get_weights(const Darknet::Layer & l)
 	{
 		TAT(TATPARMS);
 
-		image * weights = (image *)xcalloc(l.n, sizeof(image));
+		Darknet::Image * weights = (Darknet::Image *)xcalloc(l.n, sizeof(Darknet::Image));
 		for (int i = 0; i < l.n; ++i)
 		{
 			weights[i] = copy_image(get_convolutional_weight(l, i));
@@ -216,14 +216,14 @@ void binarize_input(float *input, int n, int size, float *binary)
 	for(int s = 0; s < size; ++s)
 	{
 		float mean = 0;
-		for(int i = 0; i < n; ++i)
+		for (int i = 0; i < n; ++i)
 		{
 			mean += fabs(input[i*size + s]);
 		}
 
 		mean = mean / n;
 
-		for(int i = 0; i < n; ++i)
+		for (int i = 0; i < n; ++i)
 		{
 			binary[i*size + s] = (input[i*size + s] > 0) ? mean : -mean;
 		}
@@ -247,7 +247,7 @@ int convolutional_out_width(const Darknet::Layer & l)
 }
 
 
-image get_convolutional_image(const Darknet::Layer & l)
+Darknet::Image get_convolutional_image(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -259,7 +259,7 @@ image get_convolutional_image(const Darknet::Layer & l)
 }
 
 
-image get_convolutional_delta(const Darknet::Layer & l)
+Darknet::Image get_convolutional_delta(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -1759,7 +1759,7 @@ void update_convolutional_layer(Darknet::Layer & l, int batch, float learning_ra
 }
 
 
-image get_convolutional_weight(const Darknet::Layer & l, int i)
+Darknet::Image get_convolutional_weight(const Darknet::Layer & l, int i)
 {
 	TAT(TATPARMS);
 
@@ -1777,7 +1777,7 @@ void rgbgr_weights(const Darknet::Layer & l)
 
 	for (int i = 0; i < l.n; ++i)
 	{
-		image im = get_convolutional_weight(l, i);
+		Darknet::Image im = get_convolutional_weight(l, i);
 		if (im.c == 3)
 		{
 			rgbgr_image(im);
@@ -1791,7 +1791,7 @@ void rescale_weights(Darknet::Layer & l, float scale, float trans)
 
 	for (int i = 0; i < l.n; ++i)
 	{
-		image im = get_convolutional_weight(l, i);
+		Darknet::Image im = get_convolutional_weight(l, i);
 		if (im.c == 3)
 		{
 			scale_image(im, scale);
@@ -1801,18 +1801,18 @@ void rescale_weights(Darknet::Layer & l, float scale, float trans)
 	}
 }
 
-image *visualize_convolutional_layer(const Darknet::Layer & l, const char * window, image * prev_weights)
+Darknet::Image *visualize_convolutional_layer(const Darknet::Layer & l, const char * window, Darknet::Image * prev_weights)
 {
 	TAT(TATPARMS);
 
-	image *single_weights = get_weights(l);
+	Darknet::Image *single_weights = get_weights(l);
 
 	std::string title = window;
 	title += " " + std::to_string(single_weights->w) + "x" + std::to_string(single_weights->h) + "x" + std::to_string(single_weights->c);
 	show_images(single_weights, l.n, title.c_str());
 
-	image delta = get_convolutional_image(l);
-	image dc = collapse_image_layers(delta, 1);
+	Darknet::Image delta = get_convolutional_image(l);
+	Darknet::Image dc = collapse_image_layers(delta, 1);
 
 	title += " [Output]";
 

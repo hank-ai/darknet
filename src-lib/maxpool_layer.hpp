@@ -8,7 +8,7 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
-image get_maxpool_image(Darknet::Layer & l);
+Darknet::Image get_maxpool_image(Darknet::Layer & l);
 Darknet::Layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x, int stride_y, int padding, int maxpool_depth, int out_channels, int antialiasing, int avgpool, int train);
 void resize_maxpool_layer(Darknet::Layer *l, int w, int h);
 void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state);

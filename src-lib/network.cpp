@@ -743,7 +743,7 @@ int get_network_input_size(network net)
 }
 
 
-image get_network_image_layer(network net, int i)
+Darknet::Image get_network_image_layer(network net, int i)
 {
 	TAT(TATPARMS);
 
@@ -752,7 +752,7 @@ image get_network_image_layer(network net, int i)
 	{
 		return float_to_image(l.out_w, l.out_h, l.out_c, l.output);
 	}
-	image def = {0};
+	Darknet::Image def = {0};
 	return def;
 }
 
@@ -765,20 +765,20 @@ Darknet::Layer * get_network_layer(network* net, int i)
 }
 
 
-image get_network_image(network net)
+Darknet::Image get_network_image(network net)
 {
 	TAT(TATPARMS);
 
 	for (int i = net.n-1; i >= 0; --i)
 	{
-		image m = get_network_image_layer(net, i);
+		Darknet::Image m = get_network_image_layer(net, i);
 		if (m.h != 0)
 		{
 			return m;
 		}
 	}
 
-	image def = {0};
+	Darknet::Image def = {0};
 
 	return def;
 }
@@ -788,7 +788,7 @@ void visualize_network(network net)
 {
 	TAT(TATPARMS);
 
-	image * prev = 0;
+	Darknet::Image * prev = 0;
 
 	for (int i = 0; i < net.n; ++i)
 	{
@@ -1394,7 +1394,7 @@ char * detection_to_json(detection *dets, int nboxes, int classes, char **names,
 }
 
 
-float * network_predict_image(network *net, image im)
+float * network_predict_image(network *net, Darknet::Image im)
 {
 	TAT(TATPARMS);
 
@@ -1412,7 +1412,7 @@ float * network_predict_image(network *net, image im)
 	else
 	{
 		// Need to resize image to the desired size for the net
-		image imr = resize_image(im, net->w, net->h);
+		Darknet::Image imr = resize_image(im, net->w, net->h);
 		p = network_predict(*net, imr.data);
 		free_image(imr);
 	}
@@ -1421,7 +1421,7 @@ float * network_predict_image(network *net, image im)
 }
 
 
-det_num_pair * network_predict_batch(network *net, image im, int batch_size, int w, int h, float thresh, float hier, int *map, int relative, int letter)
+det_num_pair * network_predict_batch(network *net, Darknet::Image im, int batch_size, int w, int h, float thresh, float hier, int *map, int relative, int letter)
 {
 	TAT(TATPARMS);
 
@@ -1441,7 +1441,7 @@ det_num_pair * network_predict_batch(network *net, image im, int batch_size, int
 }
 
 
-float * network_predict_image_letterbox(network *net, image im)
+float * network_predict_image_letterbox(network *net, Darknet::Image im)
 {
 	TAT(TATPARMS);
 
@@ -1459,7 +1459,7 @@ float * network_predict_image_letterbox(network *net, image im)
 	else
 	{
 		// Need to resize image to the desired size for the net
-		image imr = letterbox_image(im, net->w, net->h);
+		Darknet::Image imr = letterbox_image(im, net->w, net->h);
 		p = network_predict(*net, imr.data);
 		free_image(imr);
 	}

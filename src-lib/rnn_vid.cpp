@@ -1,7 +1,7 @@
 #include "darknet_internal.hpp"
 
 
-void reconstruct_picture(network net, float *features, image recon, image update, float rate, float momentum, float lambda, int smooth_size, int iters);
+void reconstruct_picture(network net, float *features, Darknet::Image recon, Darknet::Image update, float rate, float momentum, float lambda, int smooth_size, int iters);
 
 
 namespace
@@ -20,7 +20,7 @@ float_pair get_rnn_vid_data(network net, char **files, int n, int batch, int ste
 
 	int b;
 	assert(net.batch == steps + 1);
-	image out_im = get_network_image(net);
+	Darknet::Image out_im = get_network_image(net);
 	int output_size = out_im.w*out_im.h*out_im.c;
 	printf("%d %d %d\n", out_im.w, out_im.h, out_im.c);
 	float* feats = (float*)xcalloc(net.batch * batch * output_size, sizeof(float));
@@ -41,11 +41,12 @@ float_pair get_rnn_vid_data(network net, char **files, int n, int batch, int ste
 		set_capture_position_frame_cv(cap, index);
 
 		int i;
-		for(i = 0; i < net.batch; ++i){
+		for (i = 0; i < net.batch; ++i)
+		{
 			mat_cv *src = get_capture_frame_cv(cap);
-			image im = mat_to_image_cv(src);
+			Darknet::Image im = mat_to_image_cv(src);
 			rgbgr_image(im);
-			image re = resize_image(im, net.w, net.h);
+			Darknet::Image re = resize_image(im, net.w, net.h);
 			//show_image(re, "loaded");
 			//cvWaitKey(10);
 			memcpy(input + i*input_size, re.data, input_size*sizeof(float));
@@ -130,18 +131,18 @@ void train_vid_rnn(char *cfgfile, char *weightfile)
 }
 
 
-image save_reconstruction(network net, image *init, float *feat, char *name, int i)
+Darknet::Image save_reconstruction(network net, Darknet::Image *init, float *feat, char *name, int i)
 {
 	TAT(TATPARMS);
 
-	image recon;
+	Darknet::Image recon;
 	if (init) {
 		recon = copy_image(*init);
 	} else {
 		recon = make_random_image(net.w, net.h, 3);
 	}
 
-	image update = make_image(net.w, net.h, 3);
+	Darknet::Image update = make_image(net.w, net.h, 3);
 	reconstruct_picture(net, feat, recon, update, .01, .9, .1, 2, 50);
 	char buff[256];
 	sprintf(buff, "%s%d", name, i);
@@ -165,17 +166,20 @@ void generate_vid_rnn(char *cfgfile, char *weightfile)
 	set_batch_network(&net, 1);
 
 	int i;
+	/// @todo what in the world is this filename?
 	cap_cv *cap = get_capture_video_stream("extra/vid/ILSVRC2015/Data/VID/snippets/val/ILSVRC2015_val_00007030.mp4");
 	//CvCapture* cap = cvCaptureFromFile("extra/vid/ILSVRC2015/Data/VID/snippets/val/ILSVRC2015_val_00007030.mp4");
 	float *feat;
 	float *next;
 	next = NULL;
-	image last;
-	for(i = 0; i < 25; ++i){
-		image im = get_image_from_stream_cpp(cap);
-		image re = resize_image(im, extractor.w, extractor.h);
+	Darknet::Image last;
+	for (i = 0; i < 25; ++i)
+	{
+		Darknet::Image im = get_image_from_stream_cpp(cap);
+		Darknet::Image re = resize_image(im, extractor.w, extractor.h);
 		feat = network_predict(extractor, re.data);
-		if(i > 0){
+		if (i > 0)
+		{
 			printf("%f %f\n", mean_array(feat, 14*14*512), variance_array(feat, 14*14*512));
 			printf("%f %f\n", mean_array(next, 14*14*512), variance_array(next, 14*14*512));
 			printf("%f\n", mse_array(feat, 14*14*512));
@@ -191,9 +195,10 @@ void generate_vid_rnn(char *cfgfile, char *weightfile)
 		if (i==24) last = copy_image(re);
 		free_image(re);
 	}
-	for(i = 0; i < 30; ++i){
+	for (i = 0; i < 30; ++i)
+	{
 		next = network_predict(net, next);
-		image newimage = save_reconstruction(extractor, &last, next, "newimage", i);
+		Darknet::Image newimage = save_reconstruction(extractor, &last, next, "newimage", i);
 		free_image(last);
 		last = newimage;
 	}

@@ -98,7 +98,7 @@ void speed(const char * cfgfile, int tics)
 	network net = parse_network_cfg(cfgfile);
 	set_batch_network(&net, 1);
 	int i;
-	image im = make_image(net.w, net.h, net.c);
+	Darknet::Image im = make_image(net.w, net.h, net.c);
 	time_t start = time(0);
 	for (i = 0; i < tics; ++i)
 	{

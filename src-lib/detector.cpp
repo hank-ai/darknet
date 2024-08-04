@@ -877,10 +877,10 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 
 	int nthreads = 4;
 	if (m < 4) nthreads = m;
-	image* val = (image*)xcalloc(nthreads, sizeof(image));
-	image* val_resized = (image*)xcalloc(nthreads, sizeof(image));
-	image* buf = (image*)xcalloc(nthreads, sizeof(image));
-	image* buf_resized = (image*)xcalloc(nthreads, sizeof(image));
+	Darknet::Image* val = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
+	Darknet::Image* val_resized = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
+	Darknet::Image* buf = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
+	Darknet::Image* buf_resized = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
 
 	load_args args = { 0 };
 	args.w = net.w;
@@ -1038,8 +1038,8 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 
 	for (i = 0; i < m; ++i) {
 		char *path = paths[i];
-		image orig = load_image(path, 0, 0, net.c);
-		image sized = resize_image(orig, net.w, net.h);
+		Darknet::Image orig = load_image(path, 0, 0, net.c);
+		Darknet::Image sized = resize_image(orig, net.w, net.h);
 		char *id = basecfg(path);
 		network_predict(net, sized.data);
 		int nboxes = 0;
@@ -1186,10 +1186,10 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	}
 	printf("using %d threads to load %d validation images for mAP%% calculations\n", nthreads, number_of_validation_images);
 
-	image* val = (image*)xcalloc(nthreads, sizeof(image));
-	image* val_resized = (image*)xcalloc(nthreads, sizeof(image));
-	image* buf = (image*)xcalloc(nthreads, sizeof(image));
-	image* buf_resized = (image*)xcalloc(nthreads, sizeof(image));
+	Darknet::Image* val = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
+	Darknet::Image* val_resized = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
+	Darknet::Image* buf = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
+	Darknet::Image* buf_resized = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
 
 	load_args args = { 0 };
 	args.w = net.w;
@@ -2023,8 +2023,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		}
 		//image im;
 		//image sized = load_image_resize(input, net.w, net.h, net.c, &im);
-		image im = load_image(input, 0, 0, net.c);
-		image sized;
+		Darknet::Image im = load_image(input, 0, 0, net.c);
+		Darknet::Image sized;
 		if (letter_box)
 		{
 			sized = letterbox_image(im, net.w, net.h);
@@ -2066,7 +2066,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		}
 
 		// Load the image explicitly asking for 3 color channels
-		image im_color = load_image(input, 0, 0, 3);
+		Darknet::Image im_color = load_image(input, 0, 0, 3);
 
 		draw_detections_v3(im_color, dets, nboxes, thresh, names, l.classes, ext_output);
 		save_image(im_color, "predictions");
