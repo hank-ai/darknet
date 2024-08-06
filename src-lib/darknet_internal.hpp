@@ -73,6 +73,7 @@ int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, floa
 #include "darknet_format_and_colour.hpp"
 #include "darknet_utils.hpp"
 #include "darknet_image.hpp"
+#include "image_opencv.hpp"
 #include "Timing.hpp"
 #include "darknet_cfg.hpp"
 #include "box.hpp"

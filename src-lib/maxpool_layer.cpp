@@ -13,7 +13,7 @@ Darknet::Image get_maxpool_image(Darknet::Layer & l)
 	int h = l.out_h;
 	int w = l.out_w;
 	int c = l.c;
-	return float_to_image(w,h,c,l.output);
+	return Darknet::float_to_image(w,h,c,l.output);
 }
 
 Darknet::Image get_maxpool_delta(Darknet::Layer & l)
@@ -23,7 +23,7 @@ Darknet::Image get_maxpool_delta(Darknet::Layer & l)
 	int h = l.out_h;
 	int w = l.out_w;
 	int c = l.c;
-	return float_to_image(w,h,c,l.delta);
+	return Darknet::float_to_image(w,h,c,l.delta);
 }
 
 void create_maxpool_cudnn_tensors(Darknet::Layer *l)

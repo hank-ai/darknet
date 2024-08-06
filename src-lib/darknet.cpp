@@ -806,7 +806,7 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, Darknet::Im
 	if (original_image_size.height	< 1) original_image_size.height	= img.h;
 
 	network_predict(*net, img.data); /// todo pass net by ref or pointer, not copy constructor!
-	free_image(img);
+	Darknet::free_image(img);
 
 	int nboxes = 0;
 	const float hierarchy_threshold = 0.5f;

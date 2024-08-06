@@ -470,20 +470,6 @@ int network_width(network *net);
 int network_height(network *net);
 void optimize_picture(network *net, Darknet::Image orig, int max_layer, float scale, float rate, float thresh, int norm);
 
-// image.h
-void make_image_red(Darknet::Image im);
-Darknet::Image make_attention_image(int img_size, float *original_delta_cpu, float *original_input_cpu, int w, int h, int c, float alpha);
-Darknet::Image resize_image(Darknet::Image im, int w, int h);
-void quantize_image(Darknet::Image im);
-void copy_image_from_bytes(Darknet::Image im, char *pdata);
-Darknet::Image letterbox_image(Darknet::Image im, int w, int h);
-void rgbgr_image(Darknet::Image im);
-Darknet::Image make_image(int w, int h, int c);
-Darknet::Image load_image(char *filename, int w, int h, int c);
-void free_image(Darknet::Image m);
-Darknet::Image crop_image(Darknet::Image im, int dx, int dy, int w, int h);
-Darknet::Image resize_min(Darknet::Image im, int min);
-
 // layer.h
 void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc);
 void free_layer(Darknet::Layer & l);

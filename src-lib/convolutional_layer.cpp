@@ -255,7 +255,7 @@ Darknet::Image get_convolutional_image(const Darknet::Layer & l)
 	const int w = convolutional_out_width(l);
 	const int c = l.n;
 
-	return float_to_image(w, h, c, l.output);
+	return Darknet::float_to_image(w, h, c, l.output);
 }
 
 
@@ -267,7 +267,7 @@ Darknet::Image get_convolutional_delta(const Darknet::Layer & l)
 	const int w = convolutional_out_width(l);
 	const int c = l.n;
 
-	return float_to_image(w, h, c, l.delta);
+	return Darknet::float_to_image(w, h, c, l.delta);
 }
 
 
@@ -1767,7 +1767,7 @@ Darknet::Image get_convolutional_weight(const Darknet::Layer & l, int i)
 	const int w = l.size;
 	const int c = l.c / l.groups;
 
-	return float_to_image(w, h, c, l.weights + i * h * w * c);
+	return Darknet::float_to_image(w, h, c, l.weights + i * h * w * c);
 }
 
 
@@ -1780,7 +1780,7 @@ void rgbgr_weights(const Darknet::Layer & l)
 		Darknet::Image im = get_convolutional_weight(l, i);
 		if (im.c == 3)
 		{
-			rgbgr_image(im);
+			Darknet::rgbgr_image(im);
 		}
 	}
 }
@@ -1818,6 +1818,6 @@ Darknet::Image *visualize_convolutional_layer(const Darknet::Layer & l, const ch
 
 	show_image(dc, title.c_str());
 	//save_image(dc, buff);
-	free_image(dc);
+	Darknet::free_image(dc);
 	return single_weights;
 }

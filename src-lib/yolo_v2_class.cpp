@@ -157,7 +157,7 @@ Detector::Detector(std::string cfg_filename, std::string weight_filename, int gp
 
 	detector_gpu.avg = (float *)calloc(l.outputs, sizeof(float));
 	for (j = 0; j < NFRAMES; ++j) detector_gpu.predictions[j] = (float*)calloc(l.outputs, sizeof(float));
-	for (j = 0; j < NFRAMES; ++j) detector_gpu.images[j] = make_image(1, 1, 3);
+	for (j = 0; j < NFRAMES; ++j) detector_gpu.images[j] = Darknet::make_image(1, 1, 3);
 
 	detector_gpu.track_id = (unsigned int *)calloc(l.classes, sizeof(unsigned int));
 	for (j = 0; j < l.classes; ++j) detector_gpu.track_id[j] = 1;
@@ -230,7 +230,8 @@ image_t Detector::load_image(std::string image_filename)
 
 void Detector::free_image(image_t m)
 {
-	if (m.data) {
+	if (m.data)
+	{
 		free(m.data);
 	}
 }
@@ -257,12 +258,15 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 
 	Darknet::Image sized;
 
-	if (net.w == im.w && net.h == im.h) {
-		sized = make_image(im.w, im.h, im.c);
+	if (net.w == im.w && net.h == im.h)
+	{
+		sized = Darknet::make_image(im.w, im.h, im.c);
 		memcpy(sized.data, im.data, im.w*im.h*im.c * sizeof(float));
 	}
 	else
-		sized = resize_image(im, net.w, net.h);
+	{
+		sized = Darknet::resize_image(im, net.w, net.h);
+	}
 
 	Darknet::Layer & l = net.layers[net.n - 1];
 

@@ -174,33 +174,41 @@ cv::Mat image_to_mat(Darknet::Image img)
 		{
 			for (int c = 0; c < img.c; ++c)
 			{
-				float val = img.data[c*img.h*img.w + y*img.w + x];
-				mat.data[y*step + x*img.c + c] = (unsigned char)(val * 255);	 ///< @todo Is this right?
+				float val = img.data[c * img.h * img.w + y * img.w + x];
+				mat.data[y * step + x * img.c + c] = std::round(val * 255.0f);
 			}
 		}
 	}
 
+	/* Remember you likely need to convert the image from RGB to BGR,
+	 * since OpenCV normally uses BGR.  Search for "cv::COLOR_RGB2BGR".
+	 */
+
 	return mat;
 }
-// ----------------------------------------
+
 
 Darknet::Image mat_to_image(cv::Mat mat)
 {
 	TAT(TATPARMS);
 
-	int w = mat.cols;
-	int h = mat.rows;
-	int c = mat.channels();
-	Darknet::Image im = make_image(w, h, c);
-	unsigned char *data = (unsigned char *)mat.data;
-	int step = mat.step;
+	// This code assumes the mat object is already in RGB format, not OpenCV's default BGR.
+	//
+	// The output image will be normalized floats, 0.0 to 1.0.
+
+	const int w = mat.cols;
+	const int h = mat.rows;
+	const int c = mat.channels();
+	Darknet::Image im = Darknet::make_image(w, h, c);
+	const unsigned char * data = static_cast<unsigned char *>(mat.data);
+	const int step = mat.step;
 	for (int y = 0; y < h; ++y)
 	{
 		for (int k = 0; k < c; ++k)
 		{
 			for (int x = 0; x < w; ++x)
 			{
-				im.data[k*w*h + y*w + x] = data[y*step + x*c + k] / 255.0f;
+				im.data[k * w * h + y * w + x] = data[y * step + x * c + k] / 255.0f;
 			}
 		}
 	}
@@ -314,7 +322,7 @@ void show_image_cv(Darknet::Image p, const char *name)
 		}
 		cv::namedWindow(name, cv::WINDOW_NORMAL);
 		cv::imshow(name, mat);
-		free_image(copy);
+		Darknet::free_image(copy);
 	}
 	catch (const std::exception & e)
 	{
@@ -671,16 +679,16 @@ Darknet::Image get_image_from_stream_cpp(cap_cv *cap)
 		do {
 			if (src) delete src;
 			src = (cv::Mat*)get_capture_frame_cv(cap);
-			if (!src) return make_empty_image(0, 0, 0);
+			if (!src) return Darknet::make_empty_image(0, 0, 0);
 		} while (src->cols < 1 || src->rows < 1 || src->channels() < 1);
 		printf("Video stream: %d x %d \n", src->cols, src->rows);
 	}
 	else
 		src = (cv::Mat*)get_capture_frame_cv(cap);
 
-	if (!src) return make_empty_image(0, 0, 0);
+	if (!src) return Darknet::make_empty_image(0, 0, 0);
 	Darknet::Image im = mat_to_image(*src);
-	rgbgr_image(im);
+	Darknet::rgbgr_image(im);
 	if (src) delete src;
 	return im;
 }
@@ -723,14 +731,14 @@ Darknet::Image get_image_from_stream_resize(cap_cv *cap, int w, int h, int c, ma
 		do {
 			if (src) delete src;
 			src = (cv::Mat*)get_capture_frame_cv(cap);
-			if (!src) return make_empty_image(0, 0, 0);
+			if (!src) return Darknet::make_empty_image(0, 0, 0);
 		} while (src->cols < 1 || src->rows < 1 || src->channels() < 1);
 		printf("Video stream: %d x %d \n", src->cols, src->rows);
 	}
 	else
 		src = (cv::Mat*)get_capture_frame_cv(cap);
 
-	if (!wait_for_stream(cap, src, dont_close)) return make_empty_image(0, 0, 0);
+	if (!wait_for_stream(cap, src, dont_close)) return Darknet::make_empty_image(0, 0, 0);
 
 	*(cv::Mat **)in_img = src;
 
@@ -757,14 +765,14 @@ Darknet::Image get_image_from_stream_letterbox(cap_cv *cap, int w, int h, int c,
 		do {
 			if (src) delete src;
 			src = (cv::Mat*)get_capture_frame_cv(cap);
-			if (!src) return make_empty_image(0, 0, 0);
+			if (!src) return Darknet::make_empty_image(0, 0, 0);
 		} while (src->cols < 1 || src->rows < 1 || src->channels() < 1);
 		printf("Video stream: %d x %d \n", src->cols, src->rows);
 	}
 	else
 		src = (cv::Mat*)get_capture_frame_cv(cap);
 
-	if (!wait_for_stream(cap, src, dont_close)) return make_empty_image(0, 0, 0);   // passes (cv::Mat *)src while should be (cv::Mat **)src
+	if (!wait_for_stream(cap, src, dont_close)) return Darknet::make_empty_image(0, 0, 0);   // passes (cv::Mat *)src while should be (cv::Mat **)src
 
 	*in_img = (mat_cv *)new cv::Mat(src->rows, src->cols, CV_8UC(c));
 	cv::resize(*src, **(cv::Mat**)in_img, (*(cv::Mat**)in_img)->size(), 0, 0, cv::INTER_LINEAR);
@@ -772,7 +780,7 @@ Darknet::Image get_image_from_stream_letterbox(cap_cv *cap, int w, int h, int c,
 	if (c>1) cv::cvtColor(*src, *src, cv::COLOR_RGB2BGR);
 	Darknet::Image tmp = mat_to_image(*src);
 	Darknet::Image im = letterbox_image(tmp, w, h);
-	free_image(tmp);
+	Darknet::free_image(tmp);
 	release_mat((mat_cv **)&src);
 
 	//show_image_cv(im, "im");

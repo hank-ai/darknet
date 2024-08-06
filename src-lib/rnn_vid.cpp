@@ -1,5 +1,6 @@
 #include "darknet_internal.hpp"
 
+/// @todo V3 xxx delete this file?
 
 void reconstruct_picture(network net, float *features, Darknet::Image recon, Darknet::Image update, float rate, float momentum, float lambda, int smooth_size, int iters);
 
@@ -45,13 +46,13 @@ float_pair get_rnn_vid_data(network net, char **files, int n, int batch, int ste
 		{
 			mat_cv *src = get_capture_frame_cv(cap);
 			Darknet::Image im = mat_to_image_cv(src);
-			rgbgr_image(im);
-			Darknet::Image re = resize_image(im, net.w, net.h);
+			Darknet::rgbgr_image(im);
+			Darknet::Image re = Darknet::resize_image(im, net.w, net.h);
 			//show_image(re, "loaded");
 			//cvWaitKey(10);
 			memcpy(input + i*input_size, re.data, input_size*sizeof(float));
-			free_image(im);
-			free_image(re);
+			Darknet::free_image(im);
+			Darknet::free_image(re);
 		}
 		float *output = network_predict(net, input);
 
@@ -137,17 +138,17 @@ Darknet::Image save_reconstruction(network net, Darknet::Image *init, float *fea
 
 	Darknet::Image recon;
 	if (init) {
-		recon = copy_image(*init);
+		recon = Darknet::copy_image(*init);
 	} else {
-		recon = make_random_image(net.w, net.h, 3);
+		recon = Darknet::make_random_image(net.w, net.h, 3);
 	}
 
-	Darknet::Image update = make_image(net.w, net.h, 3);
+	Darknet::Image update = Darknet::make_image(net.w, net.h, 3);
 	reconstruct_picture(net, feat, recon, update, .01, .9, .1, 2, 50);
 	char buff[256];
 	sprintf(buff, "%s%d", name, i);
 	save_image(recon, buff);
-	free_image(update);
+	Darknet::free_image(update);
 	return recon;
 }
 
@@ -176,7 +177,7 @@ void generate_vid_rnn(char *cfgfile, char *weightfile)
 	for (i = 0; i < 25; ++i)
 	{
 		Darknet::Image im = get_image_from_stream_cpp(cap);
-		Darknet::Image re = resize_image(im, extractor.w, extractor.h);
+		Darknet::Image re = Darknet::resize_image(im, extractor.w, extractor.h);
 		feat = network_predict(extractor, re.data);
 		if (i > 0)
 		{
@@ -188,18 +189,18 @@ void generate_vid_rnn(char *cfgfile, char *weightfile)
 		}
 		next = network_predict(net, feat);
 
-		free_image(im);
+		Darknet::free_image(im);
 
-		free_image(save_reconstruction(extractor, 0, feat, "feat", i));
-		free_image(save_reconstruction(extractor, 0, next, "next", i));
+		Darknet::free_image(save_reconstruction(extractor, 0, feat, "feat", i));
+		Darknet::free_image(save_reconstruction(extractor, 0, next, "next", i));
 		if (i==24) last = copy_image(re);
-		free_image(re);
+		Darknet::free_image(re);
 	}
 	for (i = 0; i < 30; ++i)
 	{
 		next = network_predict(net, next);
 		Darknet::Image newimage = save_reconstruction(extractor, &last, next, "newimage", i);
-		free_image(last);
+		Darknet::free_image(last);
 		last = newimage;
 	}
 }

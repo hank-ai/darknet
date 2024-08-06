@@ -72,7 +72,10 @@ void translate_array(float *a, int n, float s);
 int max_index(float *a, int n);
 int top_max_index(float *a, int n, int k);
 float constrain(float min, float max, float a);
+
+/// V3 xxx replace with std::clamp()
 int constrain_int(int a, int min, int max);
+
 float mse_array(float *a, int n);
 float rand_normal();
 size_t rand_size_t();

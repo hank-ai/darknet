@@ -750,7 +750,7 @@ Darknet::Image get_network_image_layer(network net, int i)
 	Darknet::Layer & l = net.layers[i];
 	if (l.out_w && l.out_h && l.out_c)
 	{
-		return float_to_image(l.out_w, l.out_h, l.out_c, l.output);
+		return Darknet::float_to_image(l.out_w, l.out_h, l.out_c, l.output);
 	}
 	Darknet::Image def = {0};
 	return def;
@@ -1412,9 +1412,9 @@ float * network_predict_image(network *net, Darknet::Image im)
 	else
 	{
 		// Need to resize image to the desired size for the net
-		Darknet::Image imr = resize_image(im, net->w, net->h);
+		Darknet::Image imr = Darknet::resize_image(im, net->w, net->h);
 		p = network_predict(*net, imr.data);
-		free_image(imr);
+		Darknet::free_image(imr);
 	}
 
 	return p;
@@ -1461,7 +1461,7 @@ float * network_predict_image_letterbox(network *net, Darknet::Image im)
 		// Need to resize image to the desired size for the net
 		Darknet::Image imr = letterbox_image(im, net->w, net->h);
 		p = network_predict(*net, imr.data);
-		free_image(imr);
+		Darknet::free_image(imr);
 	}
 
 	return p;

@@ -14,7 +14,6 @@ extern "C"
 	void resize_window_cv(char const* window_name, int width, int height);
 	int wait_key_cv(int delay);
 }
-void show_image(Darknet::Image p, const char *name);
 
 
 typedef struct time_benchmark_layers
@@ -271,8 +270,8 @@ void backward_network_gpu(network net, Darknet::NetworkState state)
 		cuda_pull_array(original_input, original_input_cpu, img_size);
 		cuda_pull_array(original_delta, original_delta_cpu, img_size);
 
-		Darknet::Image attention_img = make_attention_image(img_size, original_delta_cpu, original_input_cpu, net.w, net.h, net.c, 0.7);
-		show_image(attention_img, "attention_img");
+		Darknet::Image attention_img = Darknet::make_attention_image(img_size, original_delta_cpu, original_input_cpu, net.w, net.h, net.c, 0.7);
+		Darknet::show_image(attention_img, "attention_img");
 		resize_window_cv("attention_img", 500, 500);
 
 		//static int img_counter = 0;
@@ -280,15 +279,15 @@ void backward_network_gpu(network net, Darknet::NetworkState state)
 		//char buff[256];
 		//sprintf(buff, "attention_img_%d.png", img_counter);
 		//save_image_png(attention_img, buff);
-		free_image(attention_img);
+		Darknet::free_image(attention_img);
 
-		Darknet::Image attention_mask_img = make_attention_image(img_size, original_delta_cpu, original_delta_cpu, net.w, net.h, net.c, 1.0);
-		show_image(attention_mask_img, "attention_mask_img");
+		Darknet::Image attention_mask_img = Darknet::make_attention_image(img_size, original_delta_cpu, original_delta_cpu, net.w, net.h, net.c, 1.0);
+		Darknet::show_image(attention_mask_img, "attention_mask_img");
 		resize_window_cv("attention_mask_img", 500, 500);
 
 		//sprintf(buff, "attention_mask_img_%d.png", img_counter);
 		//save_image_png(attention_mask_img, buff);
-		free_image(attention_mask_img);
+		Darknet::free_image(attention_mask_img);
 
 		free(original_input_cpu);
 		free(original_delta_cpu);
@@ -462,7 +461,7 @@ float train_network_datum_gpu(network net, float *x, float *y)
 		im.h = net.h;
 		im.c = net.c;
 		im.data = x;
-		show_image(im, "adversarial data augmentation");
+		Darknet::show_image(im, "adversarial data augmentation");
 		resize_window_cv("adversarial data augmentation", 500, 500);
 		wait_key_cv(1);
 

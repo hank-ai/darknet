@@ -960,8 +960,8 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 
 			free_detections(dets, nboxes);
 			free(id);
-			free_image(val[t]);
-			free_image(val_resized[t]);
+			Darknet::free_image(val[t]);
+			Darknet::free_image(val_resized[t]);
 		}
 	}
 	if (fps)
@@ -1036,10 +1036,11 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 	int proposals = 0;
 	float avg_iou = 0;
 
-	for (i = 0; i < m; ++i) {
+	for (i = 0; i < m; ++i)
+	{
 		char *path = paths[i];
-		Darknet::Image orig = load_image(path, 0, 0, net.c);
-		Darknet::Image sized = resize_image(orig, net.w, net.h);
+		Darknet::Image orig = Darknet::load_image(path, 0, 0, net.c);
+		Darknet::Image sized = Darknet::resize_image(orig, net.w, net.h);
 		char *id = basecfg(path);
 		network_predict(net, sized.data);
 		int nboxes = 0;
@@ -1076,8 +1077,8 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 		fprintf(stderr, "%5d %5d %5d\tRPs/Img: %.2f\tIOU: %.2f%%\tRecall:%.2f%%\n", i, correct, total, (float)proposals / (i + 1), avg_iou * 100 / total, 100.*correct / total);
 		free(truth);
 		free(id);
-		free_image(orig);
-		free_image(sized);
+		Darknet::free_image(orig);
+		Darknet::free_image(sized);
 	}
 }
 
@@ -1413,8 +1414,8 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			free(truth);
 			free(truth_dif);
 			free(id);
-			free_image(val[t]);
-			free_image(val_resized[t]);
+			Darknet::free_image(val[t]);
+			Darknet::free_image(val_resized[t]);
 		}
 	}
 
@@ -2023,7 +2024,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		}
 		//image im;
 		//image sized = load_image_resize(input, net.w, net.h, net.c, &im);
-		Darknet::Image im = load_image(input, 0, 0, net.c);
+		Darknet::Image im = Darknet::load_image(input, 0, 0, net.c);
 		Darknet::Image sized;
 		if (letter_box)
 		{
@@ -2031,7 +2032,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		}
 		else
 		{
-			sized = resize_image(im, net.w, net.h);
+			sized = Darknet::resize_image(im, net.w, net.h);
 		}
 
 		Darknet::Layer l = net.layers[net.n - 1];
@@ -2066,13 +2067,13 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		}
 
 		// Load the image explicitly asking for 3 color channels
-		Darknet::Image im_color = load_image(input, 0, 0, 3);
+		Darknet::Image im_color = Darknet::load_image(input, 0, 0, 3);
 
 		draw_detections_v3(im_color, dets, nboxes, thresh, names, l.classes, ext_output);
 		save_image(im_color, "predictions");
 		if (!dont_show)
 		{
-			show_image(im_color, "predictions");
+			Darknet::show_image(im_color, "predictions");
 		}
 
 		if (json_file)
@@ -2116,8 +2117,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		}
 
 		free_detections(dets, nboxes);
-		free_image(im_color);
-		free_image(im);
+		Darknet::free_image(im_color);
+		Darknet::free_image(im);
 		free_image(sized);
 
 		if (!dont_show) {

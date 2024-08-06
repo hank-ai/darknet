@@ -40,10 +40,17 @@ int get_height_mat(mat_cv *mat);
 /// Frees the @p cv::Mat object allocated in @ref load_image_mat_cv().
 void release_mat(mat_cv **mat);
 
+/** Convert an OpenCV @p cv::Mat object to @ref Darknet::Image.  The @p cv::Mat is expected to already have been
+ * converted from BGR to RGB.  And the result @ref Darknet::Image floats will be normalized between @p 0.0 and @p 1.0.
+ */
 Darknet::Image mat_to_image(cv::Mat mat);
 
+/// Do not use.  @todo This needs to be removed.
 Darknet::Image mat_to_image_cv(mat_cv *mat);
 
+/** Convert the usual @ref Darknet::Image format to OpenCV @p cv::Mat.  The mat object will be in RGB format, not BGR.
+ * @see @ref mat_to_image()
+ */
 cv::Mat image_to_mat(Darknet::Image img);
 
 // Window

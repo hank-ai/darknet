@@ -1,6 +1,61 @@
 #include "darknet_internal.hpp"
 
 
+namespace
+{
+	static inline float get_pixel(Darknet::Image m, int x, int y, int c)
+	{
+		TAT(TATPARMS);
+
+		assert(x < m.w && y < m.h && c < m.c);
+
+		return m.data[c*m.h*m.w + y*m.w + x];
+	}
+
+	static inline float get_pixel_extend(Darknet::Image m, int x, int y, int c)
+	{
+		TAT(TATPARMS);
+
+		if (x < 0 || x >= m.w || y < 0 || y >= m.h) return 0;
+
+		if (c < 0 || c >= m.c) return 0;
+
+		return get_pixel(m, x, y, c);
+	}
+
+	static inline void set_pixel(Darknet::Image m, int x, int y, int c, float val)
+	{
+		TAT(TATPARMS);
+
+		if (x < 0 || y < 0 || c < 0 || x >= m.w || y >= m.h || c >= m.c) return;
+		assert(x < m.w && y < m.h && c < m.c);
+		m.data[c*m.h*m.w + y*m.w + x] = val;
+	}
+
+	static inline void add_pixel(Darknet::Image m, int x, int y, int c, float val)
+	{
+		TAT(TATPARMS);
+
+		assert(x < m.w && y < m.h && c < m.c);
+		m.data[c*m.h*m.w + y*m.w + x] += val;
+	}
+
+	static inline float three_way_max(const float a, const float b, const float c)
+	{
+		TAT(TATPARMS);
+
+		return (a > b) ? ( (a > c) ? a : c) : ( (b > c) ? b : c) ;
+	}
+
+	static inline float three_way_min(const float a, const float b, const float c)
+	{
+		TAT(TATPARMS);
+
+		return (a < b) ? ( (a < c) ? a : c) : ( (b < c) ? b : c) ;
+	}
+}
+
+
 float Darknet::get_color(int c, int x, int max)
 {
 	TAT(TATPARMS);
@@ -16,46 +71,17 @@ float Darknet::get_color(int c, int x, int max)
 	return r;
 }
 
-static float get_pixel(Darknet::Image m, int x, int y, int c)
+
+void Darknet::composite_image(const Darknet::Image & source, Darknet::Image & dest, int dx, int dy)
 {
 	TAT(TATPARMS);
 
-	assert(x < m.w && y < m.h && c < m.c);
-	return m.data[c*m.h*m.w + y*m.w + x];
-}
-static float get_pixel_extend(Darknet::Image m, int x, int y, int c)
-{
-	TAT(TATPARMS);
-
-	if (x < 0 || x >= m.w || y < 0 || y >= m.h) return 0;
-
-	if (c < 0 || c >= m.c) return 0;
-	return get_pixel(m, x, y, c);
-}
-static void set_pixel(Darknet::Image m, int x, int y, int c, float val)
-{
-	TAT(TATPARMS);
-
-	if (x < 0 || y < 0 || c < 0 || x >= m.w || y >= m.h || c >= m.c) return;
-	assert(x < m.w && y < m.h && c < m.c);
-	m.data[c*m.h*m.w + y*m.w + x] = val;
-}
-static void add_pixel(Darknet::Image m, int x, int y, int c, float val)
-{
-	TAT(TATPARMS);
-
-	assert(x < m.w && y < m.h && c < m.c);
-	m.data[c*m.h*m.w + y*m.w + x] += val;
-}
-
-void composite_image(Darknet::Image source, Darknet::Image dest, int dx, int dy)
-{
-	TAT(TATPARMS);
-
-	int x,y,k;
-	for(k = 0; k < source.c; ++k){
-		for(y = 0; y < source.h; ++y){
-			for(x = 0; x < source.w; ++x){
+	for (int k = 0; k < source.c; ++k)
+	{
+		for (int y = 0; y < source.h; ++y)
+		{
+			for (int x = 0; x < source.w; ++x)
+			{
 				float val = get_pixel(source, x, y, k);
 				float val2 = get_pixel_extend(dest, dx+x, dy+y, k);
 				set_pixel(dest, dx+x, dy+y, k, val * val2);
@@ -64,56 +90,6 @@ void composite_image(Darknet::Image source, Darknet::Image dest, int dx, int dy)
 	}
 }
 
-Darknet::Image border_image(Darknet::Image a, int border)
-{
-	TAT(TATPARMS);
-
-	Darknet::Image b = make_image(a.w + 2*border, a.h + 2*border, a.c);
-	int x,y,k;
-	for(k = 0; k < b.c; ++k){
-		for(y = 0; y < b.h; ++y){
-			for(x = 0; x < b.w; ++x){
-				float val = get_pixel_extend(a, x - border, y - border, k);
-				if(x - border < 0 || x - border >= a.w || y - border < 0 || y - border >= a.h) val = 1;
-				set_pixel(b, x, y, k, val);
-			}
-		}
-	}
-	return b;
-}
-
-Darknet::Image tile_images(Darknet::Image a, Darknet::Image b, int dx)
-{
-	TAT(TATPARMS);
-
-	if(a.w == 0) return copy_image(b);
-	Darknet::Image c = make_image(a.w + b.w + dx, (a.h > b.h) ? a.h : b.h, (a.c > b.c) ? a.c : b.c);
-	fill_cpu(c.w*c.h*c.c, 1, c.data, 1);
-	embed_image(a, c, 0, 0);
-	composite_image(b, c, a.w + dx, 0);
-	return c;
-}
-
-Darknet::Image get_label(Darknet::Image **characters, char *string, int size)
-{
-	TAT(TATPARMS);
-
-	if (size > 7)
-	{
-		size = 7;
-	}
-	Darknet::Image label = make_empty_image(0,0,0);
-	while(*string){
-		Darknet::Image l = characters[size][(int)*string];
-		Darknet::Image n = tile_images(label, l, -size - 1 + (size+1)/2);
-		free_image(label);
-		label = n;
-		++string;
-	}
-	Darknet::Image b = border_image(label, label.h*.25);
-	free_image(label);
-	return b;
-}
 
 Darknet::Image get_opencv_label(const std::string & str, const int area)
 {
@@ -146,57 +122,25 @@ Darknet::Image get_opencv_label(const std::string & str, const int area)
 	return mat_to_image(mat);
 }
 
-Darknet::Image get_label_v3(Darknet::Image **characters, char *string, int size)
+
+void Darknet::draw_weighted_label(Darknet::Image & a, int r, int c, Darknet::Image & label, const float *rgb, const float alpha)
 {
 	TAT(TATPARMS);
 
-	size = size / 10;
-	if (size > 7) size = 7;
-	Darknet::Image label = make_empty_image(0, 0, 0);
-	while (*string)
+	const int w = label.w;
+	const int h = label.h;
+
+	if (r - h >= 0)
 	{
-		Darknet::Image l = characters[size][(int)*string];
-		Darknet::Image n = tile_images(label, l, -size - 1 + (size + 1) / 2);
-		free_image(label);
-		label = n;
-		++string;
+		r = r - h;
 	}
-	Darknet::Image b = border_image(label, label.h*.05);
-	free_image(label);
-	return b;
-}
 
-void draw_label(Darknet::Image a, int r, int c, Darknet::Image label, const float *rgb)
-{
-	TAT(TATPARMS);
-
-	int w = label.w;
-	int h = label.h;
-	if (r - h >= 0) r = r - h;
-
-	int i, j, k;
-	for(j = 0; j < h && j + r < a.h; ++j){
-		for(i = 0; i < w && i + c < a.w; ++i){
-			for(k = 0; k < label.c; ++k){
-				float val = get_pixel(label, i, j, k);
-				set_pixel(a, i+c, j+r, k, rgb[k] * val);
-			}
-		}
-	}
-}
-
-void draw_weighted_label(Darknet::Image a, int r, int c, Darknet::Image label, const float *rgb, const float alpha)
-{
-	TAT(TATPARMS);
-
-	int w = label.w;
-	int h = label.h;
-	if (r - h >= 0) r = r - h;
-
-	int i, j, k;
-	for (j = 0; j < h && j + r < a.h; ++j) {
-		for (i = 0; i < w && i + c < a.w; ++i) {
-			for (k = 0; k < label.c; ++k) {
+	for (int j = 0; j < h && j + r < a.h; ++j)
+	{
+		for (int i = 0; i < w && i + c < a.w; ++i)
+		{
+			for (int k = 0; k < label.c; ++k)
+			{
 				float val1 = get_pixel(label, i, j, k);
 				float val2 = get_pixel(a, i + c, j + r, k);
 				float val_dst = val1 * rgb[k] * alpha + val2 * (1 - alpha);
@@ -204,112 +148,122 @@ void draw_weighted_label(Darknet::Image a, int r, int c, Darknet::Image label, c
 			}
 		}
 	}
+
+	return;
 }
 
-void draw_box_bw(Darknet::Image a, int x1, int y1, int x2, int y2, float brightness)
+
+void Darknet::draw_box_bw(Darknet::Image & a, int x1, int y1, int x2, int y2, float brightness)
 {
 	TAT(TATPARMS);
 
-	//normalize_image(a);
-	int i;
-	if (x1 < 0) x1 = 0;
-	if (x1 >= a.w) x1 = a.w - 1;
-	if (x2 < 0) x2 = 0;
-	if (x2 >= a.w) x2 = a.w - 1;
+	// check to make sure the coordinates are within the image
+	x1 = std::clamp(x1, 0, a.w - 1);
+	x2 = std::clamp(x2, 0, a.w - 1);
+	y1 = std::clamp(y1, 0, a.h - 1);
+	y2 = std::clamp(y2, 0, a.h - 1);
 
-	if (y1 < 0) y1 = 0;
-	if (y1 >= a.h) y1 = a.h - 1;
-	if (y2 < 0) y2 = 0;
-	if (y2 >= a.h) y2 = a.h - 1;
-
-	for (i = x1; i <= x2; ++i) {
+	// draw horizontal lines
+	for (int i = x1; i <= x2; ++i)
+	{
 		a.data[i + y1*a.w + 0 * a.w*a.h] = brightness;
 		a.data[i + y2*a.w + 0 * a.w*a.h] = brightness;
 	}
-	for (i = y1; i <= y2; ++i) {
+
+	// draw vertical lines
+	for (int i = y1; i <= y2; ++i)
+	{
 		a.data[x1 + i*a.w + 0 * a.w*a.h] = brightness;
 		a.data[x2 + i*a.w + 0 * a.w*a.h] = brightness;
 	}
 }
 
-void draw_box_width_bw(Darknet::Image a, int x1, int y1, int x2, int y2, int w, float brightness)
+
+void Darknet::draw_box_width_bw(Darknet::Image & a, int x1, int y1, int x2, int y2, int w, float brightness)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < w; ++i) {
+	for (int i = 0; i < w; ++i)
+	{
 		float alternate_color = (w % 2) ? (brightness) : (1.0 - brightness);
 		draw_box_bw(a, x1 + i, y1 + i, x2 - i, y2 - i, alternate_color);
 	}
 }
 
-void draw_box(Darknet::Image a, int x1, int y1, int x2, int y2, float r, float g, float b)
+
+void Darknet::draw_box(Darknet::Image & a, int x1, int y1, int x2, int y2, float r, float g, float b)
 {
 	TAT(TATPARMS);
 
-	//normalize_image(a);
-	int i;
-	if(x1 < 0) x1 = 0;
-	if(x1 >= a.w) x1 = a.w-1;
-	if(x2 < 0) x2 = 0;
-	if(x2 >= a.w) x2 = a.w-1;
+	// check to make sure the coordinates are within the image
+	x1 = std::clamp(x1, 0, a.w - 1);
+	x2 = std::clamp(x2, 0, a.w - 1);
+	y1 = std::clamp(y1, 0, a.h - 1);
+	y2 = std::clamp(y2, 0, a.h - 1);
 
-	if(y1 < 0) y1 = 0;
-	if(y1 >= a.h) y1 = a.h-1;
-	if(y2 < 0) y2 = 0;
-	if(y2 >= a.h) y2 = a.h-1;
-
-	for(i = x1; i <= x2; ++i)
+	// draw 2 perfectly horizontal lines from x1 to x2, (top + bottom)
+	for (int i = x1; i <= x2; ++i)
 	{
-		a.data[i + y1*a.w + 0*a.w*a.h] = r;
-		a.data[i + y2*a.w + 0*a.w*a.h] = r;
+		a.data[i + y1 * a.w + 0 * a.w * a.h] = r;
+		a.data[i + y2 * a.w + 0 * a.w * a.h] = r;
 
-		a.data[i + y1*a.w + 1*a.w*a.h] = g;
-		a.data[i + y2*a.w + 1*a.w*a.h] = g;
+		a.data[i + y1 * a.w + 1 * a.w * a.h] = g;
+		a.data[i + y2 * a.w + 1 * a.w * a.h] = g;
 
-		a.data[i + y1*a.w + 2*a.w*a.h] = b;
-		a.data[i + y2*a.w + 2*a.w*a.h] = b;
+		a.data[i + y1 * a.w + 2 * a.w * a.h] = b;
+		a.data[i + y2 * a.w + 2 * a.w * a.h] = b;
 	}
-	for(i = y1; i <= y2; ++i)
+
+	// draw 2 perfectly vertical lines from y1 to y2 (left + right)
+	for (int i = y1; i <= y2; ++i)
 	{
-		a.data[x1 + i*a.w + 0*a.w*a.h] = r;
-		a.data[x2 + i*a.w + 0*a.w*a.h] = r;
+		a.data[x1 + i * a.w + 0 * a.w * a.h] = r;
+		a.data[x2 + i * a.w + 0 * a.w * a.h] = r;
 
-		a.data[x1 + i*a.w + 1*a.w*a.h] = g;
-		a.data[x2 + i*a.w + 1*a.w*a.h] = g;
+		a.data[x1 + i * a.w + 1 * a.w * a.h] = g;
+		a.data[x2 + i * a.w + 1 * a.w * a.h] = g;
 
-		a.data[x1 + i*a.w + 2*a.w*a.h] = b;
-		a.data[x2 + i*a.w + 2*a.w*a.h] = b;
+		a.data[x1 + i * a.w + 2 * a.w * a.h] = b;
+		a.data[x2 + i * a.w + 2 * a.w * a.h] = b;
 	}
+
+	return;
 }
 
-void draw_box_width(Darknet::Image a, int x1, int y1, int x2, int y2, int w, float r, float g, float b)
+
+void Darknet::draw_box_width(Darknet::Image & a, int x1, int y1, int x2, int y2, int w, float r, float g, float b)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for(i = 0; i < w; ++i){
+	for (int i = 0; i < w; ++i)
+	{
 		draw_box(a, x1+i, y1+i, x2-i, y2-i, r, g, b);
 	}
+
+	return;
 }
 
-void draw_bbox(Darknet::Image a, box bbox, int w, float r, float g, float b)
+
+void Darknet::draw_bbox(Darknet::Image & a, const box & bbox, int w, float r, float g, float b)
 {
 	TAT(TATPARMS);
 
-	int left  = (bbox.x-bbox.w/2)*a.w;
-	int right = (bbox.x+bbox.w/2)*a.w;
-	int top   = (bbox.y-bbox.h/2)*a.h;
-	int bot   = (bbox.y+bbox.h/2)*a.h;
+	const int left	= (bbox.x - bbox.w / 2) * a.w;
+	const int right	= (bbox.x + bbox.w / 2) * a.w;
+	const int top	= (bbox.y - bbox.h / 2) * a.h;
+	const int bot	= (bbox.y + bbox.h / 2) * a.h;
 
-	int i;
-	for(i = 0; i < w; ++i){
-		draw_box(a, left+i, top+i, right-i, bot-i, r, g, b);
+	for (int i = 0; i < w; ++i)
+	{
+		draw_box(a, left + i, top + i, right - i, bot - i, r, g, b);
 	}
+
+	return;
 }
 
+
 // Creates array of detections with prob > thresh and fills best_class for them
-detection_with_class* get_actual_detections(detection *dets, int dets_num, float thresh, int* selected_detections_num, char **names)
+detection_with_class* get_actual_detections(const detection *dets, int dets_num, float thresh, int* selected_detections_num, char **names)
 {
 	TAT(TATPARMS);
 
@@ -338,6 +292,7 @@ detection_with_class* get_actual_detections(detection *dets, int dets_num, float
 	return result_arr;
 }
 
+
 // compare to sort detection** by bbox.x
 int compare_by_lefts(const void *a_ptr, const void *b_ptr)
 {
@@ -348,6 +303,7 @@ int compare_by_lefts(const void *a_ptr, const void *b_ptr)
 	const float delta = (a->det.bbox.x - a->det.bbox.w/2) - (b->det.bbox.x - b->det.bbox.w/2);
 	return delta < 0 ? -1 : delta > 0 ? 1 : 0;
 }
+
 
 // compare to sort detection** by best_class probability
 int compare_by_probs(const void *a_ptr, const void *b_ptr)
@@ -360,7 +316,8 @@ int compare_by_probs(const void *a_ptr, const void *b_ptr)
 	return delta < 0 ? -1 : delta > 0 ? 1 : 0;
 }
 
-void draw_detections_v3(Darknet::Image im, detection *dets, int num, float thresh, char **names, int classes, int ext_output)
+
+void Darknet::draw_detections_v3(Darknet::Image & im, const detection * dets, const int num, const float thresh, char **names, const int classes, const int ext_output)
 {
 	TAT(TATPARMS);
 
@@ -453,7 +410,7 @@ void draw_detections_v3(Darknet::Image im, detection *dets, int num, float thres
 		}
 		else
 		{
-			draw_box_width(im, left, top, right, bot, width, red, green, blue); // 3 channels RGB
+			Darknet::draw_box_width(im, left, top, right, bot, width, red, green, blue); // 3 channels RGB
 		}
 
 		const std::string class_name = names[selected_detections[i].best_class];
@@ -471,97 +428,41 @@ void draw_detections_v3(Darknet::Image im, detection *dets, int num, float thres
 		}
 
 		Darknet::Image label = get_opencv_label(ss.str(), (right - left) * (bot - top));
-		draw_weighted_label(im, top + width, left, label, rgb, 0.7);
-		free_image(label);
+		Darknet::draw_weighted_label(im, top + width, left, label, rgb, 0.7);
+		Darknet::free_image(label);
 
 		if (selected_detections[i].det.mask)
 		{
 			Darknet::Image mask = float_to_image(14, 14, 1, selected_detections[i].det.mask);
-			Darknet::Image resized_mask = resize_image(mask, b.w*im.w, b.h*im.h);
+			Darknet::Image resized_mask = Darknet::resize_image(mask, b.w*im.w, b.h*im.h);
 			Darknet::Image tmask = threshold_image(resized_mask, .5);
 			embed_image(tmask, im, left, top);
-			free_image(mask);
-			free_image(resized_mask);
-			free_image(tmask);
+			Darknet::free_image(mask);
+			Darknet::free_image(resized_mask);
+			Darknet::free_image(tmask);
 		}
 	}
 	free(selected_detections);
 }
 
-void draw_detections(Darknet::Image im, int num, float thresh, box *boxes, float **probs, char **names, int classes)
-{
-	// wrong function!  see draw_detections_v3() instead!
 
-	TAT(TATPARMS);
-
-	int i;
-
-	for(i = 0; i < num; ++i){
-		int class_id = max_index(probs[i], classes);
-		float prob = probs[i][class_id];
-		if(prob > thresh){
-
-			int width = im.h * .012;
-
-			if(0)
-			{
-				width = pow(prob, 1./2.)*10+1;
-			}
-
-			int offset = class_id*123457 % classes;
-			float red	= Darknet::get_color(2,offset,classes);
-			float green	= Darknet::get_color(1,offset,classes);
-			float blue	= Darknet::get_color(0,offset,classes);
-
-			box b = boxes[i];
-
-			int left  = (b.x-b.w/2.)*im.w;
-			int right = (b.x+b.w/2.)*im.w;
-			int top   = (b.y-b.h/2.)*im.h;
-			int bot   = (b.y+b.h/2.)*im.h;
-
-			if(left < 0) left = 0;
-			if(right > im.w-1) right = im.w-1;
-			if(top < 0) top = 0;
-			if(bot > im.h-1) bot = im.h-1;
-			printf("%s: %.0f%%", names[class_id], prob * 100);
-
-			printf("\n");
-			draw_box_width(im, left, top, right, bot, width, red, green, blue);
-		}
-	}
-}
-
-void transpose_image(Darknet::Image im)
-{
-	TAT(TATPARMS);
-
-	assert(im.w == im.h);
-	int n, m;
-	int c;
-	for(c = 0; c < im.c; ++c){
-		for(n = 0; n < im.w-1; ++n){
-			for(m = n + 1; m < im.w; ++m){
-				float swap = im.data[m + im.w*(n + im.h*c)];
-				im.data[m + im.w*(n + im.h*c)] = im.data[n + im.w*(m + im.h*c)];
-				im.data[n + im.w*(m + im.h*c)] = swap;
-			}
-		}
-	}
-}
-
-void rotate_image_cw(Darknet::Image im, int times)
+void Darknet::rotate_image_cw(Darknet::Image & im, int times)
 {
 	TAT(TATPARMS);
 
 	assert(im.w == im.h);
 	times = (times + 400) % 4;
-	int i, x, y, c;
+
 	int n = im.w;
-	for(i = 0; i < times; ++i){
-		for(c = 0; c < im.c; ++c){
-			for(x = 0; x < n/2; ++x){
-				for(y = 0; y < (n-1)/2 + 1; ++y){
+
+	for (int i = 0; i < times; ++i)
+	{
+		for (int c = 0; c < im.c; ++c)
+		{
+			for (int x = 0; x < n/2; ++x)
+			{
+				for (int y = 0; y < (n-1)/2 + 1; ++y)
+				{
 					float temp = im.data[y + im.w*(x + im.h*c)];
 					im.data[y + im.w*(x + im.h*c)] = im.data[n-1-x + im.w*(y + im.h*c)];
 					im.data[n-1-x + im.w*(y + im.h*c)] = im.data[n-1-y + im.w*(n-1-x + im.h*c)];
@@ -571,14 +472,14 @@ void rotate_image_cw(Darknet::Image im, int times)
 			}
 		}
 	}
+
+	return;
 }
 
 
-void Darknet::flip_image(Darknet::Image a)
+void Darknet::flip_image(Darknet::Image & a)
 {
 	TAT(TATPARMS);
-
-	/// @todo see if OpenCV is better at doing this
 
 	for (int k = 0; k < a.c; ++k)
 	{
@@ -586,164 +487,201 @@ void Darknet::flip_image(Darknet::Image a)
 		{
 			for (int j = 0; j < a.w/2; ++j)
 			{
-				const int index = j + a.w*(i + a.h*(k));
-				const int flip = (a.w - j - 1) + a.w*(i + a.h*(k));
+				const int index = j + a.w * (i + a.h * k);
+				const int flip = (a.w - j - 1) + a.w * (i + a.h * k);
 				std::swap(a.data[flip], a.data[index]);
 			}
 		}
 	}
 }
 
-Darknet::Image image_distance(Darknet::Image a, Darknet::Image b)
+
+Darknet::Image Darknet::image_distance(Darknet::Image & a, Darknet::Image & b)
 {
 	TAT(TATPARMS);
 
-	int i,j;
-	Darknet::Image dist = make_image(a.w, a.h, 1);
-	for(i = 0; i < a.c; ++i){
-		for(j = 0; j < a.h*a.w; ++j){
-			dist.data[j] += pow(a.data[i*a.h*a.w+j]-b.data[i*a.h*a.w+j],2);
+	Darknet::Image dist = Darknet::make_image(a.w, a.h, 1);
+
+	for (int i = 0; i < a.c; ++i)
+	{
+		for (int j = 0; j < a.h * a.w; ++j)
+		{
+			dist.data[j] += std::pow(a.data[i * a.h * a.w+j]-b.data[i * a.h * a.w + j], 2);
 		}
 	}
-	for(j = 0; j < a.h*a.w; ++j){
-		dist.data[j] = sqrt(dist.data[j]);
+
+	for (int j = 0; j < a.h * a.w; ++j)
+	{
+		dist.data[j] = std::sqrt(dist.data[j]);
 	}
+
 	return dist;
 }
 
-void embed_image(Darknet::Image source, Darknet::Image dest, int dx, int dy)
+void Darknet::embed_image(const Darknet::Image & source, Darknet::Image & dest, int dx, int dy)
 {
 	TAT(TATPARMS);
 
-	int x,y,k;
-	for(k = 0; k < source.c; ++k){
-		for(y = 0; y < source.h; ++y){
-			for(x = 0; x < source.w; ++x){
-				float val = get_pixel(source, x,y,k);
-				set_pixel(dest, dx+x, dy+y, k, val);
+	for (int k = 0; k < source.c; ++k)
+	{
+		for (int y = 0; y < source.h; ++y)
+		{
+			for (int x = 0; x < source.w; ++x)
+			{
+				float val = get_pixel(source, x, y, k);
+				set_pixel(dest, dx + x, dy + y, k, val);
 			}
 		}
 	}
+
+	return;
 }
 
-Darknet::Image collapse_image_layers(Darknet::Image source, int border)
+
+Darknet::Image Darknet::collapse_image_layers(const Darknet::Image & source, int border)
 {
 	TAT(TATPARMS);
 
-	int h = source.h;
-	h = (h+border)*source.c - border;
-	Darknet::Image dest = make_image(source.w, h, 1);
-	int i;
-	for(i = 0; i < source.c; ++i){
+	int h = (source.h + border) * source.c - border;
+	Darknet::Image dest = Darknet::make_image(source.w, h, 1);
+
+	for (int i = 0; i < source.c; ++i)
+	{
 		Darknet::Image layer = get_image_layer(source, i);
-		int h_offset = i*(source.h+border);
-		embed_image(layer, dest, 0, h_offset);
-		free_image(layer);
+		int h_offset = i * (source.h + border);
+		Darknet::embed_image(layer, dest, 0, h_offset);
+		Darknet::free_image(layer);
 	}
+
 	return dest;
 }
 
-void constrain_image(Darknet::Image im)
+
+void Darknet::constrain_image(Darknet::Image & im)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for(i = 0; i < im.w*im.h*im.c; ++i){
-		if(im.data[i] < 0) im.data[i] = 0;
-		if(im.data[i] > 1) im.data[i] = 1;
+	for (int i = 0; i < im.w * im.h * im.c; ++i)
+	{
+		im.data[i] = std::clamp(im.data[i], 0.0f, 1.0f);
 	}
+
+	return;
 }
 
-void normalize_image(Darknet::Image p)
+
+void Darknet::normalize_image(Darknet::Image & p)
 {
 	TAT(TATPARMS);
 
-	int i;
 	float min = 9999999;
 	float max = -999999;
 
-	for(i = 0; i < p.h*p.w*p.c; ++i){
+	for (int i = 0; i < p.h * p.w * p.c; ++i)
+	{
 		float v = p.data[i];
-		if(v < min) min = v;
-		if(v > max) max = v;
+		if (v < min) min = v;
+		if (v > max) max = v;
 	}
-	if(max - min < .000000001){
-		min = 0;
-		max = 1;
+
+	if (max - min < 0.000000001f)
+	{
+		min = 0.0f;
+		max = 1.0f;
 	}
-	for(i = 0; i < p.c*p.w*p.h; ++i){
+
+	for (int i = 0; i < p.c*p.w*p.h; ++i)
+	{
 		p.data[i] = (p.data[i] - min)/(max-min);
 	}
+
+	return;
 }
 
-void normalize_image2(Darknet::Image p)
+
+void Darknet::normalize_image2(Darknet::Image & p)
 {
 	TAT(TATPARMS);
 
-	float* min = (float*)xcalloc(p.c, sizeof(float));
-	float* max = (float*)xcalloc(p.c, sizeof(float));
-	int i,j;
-	for(i = 0; i < p.c; ++i) min[i] = max[i] = p.data[i*p.h*p.w];
+	float * min = (float*)xcalloc(p.c, sizeof(float));
+	float * max = (float*)xcalloc(p.c, sizeof(float));
 
-	for(j = 0; j < p.c; ++j){
-		for(i = 0; i < p.h*p.w; ++i){
+	for (int i = 0; i < p.c; ++i)
+	{
+		min[i] = max[i] = p.data[i * p.h * p.w];
+	}
+
+	for (int j = 0; j < p.c; ++j)
+	{
+		for (int i = 0; i < p.h*p.w; ++i)
+		{
 			float v = p.data[i+j*p.h*p.w];
 			if(v < min[j]) min[j] = v;
 			if(v > max[j]) max[j] = v;
 		}
 	}
-	for(i = 0; i < p.c; ++i){
+
+	for (int i = 0; i < p.c; ++i)
+	{
 		if(max[i] - min[i] < .000000001){
-			min[i] = 0;
-			max[i] = 1;
+			min[i] = 0.0f;
+			max[i] = 1.0f;
 		}
 	}
-	for(j = 0; j < p.c; ++j){
-		for(i = 0; i < p.w*p.h; ++i){
+
+	for (int j = 0; j < p.c; ++j)
+	{
+		for (int i = 0; i < p.w*p.h; ++i)
+		{
 			p.data[i+j*p.h*p.w] = (p.data[i+j*p.h*p.w] - min[j])/(max[j]-min[j]);
 		}
 	}
+
 	free(min);
 	free(max);
 }
 
-void copy_image_inplace(Darknet::Image src, Darknet::Image dst)
+
+void Darknet::copy_image_inplace(const Darknet::Image & src, Darknet::Image & dst)
 {
 	TAT(TATPARMS);
 
 	memcpy(dst.data, src.data, src.h*src.w*src.c * sizeof(float));
 }
 
-Darknet::Image copy_image(Darknet::Image p)
+
+Darknet::Image Darknet::copy_image(const Darknet::Image & p)
 {
 	TAT(TATPARMS);
 
 	Darknet::Image copy = p;
 	copy.data = (float*)xcalloc(p.h * p.w * p.c, sizeof(float));
-	memcpy(copy.data, p.data, p.h*p.w*p.c*sizeof(float));
+	memcpy(copy.data, p.data, p.h * p.w * p.c * sizeof(float));
+
 	return copy;
 }
 
-void rgbgr_image(Darknet::Image im)
+
+void Darknet::rgbgr_image(Darknet::Image & im)
 {
 	TAT(TATPARMS);
 
 	for (int i = 0; i < im.w*im.h; ++i)
 	{
-		float swap = im.data[i];
-		im.data[i] = im.data[i+im.w*im.h*2];
-		im.data[i+im.w*im.h*2] = swap;
+		std::swap(im.data[i], im.data[i + im.w * im.h * 2]);
 	}
 }
 
-void show_image(Darknet::Image p, const char *name)
+
+void Darknet::show_image(const Darknet::Image & p, const char * name)
 {
 	TAT(TATPARMS);
 
 	show_image_cv(p, name);
 }
 
-void save_image_png(Darknet::Image im, const char *name)
+
+void Darknet::save_image_png(const Darknet::Image & im, const char *name)
 {
 	/// @todo merge with @ref save_mat_png()
 
@@ -770,7 +708,8 @@ void save_image_png(Darknet::Image im, const char *name)
 	}
 }
 
-void save_image_jpg(Darknet::Image im, const char *name)
+
+void Darknet::save_image_jpg(const Darknet::Image & im, const char *name)
 {
 	/// @todo merge with @ref save_mat_jpg()
 
@@ -795,29 +734,22 @@ void save_image_jpg(Darknet::Image im, const char *name)
 	{
 		darknet_fatal_error(DARKNET_LOC, "failed to save the image %s", filename.c_str());
 	}
+
+	return;
 }
 
-void save_image(Darknet::Image im, const char *name)
-{
-	save_image_jpg(im, name);
-}
 
-void save_image_options(Darknet::Image im, const char *name, IMTYPE f, int quality)
+void Darknet::save_image(const Darknet::Image & im, const char *name)
 {
 	TAT(TATPARMS);
 
-	if (f == IMTYPE::PNG)
-	{
-		save_image_png(im, name);
-	}
-	else
-	{
-		// otherwise, every other format will be saved as JPG
-		save_image_jpg(im, name);
-	}
+	save_image_jpg(im, name);
+
+	return;
 }
 
-void show_image_layers(Darknet::Image p, char *name)
+
+void Darknet::show_image_layers(const Darknet::Image & p, const char * name)
 {
 	TAT(TATPARMS);
 
@@ -827,47 +759,52 @@ void show_image_layers(Darknet::Image p, char *name)
 	{
 		sprintf(buff, "%s - Layer %d", name, i);
 		Darknet::Image layer = get_image_layer(p, i);
-		show_image(layer, buff);
-		free_image(layer);
+		Darknet::show_image(layer, buff);
+		Darknet::free_image(layer);
 	}
 }
 
-void show_image_collapsed(Darknet::Image p, char *name)
+
+void Darknet::show_image_collapsed(const Darknet::Image & p, const char * name)
 {
 	TAT(TATPARMS);
 
-	Darknet::Image c = collapse_image_layers(p, 1);
-	show_image(c, name);
-	free_image(c);
+	Darknet::Image c = Darknet::collapse_image_layers(p, 1);
+	Darknet::show_image(c, name);
+	Darknet::free_image(c);
 }
 
-Darknet::Image make_empty_image(int w, int h, int c)
+
+Darknet::Image Darknet::make_empty_image(int w, int h, int c)
 {
 	TAT(TATPARMS);
 
 	Darknet::Image out;
-	out.data = 0;
+	out.data = nullptr;
 	out.h = h;
 	out.w = w;
 	out.c = c;
+
 	return out;
 }
 
-Darknet::Image make_image(int w, int h, int c)
+
+Darknet::Image Darknet::make_image(int w, int h, int c)
 {
 	TAT(TATPARMS);
 
-	Darknet::Image out = make_empty_image(w,h,c);
+	Darknet::Image out = Darknet::make_empty_image(w,h,c);
 	out.data = (float*)xcalloc(h * w * c, sizeof(float));
 
 	return out;
 }
 
-Darknet::Image make_random_image(int w, int h, int c)
+
+Darknet::Image Darknet::make_random_image(int w, int h, int c)
 {
 	TAT(TATPARMS);
 
-	Darknet::Image out = make_empty_image(w,h,c);
+	Darknet::Image out = Darknet::make_empty_image(w,h,c);
 	out.data = (float*)xcalloc(h * w * c, sizeof(float));
 	for(int i = 0; i < w*h*c; ++i)
 	{
@@ -876,44 +813,54 @@ Darknet::Image make_random_image(int w, int h, int c)
 	return out;
 }
 
-Darknet::Image float_to_image_scaled(int w, int h, int c, float *data)
+
+Darknet::Image Darknet::float_to_image_scaled(int w, int h, int c, float *data)
 {
 	TAT(TATPARMS);
 
-	Darknet::Image out = make_image(w, h, c);
+	Darknet::Image out = Darknet::make_image(w, h, c);
 	int abs_max = 0;
 	for (int i = 0; i < w*h*c; ++i)
 	{
-		if (fabs(data[i]) > abs_max) abs_max = fabs(data[i]);
+		if (fabs(data[i]) > abs_max)
+		{
+			abs_max = fabs(data[i]);
+		}
 	}
 	for (int i = 0; i < w*h*c; ++i)
 	{
 		out.data[i] = data[i] / abs_max;
 	}
+
 	return out;
 }
 
-Darknet::Image float_to_image(int w, int h, int c, float *data)
+
+Darknet::Image Darknet::float_to_image(int w, int h, int c, float *data)
 {
 	TAT(TATPARMS);
 
-	Darknet::Image out = make_empty_image(w,h,c);
+	Darknet::Image out = Darknet::make_empty_image(w,h,c);
 	out.data = data;
+
 	return out;
 }
 
 
-Darknet::Image rotate_crop_image(Darknet::Image im, float rad, float s, int w, int h, float dx, float dy, float aspect)
+Darknet::Image Darknet::rotate_crop_image(const Darknet::Image & im, float rad, float s, int w, int h, float dx, float dy, float aspect)
 {
 	TAT(TATPARMS);
 
-	int x, y, c;
 	float cx = im.w/2.;
 	float cy = im.h/2.;
-	Darknet::Image rot = make_image(w, h, im.c);
-	for(c = 0; c < im.c; ++c){
-		for(y = 0; y < h; ++y){
-			for(x = 0; x < w; ++x){
+	Darknet::Image rot = Darknet::make_image(w, h, im.c);
+
+	for (int c = 0; c < im.c; ++c)
+	{
+		for (int y = 0; y < h; ++y)
+		{
+			for (int x = 0; x < w; ++x)
+			{
 				float rx = cos(rad)*((x - w/2.)/s*aspect + dx/s*aspect) - sin(rad)*((y - h/2.)/s + dy/s) + cx;
 				float ry = sin(rad)*((x - w/2.)/s*aspect + dx/s*aspect) + cos(rad)*((y - h/2.)/s + dy/s) + cy;
 				float val = bilinear_interpolate(im, rx, ry, c);
@@ -921,20 +868,26 @@ Darknet::Image rotate_crop_image(Darknet::Image im, float rad, float s, int w, i
 			}
 		}
 	}
+
 	return rot;
 }
 
-Darknet::Image rotate_image(Darknet::Image im, float rad)
+
+Darknet::Image Darknet::rotate_image(const Darknet::Image & im, float rad)
 {
 	TAT(TATPARMS);
 
 	int x, y, c;
 	float cx = im.w/2.;
 	float cy = im.h/2.;
-	Darknet::Image rot = make_image(im.w, im.h, im.c);
-	for(c = 0; c < im.c; ++c){
-		for(y = 0; y < im.h; ++y){
-			for(x = 0; x < im.w; ++x){
+	Darknet::Image rot = Darknet::make_image(im.w, im.h, im.c);
+
+	for (c = 0; c < im.c; ++c)
+	{
+		for (y = 0; y < im.h; ++y)
+		{
+			for (x = 0; x < im.w; ++x)
+			{
 				float rx = cos(rad)*(x-cx) - sin(rad)*(y-cy) + cx;
 				float ry = sin(rad)*(x-cx) + cos(rad)*(y-cy) + cy;
 				float val = bilinear_interpolate(im, rx, ry, c);
@@ -945,6 +898,7 @@ Darknet::Image rotate_image(Darknet::Image im, float rad)
 	return rot;
 }
 
+
 void translate_image(Darknet::Image m, float s)
 {
 	TAT(TATPARMS);
@@ -953,19 +907,24 @@ void translate_image(Darknet::Image m, float s)
 	for(i = 0; i < m.h*m.w*m.c; ++i) m.data[i] += s;
 }
 
-void scale_image(Darknet::Image m, float s)
+void Darknet::scale_image(Darknet::Image & m, const float s)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for(i = 0; i < m.h*m.w*m.c; ++i) m.data[i] *= s;
+	for(int i = 0; i < m.h * m.w * m.c; ++i)
+	{
+		m.data[i] *= s;
+	}
+
+	return;
 }
 
-Darknet::Image crop_image(Darknet::Image im, int dx, int dy, int w, int h)
+
+Darknet::Image Darknet::crop_image(const Darknet::Image & im, const int dx, const int dy, const int w, const int h)
 {
 	TAT(TATPARMS);
 
-	Darknet::Image cropped = make_image(w, h, im.c);
+	Darknet::Image cropped = Darknet::make_image(w, h, im.c);
 
 	for (int k = 0; k < im.c; ++k)
 	{
@@ -973,23 +932,19 @@ Darknet::Image crop_image(Darknet::Image im, int dx, int dy, int w, int h)
 		{
 			for (int i = 0; i < w; ++i)
 			{
-				int r = j + dy;
-				int c = i + dx;
-				float val = 0;
-				r = constrain_int(r, 0, im.h-1);
-				c = constrain_int(c, 0, im.w-1);
-				if (r >= 0 && r < im.h && c >= 0 && c < im.w)
-				{
-					val = get_pixel(im, c, r, k);
-				}
+				const int row = std::clamp(j + dy, 0, im.h - 1);
+				const int col = std::clamp(i + dx, 0, im.w - 1);
+				const float val = get_pixel(im, col, row, k);
 				set_pixel(cropped, i, j, k, val);
 			}
 		}
 	}
+
 	return cropped;
 }
 
-int best_3d_shift_r(Darknet::Image a, Darknet::Image b, int min, int max)
+
+int Darknet::best_3d_shift_r(const Darknet::Image & a, const Darknet::Image & b, int min, int max)
 {
 	TAT(TATPARMS);
 
@@ -999,21 +954,22 @@ int best_3d_shift_r(Darknet::Image a, Darknet::Image b, int min, int max)
 	}
 
 	const int mid = floor((min + max) / 2.0f);
-	Darknet::Image c1 = crop_image(b, 0, mid, b.w, b.h);
-	Darknet::Image c2 = crop_image(b, 0, mid+1, b.w, b.h);
+	Darknet::Image c1 = Darknet::crop_image(b, 0, mid, b.w, b.h);
+	Darknet::Image c2 = Darknet::crop_image(b, 0, mid+1, b.w, b.h);
 	float d1 = dist_array(c1.data, a.data, a.w*a.h*a.c, 10);
 	float d2 = dist_array(c2.data, a.data, a.w*a.h*a.c, 10);
-	free_image(c1);
-	free_image(c2);
+	Darknet::free_image(c1);
+	Darknet::free_image(c2);
 	if (d1 < d2)
 	{
-		return best_3d_shift_r(a, b, min, mid);
+		return Darknet::best_3d_shift_r(a, b, min, mid);
 	}
 
-	return best_3d_shift_r(a, b, mid+1, max);
+	return Darknet::best_3d_shift_r(a, b, mid+1, max);
 }
 
-int best_3d_shift(Darknet::Image a, Darknet::Image b, int min, int max)
+
+int Darknet::best_3d_shift(const Darknet::Image & a, const Darknet::Image & b, int min, int max)
 {
 	TAT(TATPARMS);
 
@@ -1022,7 +978,7 @@ int best_3d_shift(Darknet::Image a, Darknet::Image b, int min, int max)
 	float best_distance = FLT_MAX;
 	for (i = min; i <= max; i += 2)
 	{
-		Darknet::Image c = crop_image(b, 0, i, b.w, b.h);
+		Darknet::Image c = Darknet::crop_image(b, 0, i, b.w, b.h);
 		float d = dist_array(c.data, a.data, a.w*a.h*a.c, 100);
 		if (d < best_distance)
 		{
@@ -1030,13 +986,13 @@ int best_3d_shift(Darknet::Image a, Darknet::Image b, int min, int max)
 			best = i;
 		}
 		printf("%d %f\n", i, d);
-		free_image(c);
+		Darknet::free_image(c);
 	}
 
 	return best;
 }
 
-void composite_3d(char *f1, char *f2, char *out, int delta)
+void Darknet::composite_3d(char *f1, char *f2, char *out, int delta)
 {
 	TAT(TATPARMS);
 
@@ -1044,13 +1000,14 @@ void composite_3d(char *f1, char *f2, char *out, int delta)
 	{
 		out = "out";
 	}
-	Darknet::Image a = load_image(f1, 0,0,0);
-	Darknet::Image b = load_image(f2, 0,0,0);
-	int shift = best_3d_shift_r(a, b, -a.h/100, a.h/100);
 
-	Darknet::Image c1 = crop_image(b, 10, shift, b.w, b.h);
+	Darknet::Image a = Darknet::load_image(f1, 0,0,0);
+	Darknet::Image b = Darknet::load_image(f2, 0,0,0);
+	int shift = Darknet::best_3d_shift_r(a, b, -a.h/100, a.h/100);
+
+	Darknet::Image c1 = Darknet::crop_image(b, 10, shift, b.w, b.h);
 	float d1 = dist_array(c1.data, a.data, a.w*a.h*a.c, 100);
-	Darknet::Image c2 = crop_image(b, -10, shift, b.w, b.h);
+	Darknet::Image c2 = Darknet::crop_image(b, -10, shift, b.w, b.h);
 	float d2 = dist_array(c2.data, a.data, a.w*a.h*a.c, 100);
 
 	if(d2 < d1)
@@ -1064,7 +1021,7 @@ void composite_3d(char *f1, char *f2, char *out, int delta)
 		printf("%d\n", shift);
 	}
 
-	Darknet::Image c = crop_image(b, delta, shift, a.w, a.h);
+	Darknet::Image c = Darknet::crop_image(b, delta, shift, a.w, a.h);
 	for (int i = 0; i < c.w*c.h; ++i)
 	{
 		c.data[i] = a.data[i];
@@ -1073,58 +1030,71 @@ void composite_3d(char *f1, char *f2, char *out, int delta)
 	save_image_jpg(c, out);
 }
 
-void fill_image(Darknet::Image m, float s)
+
+void Darknet::fill_image(Darknet::Image & m, float s)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < m.h*m.w*m.c; ++i) m.data[i] = s;
+	for (int i = 0; i < m.h * m.w * m.c; ++i)
+	{
+		m.data[i] = s;
+	}
+
+	return;
 }
 
-void letterbox_image_into(Darknet::Image im, int w, int h, Darknet::Image boxed)
+
+void Darknet::letterbox_image_into(const Darknet::Image & im, int w, int h, Darknet::Image & boxed)
 {
 	TAT(TATPARMS);
 
 	int new_w = im.w;
 	int new_h = im.h;
-	if (((float)w / im.w) < ((float)h / im.h)) {
+	if (((float)w / im.w) < ((float)h / im.h))
+	{
 		new_w = w;
 		new_h = (im.h * w) / im.w;
 	}
-	else {
+	else
+	{
 		new_h = h;
 		new_w = (im.w * h) / im.h;
 	}
-	Darknet::Image resized = resize_image(im, new_w, new_h);
-	embed_image(resized, boxed, (w - new_w) / 2, (h - new_h) / 2);
-	free_image(resized);
+	Darknet::Image resized = Darknet::resize_image(im, new_w, new_h);
+	Darknet::embed_image(resized, boxed, (w - new_w) / 2, (h - new_h) / 2);
+	Darknet::free_image(resized);
 }
 
-Darknet::Image letterbox_image(Darknet::Image im, int w, int h)
+
+Darknet::Image Darknet::letterbox_image(const Darknet::Image & im, int w, int h)
 {
 	TAT(TATPARMS);
 
 	int new_w = im.w;
 	int new_h = im.h;
-	if (((float)w / im.w) < ((float)h / im.h)) {
+	if (((float)w / im.w) < ((float)h / im.h))
+	{
 		new_w = w;
 		new_h = (im.h * w) / im.w;
 	}
-	else {
+	else
+	{
 		new_h = h;
 		new_w = (im.w * h) / im.h;
 	}
-	Darknet::Image resized = resize_image(im, new_w, new_h);
-	Darknet::Image boxed = make_image(w, h, im.c);
-	fill_image(boxed, .5);
+	Darknet::Image resized = Darknet::resize_image(im, new_w, new_h);
+	Darknet::Image boxed = Darknet::make_image(w, h, im.c);
+	Darknet::fill_image(boxed, .5);
 	//int i;
 	//for(i = 0; i < boxed.w*boxed.h*boxed.c; ++i) boxed.data[i] = 0;
-	embed_image(resized, boxed, (w - new_w) / 2, (h - new_h) / 2);
-	free_image(resized);
+	Darknet::embed_image(resized, boxed, (w - new_w) / 2, (h - new_h) / 2);
+	Darknet::free_image(resized);
+
 	return boxed;
 }
 
-Darknet::Image resize_max(Darknet::Image im, int max)
+
+Darknet::Image Darknet::resize_max(const Darknet::Image & im, int max)
 {
 	TAT(TATPARMS);
 
@@ -1142,19 +1112,22 @@ Darknet::Image resize_max(Darknet::Image im, int max)
 	}
 	if (w == im.w && h == im.h)
 	{
-		return copy_image(im);
+		return Darknet::copy_image(im);
 	}
 
-	Darknet::Image resized = resize_image(im, w, h);
+	Darknet::Image resized = Darknet::resize_image(im, w, h);
+
 	return resized;
 }
 
-Darknet::Image resize_min(Darknet::Image im, int min)
+
+Darknet::Image Darknet::resize_min(const Darknet::Image & im, int min)
 {
 	TAT(TATPARMS);
 
 	int w = im.w;
 	int h = im.h;
+
 	if(w < h)
 	{
 		h = (h * min) / w;
@@ -1170,62 +1143,51 @@ Darknet::Image resize_min(Darknet::Image im, int min)
 		return copy_image(im);
 	}
 
-	Darknet::Image resized = resize_image(im, w, h);
+	Darknet::Image resized = Darknet::resize_image(im, w, h);
 
 	return resized;
 }
 
-Darknet::Image random_crop_image(Darknet::Image im, int w, int h)
+
+Darknet::Image Darknet::random_crop_image(const Darknet::Image & im, const int w, const int h)
 {
 	TAT(TATPARMS);
 
-	int dx = rand_int(0, im.w - w);
-	int dy = rand_int(0, im.h - h);
-	Darknet::Image crop = crop_image(im, dx, dy, w, h);
-	return crop;
+	const int dx = rand_int(0, im.w - w);
+	const int dy = rand_int(0, im.h - h);
+
+	return Darknet::crop_image(im, dx, dy, w, h);
 }
 
-Darknet::Image random_augment_image(Darknet::Image im, float angle, float aspect, int low, int high, int size)
+
+Darknet::Image Darknet::random_augment_image(const Darknet::Image & im, const float angle, float aspect, const int low, const int high, const int size)
 {
 	TAT(TATPARMS);
 
 	aspect = rand_scale(aspect);
 	int r = rand_int(low, high);
-	int min = (im.h < im.w*aspect) ? im.h : im.w*aspect;
-	float scale = (float)r / min;
+	int min = (im.h < im.w * aspect) ? im.h : im.w * aspect;
+	float scale = static_cast<float>(r) / min;
 
-	float rad = rand_uniform(-angle, angle) * 2.0 * M_PI / 360.;
+	float rad = rand_uniform(-angle, angle) * 2.0f * M_PI / 360.0f;
 
 	float dx = (im.w*scale/aspect - size) / 2.;
 	float dy = (im.h*scale - size) / 2.;
-	if(dx < 0) dx = 0;
-	if(dy < 0) dy = 0;
+	if (dx < 0) dx = 0;
+	if (dy < 0) dy = 0;
 	dx = rand_uniform(-dx, dx);
 	dy = rand_uniform(-dy, dy);
 
-	Darknet::Image crop = rotate_crop_image(im, rad, scale, size, size, dx, dy, aspect);
-
-	return crop;
+	return rotate_crop_image(im, rad, scale, size, size, dx, dy, aspect);
 }
 
-float three_way_max(float a, float b, float c)
+
+void Darknet::rgb_to_hsv(Darknet::Image & im)
 {
-	TAT(TATPARMS);
+	// http://www.cs.rit.edu/~ncs/color/t_convert.html
 
-	return (a > b) ? ( (a > c) ? a : c) : ( (b > c) ? b : c) ;
-}
+	/// @todo #COLOR - cannot do HSV if channels > 3
 
-float three_way_min(float a, float b, float c)
-{
-	TAT(TATPARMS);
-
-	return (a < b) ? ( (a < c) ? a : c) : ( (b < c) ? b : c) ;
-}
-
-// http://www.cs.rit.edu/~ncs/color/t_convert.html
-/// @todo #COLOR - cannot do HSV if channels > 3
-void rgb_to_hsv(Darknet::Image im)
-{
 	TAT(TATPARMS);
 
 	assert(im.c == 3);
@@ -1263,9 +1225,11 @@ void rgb_to_hsv(Darknet::Image im)
 	}
 }
 
-/// @todo #COLOR - cannot do HSV if channels > 3
-void hsv_to_rgb(Darknet::Image im)
+
+void Darknet::hsv_to_rgb(Darknet::Image & im)
 {
+	/// @todo #COLOR - cannot do HSV if channels > 3
+
 	TAT(TATPARMS);
 
 	assert(im.c == 3);
@@ -1307,74 +1271,70 @@ void hsv_to_rgb(Darknet::Image im)
 	}
 }
 
-Darknet::Image grayscale_image(Darknet::Image im)
+
+Darknet::Image Darknet::grayscale_image(const Darknet::Image & im)
 {
 	TAT(TATPARMS);
 
 	assert(im.c == 3);
-	int i, j, k;
-	Darknet::Image gray = make_image(im.w, im.h, 1);
-	float scale[] = {0.587, 0.299, 0.114};
-	for(k = 0; k < im.c; ++k){
-		for(j = 0; j < im.h; ++j){
-			for(i = 0; i < im.w; ++i){
-				gray.data[i+im.w*j] += scale[k]*get_pixel(im, i, j, k);
+
+	Darknet::Image gray = Darknet::make_image(im.w, im.h, 1);
+	float scale[] = {0.587f, 0.299f, 0.114f};
+
+	for (int k = 0; k < im.c; ++k)
+	{
+		for (int j = 0; j < im.h; ++j)
+		{
+			for (int i = 0; i < im.w; ++i)
+			{
+				gray.data[i + im.w * j] += scale[k] * get_pixel(im, i, j, k);
 			}
 		}
 	}
+
 	return gray;
 }
 
-Darknet::Image threshold_image(Darknet::Image im, float thresh)
+
+Darknet::Image Darknet::threshold_image(const Darknet::Image & im, float thresh)
 {
 	TAT(TATPARMS);
 
-	Darknet::Image t = make_image(im.w, im.h, im.c);
+	Darknet::Image t = Darknet::make_image(im.w, im.h, im.c);
 
-	for (int i = 0; i < im.w*im.h*im.c; ++i)
+	for (int i = 0; i < im.w * im.h * im.c; ++i)
 	{
-		t.data[i] = im.data[i]>thresh ? 1 : 0;
+		t.data[i] = im.data[i]>thresh ? 1.0f : 0.0f;
 	}
 
 	return t;
 }
 
-Darknet::Image blend_image(Darknet::Image fore, Darknet::Image back, float alpha)
+
+Darknet::Image Darknet::blend_image(const Darknet::Image & fore, const Darknet::Image & back, float alpha)
 {
 	TAT(TATPARMS);
 
 	assert(fore.w == back.w && fore.h == back.h && fore.c == back.c);
-	Darknet::Image blend = make_image(fore.w, fore.h, fore.c);
-	int i, j, k;
-	for(k = 0; k < fore.c; ++k)
+	Darknet::Image blend = Darknet::make_image(fore.w, fore.h, fore.c);
+
+	for (int k = 0; k < fore.c; ++k)
 	{
-		for(j = 0; j < fore.h; ++j)
+		for (int j = 0; j < fore.h; ++j)
 		{
-			for(i = 0; i < fore.w; ++i)
+			for (int i = 0; i < fore.w; ++i)
 			{
 				float val = alpha * get_pixel(fore, i, j, k) + (1 - alpha)* get_pixel(back, i, j, k);
 				set_pixel(blend, i, j, k, val);
 			}
 		}
 	}
+
 	return blend;
 }
 
-void scale_image_channel(Darknet::Image im, int c, float v)
-{
-	TAT(TATPARMS);
 
-	int i, j;
-	for(j = 0; j < im.h; ++j){
-		for(i = 0; i < im.w; ++i){
-			float pix = get_pixel(im, i, j, c);
-			pix = pix*v;
-			set_pixel(im, i, j, c, pix);
-		}
-	}
-}
-
-void translate_image_channel(Darknet::Image im, int c, float v)
+void Darknet::scale_image_channel(Darknet::Image & im, int c, float v)
 {
 	TAT(TATPARMS);
 
@@ -1383,15 +1343,19 @@ void translate_image_channel(Darknet::Image im, int c, float v)
 		for (int i = 0; i < im.w; ++i)
 		{
 			float pix = get_pixel(im, i, j, c);
-			pix = pix+v;
+			pix = pix*v;
 			set_pixel(im, i, j, c, pix);
 		}
 	}
+
+	return;
 }
 
-/// @todo #COLOR - needs to be fixed for 1 <= c <= N
-void distort_image(Darknet::Image im, float hue, float sat, float val)
+
+void Darknet::distort_image(Darknet::Image & im, float hue, float sat, float val)
 {
+	/// @todo #COLOR - needs to be fixed for 1 <= c <= N
+
 	TAT(TATPARMS);
 
 	if (im.c >= 3)
@@ -1399,34 +1363,42 @@ void distort_image(Darknet::Image im, float hue, float sat, float val)
 		rgb_to_hsv(im);
 		scale_image_channel(im, 1, sat);
 		scale_image_channel(im, 2, val);
-		int i;
-		for(i = 0; i < im.w*im.h; ++i){
+
+		for (int i = 0; i < im.w*im.h; ++i)
+		{
 			im.data[i] = im.data[i] + hue;
-			if (im.data[i] > 1) im.data[i] -= 1;
-			if (im.data[i] < 0) im.data[i] += 1;
+			if (im.data[i] > 1) im.data[i] -= 1.0f;
+			if (im.data[i] < 0) im.data[i] += 1.0f;
 		}
-		hsv_to_rgb(im);
+		Darknet::hsv_to_rgb(im);
 	}
 	else
 	{
 		scale_image_channel(im, 0, val);
 	}
+
 	constrain_image(im);
+
+	return;
 }
 
-/// @todo #COLOR - HSV no beuno
-void random_distort_image(Darknet::Image im, float hue, float saturation, float exposure)
+
+void Darknet::random_distort_image(Darknet::Image & im, float hue, float saturation, float exposure)
 {
+	/// @todo #COLOR - HSV no beuno
+
 	TAT(TATPARMS);
 
 	float dhue = rand_uniform_strong(-hue, hue);
 	float dsat = rand_scale(saturation);
 	float dexp = rand_scale(exposure);
-	distort_image(im, dhue, dsat, dexp);
+	Darknet::distort_image(im, dhue, dsat, dexp);
+
+	return;
 }
 
 
-float bilinear_interpolate(Darknet::Image im, float x, float y, int c)
+float Darknet::bilinear_interpolate(const Darknet::Image & im, float x, float y, int c)
 {
 	TAT(TATPARMS);
 
@@ -1436,23 +1408,30 @@ float bilinear_interpolate(Darknet::Image im, float x, float y, int c)
 	float dx = x - ix;
 	float dy = y - iy;
 
-	float val = (1-dy) * (1-dx) * get_pixel_extend(im, ix, iy, c) +
+	float val =
+		(1-dy) * (1-dx) * get_pixel_extend(im, ix, iy, c) +
 		dy     * (1-dx) * get_pixel_extend(im, ix, iy+1, c) +
 		(1-dy) *   dx   * get_pixel_extend(im, ix+1, iy, c) +
 		dy     *   dx   * get_pixel_extend(im, ix+1, iy+1, c);
+
 	return val;
 }
 
-void quantize_image(Darknet::Image im)
+
+void Darknet::quantize_image(Darknet::Image & im)
 {
 	TAT(TATPARMS);
 
-	int size = im.c * im.w * im.h;
-	int i;
-	for (i = 0; i < size; ++i) im.data[i] = (int)(im.data[i] * 255) / 255. + (0.5 / 255);
+	for (int i = 0; i < im.c * im.w * im.h; ++i)
+	{
+		im.data[i] = (int)(im.data[i] * 255) / 255. + (0.5 / 255);
+	}
+
+	return;
 }
 
-void make_image_red(Darknet::Image im)
+
+void Darknet::make_image_red(Darknet::Image & im)
 {
 	TAT(TATPARMS);
 
@@ -1466,16 +1445,14 @@ void make_image_red(Darknet::Image im)
 				val += get_pixel(im, c, r, k);
 				set_pixel(im, c, r, k, 0);
 			}
-//			for (int k = 0; k < im.c; ++k)
-			{
-				//set_pixel(im, c, r, k, val);
-			}
+
 			set_pixel(im, c, r, 0, val);
 		}
 	}
 }
 
-Darknet::Image make_attention_image(int img_size, float *original_delta_cpu, float *original_input_cpu, int w, int h, int c, float alpha)
+
+Darknet::Image Darknet::make_attention_image(int img_size, float *original_delta_cpu, float *original_input_cpu, int w, int h, int c, float alpha)
 {
 	TAT(TATPARMS);
 
@@ -1486,31 +1463,42 @@ Darknet::Image make_attention_image(int img_size, float *original_delta_cpu, flo
 	attention_img.data = original_delta_cpu;
 	make_image_red(attention_img);
 
-	int k;
 	float min_val = 999999, mean_val = 0, max_val = -999999;
-	for (k = 0; k < img_size; ++k) {
-		if (original_delta_cpu[k] < min_val) min_val = original_delta_cpu[k];
-		if (original_delta_cpu[k] > max_val) max_val = original_delta_cpu[k];
+	for (int k = 0; k < img_size; ++k)
+	{
+		if (original_delta_cpu[k] < min_val)
+		{
+			min_val = original_delta_cpu[k];
+		}
+		if (original_delta_cpu[k] > max_val)
+		{
+			max_val = original_delta_cpu[k];
+		}
 		mean_val += original_delta_cpu[k];
 	}
 	mean_val = mean_val / img_size;
 	float range = max_val - min_val;
 
-	for (k = 0; k < img_size; ++k) {
+	for (int k = 0; k < img_size; ++k)
+	{
 		float val = original_delta_cpu[k];
 		val = fabs(mean_val - val) / range;
 		original_delta_cpu[k] = val * 4;
 	}
 
-	Darknet::Image resized = resize_image(attention_img, w / 4, h / 4);
-	attention_img = resize_image(resized, w, h);
-	free_image(resized);
-	for (k = 0; k < img_size; ++k) attention_img.data[k] = attention_img.data[k]*alpha + (1-alpha)*original_input_cpu[k];
+	Darknet::Image resized = Darknet::resize_image(attention_img, w / 4, h / 4);
+	attention_img = Darknet::resize_image(resized, w, h);
+	Darknet::free_image(resized);
+	for (int k = 0; k < img_size; ++k)
+	{
+		attention_img.data[k] = attention_img.data[k]*alpha + (1-alpha)*original_input_cpu[k];
+	}
 
 	return attention_img;
 }
 
-Darknet::Image resize_image(Darknet::Image im, int w, int h)
+
+Darknet::Image Darknet::resize_image(const Darknet::Image & im, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -1519,18 +1507,25 @@ Darknet::Image resize_image(Darknet::Image im, int w, int h)
 		return copy_image(im);
 	}
 
-	Darknet::Image resized = make_image(w, h, im.c);
-	Darknet::Image part = make_image(w, im.h, im.c);
-	int r, c, k;
-	float w_scale = (float)(im.w - 1) / (w - 1);
-	float h_scale = (float)(im.h - 1) / (h - 1);
-	for(k = 0; k < im.c; ++k){
-		for(r = 0; r < im.h; ++r){
-			for(c = 0; c < w; ++c){
+	Darknet::Image resized = Darknet::make_image(w, h, im.c);
+	Darknet::Image part = Darknet::make_image(w, im.h, im.c);
+
+	const float w_scale = (float)(im.w - 1) / (w - 1);
+	const float h_scale = (float)(im.h - 1) / (h - 1);
+
+	for (int k = 0; k < im.c; ++k)
+	{
+		for (int r = 0; r < im.h; ++r)
+		{
+			for (int c = 0; c < w; ++c)
+			{
 				float val = 0;
-				if(c == w-1 || im.w == 1){
+				if (c == w-1 || im.w == 1)
+				{
 					val = get_pixel(im, im.w-1, r, k);
-				} else {
+				}
+				else
+				{
 					float sx = c*w_scale;
 					int ix = (int) sx;
 					float dx = sx - ix;
@@ -1540,60 +1535,69 @@ Darknet::Image resize_image(Darknet::Image im, int w, int h)
 			}
 		}
 	}
-	for(k = 0; k < im.c; ++k){
-		for(r = 0; r < h; ++r){
+
+	for (int k = 0; k < im.c; ++k)
+	{
+		for (int r = 0; r < h; ++r)
+		{
 			float sy = r*h_scale;
 			int iy = (int) sy;
 			float dy = sy - iy;
-			for(c = 0; c < w; ++c){
+			for (int c = 0; c < w; ++c)
+			{
 				float val = (1-dy) * get_pixel(part, c, iy, k);
 				set_pixel(resized, c, r, k, val);
 			}
-			if(r == h-1 || im.h == 1) continue;
-			for(c = 0; c < w; ++c){
+
+			if (r == h-1 || im.h == 1)
+			{
+				continue;
+			}
+
+			for (int c = 0; c < w; ++c)
+			{
 				float val = dy * get_pixel(part, c, iy+1, k);
 				add_pixel(resized, c, r, k, val);
 			}
 		}
 	}
 
-	free_image(part);
+	Darknet::free_image(part);
+
 	return resized;
 }
 
 
-void test_resize(char *filename)
+void Darknet::test_resize(char *filename)
 {
 	TAT(TATPARMS);
 
-	Darknet::Image im = load_image(filename, 0,0, 3);
+	Darknet::Image im = Darknet::load_image(filename, 0,0, 3);
 	float mag = mag_array(im.data, im.w*im.h*im.c);
 	printf("L2 Norm: %f\n", mag);
-	Darknet::Image gray = grayscale_image(im);
+	Darknet::Image gray = Darknet::grayscale_image(im);
 
-	Darknet::Image c1 = copy_image(im);
-	Darknet::Image c2 = copy_image(im);
-	Darknet::Image c3 = copy_image(im);
-	Darknet::Image c4 = copy_image(im);
-	distort_image(c1, .1, 1.5, 1.5);
-	distort_image(c2, -.1, .66666, .66666);
-	distort_image(c3, .1, 1.5, .66666);
-	distort_image(c4, .1, .66666, 1.5);
+	Darknet::Image c1 = Darknet::copy_image(im);
+	Darknet::Image c2 = Darknet::copy_image(im);
+	Darknet::Image c3 = Darknet::copy_image(im);
+	Darknet::Image c4 = Darknet::copy_image(im);
+	Darknet::distort_image(c1, .1, 1.5, 1.5);
+	Darknet::distort_image(c2, -.1, .66666, .66666);
+	Darknet::distort_image(c3, .1, 1.5, .66666);
+	Darknet::distort_image(c4, .1, .66666, 1.5);
 
-
-	show_image(im,   "Original");
-	show_image(gray, "Gray");
-	show_image(c1, "C1");
-	show_image(c2, "C2");
-	show_image(c3, "C3");
-	show_image(c4, "C4");
+	Darknet::show_image(im,   "Original");
+	Darknet::show_image(gray, "Gray");
+	Darknet::show_image(c1, "C1");
+	Darknet::show_image(c2, "C2");
+	Darknet::show_image(c3, "C3");
+	Darknet::show_image(c4, "C4");
 
 	while(1)
 	{
 		Darknet::Image aug = random_augment_image(im, 0, .75, 320, 448, 320);
-		show_image(aug, "aug");
-		free_image(aug);
-
+		Darknet::show_image(aug, "aug");
+		Darknet::free_image(aug);
 
 		float exposure = 1.15;
 		float saturation = 1.15;
@@ -1605,77 +1609,132 @@ void test_resize(char *filename)
 		float dsat = rand_scale(saturation);
 		float dhue = rand_uniform(-hue, hue);
 
-		distort_image(c, dhue, dsat, dexp);
-		show_image(c, "rand");
+		Darknet::distort_image(c, dhue, dsat, dexp);
+		Darknet::show_image(c, "rand");
 		printf("%f %f %f\n", dhue, dsat, dexp);
-		free_image(c);
+		Darknet::free_image(c);
 		wait_until_press_key_cv();
 	}
 }
 
 
-Darknet::Image load_image(char * filename, int desired_width, int desired_height, int channels)
+Darknet::Image Darknet::load_image(const char * filename, int desired_width, int desired_height, int channels)
 {
 	TAT(TATPARMS);
 
-	Darknet::Image out = load_image_cv(filename, channels);
+	cv::Mat mat = cv::imread(filename);
 
-	if (desired_height > 0 && desired_width > 0 && (desired_height != out.h || desired_width != out.w))
+	if (mat.empty())
 	{
-		Darknet::Image resized = resize_image(out, desired_width, desired_height);
-		free_image(out);
-		out = resized;
+		darknet_fatal_error(DARKNET_LOC, "failed to load image file \"%s\"", filename);
 	}
-	return out;
+
+	if (channels == 0)
+	{
+		// we didn't specify how many channels we want...so assume it is 3-channel RGB
+		channels = 3;
+	}
+
+	if (channels == 1 and mat.channels() == 1)
+	{
+		// nothing to do, we already have a greyscale image
+	}
+	else if (channels == 1 and mat.channels() == 3)
+	{
+		cv::cvtColor(mat, mat, cv::COLOR_BGR2GRAY);
+	}
+	else if (channels == 1 and mat.channels() == 4)
+	{
+		cv::cvtColor(mat, mat, cv::COLOR_BGRA2GRAY);
+	}
+	else if (channels == 3 and mat.channels() == 1)
+	{
+		cv::cvtColor(mat, mat, cv::COLOR_GRAY2RGB);
+	}
+	else if (channels == 3 and mat.channels() == 3)
+	{
+		cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
+	}
+	else if (channels == 3 and mat.channels() == 4)
+	{
+		cv::cvtColor(mat, mat, cv::COLOR_BGRA2RGB);
+	}
+
+	Darknet::Image image = mat_to_image(mat);
+
+	if (desired_width > 0 and desired_height > 0)
+	{
+		Darknet::Image resized = Darknet::resize_image(image, desired_width, desired_height);
+		Darknet::free_image(image);
+		image = resized;
+	}
+
+	return image;
 }
 
-Darknet::Image get_image_layer(Darknet::Image m, int l)
+
+Darknet::Image Darknet::get_image_layer(const Darknet::Image & m, int l)
 {
 	TAT(TATPARMS);
 
-	Darknet::Image out = make_image(m.w, m.h, 1);
-	int i;
-	for(i = 0; i < m.h*m.w; ++i){
-		out.data[i] = m.data[i+l*m.h*m.w];
+	Darknet::Image out = Darknet::make_image(m.w, m.h, 1);
+
+	for (int i = 0; i < m.h*m.w; ++i)
+	{
+		out.data[i] = m.data[i + l * m.h * m.w];
 	}
+
 	return out;
 }
 
-void print_image(Darknet::Image m)
+
+void Darknet::print_image(const Darknet::Image & m)
 {
 	TAT(TATPARMS);
 
-	int i, j, k;
-	for(i =0 ; i < m.c; ++i){
-		for(j =0 ; j < m.h; ++j){
-			for(k = 0; k < m.w; ++k){
+	for (int i =0 ; i < m.c; ++i)
+	{
+		for (int j =0 ; j < m.h; ++j)
+		{
+			for (int k = 0; k < m.w; ++k)
+			{
 				printf("%.2lf, ", m.data[i*m.h*m.w + j*m.w + k]);
-				if(k > 30) break;
+				if (k > 30)
+				{
+					break;
+				}
 			}
 			printf("\n");
-			if(j > 30) break;
+			if (j > 30)
+			{
+				break;
+			}
 		}
 		printf("\n");
 	}
 	printf("\n");
+
+	return;
 }
 
-Darknet::Image collapse_images_vert(Darknet::Image *ims, int n)
+
+Darknet::Image Darknet::collapse_images_vert(const Darknet::Image * ims, int n)
 {
 	TAT(TATPARMS);
 
 	int color = 1;
 	int border = 1;
-	int h,w,c;
-	w = ims[0].w;
-	h = (ims[0].h + border) * n - border;
-	c = ims[0].c;
-	if(c != 3 || !color){
+
+	int w = ims[0].w;
+	int h = (ims[0].h + border) * n - border;
+	int c = ims[0].c;
+	if(c != 3 || !color)
+	{
 		w = (w+border)*c - border;
 		c = 1;
 	}
 
-	Darknet::Image filters = make_image(w, h, c);
+	Darknet::Image filters = Darknet::make_image(w, h, c);
 
 	for (int i = 0; i < n; ++i)
 	{
@@ -1693,33 +1752,35 @@ Darknet::Image collapse_images_vert(Darknet::Image *ims, int n)
 				int w_offset = j*(ims[0].w+border);
 				Darknet::Image layer = get_image_layer(copy, j);
 				embed_image(layer, filters, w_offset, h_offset);
-				free_image(layer);
+				Darknet::free_image(layer);
 			}
 		}
-		free_image(copy);
+		Darknet::free_image(copy);
 	}
+
 	return filters;
 }
 
-Darknet::Image collapse_images_horz(Darknet::Image *ims, int n)
+
+Darknet::Image collapse_images_horz(const Darknet::Image * ims, int n)
 {
 	TAT(TATPARMS);
 
 	int color = 1;
 	int border = 1;
-	int h,w,c;
 	int size = ims[0].h;
-	h = size;
-	w = (ims[0].w + border) * n - border;
-	c = ims[0].c;
-	if(c != 3 || !color){
+	int h = size;
+	int w = (ims[0].w + border) * n - border;
+	int c = ims[0].c;
+	if(c != 3 || !color)
+	{
 		h = (h+border)*c - border;
 		c = 1;
 	}
 
-	Darknet::Image filters = make_image(w, h, c);
-	int i,j;
-	for(i = 0; i < n; ++i)
+	Darknet::Image filters = Darknet::make_image(w, h, c);
+
+	for (int i = 0; i < n; ++i)
 	{
 		int w_offset = i*(size+border);
 		Darknet::Image copy = copy_image(ims[i]);
@@ -1731,29 +1792,21 @@ Darknet::Image collapse_images_horz(Darknet::Image *ims, int n)
 		}
 		else
 		{
-			for(j = 0; j < copy.c; ++j){
+			for (int j = 0; j < copy.c; ++j)
+			{
 				int h_offset = j*(size+border);
 				Darknet::Image layer = get_image_layer(copy, j);
 				embed_image(layer, filters, w_offset, h_offset);
-				free_image(layer);
+				Darknet::free_image(layer);
 			}
 		}
-		free_image(copy);
+		Darknet::free_image(copy);
 	}
 	return filters;
 }
 
-void show_image_normalized(Darknet::Image im, const char *name)
-{
-	TAT(TATPARMS);
 
-	Darknet::Image c = copy_image(im);
-	normalize_image(c);
-	show_image(c, name);
-	free_image(c);
-}
-
-void show_images(Darknet::Image *ims, int n, const char * window)
+void Darknet::show_images(Darknet::Image *ims, int n, const char * window)
 {
 	TAT(TATPARMS);
 
@@ -1761,19 +1814,25 @@ void show_images(Darknet::Image *ims, int n, const char * window)
 
 	normalize_image(m);
 	save_image(m, window);
-	show_image(m, window);
-	free_image(m);
+	Darknet::show_image(m, window);
+	Darknet::free_image(m);
+
+	return;
 }
 
-void free_image(Darknet::Image m)
+
+void Darknet::free_image(Darknet::Image im)
 {
 	TAT(TATPARMS);
 
-	if(m.data)
+	if (im.data)
 	{
-		free(m.data);
+		free(im.data);
 	}
+
+	return;
 }
+
 
 // Fast copy data from a contiguous byte array into the image.
 void copy_image_from_bytes(Darknet::Image im, char *pdata)
@@ -1784,15 +1843,16 @@ void copy_image_from_bytes(Darknet::Image im, char *pdata)
 	int w = im.w;
 	int h = im.h;
 	int c = im.c;
+
 	for (int k = 0; k < c; ++k)
 	{
 		for (int j = 0; j < h; ++j)
 		{
 			for (int i = 0; i < w; ++i)
 			{
-				int dst_index = i + w * j + w * h*k;
-				int src_index = k + c * i + c * w*j;
-				im.data[dst_index] = (float)data[src_index] / 255.;
+				int dst_index = i + w * j + w * h * k;
+				int src_index = k + c * i + c * w * j;
+				im.data[dst_index] = (float)data[src_index] / 255.0f;
 			}
 		}
 	}

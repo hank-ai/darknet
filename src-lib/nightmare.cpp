@@ -52,8 +52,8 @@ void optimize_picture(network *net, Darknet::Image orig, int max_layer, float sc
 	int dy = rand()%16 - 8;
 	int flip = rand()%2;
 
-	Darknet::Image crop = crop_image(orig, dx, dy, orig.w, orig.h);
-	Darknet::Image im = resize_image(crop, (int)(orig.w * scale), (int)(orig.h * scale));
+	Darknet::Image crop = Darknet::crop_image(orig, dx, dy, orig.w, orig.h);
+	Darknet::Image im = Darknet::resize_image(crop, (int)(orig.w * scale), (int)(orig.h * scale));
 	if (flip)
 	{
 		flip_image(im);
@@ -63,7 +63,7 @@ void optimize_picture(network *net, Darknet::Image orig, int max_layer, float sc
 	Darknet::Layer & last = net->layers[net->n-1];
 	//net->layers[net->n - 1].activation = LINEAR;
 
-	Darknet::Image delta = make_image(im.w, im.h, im.c);
+	Darknet::Image delta = Darknet::make_image(im.w, im.h, im.c);
 
 	Darknet::NetworkState state = {0};
 	state.net = *net;
@@ -99,16 +99,8 @@ void optimize_picture(network *net, Darknet::Image orig, int max_layer, float sc
 	}
 
 	//normalize_array(delta.data, delta.w*delta.h*delta.c);
-	Darknet::Image resized = resize_image(delta, orig.w, orig.h);
-	Darknet::Image out = crop_image(resized, -dx, -dy, orig.w, orig.h);
-
-	/*
-	image g = grayscale_image(out);
-	free_image(out);
-	out = g;
-	*/
-
-	//rate = rate / abs_mean(out.data, out.w*out.h*out.c);
+	Darknet::Image resized = Darknet::resize_image(delta, orig.w, orig.h);
+	Darknet::Image out = Darknet::crop_image(resized, -dx, -dy, orig.w, orig.h);
 
 	if(norm)
 	{
@@ -128,11 +120,11 @@ void optimize_picture(network *net, Darknet::Image orig, int max_layer, float sc
 
 	constrain_image(orig);
 
-	free_image(crop);
-	free_image(im);
-	free_image(delta);
-	free_image(resized);
-	free_image(out);
+	Darknet::free_image(crop);
+	Darknet::free_image(im);
+	Darknet::free_image(delta);
+	Darknet::free_image(resized);
+	Darknet::free_image(out);
 
 }
 
@@ -174,7 +166,7 @@ void reconstruct_picture(network net, float *features, Darknet::Image recon, Dar
 {
 	for (int iter = 0; iter < iters; ++iter)
 	{
-		Darknet::Image delta = make_image(recon.w, recon.h, recon.c);
+		Darknet::Image delta = Darknet::make_image(recon.w, recon.h, recon.c);
 
 		Darknet::NetworkState state = {0};
 		state.net = net;
@@ -252,9 +244,9 @@ void run_nightmare(int argc, char **argv)
 	char *imbase = basecfg(input);
 
 	set_batch_network(&net, 1);
-	Darknet::Image im = load_image(input, 0, 0, net.c);
+	Darknet::Image im = Darknet::load_image(input, 0, 0, net.c);
 
-	show_image(im, "original image");
+	Darknet::show_image(im, "original image");
 
 #if 0
 	if (0)
@@ -272,7 +264,7 @@ void run_nightmare(int argc, char **argv)
 			}
 		}
 
-		image resized = resize_image(im, scale*im.w, scale*im.h);
+		image resized = Darknet::resize_image(im, scale*im.w, scale*im.h);
 		free_image(im);
 		im = resized;
 	}
@@ -287,12 +279,13 @@ void run_nightmare(int argc, char **argv)
 		int zz = 0;
 		network_predict(net, im.data);
 		Darknet::Image out_im = get_network_image(net);
-		Darknet::Image crop = crop_image(out_im, zz, zz, out_im.w-2*zz, out_im.h-2*zz);
-		Darknet::Image f_im = resize_image(crop, out_im.w, out_im.h);
-		free_image(crop);
+		Darknet::Image crop = Darknet::crop_image(out_im, zz, zz, out_im.w-2*zz, out_im.h-2*zz);
+		Darknet::Image f_im = Darknet::resize_image(crop, out_im.w, out_im.h);
+		Darknet::free_image(crop);
 		printf("%d features\n", out_im.w*out_im.h*out_im.c);
 
-		im = resize_image(im, im.w, im.h);
+		/// @todo Is there a memory leak here because we don't free the original im?
+		im = Darknet::resize_image(im, im.w, im.h);
 		f_im = resize_image(f_im, f_im.w, f_im.h);
 		features = f_im.data;
 
@@ -301,9 +294,9 @@ void run_nightmare(int argc, char **argv)
 			features[i] += rand_uniform(-0.19f, 0.19f);
 		}
 
-		free_image(im);
-		im = make_random_image(im.w, im.h, im.c);
-		update = make_image(im.w, im.h, im.c);
+		Darknet::free_image(im);
+		im = Darknet::make_random_image(im.w, im.h, im.c);
+		update = Darknet::make_image(im.w, im.h, im.c);
 	}
 
 	for (int e = 0; e < rounds; ++e)
@@ -331,7 +324,7 @@ void run_nightmare(int argc, char **argv)
 		if (0)
 		{
 			Darknet::Image g = grayscale_image(im);
-			free_image(im);
+			Darknet::free_image(im);
 			im = g;
 		}
 
@@ -349,18 +342,18 @@ void run_nightmare(int argc, char **argv)
 
 		if (rotate)
 		{
-			Darknet::Image rot = rotate_image(im, rotate);
-			free_image(im);
+			Darknet::Image rot = Darknet::rotate_image(im, rotate);
+			Darknet::free_image(im);
 			im = rot;
 		}
 
-		Darknet::Image crop = crop_image(im, im.w * (1. - zoom)/2., im.h * (1.-zoom)/2., im.w*zoom, im.h*zoom);
-		Darknet::Image resized = resize_image(crop, im.w, im.h);
-		free_image(im);
-		free_image(crop);
+		Darknet::Image crop = Darknet::crop_image(im, im.w * (1. - zoom)/2., im.h * (1.-zoom)/2., im.w*zoom, im.h*zoom);
+		Darknet::Image resized = Darknet::resize_image(crop, im.w, im.h);
+		Darknet::free_image(im);
+		Darknet::free_image(crop);
 		im = resized;
 
-		show_image(im, "results");
+		Darknet::show_image(im, "results");
 		wait_key_cv(20);
 	}
 

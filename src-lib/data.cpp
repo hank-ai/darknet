@@ -164,7 +164,7 @@ matrix load_image_paths(char **paths, int n, int w, int h, int c)
 
 	for (i = 0; i < n; ++i)
 	{
-		Darknet::Image im = load_image(paths[i], w, h, c);  ///< @todo #COLOR
+		Darknet::Image im = Darknet::load_image(paths[i], w, h, c);  ///< @todo #COLOR
 		X.vals[i] = im.data;
 		X.cols = im.h*im.w*im.c;
 	}
@@ -1002,6 +1002,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			const char *filename = random_paths[i];
 
 			mat_cv *src;
+			/// @todo V3 get rid of mat_cv
 			src = load_image_mat_cv(filename, c);
 			if (src == NULL)
 			{
@@ -1187,14 +1188,14 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 				}
 				else if (i_mixup == 1)
 				{
-					Darknet::Image old_img = make_empty_image(w, h, c);
+					Darknet::Image old_img = Darknet::make_empty_image(w, h, c);
 					old_img.data = d.X.vals[i];
 					//show_image(ai, "new");
 					//show_image(old_img, "old");
 					//wait_until_press_key_cv();
 					blend_images_cv(ai, 0.5, old_img, 0.5);
 					blend_truth(d.y.vals[i], boxes, truth_size, truth);
-					free_image(old_img);
+					Darknet::free_image(old_img);
 					d.X.vals[i] = ai.data;
 				}
 			}
@@ -1202,7 +1203,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			{
 				if (i_mixup == 0)
 				{
-					Darknet::Image tmp_img = make_image(w, h, c);
+					Darknet::Image tmp_img = Darknet::make_image(w, h, c);
 					d.X.vals[i] = tmp_img.data;
 				}
 
@@ -1251,7 +1252,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
 				blend_truth_mosaic(d.y.vals[i], boxes, truth_size, truth, w, h, cut_x[i], cut_y[i], i_mixup, left_shift, right_shift, top_shift, bot_shift, w, h, mosaic_bound);
 
-				free_image(ai);
+				Darknet::free_image(ai);
 				ai.data = d.X.vals[i];
 			}
 
@@ -1281,11 +1282,11 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 					//char buff_src[1000];
 					//sprintf(buff_src, "src_%d_%d_%s_%d", random_index, i, basecfg((char*)filename), random_gen());
 					//show_image_mat(src, buff_src);
-					show_image(tmp_ai, buff);
+					Darknet::show_image(tmp_ai, buff);
 					wait_until_press_key_cv();
 				}
 				printf("\nYou use flag -show_imgs, so will be saved aug_...jpg images. Click on window and press ESC button \n");
-				free_image(tmp_ai);
+				Darknet::free_image(tmp_ai);
 			}
 
 			release_mat(&src);
@@ -1319,7 +1320,7 @@ void Darknet::load_single_image_data(load_args args)
 		{
 			// 2024:  used in coco.cpp, detector.cpp, yolo.cpp
 			*(args.im) = load_image(args.path, 0, 0, args.c);
-			*(args.resized) = resize_image(*(args.im), args.w, args.h);
+			*(args.resized) = Darknet::resize_image(*(args.im), args.w, args.h);
 			break;
 		}
 		case LETTERBOX_DATA:
