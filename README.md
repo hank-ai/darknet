@@ -103,7 +103,7 @@ See the notebooks in the `colab` subdirectory.
 
 [![Darknet build tutorial for Linux](doc/linux_build_thumbnail.jpg)](https://www.youtube.com/watch?v=WTT1s8JjLFk)
 
-* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
+* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.  Either CUDA or CUDA+cuDNN is required if you plan to train your own custom network.
 	* Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
 	* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#cudnn-package-manager-installation-overview> to download and install cuDNN.
 	* Once you install CUDA make sure you can run `nvcc` and `nvidia-smi`.  You may have to [modify your `PATH` variable](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#mandatory-actions).
@@ -214,7 +214,7 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 >
 > Note there are many other optional modules you may want to add when building OpenCV.  Run `.\vcpkg.exe search opencv` to see the full list.
 
-* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
+* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.  Either CUDA or CUDA+cuDNN is required if you plan to train your own custom network.
 	* Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
 	* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#download-windows> to download and install cuDNN.
 	* Once you install CUDA make sure you can run `nvcc` and `nvidia-smi`.  You may have to modify your `PATH` variable.
@@ -390,7 +390,7 @@ darknet detector -map -dont_show --verbose train animals.data animals.cfg
 
 # Roadmap
 
-Last updated 2024-06-04:
+Last updated 2024-08-06:
 
 ## Completed
 
@@ -420,9 +420,10 @@ Last updated 2024-06-04:
 
 ## Short-term goals
 
+* [ ] pass-by-reference where possible (in progress)
 * [ ] swap out printf() for std::cout (in progress)
-* [ ] clean up .hpp files
-* [ ] re-write darknet.h
+* [ ] clean up .hpp files (in progress)
+* [ ] re-write darknet.h (in progress)
 * [ ] look into old zed camera support
 * [ ] better and more consistent command line parsing (in progress)
 
@@ -431,9 +432,9 @@ Last updated 2024-06-04:
 * [ ] remove all `char*` code and replace with `std::string`
 * [ ] don't hide warnings and clean up compiler warnings
 * [ ] fix build for ARM-based Jetson devices
-* [ ] better use of `cv::Mat` instead of the custom `image` structure in C
-* [ ] do not cast `cv::Mat` to `void*` but use it as a proper C++ object
-* [ ] completely remove internal/obsolete `image` structure
+* [ ] better use of `cv::Mat` instead of the custom `image` structure in C (in progress)
+* [ ] do not cast `cv::Mat` to `void*` but use it as a proper C++ object (in progress)
+* [ ] fix or be consistent in how internal `image` structure gets used (in progress)
 * [ ] replace old `list` functionality with `std::vector` or `std::list`
 * [ ] fix support for 1-channel greyscale images
 * [ ] add support for N-channel images where N > 3 (e.g., images with an additional depth or thermal channel)
