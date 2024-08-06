@@ -168,7 +168,6 @@ namespace Darknet
 
 	void hsv_to_rgb(Darknet::Image & im);
 
-
 	void copy_image_from_bytes(Darknet::Image im, char *pdata);
 	Darknet::Image letterbox_image(const Darknet::Image & im, int w, int h);
 	void letterbox_image_into(const Darknet::Image & im, int w, int h, Darknet::Image & boxed);
@@ -179,7 +178,6 @@ namespace Darknet
 	void composite_3d(char *f1, char *f2, char *out, int delta);
 	int best_3d_shift_r(const Darknet::Image & a, const Darknet::Image & b, int min, int max);
 	int best_3d_shift(const Darknet::Image & a, const Darknet::Image & b, int min, int max);
-
 
 	Darknet::Image grayscale_image(const Darknet::Image & im);
 	Darknet::Image threshold_image(const Darknet::Image & im, float thresh);

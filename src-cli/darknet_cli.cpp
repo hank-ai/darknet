@@ -9,12 +9,8 @@
 #include "darknet_internal.hpp"
 
 
-/// @todo V3 look through these and see what we no longer need
 extern void run_detector(int argc, char **argv);
 extern void run_nightmare(int argc, char **argv);
-extern void run_char_rnn(int argc, char **argv);
-extern void run_vid_rnn(int argc, char **argv);
-extern void run_art(int argc, char **argv);
 
 
 void average(int argc, char *argv[])
@@ -555,13 +551,11 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "rescale")		{ rescale_net		(argv[2], argv[3], argv[4]); }
 		else if (cfg_and_state.command == "reset")			{ reset_normalize_net(argv[2], argv[3], argv[4]); }
 		else if (cfg_and_state.command == "rgbgr")			{ rgbgr_net			(argv[2], argv[3], argv[4]); }
-		else if (cfg_and_state.command == "rnn")			{ run_char_rnn		(argc, argv);	}
 		else if (cfg_and_state.command == "speed")			{ speed				(cfg_and_state.cfg_filename.string().c_str(), 0); }
 		else if (cfg_and_state.command == "statistics")		{ statistics_net	(cfg_and_state.cfg_filename.string().c_str(), cfg_and_state.weights_filename.string().c_str()); }
 		else if (cfg_and_state.command == "test")			{ Darknet::test_resize(argv[2]);	} ///< @todo V3 what is this?
 		else if (cfg_and_state.command == "imtest")			{ Darknet::test_resize(argv[2]);	} ///< @see "test"
 		else if (cfg_and_state.command == "version")		{ /* nothing else to do, we've already displayed the version information */ }
-		else if (cfg_and_state.command == "vid")			{ run_vid_rnn		(argc, argv);	} ///< @todo V3 what is this?
 		else if (cfg_and_state.command == "visualize")
 		{
 			if (cfg_and_state.cfg_filename.empty())

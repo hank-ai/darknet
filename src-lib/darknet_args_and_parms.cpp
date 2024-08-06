@@ -91,7 +91,6 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("rescale"		, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("reset"		, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("rgbgr"		, ArgsAndParms::EType::kCommand	, ""),
-		ArgsAndParms("rnn"			, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("speed"		, ArgsAndParms::EType::kCommand	, "Perform a quick test to see how fast the specified neural network runs."),
 		ArgsAndParms("statistics"	, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("test"			, ArgsAndParms::EType::kCommand	, ""),
@@ -99,7 +98,6 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("train"		, ArgsAndParms::EType::kFunction, "Train a new neural network, or continue training an existing neural network."),
 		ArgsAndParms("valid"		, ArgsAndParms::EType::kFunction, ""),
 		ArgsAndParms("version"		, ArgsAndParms::EType::kCommand	, "Display version information."),
-		ArgsAndParms("vid"			, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("visualize"	, ArgsAndParms::EType::kCommand	, "Display the weights from diferent layers in a neural network."),
 
 		// global options
