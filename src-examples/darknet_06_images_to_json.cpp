@@ -29,6 +29,8 @@ int main(int argc, char * argv[])
 		json["file"] = JSON::array();
 		size_t total_objects_detected = 0;
 
+		const Darknet::VStr & names = Darknet::get_class_names(net);
+
 		for (const auto & parm : parms)
 		{
 			if (parm.type == Darknet::EParmType::kFilename)
@@ -54,12 +56,12 @@ int main(int argc, char * argv[])
 						const size_t count = j["all_probabilities"].size();
 						j["all_probabilities"][count]["class"]			= k;
 						j["all_probabilities"][count]["probability"]	= v;
-						j["all_probabilities"][count]["name"]			= "TODO";
+						j["all_probabilities"][count]["name"]			= names.at(k);
 					}
 
 					j["best_class"]				= pred.best_class;
 					j["best_probability"]		= pred.prob.at(pred.best_class);
-					j["name"]					= "TODO " + std::to_string(static_cast<int>(std::round(100.0f * pred.prob.at(pred.best_class)))) + "%";
+					j["name"]					= names.at(pred.best_class) + " " + std::to_string(static_cast<int>(std::round(100.0f * pred.prob.at(pred.best_class)))) + "%";
 					j["rect"]["x"]				= pred.rect.x;
 					j["rect"]["y"]				= pred.rect.y;
 					j["rect"]["width"]			= pred.rect.width;

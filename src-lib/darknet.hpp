@@ -34,6 +34,7 @@ namespace Darknet
 	using VFloat		= std::vector<float>;
 	using VInt			= std::vector<int>;
 	using VStr			= std::vector<std::string>;
+	using VScalars		= std::vector<cv::Scalar>;
 	using NetworkPtr	= ::NetworkPtr;
 	/// @}
 
@@ -328,7 +329,7 @@ namespace Darknet
 	 *
 	 * @since 2024-07-30
 	 */
-	cv::Mat annotate(const Predictions & predictions, cv::Mat mat);
+	cv::Mat annotate(const Darknet::NetworkPtr ptr, const Predictions & predictions, cv::Mat mat);
 
 	/** Combination of @ref Darknet::predict() and @ref Darknet::annotate().
 	 *
@@ -337,6 +338,18 @@ namespace Darknet
 	 * @since 2024-07-30
 	 */
 	Predictions predict_and_annotate(const Darknet::NetworkPtr ptr, cv::Mat mat);
+
+	/** Get access to the vector of names read from the .names file when the configuration was loaded.
+	 *
+	 * @since 2024-08-06
+	 */
+	const Darknet::VStr & get_class_names(const Darknet::NetworkPtr ptr);
+
+	/** Get access to the vector of colours assigned to each class when the .names file was loaded.
+	 *
+	 * @since 2024-08-06
+	 */
+	const Darknet::VScalars & get_class_colours(const Darknet::NetworkPtr ptr);
 
 	std::ostream & operator<<(std::ostream & os, const Darknet::Prediction & pred);
 	std::ostream & operator<<(std::ostream & os, const Darknet::Predictions & preds);

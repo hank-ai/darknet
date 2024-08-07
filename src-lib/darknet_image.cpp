@@ -263,19 +263,23 @@ void Darknet::draw_bbox(Darknet::Image & a, const box & bbox, int w, float r, fl
 
 
 // Creates array of detections with prob > thresh and fills best_class for them
-detection_with_class* get_actual_detections(const detection *dets, int dets_num, float thresh, int* selected_detections_num, char **names)
+detection_with_class* get_actual_detections(const detection *dets, int dets_num, float thresh, int* selected_detections_num, const Darknet::VStr & names)
 {
 	TAT(TATPARMS);
 
 	int selected_num = 0;
 	detection_with_class* result_arr = (detection_with_class*)xcalloc(dets_num, sizeof(detection_with_class));
 	int i;
-	for (i = 0; i < dets_num; ++i) {
+	for (i = 0; i < dets_num; ++i)
+	{
 		int best_class = -1;
 		float best_class_prob = thresh;
 		int j;
-		for (j = 0; j < dets[i].classes; ++j) {
-			int show = strncmp(names[j], "dont_show", 9);
+		for (j = 0; j < dets[i].classes; ++j)
+		{
+//			int show = strncmp(names[j], "dont_show", 9);
+			bool show = (names[j].find("dont_show") != 0);
+
 			if (dets[i].prob[j] > best_class_prob && show) {
 				best_class = j;
 				best_class_prob = dets[i].prob[j];
@@ -317,7 +321,7 @@ int compare_by_probs(const void *a_ptr, const void *b_ptr)
 }
 
 
-void Darknet::draw_detections_v3(Darknet::Image & im, const detection * dets, const int num, const float thresh, char **names, const int classes, const int ext_output)
+void Darknet::draw_detections_v3(Darknet::Image & im, const detection * dets, const int num, const float thresh, const Darknet::VStr & names, const int classes, const int ext_output)
 {
 	TAT(TATPARMS);
 
@@ -335,7 +339,7 @@ void Darknet::draw_detections_v3(Darknet::Image & im, const detection * dets, co
 	for (i = 0; i < selected_detections_num; ++i)
 	{
 		const int best_class = selected_detections[i].best_class;
-		printf("%s: %.0f%%", names[best_class], selected_detections[i].det.prob[best_class] * 100);
+		printf("%s: %.0f%%", names[best_class].c_str(), selected_detections[i].det.prob[best_class] * 100);
 		if (ext_output)
 		{
 			printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",

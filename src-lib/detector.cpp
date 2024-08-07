@@ -4,7 +4,6 @@
 #endif
 
 #include "darknet_internal.hpp"
-#include "parser.hpp"
 #include "option_list.hpp"
 #include "data.hpp"
 
@@ -64,26 +63,16 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		{
 			free_layer_custom(net_map.layers[k], 1);
 		}
-
-		char *name_list = option_find_str(options, "names", nullptr);
-		int names_size = 0;
-		char **names = get_labels_custom(name_list, &names_size);
-		if (net_classes != names_size)
-		{
-			darknet_fatal_error(DARKNET_LOC, "In the file %s, the number of names %d does not match classes=%d in the file %s", name_list, names_size, net_classes, cfgfile);
-		}
-
-		Darknet::remember_class_names(names, names_size);
-
-		free_ptrs((void**)names, net_map.layers[net_map.n - 1].classes);
 	}
+	Darknet::load_names(&net_map, option_find_str(options, "names", "unknown.names"));
 
 	char *base = basecfg(cfgfile);
 
 	float avg_loss = -1.0f;
 	float avg_contrastive_acc = 0.0f;
-	network* nets = (network*)xcalloc(ngpus, sizeof(network));
 
+	// note we load a new network for every GPU used to train
+	network* nets = (network*)xcalloc(ngpus, sizeof(network));
 	for (int k = 0; k < ngpus; ++k)
 	{
 #ifdef GPU
@@ -101,6 +90,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			*nets[k].cur_iteration = 0;
 		}
 		nets[k].learning_rate *= ngpus;
+
+		nets[k].details->class_names = net_map.details->class_names;
 	}
 
 	network net = nets[0];
@@ -205,7 +196,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	//args.threads = 12 * ngpus;    // Ryzen 7 2700X (16 logical cores)
 
 	// This is where we draw the initial blank chart.  That chart is then updated by update_train_loss_chart() at every iteration.
-	Darknet::initialize_new_charts(net.max_batches, net.max_chart_loss);
+	Darknet::initialize_new_charts(net);
 
 	if (net.contrastive && args.threads > net.batch/2)
 	{
@@ -780,9 +771,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 	int j;
 	list *options = read_data_cfg(datacfg);
 	char *valid_images = option_find_str(options, "valid", nullptr);
-	char *name_list = option_find_str(options, "names", nullptr);
 	char *prefix = option_find_str(options, "results", "results");
-	char **names = get_labels(name_list);
 	char *mapf = option_find_str(options, "map", 0);
 	int *map = 0;
 	if (mapf) map = read_map(mapf);
@@ -796,6 +785,8 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 	fuse_conv_batchnorm(net);
 	calculate_binary_weights(net);
 	fprintf(stderr, "Learning Rate: %g, Momentum: %g, Decay: %g\n", net.learning_rate, net.momentum, net.decay);
+
+	Darknet::load_names(&net, option_find_str(options, "names", "unknown.names"));
 
 	list *plist = get_paths(valid_images);
 	char **paths = (char **)list_to_array(plist);
@@ -862,8 +853,9 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 	{
 		if (!outfile) outfile = "comp4_det_test_";
 		fps = (FILE**) xcalloc(classes, sizeof(FILE *));
-		for (j = 0; j < classes; ++j) {
-			snprintf(buff, 1024, "%s/%s%s.txt", prefix, outfile, names[j]);
+		for (j = 0; j < classes; ++j)
+		{
+			snprintf(buff, 1024, "%s/%s%s.txt", prefix, outfile, net.details->class_names[j].c_str());
 			fps[j] = fopen(buff, "w");
 		}
 	}
@@ -1106,15 +1098,9 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	char *valid_images = option_find_str(options, "valid", nullptr);
 	char *difficult_valid_images = option_find_str(options, "difficult", NULL);
 	char *name_list = option_find_str(options, "names", nullptr);
-	int names_size = 0;
-	char **names = get_labels_custom(name_list, &names_size); //get_labels(name_list);
-	//char *mapf = option_find_str(options, "map", 0);
-	//int *map = 0;
-	//if (mapf) map = read_map(mapf);
 	FILE* reinforcement_fd = NULL;
 
 	network net;
-	//int initial_batch;
 	if (existing_net)
 	{
 		char *train_images = option_find_str(options, "train", nullptr);
@@ -1133,13 +1119,10 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		//set_batch_network(&net, 1);
 		fuse_conv_batchnorm(net);
 		calculate_binary_weights(net);
-	}
-	if (net.layers[net.n - 1].classes != names_size)
-	{
-		darknet_fatal_error(DARKNET_LOC, "in the file %s number of names %d is not equal to classes=%d in the file %s", name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
+		Darknet::load_names(&net, option_find_str(options, "names", "unknown.names"));
 	}
 
-	printf("\n calculating mAP (mean average precision)...\n");
+	std::cout << "Calculating mAP (mean average precision)..." << std::endl;
 
 	list *plist = get_paths(valid_images);
 	char **paths = (char **)list_to_array(plist);
@@ -1630,7 +1613,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 				<< "  -- ----             ------------ ------ ------ ------ ------ -------- --------- --------- ------ ----------- ------------" << std::endl;
 		}
 
-		std::cout << Darknet::format_map_confusion_matrix_values(i, names[i], avg_precision, tp, fn, fp, tn, accuracy, error_rate, precision, recall, specificity, false_pos_rate) << std::endl;
+		std::cout << Darknet::format_map_confusion_matrix_values(i, net.details->class_names[i], avg_precision, tp, fn, fp, tn, accuracy, error_rate, precision, recall, specificity, false_pos_rate) << std::endl;
 
 		// send the result of this class to the C++ side of things so we can include it the right chart
 		Darknet::update_accuracy_in_new_charts(i, avg_precision);
@@ -1694,7 +1677,6 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	}
 
 	// free memory
-	free_ptrs((void**)names, net.layers[net.n - 1].classes);
 	free_list_contents_kvp(options);
 	free_list(options);
 
@@ -1959,9 +1941,6 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	TAT(TATPARMS);
 
 	list *options = read_data_cfg(datacfg);
-	char *name_list = option_find_str(options, "names", nullptr);
-	int names_size = 0;
-	char **names = get_labels_custom(name_list, &names_size); //get_labels(name_list);
 
 	network net = parse_network_cfg_custom(cfgfile, 1, 1); // set batch=1
 	if (weightfile)
@@ -1972,14 +1951,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	net.benchmark_layers = benchmark_layers;
 	fuse_conv_batchnorm(net);
 	calculate_binary_weights(net);
-	if (net.layers[net.n - 1].classes != names_size)
-	{
-		printf("\n Error: in the file %s number of names %d that isn't equal to classes=%d in the file %s \n", name_list, names_size, net.layers[net.n - 1].classes, cfgfile);
-		if (net.layers[net.n - 1].classes > names_size)
-		{
-			darknet_fatal_error(DARKNET_LOC, "number of names and classes do not match");
-		}
-	}
+
+	Darknet::load_names(&net, option_find_str(options, "names", "unknown.names"));
 
 	char buff[256];
 	char *input = buff;
@@ -2069,7 +2042,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		// Load the image explicitly asking for 3 color channels
 		Darknet::Image im_color = Darknet::load_image(input, 0, 0, 3);
 
-		draw_detections_v3(im_color, dets, nboxes, thresh, names, l.classes, ext_output);
+		draw_detections_v3(im_color, dets, nboxes, thresh, net.details->class_names, l.classes, ext_output);
 		save_image(im_color, "predictions");
 		if (!dont_show)
 		{
@@ -2084,7 +2057,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 				fwrite(tmp, sizeof(char), strlen(tmp), json_file);
 			}
 			++json_image_id;
-			json_buf = detection_to_json(dets, nboxes, l.classes, names, json_image_id, input);
+			json_buf = Darknet::detection_to_json(dets, nboxes, l.classes, net.details->class_names, json_image_id, input);
 
 			fwrite(json_buf, sizeof(char), strlen(json_buf), json_file);
 			free(json_buf);
@@ -2136,7 +2109,6 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	}
 
 	// free memory
-	free_ptrs((void**)names, net.layers[net.n - 1].classes);
 	free_list_contents_kvp(options);
 	free_list(options);
 

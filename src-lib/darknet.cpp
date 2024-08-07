@@ -687,8 +687,7 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 	}
 
 	network * net = load_network_custom(cfg_filename.string().c_str(), weights_filename.string().c_str(), 0, 1);
-
-	/// @todo need to load and store the names somewhere
+	Darknet::load_names(net, names_filename);
 
 	return reinterpret_cast<NetworkPtr>(net);
 }
@@ -891,14 +890,23 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, const std::
 }
 
 
-cv::Mat Darknet::annotate(const Darknet::Predictions & predictions, cv::Mat mat)
+cv::Mat Darknet::annotate(const Darknet::NetworkPtr ptr, const Darknet::Predictions & predictions, cv::Mat mat)
 {
 	TAT(TATPARMS);
+
+	network * net = reinterpret_cast<network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot annotate without a network pointer");
+	}
 
 	if (mat.empty())
 	{
 		throw std::invalid_argument("cannot annotate empty image");
 	}
+
+	const auto & class_names = get_class_names(net);
+	const auto & class_colours = get_class_colours(net);
 
 	for (const auto & pred : predictions)
 	{
@@ -907,7 +915,7 @@ cv::Mat Darknet::annotate(const Darknet::Predictions & predictions, cv::Mat mat)
 			// draw the bounding box around the entire object
 			if (annotate_draw_rounded_bb_toggle == false)
 			{
-				cv::rectangle(mat, pred.rect, colour_bb_lines, 1, cv_font_line_type);
+				cv::rectangle(mat, pred.rect, class_colours.at(pred.best_class) /*colour_bb_lines*/, 1, cv_font_line_type);
 			}
 			else
 			{
@@ -917,7 +925,7 @@ cv::Mat Darknet::annotate(const Darknet::Predictions & predictions, cv::Mat mat)
 
 		if (annotate_draw_label)
 		{
-			std::string text = "TEST #" + std::to_string(pred.best_class) + " ";
+			std::string text = class_names.at(pred.best_class) + " ";
 			text += std::to_string(static_cast<int>(std::round(100.0f * pred.prob.at(pred.best_class)))) + "%";
 
 			int				font_baseline	= 0;
@@ -928,10 +936,12 @@ cv::Mat Darknet::annotate(const Darknet::Predictions & predictions, cv::Mat mat)
 			label.width						= size.width + 2;
 
 			// draw a rectangle above that to use as a label
-			cv::rectangle(mat, label, colour_bb_lines, cv::FILLED, cv_font_line_type);
+			cv::rectangle(mat, label, class_colours.at(pred.best_class)/*colour_bb_lines*/, cv::FILLED, cv_font_line_type);
+
+			cv::mean(class_colours.at(pred.best_class));
 
 			// and finally we draw the text on top of the label background
-			cv::putText(mat, text, cv::Point(label.x + 1, label.y + label.height - font_baseline / 2), cv_font_face, cv_font_scale, colour_label_text, cv_font_thickness, cv_font_line_type);
+			cv::putText(mat, text, cv::Point(label.x + 1, label.y + label.height - font_baseline / 2), cv_font_face, cv_font_scale, net->details->text_colours.at(pred.best_class) /*colour_label_text*/, cv_font_thickness, cv_font_line_type);
 		}
 	}
 
@@ -945,9 +955,47 @@ Darknet::Predictions Darknet::predict_and_annotate(const Darknet::NetworkPtr ptr
 
 	const auto predictions = predict(ptr, mat);
 
-	annotate(predictions, mat);
+	annotate(ptr, predictions, mat);
 
 	return predictions;
+}
+
+
+const Darknet::VStr & Darknet::get_class_names(const Darknet::NetworkPtr ptr)
+{
+	TAT(TATPARMS);
+
+	network * net = reinterpret_cast<network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot get the class names without a network pointer");
+	}
+
+	if (net->details == nullptr)
+	{
+		throw std::invalid_argument("the network pointer was not initialized correctly (null details pointer!?)");
+	}
+
+	return net->details->class_names;
+}
+
+
+const Darknet::VScalars & Darknet::get_class_colours(const Darknet::NetworkPtr ptr)
+{
+	TAT(TATPARMS);
+
+	network * net = reinterpret_cast<network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot get the class colours without a network pointer");
+	}
+
+	if (net->details == nullptr)
+	{
+		throw std::invalid_argument("the network pointer was not initialized correctly (null details pointer!?)");
+	}
+
+	return net->details->class_colours;
 }
 
 

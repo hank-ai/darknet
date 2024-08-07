@@ -240,7 +240,7 @@ Chart & Chart::update_accuracy(const float accuracy)
 
 Chart & Chart::update_accuracy(const int current_iteration, const float accuracy)
 {
-	/// @note This is called only when a new mAP% value has been calculated.
+	/// @note This is called only when a new mAP% value has been calculated, typically every 1000 iterations.
 
 	TAT(TATPARMS);
 

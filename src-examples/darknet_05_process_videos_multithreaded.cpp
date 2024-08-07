@@ -151,7 +151,7 @@ void detection_thread(size_t & total_objects_found)
 			}
 
 			frame.predictions = Darknet::predict(net, frame.img, frame.mat.size());
-			Darknet::annotate(frame.predictions, frame.mat);
+			Darknet::annotate(net, frame.predictions, frame.mat);
 
 			total_objects_found += frame.predictions.size();
 

@@ -13,10 +13,6 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 box_label *read_boxes(char *filename, int *n);
 list *get_paths(char *filename);
 
-/// @todo V3 xxxxx
-char **get_labels(char *filename);
-char **get_labels_custom(char *filename, int *size);
-
 data get_data_part(data d, int part, int total);
 data get_random_data(data d, int num);
 void get_next_batch(data d, int n, int offset, float *X, float *y);

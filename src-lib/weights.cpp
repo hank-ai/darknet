@@ -7,12 +7,14 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 }
 
+
 network parse_network_cfg(const char * filename)
 {
 	TAT(TATPARMS);
 
 	return parse_network_cfg_custom(filename, 0, 0);
 }
+
 
 network parse_network_cfg_custom(const char * filename, int batch, int time_steps)
 {
@@ -477,6 +479,12 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 		return;
 	}
 
+	if (net->details == nullptr)
+	{
+		darknet_fatal_error(DARKNET_LOC, "network structure was not created correctly (details pointer is null!?)");
+	}
+	net->details->weights_path = filename;
+
 	if (cfg_and_state.is_verbose)
 	{
 		std::cout << "Loading weights from \"" << filename << "\"" << std::endl;
@@ -619,6 +627,8 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 	}
 
 	fclose(fp);
+
+	return;
 }
 
 
@@ -683,4 +693,122 @@ network *load_network(const char * cfg, const char * weights, int clear)
 	}
 
 	return net;
+}
+
+
+void Darknet::load_names(network * net, const std::filesystem::path & filename)
+{
+	TAT(TATPARMS);
+
+	if (cfg_and_state.is_verbose)
+	{
+		std::cout << "Loading names from \"" << filename.string() << "\"" << std::endl;
+	}
+
+	if (not std::filesystem::exists(filename))
+	{
+		darknet_fatal_error(DARKNET_LOC, "expected a .names file but got a bad filename instead: \"%s\"", filename.string().c_str());
+	}
+
+	if (net == nullptr)
+	{
+		darknet_fatal_error(DARKNET_LOC, "cannot set .names to \"%s\" when network pointer is null", filename.string().c_str());
+	}
+
+	if (net->details == nullptr)
+	{
+		darknet_fatal_error(DARKNET_LOC, "network structure was not created correctly (details pointer is null!?)");
+	}
+
+	net->details->names_path = filename;
+	net->details->class_names.clear();
+
+	std::string line;
+	std::ifstream ifs(filename);
+	while (std::getline(ifs, line))
+	{
+		if (line.find_first_not_of(" \t\r\n") == std::string::npos)
+		{
+			Darknet::display_error_msg("The .names file appears to contain a blank line.\n");
+		}
+
+		net->details->class_names.push_back(line);
+	}
+
+	if (net->layers[net->n - 1].classes != net->details->class_names.size())
+	{
+		darknet_fatal_error(DARKNET_LOC, "mismatch between number of classes in %s and the number of lines in %s", net->details->cfg_path.string().c_str(), net->details->names_path.string().c_str());
+	}
+
+	return;
+}
+
+
+void Darknet::assign_default_class_colours(network * net)
+{
+	TAT(TATPARMS);
+
+	if (net == nullptr)
+	{
+		darknet_fatal_error(DARKNET_LOC, "cannot assign class colours when the network pointer is null");
+	}
+
+	if (net->details == nullptr)
+	{
+		darknet_fatal_error(DARKNET_LOC, "network structure was not created correctly (details pointer is null!?)");
+	}
+
+	if (net->n < 1)
+	{
+		darknet_fatal_error(DARKNET_LOC, "no network layers exist (was the network loaded?)");
+	}
+
+	const auto number_of_classes = net->layers[net->n - 1].classes;
+
+	if (net->details->class_names.empty())
+	{
+		// we may not have the network names available, so create fake labels we can use
+		net->details->class_names.reserve(number_of_classes);
+		for (int i = 0; i < number_of_classes; i++)
+		{
+			net->details->class_names.push_back("#" + std::to_string(i));
+		}
+	}
+
+	if (number_of_classes != net->details->class_names.size())
+	{
+		darknet_fatal_error(DARKNET_LOC, "last layer indicates %d classes, but %ld classes exist", number_of_classes, net->details->class_names.size());
+	}
+
+	// assign a colour to each class
+
+	net->details->text_colours	.clear();
+	net->details->class_colours	.clear();
+	net->details->text_colours	.reserve(number_of_classes);
+	net->details->class_colours	.reserve(number_of_classes);
+
+	for (int i = 0; i < number_of_classes; i++)
+	{
+		const int offset = i * 123457 % number_of_classes;
+		const int r = std::min(255.0f, std::round(256.0f * Darknet::get_color(2, offset, number_of_classes)));
+		const int g = std::min(255.0f, std::round(256.0f * Darknet::get_color(1, offset, number_of_classes)));
+		const int b = std::min(255.0f, std::round(256.0f * Darknet::get_color(0, offset, number_of_classes)));
+
+		const cv::Scalar background = CV_RGB(r, g, b);
+		const cv::Scalar foreground = CV_RGB(0, 0, 0);
+
+		net->details->class_colours.push_back(background);
+		net->details->text_colours.push_back(foreground);
+
+		if (cfg_and_state.is_verbose)
+		{
+			std::cout << "-> class #" << i << " will use colour 0x"
+				<< std::setw(2) << std::setfill('0') << std::hex << r
+				<< std::setw(2) << std::setfill('0') << std::hex << g
+				<< std::setw(2) << std::setfill('0') << std::hex << b
+				<< std::setw(1) << std::setfill(' ') << std::dec << std::endl;
+		}
+	}
+
+	return;
 }

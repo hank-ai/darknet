@@ -1,16 +1,11 @@
 // Oh boy, why am I about to do this....
 
-// ^ That comment was the very first commit to the original Darknet repo by Joseph Redmon on Nov 4, 2013.
+// ^ That comment was part of the very first commit to the original Darknet repo by Joseph Redmon on Nov 4, 2013.
 
 #pragma once
 
 #include "darknet.h"
 
-/*
-typedef enum {
-    CONSTANT, STEP, EXP, POLY, STEPS, SIG, RANDOM
-} learning_rate_policy;
-*/
 
 namespace Darknet
 {
@@ -24,11 +19,51 @@ namespace Darknet
 		int index;
 		network net;
 	};
+
+	/** Store other details related to the neural network which we cannot easily add to the usual @ref Darknet::Network
+	 * structure.  These are typically C++ objects, or things added post %Darknet V3 (2024-08).
+	 *
+	 * @see @ref Darknet::Network::details
+	 *
+	 * @since 2024-08-06
+	 */
+	struct NetworkDetails
+	{
+		/// @{ Filename used to load the neural nework.  @since 2024-08-06
+		std::filesystem::path cfg_path;
+		std::filesystem::path names_path;
+		std::filesystem::path weights_path;
+		/// @}
+
+		/** The name to use for every object class.  Will @em always match the number of classes in the neural network.
+		 * @see @ref Darknet::assign_default_class_colours()
+		 * @see @ref Darknet::load_names()
+		 * @since 2024-08-07
+		 */
+		VStr class_names;
+
+		/** BGR colours to use for each class.
+		 * @see @ref Darknet::NetworkDetails::class_names
+		 * @see @ref Darknet::assign_default_class_colours()
+		 * @since 2024-08-07
+		 */
+		std::vector<cv::Scalar> class_colours;
+
+		/** BGR colours to use for the label text.
+		 * @see @ref Darknet::NetworkDetails::class_names
+		 * @see @ref Darknet::assign_default_class_colours()
+		 * @since 2024-08-07
+		 */
+		std::vector<cv::Scalar> text_colours;
+	};
+
+
+	char *detection_to_json(detection *dets, int nboxes, int classes, const Darknet::VStr & names, long long int frame_id, char *filename);
 }
+
 
 extern "C"
 {
-
 #ifdef GPU
 float train_networks(network *nets, int n, data d, int interval);
 void sync_nets(network *nets, int n, int interval);
@@ -43,6 +78,17 @@ void update_network_gpu(network net);
 void forward_backward_network_gpu(network net, float *x, float *y);
 #endif
 
+/** Think of this as the constructor for the @ref Darknet::Network object.
+ * @param [in] n The number of network layers to initialize.
+ */
+network make_network(int n);
+
+void free_network(network net);
+void free_network_ptr(network* net);
+
+network *load_network(const char * cfg, const char * weights, int clear);
+network *load_network_custom(const char * cfg, const char * weights, int clear, int batch);
+
 float get_current_seq_subdivisions(network net);
 int get_sequence_value(network net);
 float get_current_rate(network net);
@@ -51,7 +97,6 @@ int64_t get_current_iteration(network net);
 //void free_network(network net); // darknet.h
 void compare_networks(network n1, network n2, data d);
 
-network make_network(int n);
 void forward_network(network net, Darknet::NetworkState state);
 void backward_network(network net, Darknet::NetworkState state);
 void update_network(network net);
@@ -94,5 +139,4 @@ int is_ema_initialized(network net);
 void ema_update(network net, float ema_alpha);
 void ema_apply(network net);
 void reject_similar_weights(network net, float sim_threshold);
-
 }

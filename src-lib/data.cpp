@@ -661,25 +661,6 @@ matrix load_labels_paths(char **paths, int n, char **labels, int k, tree *hierar
 }
 
 
-char **get_labels_custom(char *filename, int *size)
-{
-	TAT(TATPARMS);
-
-	list *plist = get_paths(filename);
-	if (size)
-	{
-		*size = plist->size;
-	}
-	char **labels = (char **)list_to_array(plist);
-	free_list(plist);
-	return labels;
-}
-
-char **get_labels(char *filename)
-{
-	return get_labels_custom(filename, NULL);
-}
-
 void Darknet::free_data(data & d)
 {
 	TAT_REVIEWED(TATPARMS, "2024-04-04");

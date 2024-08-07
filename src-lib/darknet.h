@@ -41,6 +41,11 @@ namespace Darknet
 
 	/// The @p image structure has been renamed and moved to darknet_image.hpp.
 	struct Image;
+
+	/** Some C++ structures we'd like to insert into the C "Network".  Needs to be a @p void* pointer so older C code can
+	 * continue using the Network without causing any problems.
+	 */
+	struct NetworkDetails;
 }
 
 #ifdef __cplusplus
@@ -289,6 +294,7 @@ typedef struct network {
 	int optimized_memory;
 	int dynamic_minibatch;
 	size_t workspace_size_limit;
+	Darknet::NetworkDetails * details;
 } network;
 
 // box.h
@@ -379,7 +385,6 @@ typedef struct load_args {
 	char *path;
 	int n; ///< number of images, or batch size?
 	int m; ///< maximum number of images?
-	char **labels;
 	int h;
 	int w;
 	int c;	///< Number of channels, typically 3 for RGB
@@ -435,13 +440,6 @@ typedef struct box_label {
 // -----------------------------------------------------
 
 
-// parser.c
-network *load_network(const char * cfg, const char * weights, int clear);
-network *load_network_custom(const char * cfg, const char * weights, int clear, int batch);
-void free_network(network net);
-void free_network_ptr(network* net);
-
-
 // box.h
 void do_nms_sort(detection *dets, int total, int classes, float thresh);
 void do_nms_obj(detection *dets, int total, int classes, float thresh);
@@ -456,7 +454,6 @@ void free_detections(detection *dets, int n);
 void free_batch_detections(det_num_pair *det_num_pairs, int n);
 void fuse_conv_batchnorm(network net);
 void calculate_binary_weights(network net);
-char *detection_to_json(detection *dets, int nboxes, int classes, char **names, long long int frame_id, char *filename);
 
 Darknet::Layer * get_network_layer(network* net, int i);
 detection *make_network_boxes(network *net, float thresh, int *num);

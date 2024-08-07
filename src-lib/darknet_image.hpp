@@ -12,8 +12,8 @@
 namespace Darknet
 {
 	/** The structure @ref Darknet::Image is used to store a normalized RGB %Darknet image.  The format is intended to be
-	 * used for internal use by Darknet, but there are some situations where it may also be used or referenced externally via
-	 * the %Darknet API.
+	 * used for internal use by %Darknet, but there are some situations where it may also be used or referenced externally
+	 * via the %Darknet API.
 	 *
 	 * Moving forward starting with %Darknet V3 (August 2024), where possible the emphasis will be to use OpenCV @p cv::Mat
 	 * objects in the external-facing API instead of @ref Darknet::Image.
@@ -80,7 +80,7 @@ namespace Darknet
 	void draw_weighted_label(Darknet::Image & a, int r, int c, Darknet::Image & label, const float *rgb, const float alpha);
 
 	/// This is the function that is called from older %Darknet code to draw annotations on an image.
-	void draw_detections_v3(Darknet::Image & im, const detection * dets, const int num, const float thresh, char **names, const int classes, const int ext_output);
+	void draw_detections_v3(Darknet::Image & im, const detection * dets, const int num, const float thresh, const Darknet::VStr & names, const int classes, const int ext_output);
 
 	/// Draw a bounding box on a black-and-white image.
 	void draw_box_bw(Darknet::Image & a, int x1, int y1, int x2, int y2, float brightness);

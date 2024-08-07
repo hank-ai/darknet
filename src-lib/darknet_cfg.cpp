@@ -671,6 +671,7 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 	net = make_network(sections.size());
 	net.gpu_index = cfg_and_state.gpu_index;
+	net.details->cfg_path = filename;
 
 	if (batch > 0)
 	{
@@ -1166,6 +1167,8 @@ network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			darknet_fatal_error(DARKNET_LOC, "width=%d and height=%d in cfg file must be divisible by 32 for YOLO networks", net.w, net.h);
 		}
 	}
+
+	Darknet::assign_default_class_colours(&net);
 
 	return net;
 }

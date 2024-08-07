@@ -692,8 +692,11 @@ void free_ptrs(void **ptrs, int n)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for(i = 0; i < n; ++i) free(ptrs[i]);
+	for(int i = 0; i < n; ++i)
+	{
+		free(ptrs[i]);
+	}
+
 	free(ptrs);
 }
 

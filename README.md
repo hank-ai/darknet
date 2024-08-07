@@ -103,7 +103,8 @@ See the notebooks in the `colab` subdirectory.
 
 [![Darknet build tutorial for Linux](doc/linux_build_thumbnail.jpg)](https://www.youtube.com/watch?v=WTT1s8JjLFk)
 
-* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.  Either CUDA or CUDA+cuDNN is required if you plan to train your own custom network.
+* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
+	* Darknet can run without it, but if you want to _train_ a custom network then either CUDA or CUDA+cuDNN is _required_.
 	* Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
 	* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#cudnn-package-manager-installation-overview> to download and install cuDNN.
 	* Once you install CUDA make sure you can run `nvcc` and `nvidia-smi`.  You may have to [modify your `PATH` variable](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#mandatory-actions).
@@ -134,6 +135,8 @@ If you are using an older version of CMake then you'll need to upgrade CMake bef
 sudo apt-get purge cmake
 sudo snap install cmake --classic
 ```
+
+If using `bash` as your command shell, you'll want to re-start your shell at this point.  If using `fish`, it should immediately pick up the new path.
 
 > Advanced users:
 >
@@ -214,10 +217,11 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 >
 > Note there are many other optional modules you may want to add when building OpenCV.  Run `.\vcpkg.exe search opencv` to see the full list.
 
-* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.  Either CUDA or CUDA+cuDNN is required if you plan to train your own custom network.
+* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
+	* Darknet can run without it, but if you want to _train_ a custom network then either CUDA or CUDA+cuDNN is _required_.
 	* Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
 	* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#download-windows> to download and install cuDNN.
-	* Once you install CUDA make sure you can run `nvcc` and `nvidia-smi`.  You may have to modify your `PATH` variable.
+	* Once you install CUDA make sure you can run `nvcc.exe` and `nvidia-smi.exe`.  You may have to modify your `PATH` variable.
 	* Once you download cuDNN, unzip and copy the bin, include, and lib directories into `C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/[version]/`.  You may need to overwrite some files.
 	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
 		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.

@@ -2,57 +2,13 @@
 #include "darknet_internal.hpp"
 
 
-std::vector<std::string> Darknet::class_names;
-std::vector<cv::Scalar> Darknet::class_colours;
+std::vector<std::string> Darknet::xxxclass_names;
+std::vector<cv::Scalar> Darknet::xxxclass_colours;
 
 
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
-}
-
-
-void Darknet::remember_class_names(char ** names, const int count)
-{
-	TAT(TATPARMS);
-
-	if (static_cast<size_t>(count) == class_names.size())
-	{
-		// assume this is a redundant call and we already know all of the class names and colours
-		return;
-	}
-
-	printf("\nRemembering %d class%s:\n", count, (count == 1 ? "" : "es"));
-
-	class_names.clear();
-	class_names.reserve(count);
-
-	class_colours.clear();
-	class_colours.reserve(count);
-
-	for (int idx = 0; idx < count; idx ++)
-	{
-		const std::string name = names[idx];
-		if (name.find_first_not_of(" \t\r\n") == std::string::npos)
-		{
-			display_error_msg("The .names file appears to contain a blank line.\n");
-		}
-
-		class_names.push_back(name);
-
-		const int offset = idx * 123457 % count;
-		const int r = std::min(255.0f, std::round(256.0f * get_color(2, offset, count)));
-		const int g = std::min(255.0f, std::round(256.0f * get_color(1, offset, count)));
-		const int b = std::min(255.0f, std::round(256.0f * get_color(0, offset, count)));
-
-		class_colours.push_back(CV_RGB(r, g, b));
-
-		printf("-> class #%d (%s) will use colour #%02X%02X%02X\n", idx, names[idx], r, g, b);
-	}
-
-	printf("\n");
-
-	return;
 }
 
 
@@ -283,18 +239,18 @@ std::string Darknet::text_to_simple_label(std::string txt)
 }
 
 
-void Darknet::initialize_new_charts(const int max_batches, const float max_img_loss)
+void Darknet::initialize_new_charts(const network & net)
 {
 	TAT(TATPARMS);
 
-	training_chart = Chart("", max_batches, max_img_loss);
+	training_chart = Chart("", net.max_batches, net.max_chart_loss);
 
 	more_charts.clear();
 
-	for (size_t idx = 0; idx < class_names.size(); idx ++)
+	for (size_t idx = 0; idx < net.details->class_names.size(); idx ++)
 	{
-		Chart chart(class_names[idx], max_batches, max_img_loss);
-		chart.map_colour = class_colours[idx];
+		Chart chart(net.details->class_names[idx], net.max_batches, net.max_chart_loss);
+		chart.map_colour = net.details->class_colours[idx];
 
 		more_charts.push_back(chart);
 	}

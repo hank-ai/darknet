@@ -15,7 +15,6 @@ int64_t get_current_iteration(network net)
 }
 
 
-
 int get_current_batch(network net)
 {
 	TAT(TATPARMS);
@@ -196,6 +195,9 @@ network make_network(int n)
 	net.max_input16_size = (size_t*)xcalloc(1, sizeof(size_t));
 	net.max_output16_size = (size_t*)xcalloc(1, sizeof(size_t));
 #endif
+
+	net.details = new Darknet::NetworkDetails;
+
 	return net;
 }
 
@@ -1325,7 +1327,7 @@ void free_batch_detections(det_num_pair *det_num_pairs, int n)
 //  {"class_id":14, "name":"bird", "relative coordinates":{"center_x":0.398831, "center_y":0.630203, "width":0.057455, "height":0.020396}, "confidence":0.265497}
 // ]
 //},
-char * detection_to_json(detection *dets, int nboxes, int classes, char **names, long long int frame_id, char *filename)
+char * Darknet::detection_to_json(detection *dets, int nboxes, int classes, const Darknet::VStr & names, long long int frame_id, char *filename)
 {
 	TAT(TATPARMS);
 
@@ -1351,7 +1353,8 @@ char * detection_to_json(detection *dets, int nboxes, int classes, char **names,
 	{
 		for (int j = 0; j < classes; ++j)
 		{
-			int show = strncmp(names[j], "dont_show", 9);
+//			int show = strncmp(names[j], "dont_show", 9);
+			const bool show = (names[j].find("dont_show") != 0);
 			if (dets[i].prob[j] > thresh && show)
 			{
 				if (class_id != -1)
@@ -1698,13 +1701,11 @@ void free_network(network net)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < net.n; ++i)
+	for (int i = 0; i < net.n; ++i)
 	{
 		free_layer(net.layers[i]);
 	}
 	free(net.layers);
-
 	free(net.seq_scales);
 	free(net.scales);
 	free(net.steps);
@@ -1758,22 +1759,15 @@ void free_network(network net)
 #else
 	free(net.workspace);
 #endif
-}
 
-
-#if 0
-static float relu(float src)
-{
-	TAT(TATPARMS);
-
-	if (src > 0)
+	if (net.details) // added in V3 (2024-08-06)
 	{
-		return src;
+		delete net.details;
+		net.details = nullptr;
 	}
 
-	return 0;
+	return;
 }
-#endif
 
 
 static float lrelu(float src)
@@ -2042,6 +2036,7 @@ network combine_train_valid_networks(network net_train, network net_map)
 #endif // CUDNN
 		}
 	}
+
 	return net_combined;
 }
 
