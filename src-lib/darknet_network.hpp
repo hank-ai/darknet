@@ -29,32 +29,117 @@ namespace Darknet
 	 */
 	struct NetworkDetails
 	{
-		/// @{ Filename used to load the neural nework.  @since 2024-08-06
-		std::filesystem::path cfg_path;
-		std::filesystem::path names_path;
-		std::filesystem::path weights_path;
-		/// @}
+		public:
 
-		/** The name to use for every object class.  Will @em always match the number of classes in the neural network.
-		 * @see @ref Darknet::assign_default_class_colours()
-		 * @see @ref Darknet::load_names()
-		 * @since 2024-08-07
-		 */
-		VStr class_names;
+			NetworkDetails();
 
-		/** BGR colours to use for each class.
-		 * @see @ref Darknet::NetworkDetails::class_names
-		 * @see @ref Darknet::assign_default_class_colours()
-		 * @since 2024-08-07
-		 */
-		std::vector<cv::Scalar> class_colours;
+			/// @{ Filename used to load the neural nework.  @since 2024-08-06
+			std::filesystem::path cfg_path;
+			std::filesystem::path names_path;
+			std::filesystem::path weights_path;
+			/// @}
 
-		/** BGR colours to use for the label text.
-		 * @see @ref Darknet::NetworkDetails::class_names
-		 * @see @ref Darknet::assign_default_class_colours()
-		 * @since 2024-08-07
-		 */
-		std::vector<cv::Scalar> text_colours;
+			/** The name to use for every object class.  Will @em always match the number of classes in the neural network.
+			* @see @ref Darknet::assign_default_class_colours()
+			* @see @ref Darknet::load_names()
+			* @since 2024-08-07
+			*/
+			VStr class_names;
+
+			/** BGR colours to use for each class.
+			* @see @ref Darknet::NetworkDetails::class_names
+			* @see @ref Darknet::assign_default_class_colours()
+			* @since 2024-08-07
+			*/
+			std::vector<cv::Scalar> class_colours;
+
+			/** BGR colours to use for the label text.
+			* @see @ref Darknet::NetworkDetails::class_names
+			* @see @ref Darknet::assign_default_class_colours()
+			* @since 2024-08-07
+			*/
+			std::vector<cv::Scalar> text_colours;
+
+			/** Object detection threshold to apply.
+			 * Default is @p 0.25.
+			 * @see @ref Darknet::set_detection_threshold()
+			 * @since 2024-07-24
+			 */
+			float detection_threshold;
+
+			/** Non maximal suppression threshold to apply.
+			 * Default is @p 0.45.
+			 * @see @ref Darknet::set_non_maximal_suppression_threshold()
+			 * @since 2024-07-24
+			 */
+			float non_maximal_suppression_threshold;
+
+			/** Fix out-of-bound values for objects near the edges of images.
+			 * Default is @p true.
+			 * @see @ref Darknet::fix_out_of_bound_values()
+			 * @since 2024-07-25
+			 */
+			bool fix_out_of_bound_normalized_coordinates;
+
+			/** The OpenCV line type to use when drawing lines such as bounding boxes.  Possible values include
+			 * @p cv::LineTypes::LINE_4, @p cv::LineTypes::LINE_8, and @p cv::LineTypes::CV_LINE_AA.  @p LINE_4 is the fastest
+			 * but lowest quality, while @p LINE_AA (anti-alias) is the slowest with highest quality.
+			* Default is @p cv::LineTypes::LINE_4.
+			* @see @ref Darknet::set_annotation_font()
+			* @since 2024-07-30
+			*/
+			cv::LineTypes cv_font_line_type;
+
+			/** The OpenCV built-in font to use when generating text, such as the labels above bounding boxes.
+			 * Default is @p cv::HersheyFonts::FONT_HERSHEY_PLAIN.
+			 * @see @ref Darknet::set_annotation_font()
+			 * @since 2024-07-30
+			 */
+			cv::HersheyFonts cv_font_face;
+
+			/** The OpenCV font thickness to use when generating text, such as the labels above bounding boxes.
+			 * Default is @p 1.
+			 * @see @ref Darknet::set_annotation_font()
+			 * @since 2024-07-30
+			 */
+			int cv_font_thickness;
+
+			/** The OpenCV font scale to use when generating text, such as the labels above bounding boxes.
+			 * Default is @p 1.0.
+			 * @see @ref Darknet::set_annotation_font()
+			 * @since 2024-07-30
+			 */
+			double cv_font_scale;
+
+			/** Whether bounding boxes should use rounded corners.
+			 * Default is @p false (meaning square bounding boxes).
+			 * @see @ref Darknet::set_annotation_draw_rounded_bb()
+			 * @since 2024-07-30
+			 */
+			bool bounding_boxes_with_rounded_corners;
+
+			/** The "roundness" of the corners when @ref bounding_boxes_with_rounded_corners is set to @p true.
+			 * Default is @p 0.5.
+			 * @see @ref Darknet::set_annotation_draw_rounded_bb()
+			 * @since 2024-07-30
+			 */
+			float bounding_boxes_corner_roundness;
+
+			/** Whether bounding boxes are drawn when annotating images.
+			 * Default is @p true.
+			 * @see @ref Darknet::set_annotation_draw_bb()
+			 * @see @ref Darknet::set_annotation_draw_label()
+			 * @since 2024-07-30
+			 */
+			bool annotate_draw_bb;
+
+			/** Whether text labels are drawn above bounding boxes when annotating images.
+			 * Default is @p true.
+			 * @see @ref Darknet::set_annotation_draw_bb()
+			 * @see @ref Darknet::set_annotation_draw_label()
+			 * @since 2024-07-30
+			 */
+			bool annotate_draw_label;
 	};
 
 

@@ -7,6 +7,28 @@ namespace
 }
 
 
+Darknet::NetworkDetails::NetworkDetails()
+{
+	detection_threshold						= 0.25f;
+	non_maximal_suppression_threshold		= 0.45f;
+
+	fix_out_of_bound_normalized_coordinates	= true;
+
+	cv_font_line_type						= cv::LineTypes::LINE_4;
+	cv_font_face							= cv::HersheyFonts::FONT_HERSHEY_PLAIN;
+	cv_font_thickness						= 1;
+	cv_font_scale							= 1.0;
+
+	bounding_boxes_with_rounded_corners		= false;
+	bounding_boxes_corner_roundness			= 0.5f;
+
+	annotate_draw_bb						= true;
+	annotate_draw_label						= true;
+
+	return;
+}
+
+
 int64_t get_current_iteration(network net)
 {
 	TAT(TATPARMS);

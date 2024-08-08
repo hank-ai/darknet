@@ -9,20 +9,6 @@ namespace
 	static const auto		white									= cv::Scalar(255, 255, 255);
 	static const auto		black									= cv::Scalar(0, 0, 0);
 
-	static float			detection_threshold						= 0.25f;
-	static float			non_maximal_suppression_threshold		= 0.45;
-	static bool				fix_out_of_bound_normalized_coordinates	= true;
-	static cv::LineTypes	cv_font_line_type						= cv::LineTypes::LINE_4;
-	static cv::HersheyFonts	cv_font_face							= cv::HersheyFonts::FONT_HERSHEY_PLAIN;
-	static int				cv_font_thickness						= 1;
-	static double			cv_font_scale							= 1.0;
-	static cv::Scalar		colour_bb_lines							= white;
-	static cv::Scalar		colour_label_text						= black;
-	static bool				annotate_draw_rounded_bb_toggle			= false;
-	static float			annotate_draw_rounded_bb_roundness		= 0.5f;
-	static bool				annotate_draw_bb						= true;
-	static bool				annotate_draw_label						= true;
-
 	// shamlessly stolen from DarkHelp
 	static inline void fix_out_of_bound_normalized_rect(float & cx, float & cy, float & w, float & h)
 	{
@@ -55,7 +41,7 @@ namespace
 		return;
 	}
 
-	void draw_rounded_rectangle(cv::Mat & mat, const cv::Rect & r, const float roundness)
+	static inline void draw_rounded_rectangle(cv::Mat & mat, const cv::Rect & r, const float roundness, const cv::Scalar & colour, const cv::LineTypes line_type)
 	{
 		/* This is what decides how "round" the bounding box needs to be.  The divider
 		 * decides the length of the line segments and the radius of each rounded corner.
@@ -83,20 +69,20 @@ namespace
 			voffset * 2 >= r.height)
 		{
 			// corners are so big that we're actually drawing a circle (or an ellipse if the bb is not square)
-			cv::ellipse(mat, cv::Point(r.x + r.width / 2, r.y + r.height / 2), r.size() / 2, 0.0, 0.0, 360.0, colour_bb_lines, 1, cv_font_line_type);
+			cv::ellipse(mat, cv::Point(r.x + r.width / 2, r.y + r.height / 2), r.size() / 2, 0.0, 0.0, 360.0, colour, 1, line_type);
 		}
 		else
 		{
 			// draw horizontal and vertical segments
-			cv::line(mat, cv::Point(tl.x + hoffset, tl.y), cv::Point(tr.x - hoffset, tr.y), colour_bb_lines, 1, cv_font_line_type);
-			cv::line(mat, cv::Point(tr.x, tr.y + voffset), cv::Point(br.x, br.y - voffset), colour_bb_lines, 1, cv_font_line_type);
-			cv::line(mat, cv::Point(br.x - hoffset, br.y), cv::Point(bl.x + hoffset, bl.y), colour_bb_lines, 1, cv_font_line_type);
-			cv::line(mat, cv::Point(bl.x, bl.y - voffset), cv::Point(tl.x, tl.y + voffset), colour_bb_lines, 1, cv_font_line_type);
+			cv::line(mat, cv::Point(tl.x + hoffset, tl.y), cv::Point(tr.x - hoffset, tr.y), colour, 1, line_type);
+			cv::line(mat, cv::Point(tr.x, tr.y + voffset), cv::Point(br.x, br.y - voffset), colour, 1, line_type);
+			cv::line(mat, cv::Point(br.x - hoffset, br.y), cv::Point(bl.x + hoffset, bl.y), colour, 1, line_type);
+			cv::line(mat, cv::Point(bl.x, bl.y - voffset), cv::Point(tl.x, tl.y + voffset), colour, 1, line_type);
 
-			cv::ellipse(mat, tl + cv::Point(+hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 180.0	, 270.0	, colour_bb_lines, 1, cv_font_line_type);
-			cv::ellipse(mat, tr + cv::Point(-hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 270.0	, 360.0	, colour_bb_lines, 1, cv_font_line_type);
-			cv::ellipse(mat, br + cv::Point(-hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 0.0	, 90.0	, colour_bb_lines, 1, cv_font_line_type);
-			cv::ellipse(mat, bl + cv::Point(+hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 90.0	, 180.0	, colour_bb_lines, 1, cv_font_line_type);
+			cv::ellipse(mat, tl + cv::Point(+hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 180.0	, 270.0	, colour, 1, line_type);
+			cv::ellipse(mat, tr + cv::Point(-hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 270.0	, 360.0	, colour, 1, line_type);
+			cv::ellipse(mat, br + cv::Point(-hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 0.0	, 90.0	, colour, 1, line_type);
+			cv::ellipse(mat, bl + cv::Point(+hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 90.0	, 180.0	, colour, 1, line_type);
 		}
 
 		return;
@@ -130,25 +116,25 @@ extern "C"
 	}
 
 
-	void darknet_set_detection_threshold(float threshold)
+	void darknet_set_detection_threshold(Darknet::NetworkPtr ptr, float threshold)
 	{
 		TAT(TATPARMS);
-		Darknet::set_detection_threshold(threshold);
+		Darknet::set_detection_threshold(ptr, threshold);
 		return;
 	}
 
 
-	void darknet_set_non_maximal_suppression_threshold(float threshold)
+	void darknet_set_non_maximal_suppression_threshold(Darknet::NetworkPtr ptr, float threshold)
 	{
 		TAT(TATPARMS);
-		Darknet::set_non_maximal_suppression_threshold(threshold);
+		Darknet::set_non_maximal_suppression_threshold(ptr, threshold);
 		return;
 	}
 
-	void darknet_fix_out_of_bound_values(const bool toggle)
+	void darknet_fix_out_of_bound_values(Darknet::NetworkPtr ptr, const bool toggle)
 	{
 		TAT(TATPARMS);
-		Darknet::fix_out_of_bound_values(toggle);
+		Darknet::fix_out_of_bound_values(ptr, toggle);
 		return;
 	}
 
@@ -518,9 +504,15 @@ void Darknet::set_gpu_index(int idx)
 }
 
 
-void Darknet::set_detection_threshold(float threshold)
+void Darknet::set_detection_threshold(Darknet::NetworkPtr ptr, float threshold)
 {
 	TAT(TATPARMS);
+
+	network * net = reinterpret_cast<network*>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("pointer to neural network cannot be NULL");
+	}
 
 	if (threshold > 1.0f and threshold < 100.0f)
 	{
@@ -530,7 +522,7 @@ void Darknet::set_detection_threshold(float threshold)
 
 	if (threshold >= 0.0f and threshold <= 1.0f)
 	{
-		detection_threshold = threshold;
+		net->details->detection_threshold = threshold;
 		return;
 	}
 
@@ -538,9 +530,15 @@ void Darknet::set_detection_threshold(float threshold)
 }
 
 
-void Darknet::set_non_maximal_suppression_threshold(float threshold)
+void Darknet::set_non_maximal_suppression_threshold(Darknet::NetworkPtr ptr, float threshold)
 {
 	TAT(TATPARMS);
+
+	network * net = reinterpret_cast<network*>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("pointer to neural network cannot be NULL");
+	}
 
 	if (threshold > 1.0f and threshold < 100.0f)
 	{
@@ -549,82 +547,92 @@ void Darknet::set_non_maximal_suppression_threshold(float threshold)
 	}
 	if (threshold >= 0.0f and threshold <= 1.0f)
 	{
-		non_maximal_suppression_threshold = threshold;
+		net->details->non_maximal_suppression_threshold = threshold;
 		return;
 	}
 	throw std::invalid_argument("nms threshold must be between 0.0 and 1.0");
 }
 
 
-void Darknet::fix_out_of_bound_values(const bool toggle)
+void Darknet::fix_out_of_bound_values(Darknet::NetworkPtr ptr, const bool toggle)
 {
 	TAT(TATPARMS);
 
-	fix_out_of_bound_normalized_coordinates = toggle;
+	network * net = reinterpret_cast<network*>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("pointer to neural network cannot be NULL");
+	}
+
+	net->details->fix_out_of_bound_normalized_coordinates = toggle;
 
 	return;
 }
 
 
-void Darknet::set_annotation_font(const cv::LineTypes line_type, const cv::HersheyFonts font_face, const int font_thickness, const double font_scale)
+void Darknet::set_annotation_font(Darknet::NetworkPtr ptr, const cv::LineTypes line_type, const cv::HersheyFonts font_face, const int font_thickness, const double font_scale)
 {
 	TAT(TATPARMS);
 
-	cv_font_line_type	= line_type;
-	cv_font_face		= font_face;
-	cv_font_thickness	= font_thickness;
-	cv_font_scale		= font_scale;
+	network * net = reinterpret_cast<network*>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("pointer to neural network cannot be NULL");
+	}
+
+	net->details->cv_font_line_type	= line_type;
+	net->details->cv_font_face		= font_face;
+	net->details->cv_font_thickness	= font_thickness;
+	net->details->cv_font_scale		= font_scale;
 
 	return;
 }
 
 
-void Darknet::set_annotation_bb_line_colour(const cv::Scalar colour)
+void Darknet::set_rounded_corner_bounding_boxes(Darknet::NetworkPtr ptr, const bool toggle, const float roundness)
 {
 	TAT(TATPARMS);
 
-	colour_bb_lines = colour;
+	network * net = reinterpret_cast<network*>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("pointer to neural network cannot be NULL");
+	}
+
+	net->details->bounding_boxes_with_rounded_corners = toggle;
+	net->details->bounding_boxes_corner_roundness = roundness;
 
 	return;
 }
 
 
-void Darknet::set_annotation_label_text_colour(const cv::Scalar colour)
+void Darknet::set_annotation_draw_bb(Darknet::NetworkPtr ptr, const bool toggle)
 {
 	TAT(TATPARMS);
 
-	colour_label_text = colour;
+	network * net = reinterpret_cast<network*>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("pointer to neural network cannot be NULL");
+	}
+
+	net->details->annotate_draw_bb = toggle;
 
 	return;
 }
 
 
-void Darknet::set_annotation_draw_rounded_bb(const bool rounded, const float roundness)
+void Darknet::set_annotation_draw_label(Darknet::NetworkPtr ptr, const bool toggle)
 {
 	TAT(TATPARMS);
 
-	annotate_draw_rounded_bb_toggle		= rounded;
-	annotate_draw_rounded_bb_roundness	= roundness;
+	network * net = reinterpret_cast<network*>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("pointer to neural network cannot be NULL");
+	}
 
-	return;
-}
-
-
-void Darknet::set_annotation_draw_bb(const bool draw)
-{
-	TAT(TATPARMS);
-
-	annotate_draw_bb = draw;
-
-	return;
-}
-
-
-void Darknet::set_annotation_draw_label(const bool draw)
-{
-	TAT(TATPARMS);
-
-	annotate_draw_label = draw;
+	net->details->annotate_draw_label = toggle;
 
 	return;
 }
@@ -809,12 +817,12 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, Darknet::Im
 
 	int nboxes = 0;
 	const float hierarchy_threshold = 0.5f;
-	auto darknet_results = get_network_boxes(net, img.w, img.h, detection_threshold, hierarchy_threshold, 0, 1, &nboxes, 0);
+	auto darknet_results = get_network_boxes(net, img.w, img.h, net->details->detection_threshold, hierarchy_threshold, 0, 1, &nboxes, 0);
 
-	if (non_maximal_suppression_threshold)
+	if (net->details->non_maximal_suppression_threshold)
 	{
 		auto & layer = net->layers[net->n - 1];
-		do_nms_sort(darknet_results, nboxes, layer.classes, non_maximal_suppression_threshold);
+		do_nms_sort(darknet_results, nboxes, layer.classes, net->details->non_maximal_suppression_threshold);
 	}
 
 	Predictions predictions;
@@ -835,7 +843,7 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, Darknet::Im
 		for (int class_idx = 0; class_idx < det.classes; class_idx ++)
 		{
 			const auto probability = det.prob[class_idx];
-			if (probability >= detection_threshold)
+			if (probability >= net->details->detection_threshold)
 			{
 				// remember this probability since it is higher than the user-specified threshold
 				pred.prob[class_idx] = probability;
@@ -852,7 +860,7 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, Darknet::Im
 			continue;
 		}
 
-		if (fix_out_of_bound_normalized_coordinates)
+		if (net->details->fix_out_of_bound_normalized_coordinates)
 		{
 			fix_out_of_bound_normalized_rect(det.bbox.x, det.bbox.y, det.bbox.w, det.bbox.h);
 		}
@@ -905,43 +913,40 @@ cv::Mat Darknet::annotate(const Darknet::NetworkPtr ptr, const Darknet::Predicti
 		throw std::invalid_argument("cannot annotate empty image");
 	}
 
-	const auto & class_names = get_class_names(net);
-	const auto & class_colours = get_class_colours(net);
-
 	for (const auto & pred : predictions)
 	{
-		if (annotate_draw_bb)
+		if (net->details->annotate_draw_bb)
 		{
 			// draw the bounding box around the entire object
-			if (annotate_draw_rounded_bb_toggle == false)
+			if (not net->details->bounding_boxes_with_rounded_corners)
 			{
-				cv::rectangle(mat, pred.rect, class_colours.at(pred.best_class) /*colour_bb_lines*/, 1, cv_font_line_type);
+				cv::rectangle(mat, pred.rect, net->details->class_colours.at(pred.best_class), 1, net->details->cv_font_line_type);
 			}
 			else
 			{
-				draw_rounded_rectangle(mat, pred.rect, annotate_draw_rounded_bb_roundness);
+				draw_rounded_rectangle(mat, pred.rect, net->details->bounding_boxes_corner_roundness, net->details->class_colours.at(pred.best_class), net->details->cv_font_line_type);
 			}
 		}
 
-		if (annotate_draw_label)
+		if (net->details->annotate_draw_label)
 		{
-			std::string text = class_names.at(pred.best_class) + " ";
+			std::string text = net->details->class_names.at(pred.best_class) + " ";
 			text += std::to_string(static_cast<int>(std::round(100.0f * pred.prob.at(pred.best_class)))) + "%";
 
 			int				font_baseline	= 0;
-			const cv::Size	size			= cv::getTextSize(text, cv_font_face, cv_font_scale, cv_font_thickness, &font_baseline);
+			const cv::Size	size			= cv::getTextSize(text, net->details->cv_font_face, net->details->cv_font_scale, net->details->cv_font_thickness, &font_baseline);
 			cv::Rect		label			= pred.rect;
 			label.y							= label.y - size.height - font_baseline;
 			label.height					= size.height + font_baseline;
 			label.width						= size.width + 2;
 
 			// draw a rectangle above that to use as a label
-			cv::rectangle(mat, label, class_colours.at(pred.best_class)/*colour_bb_lines*/, cv::FILLED, cv_font_line_type);
+			cv::rectangle(mat, label, net->details->class_colours.at(pred.best_class), cv::FILLED, net->details->cv_font_line_type);
 
-			cv::mean(class_colours.at(pred.best_class));
+			cv::mean(net->details->class_colours.at(pred.best_class));
 
 			// and finally we draw the text on top of the label background
-			cv::putText(mat, text, cv::Point(label.x + 1, label.y + label.height - font_baseline / 2), cv_font_face, cv_font_scale, net->details->text_colours.at(pred.best_class) /*colour_label_text*/, cv_font_thickness, cv_font_line_type);
+			cv::putText(mat, text, cv::Point(label.x + 1, label.y + label.height - font_baseline / 2), net->details->cv_font_face, net->details->cv_font_scale, net->details->text_colours.at(pred.best_class), net->details->cv_font_thickness, net->details->cv_font_line_type);
 		}
 	}
 

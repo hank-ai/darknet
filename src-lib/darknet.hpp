@@ -172,19 +172,37 @@ namespace Darknet
 	 */
 	void set_gpu_index(int idx);
 
-	/// Detection threshold to use when @ref Darknet::predict() is called.  Default is @p 0.25.  @since 2024-07-24
-	void set_detection_threshold(float threshold);
+	/** Detection threshold to use when @ref Darknet::predict() is called.
+	 *
+	 * Default is @p 0.25.
+	 *
+	 * @see @ref Darknet::NetworkDetails::detection_threshold
+	 *
+	 * @since 2024-07-24
+	 */
+	void set_detection_threshold(Darknet::NetworkPtr ptr, float threshold);
 
-	/// Non-maximal suppression threshold to use when @ref Darknet::predict() is called.  Default is @p 0.45.  @since 2024-07-24
-	void set_non_maximal_suppression_threshold(float threshold);
+	/** Non-maximal suppression threshold to use when @ref Darknet::predict() is called.
+	 *
+	 * Default is @p 0.45.
+	 *
+	 * @see @ref Darknet::NetworkDetails::non_maximal_suppression_threshold
+	 *
+	 * @since 2024-07-24
+	 */
+	void set_non_maximal_suppression_threshold(Darknet::NetworkPtr ptr, float threshold);
 
 	/** Fix out-of-bound values returned by @ref Darknet::predict() for objects near the edges of images.
 	 * When set to @p true, this will ensure that normalized coordinates are between @p 0.0 and @p 1.0, and do not extend
-	 * beyond the borders of the image or video frame.  Default is @p true.
+	 * beyond the borders of the image or video frame.
+	 *
+	 * Default is @p true.
+	 *
+	 * @see @ref Darknet::NetworkDetails::fix_out_of_bound_normalized_coordinates
 	 *
 	 * @since 2024-07-25
 	 */
-	void fix_out_of_bound_values(const bool toggle);
+	void fix_out_of_bound_values(Darknet::NetworkPtr ptr, const bool toggle);
 
 	/** Set the font characteristics to use when drawing the bounding boxes and labels in either @ref Darknet::annotate()
 	 * or @ref Darknet::predict_and_annotate().
@@ -200,55 +218,42 @@ namespace Darknet
 	 * @param [in] font_scale determines how large or small the text is rendered.  For example, this could be set to @p 0.5
 	 * for extremely small text, and 1.75 for large text.  Default is @p 1.0.
 	 *
-	 * @since 2024-07-30
-	 */
-	void set_annotation_font(const cv::LineTypes line_type, const cv::HersheyFonts font_face, const int font_thickness, const double font_scale);
-
-	/** Set the colour to use when drawing the bounding boxes and label background colour in either
-	 * @ref Darknet::annotate() or @ref Darknet::predict_and_annotate().  The default is @p cv::Scalar(255,255,255) (white).
-	 *
-	 * @note Colours in OpenCV are specified in @p BGR, not @p RGB.  For example, pure red would be @p cv::Scalar(0,0,255).
+	 * @see @ref Darknet::NetworkDetails::cv_font_line_type
+	 * @see @ref Darknet::NetworkDetails::cv_font_face
+	 * @see @ref Darknet::NetworkDetails::cv_font_thickness
+	 * @see @ref Darknet::NetworkDetails::cv_font_scale
 	 *
 	 * @since 2024-07-30
 	 */
-	void set_annotation_bb_line_colour(const cv::Scalar colour);
-
-	/** Set the colour to use when rendering the label text above the bounding boxes in either @ref Darknet::annotate()
-	 * or @ref Darknet::predict_and_annotate().  The default is @p cv::Scalar(0,0,0) (black).
-	 *
-	 * @note Colours in OpenCV are specified in @p BGR, not @p RGB.  For example, pure red would be @p cv::Scalar(0,0,255).
-	 *
-	 * @since 2024-07-30
-	 */
-	void set_annotation_label_text_colour(const cv::Scalar colour);
+	void set_annotation_font(Darknet::NetworkPtr ptr, const cv::LineTypes line_type, const cv::HersheyFonts font_face, const int font_thickness, const double font_scale);
 
 	/** This determines if annotations are drawn as circles or rounded rectangles in either @ref Darknet::annotate()
 	 * or @ref Darknet::predict_and_annotate().  The defaul is to use square -- not rounded -- bounding boxes.
 	 *
-	 * @param [in] rounded Determines if rounded corners are used.  The default is @p false in which case normal "square"
+	 * @param [in] toggle Determines if rounded corners are used.  The default is @p false in which case normal "square"
 	 * bounding boxes are used.
 	 *
 	 * @param [in] roundness Determines how large the rounded corners will appear.  The value must be between @p 0.0
 	 * (small rounded corners) and @p 1.0 (large rounded corners).  At the extreme of @p 1.0, the bounding box will
 	 * appear as a circle.  The default is @p 0.5, but will only take effect if @p rounded is also set to @p true.
 	 *
-	 * @since 2024-07-30.
+	 * @since 2024-07-30
 	 */
-	void set_annotation_draw_rounded_bb(const bool rounded, const float roundness);
+	void set_rounded_corner_bounding_boxes(Darknet::NetworkPtr ptr, const bool toggle, const float roundness);
 
 	/** Determines if bounding boxes are drawn when calling either @ref Darknet::annotate() or
 	 * @ref Darknet::predict_and_annotate().  The default is @p true.
 	 *
 	 * @since 2024-07-30
 	 */
-	void set_annotation_draw_bb(const bool draw);
+	void set_annotation_draw_bb(Darknet::NetworkPtr ptr, const bool toggle);
 
 	/** Determines if text labels are drawn above the bounding boxes when calling either @ref Darknet::annotate() or
 	 * @ref Darknet::predict_and_annotate().  The default is @p true.
 	 *
 	 * @since 2024-07-30
 	 */
-	void set_annotation_draw_label(const bool draw);
+	void set_annotation_draw_label(Darknet::NetworkPtr ptr, const bool toggle);
 
 	/** Load a neural network (.cfg) and the corresponding weights file.  Remember to call
 	 * @ref Darknet::free_neural_network() once the neural network is no longer needed.

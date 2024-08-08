@@ -13,11 +13,12 @@ int main(int argc, char * argv[])
 	{
 		std::cout << "Darknet v" << DARKNET_VERSION_SHORT << std::endl;
 
-//		Darknet::set_annotation_font(cv::LineTypes::LINE_AA, cv::HersheyFonts::FONT_HERSHEY_PLAIN, 1, 1.00);
-		Darknet::set_annotation_bb_line_colour(cv::Scalar(0, 0, 255));
-		Darknet::set_annotation_draw_rounded_bb(true, 0.5f);
 		Darknet::Parms parms = Darknet::parse_arguments(argc, argv);
 		Darknet::NetworkPtr net = Darknet::load_neural_network(parms);
+#if 0
+		Darknet::set_annotation_font(net, cv::LineTypes::LINE_4, cv::HersheyFonts::FONT_HERSHEY_PLAIN, 2, 2.00);
+		Darknet::set_rounded_corner_bounding_boxes(net, true, 1.0f);
+#endif
 
 		for (const auto & parm : parms)
 		{

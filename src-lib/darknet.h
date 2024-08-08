@@ -517,13 +517,13 @@ extern "C" {
 	void darknet_set_gpu_index(int idx);
 
 	/// This is the @p C equivalent to @ref Darknet::set_detection_threshold().
-	void darknet_set_detection_threshold(float threshold);
+	void darknet_set_detection_threshold(NetworkPtr ptr, float threshold);
 
 	/// This is the @p C equivalent to @ref Darknet::set_non_maximal_suppression_threshold().
-	void darknet_set_non_maximal_suppression_threshold(float threshold);
+	void darknet_set_non_maximal_suppression_threshold(NetworkPtr ptr, float threshold);
 
 	/// This is the @p C equivalent to @ref Darknet::fix_out_of_bound_values().
-	void darknet_fix_out_of_bound_values(const bool toggle);
+	void darknet_fix_out_of_bound_values(NetworkPtr ptr, const bool toggle);
 
 	/// This is the @p C equivalent to @ref Darknet::network_dimensions().
 	void darknet_network_dimensions(NetworkPtr ptr, int * w, int * h, int * c);
