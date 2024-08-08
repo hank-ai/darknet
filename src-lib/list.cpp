@@ -58,19 +58,6 @@ void free_node(node *n)
 	}
 }
 
-void free_list_val(list *l)
-{
-	TAT(TATPARMS);
-
-	node *n = l->front;
-	node *next;
-	while (n) {
-		next = n->next;
-		free(n->val);
-		n = next;
-	}
-}
-
 void free_list(list *l)
 {
 	TAT(TATPARMS);

@@ -1,27 +1,5 @@
 #include "darknet_internal.hpp"
 
-void change_leaves(tree *t, char *leaf_list)
-{
-	TAT(TATPARMS);
-
-	list *llist = get_paths(leaf_list);
-	char **leaves = (char **)list_to_array(llist);
-	int n = llist->size;
-	int i,j;
-	int found = 0;
-	for(i = 0; i < t->n; ++i){
-		t->leaf[i] = 0;
-		for(j = 0; j < n; ++j){
-			if (0==strcmp(t->name[i], leaves[j])){
-				t->leaf[i] = 1;
-				++found;
-				break;
-			}
-		}
-	}
-	fprintf(stderr, "Found %d leaves.\n", found);
-}
-
 float get_hierarchy_probability(float *x, tree *hier, int c)
 {
 	TAT(TATPARMS);
