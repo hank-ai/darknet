@@ -5,7 +5,7 @@
 #endif
 
 /** @file
- * Defines the layer structure and #includes all of the different layer include files.
+ * Defines the layer structure and @p #includes all of the different layer include files.
  */
 
 #include "darknet.hpp"

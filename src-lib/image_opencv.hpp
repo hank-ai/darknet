@@ -26,7 +26,9 @@ typedef void* write_cv;
 mat_cv * load_image_mat_cv(const char * const filename, int flag);
 
 
-/** Similar to @ref load_image_mat_cv() but is explicit about the image channels and returns a Darknet-style @ref image.
+/** Similar to @ref load_image_mat_cv() but is explicit about the image channels and returns a Darknet-style
+ * @ref Darknet::Image.
+ *
  * Channels should be @p 0 (colour), @p 1 (grayscale) or @p 3 (colour).  This uses @ref load_image_mat_cv() so the
  * channels will be converted from BGR to RGB.
  */
@@ -95,9 +97,6 @@ void save_cv_jpg(mat_cv *img, const char *name);
 
 // Draw Detection
 void draw_detections_cv_v3(mat_cv* show_img, detection *dets, int num, float thresh, char **names, int classes, int ext_output);
-
-/// Draw the intial Loss & Accuracy chart.  This is called once at the very start.
-mat_cv* draw_initial_train_chart(char *windows_name, float max_img_loss, int max_batches, int number_of_lines, int img_size, int dont_show, char* chart_path);
 
 // Data augmentation
 Darknet::Image image_data_augmentation(mat_cv* mat, int w, int h,

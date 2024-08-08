@@ -2,10 +2,6 @@
 #include "darknet_internal.hpp"
 
 
-std::vector<std::string> Darknet::xxxclass_names;
-std::vector<cv::Scalar> Darknet::xxxclass_colours;
-
-
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();

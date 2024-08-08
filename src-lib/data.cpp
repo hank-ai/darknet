@@ -1300,15 +1300,15 @@ void Darknet::load_single_image_data(load_args args)
 		case IMAGE_DATA:
 		{
 			// 2024:  used in coco.cpp, detector.cpp, yolo.cpp
-			*(args.im) = load_image(args.path, 0, 0, args.c);
+			*(args.im) = Darknet::load_image(args.path, 0, 0, args.c);
 			*(args.resized) = Darknet::resize_image(*(args.im), args.w, args.h);
 			break;
 		}
 		case LETTERBOX_DATA:
 		{
 			// 2024:  used in detector.cpp
-			*(args.im) = load_image(args.path, 0, 0, args.c);
-			*(args.resized) = letterbox_image(*(args.im), args.w, args.h);
+			*(args.im) = Darknet::load_image(args.path, 0, 0, args.c);
+			*(args.resized) = Darknet::letterbox_image(*(args.im), args.w, args.h);
 			break;
 		}
 		case DETECTION_DATA:

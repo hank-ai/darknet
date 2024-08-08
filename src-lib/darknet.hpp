@@ -207,6 +207,8 @@ namespace Darknet
 	/** Set the font characteristics to use when drawing the bounding boxes and labels in either @ref Darknet::annotate()
 	 * or @ref Darknet::predict_and_annotate().
 	 *
+	 * @param [in] ptr Neural network pointer obtained from @ref Darknet::load_neural_network().
+	 *
 	 * @param [in] line_type should be @p cv::LineTypes::LINE_4, @p cv::LineTypes::LINE_8, or @p cv::LineTypes::CV_LINE_AA.
 	 * @p LINE_4 is the fastest but lower quality, while @p LINE_AA (anti-alias) is the slowest with highest quality.
 	 * Default is @p LINE_4.
@@ -229,6 +231,8 @@ namespace Darknet
 
 	/** This determines if annotations are drawn as circles or rounded rectangles in either @ref Darknet::annotate()
 	 * or @ref Darknet::predict_and_annotate().  The defaul is to use square -- not rounded -- bounding boxes.
+	 *
+	 * @param [in] ptr Neural network pointer obtained from @ref Darknet::load_neural_network().
 	 *
 	 * @param [in] toggle Determines if rounded corners are used.  The default is @p false in which case normal "square"
 	 * bounding boxes are used.
@@ -301,7 +305,7 @@ namespace Darknet
 
 	/** Get %Darknet to look at the given image or video frame and return all predictions.
 	 *
-	 * This is similar to the other @ref predict() that takes a @p Darknet::image object as input.
+	 * This is similar to the other @ref predict() that takes a @p Darknet::Image object as input.
 	 *
 	 * OpenCV @p cv::Mat images (and video frames) are typically stored in BGR format, not RGB.  This function expects the
 	 * images to be in the usual BGR format for 3-channel networks.

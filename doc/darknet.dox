@@ -27,13 +27,16 @@ The new DarknetV3 public API:
 - @ref Darknet::parse_arguments()
 - @ref Darknet::load_neural_network()
 - @ref Darknet::free_neural_network()
+- @ref Darknet::set_detection_threshold()
+- @ref Darknet::set_non_maximal_suppression_threshold()
+- @ref Darknet::set_rounded_corner_bounding_boxes()
 - @ref Darknet::predict()
 - @ref Darknet::annotate()
+- ...and more.  See the namespace @ref Darknet for details.
 
 Other useful functions:
 - @ref main()
 - @ref darknet_fatal_error()
-- @ref update_train_loss_chart()
 - @ref train_detector()
 	- @ref train_network() (CPU only)
 	- @ref train_network_waitkey() (1 GPU)

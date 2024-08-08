@@ -364,21 +364,21 @@ typedef struct data {
 
 
 /** Things that we can do on a secondary thread.
-* @see @ref load_thread()
-* @see @ref load_args.type
-*/
+ * @see @ref Darknet::load_single_image_data()
+ * @see @ref load_args::type
+ */
 typedef enum
 {
 	DETECTION_DATA,
-	IMAGE_DATA, ///< causes @ref load_image() and @ref resize_image() to be called
-	LETTERBOX_DATA,
+	IMAGE_DATA,		///< causes @ref Darknet::load_image() and @ref Darknet::resize_image() to be called
+	LETTERBOX_DATA,	///< causes @ref Darknet::load_image() and @ref Darknet::letterbox_image() to be called
 } data_type;
 
 
 /** Used when a secondary thread is created to load things, such as images.
-* @see @ref load_image()
-* @see @ref data_type
-*/
+ * @see @ref Darknet::load_single_image_data()
+ * @see @ref data_type
+ */
 typedef struct load_args {
 	int threads;
 	char **paths;
@@ -388,18 +388,9 @@ typedef struct load_args {
 	int h;
 	int w;
 	int c;	///< Number of channels, typically 3 for RGB
-	int out_w;
-	int out_h;
-	int nh;
-	int nw;
 	int num_boxes;
 	int truth_size;
-	int min, max, size;
 	int classes;
-	int background;
-	int scale;
-	int center;
-	int coords;
 	int mini_batch;
 	int track;
 	int augment_speed;
@@ -415,7 +406,6 @@ typedef struct load_args {
 	int gaussian_noise;
 	int blur;
 	int mixup;
-	float label_smooth_eps;
 	float angle;
 	float aspect;
 	float saturation;
@@ -425,7 +415,6 @@ typedef struct load_args {
 	Darknet::Image *im;
 	Darknet::Image *resized;
 	data_type type;
-	tree *hierarchy;
 } load_args;
 
 
@@ -528,8 +517,8 @@ extern "C" {
 	/// This is the @p C equivalent to @ref Darknet::network_dimensions().
 	void darknet_network_dimensions(NetworkPtr ptr, int * w, int * h, int * c);
 
-	/// This is the @p C equivalent to @ref Darknet::load_network_and_weights().
-	NetworkPtr darknet_load_network_and_weights(const char * const cfg_filename, const char * const weights_filename);
+	/// This is the @p C equivalent to @ref Darknet::load_neural_network().
+	NetworkPtr darknet_load_neural_network(const char * const cfg_filename, const char * const names_filename, const char * const weights_filename);
 
 #ifdef __cplusplus
 }

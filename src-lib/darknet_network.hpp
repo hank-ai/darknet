@@ -113,14 +113,14 @@ namespace Darknet
 
 			/** Whether bounding boxes should use rounded corners.
 			 * Default is @p false (meaning square bounding boxes).
-			 * @see @ref Darknet::set_annotation_draw_rounded_bb()
+			 * @see @ref Darknet::set_rounded_corner_bounding_boxes()
 			 * @since 2024-07-30
 			 */
 			bool bounding_boxes_with_rounded_corners;
 
 			/** The "roundness" of the corners when @ref bounding_boxes_with_rounded_corners is set to @p true.
 			 * Default is @p 0.5.
-			 * @see @ref Darknet::set_annotation_draw_rounded_bb()
+			 * @see @ref Darknet::set_rounded_corner_bounding_boxes()
 			 * @since 2024-07-30
 			 */
 			float bounding_boxes_corner_roundness;

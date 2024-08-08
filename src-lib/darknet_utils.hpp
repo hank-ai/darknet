@@ -10,12 +10,6 @@
 
 namespace Darknet
 {
-	/// The names stored in the .names file.  @see @ref remember_class_names()
-	extern std::vector<std::string> xxxclass_names;
-
-	/// The colour to use for each class.  @see @ref remember_class_names()
-	extern std::vector<cv::Scalar> xxxclass_colours;
-
 	/// Convert to lowercase and remove all but alphanumerics.
 	std::string convert_to_lowercase_alphanum(const std::string & arg);
 
