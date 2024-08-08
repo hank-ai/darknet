@@ -20,8 +20,8 @@ namespace Darknet
 		network net;
 	};
 
-	/** Store other details related to the neural network which we cannot easily add to the usual @ref Darknet::Network
-	 * structure.  These are typically C++ objects, or things added post %Darknet V3 (2024-08).
+	/** A place to store other details related to the neural network which we cannot easily add to the usual
+	 * @ref Darknet::Network structure.  These are typically C++ objects, or things added post %Darknet V3 (2024-08).
 	 *
 	 * @see @ref Darknet::Network::details
 	 *
@@ -31,6 +31,7 @@ namespace Darknet
 	{
 		public:
 
+			/// Default constructor.
 			NetworkDetails();
 
 			/// @{ Filename used to load the neural nework.  @since 2024-08-06
