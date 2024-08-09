@@ -4,9 +4,7 @@
 #error "The Darknet/YOLO project requires a C++ compiler."
 #endif
 
-#include <thread>
-#include "darknet.h"
-#include "list.hpp"
+#include "darknet_internal.hpp"
 
 
 data load_data_detection(int n, char **paths, int m, int w, int h, int c, int boxes, int truth_size, int classes, int use_flip, int gaussian_noise, int use_blur, int use_mixup, float jitter, float resize, float hue, float saturation, float exposure, int mini_batch, int track, int augment_speed, int letter_box, int mosaic_bound, int contrastive, int contrastive_jit_flip, int contrastive_color, int show_imgs);
@@ -14,12 +12,8 @@ box_label *read_boxes(char *filename, int *n);
 list *get_paths(char *filename);
 
 data get_data_part(data d, int part, int total);
-data get_random_data(data d, int num);
 void get_next_batch(data d, int n, int offset, float *X, float *y);
 data concat_data(data d1, data d2);
-data concat_datas(data *d, int n);
-void fill_truth(char *path, char **labels, int k, float *truth);
-void fill_truth_smooth(char *path, char **labels, int k, float *truth, float label_smooth_eps);
 
 
 namespace Darknet
