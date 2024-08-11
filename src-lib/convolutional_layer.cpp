@@ -1531,7 +1531,7 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 	if(l.binary || l.xnor) swap_binary(&l);
 
 	//visualize_convolutional_layer(l, "conv_visual", NULL);
-	//wait_until_press_key_cv();
+	//cv::waitKey(0);
 
 	if (l.assisted_excitation && state.train)
 	{
@@ -1659,9 +1659,9 @@ void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state
 			char buff2[100];
 			sprintf(buff2, "a_excitation_act_%d", b);
 			show_image_cv(img2, buff2);
-			wait_key_cv(5);
+			cv::waitKey(5);
 		}
-		wait_until_press_key_cv();
+		cv::waitKey(0);
 	}
 #endif
 

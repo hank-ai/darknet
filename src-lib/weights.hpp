@@ -3,21 +3,23 @@
 #include "darknet.h"
 #include <filesystem>
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-network parse_network_cfg(const char * filename);
-network parse_network_cfg_custom(const char * filename, int batch, int time_steps);
-void save_network(network net, char *filename);
-void save_weights(network net, char *filename);
-void save_weights_upto(network net, char *filename, int cutoff, int save_ema);
-void save_weights_double(network net, char *filename);
-void load_weights(network * net, const char * filename);
-void load_weights_upto(network * net, const char * filename, int cutoff);
+//#ifdef __cplusplus
+//extern "C" {
+//#endif
+Darknet::Network parse_network_cfg(const char * filename);
+Darknet::Network parse_network_cfg_custom(const char * filename, int batch, int time_steps);
 
-#ifdef __cplusplus
-}
-#endif
+void save_network		(Darknet::Network net, char *filename);
+void save_weights		(Darknet::Network net, char *filename);
+void save_weights_upto	(Darknet::Network net, char *filename, int cutoff, int save_ema);
+void save_weights_double(Darknet::Network net, char *filename);
+
+void load_weights		(Darknet::Network * net, const char * filename);
+void load_weights_upto	(Darknet::Network * net, const char * filename, int cutoff);
+
+//#ifdef __cplusplus
+//}
+//#endif
 
 namespace Darknet
 {
@@ -33,7 +35,7 @@ namespace Darknet
 	 *
 	 * @since 2024-08-06
 	 */
-	void load_names(network * net, const std::filesystem::path & filename);
+	void load_names(Darknet::Network * net, const std::filesystem::path & filename);
 
 	/** Generate the necessary class colours used to draw bounding boxes and labels.  The colours are stored in
 	 * @ref Darknet::NetworkDetails at the time the network is loaded, once the total number of classes are known.
@@ -43,5 +45,5 @@ namespace Darknet
 	 *
 	 * @since 2024-08-06
 	 */
-	void assign_default_class_colours(network * net);
+	void assign_default_class_colours(Darknet::Network * net);
 }

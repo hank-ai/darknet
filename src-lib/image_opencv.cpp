@@ -253,46 +253,6 @@ void create_window_cv(char const* window_name, int full_screen, int width, int h
 }
 
 
-void resize_window_cv(char const* window_name, int width, int height)
-{
-	TAT(TATPARMS);
-
-	cv::resizeWindow(window_name, width, height);
-}
-
-
-void move_window_cv(char const* window_name, int x, int y)
-{
-	TAT(TATPARMS);
-
-	cv::moveWindow(window_name, x, y);
-}
-
-
-void destroy_all_windows_cv()
-{
-	TAT(TATPARMS);
-
-	cv::destroyAllWindows();
-}
-
-
-int wait_key_cv(int delay)
-{
-	TAT(TATPARMS);
-
-	return cv::waitKey(delay);
-}
-
-
-int wait_until_press_key_cv()
-{
-	TAT(TATPARMS);
-
-	return wait_key_cv(0);
-}
-
-
 static float get_pixel(Darknet::Image m, int x, int y, int c)
 {
 	TAT(TATPARMS);

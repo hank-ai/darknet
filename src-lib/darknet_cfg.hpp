@@ -151,7 +151,7 @@ namespace Darknet
 			/// Iterate over the content to record some debug information about the configuration.
 			std::string debug() const;
 
-			/** Create and populate the %Darknet @p network object @ref net from the configuration that was parsed.
+			/** Create and populate the %Darknet @ref Darknet::Network object @ref net from the configuration that was parsed.
 			 *
 			 * @note The @ref read() method must be called prior to @p create_network().
 			 *
@@ -159,7 +159,7 @@ namespace Darknet
 			 * @ref CfgFile::create_network() assumes ownership of the nework that is created.  Callers must remember to call
 			 * @ref free_network() once they are done with the neural network created by this method.
 			 */
-			network & create_network(const int batch=1, int time_steps=1);
+			Darknet::Network & create_network(const int batch=1, int time_steps=1);
 
 			/// The configuration file.
 			std::filesystem::path filename;
@@ -191,7 +191,7 @@ namespace Darknet
 			 * @see @ref Darknet::CfgFile::create_network()
 			 * @see @ref free_network()
 			 */
-			network net;
+			Darknet::Network net;
 
 			/** @{ Temporary fields which are needed while creating the @ref net object.  It is unlikely that this needs to be
 			 * exposed or modified externally, but it must be exposed for use in @ref dump() and the old

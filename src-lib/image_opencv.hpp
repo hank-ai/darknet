@@ -57,11 +57,6 @@ cv::Mat image_to_mat(Darknet::Image img);
 
 // Window
 void create_window_cv(char const* window_name, int full_screen, int width, int height);
-void resize_window_cv(char const* window_name, int width, int height);
-void move_window_cv(char const* window_name, int x, int y);
-void destroy_all_windows_cv();
-int wait_key_cv(int delay);
-int wait_until_press_key_cv();
 //void make_window(char *name, int w, int h, int fullscreen); -- use create_window_cv() instead
 void show_image_cv(Darknet::Image p, const char *name);
 //void show_image_cv_ipl(mat_cv *disp, const char *name);

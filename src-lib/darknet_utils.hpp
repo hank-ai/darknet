@@ -19,7 +19,7 @@ namespace Darknet
 	std::string text_to_simple_label(std::string txt);
 
 	/// Setup the new C++ charts.  This is called once just prior to starting training.  @see @ref Chart
-	void initialize_new_charts(const network & net);
+	void initialize_new_charts(const Darknet::Network & net);
 
 	/// Update the new C++ charts with the given loss and mAP% accuracy value.  This is called at every iteration.  @see @ref Chart
 	void update_loss_in_new_charts(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show);

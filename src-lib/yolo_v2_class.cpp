@@ -108,8 +108,9 @@ void check_cuda(cudaError_t status) {
 }
 #endif
 
-struct detector_gpu_t {
-	network net;
+struct detector_gpu_t
+{
+	Darknet::Network net;
 	Darknet::Image images[NFRAMES];
 	float *avg;
 	float* predictions[NFRAMES];
@@ -134,7 +135,7 @@ Detector::Detector(std::string cfg_filename, std::string weight_filename, int gp
 	cuda_set_device(cur_gpu_id);
 	printf(" Used GPU %d \n", cur_gpu_id);
 #endif
-	network &net = detector_gpu.net;
+	Darknet::Network & net = detector_gpu.net;
 	net.gpu_index = cur_gpu_id;
 	//gpu_index = i;
 
@@ -239,7 +240,7 @@ void Detector::free_image(image_t m)
 std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
-	network &net = detector_gpu.net;
+	Darknet::Network & net = detector_gpu.net;
 #ifdef GPU
 	int old_gpu_index;
 	cudaGetDevice(&old_gpu_index);
@@ -330,7 +331,7 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_size, int width, int height, float thresh, bool make_nms)
 {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
-	network &net = detector_gpu.net;
+	Darknet::Network net = detector_gpu.net;
 #ifdef GPU
 	int old_gpu_index;
 	cudaGetDevice(&old_gpu_index);

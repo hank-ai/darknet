@@ -42,7 +42,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	char *valid_images = option_find_str(options, "valid", train_images);
 	char *backup_directory = option_find_str(options, "backup", "/backup/");
 
-	network net_map;
+	Darknet::Network net_map;
 	if (calc_map)
 	{
 		FILE* valid_file = fopen(valid_images, "r");
@@ -56,7 +56,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		printf("Prepare additional network for mAP calculation...\n");
 		net_map = parse_network_cfg_custom(cfgfile, 1, 1);
 		net_map.benchmark_layers = benchmark_layers;
-		const int net_classes = net_map.layers[net_map.n - 1].classes;
+//		const int net_classes = net_map.layers[net_map.n - 1].classes;
 
 		// free memory unnecessary arrays
 		for (int k = 0; k < net_map.n - 1; ++k)
@@ -72,7 +72,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	float avg_contrastive_acc = 0.0f;
 
 	// note we load a new network for every GPU used to train
-	network* nets = (network*)xcalloc(ngpus, sizeof(network));
+	Darknet::Network * nets = (Darknet::Network*)xcalloc(ngpus, sizeof(Darknet::Network));
 	for (int k = 0; k < ngpus; ++k)
 	{
 #ifdef GPU
@@ -94,7 +94,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		nets[k].details->class_names = net_map.details->class_names;
 	}
 
-	network net = nets[0];
+	Darknet::Network net = nets[0]; // xxx6
 
 	const int actual_batch_size = net.batch * net.subdivisions;
 	if (actual_batch_size == 1)
@@ -535,7 +535,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
 	printf("If you want to re-start training, then use the flag \"-clear\" in the training command.\n");
 
-	destroy_all_windows_cv();
+	cv::destroyAllWindows();
 
 	// free memory
 	load_thread.join();
@@ -776,7 +776,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 	int *map = 0;
 	if (mapf) map = read_map(mapf);
 
-	network net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
+	Darknet::Network net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
 	if (weightfile)
 	{
 		load_weights(&net, weightfile);
@@ -999,8 +999,9 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 {
 	TAT(TATPARMS);
 
-	network net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
-	if (weightfile) {
+	Darknet::Network net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
+	if (weightfile)
+	{
 		load_weights(&net, weightfile);
 	}
 	//set_batch_network(&net, 1);
@@ -1075,7 +1076,7 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 }
 
 
-float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, network *existing_net)
+float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network * existing_net)
 {
 	// Example command that calls this function:
 	//
@@ -1097,10 +1098,10 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 	list *options = read_data_cfg(datacfg);
 	char *valid_images = option_find_str(options, "valid", nullptr);
 	char *difficult_valid_images = option_find_str(options, "difficult", NULL);
-	char *name_list = option_find_str(options, "names", nullptr);
+//	char *name_list = option_find_str(options, "names", nullptr);
 	FILE* reinforcement_fd = NULL;
 
-	network net;
+	Darknet::Network net;
 	if (existing_net)
 	{
 		char *train_images = option_find_str(options, "train", nullptr);
@@ -1942,7 +1943,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 
 	list *options = read_data_cfg(datacfg);
 
-	network net = parse_network_cfg_custom(cfgfile, 1, 1); // set batch=1
+	Darknet::Network net = parse_network_cfg_custom(cfgfile, 1, 1); // set batch=1
 	if (weightfile)
 	{
 		load_weights(&net, weightfile);
@@ -2094,9 +2095,10 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		Darknet::free_image(im);
 		free_image(sized);
 
-		if (!dont_show) {
-			wait_until_press_key_cv();
-			destroy_all_windows_cv();
+		if (!dont_show)
+		{
+			cv::waitKey(0);
+			cv::destroyAllWindows();
 		}
 
 		if (filename) break;
@@ -2126,19 +2128,19 @@ void run_detector(int argc, char **argv)
 	int map_points = find_int_arg(argc, argv, "-points", 0);
 	int show_imgs = find_arg(argc, argv, "-show_imgs");
 //	int mjpeg_port = find_int_arg(argc, argv, "-mjpeg_port", -1);
-	int avgframes = find_int_arg(argc, argv, "-avgframes", 3);
-	int dontdraw_bbox = find_arg(argc, argv, "-dontdraw_bbox");
-	int json_port = find_int_arg(argc, argv, "-json_port", -1);
-	char *http_post_host = find_char_arg(argc, argv, "-http_post_host", 0);
-	int time_limit_sec = find_int_arg(argc, argv, "-time_limit_sec", 0);
-	char *out_filename = find_char_arg(argc, argv, "-out_filename", 0);
+//	int avgframes = find_int_arg(argc, argv, "-avgframes", 3);
+//	int dontdraw_bbox = find_arg(argc, argv, "-dontdraw_bbox");
+//	int json_port = find_int_arg(argc, argv, "-json_port", -1);
+//	char *http_post_host = find_char_arg(argc, argv, "-http_post_host", 0);
+//	int time_limit_sec = find_int_arg(argc, argv, "-time_limit_sec", 0);
+//	char *out_filename = find_char_arg(argc, argv, "-out_filename", 0);
 	char *outfile = find_char_arg(argc, argv, "-out", 0);
-	char *prefix = find_char_arg(argc, argv, "-prefix", 0);
+//	char *prefix = find_char_arg(argc, argv, "-prefix", 0);
 	float thresh = find_float_arg(argc, argv, "-thresh", .25);    // 0.24
 	float iou_thresh = find_float_arg(argc, argv, "-iou_thresh", .5);    // 0.5 for mAP
 	float hier_thresh = find_float_arg(argc, argv, "-hier", .5);
-	int cam_index = find_int_arg(argc, argv, "-c", 0);
-	int frame_skip = find_int_arg(argc, argv, "-s", 0);
+//	int cam_index = find_int_arg(argc, argv, "-c", 0);
+//	int frame_skip = find_int_arg(argc, argv, "-s", 0);
 	// extended output in test mode (output of rect bound coords)
 	// and for recall mode (extended output table-like format with results for best_class fit)
 	int ext_output = find_arg(argc, argv, "-ext_output");

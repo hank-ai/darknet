@@ -1,21 +1,6 @@
 #include "darknet_internal.hpp"
 
 
-extern "C"
-{
-	int64_t get_current_iteration(network net);
-	int get_network_input_size(network net);
-	int get_sequence_value(network net);
-	float get_current_rate(network net);
-	int get_current_batch(network net);
-	int get_network_output_size(network net);
-	float get_network_cost(network net);
-	float train_network(network net, data d);
-	void resize_window_cv(char const* window_name, int width, int height);
-	int wait_key_cv(int delay);
-}
-
-
 typedef struct time_benchmark_layers
 {
 	float time;
@@ -36,13 +21,14 @@ int time_comparator(const void *pa, const void *pb)
 	return 0;
 }
 
-void forward_network_gpu(network net, Darknet::NetworkState state)
+void forward_network_gpu(Darknet::Network net, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
 	static time_benchmark_layers *avg_time_per_layer = NULL;
 	static time_benchmark_layers *sorted_avg_time_per_layer = NULL;
-	double start_time, end_time;
+//	double start_time;
+//	double end_time;
 	if (net.benchmark_layers)
 	{
 		if (!avg_time_per_layer)
@@ -148,13 +134,14 @@ void forward_network_gpu(network net, Darknet::NetworkState state)
 	}
 }
 
-void backward_network_gpu(network net, Darknet::NetworkState state)
+void backward_network_gpu(Darknet::Network net, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
 	static time_benchmark_layers *avg_time_per_layer = NULL;
 	static time_benchmark_layers *sorted_avg_time_per_layer = NULL;
-	double start_time, end_time;
+//	double start_time;
+//	double end_time;
 	if (net.benchmark_layers)
 	{
 		if (!avg_time_per_layer)
@@ -272,7 +259,7 @@ void backward_network_gpu(network net, Darknet::NetworkState state)
 
 		Darknet::Image attention_img = Darknet::make_attention_image(img_size, original_delta_cpu, original_input_cpu, net.w, net.h, net.c, 0.7);
 		Darknet::show_image(attention_img, "attention_img");
-		resize_window_cv("attention_img", 500, 500);
+		cv::resizeWindow("attention_img", 500, 500);
 
 		//static int img_counter = 0;
 		//img_counter++;
@@ -283,7 +270,7 @@ void backward_network_gpu(network net, Darknet::NetworkState state)
 
 		Darknet::Image attention_mask_img = Darknet::make_attention_image(img_size, original_delta_cpu, original_delta_cpu, net.w, net.h, net.c, 1.0);
 		Darknet::show_image(attention_mask_img, "attention_mask_img");
-		resize_window_cv("attention_mask_img", 500, 500);
+		cv::resizeWindow("attention_mask_img", 500, 500);
 
 		//sprintf(buff, "attention_mask_img_%d.png", img_counter);
 		//save_image_png(attention_mask_img, buff);
@@ -295,7 +282,7 @@ void backward_network_gpu(network net, Darknet::NetworkState state)
 
 	if (net.adversarial)
 	{
-		int x_size = get_network_input_size(net)*net.batch;
+		int x_size = get_network_input_size(net) * net.batch;
 		printf(" x_size = %d, original_delta = %p, original_input = %p, net.learning_rate = %f \n",
 			x_size, original_delta, original_input, net.learning_rate);
 		axpy_ongpu(x_size, net.learning_rate, original_delta, 1, original_input, 1);
@@ -317,16 +304,17 @@ void backward_network_gpu(network net, Darknet::NetworkState state)
 	}
 }
 
-void update_network_gpu(network net)
+void update_network_gpu(Darknet::Network net)
 {
 	TAT(TATPARMS);
 
 	cuda_set_device(net.gpu_index);
 	const int iteration_num = (*net.seen) / (net.batch * net.subdivisions);
-	int i;
+
 	int update_batch = net.batch*net.subdivisions * get_sequence_value(net);
+
 	float rate = get_current_rate(net);
-	for (i = 0; i < net.n; ++i)
+	for (int i = 0; i < net.n; ++i)
 	{
 		Darknet::Layer & l = net.layers[i];
 		if (l.train == 0)
@@ -354,7 +342,7 @@ void update_network_gpu(network net)
 	}
 }
 
-void forward_backward_network_gpu(network net, float *x, float *y)
+void forward_backward_network_gpu(Darknet::Network net, float *x, float *y)
 {
 	TAT(TATPARMS);
 
@@ -418,7 +406,7 @@ void forward_backward_network_gpu(network net, float *x, float *y)
 	}
 }
 
-float train_network_datum_gpu(network net, float *x, float *y)
+float train_network_datum_gpu(Darknet::Network net, float *x, float *y)
 {
 	TAT(TATPARMS);
 
@@ -462,8 +450,8 @@ float train_network_datum_gpu(network net, float *x, float *y)
 		im.c = net.c;
 		im.data = x;
 		Darknet::show_image(im, "adversarial data augmentation");
-		resize_window_cv("adversarial data augmentation", 500, 500);
-		wait_key_cv(1);
+		cv::resizeWindow("adversarial data augmentation", 500, 500);
+		cv::waitKey(1);
 
 		free(old_input);
 		free(truth_cpu);
@@ -517,7 +505,7 @@ void push_updates(Darknet::Layer & l)
 	}
 }
 
-void update_layer(Darknet::Layer & l, network net)
+void update_layer(Darknet::Layer & l, Darknet::Network net)
 {
 	TAT(TATPARMS);
 
@@ -665,24 +653,28 @@ void distribute_updates(Darknet::Layer & l, Darknet::Layer & base)
 	}
 }
 
-void sync_layer(network *nets, int n, int j)
+void sync_layer(Darknet::Network * nets, int n, int j)
 {
 	TAT(TATPARMS);
 
 	//printf("Syncing layer %d\n", j);
-	int i;
-	network net = nets[0];
+	Darknet::Network net = nets[0];
 	Darknet::Layer & base = net.layers[j];
 	cuda_set_device(net.gpu_index);
 	pull_weights(base);
-	for (i = 1; i < n; ++i) {
+
+	for (int i = 1; i < n; ++i)
+	{
 		cuda_set_device(nets[i].gpu_index);
 		Darknet::Layer & l = nets[i].layers[j];
 		pull_weights(l);
 		merge_weights(l, base);
 	}
+
 	scale_weights(base, 1./n);
-	for (i = 0; i < n; ++i) {
+
+	for (int i = 0; i < n; ++i)
+	{
 		cuda_set_device(nets[i].gpu_index);
 		Darknet::Layer & l = nets[i].layers[j];
 		distribute_weights(l, base);
@@ -691,7 +683,7 @@ void sync_layer(network *nets, int n, int j)
 }
 
 
-void sync_nets(network *nets, int n, int interval)
+void sync_nets(Darknet::Network * nets, int n, int interval)
 {
 	TAT(TATPARMS);
 
@@ -723,7 +715,7 @@ void sync_nets(network *nets, int n, int interval)
 	return;
 }
 
-float train_networks(network *nets, int n, data d, int interval)
+float train_networks(Darknet::Network * nets, int n, data d, int interval)
 {
 	TAT(TATPARMS);
 
@@ -748,7 +740,7 @@ float train_networks(network *nets, int n, data d, int interval)
 		 p[i] = get_data_part(d, i, n);
 
 		threads.emplace_back(
-			[](network & net, data &d, float * err)
+			[](Darknet::Network & net, data &d, float * err)
 			{
 				TAT(TATPARMS);
 
@@ -780,7 +772,7 @@ float train_networks(network *nets, int n, data d, int interval)
 	return sum / n;
 }
 
-float *get_network_output_layer_gpu(network net, int i)
+float *get_network_output_layer_gpu(Darknet::Network net, int i)
 {
 	TAT(TATPARMS);
 
@@ -793,7 +785,7 @@ float *get_network_output_layer_gpu(network net, int i)
 	return l.output;
 }
 
-float *get_network_output_gpu(network net)
+float *get_network_output_gpu(Darknet::Network net)
 {
 	TAT(TATPARMS);
 
@@ -809,7 +801,7 @@ float *get_network_output_gpu(network net)
 	return get_network_output_layer_gpu(net, i);
 }
 
-float *network_predict_gpu(network net, float *input)
+float *network_predict_gpu(Darknet::Network net, float *input)
 {
 	TAT(TATPARMS);
 

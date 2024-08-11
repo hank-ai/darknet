@@ -40,7 +40,7 @@ Darknet::Layer make_scale_channels_layer(int batch, int index, int w, int h, int
 	return l;
 }
 
-void resize_scale_channels_layer(Darknet::Layer *l, network *net)
+void resize_scale_channels_layer(Darknet::Layer *l, Darknet::Network * net)
 {
 	TAT(TATPARMS);
 

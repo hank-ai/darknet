@@ -114,7 +114,7 @@ Darknet::Layer make_shortcut_layer(int batch, int n, int *input_layers, int* inp
 	return l;
 }
 
-void resize_shortcut_layer(Darknet::Layer *l, int w, int h, network *net)
+void resize_shortcut_layer(Darknet::Layer *l, int w, int h, Darknet::Network * net)
 {
 	TAT(TATPARMS);
 

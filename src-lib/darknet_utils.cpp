@@ -235,7 +235,7 @@ std::string Darknet::text_to_simple_label(std::string txt)
 }
 
 
-void Darknet::initialize_new_charts(const network & net)
+void Darknet::initialize_new_charts(const Darknet::Network & net)
 {
 	TAT(TATPARMS);
 

@@ -8,8 +8,6 @@ Darknet::Image float_to_image_scaled(int w, int h, int c, float *data);
 extern "C"
 {
 	void show_image_cv(Darknet::Image p, const char *name);
-	int wait_key_cv(int delay);
-	int wait_until_press_key_cv();
 }
 
 __global__ void binarize_kernel(float *x, int n, float *binary)
@@ -1239,9 +1237,9 @@ void assisted_excitation_forward_gpu(Darknet::Layer & l, Darknet::NetworkState s
 			show_image_cv(dc, buff3);
 			*/
 
-			wait_key_cv(5);
+			cv::waitKey(5);
 		}
-		wait_until_press_key_cv();
+		cv::waitKey(0);
 	}
 
 	free(truth_cpu);
@@ -1376,7 +1374,7 @@ void update_convolutional_layer_gpu(Darknet::Layer & l, int batch, float learnin
 			//printf(" angle = %f, reverse = %d \n", l.angle, 0);
 			//cuda_pull_array(l.weights_gpu, l.weights, l.nweights);
 			//visualize_convolutional_layer(l, "weights", NULL);
-			//wait_key_cv(10);
+			//cv::waitKey(10);
 		//}
 	}
 

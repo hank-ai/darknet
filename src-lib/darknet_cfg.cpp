@@ -5,7 +5,7 @@ namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
-	static void set_train_only_bn(network & net)
+	static void set_train_only_bn(Darknet::Network & net)
 	{
 		TAT(TATPARMS);
 
@@ -648,7 +648,7 @@ std::string Darknet::CfgFile::debug() const
 }
 
 
-network & Darknet::CfgFile::create_network(int batch, int time_steps)
+Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 {
 	TAT(TATPARMS);
 

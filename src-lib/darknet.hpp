@@ -367,4 +367,5 @@ namespace Darknet
 
 #include "darknet_version.h"
 #include "darknet_enums.hpp"
+#include "darknet_network.hpp"
 #include "darknet_cfg.hpp"

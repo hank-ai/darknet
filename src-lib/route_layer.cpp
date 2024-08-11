@@ -41,7 +41,7 @@ Darknet::Layer make_route_layer(int batch, int n, int *input_layers, int *input_
 	return l;
 }
 
-void resize_route_layer(Darknet::Layer *l, network *net)
+void resize_route_layer(Darknet::Layer *l, Darknet::Network * net)
 {
 	TAT(TATPARMS);
 

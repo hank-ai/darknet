@@ -8,7 +8,7 @@ namespace
 }
 
 
-network parse_network_cfg(const char * filename)
+Darknet::Network parse_network_cfg(const char * filename)
 {
 	TAT(TATPARMS);
 
@@ -16,7 +16,7 @@ network parse_network_cfg(const char * filename)
 }
 
 
-network parse_network_cfg_custom(const char * filename, int batch, int time_steps)
+Darknet::Network parse_network_cfg_custom(const char * filename, int batch, int time_steps)
 {
 	TAT(TATPARMS);
 
@@ -207,7 +207,7 @@ void save_connected_weights(Darknet::Layer & l, FILE *fp)
 	}
 }
 
-void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
+void save_weights_upto(Darknet::Network net, char *filename, int cutoff, int save_ema)
 {
 	TAT(TATPARMS);
 
@@ -286,7 +286,7 @@ void save_weights_upto(network net, char *filename, int cutoff, int save_ema)
 	fclose(fp);
 }
 
-void save_weights(network net, char *filename)
+void save_weights(Darknet::Network net, char *filename)
 {
 	TAT(TATPARMS);
 
@@ -466,7 +466,7 @@ void load_shortcut_weights(Darknet::Layer & l, FILE *fp)
 #endif
 }
 
-void load_weights_upto(network * net, const char * filename, int cutoff)
+void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff)
 {
 	TAT(TATPARMS);
 
@@ -632,7 +632,7 @@ void load_weights_upto(network * net, const char * filename, int cutoff)
 }
 
 
-void load_weights(network * net, const char * filename)
+void load_weights(Darknet::Network * net, const char * filename)
 {
 	TAT(TATPARMS);
 
@@ -641,7 +641,7 @@ void load_weights(network * net, const char * filename)
 
 
 // load network & force - set batch size
-network *load_network_custom(const char * cfg, const char * weights, int clear, int batch)
+Darknet::Network * load_network_custom(const char * cfg, const char * weights, int clear, int batch)
 {
 	TAT(TATPARMS);
 
@@ -650,13 +650,13 @@ network *load_network_custom(const char * cfg, const char * weights, int clear, 
 		std::cout << "Loading configuration from \"" << cfg << "\"" << std::endl;
 	}
 
-	network* net = (network*)xcalloc(1, sizeof(network));
+	Darknet::Network * net = (Darknet::Network*)xcalloc(1, sizeof(Darknet::Network));
 	*net = parse_network_cfg_custom(cfg, batch, 1);
 	load_weights(net, weights);
 	fuse_conv_batchnorm(*net);
 
-	/** @todo Some code seems to also call this next function, and some not.  This was not originally called here, but I
-	 * copied it from several other code locations.  Need to invetigate whether or not it should be here.  2024-08-03
+	/** @todo V3 Some code seems to also call this next function, and some not.  This was not originally called here, but
+	 * I copied it from several other code locations.  Need to invetigate whether or not it should be here.  2024-08-03
 	 */
 	calculate_binary_weights(*net);
 
@@ -671,7 +671,7 @@ network *load_network_custom(const char * cfg, const char * weights, int clear, 
 
 
 // load network & get batch size from cfg-file
-network *load_network(const char * cfg, const char * weights, int clear)
+Darknet::Network * load_network(const char * cfg, const char * weights, int clear)
 {
 	TAT(TATPARMS);
 
@@ -680,11 +680,11 @@ network *load_network(const char * cfg, const char * weights, int clear)
 		std::cout << "Loading configuration from \"" << cfg << "\"" << std::endl;
 	}
 
-	network* net = (network*)xcalloc(1, sizeof(network));
+	Darknet::Network* net = (Darknet::Network*)xcalloc(1, sizeof(Darknet::Network));
 	*net = parse_network_cfg(cfg);
 	load_weights(net, weights);
 
-	/// @todo why do we not call fuse_conv_batchnorm() here?
+	/// @todo V3 why do we not call fuse_conv_batchnorm() here?
 
 	if (clear)
 	{
@@ -696,7 +696,7 @@ network *load_network(const char * cfg, const char * weights, int clear)
 }
 
 
-void Darknet::load_names(network * net, const std::filesystem::path & filename)
+void Darknet::load_names(Darknet::Network * net, const std::filesystem::path & filename)
 {
 	TAT(TATPARMS);
 
@@ -744,7 +744,7 @@ void Darknet::load_names(network * net, const std::filesystem::path & filename)
 }
 
 
-void Darknet::assign_default_class_colours(network * net)
+void Darknet::assign_default_class_colours(Darknet::Network * net)
 {
 	TAT(TATPARMS);
 

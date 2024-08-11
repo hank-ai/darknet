@@ -46,6 +46,9 @@ namespace Darknet
 	 * continue using the Network without causing any problems.
 	 */
 	struct NetworkDetails;
+
+	/// The @p network structure has been renamed and moved to darknet_network.hpp.
+	struct Network;
 }
 
 #ifdef __cplusplus
@@ -155,147 +158,6 @@ typedef enum {
 	CONSTANT, STEP, EXP, POLY, STEPS, SIG, RANDOM, SGDR
 } learning_rate_policy;
 
-// network.h
-typedef struct network {
-	int n;	///< the number of layers in the network
-	int batch;
-	uint64_t *seen;
-	float *badlabels_reject_threshold;
-	float *delta_rolling_max;
-	float *delta_rolling_avg;
-	float *delta_rolling_std;
-	int weights_reject_freq;
-	int equidistant_point;
-	float badlabels_rejection_percentage;
-	float num_sigmas_reject_badlabels;
-	float ema_alpha;
-	int *cur_iteration;
-	float loss_scale;
-	int *t;
-	float epoch;
-	int subdivisions;
-	Darknet::Layer *layers;
-	float *output;
-	learning_rate_policy policy;
-	int benchmark_layers;
-	int *total_bbox;
-	int *rewritten_bbox;
-
-	float learning_rate;
-	float learning_rate_min;
-	float learning_rate_max;
-	int batches_per_cycle;
-	int batches_cycle_mult;
-	float momentum;
-	float decay;
-	float gamma;
-	float scale;
-	float power;
-	int time_steps;
-	int step;
-	int max_batches;
-	int num_boxes;
-	int train_images_num;
-	float *seq_scales;
-	float *scales;
-	int   *steps;
-	int num_steps;
-	int burn_in;
-	int cudnn_half;
-
-	int adam;
-	float B1;
-	float B2;
-	float eps;
-
-	int inputs;
-	int outputs;
-	int truths;
-	int notruth;
-	/// The height of the network.  Must be divisible by @p 32.  E.g, @p 480.
-	int h;
-	/// The width of the network.  Must be divisible by @p 32.  E.g., @p 640.
-	int w;
-	/// The number of channels for the network.  Typically @p 3 when working with RGB images.
-	int c;
-	int max_crop;
-	int min_crop;
-	float max_ratio;
-	float min_ratio;
-	int center;
-	int flip; ///< horizontal flip 50% probability augmentaiont for classifier training (default = 1)
-	int gaussian_noise;
-	int blur;
-	int mixup;
-	float label_smooth_eps;
-	int resize_step;
-	int attention;
-	int adversarial;
-	float adversarial_lr;
-	float max_chart_loss;
-	int letter_box;
-	int mosaic_bound;
-	int contrastive;
-	int contrastive_jit_flip;
-	int contrastive_color;
-	int unsupervised;
-	float angle;
-	float aspect;
-	float exposure;
-	float saturation;
-	float hue;
-	int random;
-	int track;
-	int augment_speed;
-	int sequential_subdivisions;
-	int init_sequential_subdivisions;
-	int current_subdivision;
-	int try_fix_nan;
-
-	int gpu_index;
-	tree *hierarchy;
-
-	float *input;
-	float *truth;
-	float *delta;
-	float *workspace;
-	int train;
-	int index;
-	float *cost;
-	float clip;
-
-//#ifdef GPU
-	//float *input_gpu;
-	//float *truth_gpu;
-	float *delta_gpu;
-	float *output_gpu;
-
-	float *input_state_gpu;
-	float *input_pinned_cpu;	///< memory allocated using @p cudaHostAlloc() which is used to transfer between the GPU and CPU
-	int input_pinned_cpu_flag;
-
-	float **input_gpu;
-	float **truth_gpu;
-	float **input16_gpu;
-	float **output16_gpu;
-	size_t *max_input16_size;
-	size_t *max_output16_size;
-	int wait_stream;
-
-	void *cuda_graph;
-	void *cuda_graph_exec;
-	int use_cuda_graph;
-	int *cuda_graph_ready;
-
-	float *global_delta_gpu;
-	float *state_delta_gpu;
-	size_t max_delta_gpu_size;
-//#endif  // GPU
-	int optimized_memory;
-	int dynamic_minibatch;
-	size_t workspace_size_limit;
-	Darknet::NetworkDetails * details;
-} network;
 
 // box.h
 typedef struct box {
@@ -434,28 +296,6 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh);
 void do_nms_obj(detection *dets, int total, int classes, float thresh);
 void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1);
 
-// network.h
-float *network_predict(network net, float *input);
-float *network_predict_ptr(network *net, float *input);
-detection *get_network_boxes(network *net, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter);
-det_num_pair* network_predict_batch(network *net, Darknet::Image im, int batch_size, int w, int h, float thresh, float hier, int *map, int relative, int letter);
-void free_detections(detection *dets, int n);
-void free_batch_detections(det_num_pair *det_num_pairs, int n);
-void fuse_conv_batchnorm(network net);
-void calculate_binary_weights(network net);
-
-Darknet::Layer * get_network_layer(network* net, int i);
-detection *make_network_boxes(network *net, float thresh, int *num);
-void reset_rnn(network *net);
-float *network_predict_image(network *net, Darknet::Image im);
-float *network_predict_image_letterbox(network *net, Darknet::Image im);
-float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, network *existing_net);
-void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, char* chart_path);
-void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, int dont_show, int ext_output, int save_labels, char *outfile, int letter_box, int benchmark_layers);
-int network_width(network *net);
-int network_height(network *net);
-void optimize_picture(network *net, Darknet::Image orig, int max_layer, float scale, float rate, float thresh, int norm);
-
 // layer.h
 void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc);
 void free_layer(Darknet::Layer & l);
@@ -493,7 +333,8 @@ void init_cpu();
 extern "C" {
 #endif
 
-	///< An opaque pointer to a @ref network object, without needing to expose the internals of the network structure.
+/// @todo V3 rename to DarknetNetworkPtr?
+	///< An opaque pointer to a @ref Darknet::Network object, without needing to expose the internals of the network structure.
 	typedef void* NetworkPtr;
 
 	/// This is the @p C equivalent to @ref Darknet::set_verbose().

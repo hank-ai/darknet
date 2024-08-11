@@ -42,7 +42,7 @@ void calculate_loss(float *output, float *delta, int n, float thresh)
 }
 
 
-void optimize_picture(network *net, Darknet::Image orig, int max_layer, float scale, float rate, float thresh, int norm)
+void optimize_picture(Darknet::Network * net, Darknet::Image orig, int max_layer, float scale, float rate, float thresh, int norm)
 {
 	//scale_image(orig, 2);
 	//translate_image(orig, -1);
@@ -162,7 +162,7 @@ void smooth(Darknet::Image recon, Darknet::Image update, float lambda, int num)
 }
 
 
-void reconstruct_picture(network net, float *features, Darknet::Image recon, Darknet::Image update, float rate, float momentum, float lambda, int smooth_size, int iters)
+void reconstruct_picture(Darknet::Network net, float *features, Darknet::Image recon, Darknet::Image update, float rate, float momentum, float lambda, int smooth_size, int iters)
 {
 	for (int iter = 0; iter < iters; ++iter)
 	{
@@ -238,7 +238,7 @@ void run_nightmare(int argc, char **argv)
 
 	cuda_set_device(0);
 
-	network net = parse_network_cfg(cfg);
+	Darknet::Network net = parse_network_cfg(cfg);
 	load_weights(&net, weights);
 	char *cfgbase = basecfg(cfg);
 	char *imbase = basecfg(input);
@@ -354,9 +354,9 @@ void run_nightmare(int argc, char **argv)
 		im = resized;
 
 		Darknet::show_image(im, "results");
-		wait_key_cv(20);
+		cv::waitKey(20);
 	}
 
 	// show the last results until the user pushes a key
-	wait_key_cv(-1);
+	cv::waitKey(-1);
 }

@@ -62,8 +62,8 @@ namespace Darknet
 #include "darknet.hpp"			// the new C++ header
 #include "darknet_version.h"	// version macros
 
-int yolo_num_detections_v3(network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache);
-int get_yolo_detections_v3(network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, Darknet::Output_Object_Cache & cache);
+int yolo_num_detections_v3(Darknet::Network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache);
+int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, Darknet::Output_Object_Cache & cache);
 
 #include "darknet_args_and_parms.hpp"
 #include "darknet_cfg_and_state.hpp"

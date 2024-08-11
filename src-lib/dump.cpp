@@ -62,7 +62,7 @@ std::string dump(int * i, int count=1)
 }
 
 
-void dump(network * net, const Darknet::CfgFile::CommonParms & parms)
+void dump(Darknet::Network * net, const Darknet::CfgFile::CommonParms & parms)
 {
 	std::ofstream ofs("dump.txt");
 
@@ -425,7 +425,7 @@ void dump(network * net, const Darknet::CfgFile::CommonParms & parms)
 }
 
 
-void Darknet::dump(network * net, const Darknet::CfgFile::CommonParms & parms)
+void Darknet::dump(Darknet::Network * net, const Darknet::CfgFile::CommonParms & parms)
 {
 	::dump(net, parms);
 

@@ -508,7 +508,7 @@ void Darknet::set_detection_threshold(Darknet::NetworkPtr ptr, float threshold)
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network*>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -534,7 +534,7 @@ void Darknet::set_non_maximal_suppression_threshold(Darknet::NetworkPtr ptr, flo
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network*>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -558,7 +558,7 @@ void Darknet::fix_out_of_bound_values(Darknet::NetworkPtr ptr, const bool toggle
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network*>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -574,7 +574,7 @@ void Darknet::set_annotation_font(Darknet::NetworkPtr ptr, const cv::LineTypes l
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network*>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -593,7 +593,7 @@ void Darknet::set_rounded_corner_bounding_boxes(Darknet::NetworkPtr ptr, const b
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network*>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -610,7 +610,7 @@ void Darknet::set_annotation_draw_bb(Darknet::NetworkPtr ptr, const bool toggle)
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network*>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -626,7 +626,7 @@ void Darknet::set_annotation_draw_label(Darknet::NetworkPtr ptr, const bool togg
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network*>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -694,7 +694,7 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 		initialized = true;
 	}
 
-	network * net = load_network_custom(cfg_filename.string().c_str(), weights_filename.string().c_str(), 0, 1);
+	Darknet::Network * net = load_network_custom(cfg_filename.string().c_str(), weights_filename.string().c_str(), 0, 1);
 	Darknet::load_names(net, names_filename);
 
 	return reinterpret_cast<NetworkPtr>(net);
@@ -726,7 +726,7 @@ void Darknet::free_neural_network(Darknet::NetworkPtr & ptr)
 
 	if (ptr)
 	{
-		network * net = reinterpret_cast<network *>(ptr);
+		Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 		free_network_ptr(net);
 		ptr = nullptr;
 	}
@@ -743,7 +743,7 @@ void Darknet::network_dimensions(Darknet::NetworkPtr & ptr, int & w, int & h, in
 	h = -1;
 	c = -1;
 
-	network * net = reinterpret_cast<network *>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot determine dimensions without a network pointer");
@@ -761,7 +761,7 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, cv::Mat mat
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network *>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot predict without a network pointer");
@@ -797,11 +797,11 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, cv::Mat mat
 }
 
 
-Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, Darknet::Image & img, cv::Size original_image_size)
+Darknet::Predictions Darknet::predict(Darknet::NetworkPtr ptr, Darknet::Image & img, cv::Size original_image_size)
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network *>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot predict without a network pointer");
@@ -902,7 +902,7 @@ cv::Mat Darknet::annotate(const Darknet::NetworkPtr ptr, const Darknet::Predicti
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network *>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot annotate without a network pointer");
@@ -970,7 +970,7 @@ const Darknet::VStr & Darknet::get_class_names(const Darknet::NetworkPtr ptr)
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network *>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot get the class names without a network pointer");
@@ -989,7 +989,7 @@ const Darknet::VScalars & Darknet::get_class_colours(const Darknet::NetworkPtr p
 {
 	TAT(TATPARMS);
 
-	network * net = reinterpret_cast<network *>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot get the class colours without a network pointer");

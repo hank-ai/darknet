@@ -19,8 +19,8 @@ void average(int argc, char *argv[])
 	char *cfgfile = argv[2];
 	char *outfile = argv[3];
 	Darknet::CfgAndState::get().gpu_index = -1;
-	network net = parse_network_cfg(cfgfile);
-	network sum = parse_network_cfg(cfgfile);
+	Darknet::Network net = parse_network_cfg(cfgfile);
+	Darknet::Network sum = parse_network_cfg(cfgfile);
 
 	char *weightfile = argv[4];
 	load_weights(&sum, weightfile);
@@ -90,7 +90,7 @@ void speed(const char * cfgfile, int tics)
 		tics = 1000;
 	}
 
-	network net = parse_network_cfg(cfgfile);
+	Darknet::Network net = parse_network_cfg(cfgfile);
 	set_batch_network(&net, 1);
 	int i;
 	Darknet::Image im = Darknet::make_image(net.w, net.h, net.c);
@@ -111,7 +111,7 @@ void operations(char *cfgfile)
 	TAT(TATPARMS);
 
 	Darknet::CfgAndState::get().gpu_index = -1;
-	network net = parse_network_cfg(cfgfile);
+	Darknet::Network net = parse_network_cfg(cfgfile);
 	long ops = 0;
 	for (int i = 0; i < net.n; ++i)
 	{
@@ -154,7 +154,7 @@ void oneoff(char *cfgfile, char *weightfile, char *outfile)
 	TAT(TATPARMS);
 
 	Darknet::CfgAndState::get().gpu_index = -1;
-	network net = parse_network_cfg(cfgfile);
+	Darknet::Network net = parse_network_cfg(cfgfile);
 	int oldn = net.layers[net.n - 2].n;
 	int c = net.layers[net.n - 2].c;
 	net.layers[net.n - 2].n = 9372;
@@ -185,7 +185,7 @@ void partial(char *cfgfile, char *weightfile, char *outfile, int max)
 	TAT(TATPARMS);
 
 	Darknet::CfgAndState::get().gpu_index = -1;
-	network net = parse_network_cfg_custom(cfgfile, 1, 1);
+	Darknet::Network net = parse_network_cfg_custom(cfgfile, 1, 1);
 
 	if(weightfile)
 	{
@@ -204,7 +204,7 @@ void rescale_net(char *cfgfile, char *weightfile, char *outfile)
 	TAT(TATPARMS);
 
 	Darknet::CfgAndState::get().gpu_index = -1;
-	network net = parse_network_cfg(cfgfile);
+	Darknet::Network net = parse_network_cfg(cfgfile);
 
 	if(weightfile)
 	{
@@ -230,7 +230,7 @@ void rgbgr_net(char *cfgfile, char *weightfile, char *outfile)
 	TAT(TATPARMS);
 
 	Darknet::CfgAndState::get().gpu_index = -1;
-	network net = parse_network_cfg(cfgfile);
+	Darknet::Network net = parse_network_cfg(cfgfile);
 
 	if (weightfile)
 	{
@@ -257,7 +257,7 @@ void reset_normalize_net(char *cfgfile, char *weightfile, char *outfile)
 	TAT(TATPARMS);
 
 	Darknet::CfgAndState::get().gpu_index = -1;
-	network net = parse_network_cfg(cfgfile);
+	Darknet::Network net = parse_network_cfg(cfgfile);
 
 	if (weightfile)
 	{
@@ -311,7 +311,7 @@ void normalize_net(char *cfgfile, char *weightfile, char *outfile)
 	TAT(TATPARMS);
 
 	Darknet::CfgAndState::get().gpu_index = -1;
-	network net = parse_network_cfg(cfgfile);
+	Darknet::Network net = parse_network_cfg(cfgfile);
 
 	if(weightfile)
 	{
@@ -351,7 +351,7 @@ void statistics_net(const char * cfgfile, const char * weightfile)
 	TAT(TATPARMS);
 
 	Darknet::CfgAndState::get().gpu_index = -1;
-	network net = parse_network_cfg(cfgfile);
+	Darknet::Network net = parse_network_cfg(cfgfile);
 
 	if (weightfile)
 	{
@@ -395,7 +395,7 @@ void denormalize_net(char *cfgfile, char *weightfile, char *outfile)
 	TAT(TATPARMS);
 
 	Darknet::CfgAndState::get().gpu_index = -1;
-	network net = parse_network_cfg(cfgfile);
+	Darknet::Network net = parse_network_cfg(cfgfile);
 	if (weightfile)
 	{
 		load_weights(&net, weightfile);
@@ -444,11 +444,11 @@ void visualize(const char * cfgfile, const char * weightfile)
 {
 	TAT(TATPARMS);
 
-	network net = parse_network_cfg(cfgfile);
+	Darknet::Network net = parse_network_cfg(cfgfile);
 	load_weights(&net, weightfile);
 
 	visualize_network(net);
-	wait_until_press_key_cv();
+	cv::waitKey(0);
 }
 
 

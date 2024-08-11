@@ -913,7 +913,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 					old_img.data = d.X.vals[i];
 					//show_image(ai, "new");
 					//show_image(old_img, "old");
-					//wait_until_press_key_cv();
+					//cv::waitKey(0);
 					blend_images_cv(ai, 0.5, old_img, 0.5);
 					blend_truth(d.y.vals[i], boxes, truth_size, truth);
 					Darknet::free_image(old_img);
@@ -1004,7 +1004,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 					//sprintf(buff_src, "src_%d_%d_%s_%d", random_index, i, basecfg((char*)filename), random_gen());
 					//show_image_mat(src, buff_src);
 					Darknet::show_image(tmp_ai, buff);
-					wait_until_press_key_cv();
+					cv::waitKey(0);
 				}
 				printf("\nYou use flag -show_imgs, so will be saved aug_...jpg images. Click on window and press ESC button \n");
 				Darknet::free_image(tmp_ai);

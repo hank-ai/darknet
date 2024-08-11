@@ -1617,7 +1617,7 @@ void Darknet::test_resize(char *filename)
 		Darknet::show_image(c, "rand");
 		printf("%f %f %f\n", dhue, dsat, dexp);
 		Darknet::free_image(c);
-		wait_until_press_key_cv();
+		cv::waitKey(0);
 	}
 }
 
