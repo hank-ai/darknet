@@ -1233,8 +1233,8 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 	net.w = s.find_int("width",0);
 	net.c = s.find_int("channels",0);
 	net.inputs = s.find_int("inputs", net.h * net.w * net.c);
-	net.max_crop = s.find_int("max_crop",net.w * 2);
-	net.min_crop = s.find_int("min_crop",net.w);
+//	net.max_crop = s.find_int("max_crop",net.w * 2);
+//	net.min_crop = s.find_int("min_crop",net.w);
 	net.flip = s.find_int("flip", 1);
 	net.blur = s.find_int("blur", 0);
 	net.gaussian_noise = s.find_int("gaussian_noise", 0);
@@ -1258,7 +1258,7 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 	net.contrastive = s.find_int("contrastive", 0);
 	net.contrastive_jit_flip = s.find_int("contrastive_jit_flip", 0);
 	net.contrastive_color = s.find_int("contrastive_color", 0);
-	net.unsupervised = s.find_int("unsupervised", 0);
+//	net.unsupervised = s.find_int("unsupervised", 0);
 	if (net.contrastive && mini_batch < 2)
 	{
 		darknet_fatal_error(DARKNET_LOC, "mini_batch size (batch/subdivisions) should be higher than 1 for contrastive loss");

@@ -29,7 +29,7 @@ Darknet::NetworkDetails::NetworkDetails()
 }
 
 
-int64_t get_current_iteration(Darknet::Network net)
+int64_t get_current_iteration(const Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -37,11 +37,11 @@ int64_t get_current_iteration(Darknet::Network net)
 }
 
 
-int get_current_batch(Darknet::Network net)
+int get_current_batch(const Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
-	const int batch_num = (*net.seen)/(net.batch*net.subdivisions);
+	const int batch_num = (*net.seen) / (net.batch * net.subdivisions);
 
 	return batch_num;
 }
@@ -77,7 +77,7 @@ void reset_rnn(Darknet::Network *net)
 }
 
 
-float get_current_seq_subdivisions(Darknet::Network net)
+float get_current_seq_subdivisions(const Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -111,7 +111,7 @@ float get_current_seq_subdivisions(Darknet::Network net)
 }
 
 
-int get_sequence_value(Darknet::Network net)
+int get_sequence_value(const Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -129,7 +129,7 @@ int get_sequence_value(Darknet::Network net)
 }
 
 
-float get_current_rate(Darknet::Network net)
+float get_current_rate(const Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -224,7 +224,7 @@ Darknet::Network make_network(int n)
 }
 
 
-void forward_network(Darknet::Network net, Darknet::NetworkState state)
+void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -244,7 +244,7 @@ void forward_network(Darknet::Network net, Darknet::NetworkState state)
 }
 
 
-void update_network(Darknet::Network net)
+void update_network(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -267,7 +267,7 @@ void update_network(Darknet::Network net)
 }
 
 
-float *get_network_output(Darknet::Network net)
+float *get_network_output(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -291,11 +291,11 @@ float *get_network_output(Darknet::Network net)
 }
 
 
-float get_network_cost(Darknet::Network net)
+float get_network_cost(const Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
-	float sum = 0;
+	float sum = 0.0f;
 	int count = 0;
 
 	for (int i = 0; i < net.n; ++i)
@@ -311,18 +311,7 @@ float get_network_cost(Darknet::Network net)
 }
 
 
-int get_predicted_class_network(Darknet::Network net)
-{
-	TAT(TATPARMS);
-
-	float *out = get_network_output(net);
-	int k = get_network_output_size(net);
-
-	return max_index(out, k);
-}
-
-
-void backward_network(Darknet::Network net, Darknet::NetworkState state)
+void backward_network(Darknet::Network & net, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -361,7 +350,7 @@ void backward_network(Darknet::Network net, Darknet::NetworkState state)
 }
 
 
-float train_network_datum(Darknet::Network net, float *x, float *y)
+float train_network_datum(Darknet::Network & net, float *x, float *y)
 {
 	TAT(TATPARMS);
 
@@ -404,7 +393,7 @@ float train_network_datum(Darknet::Network net, float *x, float *y)
 }
 
 
-float train_network(Darknet::Network net, data d)
+float train_network(Darknet::Network & net, data d)
 {
 	/* no need to track this since we simply call the other train function which is already tracked
 	TAT(TATPARMS);
@@ -414,7 +403,7 @@ float train_network(Darknet::Network net, data d)
 }
 
 
-float train_network_waitkey(Darknet::Network net, data d, int wait_key)
+float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 {
 	TAT_COMMENT(TATPARMS, "complicated");
 
@@ -742,7 +731,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 }
 
 
-int get_network_output_size(Darknet::Network net)
+int get_network_output_size(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -759,7 +748,7 @@ int get_network_output_size(Darknet::Network net)
 }
 
 
-int get_network_input_size(Darknet::Network net)
+int get_network_input_size(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -767,7 +756,7 @@ int get_network_input_size(Darknet::Network net)
 }
 
 
-Darknet::Image get_network_image_layer(Darknet::Network net, int i)
+Darknet::Image get_network_image_layer(Darknet::Network & net, int i)
 {
 	TAT(TATPARMS);
 
@@ -781,15 +770,7 @@ Darknet::Image get_network_image_layer(Darknet::Network net, int i)
 }
 
 
-Darknet::Layer * get_network_layer(Darknet::Network * net, int i)
-{
-	TAT(TATPARMS);
-
-	return net->layers + i;
-}
-
-
-Darknet::Image get_network_image(Darknet::Network net)
+Darknet::Image get_network_image(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -808,7 +789,7 @@ Darknet::Image get_network_image(Darknet::Network net)
 }
 
 
-void visualize_network(Darknet::Network net)
+void visualize_network(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -827,16 +808,6 @@ void visualize_network(Darknet::Network net)
 }
 
 
-void top_predictions(Darknet::Network net, int k, int *index)
-{
-	TAT(TATPARMS);
-
-	int size = get_network_output_size(net);
-	float *out = get_network_output(net);
-	top_k(out, size, k, index);
-}
-
-
 // A version of network_predict that uses a pointer for the network
 // struct to make the python binding work properly.
 float *network_predict_ptr(Darknet::Network * net, float * input)
@@ -847,7 +818,7 @@ float *network_predict_ptr(Darknet::Network * net, float * input)
 }
 
 
-float *network_predict(Darknet::Network net, float * input)
+float *network_predict(Darknet::Network & net, float * input)
 {
 	TAT(TATPARMS);
 
@@ -1509,7 +1480,7 @@ int network_height(Darknet::Network * net)
 }
 
 
-matrix network_predict_data_multi(Darknet::Network net, data test, int n)
+matrix network_predict_data_multi(Darknet::Network & net, data test, int n)
 {
 	TAT(TATPARMS);
 
@@ -1551,7 +1522,7 @@ matrix network_predict_data_multi(Darknet::Network net, data test, int n)
 }
 
 
-matrix network_predict_data(Darknet::Network net, data test)
+matrix network_predict_data(Darknet::Network & net, data test)
 {
 	TAT(TATPARMS);
 
@@ -1592,125 +1563,6 @@ matrix network_predict_data(Darknet::Network net, data test)
 }
 
 
-void print_network(Darknet::Network net)
-{
-	TAT(TATPARMS);
-
-	for (int i = 0; i < net.n; ++i)
-	{
-		const Darknet::Layer & l = net.layers[i];
-		float *output = l.output;
-		int n = l.outputs;
-		float mean = mean_array(output, n);
-		float vari = variance_array(output, n);
-		fprintf(stderr, "Layer %d - Mean: %f, Variance: %f\n",i,mean, vari);
-
-		if (n > 100)
-		{
-			n = 100;
-		}
-
-		for (int j = 0; j < n; ++j)
-		{
-			fprintf(stderr, "%f, ", output[j]);
-		}
-
-		if (n == 100)
-		{
-			fprintf(stderr,".....\n");
-		}
-
-		fprintf(stderr, "\n");
-	}
-}
-
-
-void compare_networks(Darknet::Network n1, Darknet::Network n2, data test)
-{
-	TAT(TATPARMS);
-
-	matrix g1 = network_predict_data(n1, test);
-	matrix g2 = network_predict_data(n2, test);
-
-	int a = 0;
-	int b = 0;
-	int c = 0;
-	int d = 0;
-
-	for (int i = 0; i < g1.rows; ++i)
-	{
-		int truth = max_index(test.y.vals[i], test.y.cols);
-		int p1 = max_index(g1.vals[i], g1.cols);
-		int p2 = max_index(g2.vals[i], g2.cols);
-
-		if (p1 == truth)
-		{
-			if (p2 == truth)
-			{
-				++d;
-			}
-			else
-			{
-				++c;
-			}
-		}
-		else
-		{
-			if (p2 == truth)
-			{
-				++b;
-			}
-			else
-			{
-				++a;
-			}
-		}
-	}
-
-	printf("%5d %5d\n%5d %5d\n", a, b, c, d);
-	float num = pow((abs(b - c) - 1.), 2.);
-	float den = b + c;
-	printf("%f\n", num/den);
-}
-
-
-float network_accuracy(Darknet::Network net, data d)
-{
-	TAT(TATPARMS);
-
-	matrix guess = network_predict_data(net, d);
-	const float acc = matrix_topk_accuracy(d.y, guess,1);
-	free_matrix(guess);
-
-	return acc;
-}
-
-
-float * network_accuracies(Darknet::Network net, data d, int n)
-{
-	TAT(TATPARMS);
-
-	static float acc[2];
-	matrix guess = network_predict_data(net, d);
-	acc[0] = matrix_topk_accuracy(d.y, guess, 1);
-	acc[1] = matrix_topk_accuracy(d.y, guess, n);
-	free_matrix(guess);
-
-	return acc;
-}
-
-
-float network_accuracy_multi(Darknet::Network net, data d, int n)
-{
-	TAT(TATPARMS);
-
-	matrix guess = network_predict_data_multi(net, d, n);
-	float acc = matrix_topk_accuracy(d.y, guess,1);
-	free_matrix(guess);
-	return acc;
-}
-
-
 void free_network_ptr(Darknet::Network * net)
 {
 	TAT(TATPARMS);
@@ -1719,7 +1571,7 @@ void free_network_ptr(Darknet::Network * net)
 }
 
 
-void free_network(Darknet::Network net)
+void free_network(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -1806,7 +1658,7 @@ static float lrelu(float src)
 }
 
 
-void fuse_conv_batchnorm(Darknet::Network net)
+void fuse_conv_batchnorm(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -1920,7 +1772,7 @@ void forward_blank_layer(Darknet::Layer & l, Darknet::NetworkState state)
 }
 
 
-void calculate_binary_weights(Darknet::Network net)
+void calculate_binary_weights(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -1985,7 +1837,7 @@ void copy_cudnn_descriptors(const Darknet::Layer & src, Darknet::Layer *dst)
 }
 
 
-void copy_weights_net(Darknet::Network net_train, Darknet::Network * net_map)
+void copy_weights_net(const Darknet::Network & net_train, Darknet::Network * net_map)
 {
 	TAT(TATPARMS);
 
@@ -2026,44 +1878,7 @@ void copy_weights_net(Darknet::Network net_train, Darknet::Network * net_map)
 }
 
 
-// combine Training and Validation networks
-Darknet::Network combine_train_valid_networks(Darknet::Network net_train, Darknet::Network net_map)
-{
-	TAT(TATPARMS);
-
-	Darknet::Network net_combined = make_network(net_train.n);
-	Darknet::Layer *old_layers = net_combined.layers;
-	net_combined = net_train;
-	net_combined.layers = old_layers;
-	net_combined.batch = 1;
-
-	for (int k = 0; k < net_train.n; ++k)
-	{
-		Darknet::Layer *l = &(net_train.layers[k]);
-		net_combined.layers[k] = net_train.layers[k];
-		net_combined.layers[k].batch = 1;
-
-		if (l->type == Darknet::ELayerType::CONVOLUTIONAL)
-		{
-#ifdef CUDNN
-			net_combined.layers[k].normTensorDesc = net_map.layers[k].normTensorDesc;
-			net_combined.layers[k].normDstTensorDesc = net_map.layers[k].normDstTensorDesc;
-			net_combined.layers[k].normDstTensorDescF16 = net_map.layers[k].normDstTensorDescF16;
-
-			net_combined.layers[k].srcTensorDesc = net_map.layers[k].srcTensorDesc;
-			net_combined.layers[k].dstTensorDesc = net_map.layers[k].dstTensorDesc;
-
-			net_combined.layers[k].srcTensorDesc16 = net_map.layers[k].srcTensorDesc16;
-			net_combined.layers[k].dstTensorDesc16 = net_map.layers[k].dstTensorDesc16;
-#endif // CUDNN
-		}
-	}
-
-	return net_combined;
-}
-
-
-void free_network_recurrent_state(Darknet::Network net)
+void free_network_recurrent_state(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -2077,7 +1892,7 @@ void free_network_recurrent_state(Darknet::Network net)
 }
 
 
-void randomize_network_recurrent_state(Darknet::Network net)
+void restore_network_recurrent_state(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -2091,27 +1906,7 @@ void randomize_network_recurrent_state(Darknet::Network net)
 }
 
 
-void remember_network_recurrent_state(Darknet::Network net)
-{
-	TAT(TATPARMS);
-}
-
-
-void restore_network_recurrent_state(Darknet::Network net)
-{
-	TAT(TATPARMS);
-
-	for (int k = 0; k < net.n; ++k)
-	{
-		if (net.layers[k].type == Darknet::ELayerType::CRNN)
-		{
-			free_state_crnn(net.layers[k]);
-		}
-	}
-}
-
-
-int is_ema_initialized(Darknet::Network net)
+int is_ema_initialized(const Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -2137,7 +1932,7 @@ int is_ema_initialized(Darknet::Network net)
 }
 
 
-void ema_update(Darknet::Network net, float ema_alpha)
+void ema_update(Darknet::Network & net, float ema_alpha)
 {
 	TAT(TATPARMS);
 
@@ -2178,7 +1973,7 @@ void ema_update(Darknet::Network net, float ema_alpha)
 }
 
 
-void ema_apply(Darknet::Network net)
+void ema_apply(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -2219,7 +2014,7 @@ void ema_apply(Darknet::Network net)
 }
 
 
-void reject_similar_weights(Darknet::Network net, float sim_threshold)
+void reject_similar_weights(Darknet::Network & net, float sim_threshold)
 {
 	TAT(TATPARMS);
 

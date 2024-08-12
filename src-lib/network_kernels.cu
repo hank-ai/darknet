@@ -21,7 +21,7 @@ int time_comparator(const void *pa, const void *pb)
 	return 0;
 }
 
-void forward_network_gpu(Darknet::Network net, Darknet::NetworkState state)
+void forward_network_gpu(Darknet::Network & net, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -134,7 +134,7 @@ void forward_network_gpu(Darknet::Network net, Darknet::NetworkState state)
 	}
 }
 
-void backward_network_gpu(Darknet::Network net, Darknet::NetworkState state)
+void backward_network_gpu(Darknet::Network & net, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -304,7 +304,7 @@ void backward_network_gpu(Darknet::Network net, Darknet::NetworkState state)
 	}
 }
 
-void update_network_gpu(Darknet::Network net)
+void update_network_gpu(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -342,7 +342,7 @@ void update_network_gpu(Darknet::Network net)
 	}
 }
 
-void forward_backward_network_gpu(Darknet::Network net, float *x, float *y)
+void forward_backward_network_gpu(Darknet::Network & net, float *x, float *y)
 {
 	TAT(TATPARMS);
 
@@ -406,7 +406,7 @@ void forward_backward_network_gpu(Darknet::Network net, float *x, float *y)
 	}
 }
 
-float train_network_datum_gpu(Darknet::Network net, float *x, float *y)
+float train_network_datum_gpu(Darknet::Network & net, float *x, float *y)
 {
 	TAT(TATPARMS);
 
@@ -772,7 +772,7 @@ float train_networks(Darknet::Network * nets, int n, data d, int interval)
 	return sum / n;
 }
 
-float *get_network_output_layer_gpu(Darknet::Network net, int i)
+float *get_network_output_layer_gpu(Darknet::Network & net, int i)
 {
 	TAT(TATPARMS);
 
@@ -785,7 +785,7 @@ float *get_network_output_layer_gpu(Darknet::Network net, int i)
 	return l.output;
 }
 
-float *get_network_output_gpu(Darknet::Network net)
+float *get_network_output_gpu(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
@@ -801,7 +801,7 @@ float *get_network_output_gpu(Darknet::Network net)
 	return get_network_output_layer_gpu(net, i);
 }
 
-float *network_predict_gpu(Darknet::Network net, float *input)
+float *network_predict_gpu(Darknet::Network & net, float *input)
 {
 	TAT(TATPARMS);
 

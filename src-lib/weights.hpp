@@ -3,23 +3,15 @@
 #include "darknet.h"
 #include <filesystem>
 
-//#ifdef __cplusplus
-//extern "C" {
-//#endif
 Darknet::Network parse_network_cfg(const char * filename);
 Darknet::Network parse_network_cfg_custom(const char * filename, int batch, int time_steps);
 
-void save_network		(Darknet::Network net, char *filename);
-void save_weights		(Darknet::Network net, char *filename);
-void save_weights_upto	(Darknet::Network net, char *filename, int cutoff, int save_ema);
-void save_weights_double(Darknet::Network net, char *filename);
+void save_weights		(const Darknet::Network & net, char *filename);
+void save_weights_upto	(const Darknet::Network & net, char *filename, int cutoff, int save_ema);
 
 void load_weights		(Darknet::Network * net, const char * filename);
 void load_weights_upto	(Darknet::Network * net, const char * filename, int cutoff);
 
-//#ifdef __cplusplus
-//}
-//#endif
 
 namespace Darknet
 {

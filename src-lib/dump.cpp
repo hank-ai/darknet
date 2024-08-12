@@ -90,7 +90,6 @@ void dump(Darknet::Network * net, const Darknet::CfgFile::CommonParms & parms)
 		<< "cur_iteration="					<< dump(net->cur_iteration)				<< std::endl
 		<< "loss_scale="					<< net->loss_scale						<< std::endl
 		<< "t="								<< dump(net->t)							<< std::endl
-		<< "epoch="							<< net->epoch							<< std::endl
 		<< "subdivisions="					<< net->subdivisions					<< std::endl
 		<< "layers="						<< net->layers							<< std::endl
 		<< "output="						<< dump(net->output)					<< std::endl
@@ -126,14 +125,9 @@ void dump(Darknet::Network * net, const Darknet::CfgFile::CommonParms & parms)
 		<< "inputs="						<< net->inputs							<< std::endl
 		<< "outputs="						<< net->outputs							<< std::endl
 		<< "truths="						<< net->truths							<< std::endl
-		<< "notruth="						<< net->notruth							<< std::endl
 		<< "h="								<< net->h								<< std::endl
 		<< "w="								<< net->w								<< std::endl
 		<< "c="								<< net->c								<< std::endl
-		<< "max_crop="						<< net->max_crop						<< std::endl
-		<< "min_crop="						<< net->min_crop						<< std::endl
-		<< "max_ratio="						<< net->max_ratio						<< std::endl
-		<< "min_ratio="						<< net->min_ratio						<< std::endl
 		<< "center="						<< net->center							<< std::endl
 		<< "flip="							<< net->flip							<< std::endl
 		<< "gaussian_noise="				<< net->gaussian_noise					<< std::endl
@@ -150,13 +144,11 @@ void dump(Darknet::Network * net, const Darknet::CfgFile::CommonParms & parms)
 		<< "contrastive="					<< net->contrastive						<< std::endl
 		<< "contrastive_jit_flip="			<< net->contrastive_jit_flip			<< std::endl
 		<< "contrastive_color="				<< net->contrastive_color				<< std::endl
-		<< "unsupervised="					<< net->unsupervised					<< std::endl
 		<< "angle="							<< net->angle							<< std::endl
 		<< "aspect="						<< net->aspect							<< std::endl
 		<< "exposure="						<< net->exposure						<< std::endl
 		<< "saturation="					<< net->saturation						<< std::endl
 		<< "hue="							<< net->hue								<< std::endl
-		<< "random="						<< net->random							<< std::endl
 		<< "track="							<< net->track							<< std::endl
 		<< "augment_speed="					<< net->augment_speed					<< std::endl
 		<< "sequential_subdivisions="		<< net->sequential_subdivisions			<< std::endl

@@ -152,7 +152,6 @@ namespace Darknet
 			int *cur_iteration;
 			float loss_scale;
 			int *t;
-			float epoch;
 			int subdivisions;
 			Darknet::Layer *layers; ///< Each section in the @p .cfg file is converted into a layer.  @see @ref n
 			float *output;
@@ -191,17 +190,12 @@ namespace Darknet
 			int inputs;
 			int outputs;
 			int truths;
-			int notruth;
 			/// The height of the network.  Must be divisible by @p 32.  E.g, @p 480.
 			int h;
 			/// The width of the network.  Must be divisible by @p 32.  E.g., @p 640.
 			int w;
 			/// The number of channels for the network.  Typically @p 3 when working with RGB images.
 			int c;
-			int max_crop;
-			int min_crop;
-			float max_ratio;
-			float min_ratio;
 			int center;
 			int flip; ///< horizontal flip 50% probability augmentaiont for classifier training (default = 1)
 			int gaussian_noise;
@@ -218,13 +212,11 @@ namespace Darknet
 			int contrastive;
 			int contrastive_jit_flip;
 			int contrastive_color;
-			int unsupervised;
 			float angle;
 			float aspect;
 			float exposure;
 			float saturation;
 			float hue;
-			int random;
 			int track;
 			int augment_speed;
 			int sequential_subdivisions;
@@ -288,31 +280,21 @@ namespace Darknet
 		Darknet::Network net;
 	};
 
-	char *detection_to_json(detection *dets, int nboxes, int classes, const Darknet::VStr & names, long long int frame_id, char *filename);
+	char * detection_to_json(detection *dets, int nboxes, int classes, const Darknet::VStr & names, long long int frame_id, char *filename);
 }
-
-
-//extern "C"
-//{
-
-
-
-
 
 
 
 #ifdef GPU
 float train_networks(Darknet::Network *nets, int n, data d, int interval);
 void sync_nets(Darknet::Network *nets, int n, int interval);
-float train_network_datum_gpu(Darknet::Network net, float *x, float *y); // xxx2
-float * network_predict_gpu(Darknet::Network net, float *input);
-float * get_network_output_gpu_layer(Darknet::Network net, int i);
-float * get_network_output_gpu(const Darknet::Network net);
-float * get_network_delta_gpu_layer(Darknet::Network net, int i);
-void forward_network_gpu(Darknet::Network net, Darknet::NetworkState state);
-void backward_network_gpu(Darknet::Network net, Darknet::NetworkState state);
-void update_network_gpu(Darknet::Network net);
-void forward_backward_network_gpu(Darknet::Network net, float *x, float *y); // xxx1
+float train_network_datum_gpu(Darknet::Network & net, float *x, float *y);
+float * network_predict_gpu(Darknet::Network & net, float *input);
+float * get_network_output_gpu(Darknet::Network & net);
+void forward_network_gpu(Darknet::Network & net, Darknet::NetworkState state);
+void backward_network_gpu(Darknet::Network & net, Darknet::NetworkState state);
+void update_network_gpu(Darknet::Network & net);
+void forward_backward_network_gpu(Darknet::Network & net, float *x, float *y);
 #endif
 
 /** Think of this as the constructor for the @ref Darknet::Network object.
@@ -320,84 +302,65 @@ void forward_backward_network_gpu(Darknet::Network net, float *x, float *y); // 
  */
 Darknet::Network make_network(int n);
 
-void free_network(Darknet::Network net);
+void free_network(Darknet::Network & net);
 void free_network_ptr(Darknet::Network * net);
 
 Darknet::Network *load_network(const char * cfg, const char * weights, int clear);
 Darknet::Network *load_network_custom(const char * cfg, const char * weights, int clear, int batch);
 
-float get_current_seq_subdivisions(Darknet::Network net);
-int get_sequence_value(Darknet::Network net);
+float get_current_seq_subdivisions(const Darknet::Network & net);
+int get_sequence_value(const Darknet::Network & net);
 
-float get_current_rate(Darknet::Network net);
+float get_current_rate(const Darknet::Network & net);
 
-int get_current_batch(Darknet::Network net);
+int get_current_batch(const Darknet::Network & net);
 
-int64_t get_current_iteration(Darknet::Network net);
+int64_t get_current_iteration(const Darknet::Network & net);
 
-void compare_networks(Darknet::Network n1, Darknet::Network n2, data d);
+void forward_network(Darknet::Network & net, Darknet::NetworkState state);
+void backward_network(Darknet::Network & net, Darknet::NetworkState state);
+void update_network(Darknet::Network & net);
 
-void forward_network(Darknet::Network net, Darknet::NetworkState state);
-void backward_network(Darknet::Network net, Darknet::NetworkState state);
-void update_network(Darknet::Network net);
+float train_network(Darknet::Network & net, data d);
+float train_network_waitkey(Darknet::Network & net, data d, int wait_key);
+float train_network_batch(Darknet::Network & net, data d, int n);
+float train_network_datum(Darknet::Network & net, float *x, float *y);
 
-float train_network(Darknet::Network net, data d); // xxx4
-float train_network_waitkey(Darknet::Network net, data d, int wait_key); // xxx5
-float train_network_batch(Darknet::Network net, data d, int n);
-float train_network_datum(Darknet::Network net, float *x, float *y); // xxx3
+matrix network_predict_data(Darknet::Network & net, data test);
+float * get_network_output(Darknet::Network & net);
 
-matrix network_predict_data(Darknet::Network net, data test);
-float network_accuracy(Darknet::Network net, data d);
-float *network_accuracies(Darknet::Network net, data d, int n);
-float network_accuracy_multi(Darknet::Network net, data d, int n);
-void top_predictions(Darknet::Network net, int n, int *index);
-float *get_network_output(Darknet::Network net);
-float *get_network_output_layer(Darknet::Network net, int i);
-float *get_network_delta_layer(Darknet::Network net, int i);
-float *get_network_delta(Darknet::Network net);
-int get_network_output_size_layer(Darknet::Network net, int i);
+int get_network_output_size(Darknet::Network & net);
 
-int get_network_output_size(Darknet::Network net);
-
-Darknet::Image get_network_image(Darknet::Network net);
-Darknet::Image get_network_image_layer(Darknet::Network net, int i);
-int get_predicted_class_network(Darknet::Network net);
-void print_network(Darknet::Network net);
-void visualize_network(Darknet::Network net);
+Darknet::Image get_network_image(Darknet::Network & net);
+Darknet::Image get_network_image_layer(Darknet::Network & net, int i);
+void visualize_network(Darknet::Network & net);
 int resize_network(Darknet::Network * net, int w, int h);
 void set_batch_network(Darknet::Network * net, int b);
-int get_network_input_size(Darknet::Network net);
+int get_network_input_size(Darknet::Network & net);
 
-float get_network_cost(Darknet::Network net);
+float get_network_cost(const Darknet::Network & net);
 
-int get_network_nuisance(Darknet::Network net);
-int get_network_background(Darknet::Network net);
-Darknet::Network combine_train_valid_networks(Darknet::Network net_train, Darknet::Network net_map);
-void copy_weights_net(Darknet::Network net_train, Darknet::Network *net_map);
-void free_network_recurrent_state(Darknet::Network net);
-void randomize_network_recurrent_state(Darknet::Network net);
-void remember_network_recurrent_state(Darknet::Network net);
-void restore_network_recurrent_state(Darknet::Network net);
-int is_ema_initialized(Darknet::Network net);
-void ema_update(Darknet::Network net, float ema_alpha);
-void ema_apply(Darknet::Network net);
-void reject_similar_weights(Darknet::Network net, float sim_threshold);
-//}
+void copy_weights_net(const Darknet::Network & net_train, Darknet::Network *net_map);
+void free_network_recurrent_state(Darknet::Network & net);
+void restore_network_recurrent_state(Darknet::Network & net);
+int is_ema_initialized(const Darknet::Network & net);
+void ema_update(Darknet::Network & net, float ema_alpha);
+void ema_apply(Darknet::Network & net);
+void reject_similar_weights(Darknet::Network & net, float sim_threshold);
 
-float *network_predict(Darknet::Network net, float *input);
+float *network_predict(Darknet::Network & net, float *input);
 float *network_predict_ptr(Darknet::Network *net, float *input);
 detection *get_network_boxes(Darknet::Network * net, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter);
 det_num_pair* network_predict_batch(Darknet::Network *net, Darknet::Image im, int batch_size, int w, int h, float thresh, float hier, int *map, int relative, int letter);
 void free_detections(detection *dets, int n);
 void free_batch_detections(det_num_pair *det_num_pairs, int n);
-void fuse_conv_batchnorm(Darknet::Network net);
-void calculate_binary_weights(Darknet::Network net);
+void fuse_conv_batchnorm(Darknet::Network & net);
+void calculate_binary_weights(Darknet::Network & net);
 
-Darknet::Layer * get_network_layer(Darknet::Network* net, int i);
-detection *make_network_boxes(Darknet::Network *net, float thresh, int *num);
+detection * make_network_boxes(Darknet::Network *net, float thresh, int *num);
 void reset_rnn(Darknet::Network *net);
-float *network_predict_image(Darknet::Network *net, Darknet::Image im);
-float *network_predict_image_letterbox(Darknet::Network *net, Darknet::Image im);
+float * network_predict_image(Darknet::Network *net, Darknet::Image im);
+float * network_predict_image_letterbox(Darknet::Network *net, Darknet::Image im);
 float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network *existing_net);
 void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, char* chart_path);
 void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh, float hier_thresh, int dont_show, int ext_output, int save_labels, char *outfile, int letter_box, int benchmark_layers);

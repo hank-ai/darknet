@@ -94,7 +94,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 		nets[k].details->class_names = net_map.details->class_names;
 	}
 
-	Darknet::Network net = nets[0]; // xxx6
+	Darknet::Network & net = nets[0];
 
 	const int actual_batch_size = net.batch * net.subdivisions;
 	if (actual_batch_size == 1)
@@ -454,11 +454,8 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			/// @todo copy the weights...?
 			copy_weights_net(net, &net_map);
 
-			// combine Training and Validation networks
-			//network net_combined = combine_train_valid_networks(net, net_map);
-
 			iter_map = iteration;
-			mean_average_precision = validate_detector_map(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);// &net_combined);
+			mean_average_precision = validate_detector_map(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);
 			printf("\n mean_average_precision (mAP@%0.2f) = %f \n", iou_thresh, mean_average_precision);
 			if (mean_average_precision >= best_map)
 			{
@@ -1107,7 +1104,6 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		char *train_images = option_find_str(options, "train", nullptr);
 		valid_images = option_find_str(options, "valid", train_images);
 		net = *existing_net;
-		remember_network_recurrent_state(*existing_net);
 		free_network_recurrent_state(*existing_net);
 	}
 	else
@@ -1683,10 +1679,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 
 	if (existing_net)
 	{
-		//set_batch_network(&net, initial_batch);
-		//free_network_recurrent_state(*existing_net);
 		restore_network_recurrent_state(*existing_net);
-		//randomize_network_recurrent_state(*existing_net);
 	}
 	else
 	{
