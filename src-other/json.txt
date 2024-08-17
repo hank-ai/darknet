@@ -1,0 +1,5 @@
+description:  JSON library for C++
+download:  https://github.com/nlohmann/json/tree/develop/single_include/nlohmann
+license:  MIT
+date:  2024-08-02
+

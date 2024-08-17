@@ -63,7 +63,7 @@ int max_index(float *a, int n);
 int top_max_index(float *a, int n, int k);
 float constrain(float min, float max, float a);
 
-/// V3 xxx replace with std::clamp()
+/// @todo V3 xxx replace with std::clamp()
 int constrain_int(int a, int min, int max);
 
 float mse_array(float *a, int n);
