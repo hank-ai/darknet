@@ -1,17 +1,9 @@
 #pragma once
 
-#include "darknet.h"
+#include "darknet_internal.hpp"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
+/// @todo V3 is this still needed?
 extern int cuda_debug_sync;
-//extern int gpu_old_index;
-#ifdef __cplusplus
-}
-#endif // __cplusplus
 
 #ifdef GPU
 
@@ -33,29 +25,7 @@ extern int cuda_debug_sync;
 #include <cudnn.h>
 #endif // CUDNN
 
-#ifndef __DATE__
-#define __DATE__
-#endif
 
-#ifndef __TIME__
-#define __TIME__
-#endif
-
-#ifndef __FUNCTION__
-#define __FUNCTION__
-#endif
-
-#ifndef __LINE__
-#define __LINE__ 0
-#endif
-
-#ifndef __FILE__
-#define __FILE__
-#endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif // __cplusplus
     void check_cuda_error(cudaError_t status, const char * const filename, const char * const funcname, const int line);
     void check_cuda_error_extended(cudaError_t status, const char * const filename, const char * const funcname, const int line);
     void cublas_check_error_extended(cublasStatus_t status, const char * const filename, const char * const funcname, const int line);
@@ -107,8 +77,5 @@ void cudnn_check_error_extended(cudnnStatus_t status, const char * const filenam
 #define CHECK_CUDNN(X) cudnn_check_error_extended(X, __FILE__, __func__, __LINE__);
 #endif
 
-#ifdef __cplusplus
-}
-#endif // __cplusplus
 
 #endif // GPU

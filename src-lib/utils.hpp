@@ -1,16 +1,6 @@
 #pragma once
 
-#include "darknet.h"
-#include "list.hpp"
-
-#include <errno.h>
-#include <stdio.h>
-#include <time.h>
-#include <stdbool.h>
-#include <limits>
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "darknet_internal.hpp"
 
 #define DARKNET_LOC __FILE__, __func__, __LINE__
 
@@ -119,7 +109,3 @@ bool is_live_stream(const char * path);
 
 #define max_val_cmp(a,b) (((a) > (b)) ? (a) : (b))
 #define min_val_cmp(a,b) (((a) < (b)) ? (a) : (b))
-
-#ifdef __cplusplus
-}
-#endif

@@ -1,7 +1,7 @@
 #pragma once
 
-#include "darknet.h"
-#include <filesystem>
+#include "darknet.hpp"
+//#include <filesystem>
 
 Darknet::Network parse_network_cfg(const char * filename);
 Darknet::Network parse_network_cfg_custom(const char * filename, int batch, int time_steps);
@@ -27,7 +27,7 @@ namespace Darknet
 	 *
 	 * @since 2024-08-06
 	 */
-	void load_names(Darknet::Network * net, const std::filesystem::path & filename);
+	void load_names(Darknet::NetworkPtr net, const std::filesystem::path & filename);
 
 	/** Generate the necessary class colours used to draw bounding boxes and labels.  The colours are stored in
 	 * @ref Darknet::NetworkDetails at the time the network is loaded, once the total number of classes are known.

@@ -2,9 +2,6 @@
 
 #include "darknet_internal.hpp"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 #ifdef GPU
 void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
@@ -46,14 +43,9 @@ Darknet::Image get_convolutional_image(const Darknet::Layer & l);
 Darknet::Image get_convolutional_delta(const Darknet::Layer & l);
 Darknet::Image get_convolutional_weight(const Darknet::Layer & l, int i);
 
-
 int convolutional_out_height(const Darknet::Layer & l);
 int convolutional_out_width(const Darknet::Layer & l);
 void rescale_weights(Darknet::Layer & l, float scale, float trans);
 void rgbgr_weights(const Darknet::Layer & l);
 void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state);
 void assisted_excitation_forward_gpu(Darknet::Layer & l, Darknet::NetworkState state);
-
-#ifdef __cplusplus
-}
-#endif

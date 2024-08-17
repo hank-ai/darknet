@@ -1,13 +1,6 @@
 #pragma once
 
 #include "darknet_internal.hpp"
-//#include "matrix.hpp"
-
-//#include <opencv2/opencv.hpp>
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 
 /// Hide a C++ cv::Mat object as a C style @p void* pointer.
@@ -109,8 +102,3 @@ Darknet::Image blur_image(Darknet::Image src_img, int ksize);
 void show_anchors(int number_of_boxes, int num_of_clusters, float *rel_width_height_array, model anchors_data, int width, int height);
 
 void show_opencv_info();
-
-
-#ifdef __cplusplus
-}
-#endif

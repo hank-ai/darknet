@@ -141,7 +141,7 @@ __global__ void backward_zero_nonmax_kernel(int n, int *indexes, float *prev_del
 	if (indexes[id] != id) prev_delta[id] = 0;
 }
 
-extern "C" void forward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
+void forward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -213,7 +213,7 @@ extern "C" void forward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkSt
 	}
 }
 
-extern "C" void backward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
+void backward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -344,7 +344,7 @@ __global__ void backward_local_avgpool_layer_kernel(int n, int in_h, int in_w, i
 
 
 
-extern "C" void forward_local_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
+void forward_local_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -383,7 +383,7 @@ extern "C" void forward_local_avgpool_layer_gpu(Darknet::Layer & l, Darknet::Net
 	}
 }
 
-extern "C" void backward_local_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
+void backward_local_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

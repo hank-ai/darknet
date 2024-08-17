@@ -4,7 +4,6 @@
 #include <crtdbg.h>
 #endif
 
-#include "darknet.h"
 #include "darknet_internal.hpp"
 
 

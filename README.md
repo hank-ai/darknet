@@ -59,6 +59,9 @@ YOLOv7 surpasses all known object detectors in both speed and accuracy in the ra
 	* The last branch of this codebase is version 2.1
 * The next phase of development started in mid-2024.  The `version` command now returns 3.0.
 	* Removed many old and unmaintained commands
+	* Many performance optimizations
+	* Legacy C API was modified; applications that use the original Darknet API will need minor modifications
+	* New Darknet V3 C and C++ API
 
 # MSCOCO Pre-trained Weights
 

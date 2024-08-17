@@ -2,9 +2,6 @@
 
 #include "darknet_internal.hpp"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 void softmax_array(float *input, int n, float temp, float *output);
 Darknet::Layer make_softmax_layer(int batch, int inputs, int groups);
 void forward_softmax_layer(Darknet::Layer & l, Darknet::NetworkState state);
@@ -27,8 +24,4 @@ void pull_contrastive_layer_output(const Darknet::Layer & l);
 void push_contrastive_layer_output(const Darknet::Layer & l);
 void forward_contrastive_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_contrastive_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
-#endif
-
-#ifdef __cplusplus
-}
 #endif

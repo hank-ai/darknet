@@ -1,14 +1,4 @@
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
-#include <assert.h>
-#include <cfloat>
-
-#include "blas.hpp"
-#include "dark_cuda.hpp"
-#include "utils.hpp"
-#include "tree.hpp"
-#include "Timing.hpp"
+#include "darknet_internal.hpp"
 
 
 __inline__ __device__
@@ -172,7 +162,7 @@ __global__ void adam_kernel(int N, float *x, float *m, float *v, float B1, float
 	x[index] = x[index] + rate * mhat / (sqrtf(vhat) + eps);
 }
 
-extern "C" void adam_gpu(int n, float *x, float *m, float *v, float B1, float B2, float rate, float eps, int t)
+void adam_gpu(int n, float *x, float *m, float *v, float B1, float B2, float rate, float eps, int t)
 {
 	TAT(TATPARMS);
 
@@ -180,7 +170,7 @@ extern "C" void adam_gpu(int n, float *x, float *m, float *v, float B1, float B2
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void adam_update_gpu(float *w, float *d, float *m, float *v, float B1, float B2, float eps, float decay, float rate, int n, int batch, int t)
+void adam_update_gpu(float *w, float *d, float *m, float *v, float B1, float B2, float eps, float decay, float rate, int n, int batch, int t)
 {
 	TAT(TATPARMS);
 
@@ -206,7 +196,7 @@ __global__ void normalize_kernel(int N, float *x, float *mean, float *variance, 
 	x[index] = (x[index] - mean[f]) / (sqrtf(variance[f] + .00001f));
 }
 
-extern "C" void normalize_gpu(float *x, float *mean, float *variance, int batch, int filters, int spatial)
+void normalize_gpu(float *x, float *mean, float *variance, int batch, int filters, int spatial)
 {
 	TAT(TATPARMS);
 
@@ -226,7 +216,7 @@ __global__ void normalize_delta_kernel(int N, float *x, float *mean, float *vari
 	delta[index] = delta[index] * 1.F/(sqrtf(variance[f]) + .000001f) + variance_delta[f] * 2. * (x[index] - mean[f]) / (spatial * batch) + mean_delta[f]/(spatial*batch);
 }
 
-extern "C" void normalize_delta_gpu(float *x, float *mean, float *variance, float *mean_delta, float *variance_delta, int batch, int filters, int spatial, float *delta)
+void normalize_delta_gpu(float *x, float *mean, float *variance, float *mean_delta, float *variance_delta, int batch, int filters, int spatial, float *delta)
 {
 	TAT(TATPARMS);
 
@@ -334,7 +324,7 @@ __global__ void mean_delta_kernel(float *delta, float *variance, int batch, int 
 	mean_delta[i] *= (-1.F/sqrtf(variance[i] + .000001f));
 }
 
-extern "C" void mean_delta_gpu(float *delta, float *variance, int batch, int filters, int spatial, float *mean_delta)
+void mean_delta_gpu(float *delta, float *variance, int batch, int filters, int spatial, float *mean_delta)
 {
 	TAT(TATPARMS);
 
@@ -342,7 +332,7 @@ extern "C" void mean_delta_gpu(float *delta, float *variance, int batch, int fil
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void fast_mean_delta_gpu(float *delta, float *variance, int batch, int filters, int spatial, float *mean_delta)
+void fast_mean_delta_gpu(float *delta, float *variance, int batch, int filters, int spatial, float *mean_delta)
 {
 	TAT(TATPARMS);
 
@@ -350,7 +340,7 @@ extern "C" void fast_mean_delta_gpu(float *delta, float *variance, int batch, in
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void fast_variance_delta_gpu(float *x, float *delta, float *mean, float *variance, int batch, int filters, int spatial, float *variance_delta)
+void fast_variance_delta_gpu(float *x, float *delta, float *mean, float *variance, int batch, int filters, int spatial, float *variance_delta)
 {
 	TAT(TATPARMS);
 
@@ -434,7 +424,7 @@ __global__ void constrain_weight_updates_kernel(int N, float coef, float *weight
 	}
 }
 
-extern "C" void constrain_weight_updates_ongpu(int N, float coef, float *weights_gpu, float *weight_updates_gpu)
+void constrain_weight_updates_ongpu(int N, float coef, float *weights_gpu, float *weight_updates_gpu)
 {
 	TAT(TATPARMS);
 
@@ -559,7 +549,7 @@ __global__ void  fast_mean_kernel(float *x, int batch, int filters, int spatial,
 	}
 }
 
-extern "C" void fast_mean_gpu(float *x, int batch, int filters, int spatial, float *mean)
+void fast_mean_gpu(float *x, int batch, int filters, int spatial, float *mean)
 {
 	TAT(TATPARMS);
 
@@ -597,7 +587,7 @@ __global__ void  fast_variance_kernel(float *x, float *mean, int batch, int filt
 	}
 }
 
-extern "C" void fast_variance_gpu(float *x, float *mean, int batch, int filters, int spatial, float *variance)
+void fast_variance_gpu(float *x, float *mean, int batch, int filters, int spatial, float *variance)
 {
 	TAT(TATPARMS);
 
@@ -658,7 +648,7 @@ __global__ void  fast_v_cbn_kernel(const float *x, float *mean, int batch, int f
 	}
 }
 
-extern "C" void fast_v_cbn_gpu(const float *x, float *mean, int batch, int filters, int spatial, int minibatch_index, int max_minibatch_index, float *m_avg, float *v_avg, float *variance,
+void fast_v_cbn_gpu(const float *x, float *mean, int batch, int filters, int spatial, int minibatch_index, int max_minibatch_index, float *m_avg, float *v_avg, float *variance,
 	const float alpha, float *rolling_mean_gpu, float *rolling_variance_gpu, int inverse_variance, float epsilon)
 {
 	TAT(TATPARMS);
@@ -674,7 +664,7 @@ __global__ void inverse_variance_kernel(int size, float *src, float *dst, float 
 		dst[index] = 1.0f / sqrtf(src[index] + epsilon);
 }
 
-extern "C" void inverse_variance_ongpu(int size, float *src, float *dst, float epsilon)
+void inverse_variance_ongpu(int size, float *src, float *dst, float epsilon)
 {
 	TAT(TATPARMS);
 
@@ -699,7 +689,7 @@ __global__ void normalize_scale_bias_kernel(int N, float *x, float *mean, float 
 		x[index] = val;
 }
 
-extern "C" void normalize_scale_bias_gpu(float *x, float *mean, float *variance, float *scales, float *biases, int batch, int filters, int spatial, int inverse_variance, float epsilon)
+void normalize_scale_bias_gpu(float *x, float *mean, float *variance, float *scales, float *biases, int batch, int filters, int spatial, int inverse_variance, float epsilon)
 {
 	TAT(TATPARMS);
 
@@ -710,7 +700,7 @@ extern "C" void normalize_scale_bias_gpu(float *x, float *mean, float *variance,
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void mean_gpu(float *x, int batch, int filters, int spatial, float *mean)
+void mean_gpu(float *x, int batch, int filters, int spatial, float *mean)
 {
 	TAT(TATPARMS);
 
@@ -718,7 +708,7 @@ extern "C" void mean_gpu(float *x, int batch, int filters, int spatial, float *m
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void variance_gpu(float *x, float *mean, int batch, int filters, int spatial, float *variance)
+void variance_gpu(float *x, float *mean, int batch, int filters, int spatial, float *variance)
 {
 	TAT(TATPARMS);
 
@@ -726,14 +716,14 @@ extern "C" void variance_gpu(float *x, float *mean, int batch, int filters, int 
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void axpy_ongpu(int N, float ALPHA, float * X, int INCX, float * Y, int INCY)
+void axpy_ongpu(int N, float ALPHA, float * X, int INCX, float * Y, int INCY)
 {
 	TAT(TATPARMS);
 
 	axpy_ongpu_offset(N, ALPHA, X, 0, INCX, Y, 0, INCY);
 }
 
-extern "C" void pow_ongpu(int N, float ALPHA, float * X, int INCX, float * Y, int INCY)
+void pow_ongpu(int N, float ALPHA, float * X, int INCX, float * Y, int INCY)
 {
 	TAT(TATPARMS);
 
@@ -741,7 +731,7 @@ extern "C" void pow_ongpu(int N, float ALPHA, float * X, int INCX, float * Y, in
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void axpy_ongpu_offset(int N, float ALPHA, float * X, int OFFX, int INCX, float * Y, int OFFY, int INCY)
+void axpy_ongpu_offset(int N, float ALPHA, float * X, int OFFX, int INCX, float * Y, int OFFY, int INCY)
 {
 	TAT(TATPARMS);
 
@@ -749,14 +739,14 @@ extern "C" void axpy_ongpu_offset(int N, float ALPHA, float * X, int OFFX, int I
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void copy_ongpu(int N, float * X, int INCX, float * Y, int INCY)
+void copy_ongpu(int N, float * X, int INCX, float * Y, int INCY)
 {
 	TAT(TATPARMS);
 
 	copy_ongpu_offset(N, X, 0, INCX, Y, 0, INCY);
 }
 
-extern "C" void simple_copy_ongpu(int size, float *src, float *dst)
+void simple_copy_ongpu(int size, float *src, float *dst)
 {
 	TAT(TATPARMS);
 
@@ -765,7 +755,7 @@ extern "C" void simple_copy_ongpu(int size, float *src, float *dst)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void memcpy_ongpu(void *dst, void *src, int size_bytes)
+void memcpy_ongpu(void *dst, void *src, int size_bytes)
 {
 	TAT(TATPARMS);
 
@@ -773,7 +763,7 @@ extern "C" void memcpy_ongpu(void *dst, void *src, int size_bytes)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void mul_ongpu(int N, float * X, int INCX, float * Y, int INCY)
+void mul_ongpu(int N, float * X, int INCX, float * Y, int INCY)
 {
 	TAT(TATPARMS);
 
@@ -781,7 +771,7 @@ extern "C" void mul_ongpu(int N, float * X, int INCX, float * Y, int INCY)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void copy_ongpu_offset(int N, float * X, int OFFX, int INCX, float * Y, int OFFY, int INCY)
+void copy_ongpu_offset(int N, float * X, int OFFX, int INCX, float * Y, int OFFY, int INCY)
 {
 	TAT(TATPARMS);
 
@@ -806,7 +796,7 @@ __global__ void flatten_kernel(int N, float *x, int spatial, int layers, int bat
 	else out[i1] = x[i2];
 }
 
-extern "C" void flatten_ongpu(float *x, int spatial, int layers, int batch, int forward, float *out)
+void flatten_ongpu(float *x, int spatial, int layers, int batch, int forward, float *out)
 {
 	TAT(TATPARMS);
 
@@ -815,7 +805,7 @@ extern "C" void flatten_ongpu(float *x, int spatial, int layers, int batch, int 
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void reorg_ongpu(float *x, int w, int h, int c, int batch, int stride, int forward, float *out)
+void reorg_ongpu(float *x, int w, int h, int c, int batch, int stride, int forward, float *out)
 {
 	TAT(TATPARMS);
 
@@ -824,7 +814,7 @@ extern "C" void reorg_ongpu(float *x, int w, int h, int c, int batch, int stride
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void mask_gpu_new_api(int N, float * X, float mask_num, float * mask, float val)
+void mask_gpu_new_api(int N, float * X, float mask_num, float * mask, float val)
 {
 	TAT(TATPARMS);
 
@@ -832,7 +822,7 @@ extern "C" void mask_gpu_new_api(int N, float * X, float mask_num, float * mask,
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void mask_ongpu(int N, float * X, float mask_num, float * mask)
+void mask_ongpu(int N, float * X, float mask_num, float * mask)
 {
 	TAT(TATPARMS);
 
@@ -840,7 +830,7 @@ extern "C" void mask_ongpu(int N, float * X, float mask_num, float * mask)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void const_ongpu(int N, float ALPHA, float * X, int INCX)
+void const_ongpu(int N, float ALPHA, float * X, int INCX)
 {
 	TAT(TATPARMS);
 
@@ -848,7 +838,7 @@ extern "C" void const_ongpu(int N, float ALPHA, float * X, int INCX)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void constrain_ongpu(int N, float ALPHA, float * X, int INCX)
+void constrain_ongpu(int N, float ALPHA, float * X, int INCX)
 {
 	TAT(TATPARMS);
 
@@ -856,7 +846,7 @@ extern "C" void constrain_ongpu(int N, float ALPHA, float * X, int INCX)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void constrain_min_max_ongpu(int N, float MIN, float MAX, float * X, int INCX)
+void constrain_min_max_ongpu(int N, float MIN, float MAX, float * X, int INCX)
 {
 	TAT(TATPARMS);
 
@@ -865,7 +855,7 @@ extern "C" void constrain_min_max_ongpu(int N, float MIN, float MAX, float * X, 
 }
 
 
-extern "C" void scal_ongpu(int N, float ALPHA, float * X, int INCX)
+void scal_ongpu(int N, float ALPHA, float * X, int INCX)
 {
 	TAT(TATPARMS);
 
@@ -873,7 +863,7 @@ extern "C" void scal_ongpu(int N, float ALPHA, float * X, int INCX)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void scal_add_ongpu(int N, float ALPHA, float BETA, float * X, int INCX)
+void scal_add_ongpu(int N, float ALPHA, float BETA, float * X, int INCX)
 {
 	TAT(TATPARMS);
 
@@ -881,7 +871,7 @@ extern "C" void scal_add_ongpu(int N, float ALPHA, float BETA, float * X, int IN
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void supp_ongpu(int N, float ALPHA, float * X, int INCX)
+void supp_ongpu(int N, float ALPHA, float * X, int INCX)
 {
 	TAT(TATPARMS);
 
@@ -889,7 +879,7 @@ extern "C" void supp_ongpu(int N, float ALPHA, float * X, int INCX)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void fill_ongpu(int N, float ALPHA, float * X, int INCX)
+void fill_ongpu(int N, float ALPHA, float * X, int INCX)
 {
 	TAT(TATPARMS);
 
@@ -918,7 +908,7 @@ __global__ void gradient_centralization_kernel(int filters, int f_size, float *i
 
 }
 
-extern "C" void gradient_centralization_gpu(int w, int h, int c, int f, float *in)
+void gradient_centralization_gpu(int w, int h, int c, int f, float *in)
 {
 	TAT(TATPARMS);
 
@@ -1040,7 +1030,7 @@ __global__ void shortcut_multilayer_kernel(int size, int src_outputs, int batch,
 	out[id] = out_val;
 }
 
-extern "C" void shortcut_multilayer_gpu(int src_outputs, int batch, int n, int *outputs_of_layers_gpu, float **layers_output_gpu, float *out, float *in, float *weights_gpu, int nweights, WEIGHTS_NORMALIZATION_T weights_normalization)
+void shortcut_multilayer_gpu(int src_outputs, int batch, int n, int *outputs_of_layers_gpu, float **layers_output_gpu, float *out, float *in, float *weights_gpu, int nweights, WEIGHTS_NORMALIZATION_T weights_normalization)
 {
 	TAT(TATPARMS);
 
@@ -1167,7 +1157,7 @@ __global__ void backward_shortcut_multilayer_kernel(int size, int src_outputs, i
 	}
 }
 
-extern "C" void backward_shortcut_multilayer_gpu(int src_outputs, int batch, int n, int *outputs_of_layers_gpu,
+void backward_shortcut_multilayer_gpu(int src_outputs, int batch, int n, int *outputs_of_layers_gpu,
 	float **layers_delta_gpu, float *delta_out, float *delta_in, float *weights_gpu, float *weight_updates_gpu, int nweights, float *in, float **layers_output_gpu, WEIGHTS_NORMALIZATION_T weights_normalization)
 {
 	TAT(TATPARMS);
@@ -1201,7 +1191,7 @@ __global__ void shortcut_kernel(int size, int minw, int minh, int minc, int stri
 	out[out_index] += add[add_index];
 }
 
-extern "C" void shortcut_gpu(int batch, int w1, int h1, int c1, float *add, int w2, int h2, int c2, float *out)
+void shortcut_gpu(int batch, int w1, int h1, int c1, float *add, int w2, int h2, int c2, float *out)
 {
 	TAT(TATPARMS);
 
@@ -1246,7 +1236,7 @@ __global__ void input_shortcut_kernel(float *in, int size, int minw, int minh, i
 	out[out_index] = in[out_index] + add[add_index];
 }
 
-extern "C" void input_shortcut_gpu(float *in, int batch, int w1, int h1, int c1, float *add, int w2, int h2, int c2, float *out)
+void input_shortcut_gpu(float *in, int batch, int w1, int h1, int c1, float *add, int w2, int h2, int c2, float *out)
 {
 	TAT(TATPARMS);
 
@@ -1292,7 +1282,7 @@ __global__ void smooth_l1_kernel(int n, float *pred, float *truth, float *delta,
 	}
 }
 
-extern "C" void smooth_l1_gpu(int n, float *pred, float *truth, float *delta, float *error)
+void smooth_l1_gpu(int n, float *pred, float *truth, float *delta, float *error)
 {
 	TAT(TATPARMS);
 
@@ -1311,7 +1301,7 @@ __global__ void softmax_x_ent_kernel(int n, float *pred, float *truth, float *de
 	}
 }
 
-extern "C" void softmax_x_ent_gpu(int n, float *pred, float *truth, float *delta, float *error)
+void softmax_x_ent_gpu(int n, float *pred, float *truth, float *delta, float *error)
 {
 	TAT(TATPARMS);
 
@@ -1329,7 +1319,7 @@ __global__ void l2_kernel(int n, float *pred, float *truth, float *delta, float 
 	}
 }
 
-extern "C" void l2_gpu(int n, float *pred, float *truth, float *delta, float *error)
+void l2_gpu(int n, float *pred, float *truth, float *delta, float *error)
 {
 	TAT(TATPARMS);
 
@@ -1347,7 +1337,7 @@ __global__ void weighted_sum_kernel(int n, float *a, float *b, float *s, float *
 	}
 }
 
-extern "C" void weighted_sum_gpu(float *a, float *b, float *s, int num, float *c)
+void weighted_sum_gpu(float *a, float *b, float *s, int num, float *c)
 {
 	TAT(TATPARMS);
 
@@ -1365,7 +1355,7 @@ __global__ void weighted_delta_kernel(int n, float *a, float *b, float *s, float
 	}
 }
 
-extern "C" void weighted_delta_gpu(float *a, float *b, float *s, float *da, float *db, float *ds, int num, float *dc)
+void weighted_delta_gpu(float *a, float *b, float *s, float *da, float *db, float *ds, int num, float *dc)
 {
 	TAT(TATPARMS);
 
@@ -1381,7 +1371,7 @@ __global__ void mult_add_into_kernel(int n, float *a, float *b, float *c)
 	}
 }
 
-extern "C" void mult_add_into_gpu(int num, float *a, float *b, float *c)
+void mult_add_into_gpu(int num, float *a, float *b, float *c)
 {
 	TAT(TATPARMS);
 
@@ -1416,7 +1406,7 @@ __global__ void softmax_kernel(int n, int offset, int batch, float *input, float
 	softmax_device(n, input + b*offset, temp, output + b*offset);
 }
 
-extern "C" void softmax_gpu(float *input, int n, int offset, int groups, float temp, float *output)
+void softmax_gpu(float *input, int n, int offset, int groups, float temp, float *output)
 {
 	TAT(TATPARMS);
 
@@ -1454,7 +1444,7 @@ __global__ void softmax_kernel_new_api(float *input, int n, int batch, int batch
 	softmax_device_new_api(input + b*batch_offset + g*group_offset, n, temp, stride, output + b*batch_offset + g*group_offset);
 }
 
-extern "C" void softmax_gpu_new_api(float *input, int n, int batch, int batch_offset, int groups, int group_offset, int stride, float temp, float *output)
+void softmax_gpu_new_api(float *input, int n, int batch, int batch_offset, int groups, int group_offset, int stride, float temp, float *output)
 {
 	TAT(TATPARMS);
 
@@ -1487,7 +1477,7 @@ __global__ void upsample_kernel(size_t N, float *x, int w, int h, int c, int bat
 	else atomicAdd(x + in_index, scale * out[out_index]);
 }
 
-extern "C" void upsample_gpu(float *in, int w, int h, int c, int batch, int stride, int forward, float scale, float *out)
+void upsample_gpu(float *in, int w, int h, int c, int batch, int stride, int forward, float scale, float *out)
 {
 	TAT(TATPARMS);
 
@@ -1509,7 +1499,7 @@ __global__ void softmax_tree_kernel(float *input, int spatial, int batch, int st
 	softmax_device_new_api(input + goff + boff + s, group_size[g], temp, spatial, output + goff + boff + s);
 }
 
-extern "C" void softmax_tree_gpu(float *input, int spatial, int batch, int stride, float temp, float *output, tree hier)
+void softmax_tree_gpu(float *input, int spatial, int batch, int stride, float temp, float *output, Darknet::Tree hier)
 {
 	TAT(TATPARMS);
 
@@ -1542,7 +1532,7 @@ __global__ void fix_nan_and_inf_kernel(float *input, size_t size)
 	}
 }
 
-extern "C" void fix_nan_and_inf(float *input, size_t size)
+void fix_nan_and_inf(float *input, size_t size)
 {
 	TAT(TATPARMS);
 
@@ -1565,7 +1555,7 @@ __global__ void reset_nan_and_inf_kernel(float *input, size_t size)
 	}
 }
 
-extern "C" void reset_nan_and_inf(float *input, size_t size)
+void reset_nan_and_inf(float *input, size_t size)
 {
 	TAT(TATPARMS);
 
@@ -1588,7 +1578,7 @@ __global__ void is_nan_or_inf_kernel(float *input, size_t size, int *pinned_retu
 	}
 }
 
-extern "C" int is_nan_or_inf(float *input, size_t size)
+int is_nan_or_inf(float *input, size_t size)
 {
 	TAT(TATPARMS);
 
@@ -1621,7 +1611,7 @@ __global__ void add_3_arrays_activate_kernel(float *a1, float *a2, float *a3, si
 	}
 }
 
-extern "C" void add_3_arrays_activate(float *a1, float *a2, float *a3, size_t size, ACTIVATION a, float *dst)
+void add_3_arrays_activate(float *a1, float *a2, float *a3, size_t size, ACTIVATION a, float *dst)
 {
 	TAT(TATPARMS);
 
@@ -1643,7 +1633,7 @@ __global__ void sum_of_mults_kernel(float *a1, float *a2, float *b1, float *b2, 
 	}
 }
 
-extern "C" void sum_of_mults(float *a1, float *a2, float *b1, float *b2,  size_t size, float *dst)
+void sum_of_mults(float *a1, float *a2, float *b1, float *b2,  size_t size, float *dst)
 {
 	TAT(TATPARMS);
 
@@ -1664,7 +1654,7 @@ __global__ void activate_and_mult_kernel(float *a1, float *a2, size_t size, ACTI
 	}
 }
 
-extern "C" void activate_and_mult(float *a1, float *a2, size_t size, ACTIVATION a, float *dst)
+void activate_and_mult(float *a1, float *a2, size_t size, ACTIVATION a, float *dst)
 {
 	TAT(TATPARMS);
 
@@ -1694,7 +1684,7 @@ __global__ void scale_channels_kernel(float *in_w_h_c, int size, int channel_siz
 	}
 }
 
-extern "C" void scale_channels_gpu(float *in_w_h_c, int size, int channel_size, int batch_size, int scale_wh, float *scales_c, float *out)
+void scale_channels_gpu(float *in_w_h_c, int size, int channel_size, int batch_size, int scale_wh, float *scales_c, float *out)
 {
 	TAT(TATPARMS);
 
@@ -1751,7 +1741,7 @@ __global__ void backward_scale_channels_kernel(float *in_w_h_c_delta, int size, 
 	}
 }
 
-extern "C" void backward_scale_channels_gpu(float *in_w_h_c_delta, int size, int channel_size, int batch_size, int scale_wh,
+void backward_scale_channels_gpu(float *in_w_h_c_delta, int size, int channel_size, int batch_size, int scale_wh,
 	float *in_scales_c, float *out_from_delta,
 	float *in_from_output, float *out_state_delta)
 {
@@ -1775,7 +1765,7 @@ __global__ void sam_kernel(float *in_w_h_c, int size, int channel_size, float *s
 	}
 }
 
-extern "C" void sam_gpu(float *in_w_h_c, int size, int channel_size, float *scales_c, float *out)
+void sam_gpu(float *in_w_h_c, int size, int channel_size, float *scales_c, float *out)
 {
 	TAT(TATPARMS);
 
@@ -1800,7 +1790,7 @@ __global__ void backward_sam_kernel(float *in_w_h_c_delta, int size, int channel
 	}
 }
 
-extern "C" void backward_sam_gpu(float *in_w_h_c_delta, int size, int channel_size,
+void backward_sam_gpu(float *in_w_h_c_delta, int size, int channel_size,
 	float *in_scales_c, float *out_from_delta,
 	float *in_from_output, float *out_state_delta)
 {
@@ -1889,7 +1879,7 @@ __global__  void smooth_rotate_weights_kernel(const float *src_weight_gpu, float
 }
 
 
-extern "C" void smooth_rotate_weights_gpu(const float *src_weight_gpu, float *weight_deform_gpu, int nweights, int n, int size, int angle, int reverse)
+void smooth_rotate_weights_gpu(const float *src_weight_gpu, float *weight_deform_gpu, int nweights, int n, int size, int angle, int reverse)
 {
 	TAT(TATPARMS);
 
@@ -1989,7 +1979,7 @@ __global__  void stretch_weights_kernel(const float *src_weight_gpu, float *weig
 }
 
 
-extern "C" void stretch_weights_gpu(const float *src_weight_gpu, float *weight_deform_gpu, int nweights, int n, int size, float scale, int reverse)
+void stretch_weights_gpu(const float *src_weight_gpu, float *weight_deform_gpu, int nweights, int n, int size, float scale, int reverse)
 {
 	TAT(TATPARMS);
 
@@ -2097,7 +2087,7 @@ __global__  void sway_and_flip_weights_kernel(const float *src_weight_gpu, float
 }
 
 
-extern "C" void sway_and_flip_weights_gpu(const float *src_weight_gpu, float *weight_deform_gpu, int nweights, int n, int size, int angle, int reverse)
+void sway_and_flip_weights_gpu(const float *src_weight_gpu, float *weight_deform_gpu, int nweights, int n, int size, int angle, int reverse)
 {
 	TAT(TATPARMS);
 
@@ -2176,7 +2166,7 @@ __global__  void rotate_weights_kernel(const float *src_weight_gpu, float *weigh
 }
 
 
-extern "C" void rotate_weights_gpu(const float *src_weight_gpu, float *weight_deform_gpu, int nweights, int n, int size, int reverse)
+void rotate_weights_gpu(const float *src_weight_gpu, float *weight_deform_gpu, int nweights, int n, int size, int reverse)
 {
 	TAT(TATPARMS);
 
@@ -2345,7 +2335,7 @@ __global__  void stretch_sway_flip_weights_kernel(const float *src_weight_gpu, f
 }
 
 
-extern "C" void stretch_sway_flip_weights_gpu(const float *src_weight_gpu, float *weight_deform_gpu, int nweights, int n, int size, int angle, int reverse)
+void stretch_sway_flip_weights_gpu(const float *src_weight_gpu, float *weight_deform_gpu, int nweights, int n, int size, int angle, int reverse)
 {
 	TAT(TATPARMS);
 
@@ -2374,7 +2364,7 @@ __global__  void reduce_and_expand_array_kernel(const float *src_gpu, float *dst
 	}
 }
 
-extern "C" void reduce_and_expand_array_gpu(const float *src_gpu, float *dst_gpu, int size, int groups)
+void reduce_and_expand_array_gpu(const float *src_gpu, float *dst_gpu, int size, int groups)
 {
 	TAT(TATPARMS);
 
@@ -2399,7 +2389,7 @@ __global__  void expand_array_kernel(const float *src_gpu, float *dst_gpu, int c
 	}
 }
 
-extern "C" void expand_array_gpu(const float *src_gpu, float *dst_gpu, int size, int groups)
+void expand_array_gpu(const float *src_gpu, float *dst_gpu, int size, int groups)
 {
 	TAT(TATPARMS);
 
@@ -2434,7 +2424,7 @@ __global__  void mult_inverse_array_kernel(const float *src_gpu, float *dst_gpu,
 	}
 }
 
-extern "C" void mult_inverse_array_gpu(const float *src_gpu, float *dst_gpu, int size, float eps, float divider, float clip, float abs_add)
+void mult_inverse_array_gpu(const float *src_gpu, float *dst_gpu, int size, float eps, float divider, float clip, float abs_add)
 {
 	TAT(TATPARMS);
 
@@ -2481,7 +2471,7 @@ __global__ void P_constrastive_f_det_kernel(int *labels, unsigned int feature_si
 }
 
 
-extern "C" void P_constrastive_f_det_gpu(int *labels, unsigned int feature_size, float temperature, contrastive_params *contrast_p, const int contrast_p_size)
+void P_constrastive_f_det_gpu(int *labels, unsigned int feature_size, float temperature, contrastive_params *contrast_p, const int contrast_p_size)
 {
 	TAT(TATPARMS);
 
@@ -2530,7 +2520,7 @@ __global__ void coord_conv_kernel(float *dst, int w, int h, int chan, int batch,
 	}
 }
 
-extern "C" void coord_conv_gpu(float *dst, int size, int w, int h, int chan, int b, int type)
+void coord_conv_gpu(float *dst, int size, int w, int h, int chan, int b, int type)
 {
 	TAT(TATPARMS);
 
@@ -2550,7 +2540,7 @@ __global__ void forward_implicit_kernel(int size, int batch, int nweights, float
 	output_gpu[id] = weight_gpu[id % nweights];
 }
 
-extern "C" void forward_implicit_gpu(int batch, int nweights, float *weight_gpu, float *output_gpu)
+void forward_implicit_gpu(int batch, int nweights, float *weight_gpu, float *output_gpu)
 {
 	TAT(TATPARMS);
 
@@ -2571,7 +2561,7 @@ __global__ void backward_implicit_kernel(int size, int batch, int nweights, floa
 	}
 }
 
-extern "C" void backward_implicit_gpu(int batch, int nweights, float *weight_updates_gpu, float *delta_gpu)
+void backward_implicit_gpu(int batch, int nweights, float *weight_updates_gpu, float *delta_gpu)
 {
 	TAT(TATPARMS);
 

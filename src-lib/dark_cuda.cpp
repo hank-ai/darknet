@@ -1,14 +1,10 @@
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "darknet_internal.hpp"
+
+/// @todo V3 is cuda_debug_sync still necessary?
 int cuda_debug_sync = 0;
-#ifdef __cplusplus
-}
-#endif // __cplusplus
 
 #ifdef GPU
 
-#include "darknet_internal.hpp"
 #include <cuda.h>
 
 #if defined(CUDNN_HALF) && !defined(CUDNN)
@@ -789,6 +785,11 @@ void show_cuda_cudnn_info()
 }
 
 #else // GPU
-#include "darknet.h"
-void cuda_set_device(int n) {}
+
+// When doing a CPU-only build, make this a no-op.
+void cuda_set_device(int n)
+{
+	return;
+}
+
 #endif // GPU

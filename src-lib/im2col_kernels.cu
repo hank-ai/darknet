@@ -464,7 +464,6 @@ __device__ void transpose32_optimized(uint32_t A[32])
 	}
 }
 
-extern "C" {
 __device__ void transpose_32x32_bits_reversed_diagonale(uint32_t *A, uint32_t *B, int m, int n)
 {
 	//unsigned A_tmp[32];
@@ -484,7 +483,6 @@ __device__ void transpose_32x32_bits_reversed_diagonale(uint32_t *A, uint32_t *B
 	transpose32_optimized(A_tmp);
 	#pragma unroll 32
 	for (i = 0; i < 32; ++i) B[i*n] = A_tmp[i];
-}
 }
 
 // transpose 32x32 bit

@@ -116,7 +116,7 @@ extern "C"
 	}
 
 
-	void darknet_set_detection_threshold(Darknet::NetworkPtr ptr, float threshold)
+	void darknet_set_detection_threshold(DarknetNetworkPtr ptr, float threshold)
 	{
 		TAT(TATPARMS);
 		Darknet::set_detection_threshold(ptr, threshold);
@@ -124,21 +124,21 @@ extern "C"
 	}
 
 
-	void darknet_set_non_maximal_suppression_threshold(Darknet::NetworkPtr ptr, float threshold)
+	void darknet_set_non_maximal_suppression_threshold(DarknetNetworkPtr ptr, float threshold)
 	{
 		TAT(TATPARMS);
 		Darknet::set_non_maximal_suppression_threshold(ptr, threshold);
 		return;
 	}
 
-	void darknet_fix_out_of_bound_values(Darknet::NetworkPtr ptr, const bool toggle)
+	void darknet_fix_out_of_bound_values(DarknetNetworkPtr ptr, const bool toggle)
 	{
 		TAT(TATPARMS);
 		Darknet::fix_out_of_bound_values(ptr, toggle);
 		return;
 	}
 
-	void darknet_network_dimensions(NetworkPtr ptr, int * w, int * h, int * c)
+	void darknet_network_dimensions(DarknetNetworkPtr ptr, int * w, int * h, int * c)
 	{
 		TAT(TATPARMS);
 
@@ -154,11 +154,32 @@ extern "C"
 		return;
 	}
 
-	NetworkPtr darknet_load_neural_network(const char * const cfg_filename, const char * const names_filename, const char * const weights_filename)
+	DarknetNetworkPtr darknet_load_neural_network(const char * const cfg_filename, const char * const names_filename, const char * const weights_filename)
 	{
 		TAT(TATPARMS);
 
-		return Darknet::load_neural_network(std::filesystem::path(cfg_filename), std::filesystem::path(names_filename), std::filesystem::path(weights_filename));
+		std::filesystem::path cfg;
+		std::filesystem::path names;
+		std::filesystem::path weights;
+
+		if (cfg_filename)		cfg		= cfg_filename;
+		if (names_filename)		names	= names_filename;
+		if (weights_filename)	weights	= weights_filename;
+
+		return Darknet::load_neural_network(cfg, names, weights);
+	}
+
+	void darknet_free_neural_network(DarknetNetworkPtr * ptr)
+	{
+		TAT(TATPARMS);
+
+		if (ptr)
+		{
+			Darknet::free_neural_network(*ptr);
+			ptr = nullptr;
+		}
+
+		return;
 	}
 }
 
@@ -694,10 +715,10 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 		initialized = true;
 	}
 
-	Darknet::Network * net = load_network_custom(cfg_filename.string().c_str(), weights_filename.string().c_str(), 0, 1);
-	Darknet::load_names(net, names_filename);
+	NetworkPtr ptr = load_network_custom(cfg_filename.string().c_str(), weights_filename.string().c_str(), 0, 1);
+	Darknet::load_names(ptr, names_filename);
 
-	return reinterpret_cast<NetworkPtr>(net);
+	return ptr;
 }
 
 
@@ -789,6 +810,10 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, cv::Mat mat
 	if (mat.channels() == 3)
 	{
 		cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
+	}
+	else if (mat.channels() == 4)
+	{
+		cv::cvtColor(mat, mat, cv::COLOR_BGRA2RGB);
 	}
 
 	Darknet::Image img = mat_to_image(mat);
@@ -918,6 +943,7 @@ cv::Mat Darknet::annotate(const Darknet::NetworkPtr ptr, const Darknet::Predicti
 		if (net->details->annotate_draw_bb)
 		{
 			// draw the bounding box around the entire object
+
 			if (not net->details->bounding_boxes_with_rounded_corners)
 			{
 				cv::rectangle(mat, pred.rect, net->details->class_colours.at(pred.best_class), 1, net->details->cv_font_line_type);

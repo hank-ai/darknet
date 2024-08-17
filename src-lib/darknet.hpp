@@ -5,7 +5,7 @@
 #endif
 
 /** @file
- * Include this file to get access to the new v3 Darknet/YOLO C++ API.
+ * Include this file to get access to the new Darknet V3 C++ API.
  */
 
 #include <filesystem>
@@ -35,8 +35,26 @@ namespace Darknet
 	using VInt			= std::vector<int>;
 	using VStr			= std::vector<std::string>;
 	using VScalars		= std::vector<cv::Scalar>;
-	using NetworkPtr	= ::NetworkPtr;
+	using NetworkPtr	= DarknetNetworkPtr;
 	/// @}
+
+	/// The @p layer structure has been renamed and moved to darknet_layer.hpp.
+	struct Layer;
+
+	/// The @p network_state structure has been renamed and moved to network.hpp.
+	struct NetworkState;
+
+	/// The @p image structure has been renamed and moved to darknet_image.hpp.
+	struct Image;
+
+	/** Some C++ structures we'd like to insert into the C "Network".  Needs to be a @p void* pointer so older C code can
+	 * continue using the Network without causing any problems.
+	 */
+	struct NetworkDetails;
+
+	/// The @p network structure has been renamed and moved to darknet_network.hpp.
+	struct Network;
+
 
 	/** The likelyhood of a specific object class having been predicted.  This map contains all of the non-zero values.
 	 * The key is the zero-based class indexes, and the values are the confidences for the classes, between @p 0.0f and
@@ -46,15 +64,17 @@ namespace Darknet
 	 * it found a truck, the map would then contain
 	 * @p "{ {2, 0.95}, {3, 0.82} }".
 	 *
-	 * @see @ref Prediction
+	 * @see @ref Darknet::Prediction
 	 *
 	 * @since 2024-07-24
 	 */
 	using Probabilities = std::map<int, float>;
 
 	/** When parsing command-line parameters, each parameter is assigned a "type".
+	 *
 	 * @see @ref Darknet::Parm
-	 * @see @ref parse_arguments()
+	 * @see @ref Darknet::parse_arguments()
+	 *
 	 * @since 2024-07-29
 	 */
 	enum class EParmType
@@ -68,8 +88,10 @@ namespace Darknet
 		kOther			, ///< Any other parameter.
 	};
 
-	/** Structure returned by @ref parse_arguments().
-	 * @see @ref Parms
+	/** Structure returned by @ref Darknet::parse_arguments().
+	 *
+	 * @see @ref Darknet::Parms
+	 *
 	 * @since 2024-07-29
 	 */
 	struct Parm
@@ -80,8 +102,8 @@ namespace Darknet
 		std::string string;
 	};
 
-	/** Structure returned by @ref parse_arguments().
-	 * @see @ref Parms
+	/** Structure returned by @ref Darknet::parse_arguments().
+	 *
 	 * @since 2024-07-29
 	 */
 	using Parms = std::vector<Parm>;
@@ -125,10 +147,10 @@ namespace Darknet
 	 */
 	Darknet::Parms parse_arguments(int argc, char * argv[]);
 
-	/** Similar to the other @ref parse_arguments(), but uses a vector of strings as input.
+	/** Similar to the other @ref Darknet::parse_arguments(), but uses a vector of strings as input.
 	 * Output can be used with @ref Darknet::load_neural_network().
 	 *
-	 * @note See the full description in the other @ref parse_arguments().
+	 * @note See the full description in the other @ref Darknet::parse_arguments().
 	 *
 	 * @since 2024-07-29
 	 */
@@ -284,7 +306,7 @@ namespace Darknet
 	/// Get the network dimensions (width, height, channels).  @since 2024-07-25
 	void network_dimensions(Darknet::NetworkPtr & ptr, int & w, int & h, int & c);
 
-	/// @see @ref detection  @since 2024-07-24
+	/// @see @ref Darknet::detection  @since 2024-07-24
 	struct Prediction
 	{
 		int best_class; ///< Zero-based class index, or @p -1 if nothing was found in an image.
@@ -297,7 +319,7 @@ namespace Darknet
 	/** Each image or video frame may contain many predictions.  These predictions are stored in a vector in no particular
 	 * order.
 	 *
-	 * @see @ref predict()
+	 * @see @ref Darknet::predict()
 	 *
 	 * @since 2024-07-24
 	 */
@@ -305,7 +327,7 @@ namespace Darknet
 
 	/** Get %Darknet to look at the given image or video frame and return all predictions.
 	 *
-	 * This is similar to the other @ref predict() that takes a @p Darknet::Image object as input.
+	 * This is similar to the other @ref Darknet::predict() that takes a @p Darknet::Image object as input.
 	 *
 	 * OpenCV @p cv::Mat images (and video frames) are typically stored in BGR format, not RGB.  This function expects the
 	 * images to be in the usual BGR format for 3-channel networks.
@@ -326,7 +348,8 @@ namespace Darknet
 	 */
 	Predictions predict(const Darknet::NetworkPtr ptr, Darknet::Image & img, cv::Size original_image_size = cv::Size(0, 0));
 
-	/** Get %Darknet to look at the given image.  The image must be in a format supported by OpenCV, such as JPG or PNG.
+	/** Get %Darknet to look at the given image and return all predictions.  The image must be in a format supported by
+	 * OpenCV, such as @p JPG or @p PNG.
 	 *
 	 * @since 2024-07-25
 	 */
@@ -342,7 +365,7 @@ namespace Darknet
 
 	/** Combination of @ref Darknet::predict() and @ref Darknet::annotate().
 	 *
-	 * Remember to clone @p mat prior to calling @p predict_and_annotate() if you need a copy of the original image.
+	 * Remember to clone @p mat prior to calling @p predict_and_annotate() if you need to keep a copy of the original image.
 	 *
 	 * @since 2024-07-30
 	 */
@@ -354,18 +377,45 @@ namespace Darknet
 	 */
 	const Darknet::VStr & get_class_names(const Darknet::NetworkPtr ptr);
 
-	/** Get access to the vector of colours assigned to each class when the .names file was loaded.
+	/** Get access to the vector of colours assigned to each class when the @p .names file was loaded.
 	 *
 	 * @since 2024-08-06
 	 */
 	const Darknet::VScalars & get_class_colours(const Darknet::NetworkPtr ptr);
 
+	/** Display some information about this specific prediction.
+	 *
+	 * Use like this:
+	 *
+	 * ~~~~
+	 *     std::cout << prediction << std::endl;
+	 * ~~~~
+	 *
+	 * @since 2024-08-06
+	 */
 	std::ostream & operator<<(std::ostream & os, const Darknet::Prediction & pred);
+
+	/** Display some information about all the predictions.
+	 *
+	 * Use like this:
+	 *
+	 * ~~~~
+	 *     const auto results = Darknet::predict(ptr, mat);
+	 *     std::cout << results << std::endl;
+	 * ~~~~
+	 *
+	 * Output would look similar to this:
+	 *
+	 * ~~~~.txt
+	 *     prediction results: 5
+	 *     -> 1/5: #4 prob=0.999923 x=423 y=35 w=206 h=221 entries=1
+	 *     -> 2/5: #3 prob=0.999828 x=285 y=85 w=138 h=135 entries=1
+	 *     -> 3/5: #2 prob=0.988380 x=527 y=128 w=31 h=28 entries=1
+	 *     -> 4/5: #1 prob=0.996240 x=498 y=187 w=26 h=29 entries=1
+	 *     -> 5/5: #0 prob=0.994430 x=46 y=127 w=43 h=40 entries=1
+	 * ~~~~
+	 *
+	 * @since 2024-08-06
+	 */
 	std::ostream & operator<<(std::ostream & os, const Darknet::Predictions & preds);
 }
-
-
-#include "darknet_version.h"
-#include "darknet_enums.hpp"
-#include "darknet_network.hpp"
-#include "darknet_cfg.hpp"

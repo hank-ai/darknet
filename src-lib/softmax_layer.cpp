@@ -3,7 +3,7 @@
 /// @todo what is this?
 #define SECRET_NUM -1234
 
-void softmax_tree(float *input, int batch, int inputs, float temp, tree *hierarchy, float *output)
+void softmax_tree(float *input, int batch, int inputs, float temp, Darknet::Tree *hierarchy, float *output)
 {
 	TAT(TATPARMS);
 

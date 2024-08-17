@@ -1,11 +1,6 @@
 #pragma once
 
-#include "darknet.h"
-#include "list.hpp"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "darknet_internal.hpp"
 
 typedef struct
 {
@@ -33,7 +28,3 @@ int option_find_int_quiet(list *l, char *key, int def);
 float option_find_float(list *l, char *key, float def);
 float option_find_float_quiet(list *l, char *key, float def);
 void option_unused(list *l);
-
-#ifdef __cplusplus
-}
-#endif

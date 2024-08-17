@@ -2,9 +2,6 @@
 
 #include "darknet_internal.hpp"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes);
 void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state);
@@ -18,8 +15,4 @@ void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth
 #ifdef GPU
 void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
-#endif
-
-#ifdef __cplusplus
-}
 #endif

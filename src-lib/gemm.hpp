@@ -4,12 +4,12 @@
  * General matrix multiplication (GEMM)
  */
 
+/// @todo V3 check headers
+xxx
 #include "activations.hpp"
 #include <stdint.h>
 #include <stddef.h>
-#ifdef __cplusplus
-extern "C" {
-#endif
+
 
 void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
     float *weights, float *input, float *output, float *mean);
@@ -116,7 +116,4 @@ void gemm_gpu(int TA, int TB, int M, int N, int K, float ALPHA,
         float *B, int ldb,
         float BETA,
         float *C, int ldc);
-#endif
-#ifdef __cplusplus
-}
 #endif

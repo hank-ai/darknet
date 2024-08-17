@@ -4,6 +4,14 @@
 #error "The Darknet/YOLO project requires a C++ compiler."
 #endif
 
+#if defined(_MSC_VER) && _MSC_VER < 1900
+#define inline __inline
+#endif
+
+#if defined(DEBUG) && !defined(_CRTDBG_MAP_ALLOC)
+#define _CRTDBG_MAP_ALLOC
+#endif
+
 // C headers
 #include <cassert>
 #include <cfloat>
@@ -35,6 +43,13 @@
 // 3rd-party lib headers
 #include <opencv2/opencv.hpp>
 
+
+#define DARKNET_INCLUDE_ORIGINAL_API	// internally we need the old C API
+#include "darknet.h"					// the old C header
+#include "darknet.hpp"					// the new C++ header
+#include "darknet_version.h"			// version macros
+
+
 namespace Darknet
 {
 	using VThreads = std::vector<std::thread>;
@@ -55,12 +70,280 @@ namespace Darknet
 	class CfgLine;
 	class CfgSection;
 	class CfgFile;
+	struct Tree;
 }
 
 
-#include "darknet.h"			// the old C header
-#include "darknet.hpp"			// the new C++ header
-#include "darknet_version.h"	// version macros
+/// @todo V2 what is @ref SECRET_NUM?  And/or move to a different header.
+#define SECRET_NUM -1234
+
+
+/// @todo V3 Need to get rid of @ref UNUSED_ENUM_TYPE.  And/or move to a different header.
+typedef enum { UNUSED_DEF_VAL } UNUSED_ENUM_TYPE;
+
+
+// activations.h
+typedef enum {
+	LOGISTIC, RELU, RELU6, RELIE, LINEAR, RAMP, TANH, PLSE, REVLEAKY, LEAKY, ELU, LOGGY, STAIR, HARDTAN, LHTAN, SELU, GELU, SWISH, MISH, HARD_MISH, NORM_CHAN, NORM_CHAN_SOFTMAX, NORM_CHAN_SOFTMAX_MAXVAL
+}ACTIVATION;
+
+// parser.h
+typedef enum
+{
+	IOU, GIOU, MSE, DIOU, CIOU
+} IOU_LOSS;
+
+// parser.h
+typedef enum
+{
+	DEFAULT_NMS, GREEDY_NMS, DIOU_NMS, CORNERS_NMS
+} NMS_KIND;
+
+// parser.h
+typedef enum
+{
+	YOLO_CENTER			= 1 << 0,
+	YOLO_LEFT_TOP		= 1 << 1,
+	YOLO_RIGHT_BOTTOM	= 1 << 2
+} YOLO_POINT;
+
+// parser.h
+typedef enum
+{
+	NO_WEIGHTS,
+	PER_FEATURE,
+	PER_CHANNEL
+} WEIGHTS_TYPE_T;
+
+// parser.h
+typedef enum
+{
+	NO_NORMALIZATION,
+	RELU_NORMALIZATION,
+	SOFTMAX_NORMALIZATION
+} WEIGHTS_NORMALIZATION_T;
+
+// image.h
+typedef enum
+{
+	PNG,	// supported
+	BMP,	// not supported (will be saved as JPG)
+	TGA,	// not supported (will be saved as JPG)
+	JPG		// supported
+} IMTYPE;
+
+// activations.h
+typedef enum
+{
+	MULT,
+	ADD,
+	SUB,
+	DIV
+} BINARY_ACTIVATION;
+
+// blas.h
+typedef struct contrastive_params
+{
+	float sim;
+	float exp_sim;
+	float P;
+	int i, j;
+	int time_step_i, time_step_j;
+} contrastive_params;
+
+
+// layer.h
+typedef enum
+{
+	SSE,
+	MASKED,
+	L1,
+	SEG,
+	SMOOTH,
+	WGAN
+} COST_TYPE;
+
+// layer.h
+typedef struct update_args {
+	int batch;
+	float learning_rate;
+	float momentum;
+	float decay;
+	int adam;
+	float B1;
+	float B2;
+	float eps;
+	int t;
+} update_args;
+
+
+// network.h
+typedef enum
+{
+	CONSTANT,
+	STEP,
+	EXP,
+	POLY,
+	STEPS,
+	SIG,
+	RANDOM,
+	SGDR
+} learning_rate_policy;
+
+
+// box.h
+typedef struct box {
+	float x, y, w, h;
+} box;
+
+// box.h
+typedef struct boxabs {
+	float left, right, top, bot;
+} boxabs;
+
+// box.h
+typedef struct dxrep {
+	float dt, db, dl, dr;
+} dxrep;
+
+// box.h
+typedef struct ious {
+	float iou, giou, diou, ciou;
+	dxrep dx_iou;
+	dxrep dx_giou;
+} ious;
+
+
+// box.h
+typedef struct detection{
+	box bbox; ///< bounding boxes are normalized (between 0.0f and 1.0f)
+	int classes;
+	int best_class_idx;
+	float *prob;
+	float *mask;
+	float objectness;
+	int sort_class;
+	float *uc; ///< Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
+	int points; ///< bit-0 - center, bit-1 - top-left-corner, bit-2 - bottom-right-corner
+	float *embeddings;  ///< embeddings for tracking
+	int embedding_size;
+	float sim;
+	int track_id;
+} detection;
+
+// network.c -batch inference
+typedef struct det_num_pair {
+	int num;
+	detection *dets;
+} det_num_pair, *pdet_num_pair;
+
+// matrix.h
+typedef struct matrix
+{
+	int rows;
+	int cols;
+	float **vals;
+} matrix;
+
+// data.h
+typedef struct data {
+	int w;
+	int h;
+	matrix X; // Note uppercase.  Why?  I have no idea.
+	matrix y;
+	int shallow;
+	int *num_boxes;
+	box **boxes;
+} data;
+
+
+/** Things that we can do on a secondary thread.
+	* @see @ref Darknet::load_single_image_data()
+	* @see @ref load_args::type
+	*/
+typedef enum
+{
+	DETECTION_DATA,
+	IMAGE_DATA,		///< causes @ref Darknet::load_image() and @ref Darknet::resize_image() to be called
+	LETTERBOX_DATA,	///< causes @ref Darknet::load_image() and @ref Darknet::letterbox_image() to be called
+} data_type;
+
+
+/** Used when a secondary thread is created to load things, such as images.
+	* @see @ref Darknet::load_single_image_data()
+	* @see @ref data_type
+	*/
+typedef struct load_args {
+	int threads;
+	char **paths;
+	char *path;
+	int n; ///< number of images, or batch size?
+	int m; ///< maximum number of images?
+	int h;
+	int w;
+	int c;	///< Number of channels, typically 3 for RGB
+	int num_boxes;
+	int truth_size;
+	int classes;
+	int mini_batch;
+	int track;
+	int augment_speed;
+	int letter_box;
+	int mosaic_bound;
+	int show_imgs;
+	int contrastive;
+	int contrastive_jit_flip;
+	int contrastive_color;
+	float jitter;
+	float resize;
+	int flip;
+	int gaussian_noise;
+	int blur;
+	int mixup;
+	float angle;
+	float aspect;
+	float saturation;
+	float exposure;
+	float hue;
+	data *d;
+	Darknet::Image *im;
+	Darknet::Image *resized;
+	data_type type;
+} load_args;
+
+
+// data.h
+typedef struct box_label {
+	int id;
+	int track_id;
+	float x, y, w, h;
+	float left, right, top, bottom;
+} box_label;
+
+// -----------------------------------------------------
+
+
+// box.h
+void do_nms_sort(detection *dets, int total, int classes, float thresh);
+void do_nms_obj(detection *dets, int total, int classes, float thresh);
+void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1);
+
+// layer.h
+void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc);
+void free_layer(Darknet::Layer & l);
+
+// dark_cuda.h
+void cuda_pull_array(float *x_gpu, float *x, size_t n);
+void cuda_pull_array_async(float *x_gpu, float *x, size_t n);
+void cuda_set_device(int n);
+void *cuda_get_context();
+
+// utils.h
+void free_ptrs(void **ptrs, int n);
+void top_k(float *a, int n, int k, int *index);
+
+// gemm.h
+void init_cpu();
 
 int yolo_num_detections_v3(Darknet::Network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache);
 int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, Darknet::Output_Object_Cache & cache);
@@ -68,7 +351,9 @@ int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int n
 #include "darknet_args_and_parms.hpp"
 #include "darknet_cfg_and_state.hpp"
 #include "darknet_enums.hpp"
+#include "list.hpp"
 #include "matrix.hpp"
+#include "dark_cuda.hpp"
 #include "darknet_layers.hpp"
 #include "darknet_format_and_colour.hpp"
 #include "darknet_utils.hpp"

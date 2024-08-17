@@ -173,7 +173,7 @@ __global__ void forward_crop_layer_kernel(float *input, float *rand, int size, i
 	output[count] = bilinear_interpolate_kernel(input, w, h, rx, ry, k);
 }
 
-extern "C" void forward_crop_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
+void forward_crop_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

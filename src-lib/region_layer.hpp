@@ -2,9 +2,6 @@
 
 #include "darknet_internal.hpp"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 Darknet::Layer make_region_layer(int batch, int w, int h, int n, int classes, int coords, int max_boxes);
 void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_region_layer(Darknet::Layer & l, Darknet::NetworkState state);
@@ -17,8 +14,4 @@ void zero_objectness(Darknet::Layer & l);
 #ifdef GPU
 void forward_region_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_region_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
-#endif
-
-#ifdef __cplusplus
-}
 #endif

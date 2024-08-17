@@ -641,7 +641,7 @@ void load_weights(Darknet::Network * net, const char * filename)
 
 
 // load network & force - set batch size
-Darknet::Network * load_network_custom(const char * cfg, const char * weights, int clear, int batch)
+DarknetNetworkPtr load_network_custom(const char * cfg, const char * weights, int clear, int batch)
 {
 	TAT(TATPARMS);
 
@@ -658,7 +658,7 @@ Darknet::Network * load_network_custom(const char * cfg, const char * weights, i
 	/** @todo V3 Some code seems to also call this next function, and some not.  This was not originally called here, but
 	 * I copied it from several other code locations.  Need to invetigate whether or not it should be here.  2024-08-03
 	 */
-	calculate_binary_weights(*net);
+	calculate_binary_weights(net);
 
 	if (clear)
 	{
@@ -671,7 +671,7 @@ Darknet::Network * load_network_custom(const char * cfg, const char * weights, i
 
 
 // load network & get batch size from cfg-file
-Darknet::Network * load_network(const char * cfg, const char * weights, int clear)
+DarknetNetworkPtr load_network(const char * cfg, const char * weights, int clear)
 {
 	TAT(TATPARMS);
 
@@ -696,7 +696,7 @@ Darknet::Network * load_network(const char * cfg, const char * weights, int clea
 }
 
 
-void Darknet::load_names(Darknet::Network * net, const std::filesystem::path & filename)
+void Darknet::load_names(Darknet::NetworkPtr ptr, const std::filesystem::path & filename)
 {
 	TAT(TATPARMS);
 
@@ -710,6 +710,7 @@ void Darknet::load_names(Darknet::Network * net, const std::filesystem::path & f
 		darknet_fatal_error(DARKNET_LOC, "expected a .names file but got a bad filename instead: \"%s\"", filename.string().c_str());
 	}
 
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		darknet_fatal_error(DARKNET_LOC, "cannot set .names to \"%s\" when network pointer is null", filename.string().c_str());

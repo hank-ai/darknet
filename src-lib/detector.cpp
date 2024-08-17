@@ -780,7 +780,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 	}
 	//set_batch_network(&net, 1);
 	fuse_conv_batchnorm(net);
-	calculate_binary_weights(net);
+	calculate_binary_weights(&net);
 	fprintf(stderr, "Learning Rate: %g, Momentum: %g, Decay: %g\n", net.learning_rate, net.momentum, net.decay);
 
 	Darknet::load_names(&net, option_find_str(options, "names", "unknown.names"));
@@ -1115,7 +1115,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		}
 		//set_batch_network(&net, 1);
 		fuse_conv_batchnorm(net);
-		calculate_binary_weights(net);
+		calculate_binary_weights(&net);
 		Darknet::load_names(&net, option_find_str(options, "names", "unknown.names"));
 	}
 
@@ -1944,7 +1944,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	if (net.letter_box) letter_box = 1;
 	net.benchmark_layers = benchmark_layers;
 	fuse_conv_batchnorm(net);
-	calculate_binary_weights(net);
+	calculate_binary_weights(&net);
 
 	Darknet::load_names(&net, option_find_str(options, "names", "unknown.names"));
 

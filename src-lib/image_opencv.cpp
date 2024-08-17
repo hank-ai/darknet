@@ -39,8 +39,6 @@
 #define CV_AA cv::LINE_AA
 #endif
 
-extern "C" {
-
 mat_cv * load_image_mat_cv(const char * const filename, int channels)
 {
 	TAT(TATPARMS);
@@ -1217,5 +1215,3 @@ void show_opencv_info()
 		<< Darknet::in_colour(Darknet::EColour::kNormal)
 		<< std::endl;
 }
-
-}   // extern "C"

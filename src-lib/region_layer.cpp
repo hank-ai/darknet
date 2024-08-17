@@ -115,7 +115,7 @@ float delta_region_box(box truth, float *x, float *biases, int n, int index, int
 	return iou;
 }
 
-void delta_region_class(float *output, float *delta, int index, int class_id, int classes, tree *hier, float scale, float *avg_cat, int focal_loss)
+void delta_region_class(float *output, float *delta, int index, int class_id, int classes, Darknet::Tree *hier, float scale, float *avg_cat, int focal_loss)
 {
 	TAT(TATPARMS);
 
@@ -194,7 +194,7 @@ namespace
 	}
 }
 
-void softmax_tree(float *input, int batch, int inputs, float temp, tree *hierarchy, float *output);
+void softmax_tree(float *input, int batch, int inputs, float temp, Darknet::Tree *hierarchy, float *output);
 void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);

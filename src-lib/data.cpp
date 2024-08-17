@@ -360,7 +360,7 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 }
 
 
-void fill_hierarchy(float *truth, int k, tree *hierarchy)
+void fill_hierarchy(float *truth, int k, Darknet::Tree *hierarchy)
 {
 	TAT(TATPARMS);
 

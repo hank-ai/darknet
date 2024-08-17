@@ -1,10 +1,6 @@
 #pragma once
 
-#include "darknet.h"
-
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "darknet_internal.hpp"
 
 //typedef struct matrix{
 //    int rows, cols;
@@ -21,7 +17,3 @@ matrix make_matrix(int rows, int cols);
 void free_matrix(matrix & m);
 
 float matrix_topk_accuracy(matrix truth, matrix guess, int k);
-
-#ifdef __cplusplus
-}
-#endif

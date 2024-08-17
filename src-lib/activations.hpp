@@ -1,14 +1,8 @@
 #pragma once
 
-#include "darknet.h"
-#include "dark_cuda.hpp"
-#include <cmath>
-#include "utils.hpp"
+#include "darknet_internal.hpp"
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 ACTIVATION get_activation(char *s);
 
 char *get_activation_string(ACTIVATION a);
@@ -123,7 +117,3 @@ static inline float gelu_gradient(float x) {
     return 0.5*tanhf(0.0356774*x3 + 0.797885*x) + (0.0535161*x3 + 0.398942*x) * powf(sech(0.0356774*x3 + 0.797885*x), 2) + 0.5;
 }
 static inline float plse_gradient(float x){return (x < 0 || x > 1) ? .01f : .125f;}
-
-#ifdef __cplusplus
-}
-#endif

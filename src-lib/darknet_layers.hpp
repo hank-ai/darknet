@@ -8,7 +8,7 @@
  * Defines the layer structure and @p #includes all of the different layer include files.
  */
 
-#include "darknet.hpp"
+#include "darknet_internal.hpp"
 
 
 namespace Darknet
@@ -352,7 +352,7 @@ namespace Darknet
 		Layer *ug;
 		Layer *wg;
 
-		tree *softmax_tree;
+		Darknet::Tree *softmax_tree;
 
 		size_t workspace_size;
 

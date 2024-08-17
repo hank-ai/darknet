@@ -810,9 +810,11 @@ void visualize_network(Darknet::Network & net)
 
 // A version of network_predict that uses a pointer for the network
 // struct to make the python binding work properly.
-float *network_predict_ptr(Darknet::Network * net, float * input)
+float *network_predict_ptr(DarknetNetworkPtr ptr, float * input)
 {
 	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 
 	return network_predict(*net, input);
 }
@@ -1563,11 +1565,17 @@ matrix network_predict_data(Darknet::Network & net, data test)
 }
 
 
-void free_network_ptr(Darknet::Network * net)
+void free_network_ptr(DarknetNetworkPtr ptr)
 {
 	TAT(TATPARMS);
 
-	free_network(*net);
+	if (ptr)
+	{
+		Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+		free_network(*net);
+	}
+
+	return;
 }
 
 
@@ -1772,9 +1780,11 @@ void forward_blank_layer(Darknet::Layer & l, Darknet::NetworkState state)
 }
 
 
-void calculate_binary_weights(Darknet::Network & net)
+void calculate_binary_weights(DarknetNetworkPtr ptr)
 {
 	TAT(TATPARMS);
+
+	Darknet::Network & net = *reinterpret_cast<Darknet::Network *>(ptr);
 
 	for (int j = 0; j < net.n; ++j)
 	{

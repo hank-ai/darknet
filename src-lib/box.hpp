@@ -1,6 +1,6 @@
 #pragma once
 
-#include "darknet.h"
+#include "darknet_internal.hpp"
 
 
 struct dbox

@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "darknet.h"
+#include "darknet.hpp"
 
 
 namespace Darknet
@@ -225,7 +225,7 @@ namespace Darknet
 			int try_fix_nan;
 
 			int gpu_index;
-			tree *hierarchy;
+			Darknet::Tree *hierarchy;
 
 			float *input;
 			float *truth;
@@ -302,11 +302,15 @@ void forward_backward_network_gpu(Darknet::Network & net, float *x, float *y);
  */
 Darknet::Network make_network(int n);
 
+/** Free all memory allocations for the given neural network.  All of these functions perform the exact same task, so
+ * use the one that makes the most sense given your application.  Some of these are C++ calls, some are C, some pass
+ * the network by refrence, some pass a pointer to the neural network.
+ *
+ * @see @ref darknet_free_neural_network()
+ * @see @ref Darknet::free_neural_network()
+ * @see @ref free_network_ptr()
+ */
 void free_network(Darknet::Network & net);
-void free_network_ptr(Darknet::Network * net);
-
-Darknet::Network *load_network(const char * cfg, const char * weights, int clear);
-Darknet::Network *load_network_custom(const char * cfg, const char * weights, int clear, int batch);
 
 float get_current_seq_subdivisions(const Darknet::Network & net);
 int get_sequence_value(const Darknet::Network & net);
@@ -349,13 +353,11 @@ void ema_apply(Darknet::Network & net);
 void reject_similar_weights(Darknet::Network & net, float sim_threshold);
 
 float *network_predict(Darknet::Network & net, float *input);
-float *network_predict_ptr(Darknet::Network *net, float *input);
 detection *get_network_boxes(Darknet::Network * net, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter);
 det_num_pair* network_predict_batch(Darknet::Network *net, Darknet::Image im, int batch_size, int w, int h, float thresh, float hier, int *map, int relative, int letter);
 void free_detections(detection *dets, int n);
 void free_batch_detections(det_num_pair *det_num_pairs, int n);
 void fuse_conv_batchnorm(Darknet::Network & net);
-void calculate_binary_weights(Darknet::Network & net);
 
 detection * make_network_boxes(Darknet::Network *net, float thresh, int *num);
 void reset_rnn(Darknet::Network *net);

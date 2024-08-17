@@ -37,7 +37,7 @@ __global__ void backward_avgpool_layer_kernel(int n, int w, int h, int c, float 
 	}
 }
 
-extern "C" void forward_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
+void forward_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -47,7 +47,7 @@ extern "C" void forward_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkSt
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void backward_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
+void backward_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

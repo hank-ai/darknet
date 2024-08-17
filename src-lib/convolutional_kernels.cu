@@ -5,10 +5,7 @@
 Darknet::Image float_to_image(int w, int h, int c, float *data);
 Darknet::Image float_to_image_scaled(int w, int h, int c, float *data);
 
-extern "C"
-{
-	void show_image_cv(Darknet::Image p, const char *name);
-}
+/// @todo V3 remove void show_image_cv(Darknet::Image p, const char *name);
 
 __global__ void binarize_kernel(float *x, int n, float *binary)
 {
