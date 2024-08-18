@@ -527,7 +527,7 @@ void backward_region_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 #endif
 
 
-void correct_region_boxes(detection *dets, int n, int w, int h, int netw, int neth, int relative)
+void correct_region_boxes(Darknet::Detection * dets, int n, int w, int h, int netw, int neth, int relative)
 {
 	TAT(TATPARMS);
 
@@ -559,7 +559,7 @@ void correct_region_boxes(detection *dets, int n, int w, int h, int netw, int ne
 }
 
 
-void get_region_detections(Darknet::Layer l, int w, int h, int netw, int neth, float thresh, int *map, float tree_thresh, int relative, detection *dets)
+void get_region_detections(Darknet::Layer l, int w, int h, int netw, int neth, float thresh, int *map, float tree_thresh, int relative, Darknet::Detection * dets)
 {
 	TAT(TATPARMS);
 

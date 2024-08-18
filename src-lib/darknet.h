@@ -47,6 +47,7 @@ DarknetNetworkPtr darknet_load_neural_network(const char * const cfg_filename, c
 /// This is the @p C equivalent to @ref Darknet::free_neural_network().
 void darknet_free_neural_network(DarknetNetworkPtr * ptr);
 
+/// Bounding box used with normalized coordinates (between 0.0 and 1.0).
 typedef struct DarknetBox
 {
 	float x;
@@ -55,6 +56,9 @@ typedef struct DarknetBox
 	float h;
 } DarknetBox;
 
+/** Everything %Darknet knows about a specific detection.  This structure is used by the old API.  If using the new API,
+ * use @ref Darknet::Prediction instead.
+ */
 typedef struct DarknetDetection
 {
 	DarknetBox bbox; ///< bounding boxes are normalized (between 0.0f and 1.0f)
@@ -100,15 +104,15 @@ typedef struct DarknetImage
 
 /** The old C API did not have @p "darknet" in the function names nor the structures returned.  It defined things like
  * @p network and @p image in the global namespace, which can cause problems since those are common words.  By default
- * this old API is not exposed.  If you're using some old software that expects the original "C" API in the darknet
- * library, then make sure you @p "#define DARKNET_INCLUDE_ORIGINAL_API" before you include this header file.
+ * this old API is no longer exposed.  If you're using some old software that expects the original "C" API in the
+ * darknet library, then make sure you @p "#define DARKNET_INCLUDE_ORIGINAL_API" before you include this header file.
  *
- * Internally, %Darknet still references the old @p C API.
+ * Internally, %Darknet still uses this old @p C API.
  */
 #ifdef DARKNET_INCLUDE_ORIGINAL_API
 
 
-/// A single bounding box.
+/// Bounding box used with normalized coordinates (between 0.0 and 1.0).
 typedef struct DarknetBox box;
 
 /// Everything %Darknet knows about a specific detection.
@@ -152,22 +156,35 @@ void calculate_binary_weights(DarknetNetworkPtr ptr);
 
 /** This is part of the original @p C API.  Do not use in new code.
  *
+ * @see @ref network_predict_image()
  * @see @ref Darknet::predict()
  *
  * If you were previously using @ref network_predict() from within @p C code, please use @p network_predict_ptr() instead
  * by passing in the @em address of the network structure (pointer to the network).
  */
-float * network_predict_ptr(DarknetNetworkPtr * ptr, float * input);
-
+float * network_predict_ptr(DarknetNetworkPtr ptr, float * input);
 
 /** This is part of the original @p C API.  Do not use in new code.
  *
+ * @see @ref network_predict_ptr()
  * @see @ref Darknet::predict()
+ */
+float * network_predict_image(DarknetNetworkPtr ptr, const DarknetImage im);
+
+/** This is part of the original @p C API.  Do not use in new code.
+ *
+ * You must call @ref free_detections() to free up memory once done with the detections.
+ *
+ * @see @ref Darknet::predict()
+ * @see @ref free_detections()
  */
 detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int * map, int relative, int * num, int letter);
 
-/** This is part of the original @p C API.  Free the data pointer that stores the image details.  All image objects
- * @em must eventually call this function.
+/// This is part of the original @p C API.  Do not use in new code.
+void free_detections(detection * dets, int n);
+
+/** This is part of the original @p C API.  Free the data pointer that stores the image .  All image objects @em must
+ * eventually call either this function or @ref Darknet::free_image() to prevent memory leaks.
  *
  * @see @ref Darknet::free_image()
  *

@@ -861,7 +861,7 @@ void backward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState stat
 	axpy_cpu(l.batch*l.inputs, 1, l.delta, 1, state.delta, 1);
 }
 
-void correct_gaussian_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth, int relative, int letter)
+void correct_gaussian_yolo_boxes(Darknet::Detection * dets, int n, int w, int h, int netw, int neth, int relative, int letter)
 {
 	TAT(TATPARMS);
 
@@ -929,7 +929,7 @@ int gaussian_yolo_num_detections(const Darknet::Layer & l, float thresh)
 }
 
 
-int get_gaussian_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
+int get_gaussian_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection * dets, int letter)
 {
 	TAT(TATPARMS);
 

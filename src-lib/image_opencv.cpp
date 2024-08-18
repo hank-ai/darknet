@@ -816,7 +816,7 @@ void save_cv_jpg(mat_cv *img_src, const char *name)
 // ====================================================================
 
 
-void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, char **names, int classes, int ext_output)
+void draw_detections_cv_v3(mat_cv* mat, Darknet::Detection * dets, int num, float thresh, char **names, int classes, int ext_output)
 {
 	TAT(TATPARMS);
 

@@ -263,7 +263,7 @@ void Darknet::draw_bbox(Darknet::Image & a, const Darknet::Box & bbox, int w, fl
 
 
 // Creates array of detections with prob > thresh and fills best_class for them
-detection_with_class* get_actual_detections(const detection *dets, int dets_num, float thresh, int* selected_detections_num, const Darknet::VStr & names)
+detection_with_class* get_actual_detections(const Darknet::Detection *dets, int dets_num, float thresh, int* selected_detections_num, const Darknet::VStr & names)
 {
 	TAT(TATPARMS);
 
@@ -321,7 +321,7 @@ int compare_by_probs(const void *a_ptr, const void *b_ptr)
 }
 
 
-void Darknet::draw_detections_v3(Darknet::Image & im, const detection * dets, const int num, const float thresh, const Darknet::VStr & names, const int classes, const int ext_output)
+void Darknet::draw_detections_v3(Darknet::Image & im, const Darknet::Detection * dets, const int num, const float thresh, const Darknet::VStr & names, const int classes, const int ext_output)
 {
 	TAT(TATPARMS);
 

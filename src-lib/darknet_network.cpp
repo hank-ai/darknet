@@ -812,6 +812,8 @@ void visualize_network(Darknet::Network & net)
 // struct to make the python binding work properly.
 float *network_predict_ptr(DarknetNetworkPtr ptr, float * input)
 {
+	// this is a "C" call
+
 	TAT(TATPARMS);
 
 	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
@@ -932,7 +934,7 @@ int num_detections_batch(Darknet::Network * net, float thresh, int batch)
 }
 
 
-detection * make_network_boxes(Darknet::Network * net, float thresh, int *num)
+Darknet::Detection * make_network_boxes(Darknet::Network * net, float thresh, int *num)
 {
 	/// @see @ref make_network_boxes_batch()
 
@@ -962,7 +964,7 @@ detection * make_network_boxes(Darknet::Network * net, float thresh, int *num)
 		*num = nboxes;
 	}
 
-	detection* dets = (detection*)xcalloc(nboxes, sizeof(detection));
+	Darknet::Detection * dets = (Darknet::Detection*)xcalloc(nboxes, sizeof(Darknet::Detection));
 	for (int i = 0; i < nboxes; ++i)
 	{
 		dets[i].prob = (float*)xcalloc(l.classes, sizeof(float));
@@ -1001,7 +1003,7 @@ detection * make_network_boxes(Darknet::Network * net, float thresh, int *num)
 }
 
 
-detection * make_network_boxes_v3(Darknet::Network * net, const float thresh, int * num, Darknet::Output_Object_Cache & cache)
+Darknet::Detection * make_network_boxes_v3(Darknet::Network * net, const float thresh, int * num, Darknet::Output_Object_Cache & cache)
 {
 	/// @todo V3 JAZZ 718 milliseconds
 
@@ -1034,7 +1036,7 @@ detection * make_network_boxes_v3(Darknet::Network * net, const float thresh, in
 		*num = nboxes;
 	}
 
-	detection* dets = (detection*)xcalloc(nboxes, sizeof(detection));
+	Darknet::Detection * dets = (Darknet::Detection*)xcalloc(nboxes, sizeof(Darknet::Detection));
 	for (int i = 0; i < nboxes; ++i)
 	{
 		dets[i].prob = (float*)xcalloc(l.classes, sizeof(float));
@@ -1062,7 +1064,7 @@ detection * make_network_boxes_v3(Darknet::Network * net, const float thresh, in
 }
 
 
-detection *make_network_boxes_batch(Darknet::Network * net, float thresh, int *num, int batch)
+Darknet::Detection *make_network_boxes_batch(Darknet::Network * net, float thresh, int *num, int batch)
 {
 	/// @see @ref make_network_boxes()
 
@@ -1085,7 +1087,7 @@ detection *make_network_boxes_batch(Darknet::Network * net, float thresh, int *n
 	assert(num != NULL);
 	*num = nboxes;
 
-	detection* dets = (detection*)calloc(nboxes, sizeof(detection));
+	Darknet::Detection * dets = (Darknet::Detection*)calloc(nboxes, sizeof(Darknet::Detection));
 	for (int i = 0; i < nboxes; ++i)
 	{
 		dets[i].prob = (float*)calloc(l.classes, sizeof(float));
@@ -1123,7 +1125,7 @@ detection *make_network_boxes_batch(Darknet::Network * net, float thresh, int *n
 }
 
 
-void custom_get_region_detections(const Darknet::Layer & l, int w, int h, int net_w, int net_h, float thresh, int *map, float hier, int relative, detection *dets, int letter)
+void custom_get_region_detections(const Darknet::Layer & l, int w, int h, int net_w, int net_h, float thresh, int *map, float hier, int relative, Darknet::Detection *dets, int letter)
 {
 	TAT(TATPARMS);
 
@@ -1162,7 +1164,7 @@ void custom_get_region_detections(const Darknet::Layer & l, int w, int h, int ne
 }
 
 
-void fill_network_boxes(Darknet::Network * net, int w, int h, float thresh, float hier, int *map, int relative, detection *dets, int letter)
+void fill_network_boxes(Darknet::Network * net, int w, int h, float thresh, float hier, int *map, int relative, Darknet::Detection *dets, int letter)
 {
 	TAT(TATPARMS);
 
@@ -1211,7 +1213,7 @@ void fill_network_boxes(Darknet::Network * net, int w, int h, float thresh, floa
 }
 
 
-static inline void fill_network_boxes_v3(Darknet::Network * net, int w, int h, float thresh, float hier, int *map, int relative, detection *dets, int letter, Darknet::Output_Object_Cache & cache)
+static inline void fill_network_boxes_v3(Darknet::Network * net, int w, int h, float thresh, float hier, int *map, int relative, Darknet::Detection *dets, int letter, Darknet::Output_Object_Cache & cache)
 {
 	TAT(TATPARMS);
 
@@ -1224,7 +1226,7 @@ static inline void fill_network_boxes_v3(Darknet::Network * net, int w, int h, f
 }
 
 
-void fill_network_boxes_batch(Darknet::Network * net, int w, int h, float thresh, float hier, int *map, int relative, detection *dets, int letter, int batch)
+void fill_network_boxes_batch(Darknet::Network * net, int w, int h, float thresh, float hier, int *map, int relative, Darknet::Detection *dets, int letter, int batch)
 {
 	TAT(TATPARMS);
 
@@ -1257,6 +1259,8 @@ void fill_network_boxes_batch(Darknet::Network * net, int w, int h, float thresh
 
 detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter)
 {
+	// this is a "C" call
+
 	TAT(TATPARMS);
 
 	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
@@ -1279,7 +1283,7 @@ detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh,
 	/// @todo V3 JAZZ 808 milliseconds
 
 	Darknet::Output_Object_Cache cache;
-	detection * dets = make_network_boxes_v3(net, thresh, num, cache);						// 718 milliseconds
+	Darknet::Detection * dets = make_network_boxes_v3(net, thresh, num, cache);						// 718 milliseconds
 	fill_network_boxes_v3(net, w, h, thresh, hier, map, relative, dets, letter, cache);		// 78 milliseconds
 #endif
 
@@ -1287,8 +1291,10 @@ detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh,
 }
 
 
-void free_detections(detection *dets, int n)
+void free_detections(detection * dets, int n)
 {
+	// this is a "C" call
+
 	TAT(TATPARMS);
 
 	for (int i = 0; i < n; ++i)
@@ -1324,7 +1330,7 @@ void free_batch_detections(det_num_pair *det_num_pairs, int n)
 //  {"class_id":14, "name":"bird", "relative coordinates":{"center_x":0.398831, "center_y":0.630203, "width":0.057455, "height":0.020396}, "confidence":0.265497}
 // ]
 //},
-char * Darknet::detection_to_json(detection *dets, int nboxes, int classes, const Darknet::VStr & names, long long int frame_id, char *filename)
+char * Darknet::detection_to_json(Darknet::Detection *dets, int nboxes, int classes, const Darknet::VStr & names, long long int frame_id, char *filename)
 {
 	TAT(TATPARMS);
 
@@ -1394,16 +1400,20 @@ char * Darknet::detection_to_json(detection *dets, int nboxes, int classes, cons
 }
 
 
-float * network_predict_image(Darknet::Network * net, Darknet::Image im)
+float * network_predict_image(DarknetNetworkPtr ptr, const DarknetImage im)
 {
+	// this is a "C" call
+
 	TAT(TATPARMS);
 
-	if(net->batch != 1)
+	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
+
+	if (net->batch != 1)
 	{
 		set_batch_network(net, 1);
 	}
 
-	float *p;
+	float * p;
 	if (im.w == net->w && im.h == net->h)
 	{
 		// Input image is the same size as our net, predict on that image
@@ -1411,7 +1421,7 @@ float * network_predict_image(Darknet::Network * net, Darknet::Image im)
 	}
 	else
 	{
-		// Need to resize image to the desired size for the net
+		// need to resize image to the desired size for the net
 		Darknet::Image imr = Darknet::resize_image(im, net->w, net->h);
 		p = network_predict(*net, imr.data);
 		Darknet::free_image(imr);
@@ -1431,7 +1441,7 @@ det_num_pair * network_predict_batch(Darknet::Network * net, Darknet::Image im, 
 	int num = 0;
 	for (int batch=0; batch < batch_size; batch++)
 	{
-		detection *dets = make_network_boxes_batch(net, thresh, &num, batch);
+		Darknet::Detection * dets = make_network_boxes_batch(net, thresh, &num, batch);
 		fill_network_boxes_batch(net, w, h, thresh, hier, map, relative, dets, letter, batch);
 		pdets[batch].num = num;
 		pdets[batch].dets = dets;

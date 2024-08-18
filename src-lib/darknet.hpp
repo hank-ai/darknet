@@ -306,7 +306,13 @@ namespace Darknet
 	/// Get the network dimensions (width, height, channels).  @since 2024-07-25
 	void network_dimensions(Darknet::NetworkPtr & ptr, int & w, int & h, int & c);
 
-	/// @see @ref Darknet::detection  @since 2024-07-24
+	/** A much-simplified version of the old API structure @ref DarknetDetection.
+	 *
+	 * @see @ref Predictions
+	 * @see @ref DarknetDetection
+	 *
+	 * @since 2024-07-24
+	 */
 	struct Prediction
 	{
 		int best_class; ///< Zero-based class index, or @p -1 if nothing was found in an image.

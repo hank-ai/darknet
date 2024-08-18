@@ -287,7 +287,7 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 	int nboxes = 0;
 	int letterbox = 0;
 	float hier_thresh = 0.5;
-	detection *dets = get_network_boxes(&net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letterbox);
+	Darknet::Detection * dets = get_network_boxes(&net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letterbox);
 	if (nms) do_nms_sort(dets, nboxes, l.classes, nms);
 
 	std::vector<bbox_t> bbox_vec;

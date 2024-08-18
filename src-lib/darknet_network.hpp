@@ -354,13 +354,11 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold);
 
 float *network_predict(Darknet::Network & net, float *input);
 det_num_pair* network_predict_batch(Darknet::Network *net, Darknet::Image im, int batch_size, int w, int h, float thresh, float hier, int *map, int relative, int letter);
-void free_detections(Darknet::Detection *dets, int n);
 void free_batch_detections(det_num_pair *det_num_pairs, int n);
 void fuse_conv_batchnorm(Darknet::Network & net);
 
 Darknet::Detection * make_network_boxes(Darknet::Network *net, float thresh, int *num);
 void reset_rnn(Darknet::Network *net);
-float * network_predict_image(Darknet::Network *net, Darknet::Image im);
 float * network_predict_image_letterbox(Darknet::Network *net, Darknet::Image im);
 float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network *existing_net);
 void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, char* chart_path);

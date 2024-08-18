@@ -573,7 +573,7 @@ static int get_coco_image_id(char *filename)
 	return atoi(p + 1);
 }
 
-static void print_cocos(FILE *fp, char *image_path, detection *dets, int num_boxes, int classes, int w, int h)
+static void print_cocos(FILE *fp, char *image_path, Darknet::Detection * dets, int num_boxes, int classes, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -608,7 +608,7 @@ static void print_cocos(FILE *fp, char *image_path, detection *dets, int num_box
 	}
 }
 
-void print_detector_detections(FILE **fps, char *id, detection *dets, int total, int classes, int w, int h)
+void print_detector_detections(FILE **fps, char *id, Darknet::Detection * dets, int total, int classes, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -631,7 +631,7 @@ void print_detector_detections(FILE **fps, char *id, detection *dets, int total,
 	}
 }
 
-void print_imagenet_detections(FILE *fp, int id, detection *dets, int total, int classes, int w, int h)
+void print_imagenet_detections(FILE *fp, int id, Darknet::Detection * dets, int total, int classes, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -655,7 +655,7 @@ void print_imagenet_detections(FILE *fp, int id, detection *dets, int total, int
 	}
 }
 
-static void print_kitti_detections(FILE **fps, char *id, detection *dets, int total, int classes, int w, int h, char *outfile, char *prefix)
+static void print_kitti_detections(FILE **fps, char *id, Darknet::Detection * dets, int total, int classes, int w, int h, char *outfile, char *prefix)
 {
 	TAT(TATPARMS);
 
@@ -726,7 +726,7 @@ static void get_bdd_image_id(char *filename)
 	strcpy(filename, p);
 }
 
-static void print_bdd_detections(FILE *fp, char *image_path, detection *dets, int num_boxes, int classes, int w, int h)
+static void print_bdd_detections(FILE *fp, char *image_path, Darknet::Detection * dets, int num_boxes, int classes, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -917,7 +917,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 			int w = val[t].w;
 			int h = val[t].h;
 			int nboxes = 0;
-			detection *dets = get_network_boxes(&net, w, h, thresh, .5, map, 0, &nboxes, letter_box);
+			Darknet::Detection * dets = get_network_boxes(&net, w, h, thresh, .5, map, 0, &nboxes, letter_box);
 			if (nms)
 			{
 				if (l.nms_kind == DEFAULT_NMS)
@@ -1035,7 +1035,7 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 		network_predict(net, sized.data);
 		int nboxes = 0;
 		int letterbox = 0;
-		detection *dets = get_network_boxes(&net, sized.w, sized.h, thresh, .5, 0, 1, &nboxes, letterbox);
+		Darknet::Detection * dets = get_network_boxes(&net, sized.w, sized.h, thresh, .5, 0, 1, &nboxes, letterbox);
 		if (nms) do_nms_obj(dets, nboxes, 1, nms);
 
 		char labelpath[4096];
@@ -1249,7 +1249,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 
 			int nboxes = 0;
 			float hier_thresh = 0;
-			detection *dets;
+			Darknet::Detection * dets;
 			if (args.type == LETTERBOX_DATA)
 			{
 				dets = get_network_boxes(&net, val[t].w, val[t].h, thresh, hier_thresh, 0, 1, &nboxes, letter_box);
@@ -2020,7 +2020,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		network_predict(net, X);
 
 		int nboxes = 0;
-		detection *dets = get_network_boxes(&net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letter_box);
+		Darknet::Detection * dets = get_network_boxes(&net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letter_box);
 		if (nms)
 		{
 			if (l.nms_kind == DEFAULT_NMS)

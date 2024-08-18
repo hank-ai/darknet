@@ -1236,7 +1236,7 @@ void backward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 // w,h: image width,height
 // netw,neth: network width,height
 // relative: 1 (all callers seems to pass TRUE)
-void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth, int relative, int letter)
+void correct_yolo_boxes(Darknet::Detection * dets, int n, int w, int h, int netw, int neth, int relative, int letter)
 {
 	TAT(TATPARMS);
 
@@ -1381,7 +1381,7 @@ int yolo_num_detections_batch(const Darknet::Layer & l, float thresh, int batch)
 }
 
 
-int get_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
+int get_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection * dets, int letter)
 {
 	TAT(TATPARMS);
 
@@ -1431,7 +1431,7 @@ int get_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int ne
 }
 
 
-int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, Darknet::Output_Object_Cache & cache)
+int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection * dets, int letter, Darknet::Output_Object_Cache & cache)
 {
 	TAT(TATPARMS);
 
@@ -1477,7 +1477,7 @@ int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int n
 }
 
 
-int get_yolo_detections_batch(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, int batch)
+int get_yolo_detections_batch(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection * dets, int letter, int batch)
 {
 	TAT(TATPARMS);
 
