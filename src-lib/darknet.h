@@ -166,6 +166,17 @@ float * network_predict_ptr(DarknetNetworkPtr * ptr, float * input);
  */
 detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int * map, int relative, int * num, int letter);
 
+/** This is part of the original @p C API.  Free the data pointer that stores the image details.  All image objects
+ * @em must eventually call this function.
+ *
+ * @see @ref Darknet::free_image()
+ *
+ * @note The @ref image is passed by value, meaning that the data pointer in the caller's copy of the image will
+ * be left dangling.  Be careful not to reference it once this call returns.  Where possible when using C++, call
+ * @ref Darknet::free_image() instead.
+ */
+void free_image(image im);
+
 
 #endif // DARKNET_INCLUDE_ORIGINAL_API
 

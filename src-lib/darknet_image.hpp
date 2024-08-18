@@ -11,12 +11,13 @@
 
 namespace Darknet
 {
-	/** Free the data pointer that stores the image details.  All image objects @em must eventually call this function.
+	/** Free the image.  Unlike the @p C version @ref ::free_image(), the image object is passed by reference, so the
+	 * pointer to the data will be reset to @p nullptr once the memory has been freed.  When possible, prefer calling
+	 * @p Darknet::free_image().
 	 *
-	 * @note The @p Image is not passed by reference, meaning that the data pointer in the caller's copy of the image will
-	 * be left dangling and @em shouldn't be used past this call!
+	 * All images @em must call either @ref ::free_image() or @ref Darknet::free_image() to avoid memory leaks.
 	 */
-	void free_image(Darknet::Image im);
+	void free_image(Darknet::Image & im);
 
 	/** Load the given image.  If both @p desired_width and @p desired_height have been set, then the image will be resized
 	 * to match those dimensions.  Otherwise, specify @p 0 (zero) to leave the image dimensions unchanged.
