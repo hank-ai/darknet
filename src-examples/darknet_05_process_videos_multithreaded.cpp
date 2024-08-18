@@ -1,5 +1,5 @@
 #include "darknet.hpp"
-#include "image_opencv.hpp"
+#include "darknet_image.hpp"
 
 #include <set>
 #include <thread>
@@ -103,7 +103,7 @@ void resize_thread()
 				cv::cvtColor(tmp, tmp, cv::COLOR_BGR2RGB);
 			}
 
-			frame.img = mat_to_image(tmp);
+			frame.img = Darknet::mat_to_image(tmp);
 
 			if (true)
 			{

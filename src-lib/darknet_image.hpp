@@ -37,6 +37,22 @@ namespace Darknet
 	/// Similar to @ref make_empty_image() but the data pointer is fully allocated.
 	Darknet::Image make_image(int w, int h, int c);
 
+	/** Convert an OpenCV @p cv::Mat object to @ref Darknet::Image.  The @p cv::Mat is expected to already have been
+	 * converted from @p BGR to @p RGB.  The result @ref Darknet::Image floats will be normalized between @p 0.0 and @p 1.0.
+	 *
+	 * @see @p cv::COLOR_BGR2RGB
+	 * @see @ref image_to_mat()
+	 */
+	Darknet::Image mat_to_image(const cv::Mat & mat);
+
+	/** Convert the usual @ref Darknet::Image format to OpenCV @p cv::Mat.  The mat object will be in @p RGB format,
+	 * not @p BGR.
+	 *
+	 * @see @p cv::COLOR_RGB2BGR
+	 * @see @ref mat_to_image()
+	 */
+	cv::Mat image_to_mat(const Darknet::Image & img);
+
 	/// Generate some "random" colour value to use.  Mostly used for labels and charts.
 	float get_color(int c, int x, int max);
 

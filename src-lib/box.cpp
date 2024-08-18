@@ -750,8 +750,10 @@ void do_nms_sort_v2(Darknet::Box *boxes, float **probs, int total, int classes, 
 }
 
 
-void do_nms_obj(Darknet::Detection *dets, int total, int classes, float thresh)
+void do_nms_obj(detection *dets, int total, int classes, float thresh)
 {
+	// this is a "C" function call
+
 	// 2024-04-25:  this one seems to be called often
 
 	TAT(TATPARMS);
@@ -801,9 +803,13 @@ void do_nms_obj(Darknet::Detection *dets, int total, int classes, float thresh)
 	}
 }
 
-void do_nms_sort(Darknet::Detection *dets, int total, int classes, float thresh)
+
+void do_nms_sort(detection * dets, int total, int classes, float thresh)
 {
+	// this is a "C" function call
+
 	// this is called from everywhere
+
 	TAT(TATPARMS);
 
 	int k = total - 1;
@@ -845,6 +851,8 @@ void do_nms_sort(Darknet::Detection *dets, int total, int classes, float thresh)
 			}
 		}
 	}
+
+	return;
 }
 
 
@@ -888,8 +896,10 @@ void do_nms(Darknet::Box *boxes, float **probs, int total, int classes, float th
 
 // https://github.com/Zzh-tju/DIoU-darknet
 // https://arxiv.org/abs/1911.08287
-void diounms_sort(Darknet::Detection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1)
+void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1)
 {
+	// this is a "C" call
+
 	// this is called from several locations
 	TAT(TATPARMS);
 

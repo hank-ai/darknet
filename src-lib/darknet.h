@@ -111,6 +111,14 @@ typedef struct DarknetImage
  */
 #ifdef DARKNET_INCLUDE_ORIGINAL_API
 
+/// @see @ref diounms_sort()
+typedef enum
+{
+	DEFAULT_NMS	,
+	GREEDY_NMS	,
+	DIOU_NMS	,
+	CORNERS_NMS
+} NMS_KIND;
 
 /// Bounding box used with normalized coordinates (between 0.0 and 1.0).
 typedef struct DarknetBox box;
@@ -193,6 +201,15 @@ void free_detections(detection * dets, int n);
  * @ref Darknet::free_image() instead.
  */
 void free_image(image im);
+
+/// This is part of the original @p C API.
+void do_nms_sort(detection * dets, int total, int classes, float thresh);
+
+/// This is part of the original @p C API.
+void do_nms_obj(detection * dets, int total, int classes, float thresh);
+
+/// This is part of the original @p C API.
+void diounms_sort(detection * dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1);
 
 
 #endif // DARKNET_INCLUDE_ORIGINAL_API

@@ -8,7 +8,7 @@
  * Some of the common Darknet/YOLO enums, and methods to convert between them and @p std::string.
  */
 
-#include "darknet.hpp"
+#include "darknet_internal.hpp"
 
 
 namespace Darknet

@@ -35,49 +35,10 @@ int get_height_mat(mat_cv *mat);
 /// Frees the @p cv::Mat object allocated in @ref load_image_mat_cv().
 void release_mat(mat_cv **mat);
 
-/** Convert an OpenCV @p cv::Mat object to @ref Darknet::Image.  The @p cv::Mat is expected to already have been
- * converted from BGR to RGB.  And the result @ref Darknet::Image floats will be normalized between @p 0.0 and @p 1.0.
- */
-Darknet::Image mat_to_image(cv::Mat mat);
-
-/// Do not use.  @todo This needs to be removed.
-Darknet::Image mat_to_image_cv(mat_cv *mat);
-
-/** Convert the usual @ref Darknet::Image format to OpenCV @p cv::Mat.  The mat object will be in RGB format, not BGR.
- * @see @ref mat_to_image()
- */
-cv::Mat image_to_mat(Darknet::Image img);
-
 // Window
 void create_window_cv(char const* window_name, int full_screen, int width, int height);
-//void make_window(char *name, int w, int h, int fullscreen); -- use create_window_cv() instead
 void show_image_cv(Darknet::Image p, const char *name);
-//void show_image_cv_ipl(mat_cv *disp, const char *name);
 void show_image_mat(mat_cv *mat_ptr, const char *name);
-
-// Video Writer
-write_cv *create_video_writer(char *out_filename, char c1, char c2, char c3, char c4, int fps, int width, int height, int is_color);
-void write_frame_cv(write_cv *output_video_writer, mat_cv *mat);
-void release_video_writer(write_cv **output_video_writer);
-
-
-// Video Capture
-cap_cv* get_capture_video_stream(const char *path);
-cap_cv* get_capture_webcam(int index);
-void release_capture(cap_cv* cap);
-
-mat_cv* get_capture_frame_cv(cap_cv *cap);
-int get_stream_fps_cpp_cv(cap_cv *cap);
-double get_capture_property_cv(cap_cv *cap, int property_id);
-double get_capture_frame_count_cv(cap_cv *cap);
-int set_capture_property_cv(cap_cv *cap, int property_id, double value);
-int set_capture_position_frame_cv(cap_cv *cap, int index);
-
-// ... Video Capture
-Darknet::Image get_image_from_stream_cpp(cap_cv *cap);
-Darknet::Image get_image_from_stream_resize(cap_cv *cap, int w, int h, int c, mat_cv** in_img, int dont_close);
-Darknet::Image get_image_from_stream_letterbox(cap_cv *cap, int w, int h, int c, mat_cv** in_img, int dont_close);
-void consume_frame(cap_cv *cap);
 
 // Image Saving
 void save_cv_png(mat_cv *img, const char *name);

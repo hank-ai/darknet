@@ -56,7 +56,6 @@ SET (DARKNET_PUBLIC_HEADERS
 	darknet.h
 	darknet.hpp
 	darknet_cfg.hpp
-	darknet_enums.hpp
 	darknet_image.hpp
 	darknet_version.h
 	)

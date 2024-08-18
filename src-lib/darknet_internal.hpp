@@ -96,12 +96,6 @@ typedef enum
 // parser.h
 typedef enum
 {
-	DEFAULT_NMS, GREEDY_NMS, DIOU_NMS, CORNERS_NMS
-} NMS_KIND;
-
-// parser.h
-typedef enum
-{
 	YOLO_CENTER			= 1 << 0,
 	YOLO_LEFT_TOP		= 1 << 1,
 	YOLO_RIGHT_BOTTOM	= 1 << 2
@@ -303,10 +297,6 @@ typedef struct box_label {
 // -----------------------------------------------------
 
 
-// box.h
-void do_nms_sort(Darknet::Detection *dets, int total, int classes, float thresh);
-void do_nms_obj(Darknet::Detection *dets, int total, int classes, float thresh);
-void diounms_sort(Darknet::Detection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1);
 
 // layer.h
 void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc);

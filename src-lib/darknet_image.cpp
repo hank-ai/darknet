@@ -119,7 +119,7 @@ Darknet::Image get_opencv_label(const std::string & str, const int area)
 
 	cv::putText(mat, str, {2, text_size.height + 3}, font_face, font_scale, {0, 0, 0}, font_thickness, font_lines);
 
-	return mat_to_image(mat);
+	return Darknet::mat_to_image(mat);
 }
 
 
@@ -801,6 +801,65 @@ Darknet::Image Darknet::make_image(int w, int h, int c)
 	out.data = (float*)xcalloc(h * w * c, sizeof(float));
 
 	return out;
+}
+
+
+Darknet::Image Darknet::mat_to_image(const cv::Mat & mat)
+{
+	TAT(TATPARMS);
+
+	// This code assumes the mat object is already in RGB format, not OpenCV's default BGR.
+	//
+	// The output image will be normalized floats, 0.0 to 1.0.
+
+	const int w = mat.cols;
+	const int h = mat.rows;
+	const int c = mat.channels();
+	Darknet::Image im = Darknet::make_image(w, h, c);
+	const unsigned char * data = static_cast<unsigned char *>(mat.data);
+	const int step = mat.step;
+	for (int y = 0; y < h; ++y)
+	{
+		for (int k = 0; k < c; ++k)
+		{
+			for (int x = 0; x < w; ++x)
+			{
+				im.data[k * w * h + y * w + x] = data[y * step + x * c + k] / 255.0f;
+			}
+		}
+	}
+
+	return im;
+}
+
+
+cv::Mat Darknet::image_to_mat(const Darknet::Image & img)
+{
+	TAT(TATPARMS);
+
+	int channels = img.c;
+	int width = img.w;
+	int height = img.h;
+	cv::Mat mat(height, width, CV_8UC(channels));
+	int step = mat.step;
+
+	for (int y = 0; y < img.h; ++y)
+	{
+		for (int x = 0; x < img.w; ++x)
+		{
+			for (int c = 0; c < img.c; ++c)
+			{
+				float val = img.data[c * img.h * img.w + y * img.w + x];
+				mat.data[y * step + x * img.c + c] = std::round(val * 255.0f);
+			}
+		}
+	}
+
+	/* Remember you likely need to convert the image from RGB to BGR,
+	 * since OpenCV normally uses BGR.  Search for "cv::COLOR_RGB2BGR".
+	 */
+
+	return mat;
 }
 
 
