@@ -89,8 +89,8 @@ typedef struct DarknetDetection
  *
  * @see @ref Darknet::load_image()
  * @see @ref Darknet::copy_image()
- * @see @ref Darknet::make_empty_image()
- * @see @ref Darknet::make_image()
+ * @see @ref make_empty_image()
+ * @see @ref make_image()
  * @see @ref Darknet::free_image()
  */
 typedef struct DarknetImage
@@ -191,6 +191,19 @@ detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh,
 /// This is part of the original @p C API.  Do not use in new code.
 void free_detections(detection * dets, int n);
 
+/** This is part of the original @p C API.  Make an empty image with the given dimensions.  The data pointer will be
+ * @p nullptr.
+ *
+ * @see @ref free_image()
+ * @see @ref make_image()
+ */
+DarknetImage make_empty_image(int w, int h, int c);
+
+/** This is part of the original @p C API.  Similar to @ref make_empty_image() but the data pointer is fully allocated.
+ * @see @ref free_image()
+ */
+DarknetImage make_image(int w, int h, int c);
+
 /** This is part of the original @p C API.  Free the data pointer that stores the image .  All image objects @em must
  * eventually call either this function or @ref Darknet::free_image() to prevent memory leaks.
  *
@@ -202,13 +215,13 @@ void free_detections(detection * dets, int n);
  */
 void free_image(image im);
 
-/// This is part of the original @p C API.
+/// This is part of the original @p C API.  Non Maxima Suppression.
 void do_nms_sort(detection * dets, int total, int classes, float thresh);
 
-/// This is part of the original @p C API.
+/// This is part of the original @p C API.  Non Maxima Suppression.
 void do_nms_obj(detection * dets, int total, int classes, float thresh);
 
-/// This is part of the original @p C API.
+/// This is part of the original @p C API.  Non Maxima Suppression.
 void diounms_sort(detection * dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1);
 
 

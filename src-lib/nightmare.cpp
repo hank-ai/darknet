@@ -63,7 +63,7 @@ void optimize_picture(Darknet::Network * net, Darknet::Image orig, int max_layer
 	Darknet::Layer & last = net->layers[net->n-1];
 	//net->layers[net->n - 1].activation = LINEAR;
 
-	Darknet::Image delta = Darknet::make_image(im.w, im.h, im.c);
+	Darknet::Image delta = make_image(im.w, im.h, im.c);
 
 	Darknet::NetworkState state = {0};
 	state.net = *net;
@@ -166,7 +166,7 @@ void reconstruct_picture(Darknet::Network net, float *features, Darknet::Image r
 {
 	for (int iter = 0; iter < iters; ++iter)
 	{
-		Darknet::Image delta = Darknet::make_image(recon.w, recon.h, recon.c);
+		Darknet::Image delta = make_image(recon.w, recon.h, recon.c);
 
 		Darknet::NetworkState state = {0};
 		state.net = net;
@@ -296,7 +296,7 @@ void run_nightmare(int argc, char **argv)
 
 		Darknet::free_image(im);
 		im = Darknet::make_random_image(im.w, im.h, im.c);
-		update = Darknet::make_image(im.w, im.h, im.c);
+		update = make_image(im.w, im.h, im.c);
 	}
 
 	for (int e = 0; e < rounds; ++e)

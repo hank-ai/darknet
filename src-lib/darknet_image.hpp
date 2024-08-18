@@ -31,12 +31,6 @@ namespace Darknet
 	 */
 	Darknet::Image load_image(const char * filename, int desired_width = 0, int desired_height = 0, int channels = 0);
 
-	/// Make an empty image with the given dimensions.  The data pointer will be @p nullptr.  @see @ref Darknet::make_image()
-	Darknet::Image make_empty_image(int w, int h, int c);
-
-	/// Similar to @ref make_empty_image() but the data pointer is fully allocated.
-	Darknet::Image make_image(int w, int h, int c);
-
 	/** Convert an OpenCV @p cv::Mat object to @ref Darknet::Image.  The @p cv::Mat is expected to already have been
 	 * converted from @p BGR to @p RGB.  The result @ref Darknet::Image floats will be normalized between @p 0.0 and @p 1.0.
 	 *

@@ -158,7 +158,7 @@ Detector::Detector(std::string cfg_filename, std::string weight_filename, int gp
 
 	detector_gpu.avg = (float *)calloc(l.outputs, sizeof(float));
 	for (j = 0; j < NFRAMES; ++j) detector_gpu.predictions[j] = (float*)calloc(l.outputs, sizeof(float));
-	for (j = 0; j < NFRAMES; ++j) detector_gpu.images[j] = Darknet::make_image(1, 1, 3);
+	for (j = 0; j < NFRAMES; ++j) detector_gpu.images[j] = make_image(1, 1, 3);
 
 	detector_gpu.track_id = (unsigned int *)calloc(l.classes, sizeof(unsigned int));
 	for (j = 0; j < l.classes; ++j) detector_gpu.track_id[j] = 1;
@@ -261,7 +261,7 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 
 	if (net.w == im.w && net.h == im.h)
 	{
-		sized = Darknet::make_image(im.w, im.h, im.c);
+		sized = make_image(im.w, im.h, im.c);
 		memcpy(sized.data, im.data, im.w*im.h*im.c * sizeof(float));
 	}
 	else

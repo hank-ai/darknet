@@ -909,7 +909,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 				}
 				else if (i_mixup == 1)
 				{
-					Darknet::Image old_img = Darknet::make_empty_image(w, h, c);
+					Darknet::Image old_img = make_empty_image(w, h, c);
 					old_img.data = d.X.vals[i];
 					//show_image(ai, "new");
 					//show_image(old_img, "old");
@@ -924,7 +924,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			{
 				if (i_mixup == 0)
 				{
-					Darknet::Image tmp_img = Darknet::make_image(w, h, c);
+					Darknet::Image tmp_img = make_image(w, h, c);
 					d.X.vals[i] = tmp_img.data;
 				}
 
