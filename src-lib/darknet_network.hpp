@@ -280,7 +280,7 @@ namespace Darknet
 		Darknet::Network net;
 	};
 
-	char * detection_to_json(detection *dets, int nboxes, int classes, const Darknet::VStr & names, long long int frame_id, char *filename);
+	char * detection_to_json(Darknet::Detection *dets, int nboxes, int classes, const Darknet::VStr & names, long long int frame_id, char *filename);
 }
 
 
@@ -353,13 +353,12 @@ void ema_apply(Darknet::Network & net);
 void reject_similar_weights(Darknet::Network & net, float sim_threshold);
 
 float *network_predict(Darknet::Network & net, float *input);
-detection *get_network_boxes(Darknet::Network * net, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter);
 det_num_pair* network_predict_batch(Darknet::Network *net, Darknet::Image im, int batch_size, int w, int h, float thresh, float hier, int *map, int relative, int letter);
-void free_detections(detection *dets, int n);
+void free_detections(Darknet::Detection *dets, int n);
 void free_batch_detections(det_num_pair *det_num_pairs, int n);
 void fuse_conv_batchnorm(Darknet::Network & net);
 
-detection * make_network_boxes(Darknet::Network *net, float thresh, int *num);
+Darknet::Detection * make_network_boxes(Darknet::Network *net, float thresh, int *num);
 void reset_rnn(Darknet::Network *net);
 float * network_predict_image(Darknet::Network *net, Darknet::Image im);
 float * network_predict_image_letterbox(Darknet::Network *net, Darknet::Image im);

@@ -266,8 +266,8 @@ void show_image_cv(Darknet::Image p, const char *name)
 
 	try
 	{
-		Darknet::Image copy = copy_image(p);
-		constrain_image(copy);
+		Darknet::Image copy = Darknet::copy_image(p);
+		Darknet::constrain_image(copy);
 
 		cv::Mat mat = image_to_mat(copy);
 		if (mat.channels() == 3)
@@ -737,7 +737,7 @@ Darknet::Image get_image_from_stream_letterbox(cap_cv *cap, int w, int h, int c,
 
 	if (c>1) cv::cvtColor(*src, *src, cv::COLOR_RGB2BGR);
 	Darknet::Image tmp = mat_to_image(*src);
-	Darknet::Image im = letterbox_image(tmp, w, h);
+	Darknet::Image im = Darknet::letterbox_image(tmp, w, h);
 	Darknet::free_image(tmp);
 	release_mat((mat_cv **)&src);
 
@@ -870,7 +870,7 @@ void draw_detections_cv_v3(mat_cv* mat, detection *dets, int num, float thresh, 
 				//rgb[0] = red;
 				//rgb[1] = green;
 				//rgb[2] = blue;
-				box b = dets[i].bbox;
+				Darknet::Box b = dets[i].bbox;
 				if (std::isnan(b.w) || std::isinf(b.w)) b.w = 0.5;
 				if (std::isnan(b.h) || std::isinf(b.h)) b.h = 0.5;
 				if (std::isnan(b.x) || std::isinf(b.x)) b.x = 0.5;
@@ -1062,7 +1062,7 @@ Darknet::Image image_data_augmentation(mat_cv* mat, int w, int h,
 				cv::Rect img_rect(0, 0, sized.cols, sized.rows);
 				int t;
 				for (t = 0; t < num_boxes; ++t) {
-					box b = float_to_box_stride(truth + t*truth_size, 1);
+					Darknet::Box b = float_to_box_stride(truth + t*truth_size, 1);
 					if (!b.x) break;
 					int left = (b.x - b.w / 2.)*sized.cols;
 					int width = b.w*sized.cols;

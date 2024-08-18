@@ -1127,7 +1127,7 @@ void custom_get_region_detections(const Darknet::Layer & l, int w, int h, int ne
 {
 	TAT(TATPARMS);
 
-	box* boxes = (box*)xcalloc(l.w * l.h * l.n, sizeof(box));
+	Darknet::Box * boxes = (Darknet::Box*)xcalloc(l.w * l.h * l.n, sizeof(Darknet::Box));
 	float** probs = (float**)xcalloc(l.w * l.h * l.n, sizeof(float*));
 
 	for (int j = 0; j < l.w*l.h*l.n; ++j)
@@ -1255,9 +1255,11 @@ void fill_network_boxes_batch(Darknet::Network * net, int w, int h, float thresh
 }
 
 
-detection * get_network_boxes(Darknet::Network * net, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter)
+detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter)
 {
 	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 
 #if 0
 	/* Prior to V3 Jazz, we'd call these 2 functions to create and fill in the bounding boxes.  The problem is both of
@@ -1457,7 +1459,7 @@ float * network_predict_image_letterbox(Darknet::Network * net, Darknet::Image i
 	else
 	{
 		// Need to resize image to the desired size for the net
-		Darknet::Image imr = letterbox_image(im, net->w, net->h);
+		Darknet::Image imr = Darknet::letterbox_image(im, net->w, net->h);
 		p = network_predict(*net, imr.data);
 		Darknet::free_image(imr);
 	}

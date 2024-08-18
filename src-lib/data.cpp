@@ -981,23 +981,23 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			{
 				const int random_index = random_gen();
 
-				Darknet::Image tmp_ai = copy_image(ai);
+				Darknet::Image tmp_ai = Darknet::copy_image(ai);
 				char buff[1000];
 				//sprintf(buff, "aug_%d_%d_%s_%d", random_index, i, basecfg((char*)filename), random_gen());
 				sprintf(buff, "aug_%d_%d_%d", random_index, i, random_gen());
 				int t;
 				for (t = 0; t < boxes; ++t)
 				{
-					box b = float_to_box_stride(d.y.vals[i] + t*truth_size, 1);
+					Darknet::Box b = float_to_box_stride(d.y.vals[i] + t*truth_size, 1);
 					if (!b.x) break;
 					int left = (b.x - b.w / 2.)*ai.w;
 					int right = (b.x + b.w / 2.)*ai.w;
 					int top = (b.y - b.h / 2.)*ai.h;
 					int bot = (b.y + b.h / 2.)*ai.h;
-					draw_box_width(tmp_ai, left, top, right, bot, 1, 150, 100, 50); // 3 channels RGB
+					Darknet::draw_box_width(tmp_ai, left, top, right, bot, 1, 150, 100, 50); // 3 channels RGB
 				}
 
-				save_image(tmp_ai, buff);
+				Darknet::save_image(tmp_ai, buff);
 				if (show_imgs == 1)
 				{
 					//char buff_src[1000];

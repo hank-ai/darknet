@@ -47,7 +47,55 @@ DarknetNetworkPtr darknet_load_neural_network(const char * const cfg_filename, c
 /// This is the @p C equivalent to @ref Darknet::free_neural_network().
 void darknet_free_neural_network(DarknetNetworkPtr * ptr);
 
+typedef struct DarknetBox
+{
+	float x;
+	float y;
+	float w;
+	float h;
+} DarknetBox;
 
+typedef struct DarknetDetection
+{
+	DarknetBox bbox; ///< bounding boxes are normalized (between 0.0f and 1.0f)
+	int classes;
+	int best_class_idx;
+	float *prob;
+	float *mask;
+	float objectness;
+	int sort_class;
+	float *uc; ///< Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
+	int points; ///< bit-0 - center, bit-1 - top-left-corner, bit-2 - bottom-right-corner
+	float *embeddings;  ///< embeddings for tracking
+	int embedding_size;
+	float sim;
+	int track_id;
+} DarknetDetection;
+
+/** The structure @ref DarknetImage is used to store a normalized RGB %Darknet image.  The format is intended to be
+ * used for internal use by %Darknet, but there are some situations where it may also be used or referenced externally
+ * via the %Darknet API.
+ *
+ * Moving forward starting with %Darknet V3 (August 2024), where possible the emphasis will be to use OpenCV @p cv::Mat
+ * objects in the external-facing API instead of @ref DarknetImage.  Internally, %Darknet will continue to use @p Image.
+ *
+ * @warning Keep this structure as POD (plain-old-data) since there are many places in the old code where memory for
+ * these image objects is calloc'd.  This structure was originally part of the old %Darknet @p C API, which is why it
+ * exists this way and not as a C++ class with methods.
+ *
+ * @see @ref Darknet::load_image()
+ * @see @ref Darknet::copy_image()
+ * @see @ref Darknet::make_empty_image()
+ * @see @ref Darknet::make_image()
+ * @see @ref Darknet::free_image()
+ */
+typedef struct DarknetImage
+{
+	int w;			///< width
+	int h;			///< height
+	int c;			///< channel
+	float *data;	///< normalized floats, the number of which is determined by @p "w * h * c"
+} DarknetImage;
 
 
 /** The old C API did not have @p "darknet" in the function names nor the structures returned.  It defined things like
@@ -55,9 +103,19 @@ void darknet_free_neural_network(DarknetNetworkPtr * ptr);
  * this old API is not exposed.  If you're using some old software that expects the original "C" API in the darknet
  * library, then make sure you @p "#define DARKNET_INCLUDE_ORIGINAL_API" before you include this header file.
  *
- * Internally, %Darknet still uses the old @p C API, so @ref darknet_internal.hpp does define this macro.
+ * Internally, %Darknet still references the old @p C API.
  */
 #ifdef DARKNET_INCLUDE_ORIGINAL_API
+
+
+/// A single bounding box.
+typedef struct DarknetBox box;
+
+/// Everything %Darknet knows about a specific detection.
+typedef struct DarknetDetection detection;
+
+/// Darknet-style image (vector of floats).
+typedef struct DarknetImage image;
 
 
 /** @{ This is part of the original @p C API.  Do not use in new code.
@@ -95,8 +153,18 @@ void calculate_binary_weights(DarknetNetworkPtr ptr);
 /** This is part of the original @p C API.  Do not use in new code.
  *
  * @see @ref Darknet::predict()
+ *
+ * If you were previously using @ref network_predict() from within @p C code, please use @p network_predict_ptr() instead
+ * by passing in the @em address of the network structure (pointer to the network).
  */
 float * network_predict_ptr(DarknetNetworkPtr * ptr, float * input);
+
+
+/** This is part of the original @p C API.  Do not use in new code.
+ *
+ * @see @ref Darknet::predict()
+ */
+detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int * map, int relative, int * num, int letter);
 
 
 #endif // DARKNET_INCLUDE_ORIGINAL_API

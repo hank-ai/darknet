@@ -11,31 +11,6 @@
 
 namespace Darknet
 {
-	/** The structure @ref Darknet::Image is used to store a normalized RGB %Darknet image.  The format is intended to be
-	 * used for internal use by %Darknet, but there are some situations where it may also be used or referenced externally
-	 * via the %Darknet API.
-	 *
-	 * Moving forward starting with %Darknet V3 (August 2024), where possible the emphasis will be to use OpenCV @p cv::Mat
-	 * objects in the external-facing API instead of @ref Darknet::Image.
-	 *
-	 * @warning Keep this structure as POD (plain-old-data) since there are many places in the old code where memory for these
-	 * image objects is calloc'd.  This was originally part of the old %Darknet @p C API, which is why it exists this way
-	 * and not as a class with methods.
-	 *
-	 * @see @ref Darknet::load_image()
-	 * @see @ref Darknet::copy_image()
-	 * @see @ref Darknet::make_empty_image()
-	 * @see @ref Darknet::make_image()
-	 * @see @ref Darknet::free_image()
-	 */
-	struct Image
-	{
-		int w;			///< width
-		int h;			///< height
-		int c;			///< channel
-		float *data;	///< normalized floats
-	};
-
 	/** Free the data pointer that stores the image details.  All image objects @em must eventually call this function.
 	 *
 	 * @note The @p Image is not passed by reference, meaning that the data pointer in the caller's copy of the image will
@@ -74,13 +49,13 @@ namespace Darknet
 	void draw_box_width(Darknet::Image & a, int x1, int y1, int x2, int y2, int w, float r, float g, float b);
 
 	/// Draw the given bounding box.  The line thickness can be specified using @p w.
-	void draw_bbox(Darknet::Image & a, const box & bbox, int w, float r, float g, float b);
+	void draw_bbox(Darknet::Image & a, const Darknet::Box & bbox, int w, float r, float g, float b);
 
 	/// Blend the label (actually an image) into the given image.
 	void draw_weighted_label(Darknet::Image & a, int r, int c, Darknet::Image & label, const float *rgb, const float alpha);
 
 	/// This is the function that is called from older %Darknet code to draw annotations on an image.
-	void draw_detections_v3(Darknet::Image & im, const detection * dets, const int num, const float thresh, const Darknet::VStr & names, const int classes, const int ext_output);
+	void draw_detections_v3(Darknet::Image & im, const Darknet::Detection * dets, const int num, const float thresh, const Darknet::VStr & names, const int classes, const int ext_output);
 
 	/// Draw a bounding box on a black-and-white image.
 	void draw_box_bw(Darknet::Image & a, int x1, int y1, int x2, int y2, float brightness);

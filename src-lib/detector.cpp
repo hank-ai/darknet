@@ -1050,7 +1050,7 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 		}
 		for (j = 0; j < num_labels; ++j) {
 			++total;
-			box t = { truth[j].x, truth[j].y, truth[j].w, truth[j].h };
+			Darknet::Box t = { truth[j].x, truth[j].y, truth[j].w, truth[j].h };
 			float best_iou = 0;
 			for (k = 0; k < nboxes; ++k) {
 				float iou = box_iou(dets[k].bbox, t);
@@ -1083,7 +1083,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 
 	struct box_prob
 	{
-		box b;					// bounding box
+		Darknet::Box b;			// bounding box
 		float p;				// probability
 		int class_id;
 		int image_index;		// ?
@@ -1314,7 +1314,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 						float max_iou = 0;
 						for (j = 0; j < num_labels; ++j)
 						{
-							box t = { truth[j].x, truth[j].y, truth[j].w, truth[j].h };
+							Darknet::Box t = { truth[j].x, truth[j].y, truth[j].w, truth[j].h };
 							//printf(" IoU = %f, prob = %f, class_id = %d, truth[j].id = %d \n",
 							//    box_iou(dets[i].bbox, t), prob, class_id, truth[j].id);
 							float current_iou = box_iou(dets[i].bbox, t);
@@ -1339,7 +1339,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 							// if object is difficult then remove detection
 							for (j = 0; j < num_labels_dif; ++j)
 							{
-								box t = { truth_dif[j].x, truth_dif[j].y, truth_dif[j].w, truth_dif[j].h };
+								Darknet::Box t = { truth_dif[j].x, truth_dif[j].y, truth_dif[j].w, truth_dif[j].h };
 								float current_iou = box_iou(dets[i].bbox, t);
 								if (current_iou > iou_thresh && class_id == truth_dif[j].id)
 								{
@@ -1995,7 +1995,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		Darknet::Image sized;
 		if (letter_box)
 		{
-			sized = letterbox_image(im, net.w, net.h);
+			sized = Darknet::letterbox_image(im, net.w, net.h);
 		}
 		else
 		{
@@ -2036,8 +2036,8 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		// Load the image explicitly asking for 3 color channels
 		Darknet::Image im_color = Darknet::load_image(input, 0, 0, 3);
 
-		draw_detections_v3(im_color, dets, nboxes, thresh, net.details->class_names, l.classes, ext_output);
-		save_image(im_color, "predictions");
+		Darknet::draw_detections_v3(im_color, dets, nboxes, thresh, net.details->class_names, l.classes, ext_output);
+		Darknet::save_image(im_color, "predictions");
 		if (!dont_show)
 		{
 			Darknet::show_image(im_color, "predictions");
@@ -2086,7 +2086,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		free_detections(dets, nboxes);
 		Darknet::free_image(im_color);
 		Darknet::free_image(im);
-		free_image(sized);
+		Darknet::free_image(sized);
 
 		if (!dont_show)
 		{

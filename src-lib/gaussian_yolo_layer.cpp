@@ -8,11 +8,11 @@
 
 namespace
 {
-	inline box get_gaussian_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const YOLO_POINT yolo_point)
+	inline Darknet::Box get_gaussian_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const YOLO_POINT yolo_point)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
-		box b;
+		Darknet::Box b;
 
 		b.w = exp(x[index + 4 * stride]) * biases[2 * n] / w;
 		b.h = exp(x[index + 6 * stride]) * biases[2 * n + 1] / h;
@@ -68,12 +68,12 @@ namespace
 	}
 
 
-	inline float delta_gaussian_yolo_box(const box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta,
+	inline float delta_gaussian_yolo_box(const Darknet::Box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta,
 										 const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const float uc_normalizer, const int accumulate, const YOLO_POINT yolo_point, const float max_delta)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
-		box pred = get_gaussian_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride, yolo_point);
+		Darknet::Box pred = get_gaussian_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride, yolo_point);
 
 		float iou;
 		ious all_ious = { 0 };
@@ -542,14 +542,14 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 					const int obj_index = entry_gaussian_index(l, b, n*l.w*l.h + j*l.w + i, 8);
 					const int box_index = entry_gaussian_index(l, b, n*l.w*l.h + j*l.w + i, 0);
 					const int stride = l.w*l.h;
-					box pred = get_gaussian_yolo_box(l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.w*l.h, l.yolo_point);
+					Darknet::Box pred = get_gaussian_yolo_box(l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.w*l.h, l.yolo_point);
 					float best_match_iou = 0;
 					int best_match_t = 0;
 					float best_iou = 0;
 					int best_t = 0;
 					for(t = 0; t < l.max_boxes; ++t)
 					{
-						box truth = float_to_box_stride(state.truth + t*l.truth_size + b*l.truths, 1);
+						Darknet::Box truth = float_to_box_stride(state.truth + t*l.truth_size + b*l.truths, 1);
 						int class_id = state.truth[t*l.truth_size + b*l.truths + 4];
 						if (class_id >= l.classes)
 						{
@@ -636,7 +636,7 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 						{
 							l.delta[class_index + stride*class_id] = class_multiplier * (iou_multiplier - l.output[class_index + stride*class_id]);
 						}
-						box truth = float_to_box_stride(state.truth + best_t*l.truth_size + b*l.truths, 1);
+						Darknet::Box truth = float_to_box_stride(state.truth + best_t*l.truth_size + b*l.truths, 1);
 						delta_gaussian_yolo_box(truth, l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2-truth.w*truth.h), l.w*l.h, l.iou_normalizer * class_multiplier, l.iou_loss, l.uc_normalizer, 1, l.yolo_point, l.max_delta);
 					}
 				}
@@ -644,7 +644,7 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 		}
 		for(t = 0; t < l.max_boxes; ++t)
 		{
-			box truth = float_to_box_stride(state.truth + t*l.truth_size + b*l.truths, 1);
+			Darknet::Box truth = float_to_box_stride(state.truth + t*l.truth_size + b*l.truths, 1);
 
 			if(!truth.x)
 			{
@@ -670,11 +670,11 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 				j = min_val_cmp(l.h-1, max_val_cmp(0, ((truth.y + truth.h / 2) * l.h)));
 			}
 
-			box truth_shift = truth;
+			Darknet::Box truth_shift = truth;
 			truth_shift.x = truth_shift.y = 0;
 			for(n = 0; n < l.total; ++n)
 			{
-				box pred = {0};
+				Darknet::Box pred = {0};
 				pred.w = l.biases[2*n]/ state.net.w;
 				pred.h = l.biases[2*n+1]/ state.net.h;
 				float iou = box_iou(pred, truth_shift);
@@ -725,7 +725,7 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 				int mask_n = int_index(l.mask, n, l.n);
 				if (mask_n >= 0 && n != best_n && l.iou_thresh < 1.0f)
 				{
-					box pred = { 0 };
+					Darknet::Box pred = { 0 };
 					pred.w = l.biases[2 * n] / state.net.w;
 					pred.h = l.biases[2 * n + 1] / state.net.h;
 					float iou = box_iou_kind(pred, truth_shift, l.iou_thresh_kind); // IOU, GIOU, MSE, DIOU, CIOU
@@ -889,7 +889,7 @@ void correct_gaussian_yolo_boxes(detection *dets, int n, int w, int h, int netw,
 
 	for (i = 0; i < n; ++i)
 	{
-		box b = dets[i].bbox;
+		Darknet::Box b = dets[i].bbox;
 		b.x =  (b.x - (netw - new_w)/2./netw) / ((float)new_w/netw);
 		b.y =  (b.y - (neth - new_h)/2./neth) / ((float)new_h/neth);
 		b.w *= (float)netw/new_w;

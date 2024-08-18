@@ -192,9 +192,6 @@ typedef enum
 
 
 // box.h
-typedef struct box {
-	float x, y, w, h;
-} box;
 
 // box.h
 typedef struct boxabs {
@@ -214,27 +211,10 @@ typedef struct ious {
 } ious;
 
 
-// box.h
-typedef struct detection{
-	box bbox; ///< bounding boxes are normalized (between 0.0f and 1.0f)
-	int classes;
-	int best_class_idx;
-	float *prob;
-	float *mask;
-	float objectness;
-	int sort_class;
-	float *uc; ///< Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
-	int points; ///< bit-0 - center, bit-1 - top-left-corner, bit-2 - bottom-right-corner
-	float *embeddings;  ///< embeddings for tracking
-	int embedding_size;
-	float sim;
-	int track_id;
-} detection;
-
 // network.c -batch inference
 typedef struct det_num_pair {
 	int num;
-	detection *dets;
+	Darknet::Detection *dets;
 } det_num_pair, *pdet_num_pair;
 
 // matrix.h
@@ -253,7 +233,7 @@ typedef struct data {
 	matrix y;
 	int shallow;
 	int *num_boxes;
-	box **boxes;
+	Darknet::Box **boxes;
 } data;
 
 
@@ -324,9 +304,9 @@ typedef struct box_label {
 
 
 // box.h
-void do_nms_sort(detection *dets, int total, int classes, float thresh);
-void do_nms_obj(detection *dets, int total, int classes, float thresh);
-void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1);
+void do_nms_sort(Darknet::Detection *dets, int total, int classes, float thresh);
+void do_nms_obj(Darknet::Detection *dets, int total, int classes, float thresh);
+void diounms_sort(Darknet::Detection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1);
 
 // layer.h
 void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc);
@@ -346,7 +326,7 @@ void top_k(float *a, int n, int k, int *index);
 void init_cpu();
 
 int yolo_num_detections_v3(Darknet::Network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache);
-int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, Darknet::Output_Object_Cache & cache);
+int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection *dets, int letter, Darknet::Output_Object_Cache & cache);
 
 #include "darknet_args_and_parms.hpp"
 #include "darknet_cfg_and_state.hpp"

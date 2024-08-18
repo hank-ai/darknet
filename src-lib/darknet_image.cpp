@@ -244,7 +244,7 @@ void Darknet::draw_box_width(Darknet::Image & a, int x1, int y1, int x2, int y2,
 }
 
 
-void Darknet::draw_bbox(Darknet::Image & a, const box & bbox, int w, float r, float g, float b)
+void Darknet::draw_bbox(Darknet::Image & a, const Darknet::Box & bbox, int w, float r, float g, float b)
 {
 	TAT(TATPARMS);
 
@@ -395,7 +395,7 @@ void Darknet::draw_detections_v3(Darknet::Image & im, const detection * dets, co
 		rgb[0] = red;
 		rgb[1] = green;
 		rgb[2] = blue;
-		box b = selected_detections[i].det.bbox;
+		Darknet::Box b = selected_detections[i].det.bbox;
 		//printf("%f %f %f %f\n", b.x, b.y, b.w, b.h);
 
 		int left = (b.x - b.w / 2.)*im.w;
@@ -1787,20 +1787,20 @@ Darknet::Image collapse_images_horz(const Darknet::Image * ims, int n)
 	for (int i = 0; i < n; ++i)
 	{
 		int w_offset = i*(size+border);
-		Darknet::Image copy = copy_image(ims[i]);
+		Darknet::Image copy = Darknet::copy_image(ims[i]);
 
 		/// @todo #COLOR
 		if(c == 3 && color)
 		{
-			embed_image(copy, filters, w_offset, 0);
+			Darknet::embed_image(copy, filters, w_offset, 0);
 		}
 		else
 		{
 			for (int j = 0; j < copy.c; ++j)
 			{
 				int h_offset = j*(size+border);
-				Darknet::Image layer = get_image_layer(copy, j);
-				embed_image(layer, filters, w_offset, h_offset);
+				Darknet::Image layer = Darknet::get_image_layer(copy, j);
+				Darknet::embed_image(layer, filters, w_offset, h_offset);
 				Darknet::free_image(layer);
 			}
 		}

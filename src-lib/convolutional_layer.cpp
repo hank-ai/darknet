@@ -164,8 +164,8 @@ namespace
 		Darknet::Image * weights = (Darknet::Image *)xcalloc(l.n, sizeof(Darknet::Image));
 		for (int i = 0; i < l.n; ++i)
 		{
-			weights[i] = copy_image(get_convolutional_weight(l, i));
-			normalize_image(weights[i]);
+			weights[i] = Darknet::copy_image(get_convolutional_weight(l, i));
+			Darknet::normalize_image(weights[i]);
 		}
 
 		return weights;
@@ -1586,7 +1586,7 @@ void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state
 		// calculate G
 		for (int t = 0; t < state.net.num_boxes; ++t)
 		{
-			box truth = float_to_box_stride(state.truth + t*(4 + 1) + b*l.truths, 1);
+			Darknet::Box truth = float_to_box_stride(state.truth + t*(4 + 1) + b*l.truths, 1);
 			if (!truth.x)
 			{
 				break;  // continue;
@@ -1794,7 +1794,7 @@ void rescale_weights(Darknet::Layer & l, float scale, float trans)
 		Darknet::Image im = get_convolutional_weight(l, i);
 		if (im.c == 3)
 		{
-			scale_image(im, scale);
+			Darknet::scale_image(im, scale);
 			float sum = sum_array(im.data, im.w*im.h*im.c);
 			l.biases[i] += sum*trans;
 		}
@@ -1809,14 +1809,14 @@ Darknet::Image *visualize_convolutional_layer(const Darknet::Layer & l, const ch
 
 	std::string title = window;
 	title += " " + std::to_string(single_weights->w) + "x" + std::to_string(single_weights->h) + "x" + std::to_string(single_weights->c);
-	show_images(single_weights, l.n, title.c_str());
+	Darknet::show_images(single_weights, l.n, title.c_str());
 
 	Darknet::Image delta = get_convolutional_image(l);
-	Darknet::Image dc = collapse_image_layers(delta, 1);
+	Darknet::Image dc = Darknet::collapse_image_layers(delta, 1);
 
 	title += " [Output]";
 
-	show_image(dc, title.c_str());
+	Darknet::show_image(dc, title.c_str());
 	//save_image(dc, buff);
 	Darknet::free_image(dc);
 	return single_weights;

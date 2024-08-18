@@ -84,7 +84,7 @@ void save_cv_png(mat_cv *img, const char *name);
 void save_cv_jpg(mat_cv *img, const char *name);
 
 // Draw Detection
-void draw_detections_cv_v3(mat_cv* show_img, detection *dets, int num, float thresh, char **names, int classes, int ext_output);
+void draw_detections_cv_v3(mat_cv* show_img, Darknet::Detection *dets, int num, float thresh, char **names, int classes, int ext_output);
 
 // Data augmentation
 Darknet::Image image_data_augmentation(mat_cv* mat, int w, int h,

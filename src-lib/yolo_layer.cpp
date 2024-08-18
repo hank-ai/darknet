@@ -19,11 +19,11 @@ namespace
 	};
 
 
-	static inline box get_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
+	static inline Darknet::Box get_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
-		box b;
+		Darknet::Box b;
 		if (new_coords)
 		{
 			b.x = (i + x[index + 0 * stride]) / lw;
@@ -73,7 +73,7 @@ namespace
 
 
 	/// loss function:  delta for box
-	static inline ious delta_yolo_box(const box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
+	static inline ious delta_yolo_box(const Darknet::Box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -89,7 +89,7 @@ namespace
 		// i - step in layer width
 		// j - step in layer height
 		//  Returns a box in absolute coordinates
-		box pred = get_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride, new_coords);
+		Darknet::Box pred = get_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride, new_coords);
 		all_ious.iou = box_iou(pred, truth);
 		all_ious.giou = box_giou(pred, truth);
 		all_ious.diou = box_diou(pred, truth);
@@ -580,7 +580,7 @@ void process_batch(void* ptr)
 				const int obj_index = yolo_entry_index(l, b, n * l.w * l.h + j * l.w + i, 4);
 				const int box_index = yolo_entry_index(l, b, n * l.w * l.h + j * l.w + i, 0);
 				const int stride = l.w * l.h;
-				box pred = get_yolo_box(l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.w * l.h, l.new_coords);
+				Darknet::Box pred = get_yolo_box(l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.w * l.h, l.new_coords);
 				float best_match_iou = 0;
 				//int best_match_t = 0;
 				float best_iou = 0;
@@ -588,7 +588,7 @@ void process_batch(void* ptr)
 
 				for (int t = 0; t < l.max_boxes; ++t)
 				{
-					box truth = float_to_box_stride(state.truth + t * l.truth_size + b * l.truths, 1);
+					Darknet::Box truth = float_to_box_stride(state.truth + t * l.truth_size + b * l.truths, 1);
 					if (!truth.x)
 					{
 						break;  // continue;
@@ -698,7 +698,7 @@ void process_batch(void* ptr)
 					{
 						l.delta[class_index + stride * class_id] = class_multiplier * (iou_multiplier - l.output[class_index + stride * class_id]);
 					}
-					box truth = float_to_box_stride(state.truth + best_t * l.truth_size + b * l.truths, 1);
+					Darknet::Box truth = float_to_box_stride(state.truth + best_t * l.truth_size + b * l.truths, 1);
 					delta_yolo_box(truth, l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
 					(*state.net.total_bbox)++;
 				}
@@ -708,7 +708,7 @@ void process_batch(void* ptr)
 
 	for (int t = 0; t < l.max_boxes; ++t)
 	{
-		box truth = float_to_box_stride(state.truth + t * l.truth_size + b * l.truths, 1);
+		Darknet::Box truth = float_to_box_stride(state.truth + t * l.truth_size + b * l.truths, 1);
 		if (!truth.x)
 		{
 			break;  // continue;
@@ -728,11 +728,11 @@ void process_batch(void* ptr)
 		int best_n = 0;
 		int i = (truth.x * l.w);
 		int j = (truth.y * l.h);
-		box truth_shift = truth;
+		Darknet::Box truth_shift = truth;
 		truth_shift.x = truth_shift.y = 0;
 		for (int n = 0; n < l.total; ++n)
 		{
-			box pred = { 0 };
+			Darknet::Box pred = { 0 };
 			pred.w = l.biases[2 * n] / state.net.w;
 			pred.h = l.biases[2 * n + 1] / state.net.h;
 			float iou = box_iou(pred, truth_shift);
@@ -816,7 +816,7 @@ void process_batch(void* ptr)
 			int mask_n = int_index(l.mask, n, l.n);
 			if (mask_n >= 0 && n != best_n && l.iou_thresh < 1.0f)
 			{
-				box pred = { 0 };
+				Darknet::Box pred = { 0 };
 				pred.w = l.biases[2 * n] / state.net.w;
 				pred.h = l.biases[2 * n + 1] / state.net.h;
 				float iou = box_iou_kind(pred, truth_shift, l.iou_thresh_kind); // IOU, GIOU, MSE, DIOU, CIOU
@@ -1277,7 +1277,7 @@ void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth
 
 	for (i = 0; i < n; ++i)
 	{
-		box b = dets[i].bbox;
+		Darknet::Box b = dets[i].bbox;
 		// x = ( x - (deltaw/2)/netw ) / ratiow;
 		//   x - [(1/2 the difference of the network width and rotated width) / (network width)]
 		b.x = (b.x - deltaw / 2. / netw) / ratiow;

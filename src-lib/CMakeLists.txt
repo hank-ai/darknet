@@ -57,6 +57,7 @@ SET (DARKNET_PUBLIC_HEADERS
 	darknet.hpp
 	darknet_cfg.hpp
 	darknet_enums.hpp
+	darknet_image.hpp
 	darknet_version.h
 	)
 ADD_LIBRARY (darknet SHARED $<TARGET_OBJECTS:darknetobjlib>)

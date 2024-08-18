@@ -36,6 +36,9 @@ namespace Darknet
 	using VStr			= std::vector<std::string>;
 	using VScalars		= std::vector<cv::Scalar>;
 	using NetworkPtr	= DarknetNetworkPtr;
+	using Box			= DarknetBox;
+	using Detection		= DarknetDetection;
+	using Image			= DarknetImage;
 	/// @}
 
 	/// The @p layer structure has been renamed and moved to darknet_layer.hpp.
@@ -43,9 +46,6 @@ namespace Darknet
 
 	/// The @p network_state structure has been renamed and moved to network.hpp.
 	struct NetworkState;
-
-	/// The @p image structure has been renamed and moved to darknet_image.hpp.
-	struct Image;
 
 	/** Some C++ structures we'd like to insert into the C "Network".  Needs to be a @p void* pointer so older C code can
 	 * continue using the Network without causing any problems.

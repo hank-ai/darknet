@@ -76,11 +76,11 @@ void resize_region_layer(Darknet::Layer *l, int w, int h)
 #endif
 }
 
-box get_region_box(float *x, float *biases, int n, int index, int i, int j, int w, int h)
+Darknet::Box get_region_box(float *x, float *biases, int n, int index, int i, int j, int w, int h)
 {
 	TAT(TATPARMS);
 
-	box b;
+	Darknet::Box b;
 	b.x = (i + logistic_activate(x[index + 0])) / w;
 	b.y = (j + logistic_activate(x[index + 1])) / h;
 	b.w = exp(x[index + 2]) * biases[2*n];
@@ -92,11 +92,11 @@ box get_region_box(float *x, float *biases, int n, int index, int i, int j, int 
 	return b;
 }
 
-float delta_region_box(box truth, float *x, float *biases, int n, int index, int i, int j, int w, int h, float *delta, float scale)
+float delta_region_box(Darknet::Box truth, float *x, float *biases, int n, int index, int i, int j, int w, int h, float *delta, float scale)
 {
 	TAT(TATPARMS);
 
-	box pred = get_region_box(x, biases, n, index, i, j, w, h);
+	Darknet::Box pred = get_region_box(x, biases, n, index, i, j, w, h);
 	float iou = box_iou(pred, truth);
 
 	float tx = (truth.x*w - i);
@@ -247,7 +247,7 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			int onlyclass_id = 0;
 			for (t = 0; t < l.max_boxes; ++t)
 			{
-				box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
+				Darknet::Box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
 				if (!truth.x)
 				{
 					break; // continue;
@@ -281,11 +281,11 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			for (i = 0; i < l.w; ++i) {
 				for (n = 0; n < l.n; ++n) {
 					int index = size*(j*l.w*l.n + i*l.n + n) + b*l.outputs;
-					box pred = get_region_box(l.output, l.biases, n, index, i, j, l.w, l.h);
+					Darknet::Box pred = get_region_box(l.output, l.biases, n, index, i, j, l.w, l.h);
 					float best_iou = 0;
 					int best_class_id = -1;
 					for(t = 0; t < l.max_boxes; ++t){
-						box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
+						Darknet::Box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
 						int class_id = state.truth[t * l.truth_size + b*l.truths + 4];
 						if (class_id >= l.classes) continue; // if label contains class_id more than number of classes in the cfg-file
 						if(!truth.x) break; // continue;
@@ -309,7 +309,7 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 					}
 
 					if(*(state.net.seen) < 12800){
-						box truth = {0};
+						Darknet::Box truth = {0};
 						truth.x = (i + .5)/l.w;
 						truth.y = (j + .5)/l.h;
 						truth.w = l.biases[2*n];
@@ -324,7 +324,7 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			}
 		}
 		for(t = 0; t < l.max_boxes; ++t){
-			box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
+			Darknet::Box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
 			int class_id = state.truth[t * l.truth_size + b*l.truths + 4];
 			if (class_id >= l.classes)
 			{
@@ -338,13 +338,13 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			i = (truth.x * l.w);
 			j = (truth.y * l.h);
 			//printf("%d %f %d %f\n", i, truth.x*l.w, j, truth.y*l.h);
-			box truth_shift = truth;
+			Darknet::Box truth_shift = truth;
 			truth_shift.x = 0;
 			truth_shift.y = 0;
 			//printf("index %d %d\n",i, j);
 			for(n = 0; n < l.n; ++n){
 				int index = size*(j*l.w*l.n + i*l.n + n) + b*l.outputs;
-				box pred = get_region_box(l.output, l.biases, n, index, i, j, l.w, l.h);
+				Darknet::Box pred = get_region_box(l.output, l.biases, n, index, i, j, l.w, l.h);
 				if(l.bias_match){
 					pred.w = l.biases[2*n];
 					pred.h = l.biases[2*n+1];
@@ -397,7 +397,7 @@ void backward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	axpy_cpu(l.batch*l.inputs, 1, l.delta, 1, state.delta, 1);
 }
 
-void get_region_boxes(const Darknet::Layer & l, int w, int h, float thresh, float **probs, box *boxes, int only_objectness, int *map)
+void get_region_boxes(const Darknet::Layer & l, int w, int h, float thresh, float **probs, Darknet::Box *boxes, int only_objectness, int *map)
 {
 	TAT(TATPARMS);
 
@@ -543,7 +543,7 @@ void correct_region_boxes(detection *dets, int n, int w, int h, int netw, int ne
 		new_w = (w * neth) / h;
 	}
 	for (i = 0; i < n; ++i) {
-		box b = dets[i].bbox;
+		Darknet::Box b = dets[i].bbox;
 		b.x = (b.x - (netw - new_w) / 2. / netw) / ((float)new_w / netw);
 		b.y = (b.y - (neth - new_h) / 2. / neth) / ((float)new_h / neth);
 		b.w *= (float)netw / new_w;

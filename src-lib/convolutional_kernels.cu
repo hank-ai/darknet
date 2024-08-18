@@ -1126,7 +1126,7 @@ void assisted_excitation_forward_gpu(Darknet::Layer & l, Darknet::NetworkState s
 		// calculate G
 		int t;
 		for (t = 0; t < state.net.num_boxes; ++t) {
-			box truth = float_to_box_stride(truth_cpu + t*(4 + 1) + b*l.truths, 1);
+			Darknet::Box truth = float_to_box_stride(truth_cpu + t*(4 + 1) + b*l.truths, 1);
 			if (!truth.x) break;  // continue;
 			float beta = 0;
 			//float beta = 1 - alpha; // from 0 to 1

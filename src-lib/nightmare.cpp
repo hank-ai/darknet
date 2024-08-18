@@ -56,7 +56,7 @@ void optimize_picture(Darknet::Network * net, Darknet::Image orig, int max_layer
 	Darknet::Image im = Darknet::resize_image(crop, (int)(orig.w * scale), (int)(orig.h * scale));
 	if (flip)
 	{
-		flip_image(im);
+		Darknet::flip_image(im);
 	}
 
 	resize_network(net, im.w, im.h);
@@ -95,7 +95,7 @@ void optimize_picture(Darknet::Network * net, Darknet::Image orig, int max_layer
 
 	if (flip)
 	{
-		flip_image(delta);
+		Darknet::flip_image(delta);
 	}
 
 	//normalize_array(delta.data, delta.w*delta.h*delta.c);
@@ -118,7 +118,7 @@ void optimize_picture(Darknet::Network * net, Darknet::Image orig, int max_layer
 	//scale_image(orig, .5);
 	//normalize_image(orig);
 
-	constrain_image(orig);
+	Darknet::constrain_image(orig);
 
 	Darknet::free_image(crop);
 	Darknet::free_image(im);
@@ -202,8 +202,8 @@ void reconstruct_picture(Darknet::Network net, float *features, Darknet::Image r
 		//float mag = mag_array(recon.data, recon.w*recon.h*recon.c);
 		//scal_cpu(recon.w*recon.h*recon.c, 600/mag, recon.data, 1);
 
-		constrain_image(recon);
-		free_image(delta);
+		Darknet::constrain_image(recon);
+		Darknet::free_image(delta);
 	}
 }
 
@@ -286,7 +286,7 @@ void run_nightmare(int argc, char **argv)
 
 		/// @todo Is there a memory leak here because we don't free the original im?
 		im = Darknet::resize_image(im, im.w, im.h);
-		f_im = resize_image(f_im, f_im.w, f_im.h);
+		f_im = Darknet::resize_image(f_im, f_im.w, f_im.h);
 		features = f_im.data;
 
 		for(int i = 0; i < 14*14*512; ++i)
@@ -323,7 +323,7 @@ void run_nightmare(int argc, char **argv)
 
 		if (0)
 		{
-			Darknet::Image g = grayscale_image(im);
+			Darknet::Image g = Darknet::grayscale_image(im);
 			Darknet::free_image(im);
 			im = g;
 		}
@@ -338,7 +338,7 @@ void run_nightmare(int argc, char **argv)
 			sprintf(buff, "%s_%s_%d_%06d", imbase, cfgbase, max_layer, e);
 		}
 		printf("%d %s\n", e, buff);
-		save_image(im, buff);
+		Darknet::save_image(im, buff);
 
 		if (rotate)
 		{

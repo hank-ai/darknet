@@ -293,7 +293,7 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 	std::vector<bbox_t> bbox_vec;
 
 	for (int i = 0; i < nboxes; ++i) {
-		box b = dets[i].bbox;
+		Darknet::Box b = dets[i].bbox;
 		int const obj_id = max_index(dets[i].prob, l.classes);
 		float const prob = dets[i].prob[obj_id];
 
@@ -363,7 +363,7 @@ std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_si
 
 		for (int i = 0; i < prediction[bi].num; ++i)
 		{
-			box b = dets[i].bbox;
+			Darknet::Box b = dets[i].bbox;
 			int const obj_id = max_index(dets[i].prob, l.classes);
 			float const prob = dets[i].prob[obj_id];
 
