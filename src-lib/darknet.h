@@ -3,10 +3,22 @@
 /** @file
  * Include this file to get access to the Darknet/YOLO C API.
  *
- * @li The new (V3, July 2024) Darknet/YOLO C API is at the top of the file.
- * @li The original V2 Darknet/YOLO C API is at the bottom of this file.
- * @li The new (V3, July 2024) Darknet/YOLO C++ API is in the file @ref darknet.hpp.
+ * @li The new (V3, July 2024) Darknet/YOLO @p C API is at the top of the file.
+ * @li The original V2 Darknet/YOLO C API is at the bottom of this file (@ref DARKNET_INCLUDE_ORIGINAL_API).
+ * @li The new (V3, July 2024) Darknet/YOLO @p C++ API is in @ref darknet.hpp.
+ *
+ * The old C V2 API did not have @p "darknet" in the function names nor the structures returned.  It defined things
+ * like @p network and @p image in the global namespace, which can cause problems since those are common words.  By
+ * default this old API is no longer exposed.  If you're using some old software that expects the original @p C API
+ * in the darknet library, then make sure you @p "#define DARKNET_INCLUDE_ORIGINAL_API" before you include this header
+ * file.
+ *
+ * Internally, %Darknet still uses the old @p C V2 API.
  */
+
+
+#include "darknet_version.h"
+
 
 #ifdef __cplusplus
 extern "C"
@@ -14,7 +26,9 @@ extern "C"
 #endif
 
 
-#include "darknet_version.h"
+/* ******************************* */
+/* The "new" V3 C API starts here. */
+/* ******************************* */
 
 
 /// An opaque pointer to a @ref Darknet::Network object, without needing to expose the internals of the network structure.
@@ -102,13 +116,11 @@ typedef struct DarknetImage
 } DarknetImage;
 
 
-/** The old C API did not have @p "darknet" in the function names nor the structures returned.  It defined things like
- * @p network and @p image in the global namespace, which can cause problems since those are common words.  By default
- * this old API is no longer exposed.  If you're using some old software that expects the original "C" API in the
- * darknet library, then make sure you @p "#define DARKNET_INCLUDE_ORIGINAL_API" before you include this header file.
- *
- * Internally, %Darknet still uses this old @p C API.
- */
+/* ******************************* */
+/* The "old" V2 C API starts here. */
+/* ******************************* */
+
+
 #ifdef DARKNET_INCLUDE_ORIGINAL_API
 
 /// @see @ref diounms_sort()
@@ -128,7 +140,6 @@ typedef struct DarknetDetection detection;
 
 /// Darknet-style image (vector of floats).
 typedef struct DarknetImage image;
-
 
 /** @{ This is part of the original @p C API.  Do not use in new code.
  *
