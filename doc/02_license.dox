@@ -1,0 +1,9 @@
+/** @page License License
+
+A copy of the license file (Apache v2.0) is included in the @p %Darknet repo.  The license is reproduced in its entirety here:
+
+<div style="padding:1em; margin:2em; border:1px solid black; white-space:pre-line">
+@htmlinclude "../LICENSE"
+</div>
+
+*/

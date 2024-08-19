@@ -1,0 +1,66 @@
+/** @mainpage Darknet/YOLO
+
+@image html darknet_and_hank_ai_logos.png width=640 height=320
+
+Browse <a target="_blank" href="https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/">Hank.ai's announcement in May 2023</a> on officially sponsoring the Darknet/YOLO codebase.
+
+@section download Download Darknet/YOLO
+
+- Download the latest version of Darknet/YOLO from here: <a target="_blank" href="https://github.com/hank-ai/darknet">https://github.com/hank-ai/darknet</a>
+- See the instructions on <a target="_blank" href="https://github.com/hank-ai/darknet?tab=readme-ov-file#building">how to build Darknet/YOLO</a>
+- If you'd like additional assistance, join the Darknet/YOLO Discord server:  <a target="_blank" href="https://discord.gg/zSq8rtW">https://discord.gg/zSq8rtW</a>
+- Please read the <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/">Darknet/YOLO FAQ</a>
+
+@section using_cli Using the Darknet/YOLO CLI
+
+- Take a look at the %Darknet example applications to see what to run:  <a target="_blank" href="dir_1c11dcca7736ba0b91b314b0a8014ac3.html">src-examples/</a>.
+	- If you'd like to train your own Darknet/YOLO neural network, see the FAQ:  <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#training_command">https://www.ccoderun.ca/programming/darknet_faq/#training_command</a>.
+- Both the original @p pjreddie and @p alexeyab %Darknet repos are no longer used.  Please update to <a target="_blank" href="https://github.com/hank-ai/darknet">the new Darknet/YOLO repo</a>.
+	- For additional details, see the FAQ:  <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid">https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid</a>.
+
+Other Darknet/YOLO projects:
+
+- <a target="_blank" href="https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-c-api">DarkHelp</a> is a professional, free, open-source CLI tool and C/C++/Python API to use Darknet/YOLO.
+- <a target="_blank" href="https://github.com/stephanecharette/DarkMark#what-is-darkmark">DarkMark</a> is a free open-source tool for managing Darknet/YOLO project, annotating images, videos, and PDFs, and generating Darknet/YOLO training projects.
+- <a target="_blank" href="https://www.youtube.com/c/StephaneCharette/videos">Stéphane's YouTube channel</a> with many Darknet/YOLO "How-To" videos.
+
+@section darknet_api The Darknet/YOLO API
+
+Darknet/YOLO is not just a CLI tool.  When you build Darknet/YOLO, you're building a library that can be called from within @p C applications, @p C++ applications, or from @p Python.
+
+A description of the Darknet/YOLO API can be found here:  @ref api
+
+There are other bindings, but those are not maintained within the Darknet/YOLO project.  If you own or know of such a project, let us know and we'll link from here to your project.
+
+@section darknet_developers The Darknet/YOLO Source Code
+
+The Doxygen pages are meant to assist **software developers** in understanding the internals of the Darknet/YOLO <em>source code</em>.
+
+The new DarknetV3 public API:
+- @ref darknet.hpp
+- @ref Darknet
+- @ref Darknet::parse_arguments()
+- @ref Darknet::load_neural_network()
+- @ref Darknet::free_neural_network()
+- @ref Darknet::set_detection_threshold()
+- @ref Darknet::set_non_maximal_suppression_threshold()
+- @ref Darknet::set_rounded_corner_bounding_boxes()
+- @ref Darknet::predict()
+- @ref Darknet::annotate()
+- ...and more.  See the namespace @ref Darknet for details.
+
+Other useful functions:
+- @ref main()
+- @ref darknet_fatal_error()
+- @ref train_detector()
+	- @ref train_network() (CPU only)
+	- @ref train_network_waitkey() (1 GPU)
+	- @ref train_networks() (multi-GPU)
+- @ref Darknet::TimingAndTracking
+
+Configuration files:
+- @ref Darknet::CfgFile
+	- @ref Darknet::CfgSection
+		- @ref Darknet::CfgLine
+
+*/
