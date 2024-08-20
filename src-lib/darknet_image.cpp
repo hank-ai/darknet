@@ -356,7 +356,7 @@ void Darknet::draw_detections_v3(Darknet::Image & im, const Darknet::Detection *
 		{
 			if (selected_detections[i].det.prob[j] > thresh && j != best_class)
 			{
-				printf("%s: %.0f%%", names[j], selected_detections[i].det.prob[j] * 100);
+				printf("%s: %.0f%%", names[j].c_str(), selected_detections[i].det.prob[j] * 100);
 
 				if (ext_output)
 				{

@@ -2067,7 +2067,7 @@ Darknet::Layer Darknet::CfgFile::parse_gaussian_yolo_section(const size_t sectio
 	const std::string yolo_point = s.find_str("yolo_point", "center");
 	l.yolo_point = static_cast<YOLO_POINT>(get_yolo_point_types_from_name(yolo_point));
 
-	fprintf(stderr, "[Gaussian_yolo] iou loss: %s (%d), iou_norm: %2.2f, obj_norm: %2.2f, cls_norm: %2.2f, delta_norm: %2.2f, scale: %2.2f, point: %d\n", iou_loss, l.iou_loss, l.iou_normalizer, l.obj_normalizer, l.cls_normalizer, l.delta_normalizer, l.scale_x_y, l.yolo_point);
+	fprintf(stderr, "[Gaussian_yolo] iou loss: %s (%d), iou_norm: %2.2f, obj_norm: %2.2f, cls_norm: %2.2f, delta_norm: %2.2f, scale: %2.2f, point: %d\n", iou_loss.c_str(), l.iou_loss, l.iou_normalizer, l.obj_normalizer, l.cls_normalizer, l.delta_normalizer, l.scale_x_y, l.yolo_point);
 
 	l.jitter		= s.find_float("jitter"			, 0.2f);
 	l.resize		= s.find_float("resize"			, 1.0f);

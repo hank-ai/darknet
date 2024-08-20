@@ -120,7 +120,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 			lk.type == Darknet::ELayerType::REGION)
 		{
 			l = lk;
-			printf("Detection layer #%d is type %d (%s)\n", k, l.type, Darknet::to_string(l.type).c_str());
+			std::cout << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
 		}
 	}
 
@@ -797,7 +797,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 			lk.type == Darknet::ELayerType::REGION)
 		{
 			l = lk;
-			printf("Detection layer #%d is type %d (%s)\n", k, l.type, Darknet::to_string(l.type).c_str());
+			std::cout << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
 		}
 	}
 	int classes = l.classes;
@@ -1151,7 +1151,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			lk.type == Darknet::ELayerType::REGION)
 		{
 			l = lk;
-			printf("Detection layer #%d is type %d (%s)\n", k, l.type, Darknet::to_string(l.type).c_str());
+			std::cout << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
 		}
 	}
 	int classes = l.classes;
@@ -2011,7 +2011,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 				lk.type == Darknet::ELayerType::REGION)
 			{
 				l = lk;
-				printf("Detection layer #%d is type %d (%s)\n", k, l.type, Darknet::to_string(l.type).c_str());
+				std::cout << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
 			}
 		}
 

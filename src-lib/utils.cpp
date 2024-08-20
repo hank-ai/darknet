@@ -839,24 +839,16 @@ char *copy_string(char *s)
 {
 	TAT(TATPARMS);
 
-	if(!s)
+	if (!s)
 	{
 		return NULL;
 	}
 
-	char* copy = (char*)xmalloc(strlen(s) + 1);
+	const size_t len = strlen(s) + 1;
 
-/// @todo 2023-06-26 For now I'd rather ignore this warning than to try and mess with this old code and risk breaking things.
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wstringop-overflow"
-#endif
+	char* copy = (char*)xmalloc(len);
 
-	strncpy(copy, s, strlen(s)+1);
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
+	memcpy(copy, s, len);
 
 	return copy;
 }
@@ -969,15 +961,6 @@ float variance_array(float *a, int n)
 	for(i = 0; i < n; ++i) sum += (a[i] - mean)*(a[i]-mean);
 	float variance = sum/n;
 	return variance;
-}
-
-int constrain_int(int a, int min, int max)
-{
-	TAT(TATPARMS);
-
-	if (a < min) return min;
-	if (a > max) return max;
-	return a;
 }
 
 float constrain(float min, float max, float a)

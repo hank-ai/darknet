@@ -129,7 +129,7 @@ void forward_network_gpu(Darknet::Network & net, Darknet::NetworkState state)
 		for (int i = 0; i < net.n; ++i)
 		{
 			//printf("layer %d - type: %d - avg_time %lf ms \n", avg_time_per_layer[i].layer_id, avg_time_per_layer[i].layer_type, avg_time_per_layer[i].time);
-			printf("%d - fw-sort-layer %d - type: %d - avg_time %lf ms \n", i, sorted_avg_time_per_layer[i].layer_id, sorted_avg_time_per_layer[i].layer_type, sorted_avg_time_per_layer[i].time);
+			printf("%d - fw-sort-layer %d - type: %d - avg_time %lf ms \n", i, sorted_avg_time_per_layer[i].layer_id, static_cast<int>(sorted_avg_time_per_layer[i].layer_type), sorted_avg_time_per_layer[i].time);
 		}
 	}
 }
@@ -299,7 +299,7 @@ void backward_network_gpu(Darknet::Network & net, Darknet::NetworkState state)
 		for (i = 0; i < net.n; ++i)
 		{
 			//printf("layer %d - type: %d - avg_time %lf ms \n", avg_time_per_layer[i].layer_id, avg_time_per_layer[i].layer_type, avg_time_per_layer[i].time);
-			printf("%d - bw-sort-layer %d - type: %d - avg_time %lf ms \n", i, sorted_avg_time_per_layer[i].layer_id, sorted_avg_time_per_layer[i].layer_type, sorted_avg_time_per_layer[i].time);
+			printf("%d - bw-sort-layer %d - type: %d - avg_time %lf ms \n", i, sorted_avg_time_per_layer[i].layer_id, static_cast<int>(sorted_avg_time_per_layer[i].layer_type), sorted_avg_time_per_layer[i].time);
 		}
 	}
 }
