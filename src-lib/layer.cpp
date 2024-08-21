@@ -301,17 +301,10 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 		if (l.activation_input_gpu)		cuda_free_and_clear(l.activation_input_gpu);
 	}
 
-/// @todo 2023-06-26 For now I'd rather ignore this warning than to try and mess with this old code and risk breaking things.
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wparentheses"
-#endif
-
-	if (l.delta_gpu && (l.optimized_memory < 1 || l.keep_delta_gpu && l.optimized_memory < 3)) cuda_free_and_clear(l.delta_gpu);
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
+	if (l.delta_gpu && (l.optimized_memory < 1 || (l.keep_delta_gpu && l.optimized_memory < 3)))
+	{
+		cuda_free_and_clear(l.delta_gpu);
+	}
 
 	if (l.cos_sim_gpu)					cuda_free_and_clear(l.cos_sim_gpu);
 	if (l.rand_gpu)						cuda_free_and_clear(l.rand_gpu);

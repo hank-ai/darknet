@@ -232,7 +232,7 @@ void run_nightmare(int argc, char **argv)
 	float rotate = find_float_arg(argc, argv, "-rotate", 0);
 	float momentum = find_float_arg(argc, argv, "-momentum", .9);
 	float lambda = find_float_arg(argc, argv, "-lambda", .01);
-	char *prefix = find_char_arg(argc, argv, "-prefix", 0);
+	const char *prefix = find_char_arg(argc, argv, "-prefix", 0);
 	int reconstruct = find_arg(argc, argv, "-reconstruct");
 	int smooth_size = find_int_arg(argc, argv, "-smooth", 1);
 
@@ -240,8 +240,8 @@ void run_nightmare(int argc, char **argv)
 
 	Darknet::Network net = parse_network_cfg(cfg);
 	load_weights(&net, weights);
-	char *cfgbase = basecfg(cfg);
-	char *imbase = basecfg(input);
+	const char *cfgbase = basecfg(cfg);
+	const char *imbase = basecfg(input);
 
 	set_batch_network(&net, 1);
 	Darknet::Image im = Darknet::load_image(input, 0, 0, net.c);

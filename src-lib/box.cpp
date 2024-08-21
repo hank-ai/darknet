@@ -1,8 +1,3 @@
-#ifdef __GNUC__
-// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
-#pragma GCC diagnostic ignored "-Wswitch"
-#endif
-
 #include "darknet_internal.hpp"
 
 namespace
@@ -268,11 +263,11 @@ float box_iou_kind(const Darknet::Box & a, const Darknet::Box & b, const IOU_LOS
 	//IOU, GIOU, MSE, DIOU, CIOU
 	switch(iou_kind)
 	{
-		/// @todo what about MSE?
 		case IOU:	return box_iou(a, b);
 		case GIOU:	return box_giou(a, b);
 		case DIOU:	return box_diou(a, b);
 		case CIOU:	return box_ciou(a, b);
+		default:	break;
 	}
 
 	return box_iou(a, b);

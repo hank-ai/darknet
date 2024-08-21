@@ -29,10 +29,10 @@ const char * size_to_IEC_string(const size_t size);
  */
 double what_time_is_it_now();
 
-int *read_map(char *filename);
+int *read_map(const char *filename);
 void shuffle(void *arr, size_t n, size_t size);
 void sorta_shuffle(void *arr, size_t n, size_t size, size_t sections);
-char *basecfg(char *cfgfile);
+const char * basecfg(const char * cfgfile);
 int alphanum_to_int(char c);
 char int_to_alphanum(int i);
 int read_int(int fd);
@@ -81,7 +81,7 @@ float sec(clock_t clocks);
 int find_int_arg(int argc, char **argv, const char * const arg, int def);
 float find_float_arg(int argc, char **argv, const char * const arg, float def);
 int find_arg(int argc, char* argv[], const char * const arg);
-char *find_char_arg(int argc, char **argv, char *arg, char *def);
+const char * find_char_arg(int argc, char **argv, const char *arg, const char *def);
 int sample_array(float *a, int n);
 int sample_array_custom(float *a, int n);
 void print_statistics(float *a, int n);

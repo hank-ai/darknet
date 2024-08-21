@@ -5,6 +5,18 @@
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
+
+
+	inline void xfread(void * dst, const size_t size, const size_t count, std::FILE * fp)
+	{
+		const auto items_read = std::fread(dst, size, count, fp);
+		if (items_read != count)
+		{
+			darknet_fatal_error(DARKNET_LOC, "expected to read %lu fields, but only read %lu", count, items_read);
+		}
+
+		return;
+	}
 }
 
 
@@ -314,8 +326,8 @@ void load_connected_weights(Darknet::Layer & l, FILE *fp, int transpose)
 {
 	TAT(TATPARMS);
 
-	fread(l.biases, sizeof(float), l.outputs, fp);
-	fread(l.weights, sizeof(float), l.outputs*l.inputs, fp);
+	xfread(l.biases, sizeof(float), l.outputs, fp);
+	xfread(l.weights, sizeof(float), l.outputs*l.inputs, fp);
 	if (transpose)
 	{
 		transpose_matrix(l.weights, l.inputs, l.outputs);
@@ -324,9 +336,9 @@ void load_connected_weights(Darknet::Layer & l, FILE *fp, int transpose)
 	//printf("Weights: %f mean %f variance\n", mean_array(l.weights, l.outputs*l.inputs), variance_array(l.weights, l.outputs*l.inputs));
 	if (l.batch_normalize && (!l.dontloadscales))
 	{
-		fread(l.scales, sizeof(float), l.outputs, fp);
-		fread(l.rolling_mean, sizeof(float), l.outputs, fp);
-		fread(l.rolling_variance, sizeof(float), l.outputs, fp);
+		xfread(l.scales, sizeof(float), l.outputs, fp);
+		xfread(l.rolling_mean, sizeof(float), l.outputs, fp);
+		xfread(l.rolling_variance, sizeof(float), l.outputs, fp);
 		//printf("Scales: %f mean %f variance\n", mean_array(l.scales, l.outputs), variance_array(l.scales, l.outputs));
 		//printf("rolling_mean: %f mean %f variance\n", mean_array(l.rolling_mean, l.outputs), variance_array(l.rolling_mean, l.outputs));
 		//printf("rolling_variance: %f mean %f variance\n", mean_array(l.rolling_variance, l.outputs), variance_array(l.rolling_variance, l.outputs));
@@ -343,10 +355,10 @@ void load_batchnorm_weights(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
-	fread(l.biases, sizeof(float), l.c, fp);
-	fread(l.scales, sizeof(float), l.c, fp);
-	fread(l.rolling_mean, sizeof(float), l.c, fp);
-	fread(l.rolling_variance, sizeof(float), l.c, fp);
+	xfread(l.biases, sizeof(float), l.c, fp);
+	xfread(l.scales, sizeof(float), l.c, fp);
+	xfread(l.rolling_mean, sizeof(float), l.c, fp);
+	xfread(l.rolling_variance, sizeof(float), l.c, fp);
 #ifdef GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
@@ -359,24 +371,24 @@ void load_convolutional_weights_binary(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
-	fread(l.biases, sizeof(float), l.n, fp);
+	xfread(l.biases, sizeof(float), l.n, fp);
 	if (l.batch_normalize && (!l.dontloadscales))
 	{
-		fread(l.scales, sizeof(float), l.n, fp);
-		fread(l.rolling_mean, sizeof(float), l.n, fp);
-		fread(l.rolling_variance, sizeof(float), l.n, fp);
+		xfread(l.scales, sizeof(float), l.n, fp);
+		xfread(l.rolling_mean, sizeof(float), l.n, fp);
+		xfread(l.rolling_variance, sizeof(float), l.n, fp);
 	}
 	int size = (l.c / l.groups)*l.size*l.size;
 	int i, j, k;
 	for (i = 0; i < l.n; ++i)
 	{
 		float mean = 0;
-		fread(&mean, sizeof(float), 1, fp);
+		xfread(&mean, sizeof(float), 1, fp);
 		for (j = 0; j < size/8; ++j)
 		{
 			int index = i*size + j*8;
 			unsigned char c = 0;
-			fread(&c, sizeof(char), 1, fp);
+			xfread(&c, sizeof(char), 1, fp);
 			for (k = 0; k < 8; ++k)
 			{
 				if (j*8 + k >= size) break;
@@ -397,41 +409,16 @@ void load_convolutional_weights(Darknet::Layer & l, FILE *fp)
 	TAT(TATPARMS);
 
 	int num = l.nweights;
-	int read_bytes;
-	read_bytes = fread(l.biases, sizeof(float), l.n, fp);
-	if (read_bytes > 0 && read_bytes < l.n)
-	{
-		printf("\n Warning: Unexpected end of weights-file! l.biases - l.index = %d \n", l.index);
-	}
-	//fread(l.weights, sizeof(float), num, fp); // as in connected layer
+
+	xfread(l.biases, sizeof(float), l.n, fp);
 	if (l.batch_normalize && (!l.dontloadscales))
 	{
-		read_bytes = fread(l.scales, sizeof(float), l.n, fp);
-		if (read_bytes > 0 && read_bytes < l.n)
-		{
-			printf("\n Warning: Unexpected end of weights-file! l.scales - l.index = %d \n", l.index);
-		}
-		read_bytes = fread(l.rolling_mean, sizeof(float), l.n, fp);
-		if (read_bytes > 0 && read_bytes < l.n)
-		{
-			printf("\n Warning: Unexpected end of weights-file! l.rolling_mean - l.index = %d \n", l.index);
-		}
-		read_bytes = fread(l.rolling_variance, sizeof(float), l.n, fp);
-		if (read_bytes > 0 && read_bytes < l.n)
-		{
-			printf("\n Warning: Unexpected end of weights-file! l.rolling_variance - l.index = %d \n", l.index);
-		}
+		xfread(l.scales, sizeof(float), l.n, fp);
+		xfread(l.rolling_mean, sizeof(float), l.n, fp);
+		xfread(l.rolling_variance, sizeof(float), l.n, fp);
 	}
-	read_bytes = fread(l.weights, sizeof(float), num, fp);
-	if (read_bytes > 0 && read_bytes < l.n)
-	{
-		printf("\n Warning: Unexpected end of weights-file! l.weights - l.index = %d \n", l.index);
-	}
-	//if (l.adam){
-	//    fread(l.m, sizeof(float), num, fp);
-	//    fread(l.v, sizeof(float), num, fp);
-	//}
-	//if (l.c == 3) scal_cpu(num, 1./256, l.weights, 1);
+	xfread(l.weights, sizeof(float), num, fp);
+
 	if (l.flipped)
 	{
 		transpose_matrix(l.weights, (l.c/l.groups)*l.size*l.size, l.n);
@@ -450,12 +437,9 @@ void load_shortcut_weights(Darknet::Layer & l, FILE *fp)
 	TAT(TATPARMS);
 
 	int num = l.nweights;
-	int read_bytes;
-	read_bytes = fread(l.weights, sizeof(float), num, fp);
-	if (read_bytes > 0 && read_bytes < num)
-	{
-		printf("\n Warning: Unexpected end of weights-file! l.weights - l.index = %d \n", l.index);
-	}
+
+	xfread(l.weights, sizeof(float), num, fp);
+
 	//for (int i = 0; i < l.nweights; ++i) printf(" %f, ", l.weights[i]);
 	//printf(" read_bytes = %d \n\n", read_bytes);
 #ifdef GPU
@@ -506,22 +490,22 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 	int major;
 	int minor;
 	int revision;
-	fread(&major	, sizeof(int), 1, fp);
-	fread(&minor	, sizeof(int), 1, fp);
-	fread(&revision	, sizeof(int), 1, fp);
+	xfread(&major	, sizeof(int), 1, fp);
+	xfread(&minor	, sizeof(int), 1, fp);
+	xfread(&revision, sizeof(int), 1, fp);
 
 	if ((major * 10 + minor) >= 2)
 	{
 //		printf("\n seen 64");
 		uint64_t iseen = 0;
-		fread(&iseen, sizeof(uint64_t), 1, fp);
+		xfread(&iseen, sizeof(uint64_t), 1, fp);
 		*net->seen = iseen;
 	}
 	else
 	{
 //		printf("\n seen 32");
 		uint32_t iseen = 0;
-		fread(&iseen, sizeof(uint32_t), 1, fp);
+		xfread(&iseen, sizeof(uint32_t), 1, fp);
 		*net->seen = iseen;
 	}
 

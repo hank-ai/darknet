@@ -56,7 +56,7 @@ namespace
 }
 
 
-list *get_paths(char *filename)
+list *get_paths(const char *filename)
 {
 	TAT(TATPARMS);
 
@@ -294,11 +294,6 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 		id = boxes[i].id;
 		int track_id = boxes[i].track_id;
 
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wformat-overflow"
-#endif
-
 		// not detect small objects
 		//if ((w < 0.001F || h < 0.001F)) continue;
 		// if truth (box for object) is smaller than 1x1 pix
@@ -334,10 +329,6 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 		{
 			darknet_fatal_error(DARKNET_LOC, "invalid height for class ID #%d in %s", id, labelpath);
 		}
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
 
 		if (x == 0) x += lowest_w;
 		if (y == 0) y += lowest_h;

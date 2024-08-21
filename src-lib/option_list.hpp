@@ -4,13 +4,13 @@
 
 typedef struct
 {
-	char *key;
-	char *val;
+	const char *key;
+	const char *val;
 	int used;
 } kvp;
 
 /// Read the .data file.
-list *read_data_cfg(char *filename);
+list *read_data_cfg(const char *filename);
 
 /** Parse a key-value pair from a single line of text that came from a @p .cfg or @p .data file.
  *
@@ -19,12 +19,12 @@ list *read_data_cfg(char *filename);
  */
 int read_option(char *s, list *options);
 
-void option_insert(list *l, char *key, char *val);
-char *option_find(list *l, const char *key);
-char *option_find_str(list *l, char *key, char *def);
-char *option_find_str_quiet(list *l, char *key, char *def);
-int option_find_int(list *l, char *key, int def);
-int option_find_int_quiet(list *l, char *key, int def);
-float option_find_float(list *l, char *key, float def);
-float option_find_float_quiet(list *l, char *key, float def);
+void option_insert(list *l, const char *key, const char *val);
+const char *option_find(list *l, const char *key);
+const char *option_find_str(list *l, const char *key, const char *def);
+const char *option_find_str_quiet(list *l, const char *key, const char *def);
+int option_find_int(list *l, const char *key, int def);
+int option_find_int_quiet(list *l, const char *key, int def);
+float option_find_float(list *l, const char *key, float def);
+float option_find_float_quiet(list *l, const char *key, float def);
 void option_unused(list *l);

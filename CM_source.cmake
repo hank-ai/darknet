@@ -100,10 +100,7 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-funsafe-math-optimizations)	# [7:49] allow optimizations for floating-point arithmetic that (a) assume that arguments and results are valid and (b) may violate IEEE or ANSI standards.
 
 	# TODO remove the following options and clean up the code instead of ignoring the problem
-	ADD_COMPILE_OPTIONS (-Wno-write-strings)
-	ADD_COMPILE_OPTIONS (-Wno-unused-result)
 	ADD_COMPILE_OPTIONS (-Wno-missing-field-initializers)
-	ADD_COMPILE_OPTIONS (-Wno-ignored-qualifiers)
 	ADD_COMPILE_OPTIONS (-Wno-sign-compare)
 ENDIF ()
 

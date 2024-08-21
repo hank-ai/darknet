@@ -1670,7 +1670,7 @@ Darknet::Layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	const std::string map_file = s.find_str("map");
 	if (not map_file.empty())
 	{
-		l.map = read_map(const_cast<char*>(map_file.c_str()));
+		l.map = read_map(map_file.c_str());
 	}
 
 	const VFloat vf = s.find_float_array("anchors");
@@ -1996,7 +1996,7 @@ Darknet::Layer Darknet::CfgFile::parse_region_section(const size_t section_idx)
 	const auto map_file = s.find_str("map");
 	if (map_file.empty() == false)
 	{
-		l.map = read_map(const_cast<char*>(map_file.c_str()));
+		l.map = read_map(map_file.c_str());
 	}
 
 	const VFloat vf = s.find_float_array("anchors");
@@ -2079,7 +2079,7 @@ Darknet::Layer Darknet::CfgFile::parse_gaussian_yolo_section(const size_t sectio
 	const std::string map_file = s.find_str("map");
 	if (not map_file.empty())
 	{
-		l.map = read_map(const_cast<char*>(map_file.c_str()));
+		l.map = read_map(map_file.c_str());
 	}
 
 	const VFloat vf = s.find_float_array("anchors");

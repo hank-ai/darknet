@@ -161,7 +161,7 @@ namespace Darknet
 	void translate_image(Darknet::Image m, float s);
 	void distort_image(Darknet::Image & im, float hue, float sat, float val);
 	void composite_image(const Darknet::Image & source, Darknet::Image & dest, int dx, int dy);
-	void composite_3d(char *f1, char *f2, char *out, int delta);
+	void composite_3d(char *f1, char *f2, const char *out, int delta);
 	int best_3d_shift_r(const Darknet::Image & a, const Darknet::Image & b, int min, int max);
 	int best_3d_shift(const Darknet::Image & a, const Darknet::Image & b, int min, int max);
 

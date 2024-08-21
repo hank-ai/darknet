@@ -1,24 +1,18 @@
-#ifdef __GNUC__
-// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#pragma GCC diagnostic ignored "-Wstrict-aliasing"
-#endif
-
 /** @file
  * General matrix multiplication (GEMM)
  */
 
+
+/// @todo V3 Would be nice to know where this file came from, and to see if there are updates available.
+#ifdef __GNUC__
+#pragma GCC diagnostic ignored "-Wignored-qualifiers"
+#endif
+
+
 #include "gemm.hpp"
-#include "utils.hpp"
 #include "im2col.hpp"
-#include "dark_cuda.hpp"
 #include "Timing.hpp"
-#include <stdlib.h>
-#include <stdio.h>
-#include <math.h>
-#include <float.h>
-#include <string.h>
-#include <stdint.h>
+
 #if defined(_OPENMP)
 #include <omp.h>
 #endif
@@ -429,7 +423,10 @@ static inline float _mm256_extract_float32(__m256 a, const int index)
 static inline float _dn_castu32_f32(uint32_t a)
 {
 	TAT(TATPARMS);
-	return *((float *)&a);
+
+	auto ptr_1 = &a;
+	auto ptr_2 = reinterpret_cast<float*>(ptr_1);
+	return *ptr_2;
 }
 
 static inline float _mm256_extract_float32(__m256 a, const int index)
@@ -941,13 +938,13 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
 
 	//__m256i all256_last_zero = _mm256_set1_epi32(0xFFFFFFFF);
 	//all256_last_zero.m256i_i32[7] = 0;
-	__m256i all256_last_zero =
-		_mm256_set_epi32(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x0);
+//	__m256i all256_last_zero =
+//		_mm256_set_epi32(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x0);
 
-	__m256i idx256 = _mm256_set_epi32(0, 7, 6, 5, 4, 3, 2, 1);
+//	__m256i idx256 = _mm256_set_epi32(0, 7, 6, 5, 4, 3, 2, 1);
 	//__m256 all256_sing1 = _mm256_set1_ps(0x80000000);
-	__m256 all256_one = _mm256_set1_ps(1);
-	__m256i all256i_one = _mm256_set1_epi32(1);
+//	__m256 all256_one = _mm256_set1_ps(1);
+//	__m256i all256i_one = _mm256_set1_epi32(1);
 
 	///__m256i src256 = _mm256_loadu_si256((__m256i *)(&src[i]));
 	///__m256i result256 = _mm256_and_si256(src256, all256_sing1); // check sign in 8 x 32-bit floats
@@ -1567,7 +1564,7 @@ void im2col_cpu_custom_bin(float* data_im,
 	// optimized version
 	if (height_col == height && width_col == width && stride == 1 && pad == 1 && is_fma_avx2())
 	{
-		__m256i all256_sing1 = _mm256_set_epi32(0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000);
+//		__m256i all256_sing1 = _mm256_set_epi32(0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000);
 		__m256 float_zero256 = _mm256_set1_ps(0.00);
 
 		int new_ldb = bit_align;

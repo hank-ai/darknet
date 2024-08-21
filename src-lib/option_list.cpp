@@ -1,7 +1,7 @@
 #include "option_list.hpp"
 #include "darknet_internal.hpp"
 
-list *read_data_cfg(char *filename)
+list *read_data_cfg(const char *filename)
 {
 	TAT(TATPARMS);
 
@@ -142,7 +142,7 @@ int read_option(char *s, list *options)
 }
 
 
-void option_insert(list *l, char *key, char *val)
+void option_insert(list *l, const char *key, const char *val)
 {
 	TAT(TATPARMS);
 
@@ -182,7 +182,7 @@ void option_unused(list *l)
 	}
 }
 
-char *option_find(list *l, const char *key)
+const char *option_find(list *l, const char *key)
 {
 	TAT(TATPARMS);
 
@@ -200,58 +200,58 @@ char *option_find(list *l, const char *key)
 	return nullptr;
 }
 
-char *option_find_str(list *l, char *key, char *def)
+const char *option_find_str(list *l, const char *key, const char *def)
 {
 	TAT(TATPARMS);
 
-	char *v = option_find(l, key);
+	const char *v = option_find(l, key);
 	if(v) return v;
 	if(def) fprintf(stderr, "%s: Using default '%s'\n", key, def);
 	return def;
 }
 
-char *option_find_str_quiet(list *l, char *key, char *def)
+const char *option_find_str_quiet(list *l, const char *key, const char *def)
 {
 	TAT(TATPARMS);
 
-	char *v = option_find(l, key);
+	const char *v = option_find(l, key);
 	if (v) return v;
 	return def;
 }
 
-int option_find_int(list *l, char *key, int def)
+int option_find_int(list *l, const char *key, int def)
 {
 	TAT(TATPARMS);
 
-	char *v = option_find(l, key);
+	const char *v = option_find(l, key);
 	if(v) return atoi(v);
 	fprintf(stderr, "%s: Using default '%d'\n", key, def);
 	return def;
 }
 
-int option_find_int_quiet(list *l, char *key, int def)
+int option_find_int_quiet(list *l, const char *key, int def)
 {
 	TAT(TATPARMS);
 
-	char *v = option_find(l, key);
+	const char *v = option_find(l, key);
 	if(v) return atoi(v);
 	return def;
 }
 
-float option_find_float_quiet(list *l, char *key, float def)
+float option_find_float_quiet(list *l, const char *key, float def)
 {
 	TAT(TATPARMS);
 
-	char *v = option_find(l, key);
+	const char *v = option_find(l, key);
 	if(v) return atof(v);
 	return def;
 }
 
-float option_find_float(list *l, char *key, float def)
+float option_find_float(list *l, const char *key, float def)
 {
 	TAT(TATPARMS);
 
-	char *v = option_find(l, key);
+	const char *v = option_find(l, key);
 	if(v) return atof(v);
 	fprintf(stderr, "%s: Using default '%lf'\n", key, def);
 	return def;

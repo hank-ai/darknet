@@ -69,7 +69,7 @@ double what_time_is_it_now()
 	return (double)time.tv_sec + (double)time.tv_usec * 0.000001;
 }
 
-int *read_map(char *filename)
+int *read_map(const char *filename)
 {
 	/// @todo what is this "map" file that we're reading in?
 
@@ -178,7 +178,7 @@ float find_float_arg(int argc, char **argv, const char * const arg, float def)
 	return def;
 }
 
-char *find_char_arg(int argc, char **argv, char *arg, char *def)
+const char * find_char_arg(int argc, char **argv, const char *arg, const char *def)
 {
 	TAT(TATPARMS);
 
@@ -196,11 +196,11 @@ char *find_char_arg(int argc, char **argv, char *arg, char *def)
 }
 
 
-char *basecfg(char *cfgfile)
+const char *basecfg(const char * cfgfile)
 {
 	TAT(TATPARMS);
 
-	char *c = cfgfile;
+	char * c = const_cast<char*>(cfgfile);
 	char *next;
 	while((next = strchr(c, '/')))
 	{
@@ -283,73 +283,21 @@ void trim(char *str)
 	free(buffer);
 }
 
-void find_replace_extension(char *str, char *orig, char *rep, char *output)
-{
-	TAT(TATPARMS);
-
-	char* buffer = (char*)calloc(8192, sizeof(char));
-
-	sprintf(buffer, "%s", str);
-	char *p = strstr(buffer, orig);
-	int offset = (p - buffer);
-	int chars_from_end = strlen(buffer) - offset;
-	if (!p || chars_from_end != strlen(orig)) {  // Is 'orig' even in 'str' AND is 'orig' found at the end of 'str'?
-		sprintf(output, "%s", buffer);
-		free(buffer);
-		return;
-	}
-
-	*p = '\0';
-	sprintf(output, "%s%s%s", buffer, rep, p + strlen(orig));
-	free(buffer);
-}
-
 void replace_image_to_label(const char* input_path, char* output_path)
 {
 	TAT(TATPARMS);
 
-	find_replace(input_path, "/images/train2017/", "/labels/train2017/", output_path);    // COCO
-	find_replace(output_path, "/images/val2017/", "/labels/val2017/", output_path);        // COCO
-	find_replace(output_path, "/JPEGImages/", "/labels/", output_path);    // PascalVOC
-	find_replace(output_path, "\\images\\train2017\\", "\\labels\\train2017\\", output_path);    // COCO
-	find_replace(output_path, "\\images\\val2017\\", "\\labels\\val2017\\", output_path);        // COCO
+	// keep it simple -- copy the input path, but change the extension to ".txt"
 
-	find_replace(output_path, "\\images\\train2014\\", "\\labels\\train2014\\", output_path);    // COCO
-	find_replace(output_path, "\\images\\val2014\\", "\\labels\\val2014\\", output_path);        // COCO
-	find_replace(output_path, "/images/train2014/", "/labels/train2014/", output_path);    // COCO
-	find_replace(output_path, "/images/val2014/", "/labels/val2014/", output_path);        // COCO
-
-	find_replace(output_path, "\\JPEGImages\\", "\\labels\\", output_path);    // PascalVOC
-	//find_replace(output_path, "/images/", "/labels/", output_path);    // COCO
-	//find_replace(output_path, "/VOC2007/JPEGImages/", "/VOC2007/labels/", output_path);        // PascalVOC
-	//find_replace(output_path, "/VOC2012/JPEGImages/", "/VOC2012/labels/", output_path);        // PascalVOC
-
-	//find_replace(output_path, "/raw/", "/labels/", output_path);
-	trim(output_path);
-
-	// replace only ext of files
-	find_replace_extension(output_path, ".jpg", ".txt", output_path);
-	find_replace_extension(output_path, ".JPG", ".txt", output_path); // error
-	find_replace_extension(output_path, ".jpeg", ".txt", output_path);
-	find_replace_extension(output_path, ".JPEG", ".txt", output_path);
-	find_replace_extension(output_path, ".png", ".txt", output_path);
-	find_replace_extension(output_path, ".PNG", ".txt", output_path);
-	find_replace_extension(output_path, ".bmp", ".txt", output_path);
-	find_replace_extension(output_path, ".BMP", ".txt", output_path);
-	find_replace_extension(output_path, ".ppm", ".txt", output_path);
-	find_replace_extension(output_path, ".PPM", ".txt", output_path);
-	find_replace_extension(output_path, ".tiff", ".txt", output_path);
-	find_replace_extension(output_path, ".TIFF", ".txt", output_path);
-
-	// Check file ends with txt:
-	if(strlen(output_path) > 4) {
-		char *output_path_ext = output_path + strlen(output_path) - 4;
-		if( strcmp(".txt", output_path_ext) != 0){
-			fprintf(stderr, "Failed to infer label file name (check image extension is supported): %s \n", output_path);
-		}
-	}else{
-		fprintf(stderr, "Label file name is too short: %s \n", output_path);
+	strcpy(output_path, input_path);
+	auto ptr = strrchr(output_path, '.');
+	if (ptr)
+	{
+		ptr[0] = '\0';
 	}
+	strcat(output_path, ".txt");
+
+	return;
 }
 
 float sec(clock_t clocks)
@@ -733,8 +681,9 @@ char * fgetl(FILE *fp)
 		{
 			readsize = INT_MAX-1;
 		}
-		fgets(&line[curr], readsize, fp);
-		curr = strlen(line);
+
+		auto ptr = fgets(&line[curr], readsize, fp);
+		curr = strlen(ptr);
 	}
 
 	// get rid of CR and LF at the end of the line
@@ -1463,20 +1412,10 @@ unsigned long custom_hash(char *str)
 	unsigned long hash = 5381;
 	int c;
 
-/// @todo 2023-06-26 For now I'd rather ignore this warning than to try and mess with this old code and risk breaking things.
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wparentheses"
-#endif
-
-	while (c = *str++)
+	while ((c = (*str++)))
 	{
 		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 	}
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
 
 	return hash;
 }

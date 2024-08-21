@@ -1,8 +1,3 @@
-#ifdef __GNUC__
-// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
-#pragma GCC diagnostic ignored "-Wunused-variable"
-#endif
-
 #include "darknet_internal.hpp"
 #include "gemm.hpp"
 
@@ -358,12 +353,6 @@ void forward_connected_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state
 
 	fill_ongpu(l.outputs*l.batch, 0, l.output_gpu, 1);
 
-	int m = l.batch;
-	int k = l.inputs;
-	int n = l.outputs;
-	float * a = state.input;
-	float * b = l.weights_gpu;
-	float * c = l.output_gpu;
 #ifdef CUDNN
 	//float one = 1;    // alpha[0], beta[0]
 	float alpha = 1, beta = 0;
@@ -382,13 +371,21 @@ void forward_connected_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state
 		l.dstTensorDesc,
 		l.output_gpu));
 #else // CUDNN
+	int m = l.batch;
+	int k = l.inputs;
+	int n = l.outputs;
+	float * a = state.input;
+	float * b = l.weights_gpu;
+	float * c = l.output_gpu;
 	gemm_ongpu(0,1,m,n,k,1,a,k,b,k,1,c,n);
 #endif // CUDNN
 
-	if (l.batch_normalize) {
+	if (l.batch_normalize)
+	{
 		forward_batchnorm_layer_gpu(l, state);
 	}
-	else {
+	else
+	{
 		add_bias_gpu(l.output_gpu, l.biases_gpu, l.batch, l.outputs, 1);
 	}
 	//for(i = 0; i < l.batch; ++i) axpy_ongpu(l.outputs, 1, l.biases_gpu, 1, l.output_gpu + i*l.outputs, 1);

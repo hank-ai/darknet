@@ -12,7 +12,7 @@ COST_TYPE get_cost_type(char *s)
 	return SSE;
 }
 
-char *get_cost_string(COST_TYPE a)
+const char *get_cost_string(COST_TYPE a)
 {
 	TAT(TATPARMS);
 

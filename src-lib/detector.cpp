@@ -1,8 +1,3 @@
-#ifdef __GNUC__
-// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
-#pragma GCC diagnostic ignored "-Wunused-function"
-#endif
-
 #include "darknet_internal.hpp"
 #include "option_list.hpp"
 #include "data.hpp"
@@ -23,7 +18,7 @@ namespace
 
 static int coco_ids[] = { 1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,27,28,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,67,70,72,73,74,75,76,77,78,79,80,81,82,84,85,86,87,88,89,90 };
 
-void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, char* chart_path)
+void train_detector(const char * datacfg, const char * cfgfile, const char * weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, const char * chart_path)
 {
 	TAT(TATPARMS);
 
@@ -38,9 +33,9 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 //	const std::filesystem::path & weightfile	= cfg_and_state.weights_filename;
 
 	list *options = read_data_cfg(datacfg);
-	char *train_images = option_find_str(options, "train", "data/train.txt");
-	char *valid_images = option_find_str(options, "valid", train_images);
-	char *backup_directory = option_find_str(options, "backup", "/backup/");
+	const char *train_images = option_find_str(options, "train", "data/train.txt");
+	const char *valid_images = option_find_str(options, "valid", train_images);
+	const char *backup_directory = option_find_str(options, "backup", "/backup/");
 
 	Darknet::Network net_map;
 	if (calc_map)
@@ -66,7 +61,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 	}
 	Darknet::load_names(&net_map, option_find_str(options, "names", "unknown.names"));
 
-	char *base = basecfg(cfgfile);
+	const char *base = basecfg(cfgfile);
 
 	float avg_loss = -1.0f;
 	float avg_contrastive_acc = 0.0f;
@@ -540,7 +535,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
 
 	Darknet::stop_image_loading_threads();
 
-	free(base);
+	free((void*)base);
 	free(paths);
 	free_list_contents(plist);
 	free_list(plist);
@@ -579,7 +574,7 @@ static void print_cocos(FILE *fp, char *image_path, Darknet::Detection * dets, i
 
 	int i, j;
 	//int image_id = get_coco_image_id(image_path);
-	char *p = basecfg(image_path);
+	const char *p = basecfg(image_path);
 	int image_id = atoi(p);
 	for (i = 0; i < num_boxes; ++i) {
 		float xmin = dets[i].bbox.x - dets[i].bbox.w / 2.;
@@ -608,7 +603,7 @@ static void print_cocos(FILE *fp, char *image_path, Darknet::Detection * dets, i
 	}
 }
 
-void print_detector_detections(FILE **fps, char *id, Darknet::Detection * dets, int total, int classes, int w, int h)
+void print_detector_detections(FILE **fps, const char *id, Darknet::Detection * dets, int total, int classes, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -655,11 +650,11 @@ void print_imagenet_detections(FILE *fp, int id, Darknet::Detection * dets, int 
 	}
 }
 
-static void print_kitti_detections(FILE **fps, char *id, Darknet::Detection * dets, int total, int classes, int w, int h, char *outfile, char *prefix)
+static void print_kitti_detections(FILE **fps, const char *id, Darknet::Detection * dets, int total, int classes, int w, int h, const char *outfile, const char *prefix)
 {
 	TAT(TATPARMS);
 
-	char *kitti_ids[] = { "car", "pedestrian", "cyclist" };
+	const char *kitti_ids[] = { "car", "pedestrian", "cyclist" };
 	FILE *fpd = 0;
 	char buffd[1024];
 	snprintf(buffd, 1024, "%s/%s/data/%s.txt", prefix, outfile, id);
@@ -687,7 +682,7 @@ static void print_kitti_detections(FILE **fps, char *id, Darknet::Detection * de
 	fclose(fpd);
 }
 
-static void eliminate_bdd(char *buf, char *a)
+static void eliminate_bdd(char *buf, const char *a)
 {
 	TAT(TATPARMS);
 
@@ -730,7 +725,7 @@ static void print_bdd_detections(FILE *fp, char *image_path, Darknet::Detection 
 {
 	TAT(TATPARMS);
 
-	char *bdd_ids[] = { "bike" , "bus" , "car" , "motor" ,"person", "rider", "traffic light", "traffic sign", "train", "truck" };
+	const char *bdd_ids[] = { "bike" , "bus" , "car" , "motor" ,"person", "rider", "traffic light", "traffic sign", "train", "truck" };
 	get_bdd_image_id(image_path);
 	int i, j;
 
@@ -761,15 +756,15 @@ static void print_bdd_detections(FILE *fp, char *image_path, Darknet::Detection 
 	}
 }
 
-void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *outfile)
+void validate_detector(char *datacfg, char *cfgfile, char *weightfile, const char *outfile)
 {
 	TAT(TATPARMS);
 
 	int j;
 	list *options = read_data_cfg(datacfg);
-	char *valid_images = option_find_str(options, "valid", nullptr);
-	char *prefix = option_find_str(options, "results", "results");
-	char *mapf = option_find_str(options, "map", 0);
+	const char *valid_images = option_find_str(options, "valid", nullptr);
+	const char *prefix = option_find_str(options, "results", "results");
+	const char *mapf = option_find_str(options, "map", 0);
 	int *map = 0;
 	if (mapf) map = read_map(mapf);
 
@@ -803,7 +798,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 	int classes = l.classes;
 
 	char buff[1024];
-	char *type = option_find_str(options, "eval", "voc");
+	const char *type = option_find_str(options, "eval", "voc");
 	FILE *fp = 0;
 	FILE **fps = 0;
 	int coco = 0;
@@ -911,7 +906,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 		for (t = 0; t < nthreads && i + t - nthreads < m; ++t)
 		{
 			char *path = paths[i + t - nthreads];
-			char *id = basecfg(path);
+			const char *id = basecfg(path);
 			float *X = val_resized[t].data;
 			network_predict(net, X);
 			int w = val[t].w;
@@ -948,7 +943,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, char *out
 			}
 
 			free_detections(dets, nboxes);
-			free(id);
+			free((void*)id);
 			Darknet::free_image(val[t]);
 			Darknet::free_image(val_resized[t]);
 		}
@@ -1006,7 +1001,7 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 
 	//list *plist = get_paths("data/coco_val_5k.list");
 	list *options = read_data_cfg(datacfg);
-	char *valid_images = option_find_str(options, "valid", "data/train.txt");
+	const char *valid_images = option_find_str(options, "valid", "data/train.txt");
 	list *plist = get_paths(valid_images);
 	char **paths = (char **)list_to_array(plist);
 
@@ -1031,7 +1026,7 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 		char *path = paths[i];
 		Darknet::Image orig = Darknet::load_image(path, 0, 0, net.c);
 		Darknet::Image sized = Darknet::resize_image(orig, net.w, net.h);
-		char *id = basecfg(path);
+		const char *id = basecfg(path);
 		network_predict(net, sized.data);
 		int nboxes = 0;
 		int letterbox = 0;
@@ -1066,14 +1061,14 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 		//fprintf(stderr, " %s - %s - ", paths[i], labelpath);
 		fprintf(stderr, "%5d %5d %5d\tRPs/Img: %.2f\tIOU: %.2f%%\tRecall:%.2f%%\n", i, correct, total, (float)proposals / (i + 1), avg_iou * 100 / total, 100.*correct / total);
 		free(truth);
-		free(id);
+		free((void*)id);
 		Darknet::free_image(orig);
 		Darknet::free_image(sized);
 	}
 }
 
 
-float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network * existing_net)
+float validate_detector_map(const char * datacfg, const char * cfgfile, const char * weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network * existing_net)
 {
 	// Example command that calls this function:
 	//
@@ -1093,15 +1088,15 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 
 	int j;
 	list *options = read_data_cfg(datacfg);
-	char *valid_images = option_find_str(options, "valid", nullptr);
-	char *difficult_valid_images = option_find_str(options, "difficult", NULL);
+	const char *valid_images = option_find_str(options, "valid", nullptr);
+	const char *difficult_valid_images = option_find_str(options, "difficult", NULL);
 //	char *name_list = option_find_str(options, "names", nullptr);
 	FILE* reinforcement_fd = NULL;
 
 	Darknet::Network net;
 	if (existing_net)
 	{
-		char *train_images = option_find_str(options, "train", nullptr);
+		const char *train_images = option_find_str(options, "train", nullptr);
 		valid_images = option_find_str(options, "valid", train_images);
 		net = *existing_net;
 		free_network_recurrent_state(*existing_net);
@@ -1243,7 +1238,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 		{
 			const int image_index = i + t - nthreads;
 			char *path = paths[image_index];
-			char *id = basecfg(path);
+			const char *id = basecfg(path);
 			float *X = val_resized[t].data;
 			network_predict(net, X); /// @todo would we save anything if net was passed in by reference?
 
@@ -1393,7 +1388,7 @@ float validate_detector_map(char *datacfg, char *cfgfile, char *weightfile, floa
 			free_detections(dets, nboxes);
 			free(truth);
 			free(truth_dif);
-			free(id);
+			free((void*)id);
 			Darknet::free_image(val[t]);
 			Darknet::free_image(val_resized[t]);
 		}
@@ -1751,7 +1746,7 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 	float* rel_width_height_array = (float*)xcalloc(1000, sizeof(float));
 
 	list *options = read_data_cfg(datacfg);
-	char *train_images = option_find_str(options, "train", "data/train.list");
+	const char *train_images = option_find_str(options, "train", "data/train.list");
 	list *plist = get_paths(train_images);
 	int number_of_images = plist->size;
 	char **paths = (char **)list_to_array(plist);
@@ -1929,8 +1924,8 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 }
 
 
-void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filename, float thresh,
-	float hier_thresh, int dont_show, int ext_output, int save_labels, char *outfile, int letter_box, int benchmark_layers)
+void test_detector(const char *datacfg, const char *cfgfile, const char *weightfile, const char *filename, float thresh,
+	float hier_thresh, int dont_show, int ext_output, int save_labels, const char *outfile, int letter_box, int benchmark_layers)
 {
 	TAT(TATPARMS);
 
@@ -1960,7 +1955,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		{
 			file_error(outfile, DARKNET_LOC);
 		}
-		char *tmp = "[\n";
+		const char *tmp = "[\n";
 		fwrite(tmp, sizeof(char), strlen(tmp), json_file);
 	}
 	int j;
@@ -2047,7 +2042,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 		{
 			if (json_buf)
 			{
-				char *tmp = ", \n";
+				const char *tmp = ", \n";
 				fwrite(tmp, sizeof(char), strlen(tmp), json_file);
 			}
 			++json_image_id;
@@ -2098,7 +2093,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 	}
 
 	if (json_file) {
-		char *tmp = "\n]";
+		const char *tmp = "\n]";
 		fwrite(tmp, sizeof(char), strlen(tmp), json_file);
 		fclose(json_file);
 	}
@@ -2127,7 +2122,7 @@ void run_detector(int argc, char **argv)
 //	char *http_post_host = find_char_arg(argc, argv, "-http_post_host", 0);
 //	int time_limit_sec = find_int_arg(argc, argv, "-time_limit_sec", 0);
 //	char *out_filename = find_char_arg(argc, argv, "-out_filename", 0);
-	char *outfile = find_char_arg(argc, argv, "-out", 0);
+	const char *outfile = find_char_arg(argc, argv, "-out", 0);
 //	char *prefix = find_char_arg(argc, argv, "-prefix", 0);
 	float thresh = find_float_arg(argc, argv, "-thresh", .25);    // 0.24
 	float iou_thresh = find_float_arg(argc, argv, "-iou_thresh", .5);    // 0.5 for mAP
@@ -2138,8 +2133,8 @@ void run_detector(int argc, char **argv)
 	// and for recall mode (extended output table-like format with results for best_class fit)
 	int ext_output = find_arg(argc, argv, "-ext_output");
 	int save_labels = find_arg(argc, argv, "-save_labels");
-	char* chart_path = find_char_arg(argc, argv, "-chart", 0);
-	char *gpu_list = find_char_arg(argc, argv, "-gpus", 0);
+	const char* chart_path = find_char_arg(argc, argv, "-chart", 0);
+	const char *gpu_list = find_char_arg(argc, argv, "-gpus", 0);
 	int *gpus = 0;
 	int gpu = 0;
 	int ngpus = 0;

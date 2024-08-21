@@ -82,10 +82,11 @@ void free_list_contents_kvp(list *l)
 	TAT(TATPARMS);
 
 	node *n = l->front;
-	while (n) {
+	while (n)
+	{
 		kvp* p = (kvp*)n->val;
-		free(p->key);
-		free(n->val);
+		free((void*)p->key);
+		free((void*)n->val);
 		n = n->next;
 	}
 }

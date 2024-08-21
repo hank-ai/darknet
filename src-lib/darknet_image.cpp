@@ -1059,7 +1059,7 @@ int Darknet::best_3d_shift(const Darknet::Image & a, const Darknet::Image & b, i
 	return best;
 }
 
-void Darknet::composite_3d(char *f1, char *f2, char *out, int delta)
+void Darknet::composite_3d(char *f1, char *f2, const char *out, int delta)
 {
 	TAT(TATPARMS);
 
