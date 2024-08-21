@@ -558,22 +558,11 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 }
 
 
-static int get_coco_image_id(char *filename)
-{
-	TAT(TATPARMS);
-
-	char *p = strrchr(filename, '/');
-	char *c = strrchr(filename, '_');
-	if (c) p = c;
-	return atoi(p + 1);
-}
-
 static void print_cocos(FILE *fp, char *image_path, Darknet::Detection * dets, int num_boxes, int classes, int w, int h)
 {
 	TAT(TATPARMS);
 
 	int i, j;
-	//int image_id = get_coco_image_id(image_path);
 	const char *p = basecfg(image_path);
 	int image_id = atoi(p);
 	for (i = 0; i < num_boxes; ++i) {

@@ -713,16 +713,10 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			float *truth = (float*)xcalloc(truth_size * boxes, sizeof(float));
 			const char *filename = random_paths[i];
 
-			mat_cv *src;
-			/// @todo V3 get rid of mat_cv
-			src = load_image_mat_cv(filename, c);
-			if (src == NULL)
-			{
-				darknet_fatal_error(DARKNET_LOC, "failed to read image \"%s\"", filename);
-			}
+			cv::Mat src = load_mat_image(filename, c);
 
-			const int oh = get_height_mat(src);	// original height
-			const int ow = get_width_mat(src);	// original width
+			const int oh = src.rows;	// original height
+			const int ow = src.cols;	// original width
 
 			int dw = (ow*jitter);
 			int dh = (oh*jitter);
@@ -993,7 +987,6 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 				{
 					//char buff_src[1000];
 					//sprintf(buff_src, "src_%d_%d_%s_%d", random_index, i, basecfg((char*)filename), random_gen());
-					//show_image_mat(src, buff_src);
 					Darknet::show_image(tmp_ai, buff);
 					cv::waitKey(0);
 				}
@@ -1001,7 +994,6 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 				Darknet::free_image(tmp_ai);
 			}
 
-			release_mat(&src);
 			free(truth);
 		}
 

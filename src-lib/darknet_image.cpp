@@ -702,7 +702,7 @@ void Darknet::save_image_png(const Darknet::Image & im, const char *name)
 	}
 	else if (mat.channels() == 4)
 	{
-		cv::cvtColor(mat, mat, cv::COLOR_RGBA2BGR);
+		cv::cvtColor(mat, mat, cv::COLOR_RGBA2BGRA);
 	}
 
 	const bool success = cv::imwrite(filename, mat, {cv::ImwriteFlags::IMWRITE_PNG_COMPRESSION, 9});
