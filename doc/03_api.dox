@@ -2,9 +2,9 @@
 
 @tableofcontents
 
-Since %Darknet first started in 2013, there have been several APIs available to access Darknet/YOLO from other applications.
+Since %Darknet started in 2013, there have been several APIs available to access Darknet/YOLO from other applications.
 
-The @ref apiv2_c is the original Darknet/YOLO API.  It is recommended that new users skip the original API, and use the new @ref apiv3_c or @ref apiv3_cpp instead.
+The @ref apiv2_c is the original Darknet/YOLO API.  It is recommended that new applications skip the original API, and use the new @ref apiv3_c or @ref apiv3_cpp instead.
 
 For Python users, see @ref apiv3_python.
 

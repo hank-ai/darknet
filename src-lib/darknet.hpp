@@ -60,7 +60,7 @@ namespace Darknet
 	 * The key is the zero-based class indexes, and the values are the confidences for the classes, between @p 0.0f and
 	 * @p 1.0f.
 	 *
-	 * For example, if "car" is class #2 and "truck" is class #3, and Darknet is 95% certain it found a car and 82% certain
+	 * For example, if "car" is class #2 and "truck" is class #3, and %Darknet is 95% certain it found a car and 82% certain
 	 * it found a truck, the map would then contain
 	 * @p "{ {2, 0.95}, {3, 0.82} }".
 	 *

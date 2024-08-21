@@ -43,7 +43,7 @@ std::string Darknet::format_time_remaining(const float & seconds_remaining)
 	const float weeks	= 7.0 * days;
 
 	std::stringstream ss;
-	ss << std::fixed << std::setprecision(0);
+	ss << std::fixed << std::setprecision(1);
 
 	if (seconds_remaining < 0.0f or seconds_remaining >= 4.0f * weeks)
 	{
