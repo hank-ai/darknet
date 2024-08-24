@@ -33,19 +33,46 @@ namespace Darknet
 
 	/** Convert an OpenCV @p cv::Mat object to @ref Darknet::Image.  The @p cv::Mat is expected to already have been
 	 * converted from @p BGR to @p RGB.  The result @ref Darknet::Image floats will be normalized between @p 0.0 and @p 1.0.
+	 * Remember to call @ref Darknet::free_image() when done.
 	 *
+	 * @see @ref Darknet::bgr_mat_to_rgb_image()
+	 * @see @ref Darknet::rgb_image_to_bgr_mat()
+	 * @see @ref Darknet::image_to_mat()
 	 * @see @p cv::COLOR_BGR2RGB
-	 * @see @ref image_to_mat()
 	 */
 	Darknet::Image mat_to_image(const cv::Mat & mat);
+
+	/** Similar to the original @ref mat_to_image(), but with 2 differences:
+	 * @li the input image is in the "natural" OpenCV BGR format (the output image is still in RGB format),
+	 * @li this function uses very efficent OpenCV techniques to convert the @p cv::Mat to @p Darknet::Image which makes it much faster.
+	 *
+	 * Remember to call @ref Darknet::free_image() when done.
+	 *
+	 * @see @ref Darknet::rgb_image_to_bgr_mat()
+	 *
+	 * @since 2024-08-23
+	 */
+	Darknet::Image bgr_mat_to_rgb_image(const cv::Mat & mat);
 
 	/** Convert the usual @ref Darknet::Image format to OpenCV @p cv::Mat.  The mat object will be in @p RGB format,
 	 * not @p BGR.
 	 *
 	 * @see @p cv::COLOR_RGB2BGR
-	 * @see @ref mat_to_image()
+	 * @see @ref Darknet::mat_to_image()
 	 */
 	cv::Mat image_to_mat(const Darknet::Image & img);
+
+	/** Similar to the original @ref image_to_mat(), but with 2 differences:
+	 * @li the output image is in the "natural" OpenCV BGR format,
+	 * @li this function uses very efficient OpenCV techniques to convert the @p Darknet::Image to @p cv::Mat which makes it much faster.
+	 *
+	 * @see @ref Darknet::bgr_mat_to_rgb_image()
+	 * @see @ref Darknet::image_to_mat()
+	 * @see @ref Darknet::mat_to_image()
+	 *
+	 * @since 2024-08-23
+	 */
+	cv::Mat rgb_image_to_bgr_mat(const Darknet::Image & img);
 
 	/// Generate some "random" colour value to use.  Mostly used for labels and charts.
 	float get_color(int c, int x, int max);
@@ -181,7 +208,23 @@ namespace Darknet
 	void show_image_layers(const Darknet::Image & p, const char * name);
 	void show_image_collapsed(const Darknet::Image & p, const char * name);
 
-	void print_image(const Darknet::Image & m);
+	/** Convert the image to a debug string to display the @p data pointer values.
+	 *
+	 * For example, a tiny 5x3 image might look like this:
+	 * ~~~~{.txt}
+	 * Darknet::Image: 5x3x3, data=0x5858cb1514e0
+	 * R 0000: 1.00 1.00 1.00 1.00 1.00
+	 * R 0005: 1.00 1.00 1.00 0.13 0.13
+	 * R 0010: 1.00 1.00 1.00 0.13 0.13
+	 * G 0015: 0.25 0.25 0.25 0.25 0.25
+	 * G 0020: 0.25 0.25 0.25 0.13 0.13
+	 * G 0025: 0.25 0.25 0.25 0.13 0.13
+	 * B 0030: 0.50 0.50 0.50 0.50 0.50
+	 * B 0035: 0.50 0.50 0.50 1.00 1.00
+	 * B 0040: 0.50 0.50 0.50 1.00 1.00
+	 * ~~~~
+	 */
+	std::string image_as_debug_string(const Darknet::Image & m);
 
 	Darknet::Image make_random_image(int w, int h, int c);
 	Darknet::Image float_to_image_scaled(int w, int h, int c, float *data);

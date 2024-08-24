@@ -812,9 +812,7 @@ Darknet::Image Darknet::mat_to_image(const cv::Mat & mat)
 {
 	TAT(TATPARMS);
 
-	// This code assumes the mat object is already in RGB format, not OpenCV's default BGR.
-	//
-	// The output image will be normalized floats, 0.0 to 1.0.
+	// This code assumes the mat object is already in RGB format, not OpenCV's default BGR!
 
 	const int w = mat.cols;
 	const int h = mat.rows;
@@ -834,6 +832,37 @@ Darknet::Image Darknet::mat_to_image(const cv::Mat & mat)
 	}
 
 	return im;
+}
+
+
+Darknet::Image Darknet::bgr_mat_to_rgb_image(const cv::Mat & mat)
+{
+	TAT(TATPARMS);
+
+	// This code assumes the mat object is in OpenCV's default BGR format!
+
+	// create 3 "views", one each for B, G, and R
+
+	cv::Mat result(mat.rows * 3, mat.cols, CV_8UC1);
+	std::vector<cv::Mat> views =
+	{
+		// note first and last "views" are swapped since we want RGB and cv::Mat contains BGR
+		result.rowRange(mat.rows * 2, mat.rows * 3),	// B
+		result.rowRange(mat.rows * 1, mat.rows * 2),	// G
+		result.rowRange(mat.rows * 0, mat.rows * 1),	// R
+	};
+	cv::split(mat, views);
+
+	// create an empty Darknet::Image where the float results will be stored by OpenCV once we convert to CV_32F
+	Darknet:: Image img = make_image(mat.cols, mat.rows, mat.channels());
+
+	// note how the cv::Matf is using the Darknet::Image data buffer directly
+	cv::Mat1f tmp(img.h * 3, img.w, img.data);
+
+	// convert the results to floating point, and divide by 255 to normalize between 0.0 - 1.0
+	result.convertTo(tmp, CV_32F, 1.0/255.0);
+
+	return img;
 }
 
 
@@ -864,6 +893,32 @@ cv::Mat Darknet::image_to_mat(const Darknet::Image & img)
 	 */
 
 	return mat;
+}
+
+
+cv::Mat Darknet::rgb_image_to_bgr_mat(const Darknet::Image & img)
+{
+	TAT(TATPARMS);
+
+	// This code assumes the image object is in Darknet's default RGB format!
+
+	cv::Mat1f tmp(img.h * img.c, img.w, img.data);
+
+	// convert the floats to "int", giving us a channel-packed image
+	cv::Mat result;
+	tmp.convertTo(result, CV_8U, 255.0);
+
+	// create 3 views into the result to access B, G, and R values
+	std::vector<cv::Mat> views =
+	{
+		result.rowRange(img.h * 2, img.h * 3),	// B
+		result.rowRange(img.h * 1, img.h * 2),	// G
+		result.rowRange(img.h * 0, img.h * 1),	// R
+	};
+	cv::Mat dst;
+	cv::merge(views, dst);
+
+	return dst;
 }
 
 
@@ -1755,33 +1810,33 @@ Darknet::Image Darknet::get_image_layer(const Darknet::Image & m, int l)
 }
 
 
-void Darknet::print_image(const Darknet::Image & m)
+std::string Darknet::image_as_debug_string(const Darknet::Image & im)
 {
 	TAT(TATPARMS);
 
-	for (int i =0 ; i < m.c; ++i)
-	{
-		for (int j =0 ; j < m.h; ++j)
-		{
-			for (int k = 0; k < m.w; ++k)
-			{
-				printf("%.2lf, ", m.data[i*m.h*m.w + j*m.w + k]);
-				if (k > 30)
-				{
-					break;
-				}
-			}
-			printf("\n");
-			if (j > 30)
-			{
-				break;
-			}
-		}
-		printf("\n");
-	}
-	printf("\n");
+	std::stringstream ss;
+	ss << "Darknet::Image: " << im.w << "x" << im.h << "x" << im.c << ", data=" << (void*)im.data;
 
-	return;
+	if (im.data != nullptr)
+	{
+		const size_t number_of_elements = im.w * im.h * im.c;
+		const size_t elements_per_channel = number_of_elements / im.c;
+
+		for (size_t idx = 0; idx < number_of_elements; idx ++)
+		{
+			if (idx % im.w == 0) // indicates the start of a new row
+			{
+				ss	<< std::endl
+					<< (idx < elements_per_channel ? "R" : idx < 2 * elements_per_channel ? "G" : "B")
+					<< " "
+					<< std::setfill('0') << std::setw(4) << idx << ":";
+			}
+
+			ss << " " << std::fixed << std::setprecision(2) << im.data[idx];
+		}
+	}
+
+	return ss.str();
 }
 
 

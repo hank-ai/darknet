@@ -101,6 +101,37 @@ typedef struct DarknetDetection
  * these image objects is calloc'd.  This structure was originally part of the old %Darknet @p C API, which is why it
  * exists this way and not as a C++ class with methods.
  *
+ * Within @p data, the image is stored as 3 non-interlaced channels in RGB order.  Each channel is stored as rows, from top to bottom.
+ * So a 5x3 RGB image would look like this:
+ *
+ * ~~~~{.txt}
+ *		r r r r r
+ *		r r r r r
+ *		r r r r r
+ *		g g g g g
+ *		g g g g g
+ *		g g g g g
+ *		b b b b b
+ *		b b b b b
+ *		b b b b b
+ * ~~~~
+ *
+ * A 5x3 pure red image, with a blueish/green square in the bottom-right corner would look like this:
+ *
+ * ~~~~{.txt}
+ *		1.0 1.0 1.0 1.0 1.0 // red channel
+ *		1.0 1.0 1.0 0.0 0.0 // note the lack of red in the bottom-right corner
+ *		1.0 1.0 1.0 0.0 0.0
+ *		0.0 0.0 0.0 0.0 0.0 // green channel
+ *		0.0 0.0 0.0 0.5 0.5
+ *		0.0 0.0 0.0 0.5 0.5
+ *		0.0 0.0 0.0 0.0 0.0 // blue channel
+ *		0.0 0.0 0.0 1.0 1.0 // note the blue square in the bottom-right corner
+ *		0.0 0.0 0.0 1.0 1.0
+ * ~~~~
+ *
+ * For additional information or to help debug the internals of @p DarknetImage, see @ref Darknet::image_as_debug_string().
+ *
  * @see @ref Darknet::load_image()
  * @see @ref Darknet::copy_image()
  * @see @ref make_empty_image()

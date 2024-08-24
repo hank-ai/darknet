@@ -13,7 +13,7 @@ namespace Darknet
 {
 	/** The timing and tracking functionality is used to find places in the code where optimizations should be made.  Since
 	 * the original authors are no longer active in the Darknet/YOLO project, there is a lot of unknown code.  This class
-	 * is used to time each function, and the results are stored in the @ref TimingRecords object.  When Darknet exits, the
+	 * is used to time each function, and the results are stored in the @ref TimingRecords object.  When %Darknet exits, the
 	 * results are shown in a table.
 	 *
 	 * Running with this enabled will slow down Darknet!  By a significant amount.  It is not meant to be used by "normal"
