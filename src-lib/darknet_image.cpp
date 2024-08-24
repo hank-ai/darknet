@@ -841,6 +841,8 @@ Darknet::Image Darknet::bgr_mat_to_rgb_image(const cv::Mat & mat)
 
 	// This code assumes the mat object is in OpenCV's default BGR format!
 
+	/// @todo COLOR this function assumes 3-channel images
+
 	// create 3 "views", one each for B, G, and R
 
 	cv::Mat result(mat.rows * 3, mat.cols, CV_8UC1);
@@ -1632,8 +1634,8 @@ Darknet::Image Darknet::resize_image(const Darknet::Image & im, int w, int h)
 	Darknet::Image resized = make_image(w, h, im.c);
 	Darknet::Image part = make_image(w, im.h, im.c);
 
-	const float w_scale = (float)(im.w - 1) / (w - 1);
-	const float h_scale = (float)(im.h - 1) / (h - 1);
+	const float w_scale = (im.w - 1.0f) / (w - 1.0f);
+	const float h_scale = (im.h - 1.0f) / (h - 1.0f);
 
 	for (int k = 0; k < im.c; ++k)
 	{
@@ -1744,45 +1746,56 @@ Darknet::Image Darknet::load_image(const char * filename, int desired_width, int
 {
 	TAT(TATPARMS);
 
-	cv::Mat mat = cv::imread(filename);
+	Darknet::Image image;
 
+	cv::Mat mat = cv::imread(filename);
 	if (mat.empty())
 	{
 		darknet_fatal_error(DARKNET_LOC, "failed to load image file \"%s\"", filename);
 	}
 
-	if (channels == 0)
+	if (mat.channels() == 3 and (channels == 0 or channels == 3))
 	{
-		// we didn't specify how many channels we want...so assume it is 3-channel RGB
-		channels = 3;
+		// use the new faster conversion code when dealing with 3-channel image (which is the norm)
+		image = bgr_mat_to_rgb_image(mat);
 	}
+	else
+	{
+		// if we get here then we have a more complex scenario to deal with...
 
-	if (channels == 1 and mat.channels() == 1)
-	{
-		// nothing to do, we already have a greyscale image
-	}
-	else if (channels == 1 and mat.channels() == 3)
-	{
-		cv::cvtColor(mat, mat, cv::COLOR_BGR2GRAY);
-	}
-	else if (channels == 1 and mat.channels() == 4)
-	{
-		cv::cvtColor(mat, mat, cv::COLOR_BGRA2GRAY);
-	}
-	else if (channels == 3 and mat.channels() == 1)
-	{
-		cv::cvtColor(mat, mat, cv::COLOR_GRAY2RGB);
-	}
-	else if (channels == 3 and mat.channels() == 3)
-	{
-		cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
-	}
-	else if (channels == 3 and mat.channels() == 4)
-	{
-		cv::cvtColor(mat, mat, cv::COLOR_BGRA2RGB);
-	}
+		if (channels == 0)
+		{
+			// we didn't specify how many channels we want...so assume it is 3-channel RGB
+			channels = 3;
+		}
 
-	Darknet::Image image = mat_to_image(mat);
+		if (channels == 1 and mat.channels() == 1)
+		{
+			// nothing to do, we already have a greyscale image
+		}
+		else if (channels == 1 and mat.channels() == 3)
+		{
+			cv::cvtColor(mat, mat, cv::COLOR_BGR2GRAY);
+		}
+		else if (channels == 1 and mat.channels() == 4)
+		{
+			cv::cvtColor(mat, mat, cv::COLOR_BGRA2GRAY);
+		}
+		else if (channels == 3 and mat.channels() == 1)
+		{
+			cv::cvtColor(mat, mat, cv::COLOR_GRAY2RGB);
+		}
+		else if (channels == 3 and mat.channels() == 3)
+		{
+			cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
+		}
+		else if (channels == 3 and mat.channels() == 4)
+		{
+			cv::cvtColor(mat, mat, cv::COLOR_BGRA2RGB);
+		}
+
+		image = mat_to_image(mat);
+	}
 
 	if (desired_width > 0 and desired_height > 0)
 	{
