@@ -13,7 +13,7 @@
 #include "im2col.hpp"
 #include "Timing.hpp"
 
-#if defined(_OPENMP)
+#if defined(_OPENMP) || defined(OPENMP)
 #include <omp.h>
 #endif
 
@@ -572,12 +572,21 @@ int is_avx()
 	TAT(TATPARMS);
 
 	static int result = -1;
-	if (result == -1) {
+
+	if (result == -1)
+	{
 		check_cpu_features();
 		result = HW_AVX;
-		if (result == 1) printf(" Used AVX \n");
-		else printf(" Not used AVX \n");
+		if (result == 1)
+		{
+			std::cout << "AVX detected." << std::endl;
+		}
+		else
+		{
+			std::cout << "AVX not detected." << std::endl;
+		}
 	}
+
 	return result;
 }
 
@@ -586,12 +595,21 @@ int is_fma_avx2()
 	TAT(TATPARMS);
 
 	static int result = -1;
-	if (result == -1) {
+
+	if (result == -1)
+	{
 		check_cpu_features();
 		result = HW_FMA3 && HW_AVX2;
-		if (result == 1) printf(" Used FMA & AVX2 \n");
-		else printf(" Not used FMA & AVX2 \n");
+		if (result == 1)
+		{
+			std::cout << "FMA & AVX2 detected." << std::endl;
+		}
+		else
+		{
+			std::cout << "FMA & AVX2 not detected." << std::endl;
+		}
 	}
+
 	return result;
 }
 
@@ -1540,7 +1558,7 @@ void im2col_cpu_custom_align(float* data_im,
 
 	}
 	else {
-		printf("\n Error: is no non-optimized version \n");
+		std::cout << "im2col_cpu_custom_align() does not have a non-optimized version" << std::endl;
 		//im2col_cpu(data_im, channels, height, width, ksize, stride, pad, data_col); // must be aligned for transpose after float_to_bin
 		// float_to_bit(b, t_input, src_size);
 		// transpose_bin(t_input, *t_bit_input, k, n, bit_align, new_ldb, 8);
@@ -1666,7 +1684,7 @@ void im2col_cpu_custom_bin(float* data_im,
 
 	}
 	else {
-		printf("\n Error: is no non-optimized version \n");
+		std::cout << "im2col_cpu_custom_bin() does not have a non-optimized version" << std::endl;
 		//im2col_cpu(data_im, channels, height, width, ksize, stride, pad, data_col); // must be aligned for transpose after float_to_bin
 		// float_to_bit(b, t_input, src_size);
 		// transpose_bin(t_input, *t_bit_input, k, n, bit_align, new_ldb, 8);
@@ -2060,7 +2078,7 @@ void im2col_cpu_custom_transpose(float* data_im,
 	int channels, int height, int width,
 	int ksize, int stride, int pad, float* data_col, int ldb_align)
 {
-	printf("\n im2col_cpu_custom_transpose() isn't implemented without AVX \n");
+	std::cout << "im2col_cpu_custom_transpose() is not implemented without support for AVX" << std::endl;
 }
 
 //From Berkeley Vision's Caffe!
@@ -2264,8 +2282,9 @@ void im2col_cpu_custom_bin(float* data_im,
 		}
 
 	}
-	else {
-		printf("\n Error: is no non-optimized version \n");
+	else
+	{
+		std::cout << "im2col_cpu_custom_bin() does not have a non-optimized version" << std::endl;
 		//im2col_cpu(data_im, channels, height, width, ksize, stride, pad, data_col); // must be aligned for transpose after float_to_bin
 		// float_to_bit(b, t_input, src_size);
 		// transpose_bin(t_input, *t_bit_input, k, n, bit_align, new_ldb, 8);
@@ -2311,7 +2330,8 @@ void float_to_bit(float *src, unsigned char *dst, size_t size)
 	//    dst[i / 8] |= byte_arr[i] << (i % 8);
 	//}
 
-	for (i = 0; i < size; i += 8) {
+	for (i = 0; i < size; i += 8)
+	{
 		char dst_tmp = 0;
 		dst_tmp |= byte_arr[i + 0] << 0;
 		dst_tmp |= byte_arr[i + 1] << 1;

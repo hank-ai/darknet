@@ -43,6 +43,9 @@
 // 3rd-party lib headers
 #include <opencv2/opencv.hpp>
 
+#ifdef OPENMP
+#include <omp.h>
+#endif
 
 #define DARKNET_INCLUDE_ORIGINAL_API	// internally we need the old C API
 #include "darknet.h"					// the old C header
