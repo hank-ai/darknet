@@ -217,7 +217,7 @@ std::vector<bbox_t> Detector::detect(std::string image_filename, float thresh, b
 
 image_t Detector::load_image(std::string image_filename)
 {
-	Darknet::Image im = load_image_cv(const_cast<char*>(image_filename.c_str()), 3);
+	Darknet::Image im = Darknet::load_image(const_cast<char*>(image_filename.c_str()), 0, 0, 3);
 
 	image_t img;
 	img.c = im.c;

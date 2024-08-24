@@ -40,7 +40,7 @@
 #endif
 
 
-cv::Mat load_mat_image(const char * const filename, int channels)
+cv::Mat load_rgb_mat_image(const char * const filename, int channels)
 {
 	TAT(TATPARMS);
 
@@ -88,16 +88,6 @@ cv::Mat load_mat_image(const char * const filename, int channels)
 }
 
 
-Darknet::Image load_image_cv(char *filename, int channels)
-{
-	TAT(TATPARMS);
-
-	cv::Mat mat = load_mat_image(filename, channels);
-
-	return Darknet::mat_to_image(mat);
-}
-
-
 static float get_pixel(Darknet::Image m, int x, int y, int c)
 {
 	TAT(TATPARMS);
@@ -105,7 +95,7 @@ static float get_pixel(Darknet::Image m, int x, int y, int c)
 	assert(x < m.w && y < m.h && c < m.c);
 	return m.data[c*m.h*m.w + y*m.w + x];
 }
-// ----------------------------------------
+
 
 void show_image_cv(Darknet::Image p, const char *name)
 {
@@ -353,7 +343,8 @@ Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
 
 		// HSV augmentation
 		// cv::COLOR_BGR2HSV, cv::COLOR_RGB2HSV, cv::COLOR_HSV2BGR, cv::COLOR_HSV2RGB
-		if (dsat != 1 || dexp != 1 || dhue != 0) {
+		if (dsat != 1 || dexp != 1 || dhue != 0)
+		{
 			if (mat.channels() >= 3)	// This only (really) works for c == 3
 			{
 				cv::Mat hsv_src;
@@ -381,13 +372,16 @@ Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
 		//cv::imshow(window_name.str(), sized);
 		//cv::waitKey(0);
 
-		if (blur) {
+		if (blur)
+		{
 			cv::Mat dst(sized.size(), sized.type());
-			if (blur == 1) {
+			if (blur == 1)
+			{
 				cv::GaussianBlur(sized, dst, cv::Size(17, 17), 0);
 				//cv::bilateralFilter(sized, dst, 17, 75, 75);
 			}
-			else {
+			else
+			{
 				int ksize = (blur / 2) * 2 + 1;
 				cv::Size kernel_size = cv::Size(ksize, ksize);
 				cv::GaussianBlur(sized, dst, kernel_size, 0);
@@ -402,10 +396,11 @@ Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
 			}
 			//std::cout << " blur num_boxes = " << num_boxes << std::endl;
 
-			if (blur == 1) {
+			if (blur == 1)
+			{
 				cv::Rect img_rect(0, 0, sized.cols, sized.rows);
-				int t;
-				for (t = 0; t < num_boxes; ++t) {
+				for (int t = 0; t < num_boxes; ++t)
+				{
 					Darknet::Box b = float_to_box_stride(truth + t*truth_size, 1);
 					if (!b.x) break;
 					int left = (b.x - b.w / 2.)*sized.cols;
@@ -421,7 +416,8 @@ Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
 			dst.copyTo(sized);
 		}
 
-		if (gaussian_noise) {
+		if (gaussian_noise)
+		{
 			cv::Mat noise = cv::Mat(sized.size(), sized.type());
 			gaussian_noise = std::min(gaussian_noise, 127);
 			gaussian_noise = std::max(gaussian_noise, 0);

@@ -2,11 +2,6 @@
 #include "im2col.hpp"
 
 
-Darknet::Image float_to_image(int w, int h, int c, float *data);
-Darknet::Image float_to_image_scaled(int w, int h, int c, float *data);
-
-/// @todo V3 remove void show_image_cv(Darknet::Image p, const char *name);
-
 __global__ void binarize_kernel(float *x, int n, float *binary)
 {
 	int i = (blockIdx.x + blockIdx.y*gridDim.x) * blockDim.x + threadIdx.x;
@@ -1213,13 +1208,13 @@ void assisted_excitation_forward_gpu(Darknet::Layer & l, Darknet::NetworkState s
 		for (b = 0; b < l.batch; ++b)
 		{
 			printf(" Assisted Excitation alpha = %f \n", alpha);
-			Darknet::Image img = float_to_image(l.out_w, l.out_h, 1, &gt[l.out_w*l.out_h*b]);
+			Darknet::Image img = Darknet::float_to_image(l.out_w, l.out_h, 1, &gt[l.out_w*l.out_h*b]);
 			char buff[100];
 			sprintf(buff, "a_excitation_gt_%d", b);
 			show_image_cv(img, buff);
 
 			//image img2 = float_to_image(l.out_w, l.out_h, 1, &l.output[l.out_w*l.out_h*l.out_c*b]);
-			Darknet::Image img2 = float_to_image_scaled(l.out_w, l.out_h, 1, &l.output[l.out_w*l.out_h*l.out_c*b]);
+			Darknet::Image img2 = Darknet::float_to_image_scaled(l.out_w, l.out_h, 1, &l.output[l.out_w*l.out_h*l.out_c*b]);
 			char buff2[100];
 			sprintf(buff2, "a_excitation_output_%d", b);
 			show_image_cv(img2, buff2);

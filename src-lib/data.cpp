@@ -713,7 +713,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			float *truth = (float*)xcalloc(truth_size * boxes, sizeof(float));
 			const char *filename = random_paths[i];
 
-			cv::Mat src = load_mat_image(filename, c);
+			cv::Mat src = load_rgb_mat_image(filename, c);
 
 			const int oh = src.rows;	// original height
 			const int ow = src.cols;	// original width

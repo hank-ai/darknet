@@ -5,17 +5,10 @@
 
 /** Load the given image using OpenCV.  Automatically converts the image from the usual OpenCV BGR format to RGB for
  * use in Darknet.
- */
-cv::Mat load_mat_image(const char * const filename, int flag);
-
-
-/** Similar to @ref load_mat_image() but is explicit about the image channels and returns a Darknet-style
- * @ref Darknet::Image.
  *
- * Channels should be @p 0 (colour), @p 1 (grayscale) or @p 3 (colour).  This uses @ref load_mat_image() so the
- * channels will automatically be converted from BGR to RGB.
+ * @see @ref Darknet::load_image()
  */
-Darknet::Image load_image_cv(char *filename, int channels);
+cv::Mat load_rgb_mat_image(const char * const filename, int flag);
 
 void show_image_cv(Darknet::Image p, const char *name);
 
