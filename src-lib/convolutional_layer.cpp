@@ -319,6 +319,27 @@ void create_convolutional_cudnn_tensors(Darknet::Layer *l)
 }
 
 
+#if 0
+std::string to_string(cudnnConvolutionFwdAlgo_t algo)
+{
+	switch(algo)
+	{
+		case CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM:			return "IMPLICIT_GEMM";
+		case CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM:	return "IMPLICIT_PRECOMP_GEMM";
+		case CUDNN_CONVOLUTION_FWD_ALGO_GEMM:					return "GEMM";
+		case CUDNN_CONVOLUTION_FWD_ALGO_DIRECT:					return "DIRECT";
+		case CUDNN_CONVOLUTION_FWD_ALGO_FFT:					return "FFT";
+		case CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING:				return "FFT_TILING";
+		case CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD:				return "WINOGRAD";
+		case CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED:		return "WINOGRAD_NONFUSED";
+		case CUDNN_CONVOLUTION_FWD_ALGO_COUNT:					return "COUNT";
+	}
+
+	return "unknown";
+}
+#endif
+
+
 void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t workspace_size_specify)
 {
 	TAT(TATPARMS);
@@ -420,28 +441,107 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 		conv_fwd_results));
 
 	CHECK_CUDA(cudaMemGetInfo(&free_memory, &total_memory));
+//	std::cout << "CUDA memory: free=" << size_to_IEC_string(free_memory) << " total=" << size_to_IEC_string(total_memory) << std::endl;
+
+	cudaDeviceProp prop;
+	CHECK_CUDA(cudaGetDeviceProperties(&prop, std::max(0, cfg_and_state.gpu_index)));
 
 	found_conv_algorithm = 0;
 	min_time = 1000000;   // 1000 sec
+
 	for (int i = 0; i < returned_algo_count; i++)
 	{
-		if (conv_fwd_results[i].status == CUDNN_STATUS_SUCCESS &&
-			conv_fwd_results[i].algo != CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM && ///< @todo I'm not convinced this is the best fix for issue #1.  See BAD_PARAM at https://docs.nvidia.com/deeplearning/cudnn/release-notes/
-			conv_fwd_results[i].algo != CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED &&
-			conv_fwd_results[i].memory < free_memory &&
-			(conv_fwd_results[i].memory <= workspace_size_specify || cudnn_preference == cudnn_fastest) &&
-			conv_fwd_results[i].time < min_time)
+		/* Summary of a 2015 blog post on cuDNN:  https://developer.nvidia.com/blog/cudnn-v2-higher-performance-deep-learning-gpus/
+		 *
+		 * There are 4 algorithms for forward convolution:
+		 *
+		 * - IMPLICIT_GEMM
+		 * - IMPLICIT_PRECOMP_GEMM
+		 * - GEMM
+		 * - DIRECT
+		 *
+		 * IMPLICIT_GEMM supports all input sizes and requires no extra working space.  When there isn't much memory, or the
+		 * network is large, this is the algorithm to use.
+		 *
+		 * IMPLICIT_PRECOMP_GEMM is a modification of IMPLICIT_GEMM which uses a small amount of working space to achieve
+		 * higher performance than IMPLICIT_GEMM.
+		 *
+		 * GEMM is an "im2col" approach that requires significant working space but in some cases is the fastest approach.
+		 *
+		 * DIRECT is not implemented but is a placeholder for a future feature.
+		 */
+
+#if 0
+		std::cout
+			<< "FWD ALGO:"
+			<< " i="			<< i
+//			<< " name="			<< std::left << std::setw(22) << to_string(conv_fwd_results[i].algo)
+			<< " algo="			<< conv_fwd_results[i].algo
+			<< " status="		<< conv_fwd_results[i].status
+			<< " time="			<< conv_fwd_results[i].time
+			<< " memory="		<< size_to_IEC_string(conv_fwd_results[i].memory)
+			<< " determinism="	<< conv_fwd_results[i].determinism
+			<< " math="			<< conv_fwd_results[i].mathType
+			<< std::endl;
+#endif
+
+		if (conv_fwd_results[i].status != CUDNN_STATUS_SUCCESS)
+		{
+			// algorithm is not supported, so skip to the next one
+			continue;
+		}
+
+		if (conv_fwd_results[i].algo == CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED)
+		{
+			/// @todo V3 why are we skipping this algorithm?
+			continue;
+		}
+
+		if (conv_fwd_results[i].algo == CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM)
+		{
+			/* The IMPLICIT_PRECOMP_GEMM algorithm causes problems for some people.  Maybe due to low memory?
+			 *
+			 * For example, see:  https://github.com/hank-ai/darknet/pull/36
+			 *
+			 * If you get a cuDNN status of BAD_PARAM during the mAP calculations, this algorithms may need to be skipped.
+			 * For now, because we don't understand the exact cause of the error, we'll only skip it on older GPUs.
+			 *
+			 *		- major=6, minor=x, "Pascal":  GTX 10xx, Quadro Pxxxx, Tesla P4
+			 *		- major=7, minor=5, "Turing":  RTX 20xx, GTX 16xx, Quadro RTX, Tesla T4
+			 *		- major=8, minor=6, "Ampere":  RTX 30xx, A6xxx, A5xxx
+			 *		- major=8, minor=9, "Lovelace":  RTX 40xx
+			 *		- major=9, minor=x, "Hopper":  RTX 50xx
+			 *
+			 * If you think you've run into this error and you'd like to skip this algorithm, change the version number
+			 * we verify against on the next line from "86" to a very large value such as "999".
+			 */
+			if ((prop.major * 10 + prop.minor) < 86)
+			{
+				continue;
+			}
+		}
+
+		if (conv_fwd_results[i].time >= min_time)
+		{
+			// this algorithm is slower, or the same as a previous algo we already selected
+			continue;
+		}
+
+		if (conv_fwd_results[i].memory < free_memory &&
+			(conv_fwd_results[i].memory <= workspace_size_specify || cudnn_preference == cudnn_fastest))
 		{
 			found_conv_algorithm = 1;
 			l->fw_algo = conv_fwd_results[i].algo;
+
+			// use the algo with the lowest time; if there are multiple algos with the exact same time,
+			// then we end up using the first one in the list returned by cudnn
 			min_time = conv_fwd_results[i].time;
-			//printf(" - cuDNN FWD algo: %d, time = %f ms \n", l->fw_algo, min_time);
 		}
 	}
 
 	if (!found_conv_algorithm)
 	{
-		darknet_fatal_error(DARKNET_LOC, "cuDNN did not find FWD algo for convolution");
+		darknet_fatal_error(DARKNET_LOC, "cuDNN did not find a usable algorithm to use for forward convolution");
 	}
 	//printf(" cuDNN FWD algo: %d, time = %f ms \n", l->fw_algo, min_time);
 
@@ -477,7 +577,7 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 
 	if (!found_conv_algorithm)
 	{
-		darknet_fatal_error(DARKNET_LOC, "cuDNN did not find BWD-data algo for convolution");
+		darknet_fatal_error(DARKNET_LOC, "cuDNN did not find a usable algorithm to use for backward convolution");
 	}
 	//printf(" cuDNN BWD-data algo: %d \n", l->bd_algo);
 
