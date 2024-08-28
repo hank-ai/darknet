@@ -278,7 +278,7 @@ void Darknet::display_usage()
 		<< "command-line parsing, but with time all commands will be retrofited to"					<< std::endl
 		<< "use this new format."																	<< std::endl
 		<< ""																						<< std::endl
-		<< "Several example commands:"																<< std::endl
+		<< "Several example commands to run:"														<< std::endl
 		<< ""																						<< std::endl
 		<< "  Recalculate YOLO anchors:"															<< std::endl
 		<< YELLOW("    darknet detector calcanchors cars.data -show -num_of_clusters 6 -width 320 -height 160") << std::endl
@@ -286,20 +286,30 @@ void Darknet::display_usage()
 		<< "  Train a new network:"																	<< std::endl
 		<< YELLOW("    darknet detector train -map -dont_show cars.data cars.cfg")					<< std::endl
 		<< ""																						<< std::endl
-		<< "  Train a network starting from pre-existing weights:"									<< std::endl
+		<< "  Train a network starting using existing weights:"										<< std::endl
 		<< YELLOW("    darknet detector train -map -dont_show -clear cars.data cars.cfg cars_best.weights") << std::endl
 		<< ""																						<< std::endl
 		<< "  Check the mAP% results:"																<< std::endl
 		<< YELLOW("    darknet detector map cars.data cars.cfg cars_best.weights")					<< std::endl
 		<< ""																						<< std::endl
-		<< "  Apply the neural network to an image and show the results:"							<< std::endl
-		<< YELLOW("    darknet detector test cars.data cars.cfg cars_best.weights image1.jpg")		<< std::endl
-		<< ""																						<< std::endl
 		<< "  Apply the neural network to an image and save the results to disk:"					<< std::endl
 		<< YELLOW("    darknet detector test -dont_show cars.data cars.cfg cars_best.weights image1.jpg") << std::endl
+		<< "  The equivalent V3 simplified command:"												<< std::endl
+		<< YELLOW("    darknet_01_inference_images cars.cfg image1.jpg")							<< std::endl
+		<< ""																						<< std::endl
+		<< "  Apply the neural network to an image and show the results:"							<< std::endl
+		<< YELLOW("    darknet detector test cars.data cars.cfg cars_best.weights image1.jpg")		<< std::endl
+		<< "  The equivalent V3 simplified command:"												<< std::endl
+		<< YELLOW("    darknet_02_display_annotated_images cars.cfg image1.jpg")					<< std::endl
 		<< ""																						<< std::endl
 		<< "  Apply the neural network to a video:"													<< std::endl
 		<< YELLOW("    darknet detector demo cars.data cars.cfg cars_best.weights -ext_output video1.mp4") << std::endl
+		<< "  The equivalent V3 simplified command to display the video in \"realtime\":"			<< std::endl
+		<< YELLOW("    darknet_03_display_videos cars.cfg video1.mp4")								<< std::endl
+		<< "  The equivalent V3 simplified command to process the video using a single thread:"		<< std::endl
+		<< YELLOW("    darknet_04_process_videos cars.cfg video1.mp4")								<< std::endl
+		<< "  The equivalent V3 simplified command to process the video using multiple threads:"	<< std::endl
+		<< YELLOW("    darknet_05_process_videos_multithreaded cars.cfg video1.mp4")				<< std::endl
 		<< ""																						<< std::endl
 		<< "  Create an output video:"																<< std::endl
 		<< YELLOW("    darknet detector demo cars.data cars.cfg cars_best.weights video1.mp4 -out_filename output.avi") << std::endl

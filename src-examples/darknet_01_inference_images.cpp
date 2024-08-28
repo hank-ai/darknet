@@ -2,7 +2,7 @@
 
 /** @file
  * This application will print to @p STDOUT details on each object detected in an image.
- * Call it like this:
+ * Output images are saved to disk.  Call it like this:
  *
  *     darknet_01_inference_images LegoGears DSCN1580_frame_000034.jpg
  *
@@ -32,11 +32,34 @@ int main(int argc, char * argv[])
 		{
 			if (parm.type == Darknet::EParmType::kFilename)
 			{
-				std::cout << "predicting " << parm.string << ":" << std::endl;
-				const auto results = Darknet::predict(net, parm.string);
+				const std::filesystem::path input_filename(parm.string);
+
+				std::cout << "loading " << input_filename << std::endl;
+				cv::Mat mat = cv::imread(input_filename);
+				if (mat.empty())
+				{
+					std::cout << "...invalid image?" << std::endl;
+					continue;
+				}
 
 				// output all of the predictions on the console as plain text
+				const auto results = Darknet::predict(net, input_filename);
 				std::cout << results << std::endl;
+
+				// save the annotated image to disk
+				cv::Mat output = Darknet::annotate(net, results, mat);
+				std::string output_filename = input_filename.stem().string() + "_output";
+#if 1
+				output_filename += ".jpg";
+				const bool successful = cv::imwrite(output_filename, output, {cv::ImwriteFlags::IMWRITE_JPEG_QUALITY, 70});
+#else
+				output_filename += ".png";
+				const bool successful = cv::imwrite(output_filename, output, {cv::ImwriteFlags::IMWRITE_PNG_COMPRESSION, 5});
+#endif
+				if (not successful)
+				{
+					std::cout << "failed to save the output to " << output_filename << std::endl;
+				}
 			}
 		}
 

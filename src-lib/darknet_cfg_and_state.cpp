@@ -93,7 +93,10 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 //			"darknet", "detector", "train", "-map", "-dont_show", "LegoGears.data", "LegoGears.cfg"
 
 			// calculate mAP%
-			"darknet", "detector", "map", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights"
+//			"darknet", "detector", "map", "LegoGears.cfg", "LegoGears.data", "LegoGears_best.weights"
+
+			// recalculate anchors
+			"darknet", "detector", "calcanchors", "LegoGears.data", "-show", "-num_of_clusters", "6", "-width", "224", "-height", "160"
 		};
 
 		int c = cmd.size();

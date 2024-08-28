@@ -163,28 +163,28 @@ box_label *read_boxes(char *filename, int *n)
 	if (!file)
 	{
 		darknet_fatal_error(DARKNET_LOC, "failed to open annotation file \"%s\"", filename);
-		}
+	}
 
 	const int max_obj_img = 4000;// 30000;
 	const int img_hash = (custom_hash(filename) % max_obj_img)*max_obj_img;
-	//printf(" img_hash = %d, filename = %s; ", img_hash, filename);
 	float x, y, h, w;
 	int id;
 	int count = 0;
 	while(fscanf(file, "%d %f %f %f %f", &id, &x, &y, &w, &h) == 5)
 	{
+//		std::cout << "x=" << x << " y=" << y << " w=" << w << " h=" << h << std::endl;
+
 		boxes = (box_label*)xrealloc(boxes, (count + 1) * sizeof(box_label));
 		boxes[count].track_id = count + img_hash;
-		//printf(" boxes[count].track_id = %d, count = %d \n", boxes[count].track_id, count);
 		boxes[count].id = id;
 		boxes[count].x = x;
 		boxes[count].y = y;
 		boxes[count].h = h;
 		boxes[count].w = w;
-		boxes[count].left   = x - w/2;
-		boxes[count].right  = x + w/2;
-		boxes[count].top    = y - h/2;
-		boxes[count].bottom = y + h/2;
+		boxes[count].left   = x - w / 2.0f;
+		boxes[count].right  = x + w / 2.0f;
+		boxes[count].top    = y - h / 2.0f;
+		boxes[count].bottom = y + h / 2.0f;
 		++count;
 	}
 

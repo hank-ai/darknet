@@ -1762,7 +1762,8 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 			if (truth[j].x > 1 || truth[j].x <= 0 || truth[j].y > 1 || truth[j].y <= 0 ||
 				truth[j].w > 1 || truth[j].w <= 0 || truth[j].h > 1 || truth[j].h <= 0)
 			{
-				darknet_fatal_error(DARKNET_LOC, "invalid annotation coordinates or size for class #%d in %s", truth[j].id, labelpath);
+				darknet_fatal_error(DARKNET_LOC, "invalid annotation coordinates or size (x=%f, y=%f, w=%f, h=%f) for class #%d in %s line #%d",
+						truth[j].x, truth[j].y, truth[j].w, truth[j].h, truth[j].id, labelpath, j+1);
 			}
 
 			if (truth[j].id >= classes)
