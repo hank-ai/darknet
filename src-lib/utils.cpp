@@ -263,26 +263,6 @@ void find_replace(const char* str, char* orig, char* rep, char* output)
 	free(buffer);
 }
 
-void trim(char *str)
-{
-	TAT(TATPARMS);
-
-	char* buffer = (char*)xcalloc(8192, sizeof(char));
-	sprintf(buffer, "%s", str);
-
-	char *p = buffer;
-	while (*p == ' ' || *p == '\t') ++p;
-
-	char *end = p + strlen(p) - 1;
-	while (*end == ' ' || *end == '\t') {
-		*end = '\0';
-		--end;
-	}
-	sprintf(str, "%s", p);
-
-	free(buffer);
-}
-
 void replace_image_to_label(const char* input_path, char* output_path)
 {
 	TAT(TATPARMS);

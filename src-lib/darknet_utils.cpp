@@ -235,6 +235,34 @@ std::string Darknet::text_to_simple_label(std::string txt)
 }
 
 
+std::string Darknet::trim(const std::string & str)
+{
+	std::string txt = str;
+	trim(txt);
+	return txt;
+}
+
+
+std::string & Darknet::trim(std::string & str)
+{
+	// trim trailing whitespace characters
+	auto pos = str.find_last_not_of(" \t\r\n");
+	if (pos != std::string::npos)
+	{
+		str.erase(pos + 1);
+	}
+
+	// trim leading whitespace characters
+	pos = str.find_first_not_of(" \t\r\n");
+	if (pos != std::string::npos)
+	{
+		str.erase(0, pos);
+	}
+
+	return str;
+}
+
+
 void Darknet::initialize_new_charts(const Darknet::Network & net)
 {
 	TAT(TATPARMS);
@@ -310,12 +338,7 @@ std::string Darknet::get_command_output(const std::string & cmd)
 			std::ignore = pclose(f);
 		});
 
-	if (pipe == nullptr)
-	{
-		darknet_fatal_error(DARKNET_LOC, "failed to open a pipe to run %s", cmd.c_str());
-	}
-
-	while (true)
+	while (pipe)
 	{
 		char buffer[200];
 		const auto number_of_bytes = std::fread(buffer, 1, sizeof(buffer), pipe.get());

@@ -18,6 +18,11 @@ namespace Darknet
 	 */
 	std::string text_to_simple_label(std::string txt);
 
+	/// @{ Trim leading and trailing whitespace from the given string.
+	std::string trim(const std::string & str);
+	std::string & trim(std::string & str);
+	/// @}
+
 	/// Setup the new C++ charts.  This is called once just prior to starting training.  @see @ref Chart
 	void initialize_new_charts(const Darknet::Network & net);
 

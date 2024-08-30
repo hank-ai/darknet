@@ -202,40 +202,56 @@ void Darknet::show_version_info()
 	#ifdef WIN32
 	std::cout << ", Windows";
 	#else
-	std::ifstream ifs("/etc/lsb-release");
-	if (ifs.good())
+	const std::string lsb_release = "/etc/lsb-release";
+	if (std::filesystem::exists(lsb_release))
 	{
-		std::string id;
-		std::string release;
-
-		std::string line;
-		while (std::getline(ifs, line))
+		std::ifstream ifs(lsb_release);
+		if (ifs.good())
 		{
-			const size_t pos = line.find("=");
-			if (pos == std::string::npos)
+			std::string id;
+			std::string release;
+
+			std::string line;
+			while (std::getline(ifs, line))
 			{
-				continue;
+				// for example, the line could be "DISTRIB_ID=Ubuntu"
+
+				const size_t pos = line.find("=");
+				if (pos == std::string::npos)
+				{
+					continue;
+				}
+				const std::string key = line.substr(0, pos);
+				const std::string val = line.substr(pos + 1);
+
+				if (key == "DISTRIB_ID")		id = val;
+				if (key == "DISTRIB_RELEASE")	release = val;
 			}
 
-			// for example, the line could be "DISTRIB_ID=Ubuntu"
-			const std::string key = line.substr(0, pos);
-			const std::string val = line.substr(pos + 1);
-
-			if (key == "DISTRIB_ID")		id = val;
-			if (key == "DISTRIB_RELEASE")	release = val;
-		}
-
-		if (not id.empty())
-		{
-			std::cout << ", " << id;
-
-			if (not release.empty())
+			if (not id.empty())
 			{
-				std::cout << " " <<
-				Darknet::in_colour(Darknet::EColour::kBrightWhite, release);
+				std::cout << ", " << id;
+
+				if (not release.empty())
+				{
+					std::cout << " " <<
+					Darknet::in_colour(Darknet::EColour::kBrightWhite, release);
+				}
 			}
 		}
 	}
+
+	// attempt to log if we're running in WSL or some other unusual environment
+	const std::string detect_virt = "/usr/bin/systemd-detect-virt";
+	if (std::filesystem::exists(detect_virt))
+	{
+		std::string output = Darknet::trim(Darknet::get_command_output(detect_virt));
+		if (not output.empty() and output != "none")
+		{
+			std::cout << ", " << output;
+		}
+	}
+
 	#endif
 
 	std::cout << std::endl;
