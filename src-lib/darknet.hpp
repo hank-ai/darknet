@@ -97,9 +97,9 @@ namespace Darknet
 	struct Parm
 	{
 		int idx;				///< Index into the original @p argv[] array.
-		EParmType type;
-		std::string original;
-		std::string string;
+		EParmType type;			///< What we determined this parameter represents.
+		std::string original;	///< The original text for this parameter.  Use @ref string instead.
+		std::string string;		///< The value to use for this parameter.
 	};
 
 	/** Structure returned by @ref Darknet::parse_arguments().
@@ -388,6 +388,24 @@ namespace Darknet
 	 * @since 2024-08-06
 	 */
 	const Darknet::VScalars & get_class_colours(const Darknet::NetworkPtr ptr);
+
+	/** Get the filename of the configuration file that was used to load this neural network.
+	 *
+	 * @since 2024-08-29
+	 */
+	std::filesystem::path get_config_filename(const Darknet::NetworkPtr ptr);
+
+	/** Get the filename of the names file that was used to load this neural network.
+	 *
+	 * @since 2024-08-29
+	 */
+	std::filesystem::path get_names_filename(const Darknet::NetworkPtr ptr);
+
+	/** Get the filename of the weights file that was used to load this neural network.
+	 *
+	 * @since 2024-08-29
+	 */
+	std::filesystem::path get_weights_filename(const Darknet::NetworkPtr ptr);
 
 	/** Display some information about this specific prediction.
 	 *

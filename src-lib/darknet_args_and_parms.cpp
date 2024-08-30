@@ -310,11 +310,10 @@ void Darknet::display_usage()
 		<< YELLOW("    darknet_04_process_videos cars.cfg video1.mp4")								<< std::endl
 		<< "  The equivalent V3 simplified command to process the video using multiple threads:"	<< std::endl
 		<< YELLOW("    darknet_05_process_videos_multithreaded cars.cfg video1.mp4")				<< std::endl
+		<< "  The previous V3 commands will generate an output video.  The equivalent V2-style command is:" << std::endl
+		<< YELLOW("    darknet detector demo cars.data cars.cfg cars_best.weights video1.mp4 -out_filename output.mp4") << std::endl
 		<< ""																						<< std::endl
-		<< "  Create an output video:"																<< std::endl
-		<< YELLOW("    darknet detector demo cars.data cars.cfg cars_best.weights video1.mp4 -out_filename output.avi") << std::endl
-		<< ""																						<< std::endl
-		<< "  Display the weights from diferent layers in a neural network:"						<< std::endl
+		<< "  Display the weights from different layers in a neural network:"						<< std::endl
 		<< YELLOW("    darknet visualize --verbose cars.cfg cars_best.weights")						<< std::endl
 		<< ""																						<< std::endl
 		;

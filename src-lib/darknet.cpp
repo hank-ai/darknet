@@ -1030,6 +1030,48 @@ const Darknet::VScalars & Darknet::get_class_colours(const Darknet::NetworkPtr p
 }
 
 
+std::filesystem::path Darknet::get_config_filename(const Darknet::NetworkPtr ptr)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot get the configuration filename without a network pointer");
+	}
+
+	return net->details->cfg_path;
+}
+
+
+std::filesystem::path Darknet::get_names_filename(const Darknet::NetworkPtr ptr)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot get the names filename without a network pointer");
+	}
+
+	return net->details->names_path;
+}
+
+
+std::filesystem::path Darknet::get_weights_filename(const Darknet::NetworkPtr ptr)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot get the weights filename without a network pointer");
+	}
+
+	return net->details->weights_path;
+}
+
+
 std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Prediction & pred)
 {
 	TAT(TATPARMS);
