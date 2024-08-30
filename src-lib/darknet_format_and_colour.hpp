@@ -1,3 +1,7 @@
+/* Darknet/YOLO:  https://github.com/hank-ai/darknet
+ * Copyright 2024 Stephane Charette
+ */
+
 #pragma once
 
 #include "darknet_internal.hpp"

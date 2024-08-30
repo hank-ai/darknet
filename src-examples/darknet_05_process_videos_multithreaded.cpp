@@ -1,3 +1,7 @@
+/* Darknet/YOLO:  https://github.com/hank-ai/darknet
+ * Copyright 2024 Stephane Charette
+ */
+
 #include "darknet.hpp"
 #include "darknet_image.hpp"
 
@@ -234,7 +238,7 @@ int main(int argc, char * argv[])
 {
 	try
 	{
-		std::cout << "Darknet v" << DARKNET_VERSION_SHORT << std::endl;
+		Darknet::show_version_info();
 
 		Darknet::Parms parms = Darknet::parse_arguments(argc, argv);
 		net = Darknet::load_neural_network(parms);

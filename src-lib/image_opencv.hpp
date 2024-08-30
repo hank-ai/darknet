@@ -26,5 +26,3 @@ void blend_images_cv(Darknet::Image new_img, float alpha, Darknet::Image old_img
 
 // Show Anchors
 void show_anchors(int number_of_boxes, int num_of_clusters, float *rel_width_height_array, model anchors_data, int width, int height);
-
-void show_opencv_info();

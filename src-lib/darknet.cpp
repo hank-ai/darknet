@@ -184,6 +184,64 @@ extern "C"
 }
 
 
+void Darknet::show_version_info()
+{
+	TAT(TATPARMS);
+
+	std::cout << "Darknet " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
+
+	#ifndef GPU
+	Darknet::display_warning_msg("Darknet is compiled to only use the CPU.");
+	std::cout << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
+	#else
+	show_cuda_cudnn_info();
+	#endif
+
+	std::cout << "OpenCV " << Darknet::in_colour(Darknet::EColour::kBrightWhite, "v" CV_VERSION);
+
+	#ifdef WIN32
+	std::cout << ", Windows";
+	#else
+	std::ifstream ifs("/etc/lsb-release");
+	if (ifs.good())
+	{
+		std::string id;
+		std::string release;
+
+		std::string line;
+		while (std::getline(ifs, line))
+		{
+			const size_t pos = line.find("=");
+			if (pos == std::string::npos)
+			{
+				continue;
+			}
+
+			// for example, the line could be "DISTRIB_ID=Ubuntu"
+			const std::string key = line.substr(0, pos);
+			const std::string val = line.substr(pos + 1);
+
+			if (key == "DISTRIB_ID")		id = val;
+			if (key == "DISTRIB_RELEASE")	release = val;
+		}
+
+		if (not id.empty())
+		{
+			std::cout << ", " << id;
+
+			if (not release.empty())
+			{
+				std::cout << " " <<
+				Darknet::in_colour(Darknet::EColour::kBrightWhite, release);
+			}
+		}
+	}
+	#endif
+
+	std::cout << std::endl;
+}
+
+
 Darknet::Parms Darknet::parse_arguments(int argc, char * argv[])
 {
 	TAT(TATPARMS);

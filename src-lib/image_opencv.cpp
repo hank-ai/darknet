@@ -21,12 +21,6 @@
 #endif
 
 
-#ifdef DEBUG
-#define OCV_D "d"
-#else
-#define OCV_D
-#endif//DEBUG
-
 #ifndef CV_RGB
 #define CV_RGB(r, g, b) cvScalar( (b), (g), (r) )
 #endif
@@ -510,17 +504,4 @@ void show_anchors(int number_of_boxes, int num_of_clusters, float *rel_width_hei
 	cv::imshow("clusters", img);
 	cv::waitKey(0);
 	cv::destroyAllWindows();
-}
-
-
-void show_opencv_info()
-{
-	TAT(TATPARMS);
-
-	std::cout
-		<< "OpenCV "
-		<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
-		<< "v" << CV_VERSION_MAJOR << "." << CV_VERSION_MINOR << "." << CVAUX_STR(CV_VERSION_REVISION) OCV_D
-		<< Darknet::in_colour(Darknet::EColour::kNormal)
-		<< std::endl;
 }

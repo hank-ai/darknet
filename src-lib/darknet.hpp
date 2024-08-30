@@ -1,3 +1,7 @@
+/* Darknet/YOLO:  https://github.com/hank-ai/darknet
+ * Copyright 2024 Stephane Charette
+ */
+
 #pragma once
 
 #ifndef __cplusplus
@@ -107,6 +111,12 @@ namespace Darknet
 	 * @since 2024-07-29
 	 */
 	using Parms = std::vector<Parm>;
+
+	/** Display a few lines of text with some version information.
+	 *
+	 * @since 2024-08-29
+	 */
+	void show_version_info();
 
 	/** Parse common %Darknet command-line parameters with the values from @p argc and @p argv in @p main().
 	 * Output can be used with @ref Darknet::load_neural_network().

@@ -507,27 +507,21 @@ int main(int argc, char **argv)
 
 		errno = 0;
 
-		std::cout << "Darknet " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
-
 		cfg_and_state.gpu_index = find_int_arg(argc, argv, "-i", 0);
 
 #ifndef GPU
 		cfg_and_state.gpu_index = -1;
-		Darknet::display_warning_msg("Darknet is compiled to only use the CPU.");
-		std::cout << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
 		init_cpu();
-#else   // GPU
+#else
 		if (cfg_and_state.gpu_index >= 0)
 		{
 			cuda_set_device(cfg_and_state.gpu_index);
 			CHECK_CUDA(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
 		}
-
-		show_cuda_cudnn_info();
 		cuda_debug_sync = find_arg(argc, argv, "-cuda_debug_sync");
 #endif
 
-		show_opencv_info();
+		Darknet::show_version_info();
 
 		errno = 0;
 
