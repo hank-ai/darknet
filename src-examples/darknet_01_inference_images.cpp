@@ -39,7 +39,7 @@ int main(int argc, char * argv[])
 				const std::filesystem::path input_filename(parm.string);
 
 				std::cout << "loading " << input_filename << std::endl;
-				cv::Mat mat = cv::imread(input_filename);
+				cv::Mat mat = cv::imread(input_filename.string());
 				if (mat.empty())
 				{
 					std::cout << "...invalid image?" << std::endl;

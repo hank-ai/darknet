@@ -1081,7 +1081,7 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, const std::
 		throw std::invalid_argument("cannot predict due to invalid image filename: \"" + image_filename.string() + "\"");
 	}
 
-	cv::Mat mat = cv::imread(image_filename);
+	cv::Mat mat = cv::imread(image_filename.string());
 
 	return predict(ptr, mat);
 }

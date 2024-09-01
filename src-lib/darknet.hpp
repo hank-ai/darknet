@@ -10,6 +10,7 @@
 
 /** @file
  * Include this file to get access to the new Darknet V3 C++ API.
+ * https://darknetcv.ai/api/api.html
  */
 
 #include <filesystem>
@@ -19,6 +20,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <ciso646>
 
 #include <opencv2/opencv.hpp>
 

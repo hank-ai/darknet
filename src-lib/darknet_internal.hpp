@@ -20,6 +20,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <ciso646>
 
 // C++ headers
 #include <atomic>
@@ -296,9 +297,6 @@ typedef struct box_label {
 	float x, y, w, h;
 	float left, right, top, bottom;
 } box_label;
-
-// -----------------------------------------------------
-
 
 
 // layer.h
