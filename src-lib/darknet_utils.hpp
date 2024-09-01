@@ -23,6 +23,11 @@ namespace Darknet
 	std::string & trim(std::string & str);
 	/// @}
 
+	/// @{ Simple conversion of the string to lowercase.
+	std::string lowercase(const std::string & str);
+	std::string & lowercase(std::string & str);
+	/// @}
+
 	/// Setup the new C++ charts.  This is called once just prior to starting training.  @see @ref Chart
 	void initialize_new_charts(const Darknet::Network & net);
 

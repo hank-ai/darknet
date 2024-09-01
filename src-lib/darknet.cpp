@@ -295,10 +295,100 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 		parms.push_back(parm);
 	}
 
+	// before we start looking at the parms, we need to expand wildcards (globbing)
+	// (mostly for Windows, on Linux this is normally handled by the shell)
+	for (int idx = 0; idx < parms.size(); idx ++)
+	{
+		auto parm = parms[idx]; // not by reference since we may resize the vector below
+
+		if (parm.string.find_first_of("?*") == std::string::npos)
+		{
+			continue;
+		}
+
+		// if we get here, then we have either a "*" or "?"
+		if (cfg_and_state.is_trace)
+		{
+			std::cout << "-> performing file globbing with parameter \"" << parm.original << "\"" << std::endl;
+		}
+		std::filesystem::path path(parm.original);
+		std::filesystem::path parent = path.parent_path();
+		if (parent.empty())
+		{
+			parent = std::filesystem::current_path();
+		}
+
+		if (not std::filesystem::exists(parent))
+		{
+			// not much we can do with this parm, we have no idea what it is
+			if (cfg_and_state.is_trace)
+			{
+				std::cout << "-> failed to find parent directory " << parent << std::endl;
+			}
+			continue;
+		}
+
+		// convert the filename to a regular expression
+		std::string txt;
+		for (const char & c : path.filename().string())
+		{
+			if (c == '.')
+			{
+				txt += "\\.";
+			}
+			else if (c == '?')
+			{
+				txt += ".";
+			}
+			else if (c == '*')
+			{
+				txt += ".*";
+			}
+			else
+			{
+				// file globbing is primarily for Windows, which is case insensitive, so go ahead
+				// and convert the name to lowercase and we'll do a case-insensitive compare below
+				//
+				// yes, this will be strange behaviour on Linux, but we shouldn't even be doing file
+				// globbing on Linux since the shell normally takes care of all this
+				txt += std::tolower(c);
+			}
+		}
+
+		const std::regex rx(txt);
+		VStr filenames_which_matched;
+		for (const auto & entry : std::filesystem::directory_iterator(parent))
+		{
+			std::string fn = Darknet::lowercase(entry.path().filename().string());
+
+			if (std::regex_match(fn, rx))
+			{
+				filenames_which_matched.push_back(entry.path().string());
+			}
+		}
+
+		if (not filenames_which_matched.empty())
+		{
+			// great, we found some matching filenames!
+			// so remove this parameter, and insert the filenames instead
+			std::sort(filenames_which_matched.begin(), filenames_which_matched.end());
+
+			for (const auto & fn : filenames_which_matched)
+			{
+				Darknet::Parm p = parm;
+				p.string = fn;
+				parms.push_back(p);
+			}
+
+			parms.erase(parms.begin() + idx);
+			idx --;
+		}
+	}
+
 	// 1st step:  see if we can identify the 3 files we need to load the network
 	for (auto & parm : parms)
 	{
-		std::filesystem::path path(parm.original);
+		std::filesystem::path path(parm.string);
 		if (not std::filesystem::exists(path))
 		{
 			continue;

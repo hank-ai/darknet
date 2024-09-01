@@ -263,6 +263,27 @@ std::string & Darknet::trim(std::string & str)
 }
 
 
+std::string Darknet::lowercase(const std::string & str)
+{
+	std::string txt = str;
+	lowercase(txt);
+	return txt;
+}
+
+
+std::string & Darknet::lowercase(std::string & str)
+{
+	std::transform(str.begin(), str.end(), str.begin(),
+		[](unsigned char c)
+		{
+			return std::tolower(c);
+		});
+
+	return str;
+
+}
+
+
 void Darknet::initialize_new_charts(const Darknet::Network & net)
 {
 	TAT(TATPARMS);
