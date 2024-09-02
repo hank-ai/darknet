@@ -26,7 +26,7 @@ int main(int argc, char * argv[])
 		Darknet::Parms parms = Darknet::parse_arguments(argc, argv);
 		Darknet::NetworkPtr net = Darknet::load_neural_network(parms);
 
-		const std::filesystem::path json_path = std::filesystem::canonical("output.json");
+		const std::filesystem::path json_path = "output.json";
 		std::filesystem::remove(json_path);
 
 		JSON json;
@@ -84,11 +84,12 @@ int main(int argc, char * argv[])
 		{
 			std::ofstream ofs(json_path);
 			ofs << std::setw(4) << json << std::endl;
-			std::cout
-				<< "-> JSON results ....... " << json_path.string()		<< std::endl
-				<< "-> images processed ... " << json["file"].size()	<< std::endl
-				<< "-> objects detected ... " << total_objects_detected	<< std::endl;
+			ofs.close();
 
+			std::cout
+				<< "-> JSON results ....... " << std::filesystem::canonical(json_path).string()	<< std::endl
+				<< "-> images processed ... " << json["file"].size()							<< std::endl
+				<< "-> objects detected ... " << total_objects_detected							<< std::endl;
 		}
 
 		Darknet::free_neural_network(net);
