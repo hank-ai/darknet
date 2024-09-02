@@ -40,8 +40,8 @@ cv::VideoCapture open_and_configure_camera(cv::VideoCapture & cap)
 {
 	std::cout << "Opening webcam..." << std::endl;
 
-//	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_ANY; // let OpenCV choose a back-end to use
-	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_V4L2;
+	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_ANY; // let OpenCV choose a back-end to use
+//	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_V4L2;
 //	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_FFMPEG;
 //	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_GSTREAMER;
 

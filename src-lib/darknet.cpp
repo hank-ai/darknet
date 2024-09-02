@@ -236,7 +236,7 @@ void Darknet::show_version_info()
 	std::cout << "OpenCV " << Darknet::in_colour(Darknet::EColour::kBrightWhite, "v" CV_VERSION);
 
 	#ifdef WIN32
-	std::cout << ", " << get_windows_version() << std::endl;
+	std::cout << ", " << get_windows_version();
 	#else
 	const std::string lsb_release = "/etc/lsb-release";
 	if (std::filesystem::exists(lsb_release))
