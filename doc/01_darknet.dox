@@ -13,13 +13,16 @@ Browse <a target="_blank" href="https://hank.ai/darknet-welcomes-hank-ai-as-offi
 
 @section using_cli Using Darknet/YOLO
 
-- Take a look at the %Darknet example applications in @p src-examples/ to see a list of commands to run.
+- Run @p "darknet help" to get a list of common commands to run.
+	- On Linux, if you completed the build and installation steps, all of the %Darknet commands should have been installed to @p /usr/bin/, such as @p /usr/bin/darknet.
+	- On Windows, if you completed the build and installation steps, all of the %Darknet commands should have been installed to @p "C:/Program Files/Darknet/bin/", such as @p "C:/Program Files/Darknet/bin/darknet.exe".
+- Take a look at the %Darknet example applications in <a href="files.html">src-examples/</a> to see a list of possible commands to run.
 	- If you'd like to train your own Darknet/YOLO neural network, see the FAQ:  <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#training_command">https://www.ccoderun.ca/programming/darknet_faq/#training_command</a>.
-- Both the original @p pjreddie and @p alexeyab %Darknet repos are no longer used.  Please update to <a target="_blank" href="https://github.com/hank-ai/darknet">the new Darknet/YOLO repo</a>.
-	- For additional details, see the FAQ:  <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid">https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid</a>.
 
 @section other Other Darknet/YOLO Projects
 
+- Both the original @p pjreddie and @p alexeyab %Darknet repos are no longer used.  Please update to <a target="_blank" href="https://github.com/hank-ai/darknet">the new Darknet/YOLO repo</a>.
+	- For additional details, see the FAQ:  <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid">https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid</a>.
 - <a target="_blank" href="https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-c-api">DarkHelp</a> is a professional, free, open-source CLI tool and C/C++/Python API to use Darknet/YOLO.
 - <a target="_blank" href="https://github.com/stephanecharette/DarkMark#what-is-darkmark">DarkMark</a> is a free open-source tool for managing Darknet/YOLO project, annotating images, videos, and PDFs, and generating Darknet/YOLO training projects.
 - <a target="_blank" href="https://www.youtube.com/c/StephaneCharette/videos">Stéphane's YouTube channel</a> with many Darknet/YOLO "How-To" videos.
