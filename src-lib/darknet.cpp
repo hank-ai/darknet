@@ -1,6 +1,42 @@
 #include "darknet_internal.hpp"
 
 
+#ifdef WIN32
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+
+std::string get_windows_version()
+{
+	// Oh, this is ugly...why is it so complicated to get an accurate version number or product name from Windows?
+
+	std::string txt = "Windows";
+
+	HMODULE module = LoadLibrary("winbrand.dll");
+	if (module)
+	{
+		wchar_t * (WINAPI * BrandingFormatString)(const wchar_t *);
+		(FARPROC&)BrandingFormatString = GetProcAddress(module, "BrandingFormatString");
+
+		if (BrandingFormatString)
+		{
+			// this should return a wide string like "Windows 11 Home"
+			wchar_t * name = BrandingFormatString(L"%WINDOWS_LONG%");
+
+			char buffer[200] = "";
+			std::wcstombs(buffer, name, sizeof(buffer));
+			txt = buffer;
+
+			GlobalFree((HGLOBAL)name);
+		}
+
+		FreeLibrary(module);
+	}
+
+	return txt;
+}
+#endif
+
+
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
@@ -200,7 +236,7 @@ void Darknet::show_version_info()
 	std::cout << "OpenCV " << Darknet::in_colour(Darknet::EColour::kBrightWhite, "v" CV_VERSION);
 
 	#ifdef WIN32
-	std::cout << ", Windows";
+	std::cout << ", " << get_windows_version() << std::endl;
 	#else
 	const std::string lsb_release = "/etc/lsb-release";
 	if (std::filesystem::exists(lsb_release))
