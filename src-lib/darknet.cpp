@@ -675,6 +675,19 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 		}
 	}
 
+	if (cfg_and_state.is_trace)
+	{
+		for (size_t idx = 0; idx < parms.size(); idx ++)
+		{
+			std::cout << "Parameter parsing: #" << idx << " [type " << (int)parms[idx].type << "] -> " << parms[idx].string;
+			if (parms[idx].original != parms[idx].string)
+			{
+				std::cout << " (" << parms[idx].original << ")";
+			}
+			std::cout << std::endl;
+		}
+	}
+	
 	return parms;
 }
 
