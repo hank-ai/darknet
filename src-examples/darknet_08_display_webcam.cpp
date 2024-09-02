@@ -40,10 +40,16 @@ cv::VideoCapture open_and_configure_camera(cv::VideoCapture & cap)
 {
 	std::cout << "Opening webcam..." << std::endl;
 
-	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_ANY; // let OpenCV choose a back-end to use
-//	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_V4L2;
+#ifdef WIN32
+	// on Windows we'll let OpenCV automatically choose a backend to use
+	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_ANY;
+#else
+	// hard to choose which is the "best" backend to use when running Linux
+//	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_ANY;
+	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_V4L2;
 //	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_FFMPEG;
 //	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_GSTREAMER;
+#endif
 
 	cap.open(REQUEST_WEBCAM_INDEX, backend);
 	if (not cap.isOpened())
@@ -204,13 +210,13 @@ int main(int argc, char * argv[])
 
 		const auto video_duration = timestamp_end - timestamp_start;
 		const size_t video_length_in_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(video_duration).count();
-		const double final_fps = 1000.0 * frame_counter / video_length_in_milliseconds;
+		const double average_fps = 1000.0 * frame_counter / video_length_in_milliseconds;
 
 		std::cout
 			<< "-> recent error counter ..... " << error_counter													<< std::endl
 			<< "-> total frames captured .... " << frame_counter													<< std::endl
 			<< "-> total length of video .... " << video_length_in_milliseconds << " milliseconds"					<< std::endl
-			<< "-> final frame rate ......... " << final_fps << " FPS"												<< std::endl
+			<< "-> average frame rate ....... " << average_fps << " FPS"											<< std::endl
 			<< "-> total objects founds ..... " << total_objects_found												<< std::endl
 			<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter			<< std::endl;
 

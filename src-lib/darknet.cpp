@@ -595,7 +595,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 		// one at a time, try each argument to see if we can find a file that starts with the same text
 		for (int idx = 0; idx < parms.size(); idx ++)
 		{
-			auto & parm = parms[idx];
+			auto parm = parms[idx]; // not by reference!  we'll be modifying the vector
 
 			if (parm.type != EParmType::kOther)
 			{
@@ -632,6 +632,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 					std::cout << tmp << " matches this config file:  " << Darknet::in_colour(Darknet::EColour::kBrightCyan, filename) << std::endl;
 					parm.type = EParmType::kCfgFilename;
 					parm.string = filename;
+					parms[idx] = parm;
 					cfg_idx = idx;
 				}
 				else if (extension == ".names" and names_idx == -1)
@@ -664,7 +665,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 			if (weights_idx == -1 and backup_weights.empty() == false)
 			{
 				// in case we don't find "best" weights, we'll end up here and use whatever weights we found
-				std::cout << tmp << " matches this weights file: " << Darknet::in_colour(Darknet::EColour::kBrightWhite, backup_weights) << std::endl;
+				std::cout << tmp << " matches this weights file: " << Darknet::in_colour(Darknet::EColour::kBrightCyan, backup_weights) << std::endl;
 				Parm parm = parms[idx];
 				parm.type = EParmType::kWeightsFilename;
 				parm.string = backup_weights;
@@ -916,7 +917,11 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 	}
 
 	NetworkPtr ptr = load_network_custom(cfg_filename.string().c_str(), weights_filename.string().c_str(), 0, 1);
-	Darknet::load_names(ptr, names_filename);
+
+	if (not names_filename.empty())
+	{
+		Darknet::load_names(ptr, names_filename);
+	}
 
 	return ptr;
 }
