@@ -35,7 +35,7 @@ The V2 API also exposed many @p C structures including:
 
 In July 2024, the old V2 @p C API had to be modified due to changes in the Darknet/YOLO codebase for V3 released in August 2024.  If your application uses the old %Darknet V2 API, you will have to make some minor changes to continue to use the original %Darknet V2 API.
 
-- Before @p #including the @p darknet.h header file, you must define @p DARKNET_INCLUDE_ORIGINAL_API:
+- Before including the @p darknet.h header file, you must define @p DARKNET_INCLUDE_ORIGINAL_API:
 
 ~~~~{.cpp}
 #define DARKNET_INCLUDE_ORIGINAL_API

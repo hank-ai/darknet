@@ -1310,7 +1310,7 @@ void Darknet::rgb_to_hsv(Darknet::Image & im)
 {
 	// http://www.cs.rit.edu/~ncs/color/t_convert.html
 
-	/// @todo #COLOR - cannot do HSV if channels > 3
+	/// @todo COLOR - cannot do HSV if channels > 3
 
 	TAT(TATPARMS);
 
@@ -1352,7 +1352,7 @@ void Darknet::rgb_to_hsv(Darknet::Image & im)
 
 void Darknet::hsv_to_rgb(Darknet::Image & im)
 {
-	/// @todo #COLOR - cannot do HSV if channels > 3
+	/// @todo COLOR - cannot do HSV if channels > 3
 
 	TAT(TATPARMS);
 
@@ -1478,7 +1478,7 @@ void Darknet::scale_image_channel(Darknet::Image & im, int c, float v)
 
 void Darknet::distort_image(Darknet::Image & im, float hue, float sat, float val)
 {
-	/// @todo #COLOR - needs to be fixed for 1 <= c <= N
+	/// @todo COLOR - needs to be fixed for 1 <= c <= N
 
 	TAT(TATPARMS);
 
@@ -1509,7 +1509,7 @@ void Darknet::distort_image(Darknet::Image & im, float hue, float sat, float val
 
 void Darknet::random_distort_image(Darknet::Image & im, float hue, float saturation, float exposure)
 {
-	/// @todo #COLOR - HSV no beuno
+	/// @todo COLOR - HSV no beuno
 
 	TAT(TATPARMS);
 
@@ -1920,7 +1920,7 @@ Darknet::Image collapse_images_horz(const Darknet::Image * ims, int n)
 		int w_offset = i*(size+border);
 		Darknet::Image copy = Darknet::copy_image(ims[i]);
 
-		/// @todo #COLOR
+		/// @todo COLOR
 		if(c == 3 && color)
 		{
 			Darknet::embed_image(copy, filters, w_offset, 0);

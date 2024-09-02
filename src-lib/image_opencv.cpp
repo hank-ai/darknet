@@ -293,7 +293,7 @@ void draw_detections_cv_v3(cv::Mat mat, Darknet::Detection * dets, int num, floa
 // ====================================================================
 
 
-/// @todo #COLOR - cannot do hue in hyperspectal land
+/// @todo COLOR - cannot do hue in hyperspectal land
 Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
 	int pleft, int ptop, int swidth, int sheight, int flip,
 	float dhue, float dsat, float dexp,

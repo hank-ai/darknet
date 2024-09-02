@@ -13,7 +13,7 @@ Browse <a target="_blank" href="https://hank.ai/darknet-welcomes-hank-ai-as-offi
 
 @section using_cli Using Darknet/YOLO
 
-- Take a look at the %Darknet example applications to see what to run:  <a target="_blank" href="dir_1c11dcca7736ba0b91b314b0a8014ac3.html">src-examples/</a>.
+- Take a look at the %Darknet example applications in @p src-examples/ to see a list of commands to run.
 	- If you'd like to train your own Darknet/YOLO neural network, see the FAQ:  <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#training_command">https://www.ccoderun.ca/programming/darknet_faq/#training_command</a>.
 - Both the original @p pjreddie and @p alexeyab %Darknet repos are no longer used.  Please update to <a target="_blank" href="https://github.com/hank-ai/darknet">the new Darknet/YOLO repo</a>.
 	- For additional details, see the FAQ:  <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid">https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid</a>.

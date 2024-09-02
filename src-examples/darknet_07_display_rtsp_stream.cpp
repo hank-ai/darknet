@@ -11,9 +11,13 @@
  *
  * For example, from my laptop I run one of these commands to start a stream on the multicast address 239.0.0.1:
  *
+ * ~~~~{.sh}
  *		cvlc -vvv v4l2:///dev/video0 :v4l2-width=640 :v4l2-height=480 :v4l2-fps=10 --sout '#transcode{vcodec=mp2v,vb=256,width=640,height=480,acodec=none}:rtp{dst=239.0.0.1,port=43210,mux=ts}'
+ * ~~~~
  * or:
+ * ~~~~{.sh}
  *		cvlc -vvv v4l2:///dev/video0 :v4l2-width=1280 :v4l2-height=720 :v4l2-fps=30 --sout '#transcode{vcodec=mp2v,width=1280,height=720,acodec=none}:rtp{dst=239.0.0.1,port=43210,mux=ts}'
+ * ~~~~
  */
 
 

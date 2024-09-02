@@ -1,7 +1,7 @@
 #include "darknet_internal.hpp"
 
 
-/// @todo #COLOR - specific RGB - HSV logic in here that won't work (well) with multispectral
+/// @todo COLOR - specific RGB - HSV logic in here that won't work (well) with multispectral
 __device__ float get_pixel_kernel(float *image, int w, int h, int x, int y, int c)
 {
 	if(x < 0 || x >= w || y < 0 || y >= h) return 0;
