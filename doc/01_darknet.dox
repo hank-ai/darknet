@@ -14,10 +14,13 @@ Browse <a target="_blank" href="https://hank.ai/darknet-welcomes-hank-ai-as-offi
 @section using_cli Using Darknet/YOLO
 
 - Run @p "darknet help" to get a list of common commands to run.
-	- On Linux, if you completed the build and installation steps, all of the %Darknet commands should have been installed to @p /usr/bin/, such as @p /usr/bin/darknet.
-	- On Windows, if you completed the build and installation steps, all of the %Darknet commands should have been installed to @p "C:/Program Files/Darknet/bin/", such as @p "C:/Program Files/Darknet/bin/darknet.exe".
+	- On Linux, if you completed <a target="_blank" href="https://github.com/hank-ai/darknet#linux-cmake-method">the build and installation steps</a>, all of the %Darknet commands should have been installed to @p /usr/bin/, such as @p /usr/bin/darknet.
+	- On Windows, if you completed <a target="_blank" href="https://github.com/hank-ai/darknet#windows-cmake-method">the build and installation steps</a>, all of the %Darknet commands should have been installed to @p "C:/Program Files/Darknet/bin/", such as @p "C:/Program Files/Darknet/bin/darknet.exe".
 - Take a look at the %Darknet example applications in <a href="files.html">src-examples/</a> to see a list of possible commands to run.
-	- If you'd like to train your own Darknet/YOLO neural network, see the FAQ:  <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#training_command">https://www.ccoderun.ca/programming/darknet_faq/#training_command</a>.
+- To train your own custom Darknet/YOLO neural network, see the following:
+	- <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#training_command">the Darknet/YOLO FAQ</a>,
+	- <a target="_blank" href="https://github.com/hank-ai/darknet#training">the Darknet/YOLO readme in the repo</a>,
+	- <a target="_blank" href="https://www.youtube.com/watch?v=ciEcM6kvr3w">Stéphane's YouTube tutorials</a>.
 
 @section other Other Darknet/YOLO Projects
 

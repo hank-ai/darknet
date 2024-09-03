@@ -48,7 +48,13 @@
 #include <omp.h>
 #endif
 
+/** If you're using some old software that expects the original @p C API in the %Darknet library,
+ * then make sure you @p "#define DARKNET_INCLUDE_ORIGINAL_API" before you include darknet.h.
+ *
+ * Internally, %Darknet still uses the old @p C V2 API which is why it is defined in darknet_internal.hpp.
+ */
 #define DARKNET_INCLUDE_ORIGINAL_API	// internally we need the old C API
+
 #include "darknet.h"					// the old C header
 #include "darknet.hpp"					// the new C++ header
 #include "darknet_version.h"			// version macros

@@ -67,7 +67,9 @@ YOLOv7 surpasses all known object detectors in both speed and accuracy in the ra
 
 Several popular versions of YOLO were pre-trained for convenience on the [MSCOCO dataset](https://cocodataset.org/).  This dataset has 80 classes, which can be seen in the text file [`cfg/coco.names`](cfg/coco.names).
 
-The pre-trained weights can be downloaded from several different locations, and are also available for download from this repo:
+> There are several other simpler datasets and pre-trained weights available for testing Darknet/YOLO, such as LEGO Gears and Rolodex.  See <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">the Darknet/YOLO FAQ</a> for details.
+
+The MSCOCO pre-trained weights can be downloaded from several different locations, and are also available for download from this repo:
 
 * YOLOv2, November 2016
   * [YOLOv2-tiny](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807469361)
@@ -82,7 +84,17 @@ The pre-trained weights can be downloaded from several different locations, and 
   * [YOLOv7-tiny](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807483279)
   * [YOLOv7-full](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807483787)
 
-The MSCOCO pre-trained weights are provided for demo-purpose only.  People are expected to [train their own networks](#training).
+The MSCOCO pre-trained weights are provided for demo-purpose only.  The corresponding @p .cfg and @p .names files for MSCOCO are in [the cfg directory](cfg/).  Example commands:
+
+```sh
+wget --no-clobber https://github.com/hank-ai/darknet/releases/download/v2.0/yolov4-tiny.weights
+darknet_02_display_annotated_images coco.names yolov4-tiny.cfg yolov4-tiny.weights image1.jpg
+darknet_03_display_videos coco.names yolov4-tiny.cfg yolov4-tiny.weights video1.avi
+DarkHelp coco.names yolov4-tiny.cfg yolov4-tiny.weights image1.jpg
+DarkHelp coco.names yolov4-tiny.cfg yolov4-tiny.weights video1.avi
+```
+
+Note that people are expected to [train their own networks](#training).  MSCOCO is normally used just to confirm that everything is working correctly.
 
 # Building
 
@@ -282,34 +294,55 @@ You are now done!  Once the installation wizard has finished, Darknet will have 
 
 ## CLI
 
-The following is not the full list of all commands supported by Darknet.  See [the previous readme](README_previous.md) for additional details and examples.
+The following is not the full list of all commands supported by Darknet.
 
 > In addition to the Darknet CLI, also note [the DarkHelp project CLI](https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-cli) which provides an alternative CLI to Darknet/YOLO.  The DarkHelp CLI also has several advanced features that are not available directly in Darknet.  You can use both the Darknet CLI and the DarkHelp CLI together, they are not mutually exclusive.
 
-For most of the commands shown below, you'll need the `.weights` file with the corresponding `.names` and `.cfg` files.  You can either [train your own network](#training) (highly recommended!) or [download the MSCOCO pre-trained `.weights` files](#mscoco-pre-trained-weights).  The `.cfg` and `.names` files are in the [cfg](cfg/) directory in the repo.
+For most of the commands shown below, you'll need the `.weights` file with the corresponding `.names` and `.cfg` files.  You can either [train your own network](#training) (highly recommended!) or download a neural network that someone has already trained and made available for free on the internet.  Examples of pre-trained datasets include:
+* <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">LEGO Gears</a> (finding ojects in an image)
+* <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">Rolodex</a> (finding text in an image)
+* [MSCOCO](#mscoco-pre-trained-weights) (standard 80-class object detection)
 
-* Check the version:  `darknet version`
-* Obtain some (very limited!) assitance on some commands to run:  `darknet help`
-* Predict using an image:  `darknet detector test animals.data animals.cfg animals_best.weights dog.jpg`
-* Download YOLOv4-tiny weights and predict using a sample image in the `artwork` directory:
-```sh
-cd src/darknet/
-wget --no-clobber https://github.com/hank-ai/darknet/releases/download/v2.0/yolov4-tiny.weights
-darknet detector test cfg/coco.data cfg/yolov4-tiny.cfg yolov4-tiny.weights artwork/dog.jpg
-```
-* The equivalent command when using DarkHelp would be:
-```sh
-cd src/darknet/
-DarkHelp cfg/coco.names cfg/yolov4-tiny.cfg yolov4-tiny.weights artwork/dog.jpg
-# The order in which you list the .names, .cfg, and .weights file is not important for DarkHelp.
-```
-* Output coordinates:  `darknet detector test animals.data animals.cfg animals_best.weights -ext_output dog.jpg`
-* Working with videos:  `darknet detector demo animals.data animals.cfg animals_best.weights -ext_output test.mp4`
-* Reading from a webcam:  `darknet detector demo animals.data animals.cfg animals_best.weights -c 0`
-* Smart webcam:  `darknet detector demo animals.data animals.cfg animals_best.weights http://192.168.0.80:8080/video?dummy=param.mjpg`
-* Save results to a video:  `darknet detector demo animals.data animals.cfg animals_best.weights test.mp4 -out_filename res.avi`
-* JSON and MJPEG server:  `darknet detector demo animals.data animals.cfg animals_best.weights test50.mp4 -json_port 8070 -mjpeg_port 8090 -ext_output`
-* Running on a specific GPU:  `darknet detector demo animals.data animals.cfg animals_best.weights -i 1 test.mp4`
+Commands to run include:
+
+* List some possible commands and options to run:
+	* `darknet help`
+
+* Check the version:
+	* `darknet version`
+
+* Predict using an image:
+	* V2:  `darknet detector test cars.data cars.cfg cars_best.weights image1.jpg`
+	* V3:  `darknet_02_display_annotated_images cars.cfg image1.jpg`
+	* DarkHelp:  `DarkHelp cars.cfg cars.cfg cars_best.weights image1.jpg`
+
+* Output coordinates:
+	* V2:  `darknet detector test animals.data animals.cfg animals_best.weights -ext_output dog.jpg`
+	* V3:  `darknet_01_inference_images animals dog.jpg`
+	* DarkHelp:  `DarkHelp --json animals.cfg animals.names animals_best.weights dog.jpg`
+
+* Working with videos:
+	* V2:  `darknet detector demo animals.data animals.cfg animals_best.weights -ext_output test.mp4`
+	* V3:  `darknet_03_display_videos animals.cfg test.mp4`
+	* DarkHelp:  `DarkHelp animals.cfg animals.names animals_best.weights test.mp4`
+
+* Reading from a webcam:
+	* V2:  `darknet detector demo animals.data animals.cfg animals_best.weights -c 0`
+	* V3:  `darknet_08_display_webcam animals`
+
+* Save results to a video:
+	* V2:  `darknet detector demo animals.data animals.cfg animals_best.weights test.mp4 -out_filename res.avi`
+	* V3:  `darknet_05_process_videos_multithreaded animals.cfg animals.names animals_best.weights test.mp4`
+	* DarkHelp:  `DarkHelp animals.cfg animals.names animals_best.weights test.mp4`
+
+* JSON:
+	* V2:  `darknet detector demo animals.data animals.cfg animals_best.weights test50.mp4 -json_port 8070 -mjpeg_port 8090 -ext_output`
+	* V3:  `darknet_06_images_to_json animals image1.jpg`
+	* DarkHelp:  `DarkHelp --json animals.names animals.cfg animals_best.weights image1.jpg`
+
+* Running on a specific GPU:
+	* V2:  `darknet detector demo animals.data animals.cfg animals_best.weights -i 1 test.mp4`
+
 * To check the accuracy of the neural network:
 ```sh
 darknet detector map driving.data driving.cfg driving_best.weights
@@ -325,12 +358,15 @@ darknet detector map driving.data driving.cfg driving_best.weights
    6 yellow light          82.0390    126     38     30   1239   0.9525    0.0475    0.8077 0.7683      0.9764       0.0236
    7 red light             94.1033   3449    217    451   4643   0.9237    0.0763    0.8844 0.9408      0.9115       0.0885
 ```
-* To check accuracy mAP@IoU=75:  `darknet detector map animals.data animals.cfg animals_best.weights -iou_thresh 0.75`
+* To check accuracy mAP@IoU=75:
+	* `darknet detector map animals.data animals.cfg animals_best.weights -iou_thresh 0.75`
+
 * Recalculating anchors is best done in DarkMark, since it will run 100 consecutive times and select the best anchors from all the ones that were calculated.  But if you want to run the old version in Darknet:
 ```sh
 darknet detector calc_anchors animals.data -num_of_clusters 6 -width 320 -height 256
 ```
-* Train a new network:  `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below)
+* Train a new network:
+	* `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below)
 
 ## Training
 
