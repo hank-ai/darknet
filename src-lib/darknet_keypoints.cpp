@@ -201,6 +201,12 @@ cv::Mat Darknet::Keypoints::annotate(const Predictions & predictions, const Dark
 			cv::circle(mat, p, 10, colour, cv::FILLED, line_type);
 		}
 
+		// don't draw the lines between the dots if we have multiple skeletons
+		if (skeletons.size() > 1)
+		{
+			continue;
+		}
+
 		for (const auto & [k, v] : SkeletonPoints)
 		{
 			const auto & src = points[k];
