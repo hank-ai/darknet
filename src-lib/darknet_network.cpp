@@ -14,7 +14,7 @@ Darknet::NetworkDetails::NetworkDetails()
 
 	fix_out_of_bound_normalized_coordinates	= true;
 
-	cv_font_line_type						= cv::LineTypes::LINE_4;
+	cv_line_type							= cv::LineTypes::LINE_4;
 	cv_font_face							= cv::HersheyFonts::FONT_HERSHEY_PLAIN;
 	cv_font_thickness						= 1;
 	cv_font_scale							= 1.0;

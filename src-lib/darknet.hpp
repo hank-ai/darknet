@@ -245,7 +245,7 @@ namespace Darknet
 	 *
 	 * @param [in] line_type should be @p cv::LineTypes::LINE_4, @p cv::LineTypes::LINE_8, or @p cv::LineTypes::CV_LINE_AA.
 	 * @p LINE_4 is the fastest but lower quality, while @p LINE_AA (anti-alias) is the slowest with highest quality.
-	 * Default is @p LINE_4.
+	 * Default is @p LINE_4.  Also see @ref set_annotation_line_type() which modifies the same setting.
 	 *
 	 * @param [in] font_face is the OpenCV built-in font to use.  Default is @p cv::HersheyFonts::FONT_HERSHEY_PLAIN.
 	 *
@@ -254,7 +254,7 @@ namespace Darknet
 	 * @param [in] font_scale determines how large or small the text is rendered.  For example, this could be set to @p 0.5
 	 * for extremely small text, and 1.75 for large text.  Default is @p 1.0.
 	 *
-	 * @see @ref Darknet::NetworkDetails::cv_font_line_type
+	 * @see @ref Darknet::NetworkDetails::cv_line_type
 	 * @see @ref Darknet::NetworkDetails::cv_font_face
 	 * @see @ref Darknet::NetworkDetails::cv_font_thickness
 	 * @see @ref Darknet::NetworkDetails::cv_font_scale
@@ -262,6 +262,17 @@ namespace Darknet
 	 * @since 2024-07-30
 	 */
 	void set_annotation_font(Darknet::NetworkPtr ptr, const cv::LineTypes line_type, const cv::HersheyFonts font_face, const int font_thickness, const double font_scale);
+
+	/** The OpenCV line type can impact performance.  Anti-aliased lines are expensive to draw.  Possible options for
+	 * @p line_type is @p cv::LineTypes::LINE_4, @p cv::LineTypes::LINE_8, or @p cv::LineTypes::CV_LINE_AA.  @p LINE_4 is
+	 * the fastest but lower quality, while @p LINE_AA (anti-alias) is the slowest with highest quality.
+	 * Default is @p LINE_4.
+	 *
+	 * This setting can also be modified with @ref set_annotation_font().
+	 *
+	 * @since 2024-09-03
+	 */
+	void set_annotation_line_type(Darknet::NetworkPtr ptr, const cv::LineTypes line_type);
 
 	/** This determines if annotations are drawn as circles or rounded rectangles in either @ref Darknet::annotate()
 	 * or @ref Darknet::predict_and_annotate().  The defaul is to use square -- not rounded -- bounding boxes.

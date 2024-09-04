@@ -76,9 +76,10 @@ namespace Darknet
 			 * but lowest quality, while @p LINE_AA (anti-alias) is the slowest with highest quality.
 			* Default is @p cv::LineTypes::LINE_4.
 			* @see @ref Darknet::set_annotation_font()
+			* @see @ref Darknet::set_annotation_line_type()
 			* @since 2024-07-30
 			*/
-			cv::LineTypes cv_font_line_type;
+			cv::LineTypes cv_line_type;
 
 			/** The OpenCV built-in font to use when generating text, such as the labels above bounding boxes.
 			 * Default is @p cv::HersheyFonts::FONT_HERSHEY_PLAIN.

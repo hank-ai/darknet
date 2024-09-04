@@ -687,7 +687,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 			std::cout << std::endl;
 		}
 	}
-	
+
 	return parms;
 }
 
@@ -815,10 +815,26 @@ void Darknet::set_annotation_font(Darknet::NetworkPtr ptr, const cv::LineTypes l
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
 	}
 
-	net->details->cv_font_line_type	= line_type;
+	net->details->cv_line_type		= line_type;
 	net->details->cv_font_face		= font_face;
 	net->details->cv_font_thickness	= font_thickness;
 	net->details->cv_font_scale		= font_scale;
+
+	return;
+}
+
+
+void Darknet::set_annotation_line_type(Darknet::NetworkPtr ptr, const cv::LineTypes line_type)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("pointer to neural network cannot be NULL");
+	}
+
+	net->details->cv_line_type = line_type;
 
 	return;
 }
@@ -1164,11 +1180,11 @@ cv::Mat Darknet::annotate(const Darknet::NetworkPtr ptr, const Darknet::Predicti
 
 			if (not net->details->bounding_boxes_with_rounded_corners)
 			{
-				cv::rectangle(mat, pred.rect, net->details->class_colours.at(pred.best_class), 1, net->details->cv_font_line_type);
+				cv::rectangle(mat, pred.rect, net->details->class_colours.at(pred.best_class), 1, net->details->cv_line_type);
 			}
 			else
 			{
-				draw_rounded_rectangle(mat, pred.rect, net->details->bounding_boxes_corner_roundness, net->details->class_colours.at(pred.best_class), net->details->cv_font_line_type);
+				draw_rounded_rectangle(mat, pred.rect, net->details->bounding_boxes_corner_roundness, net->details->class_colours.at(pred.best_class), net->details->cv_line_type);
 			}
 		}
 
@@ -1185,12 +1201,12 @@ cv::Mat Darknet::annotate(const Darknet::NetworkPtr ptr, const Darknet::Predicti
 			label.width						= size.width + 2;
 
 			// draw a rectangle above that to use as a label
-			cv::rectangle(mat, label, net->details->class_colours.at(pred.best_class), cv::FILLED, net->details->cv_font_line_type);
+			cv::rectangle(mat, label, net->details->class_colours.at(pred.best_class), cv::FILLED, net->details->cv_line_type);
 
 			cv::mean(net->details->class_colours.at(pred.best_class));
 
 			// and finally we draw the text on top of the label background
-			cv::putText(mat, text, cv::Point(label.x + 1, label.y + label.height - font_baseline / 2), net->details->cv_font_face, net->details->cv_font_scale, net->details->text_colours.at(pred.best_class), net->details->cv_font_thickness, net->details->cv_font_line_type);
+			cv::putText(mat, text, cv::Point(label.x + 1, label.y + label.height - font_baseline / 2), net->details->cv_font_face, net->details->cv_font_scale, net->details->text_colours.at(pred.best_class), net->details->cv_font_thickness, net->details->cv_line_type);
 		}
 	}
 
