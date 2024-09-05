@@ -110,14 +110,45 @@ Darknet::Skeletons Darknet::Keypoints::create_skeletons(const Predictions & pred
 		const int best_class = predictions[idx].best_class;
 		bool need_a_new_skeleton = true;
 
+		// look for duplicate keypoint entries in the skeletons we already have
 		for (auto & skeleton : skeletons)
 		{
 			if (skeleton[best_class] != -1)
 			{
+				// if get here then we already have a prediction for this keypoint...but should they be merged?
+				const auto & lhs = predictions[skeleton[best_class]];
+				const auto & rhs = predictions[idx];
+
+				const auto x_diff = std::abs(1.0f - lhs.normalized_point.x / rhs.normalized_point.x);
+				const auto y_diff = std::abs(1.0f - lhs.normalized_point.y / rhs.normalized_point.y);
+
+#if 0
+				std::cout
+					<< "compare these two for class=" << best_class << " (" << KPNames[best_class] << ")" << std::endl
+					<< "-> lhs idx #" << skeleton[best_class]	<< ": class " << lhs << std::endl
+					<< "-> rhs idx #" << idx					<< ": class " << rhs << std::endl
+					<< "-> x_diff=" << x_diff << " y_diff=" << y_diff << std::endl;
+#endif
+
+				if (x_diff < 0.1f and y_diff < 0.1f)
+				{
+					// these are the same keypoint -- keep the one with the highest confidence
+//					std::cout << "merging these 2 entries:  old idx=" << skeleton[best_class] << " and new idx=" << idx << std::endl;
+					if (lhs.prob.at(best_class) < rhs.prob.at(best_class))
+					{
+						skeleton[best_class] = idx;
+					}
+
+					// the keypoints have been merged
+					need_a_new_skeleton = false;
+					break;
+				}
+
+				// if we get here we need to keep looking for a skeleton that needs this keypoint
 				continue;
 			}
 
-			// we found a skeleton where we can record this index
+			// if we get here we found a skeleton that does not yet have this keypoint
 
 			skeleton[best_class] = idx;
 			need_a_new_skeleton = false;

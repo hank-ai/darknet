@@ -71,7 +71,7 @@ int main(int argc, char * argv[])
 		Darknet::NetworkPtr net = Darknet::load_neural_network(parms);
 		Darknet::Keypoints keypoints(net);
 		Darknet::set_trace(true); // this will force the skeleton details to display on STDOUT
-		Darknet::set_detection_threshold(net, 0.1f);
+		Darknet::set_detection_threshold(net, 0.2f);
 		Darknet::set_annotation_line_type(net, cv::LineTypes::LINE_AA);
 
 		for (const auto & parm : parms)
