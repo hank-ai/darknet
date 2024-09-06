@@ -430,6 +430,21 @@ namespace Darknet
 	 */
 	std::filesystem::path get_weights_filename(const Darknet::NetworkPtr ptr);
 
+	/** Resize the image as close as we can to the given size, but keep the aspect ratio the same as the original image.
+	 *
+	 * This method will modify the image that is passed in, so clone it beforehand if you need a copy of the original.
+	 *
+	 * Several notes in regards to the resize method:
+	 *
+	 * @li @p cv::InterpolationFlags::INTER_NEAREST is the fastest resize method, but the quality is poor.
+	 * @li @p cv::InterpolationFlags::INTER_AREA is good when shrinking an image.
+	 * @li @p cv::InterpolationFlags::INTER_CUBIC is good when growing an image
+	 * @li @p cv::InterpolationFlags::INTER_LINEAR is similar to INTER_CUBIC, but faster
+	 *
+	 * @since 2024-09-05
+	 */
+	cv::Mat resize_keeping_aspect_ratio(cv::Mat & mat, cv::Size desired_size, const cv::InterpolationFlags method = cv::InterpolationFlags::INTER_NEAREST);
+
 	/** Display some information about this specific prediction.
 	 *
 	 * Use like this:

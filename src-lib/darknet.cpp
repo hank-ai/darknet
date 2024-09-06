@@ -1306,6 +1306,22 @@ std::filesystem::path Darknet::get_weights_filename(const Darknet::NetworkPtr pt
 }
 
 
+cv::Mat Darknet::resize_keeping_aspect_ratio(cv::Mat & mat, cv::Size desired_size, const cv::InterpolationFlags method)
+{
+	const float width		= mat.cols;
+	const float height		= mat.rows;
+	const float horizontal	= width		/ desired_size.width;
+	const float vertical	= height	/ desired_size.height;
+	const float factor		= std::max(horizontal, vertical);
+
+	const cv::Size new_size(std::round(width / factor), std::round(height / factor));
+
+	cv::resize(mat, mat, new_size, method);
+
+	return mat;
+}
+
+
 std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Prediction & pred)
 {
 	TAT(TATPARMS);

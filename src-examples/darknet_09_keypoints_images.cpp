@@ -82,17 +82,23 @@ int main(int argc, char * argv[])
 
 				cv::Mat mat = cv::imread(parm.string);
 
+				Darknet::resize_keeping_aspect_ratio(mat, cv::Size(1024, 768));
+
 				const auto results = Darknet::predict(net, mat);
 				const auto skeletons = keypoints.create_skeletons(results);
 
 				/* We have both "results" and "skeletons".  The skeletons are vectors of 17 indexes into "results", where each
-				 * entry is "nose", "eye", "ear", etc.  So at this point if you want to do something with the skeleton, you
-				 * need to do something with *both* "results" and "skeletons".
+				 * entry is "nose", "eye", "ear", etc.  So at this point if you want to do something with the skeleton, you'll
+				 * need to pass both "results" and "skeletons".
 				 *
 				 * For this example application, we'll call annotate() to get Darknet to draw the skeleton(s) for us.
 				 */
 				keypoints.annotate(results, skeletons, mat);
-				cv::imshow("annotated", mat);
+
+				const std::string title = "Darknet/YOLO Keypoints & Skeletons - " + std::filesystem::path(parm.string).filename().string();
+				cv::imshow("output", mat);
+				cv::resizeWindow("output", mat.size());
+				cv::setWindowTitle("output", title);
 
 				const char c = cv::waitKey(-1);
 				if (c == 27) // ESC
