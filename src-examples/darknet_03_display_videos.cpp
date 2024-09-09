@@ -49,15 +49,15 @@ int main(int argc, char * argv[])
 			const size_t video_frames_count			= cap.get(cv::CAP_PROP_FRAME_COUNT);
 			const double fps						= cap.get(cv::CAP_PROP_FPS);
 			const size_t fps_rounded				= std::round(fps);
-			const size_t frame_in_nanoseconds		= std::round(1000000000.0 / fps);
-			const size_t video_length_milliseconds	= std::round(frame_in_nanoseconds / 1000000.0 * video_frames_count);
-			const auto frame_duration				= std::chrono::nanoseconds(frame_in_nanoseconds);
+			const size_t nanoseconds_per_frame		= std::round(1000000000.0 / fps);
+			const size_t video_length_milliseconds	= std::round(nanoseconds_per_frame / 1000000.0 * video_frames_count);
+			const auto frame_duration				= std::chrono::nanoseconds(nanoseconds_per_frame);
 
 			std::cout
 				<< "-> frame dimensions ......... " << video_width << " x " << video_height		<< std::endl
 				<< "-> frame count .............. " << video_frames_count						<< std::endl
 				<< "-> frame rate ............... " << fps << " FPS"							<< std::endl
-				<< "-> each frame lasts ......... " << frame_in_nanoseconds << " nanoseconds"	<< std::endl
+				<< "-> each frame lasts ......... " << nanoseconds_per_frame << " nanoseconds"	<< std::endl
 				<< "-> estimated video length ... " << video_length_milliseconds << " milliseconds" << std::endl;
 
 			const std::string title = "Darknet/YOLO - " + std::filesystem::path(parm.string).filename().string();

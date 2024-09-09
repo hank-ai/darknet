@@ -60,8 +60,8 @@ int main(int argc, char * argv[])
 				const size_t video_frames_count			= cap.get(cv::CAP_PROP_FRAME_COUNT);
 				const double fps						= cap.get(cv::CAP_PROP_FPS);
 				const size_t fps_rounded				= std::round(fps);
-				const size_t frame_in_nanoseconds		= std::round(1000000000.0 / fps);
-				const size_t video_length_milliseconds	= std::round(frame_in_nanoseconds / 1000000.0 * video_frames_count);
+				const size_t nanoseconds_per_frame		= std::round(1000000000.0 / fps);
+				const size_t video_length_milliseconds	= std::round(nanoseconds_per_frame / 1000000.0 * video_frames_count);
 
 				std::cout
 					<< "-> neural network size ...... " << network_width << " x " << network_height << " x " << network_channels << std::endl

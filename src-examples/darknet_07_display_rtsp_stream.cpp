@@ -72,13 +72,13 @@ int main(int argc, char * argv[])
 		const size_t video_height				= cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 		const double fps						= cap.get(cv::CAP_PROP_FPS);
 		const size_t fps_rounded				= std::round(std::max(1.0, fps));
-		const size_t frame_in_nanoseconds		= std::round(1000000000.0 / fps);
-		const size_t frame_in_milliseconds		= std::round(1000.0 / fps);
+		const size_t nanoseconds_per_frame		= std::round(1000000000.0 / fps);
+		const size_t milliseconds_per_frame		= std::round(1000.0 / fps);
 		std::cout
-			<< "-> frame dimensions ......... " << video_width << " x " << video_height		<< std::endl
-			<< "-> frame rate ............... " << fps << " FPS"							<< std::endl
-			<< "-> each frame lasts ......... " << frame_in_nanoseconds << " nanoseconds"	<< std::endl
-			<< "-> each frame lasts ......... " << frame_in_milliseconds << " milliseconds"	<< std::endl;
+			<< "-> frame dimensions ......... " << video_width << " x " << video_height			<< std::endl
+			<< "-> frame rate ............... " << fps << " FPS"								<< std::endl
+			<< "-> each frame lasts ......... " << nanoseconds_per_frame << " nanoseconds"		<< std::endl
+			<< "-> each frame lasts ......... " << milliseconds_per_frame << " milliseconds"	<< std::endl;
 
 		size_t frame_counter				= 0;
 		size_t total_objects_found			= 0;
@@ -108,7 +108,7 @@ int main(int argc, char * argv[])
 			}
 
 			// sleep for a reasonable amount of time beween each frame
-			const int time_to_sleep = std::clamp(static_cast<int>(frame_in_milliseconds) / 2, 5, 20);
+			const int time_to_sleep = std::clamp(static_cast<int>(milliseconds_per_frame) / 2, 5, 20);
 			total_sleep_in_milliseconds += time_to_sleep;
 			const char c = cv::waitKey(time_to_sleep);
 			if (c == 27) // ESC

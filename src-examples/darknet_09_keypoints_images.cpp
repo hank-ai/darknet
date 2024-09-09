@@ -6,8 +6,32 @@
 #include "darknet_keypoints.hpp"
 
 /** @file
- * This application will use the MSCOCO keypoints neural network to display images in a GUI window.  You must have the
- * MSCOCO Keypoints 17-class neural network for this to work.  Call it like this:
+ * This application uses a specific neural network that follows the MSCOCO-style keypoints to show "skeletons" over
+ * people detected in images.  You must have the Darknet/YOLO Keypoints 18-class neural network for this to work.
+ * (See the Darknet/YOLO readme for links to download the network config and weights.)
+ *
+ * The 18 classes are:
+ *
+ * 0:	nose
+ * 1:	left eye
+ * 2:	right eye
+ * 3:	left ear
+ * 4:	right ear
+ * 5:	left shoulder
+ * 6:	right shoulder
+ * 7:	left elbow
+ * 8:	right elbow
+ * 9:	left wrist
+ * 10:	right wrist
+ * 11:	left hip
+ * 12:	right hip
+ * 13:	left knee
+ * 14:	right knee
+ * 15:	left ankle
+ * 16:	right ankle
+ * 17:	person
+ *
+ * Call it like this:
  *
  *     darknet_09_keypoints_images people_*.jpg
  *
@@ -41,7 +65,7 @@ void set_default_neural_network_files(Darknet::Parms & parms)
 		Darknet::Parm parm;
 		parm.idx		= 0;
 		parm.type		= Darknet::EParmType::kCfgFilename;
-		parm.original	= "mscoco-keypoints.cfg";
+		parm.original	= "Darknet-Keypoints.cfg";
 		parm.string		= parm.original;
 		parms.push_back(parm);
 	}
@@ -51,7 +75,7 @@ void set_default_neural_network_files(Darknet::Parms & parms)
 		Darknet::Parm parm;
 		parm.idx		= 0;
 		parm.type		= Darknet::EParmType::kWeightsFilename;
-		parm.original	= "mscoco-keypoints.weights";
+		parm.original	= "Darknet-Keypoints.weights";
 		parm.string		= parm.original;
 		parms.push_back(parm);
 	}

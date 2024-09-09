@@ -139,9 +139,9 @@ int main(int argc, char * argv[])
 		const size_t actual_width				= mat.cols;
 		const size_t actual_height				= mat.rows;
 		const size_t show_stats_frequency		= std::round(estimated_fps * 1.5); // stats will be shown about every 1.5 seconds
-		const double frame_in_nanoseconds		= 1000000000.0 / estimated_fps;
-		const int frame_in_milliseconds			= std::round(frame_in_nanoseconds / 1000000.0);
-		const int milliseconds_between_frames	= std::min(10, std::max(5, frame_in_milliseconds / 2));
+		const double nanoseconds_per_frame		= 1000000000.0 / estimated_fps;
+		const int milliseconds_per_frame		= std::round(nanoseconds_per_frame / 1000000.0);
+		const int milliseconds_between_frames	= std::min(10, std::max(5, milliseconds_per_frame / 2));
 
 		std::cout
 			<< "-> network dimensions ....... " << net_width			<< " x " << net_height << " x " << net_channels << std::endl
@@ -151,8 +151,8 @@ int main(int argc, char * argv[])
 			<< "-> requested frame rate ..... " << REQUEST_WEBCAM_FPS			<< " FPS"					<< std::endl
 			<< "-> OpenCV reports ........... " << opencv_fps					<< " FPS"					<< std::endl
 			<< "-> estimated frame rate ..... " << estimated_fps				<< " FPS"					<< std::endl
-//			<< "-> each frame lasts ......... " << frame_in_nanoseconds			<< " nanoseconds"			<< std::endl
-			<< "-> each frame lasts ......... " << frame_in_milliseconds		<< " milliseconds"			<< std::endl
+//			<< "-> each frame lasts ......... " << nanoseconds_per_frame		<< " nanoseconds"			<< std::endl
+			<< "-> each frame lasts ......... " << milliseconds_per_frame		<< " milliseconds"			<< std::endl
 			<< "-> sleep between frames ..... " << milliseconds_between_frames	<< " milliseconds"			<< std::endl
 			<< "-> save output video ........ " << output_video_filename									<< std::endl
 			<< "-> press ESC to exit"																		<< std::endl;
