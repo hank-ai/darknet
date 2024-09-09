@@ -292,6 +292,31 @@ float box_iou(const Darknet::Box & a, const Darknet::Box & b)
 }
 
 
+float Darknet::iou(const cv::Rect & lhs, const cv::Rect & rhs)
+{
+	TAT_REVIEWED(TATPARMS, "2024-09-07");
+
+	// see: https://stackoverflow.com/questions/9324339/how-much-do-two-rectangles-overlap/9325084
+	const auto tl1 = lhs.tl();	// blue_triangle
+	const auto tl2 = rhs.tl();	// orange_triangle
+	const auto br1 = lhs.br();	// blue_circle
+	const auto br2 = rhs.br();	// orange_circle
+
+	const float intersection = std::max(0, std::min(br2.x, br1.x) - std::max(tl2.x, tl1.x)) * std::max(0, std::min(br2.y, br1.y) - std::max(tl2.y, tl1.y));
+
+	// if the interesction is zero, then don't bother with the rest, we know the answer will be zero
+	float intersection_over_union = 0.0f;
+	if (intersection > 0.0f)
+	{
+		const float a1 = lhs.area();
+		const float a2 = rhs.area();
+		intersection_over_union = intersection / (a1 + std::min(a2, intersection) - intersection);
+	}
+
+	return intersection_over_union;
+}
+
+
 float box_giou(const Darknet::Box & a, const Darknet::Box & b)
 {
 	// this function is used in several places

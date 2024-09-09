@@ -18,25 +18,14 @@
 
 namespace Darknet
 {
-#if 0
-	struct KeypointEntry final
-	{
-		Prediction prediction;
-		int pair_idx;
-		int link_before;
-		int link_after;
-	};
-
-	using KeypointEntries = std::vector<KeypointEntry>;
-#endif
-
 	using Skeleton = VInt;
 	using Skeletons = std::vector<Skeleton>;
 
 	/** The @p Keypoints class works with %Darknet's V3 API.
 	 *
-	 * The only format currently supported is the 17 MSCOCO keypoint classes,
-	 * which must be in this order:
+	 * The only format currently supported is the MSCOCO-style keypoint classes
+	 * with an extra "person" class appended for top-down grouping.  The classes
+	 * are defined as follows:
 	 *
 	 * 0:	nose
 	 * 1:	left eye
@@ -55,6 +44,7 @@ namespace Darknet
 	 * 14:	right knee
 	 * 15:	left ankle
 	 * 16:	right ankle
+	 * 17:	person
 	 *
 	 * @since 2024-09-03
 	 */
@@ -70,13 +60,18 @@ namespace Darknet
 			 */
 			Keypoints(const Darknet::NetworkPtr ptr);
 
-			/** Looks through the prediction results and attempts to organize each person into @ref Skeleton.  A skeleton will
-			 * always contain exactly 17 indexes.  If a skeleton does not have an entry for a body part, then the index will be
-			 * @p -1.  Otherwise, any other values is interpreted as an index into @p predictions.
+			/// Destructor.
+			~Keypoints();
+
+			/** Return the set of names for the classes in @p Keypoints.
 			 *
-			 * @warning The structure is setup to support multiple skeletons, but the MSCOCO annotations used to train the
-			 * network and the code that builds the skeletons from the predictions does not yet (2024-09) support more than
-			 * a single skeleton per image.
+			 * @since 2024-09-07
+			 */
+			VStr names();
+
+			/** Looks through the prediction results and attempts to organize each person into @ref Skeleton.  A skeleton will
+			 * always contain exactly 18 indexes.  If a skeleton does not have an entry for a body part, then the index will be
+			 * set to @p -1.  Otherwise, any other values is interpreted as an index into @p predictions.
 			 *
 			 * @since 2024-09-03
 			 */

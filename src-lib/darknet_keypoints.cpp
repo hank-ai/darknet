@@ -6,8 +6,9 @@ namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
-	// The 17 keypoints used in Darknet/YOLO are the same as those defined by MSCOCO.
-
+	/** @{ The first 17 keypoints (zero through 16) used in Darknet/YOLO are the same as those defined by MSCOCO
+	 * keypoints.  The only difference is the addition of @p "person" at the end to facilitate top-down grouping.
+	 */
 	constexpr int KP_NOSE		= 0;
 	constexpr int KP_L_EYE		= 1;
 	constexpr int KP_R_EYE		= 2;
@@ -25,7 +26,8 @@ namespace
 	constexpr int KP_R_KNEE		= 14;
 	constexpr int KP_L_ANKLE	= 15;
 	constexpr int KP_R_ANKLE	= 16;
-	constexpr int KP_MAX		= 17;
+	constexpr int KP_PERSON		= 17; // not a real keypoint
+	constexpr int KP_MAX		= 18; // not a real keypoint
 
 	const Darknet::VStr KPNames =
 	{
@@ -45,10 +47,16 @@ namespace
 		"left knee",
 		"right knee",
 		"left ankle",
-		"right ankle"
+		"right ankle",
+		"person"
 	};
+	/// @}
 
-	// from bottom-up, define all the (easy) points that need to be drawn; some special cases are handled manually
+	/** Define all the simple skeleton lines that need to be drawn.  Some special cases are handled manually
+	 * in @ref Keypoints::annotate().
+	 *
+	 * @since 2024-09-03
+	 */
 	const std::map<int, int> SkeletonPoints =
 	{
 		// left leg
@@ -91,10 +99,22 @@ Darknet::Keypoints::Keypoints(const Darknet::NetworkPtr ptr) :
 	// MSCOCO keypoints format is the only one currently supported
 	if (net->details->class_names.size() != KP_MAX)
 	{
-		throw std::logic_error("expected the neural network to have 17 classes (MSCOCO keypoints) but network has " + std::to_string(net->details->class_names.size()) + " classes");
+		throw std::logic_error("expected the neural network to have 18 classes (MSCOCO keypoints + person) but network has " + std::to_string(net->details->class_names.size()) + " classes");
 	}
 
 	return;
+}
+
+
+Darknet::Keypoints::~Keypoints()
+{
+	return;
+}
+
+
+Darknet::VStr Darknet::Keypoints::names()
+{
+	return KPNames;
 }
 
 
@@ -102,13 +122,86 @@ Darknet::Skeletons Darknet::Keypoints::create_skeletons(const Predictions & pred
 {
 	TAT(TATPARMS);
 
+	// remember where all the skeletons are, because we're going to need this often
+	SInt skeleton_ids;
+
+	// first we pre-allocate skeletons for every person detected in the image
 	Skeletons skeletons;
+	for (int idx = 0; idx < predictions.size(); idx ++)
+	{
+		const auto & pred = predictions.at(idx);
+
+		if (pred.best_class == KP_PERSON)
+		{
+			skeleton_ids.insert(idx);
+
+			Skeleton skeleton(KP_MAX, -1); // set all keypoints to -1
+			skeleton[KP_PERSON] = idx;
+			skeletons.push_back(skeleton);
+		}
+	}
+
+	if (skeleton_ids.empty() and predictions.size() > 0)
+	{
+		// we failed to detect a person, but we have keypoints, so create a skeleton anyway
+		Skeleton skeleton(KP_MAX, -1);
+		skeletons.push_back(skeleton);
+	}
 
 	for (int idx = 0; idx < predictions.size(); idx ++)
 	{
-		// find a skeleton where we can record this index, and if needed add a new skeleton to the vector
-		const int best_class = predictions[idx].best_class;
-		bool need_a_new_skeleton = true;
+		// skip the "person" classes, we want only the real keypoints
+		if (skeleton_ids.count(idx))
+		{
+			continue;
+		}
+
+		const auto & pred = predictions.at(idx);
+		const int best_class = pred.best_class;
+		std::cout << "-> looking for skeleton for this keypoint at idx=" << idx << ": " << pred << std::endl;
+
+		if (skeletons.size() == 1 and skeletons[0][best_class] == -1)
+		{
+			// simple case, we only have 1 skeleton and this is keypoint hasn't been seen yet
+			skeletons[0][best_class] = idx;
+			continue;
+		}
+
+		// if we get here we have multiple skeletons, or a conflicting prediction
+
+		// find the best skeleton where this prediction fits; key=IoU, val=skeleton index
+		std::multimap<float, int> mm;
+
+		if (skeletons.size() == 1)
+		{
+			mm.insert({0.01f, 0});
+		}
+		else
+		{
+			// multiple skeletons we need to consider
+			for (size_t skeleton_idx = 0; skeleton_idx < skeletons.size(); skeleton_idx ++)
+			{
+	std::cout << "skeleton_idx=" << skeleton_idx << std::endl;
+				auto & skeleton = skeletons.at(skeleton_idx);
+				const auto & person_rect = predictions.at(skeleton[KP_PERSON]).rect;
+
+				const auto iou = Darknet::iou(person_rect, pred.rect);
+				std::cout << "person at idx=" << skeleton_idx << " iou=" << iou << std::endl;
+				mm.insert({iou, skeleton_idx});
+			}
+		}
+
+		for (const auto & [k, v] : mm)
+		{
+			std::cout << "skeleton #" << v << ": " << k << std::endl;
+		}
+
+		skeletons[mm.begin()->second][best_class] = mm.begin()->first;
+	}
+
+#if 0
+	// find a skeleton where we can record this index, and if needed add a new skeleton to the vector
+	bool need_a_new_skeleton = true;
 
 		// look for duplicate keypoint entries in the skeletons we already have
 		for (auto & skeleton : skeletons)
@@ -163,15 +256,9 @@ Darknet::Skeletons Darknet::Keypoints::create_skeletons(const Predictions & pred
 			skeletons.push_back(skeleton);
 		}
 	}
+#endif
 
-	// now if we had support for multiple skeletons, we'd go through and swap the indexes around until things made sense
-
-	#if 0
-	// Note that multiple skeletons is NOT YET SUPPORTED!  No attempt is made
-	// at comparing the parts to determine which one goes with which skeleton.
-	#endif
-
-	if (cfg_and_state.is_trace)
+//	if (cfg_and_state.is_trace)
 	{
 		for (const auto & skeleton : skeletons)
 		{
@@ -210,6 +297,11 @@ cv::Mat Darknet::Keypoints::annotate(const Predictions & predictions, const Dark
 		// each skeleton gets a new colour based on the class colours generated by Darknet (should be 17 of them)
 		const auto & skeleton = skeletons[idx];
 		const auto & colour = net->details->class_colours[idx % net->details->class_colours.size()];
+
+		if (skeleton[KP_PERSON] >= 0)
+		{
+			cv::rectangle(mat, predictions.at(skeleton[KP_PERSON]).rect, colour, 1, line_type);
+		}
 
 		std::vector<cv::Point> points;
 

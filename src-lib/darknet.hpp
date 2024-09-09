@@ -445,6 +445,14 @@ namespace Darknet
 	 */
 	cv::Mat resize_keeping_aspect_ratio(cv::Mat & mat, cv::Size desired_size, const cv::InterpolationFlags method = cv::InterpolationFlags::INTER_NEAREST);
 
+	/** Calculate intersection-over-union given 2 OpenCV rectangles.  Will return a value between @p 0.0f and @p 1.0f.
+	 *
+	 * @see @ref box_iou()
+	 *
+	 * @since 2024-09-07
+	 */
+	float iou(const cv::Rect & lhs, const cv::Rect & rhs);
+
 	/** Display some information about this specific prediction.
 	 *
 	 * Use like this:
