@@ -50,8 +50,8 @@ void cudnn_maxpool_setup(Darknet::Layer *l)
 		l->size,
 		l->pad/2, //0, //l.pad,
 		l->pad/2, //0, //l.pad,
-		l->stride_x,
-		l->stride_y));
+		l->stride_y,
+		l->stride_x));
 
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->srcTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->c, l->h, l->w));
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->dstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->out_c, l->out_h, l->out_w));
@@ -72,8 +72,8 @@ void cudnn_local_avgpool_setup(Darknet::Layer *l)
 		l->size,
 		l->pad / 2, //0, //l.pad,
 		l->pad / 2, //0, //l.pad,
-		l->stride_x,
-		l->stride_y));
+		l->stride_y,
+		l->stride_x));
 
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->srcTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->c, l->h, l->w));
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->dstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->out_c, l->out_h, l->out_w));
