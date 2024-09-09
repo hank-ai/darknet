@@ -445,6 +445,7 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 
 	cudaDeviceProp prop;
 	CHECK_CUDA(cudaGetDeviceProperties(&prop, std::max(0, cfg_and_state.gpu_index)));
+	const auto compu_capability_ver = prop.major * 10 + prop.minor; // e.g., "86" for RTX30xx, or "89" for RTX40xx
 
 	found_conv_algorithm = 0;
 	min_time = 1000000;   // 1000 sec
@@ -509,13 +510,14 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 			 *		- major=6, minor=x, "Pascal":  GTX 10xx, Quadro Pxxxx, Tesla P4
 			 *		- major=7, minor=5, "Turing":  RTX 20xx, GTX 16xx, Quadro RTX, Tesla T4
 			 *		- major=8, minor=6, "Ampere":  RTX 30xx, A6xxx, A5xxx
+			 *		- major=8, minor=7, "Ampere":  Jetson Orin -- reported on Discord on 2024-09-09, training on an Orin device
 			 *		- major=8, minor=9, "Lovelace":  RTX 40xx
 			 *		- major=9, minor=x, "Hopper":  RTX 50xx
 			 *
 			 * If you think you've run into this error and you'd like to skip this algorithm, change the version number
 			 * we verify against on the next line from "86" to a very large value such as "999".
 			 */
-			if ((prop.major * 10 + prop.minor) < 86)
+			if (compu_capability_ver < 86 or compu_capability_ver == 87)
 			{
 				continue;
 			}
