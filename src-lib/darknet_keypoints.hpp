@@ -21,30 +21,30 @@ namespace Darknet
 	using Skeleton = VInt;
 	using Skeletons = std::vector<Skeleton>;
 
-	/** The @p Keypoints class works with %Darknet's V3 API.
+	/** The @p %Keypoints class works with %Darknet's V3 API.
 	 *
 	 * The only format currently supported is the MSCOCO-style keypoint classes
 	 * with an extra "person" class appended for top-down grouping.  The classes
 	 * are defined as follows:
 	 *
-	 * 0:	nose
-	 * 1:	left eye
-	 * 2:	right eye
-	 * 3:	left ear
-	 * 4:	right ear
-	 * 5:	left shoulder
-	 * 6:	right shoulder
-	 * 7:	left elbow
-	 * 8:	right elbow
-	 * 9:	left wrist
-	 * 10:	right wrist
-	 * 11:	left hip
-	 * 12:	right hip
-	 * 13:	left knee
-	 * 14:	right knee
-	 * 15:	left ankle
-	 * 16:	right ankle
-	 * 17:	person
+	 * @li 0:	nose
+	 * @li 1:	left eye
+	 * @li 2:	right eye
+	 * @li 3:	left ear
+	 * @li 4:	right ear
+	 * @li 5:	left shoulder
+	 * @li 6:	right shoulder
+	 * @li 7:	left elbow
+	 * @li 8:	right elbow
+	 * @li 9:	left wrist
+	 * @li 10:	right wrist
+	 * @li 11:	left hip
+	 * @li 12:	right hip
+	 * @li 13:	left knee
+	 * @li 14:	right knee
+	 * @li 15:	left ankle
+	 * @li 16:	right ankle
+	 * @li 17:	person
 	 *
 	 * @since 2024-09-03
 	 */

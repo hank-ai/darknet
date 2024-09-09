@@ -1,7 +1,22 @@
 /** @page License License
 
-A copy of the license file (Apache v2.0) is included in the @p %Darknet repo.  The license is reproduced in its entirety here:
+Darknet/YOLO switched from the previous "do whatever you want with it" license to the open-source Apache v2.0 license in May 2023.
 
+The Apache v2.0 license means you can easily use Darknet/YOLO in the same scenarios as the previous license, including home, work, commercial products, open-source projects, non-open-source projects, etc.  A copy of the Apache v2.0 license file is included in the root directory of the @p %Darknet/YOLO repo.
+
+Refer to the license for the exact wording and details.  A quick &amp; incomplete summary of each section in the license:
+
+@li Section 1 is "definitions" needed for the rest of the license.
+@li Section 2 is about copyright.
+@li Section 3 is about patents.
+@li Section 4 is where usage and redistribution is declared.  <em>This is the part most software developers are interested in reading.</em>
+@li Section 5 is for new contributions.
+@li Section 6 is in regards to trademark.
+@li Sections 7, 8, and 9 are about usability, warranty, and liability.
+
+The license is reproduced in its entirety below.
+<hr>
+@section apachev20 Apache License v2.0
 <div style="padding:1em; margin:2em; border:1px solid black; white-space:pre-line">
 @htmlinclude "../LICENSE"
 </div>
