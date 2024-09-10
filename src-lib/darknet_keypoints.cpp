@@ -123,142 +123,97 @@ Darknet::Skeletons Darknet::Keypoints::create_skeletons(const Predictions & pred
 	TAT(TATPARMS);
 
 	// remember where all the skeletons are, because we're going to need this often
-	SInt skeleton_ids;
+	SInt people_prediction_indexes;
 
-	// first we pre-allocate skeletons for every person detected in the image
-	Skeletons skeletons;
-	for (int idx = 0; idx < predictions.size(); idx ++)
+	// we want to place all the predictions into skeletons in order from most likely to least likely
+	std::multimap<float, int> sorted_prediction_indexes;
+	for (size_t prediction_idx = 0; prediction_idx < predictions.size(); prediction_idx ++)
 	{
-		const auto & pred = predictions.at(idx);
-
-		if (pred.best_class == KP_PERSON)
+		const auto & prediction = predictions.at(prediction_idx);
+		const auto best_class = prediction.best_class;
+		if (best_class == KP_PERSON)
 		{
-			skeleton_ids.insert(idx);
-
-			Skeleton skeleton(KP_MAX, -1); // set all keypoints to -1
-			skeleton[KP_PERSON] = idx;
-			skeletons.push_back(skeleton);
+			people_prediction_indexes.insert(prediction_idx);
+		}
+		else
+		{
+			sorted_prediction_indexes.insert({prediction.prob.at(best_class), prediction_idx});
 		}
 	}
 
-	if (skeleton_ids.empty() and predictions.size() > 0)
+	// first we pre-allocate skeletons for every person detected in the image
+	Skeletons skeletons;
+	for (const auto prediction_idx : people_prediction_indexes)
+	{
+		Skeleton skeleton(KP_MAX, -1); // set all keypoints to -1
+		skeleton[KP_PERSON] = prediction_idx;
+		skeletons.push_back(skeleton);
+	}
+
+	if (people_prediction_indexes.empty() and predictions.size() > 0)
 	{
 		// we failed to detect a person, but we have keypoints, so create a skeleton anyway
 		Skeleton skeleton(KP_MAX, -1);
 		skeletons.push_back(skeleton);
 	}
 
-	for (int idx = 0; idx < predictions.size(); idx ++)
+	for (auto iter = sorted_prediction_indexes.rbegin(); iter != sorted_prediction_indexes.rend(); iter ++)
 	{
-		// skip the "person" classes, we want only the real keypoints
-		if (skeleton_ids.count(idx))
-		{
-			continue;
-		}
+		const auto prediction_idx = iter->second;
 
-		const auto & pred = predictions.at(idx);
+		const auto & pred = predictions.at(prediction_idx);
 		const int best_class = pred.best_class;
-		std::cout << "-> looking for skeleton for this keypoint at idx=" << idx << ": " << pred << std::endl;
+//		std::cout << "-> looking for skeleton for this keypoint (best_class=" << best_class << ", " << KPNames[best_class] << ") at idx=" << prediction_idx << ": " << pred << std::endl;
 
 		if (skeletons.size() == 1 and skeletons[0][best_class] == -1)
 		{
-			// simple case, we only have 1 skeleton and this is keypoint hasn't been seen yet
-			skeletons[0][best_class] = idx;
+			// simple case, we only have 1 skeleton and this keypoint hasn't been seen yet
+			skeletons[0][best_class] = prediction_idx;
 			continue;
 		}
 
-		// if we get here we have multiple skeletons, or a conflicting prediction
+		// if we get here we either have multiple skeletons, or duplicate predictions
+
+		if (skeletons.size() == 1)
+		{
+//			std::cout << "dropping prediction since it is a duplicate: " << pred << std::endl;
+			continue;
+		}
 
 		// find the best skeleton where this prediction fits; key=IoU, val=skeleton index
 		std::multimap<float, int> mm;
 
-		if (skeletons.size() == 1)
+		for (size_t skeleton_idx = 0; skeleton_idx < skeletons.size(); skeleton_idx ++)
 		{
-			mm.insert({0.01f, 0});
+			auto & skeleton = skeletons.at(skeleton_idx);
+			const auto & person_rect = predictions.at(skeleton[KP_PERSON]).rect;
+
+			const auto iou = Darknet::iou(person_rect, pred.rect);
+			mm.insert({iou, skeleton_idx});
 		}
-		else
+
+		// now see which is the most likely skeleton that needs one of these keypoints
+		for (auto iter = mm.rbegin(); iter != mm.rend(); iter ++)
 		{
-			// multiple skeletons we need to consider
-			for (size_t skeleton_idx = 0; skeleton_idx < skeletons.size(); skeleton_idx ++)
+			if (iter->first <= 0.0f)
 			{
-	std::cout << "skeleton_idx=" << skeleton_idx << std::endl;
-				auto & skeleton = skeletons.at(skeleton_idx);
-				const auto & person_rect = predictions.at(skeleton[KP_PERSON]).rect;
-
-				const auto iou = Darknet::iou(person_rect, pred.rect);
-				std::cout << "person at idx=" << skeleton_idx << " iou=" << iou << std::endl;
-				mm.insert({iou, skeleton_idx});
-			}
-		}
-
-		for (const auto & [k, v] : mm)
-		{
-			std::cout << "skeleton #" << v << ": " << k << std::endl;
-		}
-
-		skeletons[mm.begin()->second][best_class] = mm.begin()->first;
-	}
-
-#if 0
-	// find a skeleton where we can record this index, and if needed add a new skeleton to the vector
-	bool need_a_new_skeleton = true;
-
-		// look for duplicate keypoint entries in the skeletons we already have
-		for (auto & skeleton : skeletons)
-		{
-			if (skeleton[best_class] != -1)
-			{
-				// if get here then we already have a prediction for this keypoint...but should they be merged?
-				const auto & lhs = predictions[skeleton[best_class]];
-				const auto & rhs = predictions[idx];
-
-				const auto x_diff = std::abs(1.0f - lhs.normalized_point.x / rhs.normalized_point.x);
-				const auto y_diff = std::abs(1.0f - lhs.normalized_point.y / rhs.normalized_point.y);
-
-#if 0
-				std::cout
-					<< "compare these two for class=" << best_class << " (" << KPNames[best_class] << ")" << std::endl
-					<< "-> lhs idx #" << skeleton[best_class]	<< ": class " << lhs << std::endl
-					<< "-> rhs idx #" << idx					<< ": class " << rhs << std::endl
-					<< "-> x_diff=" << x_diff << " y_diff=" << y_diff << std::endl;
-#endif
-
-				if (x_diff < 0.1f and y_diff < 0.1f)
-				{
-					// these are the same keypoint -- keep the one with the highest confidence
-//					std::cout << "merging these 2 entries:  old idx=" << skeleton[best_class] << " and new idx=" << idx << std::endl;
-					if (lhs.prob.at(best_class) < rhs.prob.at(best_class))
-					{
-						skeleton[best_class] = idx;
-					}
-
-					// the keypoints have been merged
-					need_a_new_skeleton = false;
-					break;
-				}
-
-				// if we get here we need to keep looking for a skeleton that needs this keypoint
-				continue;
+				// we need to drop this prediction, we did not find where it is needed
+//				std::cout << "dropping prediction, no skeleton found which needed: " << pred << std::endl;
+				break;
 			}
 
-			// if we get here we found a skeleton that does not yet have this keypoint
-
-			skeleton[best_class] = idx;
-			need_a_new_skeleton = false;
-			break;
-		}
-
-		if (need_a_new_skeleton)
-		{
-			// if we get here, then we have no place to store this index, so add a new skeleton
-			Skeleton skeleton(KP_MAX, -1);
-			skeleton[best_class] = idx;
-			skeletons.push_back(skeleton);
+			const int skeleton_idx = iter->second;
+			auto & skeleton = skeletons[skeleton_idx];
+			if (skeleton[best_class] == -1)
+			{
+				// looks like we found a valid skeleton that needs this part!
+				skeleton[best_class] = prediction_idx;
+				break;
+			}
 		}
 	}
-#endif
 
-//	if (cfg_and_state.is_trace)
+	if (cfg_and_state.is_trace)
 	{
 		for (const auto & skeleton : skeletons)
 		{
@@ -292,21 +247,18 @@ cv::Mat Darknet::Keypoints::annotate(const Predictions & predictions, const Dark
 	const float h = mat.rows;
 
 	// we can have zero or many skeletons in this image
-	for (size_t idx = 0; idx < skeletons.size(); idx ++)
-	{
-		// each skeleton gets a new colour based on the class colours generated by Darknet (should be 17 of them)
-		const auto & skeleton = skeletons[idx];
-		const auto & colour = net->details->class_colours[idx % net->details->class_colours.size()];
 
-		if (skeleton[KP_PERSON] >= 0)
-		{
-			cv::rectangle(mat, predictions.at(skeleton[KP_PERSON]).rect, colour, 1, line_type);
-		}
+	for (size_t skeleton_idx = 0; skeleton_idx < skeletons.size(); skeleton_idx ++)
+	{
+		// each skeleton gets a new colour based on the class colours generated by Darknet (should be 18 of them)
+		const auto & skeleton = skeletons[skeleton_idx];
+		const auto & colour = net->details->class_colours[skeleton_idx % net->details->class_colours.size()];
 
 		std::vector<cv::Point> points;
 
-		for (const int & prediction_idx : skeleton)
+		for (size_t keypoint_idx = 0; keypoint_idx < skeleton.size(); keypoint_idx ++)
 		{
+			const int prediction_idx = skeleton.at(keypoint_idx);
 			if (prediction_idx < 0 or prediction_idx >= predictions.size())
 			{
 				// a negative index is invalid and means we don't have that part of the skeleton
@@ -321,13 +273,17 @@ cv::Mat Darknet::Keypoints::annotate(const Predictions & predictions, const Dark
 
 			const cv::Point p(x, y);
 			points.push_back(p);
-			cv::circle(mat, p, 10, colour, cv::FILLED, line_type);
-		}
 
-		// don't draw the lines between the dots if we have multiple skeletons
-		if (skeletons.size() > 1)
-		{
-			continue;
+			if (keypoint_idx == KP_PERSON)
+			{
+				// draw a rectangle around the entire person
+//				cv::rectangle(mat, prediction.rect, colour, 1, line_type);
+			}
+			else
+			{
+				// normal keypoint joint
+				cv::circle(mat, p, 10, colour, cv::FILLED, line_type);
+			}
 		}
 
 		for (const auto & [k, v] : SkeletonPoints)
@@ -377,8 +333,70 @@ cv::Mat Darknet::Keypoints::annotate(const Predictions & predictions, const Dark
 			{
 				cv::line(mat, mid_shoulder, points[KP_NOSE], colour, 5, line_type);
 			}
+
+#if 0
+			// both shoulders, but only 1 hip
+			if (skeleton[KP_L_HIP] == -1 and skeleton[KP_R_HIP] >= 0)
+			{
+				cv::line(mat, mid_shoulder, points[KP_R_HIP], colour, 5, line_type);
+			}
+
+			if (skeleton[KP_R_HIP] == -1 and skeleton[KP_L_HIP] >= 0)
+			{
+				cv::line(mat, mid_shoulder, points[KP_L_HIP], colour, 5, line_type);
+			}
+#endif
+		}
+
+#if 0
+		// both hips, but only 1 shoulder
+		if (mid_hip.x >= 0 and
+			mid_hip.y >= 0)
+		{
+			if (skeleton[KP_L_SHOULDER] == -1 and skeleton[KP_R_SHOULDER] >= 0)
+			{
+				cv::line(mat, mid_hip, points[KP_R_SHOULDER], colour, 5, line_type);
+			}
+			if (skeleton[KP_R_SHOULDER] == -1 and skeleton[KP_L_SHOULDER] >= 0)
+			{
+				cv::line(mat, mid_hip, points[KP_L_SHOULDER], colour, 5, line_type);
+			}
+		}
+#endif
+	}
+
+#if 0
+	if (cfg_and_state.is_trace)
+	{
+		// for DEBUG purpose only -- now that the lines and circles are done, draw the text for each keypoint
+
+		for (const auto & skeleton : skeletons)
+		{
+			for (const int & prediction_idx : skeleton)
+			{
+				if (prediction_idx < 0 or prediction_idx >= predictions.size())
+				{
+					// unknown/unasigned keypoint
+					continue;
+				}
+
+				const auto & prediction = predictions[prediction_idx];
+
+				if (prediction.best_class == KP_PERSON)
+				{
+					continue;
+				}
+
+				const int x = std::round(w * prediction.normalized_point.x);
+				const int y = std::round(h * prediction.normalized_point.y);
+
+				const cv::Point p(x, y);
+				cv::putText(mat, KPNames[prediction.best_class], p, net->details->cv_font_face, net->details->cv_font_scale, {255, 255, 255	}, net->details->cv_font_thickness + 2, line_type);
+				cv::putText(mat, KPNames[prediction.best_class], p, net->details->cv_font_face, net->details->cv_font_scale, {0, 0, 0		}, net->details->cv_font_thickness + 0, line_type);
+			}
 		}
 	}
+#endif
 
 	return mat;
 }
