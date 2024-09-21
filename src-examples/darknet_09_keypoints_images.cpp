@@ -41,49 +41,6 @@
  */
 
 
-void set_default_neural_network_files(Darknet::Parms & parms)
-{
-	// if we know which neural network to load, then there is nothing for us to change,
-	// but if the user didn't specify files to load then we'll default to the MSCOCO "keypoints"
-
-	bool found_cfg		= false;
-	bool found_weights	= false;
-	for (const auto & parm : parms)
-	{
-		if (parm.type == Darknet::EParmType::kCfgFilename)
-		{
-			found_cfg = true;
-		}
-		else if (parm.type == Darknet::EParmType::kWeightsFilename)
-		{
-			found_weights = true;
-		}
-	}
-
-	if (not found_cfg)
-	{
-		Darknet::Parm parm;
-		parm.idx		= 0;
-		parm.type		= Darknet::EParmType::kCfgFilename;
-		parm.original	= "Darknet-Keypoints.cfg";
-		parm.string		= parm.original;
-		parms.push_back(parm);
-	}
-
-	if (not found_weights)
-	{
-		Darknet::Parm parm;
-		parm.idx		= 0;
-		parm.type		= Darknet::EParmType::kWeightsFilename;
-		parm.original	= "Darknet-Keypoints.weights";
-		parm.string		= parm.original;
-		parms.push_back(parm);
-	}
-
-	return;
-}
-
-
 int main(int argc, char * argv[])
 {
 	try
@@ -91,7 +48,7 @@ int main(int argc, char * argv[])
 		Darknet::show_version_info();
 
 		Darknet::Parms parms = Darknet::parse_arguments(argc, argv);
-		set_default_neural_network_files(parms);
+		Darknet::set_default_keypoints_files(parms);
 		Darknet::NetworkPtr net = Darknet::load_neural_network(parms);
 		Darknet::Keypoints keypoints(net);
 		Darknet::set_trace(true); // this will force the skeleton details to display on STDOUT

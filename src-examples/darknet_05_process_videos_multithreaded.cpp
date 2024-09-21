@@ -242,6 +242,7 @@ int main(int argc, char * argv[])
 
 		Darknet::Parms parms = Darknet::parse_arguments(argc, argv);
 		net = Darknet::load_neural_network(parms);
+//		Darknet::set_annotation_line_type(net, cv::LineTypes::LINE_AA);
 
 		int network_width = 0;
 		int network_height = 0;

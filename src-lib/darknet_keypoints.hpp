@@ -89,8 +89,47 @@ namespace Darknet
 			 */
 			cv::Mat annotate(const Predictions & predictions, cv::Mat mat);
 
+			/** Draw the labels beside each keypoint.  Default value is @p false.
+			 *
+			 * @since 2024-09-20
+			 */
+			bool draw_labels;
+
+			/** Draw a circle above each detected keypoint.  Default value is @p true.  @see @ref circle_size
+			 *
+			 * @since 2024-09-20
+			 */
+			bool draw_keypoints;
+
+			/** Draw the skeletons joining each keypoint.  Default value is @p true.  @see @ref line_size
+			 *
+			 * @since 2024-09-20
+			 */
+			bool draw_skeleton;
+
+			/** Size of circles used to draw keypoints.  @p draw_keypoints must also be set to @p true.  Default value is @p 6.
+			 *
+			 * @since 2024-09-20
+			 */
+			int circle_size;
+
+			/** Size of lines used to draw skeletons.  @p draw_skeleton must also be set to @p true.  Default value is @p 3.
+			 *
+			 * @since 2024-09-20
+			 */
+			int line_size;
+
 		private:
 
 			const Darknet::NetworkPtr network_ptr;
 	};
+
+	/** Add the default %Darknet Keypoints neural network files to the given @p parms.
+	 *
+	 * If @p parms doesn't seem to reference neural network files, then this function will automatically add the names
+	 * @p "Darknet-Keypoints.cfg" and @p "Darknet-Keypoints.weights".
+	 *
+	 * @since 2024-09-20
+	 */
+	void set_default_keypoints_files(Darknet::Parms & parms);
 }
