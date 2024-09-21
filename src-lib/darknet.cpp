@@ -1012,7 +1012,7 @@ void Darknet::network_dimensions(Darknet::NetworkPtr & ptr, int & w, int & h, in
 }
 
 
-Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, cv::Mat mat)
+Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, const cv::Mat & mat)
 {
 	TAT(TATPARMS);
 
@@ -1029,6 +1029,7 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, cv::Mat mat
 	const cv::Size network_dimensions(net->w, net->h);
 	const cv::Size original_image_size = mat.size();
 
+	cv::Mat bgr;
 	if (mat.size() != network_dimensions)
 	{
 		// Note that INTER_NEAREST gives us *speed*, not image quality.
@@ -1037,20 +1038,30 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, cv::Mat mat
 		// using INTER_AREA, INTER_CUBIC or INTER_LINEAR prior to calling
 		// predict().  See DarkHelp or OpenCV documentation for details.
 
-		cv::resize(mat, mat, network_dimensions, cv::INTER_NEAREST);
+		cv::resize(mat, bgr, network_dimensions, cv::INTER_NEAREST);
+	}
+	else
+	{
+		bgr = mat;
 	}
 
-	// OpenCV uses BGR, but Darknet expects RGB
-	if (mat.channels() == 3)
+	// OpenCV uses BGR, but Darknet requires RGB
+	cv::Mat rgb;
+	if (bgr.channels() == 3)
 	{
-		cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
+		cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
 	}
-	else if (mat.channels() == 4)
+	else if (bgr.channels() == 4)
 	{
-		cv::cvtColor(mat, mat, cv::COLOR_BGRA2RGB);
+		cv::cvtColor(bgr, rgb, cv::COLOR_BGRA2RGB);
+	}
+	else
+	{
+		// we have no idea what image format this might be
+		rgb = bgr;
 	}
 
-	Darknet::Image img = mat_to_image(mat);
+	Darknet::Image img = mat_to_image(rgb);
 
 	return predict(ptr, img, original_image_size);
 }

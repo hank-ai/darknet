@@ -363,7 +363,7 @@ namespace Darknet
 	 *
 	 * @since 2024-07-24
 	 */
-	Predictions predict(const Darknet::NetworkPtr ptr, cv::Mat mat);
+	Predictions predict(const Darknet::NetworkPtr ptr, const cv::Mat & mat);
 
 	/** Get %Darknet to look at the given image or video frame and return all predictions.
 	 *
