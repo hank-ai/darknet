@@ -433,7 +433,7 @@ darknet detector -map -dont_show --verbose train animals.data animals.cfg
 
 # Roadmap
 
-Last updated 2024-08-06:
+Last updated 2024-09-21:
 
 ## Completed
 
@@ -460,28 +460,29 @@ Last updated 2024-08-06:
 * [X] have better version number output
 * [X] performance optimizations related to training (on-going task)
 * [X] performance optimizations related to inference (on-going task)
+* [X] pass-by-reference where possible
+* [X] clean up .hpp files
+* [X] re-write darknet.h
+* [X] do not cast `cv::Mat` to `void*` but use it as a proper C++ object
+* [X] fix or be consistent in how internal `image` structure gets used
 
 ## Short-term goals
 
-* [ ] pass-by-reference where possible (in progress)
+* [ ] fix Python API in V3
 * [ ] swap out printf() for std::cout (in progress)
-* [ ] clean up .hpp files (in progress)
-* [ ] re-write darknet.h (in progress)
 * [ ] look into old zed camera support
 * [ ] better and more consistent command line parsing (in progress)
 
 ## Mid-term goals
 
 * [ ] remove all `char*` code and replace with `std::string`
-* [ ] don't hide warnings and clean up compiler warnings
+* [ ] don't hide warnings and clean up compiler warnings (in progress)
 * [ ] fix build for ARM-based Jetson devices
 * [ ] better use of `cv::Mat` instead of the custom `image` structure in C (in progress)
-* [ ] do not cast `cv::Mat` to `void*` but use it as a proper C++ object (in progress)
-* [ ] fix or be consistent in how internal `image` structure gets used (in progress)
 * [ ] replace old `list` functionality with `std::vector` or `std::list`
 * [ ] fix support for 1-channel greyscale images
 * [ ] add support for N-channel images where N > 3 (e.g., images with an additional depth or thermal channel)
-* [ ] on-going code cleanup
+* [ ] on-going code cleanup (in progress)
 
 ## Long-term goals
 
@@ -489,3 +490,6 @@ Last updated 2024-08-06:
 * [ ] re-write CUDA+cuDNN code
 * [ ] look into adding support for non-NVIDIA GPUs
 * [ ] rotated bounding boxes, or some sort of "angle" support
+* [ ] keypoints/skeletons
+* [ ] heatmaps
+* [ ] segmentation
