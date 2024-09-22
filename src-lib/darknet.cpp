@@ -1275,6 +1275,35 @@ const Darknet::VScalars & Darknet::get_class_colours(const Darknet::NetworkPtr p
 }
 
 
+const Darknet::VScalars & Darknet::set_class_colours(Darknet::NetworkPtr ptr, const Darknet::VScalars & user_colours)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot set the class colours without a network pointer");
+	}
+
+	if (net->details == nullptr)
+	{
+		throw std::invalid_argument("the network pointer was not initialized correctly (null details pointer!?)");
+	}
+
+	// Only copy over the necessary colours.  If the user provided us with too many colours, then we'll only read the first
+	// few.  Meanwhile, if they gave us too-few then we'll take what we can and continue to use the default colours for the
+	// remainder of the clases.
+
+	auto & class_colours = net->details->class_colours;
+	for (size_t idx = 0; idx < std::min(user_colours.size(), class_colours.size()); idx ++)
+	{
+		class_colours[idx] = user_colours[idx];
+	}
+
+	return net->details->class_colours;
+}
+
+
 std::filesystem::path Darknet::get_config_filename(const Darknet::NetworkPtr ptr)
 {
 	TAT(TATPARMS);

@@ -412,6 +412,15 @@ namespace Darknet
 	 */
 	const Darknet::VScalars & get_class_colours(const Darknet::NetworkPtr ptr);
 
+	/** Set the colours to use when drawing annotations.  The colours are in OpenCV's usual BGR format, not RGB.  So pure
+	 * red for example is @p "{0, 0, 255}" while pure blue would be @p "{255, 0, 0}".  The middle value is green.
+	 *
+	 * @returns the final colours used, same as if @ref get_class_colours() had been called.
+	 *
+	 * @since 2024-09-22
+	 */
+	const Darknet::VScalars & set_class_colours(Darknet::NetworkPtr ptr, const Darknet::VScalars & colours);
+
 	/** Get the filename of the configuration file that was used to load this neural network.
 	 *
 	 * @since 2024-08-29
