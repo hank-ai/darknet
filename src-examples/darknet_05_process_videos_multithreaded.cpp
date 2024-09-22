@@ -58,6 +58,7 @@ std::set<Frame>		frames_waiting_for_output;			///< once a frame has been predict
 std::mutex			waiting_for_resize;					///< mutex to protect access to @ref frames_waiting_for_resize
 std::mutex			waiting_for_prediction;				///< mutex to protect access to @ref frames_waiting_for_prediction
 std::mutex			waiting_for_output;					///< mutex to protect access to @ref frames_waiting_for_output
+std::chrono::high_resolution_clock::duration wait_threads_duration;	///< amount of time spent waiting for other threads to finish running
 std::chrono::high_resolution_clock::duration reader_work_duration;	///< amount of time spent reading frames
 std::chrono::high_resolution_clock::duration resize_work_duration;	///< amount of time spent resizing frames
 std::chrono::high_resolution_clock::duration predict_work_duration;	///< amount of time spent predicting frames
@@ -66,6 +67,7 @@ size_t				reader_must_pause		= 0;
 size_t				resize_thread_starved	= 0;
 size_t				predict_thread_starved	= 0;
 size_t				output_thread_starved	= 0;
+size_t				waiting_for_threads		= 0;
 size_t				expected_next_index		= 0; ///< keep track of which frame has been written to disk
 
 
@@ -277,8 +279,20 @@ int main(int argc, char * argv[])
 			const size_t fps_rounded				= std::round(fps);
 			const size_t nanoseconds_per_frame		= std::round(1000000000.0 / fps);
 			const size_t video_length_milliseconds	= std::round(nanoseconds_per_frame / 1000000.0 * video_frames_count);
+
 			size_t total_objects_found				= 0;
 			size_t frame_counter					= 0;
+			wait_threads_duration	= std::chrono::high_resolution_clock::duration();
+			reader_work_duration	= std::chrono::high_resolution_clock::duration();
+			resize_work_duration	= std::chrono::high_resolution_clock::duration();
+			predict_work_duration	= std::chrono::high_resolution_clock::duration();
+			output_work_duration	= std::chrono::high_resolution_clock::duration();
+			reader_must_pause		= 0;
+			resize_thread_starved	= 0;
+			predict_thread_starved	= 0;
+			output_thread_starved	= 0;
+			waiting_for_threads		= 0;
+			expected_next_index		= 0;
 
 			cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), fps, cv::Size(video_width, video_height));
 			if (not out.isOpened())
@@ -363,11 +377,13 @@ int main(int argc, char * argv[])
 			}
 
 			// even though we finished reading the frames from the input video, the other threads may not yet have finished
+			const auto begin_waiting = std::chrono::high_resolution_clock::now();
 			while (all_threads_must_exit == false and expected_next_index < frame_counter)
 			{
-				reader_must_pause ++;
+				waiting_for_threads ++;
 				std::this_thread::sleep_for(std::chrono::milliseconds(1));
 			}
+			wait_threads_duration = std::chrono::high_resolution_clock::now() - begin_waiting;
 			all_threads_must_exit = true;
 
 			const auto timestamp_when_video_ended = std::chrono::high_resolution_clock::now();
@@ -387,10 +403,12 @@ int main(int argc, char * argv[])
 				<< "-> resize thread starved .... " << resize_thread_starved									<< std::endl
 				<< "-> predict thread starved ... " << predict_thread_starved									<< std::endl
 				<< "-> output thread starved .... " << output_thread_starved									<< std::endl
+				<< "-> waiting for threads ...... " << waiting_for_threads										<< std::endl
 				<< "-> time spent reading ....... " << std::chrono::duration_cast<std::chrono::milliseconds>(reader_work_duration).count() << " milliseconds" << std::endl
 				<< "-> time spent resizing ...... " << std::chrono::duration_cast<std::chrono::milliseconds>(resize_work_duration).count() << " milliseconds" << std::endl
 				<< "-> time spent predicting .... " << std::chrono::duration_cast<std::chrono::milliseconds>(predict_work_duration).count() << " milliseconds" << std::endl
 				<< "-> time spent output video .. " << std::chrono::duration_cast<std::chrono::milliseconds>(output_work_duration).count() << " milliseconds" << std::endl
+				<< "-> time waiting for threads . " << std::chrono::duration_cast<std::chrono::milliseconds>(wait_threads_duration).count() << " milliseconds" << std::endl
 #endif
 				;
 
