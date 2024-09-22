@@ -66,6 +66,7 @@ size_t				reader_must_pause		= 0;
 size_t				resize_thread_starved	= 0;
 size_t				predict_thread_starved	= 0;
 size_t				output_thread_starved	= 0;
+size_t				expected_next_index		= 0; ///< keep track of which frame has been written to disk
 
 
 void resize_thread()
@@ -182,7 +183,7 @@ void output_thread(cv::VideoWriter & out)
 {
 	try
 	{
-		size_t expected_next_index = 0;
+		expected_next_index = 0;
 
 		while (all_threads_must_exit == false)
 		{
@@ -254,150 +255,151 @@ int main(int argc, char * argv[])
 
 		for (const auto & parm : parms)
 		{
-			if (parm.type == Darknet::EParmType::kFilename)
+			if (parm.type != Darknet::EParmType::kFilename)
 			{
-				std::cout << "processing " << parm.string << ":" << std::endl;
-
-				cv::VideoCapture cap(parm.string);
-				if (not cap.isOpened())
-				{
-					std::cout << "Failed to open the input video file " << parm.string << std::endl;
-					continue;
-				}
-
-				const std::string output_filename		= std::filesystem::path(parm.string).stem().string() + "_output.m4v";
-				const size_t video_width				= cap.get(cv::CAP_PROP_FRAME_WIDTH);
-				const size_t video_height				= cap.get(cv::CAP_PROP_FRAME_HEIGHT);
-				const size_t video_frames_count			= cap.get(cv::CAP_PROP_FRAME_COUNT);
-				const double fps						= cap.get(cv::CAP_PROP_FPS);
-				const size_t fps_rounded				= std::round(fps);
-				const size_t nanoseconds_per_frame		= std::round(1000000000.0 / fps);
-				const size_t video_length_milliseconds	= std::round(nanoseconds_per_frame / 1000000.0 * video_frames_count);
-				size_t total_objects_found				= 0;
-				size_t frame_counter					= 0;
-
-				cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), fps, cv::Size(video_width, video_height));
-				if (not out.isOpened())
-				{
-					std::cout << "Failed to open the output video file " << output_filename << std::endl;
-					continue;
-				}
-
-				/* These are the tasks that must be performed:
-				 *
-				 *		1) read the frames from the video file
-				 *		2) resize the frames, convert to RGB, convert to Darknet::Image format
-				 *		3) call Darknet/YOLO predict() and annotate() on each frame
-				 *		4) write the annotated image to the output video
-				 *
-				 * From a complexity point of view, each one of those tasks takes longer than the task before.  So reading is simple,
-				 * resizing take a bit more time than reading, predicting takes more time than resizing, and the longest of all is
-				 * writing the video back to disk because of the re-encoding.
-				 *
-				 * By rate limiting the first and fastest task, we can control the rest of the tasks after that.
-				 */
-
-				// start all the threads we'll need -- the "main" thread will take care of task #1 (reading)
-				threads.emplace_back(resize_thread);									// task #2
-				threads.emplace_back(detection_thread, std::ref(total_objects_found));	// task #3
-				threads.emplace_back(output_thread, std::ref(out));						// task #4
-
-				std::cout
-					<< "-> total number of CPUs ..... " << std::thread::hardware_concurrency()			<< std::endl
-					<< "-> threads for this video ... " << threads.size() + 1 /* this thread */			<< std::endl
-					<< "-> neural network size ...... " << network_width << " x " << network_height << " x " << network_channels << std::endl
-					<< "-> input video dimensions ... " << video_width << " x " << video_height			<< std::endl
-					<< "-> input video frame count .. " << video_frames_count							<< std::endl
-					<< "-> input video frame rate ... " << fps << " FPS"								<< std::endl
-					<< "-> input video length ....... " << video_length_milliseconds << " milliseconds"	<< std::endl
-					<< "-> output filename .......... " << output_filename								<< std::endl;
-
-				const auto timestamp_when_video_started = std::chrono::high_resolution_clock::now();
-
-				while (all_threads_must_exit == false)
-				{
-					const auto timestamp_begin = std::chrono::high_resolution_clock::now();
-
-					Frame frame;
-					frame.index = frame_counter;
-					cap >> frame.mat;
-					if (frame.mat.empty())
-					{
-						break;
-					}
-
-					// place the frame on the queue so it can be resized
-					if (true)
-					{
-						std::scoped_lock lock(waiting_for_resize);
-						frames_waiting_for_resize.insert(frame);
-					}
-
-					frame_counter ++;
-					if (frame_counter % fps_rounded == 0)
-					{
-						const int percentage = std::round(100.0f * frame_counter / video_frames_count);
-						std::cout
-							<< "-> frame #" << frame_counter << "/" << video_frames_count
-							<< " (" << percentage << "%)\r"
-							<< std::flush;
-					}
-
-					const auto timestamp_end = std::chrono::high_resolution_clock::now();
-					reader_work_duration += timestamp_end - timestamp_begin;
-
-					while (	all_threads_must_exit == false and
-							frames_waiting_for_resize		.size() +
-							frames_waiting_for_prediction	.size() +
-							frames_waiting_for_output		.size() > 5)
-					{
-						// reader thread is getting too far ahead of the other threads, we need to slow down
-						reader_must_pause ++;
-						std::this_thread::sleep_for(std::chrono::milliseconds(1));
-					}
-				}
-
-				// even though we finished reading the frames from the input video, the other threads may not yet have finished
-				while (all_threads_must_exit == false and
-					frames_waiting_for_resize		.size() +
-					frames_waiting_for_prediction	.size() +
-					frames_waiting_for_output		.size() > 0)
-				{
-					std::this_thread::yield();
-				}
-				all_threads_must_exit = true;
-
-				const auto timestamp_when_video_ended = std::chrono::high_resolution_clock::now();
-				const auto processing_duration = timestamp_when_video_ended - timestamp_when_video_started;
-				const size_t processing_time_in_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(processing_duration).count();
-				const double final_fps = 1000.0 * frame_counter / processing_time_in_milliseconds;
-
-				std::cout
-					<< "-> total frames processed ... " << frame_counter											<< std::endl
-					<< "-> time to process video .... " << processing_time_in_milliseconds << " milliseconds"		<< std::endl
-					<< "-> processed frame rate ..... " << final_fps << " FPS"										<< std::endl
-					<< "-> total objects founds ..... " << total_objects_found										<< std::endl
-					<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter	<< std::endl
-#if 0
-					// timing details are commented out, they're mostly for development purpose not end user consumption
-					<< "-> reader chose to pause .... " << reader_must_pause										<< std::endl
-					<< "-> resize thread starved .... " << resize_thread_starved									<< std::endl
-					<< "-> predict thread starved ... " << predict_thread_starved									<< std::endl
-					<< "-> output thread starved .... " << output_thread_starved									<< std::endl
-					<< "-> time spent reading ....... " << std::chrono::duration_cast<std::chrono::milliseconds>(reader_work_duration).count() << " milliseconds" << std::endl
-					<< "-> time spent resizing ...... " << std::chrono::duration_cast<std::chrono::milliseconds>(resize_work_duration).count() << " milliseconds" << std::endl
-					<< "-> time spent predicting .... " << std::chrono::duration_cast<std::chrono::milliseconds>(predict_work_duration).count() << " milliseconds" << std::endl
-					<< "-> time spent output video .. " << std::chrono::duration_cast<std::chrono::milliseconds>(output_work_duration).count() << " milliseconds" << std::endl
-#endif
-					;
-
-				// all threads should have exited by now
-				for (auto & t : threads)
-				{
-					t.join();
-				}
-				threads.clear();
+				continue;
 			}
+
+			std::cout << "processing " << parm.string << ":" << std::endl;
+
+			cv::VideoCapture cap(parm.string);
+			if (not cap.isOpened())
+			{
+				std::cout << "Failed to open the input video file " << parm.string << std::endl;
+				continue;
+			}
+
+			const std::string output_filename		= std::filesystem::path(parm.string).stem().string() + "_output.m4v";
+			const size_t video_width				= cap.get(cv::CAP_PROP_FRAME_WIDTH);
+			const size_t video_height				= cap.get(cv::CAP_PROP_FRAME_HEIGHT);
+			const size_t video_frames_count			= cap.get(cv::CAP_PROP_FRAME_COUNT);
+			const double fps						= cap.get(cv::CAP_PROP_FPS);
+			const size_t fps_rounded				= std::round(fps);
+			const size_t nanoseconds_per_frame		= std::round(1000000000.0 / fps);
+			const size_t video_length_milliseconds	= std::round(nanoseconds_per_frame / 1000000.0 * video_frames_count);
+			size_t total_objects_found				= 0;
+			size_t frame_counter					= 0;
+
+			cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), fps, cv::Size(video_width, video_height));
+			if (not out.isOpened())
+			{
+				std::cout << "Failed to open the output video file " << output_filename << std::endl;
+				continue;
+			}
+
+			/* These are the tasks that must be performed:
+				*
+				*		1) read the frames from the video file
+				*		2) resize the frames, convert to RGB, convert to Darknet::Image format
+				*		3) call Darknet/YOLO predict() and annotate() on each frame
+				*		4) write the annotated image to the output video
+				*
+				* From a complexity point of view, each one of those tasks takes longer than the task before.  So reading is simple,
+				* resizing take a bit more time than reading, predicting takes more time than resizing, and the longest of all is
+				* writing the video back to disk because of the re-encoding.
+				*
+				* By rate limiting the first and fastest task, we can control the rest of the tasks after that.
+				*/
+
+			// start all the threads we'll need -- the "main" thread will take care of task #1 (reading)
+			all_threads_must_exit = false;
+			threads.emplace_back(resize_thread);									// task #2
+			threads.emplace_back(detection_thread, std::ref(total_objects_found));	// task #3
+			threads.emplace_back(output_thread, std::ref(out));						// task #4
+
+			std::cout
+				<< "-> total number of CPUs ..... " << std::thread::hardware_concurrency()			<< std::endl
+				<< "-> threads for this video ... " << threads.size() + 1 /* this thread */			<< std::endl
+				<< "-> neural network size ...... " << network_width << " x " << network_height << " x " << network_channels << std::endl
+				<< "-> input video dimensions ... " << video_width << " x " << video_height			<< std::endl
+				<< "-> input video frame count .. " << video_frames_count							<< std::endl
+				<< "-> input video frame rate ... " << fps << " FPS"								<< std::endl
+				<< "-> input video length ....... " << video_length_milliseconds << " milliseconds"	<< std::endl
+				<< "-> output filename .......... " << output_filename								<< std::endl;
+
+			const auto timestamp_when_video_started = std::chrono::high_resolution_clock::now();
+
+			while (all_threads_must_exit == false)
+			{
+				const auto timestamp_begin = std::chrono::high_resolution_clock::now();
+
+				Frame frame;
+				frame.index = frame_counter;
+				cap >> frame.mat;
+				if (frame.mat.empty())
+				{
+					break;
+				}
+
+				// place the frame on the queue so it can be resized
+				if (true)
+				{
+					std::scoped_lock lock(waiting_for_resize);
+					frames_waiting_for_resize.insert(frame);
+				}
+
+				frame_counter ++;
+				if (frame_counter % fps_rounded == 0)
+				{
+					const int percentage = std::round(100.0f * frame_counter / video_frames_count);
+					std::cout
+						<< "-> frame #" << frame_counter << "/" << video_frames_count
+						<< " (" << percentage << "%)\r"
+						<< std::flush;
+				}
+
+				const auto timestamp_end = std::chrono::high_resolution_clock::now();
+				reader_work_duration += timestamp_end - timestamp_begin;
+
+				while (	all_threads_must_exit == false and
+						frames_waiting_for_resize		.size() +
+						frames_waiting_for_prediction	.size() +
+						frames_waiting_for_output		.size() > 5)
+				{
+					// reader thread is getting too far ahead of the other threads, we need to slow down
+					reader_must_pause ++;
+					std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				}
+			}
+
+			// even though we finished reading the frames from the input video, the other threads may not yet have finished
+			while (all_threads_must_exit == false and expected_next_index < frame_counter)
+			{
+				reader_must_pause ++;
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+			all_threads_must_exit = true;
+
+			const auto timestamp_when_video_ended = std::chrono::high_resolution_clock::now();
+			const auto processing_duration = timestamp_when_video_ended - timestamp_when_video_started;
+			const size_t processing_time_in_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(processing_duration).count();
+			const double final_fps = 1000.0 * frame_counter / processing_time_in_milliseconds;
+
+			std::cout
+				<< "-> total frames processed ... " << frame_counter											<< std::endl
+				<< "-> time to process video .... " << processing_time_in_milliseconds << " milliseconds"		<< std::endl
+				<< "-> processed frame rate ..... " << final_fps << " FPS"										<< std::endl
+				<< "-> total objects founds ..... " << total_objects_found										<< std::endl
+				<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter	<< std::endl
+#if 0
+				// timing details are commented out, they're mostly for development purpose not end user consumption
+				<< "-> reader chose to pause .... " << reader_must_pause										<< std::endl
+				<< "-> resize thread starved .... " << resize_thread_starved									<< std::endl
+				<< "-> predict thread starved ... " << predict_thread_starved									<< std::endl
+				<< "-> output thread starved .... " << output_thread_starved									<< std::endl
+				<< "-> time spent reading ....... " << std::chrono::duration_cast<std::chrono::milliseconds>(reader_work_duration).count() << " milliseconds" << std::endl
+				<< "-> time spent resizing ...... " << std::chrono::duration_cast<std::chrono::milliseconds>(resize_work_duration).count() << " milliseconds" << std::endl
+				<< "-> time spent predicting .... " << std::chrono::duration_cast<std::chrono::milliseconds>(predict_work_duration).count() << " milliseconds" << std::endl
+				<< "-> time spent output video .. " << std::chrono::duration_cast<std::chrono::milliseconds>(output_work_duration).count() << " milliseconds" << std::endl
+#endif
+				;
+
+			// all threads should have exited by now
+			for (auto & t : threads)
+			{
+				t.join();
+			}
+			threads.clear();
 		}
 
 		Darknet::free_neural_network(net);
