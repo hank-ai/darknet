@@ -12,6 +12,10 @@ namespace
 		const auto items_read = std::fread(dst, size, count, fp);
 		if (items_read != count)
 		{
+			Darknet::display_warning_msg(
+				"The .weights file does not match the .cfg file (not enough fields to read in the weights).\n"
+				"Normally this means the .weights file was corrupted, or you've mixed up which .cfg file goes with which .weights file.\n");
+
 			darknet_fatal_error(DARKNET_LOC, "expected to read %lu fields, but only read %lu", count, items_read);
 		}
 
@@ -597,12 +601,11 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 	const auto filesize = std::filesystem::file_size(filename);
 	if (position != filesize and cutoff >= net->n)
 	{
-		Darknet::display_warning_msg("failure detected while reading weights"
-			" (f=" + std::string(filename)		+
-			", n=" + std::to_string(net->n)		+
-			", p=" + std::to_string(position)	+
-			", s=" + std::to_string(filesize)	+
-			")\n");
+		Darknet::display_warning_msg(
+			"The .weights file does not match the .cfg file (weights file is larger than expected as described in the configuration).\n"
+			"Normally this means the .weights file was corrupted, or you've mixed up which .cfg file goes with which .weights file.\n");
+
+		darknet_fatal_error(DARKNET_LOC, "failure detected while reading weights (fn=%s, layers=%d, pos=%lu, filesize=%lu)", filename, net->n, position, filesize);
 	}
 
 	if (cfg_and_state.is_verbose)

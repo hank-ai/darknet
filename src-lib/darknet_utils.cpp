@@ -162,7 +162,7 @@ void Darknet::display_warning_msg(const std::string & msg)
 
 	if (not msg.empty())
 	{
-		std::cout << in_colour(EColour::kYellow, msg);
+		std::cout << in_colour(EColour::kYellow, msg) << std::flush;
 	}
 
 	return;
