@@ -851,15 +851,13 @@ int num_detections(Darknet::Network * net, float thresh)
 {
 	TAT(TATPARMS);
 
-	/// @todo V3 JAZZ 740 milliseconds
-
 	int s = 0;
 	for (int i = 0; i < net->n; ++i)
 	{
 		const Darknet::Layer & l = net->layers[i];
 		if (l.type == Darknet::ELayerType::YOLO)
 		{
-			/// @todo V3 JAZZ 725 milliseconds -- this is where we spend all our time
+			/// @todo V3 JAZZ:  this is where we spend all our time
 			s += yolo_num_detections(l, thresh);
 		}
 
@@ -882,8 +880,6 @@ int num_detections_v3(Darknet::Network * net, float thresh, Darknet::Output_Obje
 {
 	TAT(TATPARMS);
 
-	/// @todo V3 JAZZ 694 milliseconds
-
 	int detections = 0;
 
 	for (int i = 0; i < net->n; ++i)
@@ -891,7 +887,7 @@ int num_detections_v3(Darknet::Network * net, float thresh, Darknet::Output_Obje
 		const Darknet::Layer & l = net->layers[i];
 		if (l.type == Darknet::ELayerType::YOLO)
 		{
-			/// @todo V3 JAZZ 687 milliseconds -- this is where we spend all our time
+			/// @todo V3 JAZZ:  this is where we spend all our time
 			detections += yolo_num_detections_v3(net, i, thresh, cache);
 		}
 
@@ -938,8 +934,6 @@ Darknet::Detection * make_network_boxes(Darknet::Network * net, float thresh, in
 {
 	/// @see @ref make_network_boxes_batch()
 
-	/// @todo V3 JAZZ 766 milliseconds
-
 	TAT(TATPARMS);
 
 	// find the first layer that is one of these output types
@@ -957,7 +951,7 @@ Darknet::Detection * make_network_boxes(Darknet::Network * net, float thresh, in
 		}
 	}
 
-	/// @todo V3 JAZZ 740 milliseconds -- this is where we spend all our time
+	/// @todo V3 JAZZ:  this is where we spend all our time
 	const int nboxes = num_detections(net, thresh);
 	if (num)
 	{
@@ -1005,8 +999,6 @@ Darknet::Detection * make_network_boxes(Darknet::Network * net, float thresh, in
 
 Darknet::Detection * make_network_boxes_v3(Darknet::Network * net, const float thresh, int * num, Darknet::Output_Object_Cache & cache)
 {
-	/// @todo V3 JAZZ 718 milliseconds
-
 	TAT(TATPARMS);
 
 	// find a layer that is one of these 4 types
@@ -1029,7 +1021,7 @@ Darknet::Detection * make_network_boxes_v3(Darknet::Network * net, const float t
 		return net->layers[net->n - 1];
 	}();
 
-	/// @todo V3 JAZZ 694 milliseconds meaning 97% of this function is spent in this next line
+	/// @todo V3 JAZZ:  97% of this function is spent in this next line
 	const int nboxes = num_detections_v3(net, thresh, cache);
 	if (num)
 	{
@@ -1168,8 +1160,6 @@ void fill_network_boxes(Darknet::Network * net, int w, int h, float thresh, floa
 {
 	TAT(TATPARMS);
 
-	/// @todo V3 JAZZ 845 milliseconds
-
 	int prev_classes = -1;
 	for (int j = 0; j < net->n; ++j)
 	{
@@ -1178,7 +1168,7 @@ void fill_network_boxes(Darknet::Network * net, int w, int h, float thresh, floa
 		{
 			case Darknet::ELayerType::YOLO:
 			{
-				/// @todo V3 JAZZ 830 milliseconds:  most of the time is spent in this function
+				/// @todo V3 JAZZ:  most of the time is spent in this function
 				dets += get_yolo_detections(l, w, h, net->w, net->h, thresh, map, relative, dets, letter);
 
 				if (prev_classes < 0)
@@ -1216,8 +1206,6 @@ void fill_network_boxes(Darknet::Network * net, int w, int h, float thresh, floa
 static inline void fill_network_boxes_v3(Darknet::Network * net, int w, int h, float thresh, float hier, int *map, int relative, Darknet::Detection *dets, int letter, Darknet::Output_Object_Cache & cache)
 {
 	TAT(TATPARMS);
-
-	/// @todo V3 JAZZ 79 milliseconds
 
 	/** @todo This assumes that "GAUSSIAN_YOLO", "REGION", and "DETECTION" layers don't exist, which is wrong.  But
 	 * they only exist in much older configurations which are hopefully not used anymore?  Should we deprecate these?
@@ -1273,18 +1261,14 @@ detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh,
 	 * locations of interest.
 	 */
 
-	/// @todo V3 JAZZ 1621 milliseconds
-
-	detection *dets = make_network_boxes(net, thresh, num);						// 766 milliseconds
-	fill_network_boxes(net, w, h, thresh, hier, map, relative, dets, letter);	// 845 milliseconds [of which get_yolo_detections() takes up 830 milliseconds]
+	detection *dets = make_network_boxes(net, thresh, num);
+	fill_network_boxes(net, w, h, thresh, hier, map, relative, dets, letter);
 #else
 	// With V3 Jazz, we now create a "cache" list to track objects in the output array.
 
-	/// @todo V3 JAZZ 808 milliseconds
-
 	Darknet::Output_Object_Cache cache;
-	Darknet::Detection * dets = make_network_boxes_v3(net, thresh, num, cache);						// 718 milliseconds
-	fill_network_boxes_v3(net, w, h, thresh, hier, map, relative, dets, letter, cache);		// 78 milliseconds
+	Darknet::Detection * dets = make_network_boxes_v3(net, thresh, num, cache);
+	fill_network_boxes_v3(net, w, h, thresh, hier, map, relative, dets, letter, cache);
 #endif
 
 	return dets;

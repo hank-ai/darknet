@@ -1304,13 +1304,11 @@ int yolo_num_detections(const Darknet::Layer & l, float thresh)
 {
 	TAT(TATPARMS);
 
-	/// @todo V3 JAZZ 725 milliseconds
-
 	int count = 0;
 
 	for (int n = 0; n < l.n; ++n)
 	{
-		/// @todo V3 JAZZ 2024-06-02 Why does this not work like I expect?
+		/// @todo V3 JAZZ 2024-06-02:  Why does "omp parallel" not work like I expect?
 		//#pragma omp parallel for reduction (+:count)
 		for (int i = 0; i < l.w * l.h; ++i)
 		{
@@ -1329,8 +1327,6 @@ int yolo_num_detections(const Darknet::Layer & l, float thresh)
 int yolo_num_detections_v3(Darknet::Network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache)
 {
 	TAT(TATPARMS);
-
-	/// @todo V3 JAZZ 687 milliseconds
 
 	int count = 0;
 
@@ -1385,8 +1381,6 @@ int get_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int ne
 {
 	TAT(TATPARMS);
 
-	/// @todo V3 JAZZ 830 milliseconds
-
 	//printf("\n l.batch = %d, l.w = %d, l.h = %d, l.n = %d \n", l.batch, l.w, l.h, l.n);
 
 	const float * predictions = l.output;
@@ -1434,8 +1428,6 @@ int get_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int ne
 int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection * dets, int letter, Darknet::Output_Object_Cache & cache)
 {
 	TAT(TATPARMS);
-
-	/// @todo V3 JAZZ 74 milliseconds
 
 	int count = 0;
 
