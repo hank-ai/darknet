@@ -34,3 +34,5 @@
 
 /// Similar to @ref DARKNET_VERSION_STRING but only contains the first 3 numerical fields.
 #define DARKNET_VERSION_SHORT "${DARKNET_VERSION_SHORT}"
+
+#define DARKET_VERSION_KEYWORD "Oak"
