@@ -477,7 +477,7 @@ int main(int argc, char **argv)
 
 		errno = 0;
 
-		std::cout << "Darknet V2 \"" << DARKET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
+		std::cout << "Darknet V2 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
 
 		cfg_and_state.gpu_index = find_int_arg(argc, argv, "-i", 0);
 
