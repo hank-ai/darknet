@@ -224,7 +224,7 @@ void Darknet::show_version_info()
 {
 	TAT(TATPARMS);
 
-	std::cout << "Darknet V3 \"Jazz\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
+	std::cout << "Darknet V3 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
 
 	#ifndef GPU
 	Darknet::display_warning_msg("Darknet is compiled to only use the CPU.");

@@ -34,3 +34,12 @@
 
 /// Similar to @ref DARKNET_VERSION_STRING but only contains the first 3 numerical fields.
 #define DARKNET_VERSION_SHORT "${DARKNET_VERSION_SHORT}"
+
+/** Various short names used for Darknet:
+ *
+ *	- n/a	v0 is the original Joseph Redmon repo.
+ *	- n/a	v1 is the fork by AlexeyAB.
+ *	- 2023	V2 is named "Oak".
+ *	- 2024	V3 is named "Jazz".
+ */
+#define DARKNET_VERSION_KEYWORD "Jazz"
