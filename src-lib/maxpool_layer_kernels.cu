@@ -1,14 +1,4 @@
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
-
-#include <cfloat>
-
-#include "maxpool_layer.hpp"
-#include "convolutional_layer.hpp"
-#include "blas.hpp"
-#include "dark_cuda.hpp"
-#include "Timing.hpp"
+#include "darknet_internal.hpp"
 
 
 __global__ void forward_maxpool_depth_layer_kernel(int n, int w, int h, int c, int out_c, int batch, float *input, float *output, int *indexes)
@@ -150,113 +140,119 @@ __global__ void backward_zero_nonmax_kernel(int n, int *indexes, float *prev_del
 
 	if (indexes[id] != id) prev_delta[id] = 0;
 }
-extern "C" void forward_maxpool_layer_gpu(maxpool_layer layer, network_state state)
+
+void forward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	if (layer.maxpool_depth) {
-		int h = layer.out_h;
-		int w = layer.out_w;
+	if (l.maxpool_depth)
+	{
+		int h = l.out_h;
+		int w = l.out_w;
 		int c = 1;// layer.out_c;
 
-		size_t n = h*w*c*layer.batch;
+		size_t n = h*w*c*l.batch;
 
-		forward_maxpool_depth_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> >(
-			n, layer.w, layer.h, layer.c, layer.out_c, layer.batch, state.input, layer.output_gpu, layer.indexes_gpu);
+		forward_maxpool_depth_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> >(n, l.w, l.h, l.c, l.out_c, l.batch, state.input, l.output_gpu, l.indexes_gpu);
 		CHECK_CUDA(cudaPeekAtLastError());
 
 		return;
 	}
 
 #ifdef CUDNN_DISABLED
-	if (!state.train && layer.stride == layer.size) {
+	if (!state.train && l.stride == l.size)
+	{
 		// cudnnPoolingBackward
 		cudnnStatus_t maxpool_status;
 
 		float alpha = 1, beta = 0;
 		maxpool_status = cudnnPoolingForward(
 			cudnn_handle(),
-			layer.poolingDesc,
+			l.poolingDesc,
 			&alpha,
-			layer.srcTensorDesc,
+			l.srcTensorDesc,
 			state.input,
 			&beta,
-			layer.dstTensorDesc,
-			layer.output_gpu);
+			l.dstTensorDesc,
+			l.output_gpu);
 
 		//maxpool_status = cudnnDestroyPoolingDescriptor(poolingDesc);
-		//cudnnDestroyTensorDescriptor(layer.srcTensorDesc);
-		//cudnnDestroyTensorDescriptor(layer.dstTensorDesc);
-
+		//cudnnDestroyTensorDescriptor(l.srcTensorDesc);
+		//cudnnDestroyTensorDescriptor(l.dstTensorDesc);
 	}
 	else
 #endif
 	{
-		int h = layer.out_h;
-		int w = layer.out_w;
-		int c = layer.out_c;
+		int h = l.out_h;
+		int w = l.out_w;
+		int c = l.out_c;
 
-		size_t n = h*w*c*layer.batch;
+		size_t n = h * w * c * l.batch;
 
-		forward_maxpool_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, layer.h, layer.w, layer.c, layer.stride_x, layer.stride_y, layer.size, layer.pad, state.input, layer.output_gpu, layer.indexes_gpu);
+		forward_maxpool_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, l.h, l.w, l.c, l.stride_x, l.stride_y, l.size, l.pad, state.input, l.output_gpu, l.indexes_gpu);
 		CHECK_CUDA(cudaPeekAtLastError());
 
-		if (layer.maxpool_zero_nonmax) {
-			forward_zero_nonmax_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, state.input, layer.output_gpu);
+		if (l.maxpool_zero_nonmax)
+		{
+			forward_zero_nonmax_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, state.input, l.output_gpu);
 			CHECK_CUDA(cudaPeekAtLastError());
 		}
 	}
 
-	if (layer.antialiasing) {
-		network_state s = { 0 };
+	if (l.antialiasing)
+	{
+		Darknet::NetworkState s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
 		s.net = state.net;
 		if (!state.train) s.index = state.index;  // don't use TC for training (especially without cuda_convert_f32_to_f16() )
-		s.input = layer.output_gpu;
-		forward_convolutional_layer_gpu(*(layer.input_layer), s);
-		simple_copy_ongpu(layer.outputs*layer.batch, layer.output_gpu, layer.input_antialiasing_gpu);
-		simple_copy_ongpu(layer.input_layer->outputs*layer.input_layer->batch, layer.input_layer->output_gpu, layer.output_gpu);
+		s.input = l.output_gpu;
+		forward_convolutional_layer_gpu(*(l.input_layer), s);
+		simple_copy_ongpu(l.outputs*l.batch, l.output_gpu, l.input_antialiasing_gpu);
+		simple_copy_ongpu(l.input_layer->outputs*l.input_layer->batch, l.input_layer->output_gpu, l.output_gpu);
 	}
 }
 
-extern "C" void backward_maxpool_layer_gpu(maxpool_layer layer, network_state state)
+void backward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	if (layer.antialiasing) {
-		network_state s = { 0 };
+	if (l.antialiasing)
+	{
+		Darknet::NetworkState s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
 		s.net = state.net;
-		s.delta = layer.delta_gpu;  // s.delta will be returned to l.delta_gpu
-		s.input = layer.input_antialiasing_gpu;
+		s.delta = l.delta_gpu;  // s.delta will be returned to l.delta_gpu
+		s.input = l.input_antialiasing_gpu;
 		//if (!state.train) s.index = state.index;  // don't use TC for training (especially without cuda_convert_f32_to_f16() )
-		simple_copy_ongpu(layer.input_layer->outputs*layer.input_layer->batch, layer.delta_gpu, layer.input_layer->delta_gpu);
-		backward_convolutional_layer_gpu(*(layer.input_layer), s);
+		simple_copy_ongpu(l.input_layer->outputs*l.input_layer->batch, l.delta_gpu, l.input_layer->delta_gpu);
+		backward_convolutional_layer_gpu(*(l.input_layer), s);
 
-		//simple_copy_ongpu(layer.outputs*layer.batch, layer.input_antialiasing_gpu, layer.output_gpu);
+		//simple_copy_ongpu(l.outputs*l.batch, l.input_antialiasing_gpu, l.output_gpu);
 	}
 
-	if (layer.maxpool_depth) {
-		int h = layer.out_h;
-		int w = layer.out_w;
-		int c = layer.out_c;
+	if (l.maxpool_depth)
+	{
+		int h = l.out_h;
+		int w = l.out_w;
+		int c = l.out_c;
 
-		size_t n = h * w * c * layer.batch;
+		size_t n = h * w * c * l.batch;
 
-		backward_maxpool_depth_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> >(n, layer.w, layer.h, layer.c, layer.batch, layer.delta_gpu, state.delta, layer.indexes_gpu);
+		backward_maxpool_depth_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> >(n, l.w, l.h, l.c, l.batch, l.delta_gpu, state.delta, l.indexes_gpu);
 		CHECK_CUDA(cudaPeekAtLastError());
 		return;
 	}
 
-	size_t n = layer.h*layer.w*layer.c*layer.batch;
+	size_t n = l.h*l.w*l.c*l.batch;
 
-	backward_maxpool_layer_kernel<<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(n, layer.h, layer.w, layer.c, layer.stride_x, layer.stride_y, layer.size, layer.pad, layer.delta_gpu, state.delta, layer.indexes_gpu);
+	backward_maxpool_layer_kernel<<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(n, l.h, l.w, l.c, l.stride_x, l.stride_y, l.size, l.pad, l.delta_gpu, state.delta, l.indexes_gpu);
 	CHECK_CUDA(cudaPeekAtLastError());
 
-	if (layer.maxpool_zero_nonmax) {
-		backward_zero_nonmax_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, layer.indexes_gpu, state.delta);
+	if (l.maxpool_zero_nonmax)
+	{
+		backward_zero_nonmax_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, l.indexes_gpu, state.delta);
 		CHECK_CUDA(cudaPeekAtLastError());
 	}
 }
@@ -348,51 +344,51 @@ __global__ void backward_local_avgpool_layer_kernel(int n, int in_h, int in_w, i
 
 
 
-extern "C" void forward_local_avgpool_layer_gpu(maxpool_layer layer, network_state state)
+void forward_local_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
 #ifdef CUDNN_DISABLED
-	if (!state.train && layer.stride == layer.size) {
+	if (!state.train && l.stride == l.size)
+	{
 		// cudnnPoolingBackward
 		cudnnStatus_t maxpool_status;
 
 		float alpha = 1, beta = 0;
 		maxpool_status = cudnnPoolingForward(
 			cudnn_handle(),
-			layer.poolingDesc,
+			l.poolingDesc,
 			&alpha,
-			layer.srcTensorDesc,
+			l.srcTensorDesc,
 			state.input,
 			&beta,
-			layer.dstTensorDesc,
-			layer.output_gpu);
+			l.dstTensorDesc,
+			l.output_gpu);
 
 		//maxpool_status = cudnnDestroyPoolingDescriptor(poolingDesc);
-		//cudnnDestroyTensorDescriptor(layer.srcTensorDesc);
-		//cudnnDestroyTensorDescriptor(layer.dstTensorDesc);
-
+		//cudnnDestroyTensorDescriptor(l.srcTensorDesc);
+		//cudnnDestroyTensorDescriptor(l.dstTensorDesc);
 	}
 	else
 #endif
 	{
-		int h = layer.out_h;
-		int w = layer.out_w;
-		int c = layer.out_c;
+		int h = l.out_h;
+		int w = l.out_w;
+		int c = l.out_c;
 
-		size_t n = h*w*c*layer.batch;
+		size_t n = h*w*c*l.batch;
 
-		forward_local_avgpool_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, layer.h, layer.w, layer.c, layer.stride_x, layer.stride_y, layer.size, layer.pad, state.input, layer.output_gpu);
+		forward_local_avgpool_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, l.h, l.w, l.c, l.stride_x, l.stride_y, l.size, l.pad, state.input, l.output_gpu);
 		CHECK_CUDA(cudaPeekAtLastError());
 	}
 }
 
-extern "C" void backward_local_avgpool_layer_gpu(maxpool_layer layer, network_state state)
+void backward_local_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	size_t n = layer.h*layer.w*layer.c*layer.batch;
+	size_t n = l.h * l.w * l.c * l.batch;
 
-	backward_local_avgpool_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> >(n, layer.h, layer.w, layer.c, layer.stride_x, layer.stride_y, layer.size, layer.pad, layer.delta_gpu, state.delta);
+	backward_local_avgpool_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> >(n, l.h, l.w, l.c, l.stride_x, l.stride_y, l.size, l.pad, l.delta_gpu, state.delta);
 	CHECK_CUDA(cudaPeekAtLastError());
 }

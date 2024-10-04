@@ -1,28 +1,6 @@
 #include "darknet_internal.hpp"
 
-void change_leaves(tree *t, char *leaf_list)
-{
-	TAT(TATPARMS);
-
-	list *llist = get_paths(leaf_list);
-	char **leaves = (char **)list_to_array(llist);
-	int n = llist->size;
-	int i,j;
-	int found = 0;
-	for(i = 0; i < t->n; ++i){
-		t->leaf[i] = 0;
-		for(j = 0; j < n; ++j){
-			if (0==strcmp(t->name[i], leaves[j])){
-				t->leaf[i] = 1;
-				++found;
-				break;
-			}
-		}
-	}
-	fprintf(stderr, "Found %d leaves.\n", found);
-}
-
-float get_hierarchy_probability(float *x, tree *hier, int c)
+float Darknet::get_hierarchy_probability(float *x, Darknet::Tree *hier, int c)
 {
 	TAT(TATPARMS);
 
@@ -36,22 +14,22 @@ float get_hierarchy_probability(float *x, tree *hier, int c)
 	return p;
 }
 
-void hierarchy_predictions(float *predictions, int n, tree *hier, int only_leaves)
+void Darknet::hierarchy_predictions(float *predictions, int n, Darknet::Tree *hier, int only_leaves)
 {
-	int j;
-	for(j = 0; j < n; ++j)
+	for (int j = 0; j < n; ++j)
 	{
 		int parent = hier->parent[j];
-		if(parent >= 0){
+		if (parent >= 0)
+		{
 			predictions[j] *= predictions[parent];
 		}
 	}
 
-	if(only_leaves)
+	if (only_leaves)
 	{
-		for(j = 0; j < n; ++j)
+		for (int j = 0; j < n; ++j)
 		{
-			if(!hier->leaf[j])
+			if (!hier->leaf[j])
 			{
 				predictions[j] = 0;
 			}
@@ -59,7 +37,7 @@ void hierarchy_predictions(float *predictions, int n, tree *hier, int only_leave
 	}
 }
 
-int hierarchy_top_prediction(float *predictions, tree *hier, float thresh, int stride)
+int Darknet::hierarchy_top_prediction(float *predictions, Darknet::Tree *hier, float thresh, int stride)
 {
 	TAT(TATPARMS);
 
@@ -93,11 +71,11 @@ int hierarchy_top_prediction(float *predictions, tree *hier, float thresh, int s
 	return 0;
 }
 
-tree *read_tree(char *filename)
+Darknet::Tree * Darknet::read_tree(const char *filename)
 {
 	TAT(TATPARMS);
 
-	tree t = {0};
+	Darknet::Tree t = {0};
 	FILE *fp = fopen(filename, "r");
 
 	char *line;
@@ -141,7 +119,7 @@ tree *read_tree(char *filename)
 	for(i = 0; i < n; ++i) if(t.parent[i] >= 0) t.leaf[t.parent[i]] = 0;
 
 	fclose(fp);
-	tree* tree_ptr = (tree*)xcalloc(1, sizeof(tree));
+	Darknet::Tree* tree_ptr = (Darknet::Tree*)xcalloc(1, sizeof(Darknet::Tree));
 	*tree_ptr = t;
 	//error(0);
 	return tree_ptr;

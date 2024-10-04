@@ -7,8 +7,8 @@ namespace
 
 	struct train_yolo_args
 	{
-		layer l;
-		network_state state;
+		const Darknet::Layer * l;
+		Darknet::NetworkState state;
 		int b;
 
 		float tot_iou;
@@ -19,11 +19,11 @@ namespace
 	};
 
 
-	inline box get_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
+	static inline Darknet::Box get_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
-		box b;
+		Darknet::Box b;
 		if (new_coords)
 		{
 			b.x = (i + x[index + 0 * stride]) / lw;
@@ -42,7 +42,7 @@ namespace
 	}
 
 
-	inline void fix_nan_inf(float & val)
+	static inline void fix_nan_inf(float & val)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -55,7 +55,7 @@ namespace
 	}
 
 
-	inline void clip_value(float & val, const float max_val)
+	static inline void clip_value(float & val, const float max_val)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -73,7 +73,7 @@ namespace
 
 
 	/// loss function:  delta for box
-	inline ious delta_yolo_box(const box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
+	static inline ious delta_yolo_box(const Darknet::Box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -89,7 +89,7 @@ namespace
 		// i - step in layer width
 		// j - step in layer height
 		//  Returns a box in absolute coordinates
-		box pred = get_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride, new_coords);
+		Darknet::Box pred = get_yolo_box(x, biases, n, index, i, j, lw, lh, w, h, stride, new_coords);
 		all_ious.iou = box_iou(pred, truth);
 		all_ious.giou = box_giou(pred, truth);
 		all_ious.diou = box_diou(pred, truth);
@@ -211,7 +211,7 @@ namespace
 	}
 
 
-	inline void averages_yolo_deltas(const int class_index, const int box_index, const int stride, const int classes, float * delta)
+	static inline void averages_yolo_deltas(const int class_index, const int box_index, const int stride, const int classes, float * delta)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -235,7 +235,7 @@ namespace
 
 
 	/// loss function:  delta for class
-	inline void delta_yolo_class(const float * output, float * delta, const int index, const int class_id, const int classes, const int stride, float * avg_cat, const int focal_loss, const float label_smooth_eps, const float *classes_multipliers, const float cls_normalizer)
+	static inline void delta_yolo_class(const float * output, float * delta, const int index, const int class_id, const int classes, const int stride, float * avg_cat, const int focal_loss, const float label_smooth_eps, const float *classes_multipliers, const float cls_normalizer)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -324,7 +324,7 @@ namespace
 	}
 
 
-	inline int compare_yolo_class(const float * output, const int classes, const int class_index, const int stride, const float objectness, const int class_id, const float conf_thresh)
+	static inline int compare_yolo_class(const float * output, const int classes, const int class_index, const int stride, const float objectness, const int class_id, const float conf_thresh)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -341,7 +341,7 @@ namespace
 	}
 
 
-	inline int entry_index(const layer & l, const int batch, const int location, const int entry)
+	static inline int yolo_entry_index(const Darknet::Layer & l, const int batch, const int location, const int entry)
 	{
 		// similar function exists in region_layer.cpp, but the math is slightly different
 
@@ -354,7 +354,7 @@ namespace
 	}
 
 
-	inline void avg_flipped_yolo(layer & l)
+	static inline void avg_flipped_yolo(Darknet::Layer & l)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -390,13 +390,12 @@ namespace
 } // anonymous namespace
 
 
-layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)
+Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)
 {
 	TAT(TATPARMS);
 
-	int i;
-	layer l = { (LAYER_TYPE)0 };
-	l.type = YOLO;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::YOLO;
 
 	l.n = n;
 	l.total = total;
@@ -421,14 +420,15 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	 */
 	l.nbiases = total * 2;
 
-	if(mask)
+	if (mask)
 	{
 		l.mask = mask;
 	}
 	else
 	{
 		l.mask = (int*)xcalloc(n, sizeof(int));
-		for(i = 0; i < n; ++i)
+
+		for (int i = 0; i < n; ++i)
 		{
 			l.mask[i] = i;
 		}
@@ -441,13 +441,13 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	l.truths = l.max_boxes*l.truth_size;    // 90*(4 + 1);
 	l.labels = (int*)xcalloc(batch * l.w*l.h*l.n, sizeof(int));
 
-	for (i = 0; i < batch * l.w*l.h*l.n; ++i)
+	for (int i = 0; i < batch * l.w*l.h*l.n; ++i)
 	{
 		l.labels[i] = -1;
 	}
 	l.class_ids = (int*)xcalloc(batch * l.w*l.h*l.n, sizeof(int));
 
-	for (i = 0; i < batch * l.w*l.h*l.n; ++i)
+	for (int i = 0; i < batch * l.w*l.h*l.n; ++i)
 	{
 		l.class_ids[i] = -1;
 	}
@@ -455,7 +455,7 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
 
-	for(i = 0; i < total*2; ++i)
+	for (int i = 0; i < total * 2; ++i)
 	{
 		l.biases[i] = .5;
 	}
@@ -470,28 +470,33 @@ layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int 
 	l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
 
 	free(l.output);
-	if (cudaSuccess == cudaHostAlloc((void**)&l.output, batch*l.outputs*sizeof(float), cudaHostRegisterMapped)) l.output_pinned = 1;
-	else {
+	/// @todo Valgrind tells us this is not freed in @ref free_layer_custom()
+	if (cudaSuccess == cudaHostAlloc((void**)&l.output, batch*l.outputs*sizeof(float), cudaHostRegisterMapped))
+	{
+		l.output_pinned = 1;
+	}
+	else
+	{
 		cudaGetLastError(); // reset CUDA-error
 		l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	}
 
 	free(l.delta);
-	if (cudaSuccess == cudaHostAlloc((void**)&l.delta, batch*l.outputs*sizeof(float), cudaHostRegisterMapped)) l.delta_pinned = 1;
-	else {
+	if (cudaSuccess == cudaHostAlloc((void**)&l.delta, batch*l.outputs*sizeof(float), cudaHostRegisterMapped))
+	{
+		l.delta_pinned = 1;
+	}
+	else
+	{
 		cudaGetLastError(); // reset CUDA-error
 		l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	}
 #endif
 
-	fprintf(stderr, "yolo\n");
-	/// @todo why!?
-//	srand(time(0));
-
 	return l;
 }
 
-void resize_yolo_layer(layer * l, int w, int h)
+void resize_yolo_layer(Darknet::Layer * l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -543,8 +548,8 @@ void process_batch(void* ptr)
 	TAT_COMMENT(TATPARMS, "complicated");
 
 	train_yolo_args *args = (train_yolo_args*)ptr;
-	const layer l = args->l;
-	network_state state = args->state;
+	const Darknet::Layer & l = *args->l;
+	Darknet::NetworkState state = args->state;
 	int b = args->b;
 
 	//printf(" b = %d \n", b, b);
@@ -571,11 +576,11 @@ void process_batch(void* ptr)
 		{
 			for (int n = 0; n < l.n; ++n)
 			{
-				const int class_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 4 + 1);
-				const int obj_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 4);
-				const int box_index = entry_index(l, b, n * l.w * l.h + j * l.w + i, 0);
+				const int class_index = yolo_entry_index(l, b, n * l.w * l.h + j * l.w + i, 4 + 1);
+				const int obj_index = yolo_entry_index(l, b, n * l.w * l.h + j * l.w + i, 4);
+				const int box_index = yolo_entry_index(l, b, n * l.w * l.h + j * l.w + i, 0);
 				const int stride = l.w * l.h;
-				box pred = get_yolo_box(l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.w * l.h, l.new_coords);
+				Darknet::Box pred = get_yolo_box(l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.w * l.h, l.new_coords);
 				float best_match_iou = 0;
 				//int best_match_t = 0;
 				float best_iou = 0;
@@ -583,7 +588,7 @@ void process_batch(void* ptr)
 
 				for (int t = 0; t < l.max_boxes; ++t)
 				{
-					box truth = float_to_box_stride(state.truth + t * l.truth_size + b * l.truths, 1);
+					Darknet::Box truth = float_to_box_stride(state.truth + t * l.truth_size + b * l.truths, 1);
 					if (!truth.x)
 					{
 						break;  // continue;
@@ -693,7 +698,7 @@ void process_batch(void* ptr)
 					{
 						l.delta[class_index + stride * class_id] = class_multiplier * (iou_multiplier - l.output[class_index + stride * class_id]);
 					}
-					box truth = float_to_box_stride(state.truth + best_t * l.truth_size + b * l.truths, 1);
+					Darknet::Box truth = float_to_box_stride(state.truth + best_t * l.truth_size + b * l.truths, 1);
 					delta_yolo_box(truth, l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
 					(*state.net.total_bbox)++;
 				}
@@ -703,7 +708,7 @@ void process_batch(void* ptr)
 
 	for (int t = 0; t < l.max_boxes; ++t)
 	{
-		box truth = float_to_box_stride(state.truth + t * l.truth_size + b * l.truths, 1);
+		Darknet::Box truth = float_to_box_stride(state.truth + t * l.truth_size + b * l.truths, 1);
 		if (!truth.x)
 		{
 			break;  // continue;
@@ -723,11 +728,11 @@ void process_batch(void* ptr)
 		int best_n = 0;
 		int i = (truth.x * l.w);
 		int j = (truth.y * l.h);
-		box truth_shift = truth;
+		Darknet::Box truth_shift = truth;
 		truth_shift.x = truth_shift.y = 0;
 		for (int n = 0; n < l.total; ++n)
 		{
-			box pred = { 0 };
+			Darknet::Box pred = { 0 };
 			pred.w = l.biases[2 * n] / state.net.w;
 			pred.h = l.biases[2 * n + 1] / state.net.h;
 			float iou = box_iou(pred, truth_shift);
@@ -747,7 +752,7 @@ void process_batch(void* ptr)
 				class_id = l.map[class_id];
 			}
 
-			int box_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
+			int box_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
 			const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
 			ious all_ious = delta_yolo_box(truth, l.output, l.biases, best_n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
 			(*state.net.total_bbox)++;
@@ -772,7 +777,7 @@ void process_batch(void* ptr)
 			tot_ciou += all_ious.ciou;
 			tot_ciou_loss += 1 - all_ious.ciou;
 
-			int obj_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4);
+			int obj_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4);
 			avg_obj += l.output[obj_index];
 			if (l.objectness_smooth)
 			{
@@ -787,7 +792,7 @@ void process_batch(void* ptr)
 				l.delta[obj_index] = class_multiplier * l.obj_normalizer * (1 - l.output[obj_index]);
 			}
 
-			int class_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4 + 1);
+			int class_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4 + 1);
 			delta_yolo_class(l.output, l.delta, class_index, class_id, l.classes, l.w * l.h, &avg_cat, l.focal_loss, l.label_smooth_eps, l.classes_multipliers, l.cls_normalizer);
 
 			//printf(" label: class_id = %d, truth.x = %f, truth.y = %f, truth.w = %f, truth.h = %f \n", class_id, truth.x, truth.y, truth.w, truth.h);
@@ -811,7 +816,7 @@ void process_batch(void* ptr)
 			int mask_n = int_index(l.mask, n, l.n);
 			if (mask_n >= 0 && n != best_n && l.iou_thresh < 1.0f)
 			{
-				box pred = { 0 };
+				Darknet::Box pred = { 0 };
 				pred.w = l.biases[2 * n] / state.net.w;
 				pred.h = l.biases[2 * n + 1] / state.net.h;
 				float iou = box_iou_kind(pred, truth_shift, l.iou_thresh_kind); // IOU, GIOU, MSE, DIOU, CIOU
@@ -825,7 +830,7 @@ void process_batch(void* ptr)
 						class_id = l.map[class_id];
 					}
 
-					int box_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
+					int box_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
 					const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
 					ious all_ious = delta_yolo_box(truth, l.output, l.biases, n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
 					(*state.net.total_bbox)++;
@@ -843,7 +848,7 @@ void process_batch(void* ptr)
 					tot_ciou += all_ious.ciou;
 					tot_ciou_loss += 1 - all_ious.ciou;
 
-					int obj_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4);
+					int obj_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4);
 					avg_obj += l.output[obj_index];
 					if (l.objectness_smooth)
 					{
@@ -858,7 +863,7 @@ void process_batch(void* ptr)
 						l.delta[obj_index] = class_multiplier * l.obj_normalizer * (1 - l.output[obj_index]);
 					}
 
-					int class_index = entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4 + 1);
+					int class_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4 + 1);
 					delta_yolo_class(l.output, l.delta, class_index, class_id, l.classes, l.w * l.h, &avg_cat, l.focal_loss, l.label_smooth_eps, l.classes_multipliers, l.cls_normalizer);
 
 					++(args->count);
@@ -885,9 +890,9 @@ void process_batch(void* ptr)
 			{
 				for (int n = 0; n < l.n; ++n)
 				{
-					int obj_index = entry_index(l, b, n*l.w*l.h + j*l.w + i, 4);
-					int box_index = entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
-					int class_index = entry_index(l, b, n*l.w*l.h + j*l.w + i, 4 + 1);
+					int obj_index = yolo_entry_index(l, b, n*l.w*l.h + j*l.w + i, 4);
+					int box_index = yolo_entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
+					int class_index = yolo_entry_index(l, b, n*l.w*l.h + j*l.w + i, 4 + 1);
 					const int stride = l.w*l.h;
 
 					if (l.delta[obj_index] != 0)
@@ -904,7 +909,7 @@ void process_batch(void* ptr)
 
 
 
-void forward_yolo_layer(const layer l, network_state state)
+void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -915,7 +920,7 @@ void forward_yolo_layer(const layer l, network_state state)
 	{
 		for (int n = 0; n < l.n; ++n)
 		{
-			int bbox_index = entry_index(l, b, n*l.w*l.h, 0);
+			int bbox_index = yolo_entry_index(l, b, n*l.w*l.h, 0);
 			if (l.new_coords)
 			{
 				//activate_array(l.output + bbox_index, 4 * l.w*l.h, LOGISTIC);    // x,y,w,h
@@ -923,7 +928,7 @@ void forward_yolo_layer(const layer l, network_state state)
 			else
 			{
 				activate_array(l.output + bbox_index, 2 * l.w*l.h, LOGISTIC);        // x,y,
-				int obj_index = entry_index(l, b, n*l.w*l.h, 4);
+				int obj_index = yolo_entry_index(l, b, n*l.w*l.h, 4);
 				activate_array(l.output + obj_index, (1 + l.classes)*l.w*l.h, LOGISTIC);
 			}
 			scal_add_cpu(2 * l.w*l.h, l.scale_x_y, -0.5*(l.scale_x_y - 1), l.output + bbox_index, 1);    // scale x,y
@@ -975,7 +980,7 @@ void forward_yolo_layer(const layer l, network_state state)
 
 	for (int b = 0; b < l.batch; b++)
 	{
-		yolo_args[b].l = l;
+		yolo_args[b].l = &l;
 		yolo_args[b].state = state;
 		yolo_args[b].b = b;
 
@@ -1156,7 +1161,7 @@ void forward_yolo_layer(const layer l, network_state state)
 			{
 				for (int n = 0; n < l.n; ++n)
 				{
-					int index = entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
+					int index = yolo_entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
 					no_iou_loss_delta[index + 0 * stride] = 0;
 					no_iou_loss_delta[index + 1 * stride] = 0;
 					no_iou_loss_delta[index + 2 * stride] = 0;
@@ -1220,7 +1225,7 @@ void forward_yolo_layer(const layer l, network_state state)
 	}
 }
 
-void backward_yolo_layer(const layer l, network_state state)
+void backward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1231,7 +1236,7 @@ void backward_yolo_layer(const layer l, network_state state)
 // w,h: image width,height
 // netw,neth: network width,height
 // relative: 1 (all callers seems to pass TRUE)
-void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth, int relative, int letter)
+void correct_yolo_boxes(Darknet::Detection * dets, int n, int w, int h, int netw, int neth, int relative, int letter)
 {
 	TAT(TATPARMS);
 
@@ -1269,9 +1274,10 @@ void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth
 	float ratiow = (float)new_w / netw;
 	// ratio between rotated network width and network width
 	float ratioh = (float)new_h / neth;
+
 	for (i = 0; i < n; ++i)
 	{
-		box b = dets[i].bbox;
+		Darknet::Box b = dets[i].bbox;
 		// x = ( x - (deltaw/2)/netw ) / ratiow;
 		//   x - [(1/2 the difference of the network width and rotated width) / (network width)]
 		b.x = (b.x - deltaw / 2. / netw) / ratiow;
@@ -1293,26 +1299,64 @@ void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth
 	}
 }
 
-int yolo_num_detections(layer l, float thresh)
+
+int yolo_num_detections(const Darknet::Layer & l, float thresh)
 {
 	TAT(TATPARMS);
 
 	int count = 0;
+
 	for (int n = 0; n < l.n; ++n)
 	{
+		/// @todo V3 JAZZ 2024-06-02:  Why does "omp parallel" not work like I expect?
+		//#pragma omp parallel for reduction (+:count)
 		for (int i = 0; i < l.w * l.h; ++i)
 		{
-			int obj_index  = entry_index(l, 0, n*l.w*l.h + i, 4);
+			const int obj_index  = yolo_entry_index(l, 0, n * l.w * l.h + i, 4);
 			if (l.output[obj_index] > thresh)
 			{
 				++count;
 			}
 		}
 	}
+
 	return count;
 }
 
-int yolo_num_detections_batch(layer l, float thresh, int batch)
+
+int yolo_num_detections_v3(Darknet::Network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache)
+{
+	TAT(TATPARMS);
+
+	int count = 0;
+
+	const Darknet::Layer & l = net->layers[index];
+
+	for (int n = 0; n < l.n; ++n)
+	{
+		for (int i = 0; i < l.w * l.h; ++i)
+		{
+			const int obj_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 4);
+			if (l.output[obj_index] > thresh)
+			{
+				++count;
+
+				// remember the location of this object so we don't have to walk through the array again
+				Darknet::Output_Object oo;
+				oo.layer_index = index;
+				oo.n = n;
+				oo.i = i;
+				oo.obj_index = obj_index;
+				cache.push_back(oo);
+			}
+		}
+	}
+
+	return count;
+}
+
+
+int yolo_num_detections_batch(const Darknet::Layer & l, float thresh, int batch)
 {
 	TAT(TATPARMS);
 
@@ -1321,37 +1365,41 @@ int yolo_num_detections_batch(layer l, float thresh, int batch)
 	{
 		for (int n = 0; n < l.n; ++n)
 		{
-			int obj_index  = entry_index(l, batch, n * l.w * l.h + i, 4);
+			int obj_index  = yolo_entry_index(l, batch, n * l.w * l.h + i, 4);
 			if (l.output[obj_index] > thresh)
 			{
 				++count;
 			}
 		}
 	}
+
 	return count;
 }
 
-int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter)
+
+int get_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection * dets, int letter)
 {
 	TAT(TATPARMS);
 
 	//printf("\n l.batch = %d, l.w = %d, l.h = %d, l.n = %d \n", l.batch, l.w, l.h, l.n);
-	int i,j,n;
-	float *predictions = l.output;
-	// This snippet below is not necessary
-	// Need to comment it in order to batch processing >= 2 images
-	//if (l.batch == 2) avg_flipped_yolo(l);
+
+	const float * predictions = l.output;
+
 	int count = 0;
-	for (i = 0; i < l.w*l.h; ++i){
+	for (int i = 0; i < l.w*l.h; ++i)
+	{
 		int row = i / l.w;
 		int col = i % l.w;
-		for(n = 0; n < l.n; ++n){
-			int obj_index  = entry_index(l, 0, n*l.w*l.h + i, 4);
+
+		for (int n = 0; n < l.n; ++n)
+		{
+			int obj_index  = yolo_entry_index(l, 0, n*l.w*l.h + i, 4);
 			float objectness = predictions[obj_index];
-			//if(objectness <= thresh) continue;    // incorrect behavior for Nan values
-			if (objectness > thresh) {
+
+			if (objectness > thresh)
+			{
 				//printf("\n objectness = %f, thresh = %f, i = %d, n = %d \n", objectness, thresh, i, n);
-				int box_index = entry_index(l, 0, n*l.w*l.h + i, 0);
+				int box_index = yolo_entry_index(l, 0, n*l.w*l.h + i, 0);
 				dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w*l.h, l.new_coords);
 				dets[count].objectness = objectness;
 				dets[count].classes = l.classes;
@@ -1360,9 +1408,9 @@ int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh,
 					get_embedding(l.embedding_output, l.w, l.h, l.n*l.embedding_size, l.embedding_size, col, row, n, 0, dets[count].embeddings);
 				}
 
-				for (j = 0; j < l.classes; ++j)
+				for (int j = 0; j < l.classes; ++j)
 				{
-					int class_index = entry_index(l, 0, n*l.w*l.h + i, 4 + 1 + j);
+					int class_index = yolo_entry_index(l, 0, n*l.w*l.h + i, 4 + 1 + j);
 					float prob = objectness*predictions[class_index];
 					dets[count].prob[j] = (prob > thresh) ? prob : 0;
 				}
@@ -1370,11 +1418,58 @@ int get_yolo_detections(layer l, int w, int h, int netw, int neth, float thresh,
 			}
 		}
 	}
+
 	correct_yolo_boxes(dets, count, w, h, netw, neth, relative, letter);
+
 	return count;
 }
 
-int get_yolo_detections_batch(layer l, int w, int h, int netw, int neth, float thresh, int *map, int relative, detection *dets, int letter, int batch)
+
+int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection * dets, int letter, Darknet::Output_Object_Cache & cache)
+{
+	TAT(TATPARMS);
+
+	int count = 0;
+
+	for (const auto & oo : cache)
+	{
+		const auto & i			= oo.i;
+		const auto & n			= oo.n;
+		const auto & obj_index	= oo.obj_index;
+
+		const Darknet::Layer & l = net->layers[oo.layer_index];
+		const float * predictions = l.output;
+
+		const int row			= i / l.w;
+		const int col			= i % l.w;
+		const float objectness	= predictions[obj_index];
+
+		int box_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 0);
+		dets[count].bbox		= get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w * l.h, l.new_coords);
+		dets[count].objectness	= objectness;
+		dets[count].classes		= l.classes;
+
+		if (l.embedding_output)
+		{
+			get_embedding(l.embedding_output, l.w, l.h, l.n * l.embedding_size, l.embedding_size, col, row, n, 0, dets[count].embeddings);
+		}
+
+		for (int j = 0; j < l.classes; ++j)
+		{
+			int class_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 4 + 1 + j);
+			float prob = objectness * predictions[class_index];
+			dets[count].prob[j] = (prob > thresh) ? prob : 0;
+		}
+		++count;
+	}
+
+	correct_yolo_boxes(dets, count, w, h, netw, neth, relative, letter);
+
+	return count;
+}
+
+
+int get_yolo_detections_batch(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection * dets, int letter, int batch)
 {
 	TAT(TATPARMS);
 
@@ -1386,13 +1481,13 @@ int get_yolo_detections_batch(layer l, int w, int h, int netw, int neth, float t
 		int row = i / l.w;
 		int col = i % l.w;
 		for(n = 0; n < l.n; ++n){
-			int obj_index  = entry_index(l, batch, n*l.w*l.h + i, 4);
+			int obj_index  = yolo_entry_index(l, batch, n*l.w*l.h + i, 4);
 			float objectness = predictions[obj_index];
 			//if(objectness <= thresh) continue;    // incorrect behavior for Nan values
 			if (objectness > thresh)
 			{
 				//printf("\n objectness = %f, thresh = %f, i = %d, n = %d \n", objectness, thresh, i, n);
-				int box_index = entry_index(l, batch, n*l.w*l.h + i, 0);
+				int box_index = yolo_entry_index(l, batch, n*l.w*l.h + i, 0);
 				dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w*l.h, l.new_coords);
 				dets[count].objectness = objectness;
 				dets[count].classes = l.classes;
@@ -1403,7 +1498,7 @@ int get_yolo_detections_batch(layer l, int w, int h, int netw, int neth, float t
 
 				for (j = 0; j < l.classes; ++j)
 				{
-					int class_index = entry_index(l, batch, n*l.w*l.h + i, 4 + 1 + j);
+					int class_index = yolo_entry_index(l, batch, n*l.w*l.h + i, 4 + 1 + j);
 					float prob = objectness*predictions[class_index];
 					dets[count].prob[j] = (prob > thresh) ? prob : 0;
 				}
@@ -1417,14 +1512,13 @@ int get_yolo_detections_batch(layer l, int w, int h, int netw, int neth, float t
 
 #ifdef GPU
 
-void forward_yolo_layer_gpu(const layer l, network_state state)
+void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
 	if (l.embedding_output)
 	{
-		/// @todo make "le" a reference?
-		layer le = state.net.layers[l.embedding_layer_id];
+		Darknet::Layer & le = state.net.layers[l.embedding_layer_id];
 		cuda_pull_array_async(le.output_gpu, l.embedding_output, le.batch*le.outputs);
 	}
 
@@ -1434,7 +1528,7 @@ void forward_yolo_layer_gpu(const layer l, network_state state)
 	{
 		for (int n = 0; n < l.n; ++n)
 		{
-			int bbox_index = entry_index(l, b, n*l.w*l.h, 0);
+			int bbox_index = yolo_entry_index(l, b, n*l.w*l.h, 0);
 			// y = 1./(1. + exp(-x))
 			// x = ln(y/(1-y))  // ln - natural logarithm (base = e)
 			// if(y->1) x -> inf
@@ -1447,7 +1541,7 @@ void forward_yolo_layer_gpu(const layer l, network_state state)
 			{
 				activate_array_ongpu(l.output_gpu + bbox_index, 2 * l.w*l.h, LOGISTIC);    // x,y
 
-				int obj_index = entry_index(l, b, n*l.w*l.h, 4);
+				int obj_index = yolo_entry_index(l, b, n*l.w*l.h, 4);
 				activate_array_ongpu(l.output_gpu + obj_index, (1 + l.classes)*l.w*l.h, LOGISTIC); // classes and objectness
 			}
 
@@ -1481,10 +1575,10 @@ void forward_yolo_layer_gpu(const layer l, network_state state)
 		truth_cpu = (float *)xcalloc(num_truth, sizeof(float));
 		cuda_pull_array(state.truth, truth_cpu, num_truth);
 	}
-	network_state cpu_state = state;
-	cpu_state.net = state.net;
-	cpu_state.index = state.index;
-	cpu_state.train = state.train;
+	Darknet::NetworkState cpu_state = state;
+//	cpu_state.net = state.net;
+//	cpu_state.index = state.index;
+//	cpu_state.train = state.train;
 	cpu_state.truth = truth_cpu;
 	cpu_state.input = in_cpu;
 	forward_yolo_layer(l, cpu_state);
@@ -1498,7 +1592,7 @@ void forward_yolo_layer_gpu(const layer l, network_state state)
 	}
 }
 
-void backward_yolo_layer_gpu(const layer l, network_state state)
+void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

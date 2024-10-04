@@ -5,9 +5,6 @@
 #include "tree.hpp"
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
 void flatten(float *x, int size, int layers, int batch, int forward);
 void pm(int M, int N, float *A);
 float *random_matrix(int rows, int cols);
@@ -28,7 +25,7 @@ void scal_cpu(int N, float ALPHA, float *X, int INCX);
 void scal_add_cpu(int N, float ALPHA, float BETA, float *X, int INCX);
 void fill_cpu(int N, float ALPHA, float * X, int INCX);
 float dot_cpu(int N, float *X, int INCX, float *Y, int INCY);
-void test_gpu_blas();
+int test_gpu_blas();
 void shortcut_cpu(int batch, int w1, int h1, int c1, float *add, int w2, int h2, int c2, float *out);
 void shortcut_multilayer_cpu(int size, int src_outputs, int batch, int n, int *outputs_of_layers, float **layers_output, float *out, float *in, float *weights, int nweights, WEIGHTS_NORMALIZATION_T weights_normalization);
 void backward_shortcut_multilayer_cpu(int size, int src_outputs, int batch, int n, int *outputs_of_layers,
@@ -138,7 +135,7 @@ void flatten_ongpu(float *x, int spatial, int layers, int batch, int forward, fl
 
 void upsample_gpu(float *in, int w, int h, int c, int batch, int stride, int forward, float scale, float *out);
 
-void softmax_tree_gpu(float *input, int spatial, int batch, int stride, float temp, float *output, tree hier);
+void softmax_tree_gpu(float *input, int spatial, int batch, int stride, float temp, float *output, Darknet::Tree hier);
 
 void fix_nan_and_inf(float *input, size_t size);
 void reset_nan_and_inf(float *input, size_t size);
@@ -175,6 +172,3 @@ void forward_implicit_gpu(int batch, int nweights, float *weight_gpu, float *out
 void backward_implicit_gpu(int batch, int nweights, float *weight_updates_gpu, float *delta_gpu);
 
 #endif // GPU
-#ifdef __cplusplus
-}
-#endif

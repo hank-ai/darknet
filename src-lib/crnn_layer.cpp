@@ -1,7 +1,7 @@
 #include "darknet_internal.hpp"
 
 
-static void increment_layer(layer *l, int steps)
+static void increment_layer(Darknet::Layer *l, int steps)
 {
 	TAT(TATPARMS);
 
@@ -19,16 +19,16 @@ static void increment_layer(layer *l, int steps)
 #endif
 }
 
-layer make_crnn_layer(int batch, int h, int w, int c, int hidden_filters, int output_filters, int groups, int steps, int size, int stride, int dilation, int pad, ACTIVATION activation, int batch_normalize, int xnor, int train)
+Darknet::Layer make_crnn_layer(int batch, int h, int w, int c, int hidden_filters, int output_filters, int groups, int steps, int size, int stride, int dilation, int pad, ACTIVATION activation, int batch_normalize, int xnor, int train)
 {
 	TAT(TATPARMS);
 
 	fprintf(stderr, "CRNN Layer: %d x %d x %d image, %d filters\n", h,w,c,output_filters);
 	batch = batch / steps;
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.train = train;
 	l.batch = batch;
-	l.type = CRNN;
+	l.type = Darknet::ELayerType::CRNN;
 	l.steps = steps;
 	l.size = size;
 	l.stride = stride;
@@ -45,17 +45,19 @@ layer make_crnn_layer(int batch, int h, int w, int c, int hidden_filters, int ou
 
 	l.state = (float*)xcalloc(l.hidden * l.batch * (l.steps + 1), sizeof(float));
 
-	l.input_layer = (layer*)xcalloc(1, sizeof(layer));
+	/// @todo V3 get rid of these unecessary xcalloc()?
+
+	l.input_layer = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	*(l.input_layer) = make_convolutional_layer(batch, steps, h, w, c, hidden_filters, groups, size, stride, stride, dilation, pad, activation, batch_normalize, 0, xnor, 0, 0, 0, 0, NULL, 0, 0, train);
 	l.input_layer->batch = batch;
 	if (l.workspace_size < l.input_layer->workspace_size) l.workspace_size = l.input_layer->workspace_size;
 
-	l.self_layer = (layer*)xcalloc(1, sizeof(layer));
+	l.self_layer = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	*(l.self_layer) = make_convolutional_layer(batch, steps, h, w, hidden_filters, hidden_filters, groups, size, stride, stride, dilation, pad, activation, batch_normalize, 0, xnor, 0, 0, 0, 0, NULL, 0, 0, train);
 	l.self_layer->batch = batch;
 	if (l.workspace_size < l.self_layer->workspace_size) l.workspace_size = l.self_layer->workspace_size;
 
-	l.output_layer = (layer*)xcalloc(1, sizeof(layer));
+	l.output_layer = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	*(l.output_layer) = make_convolutional_layer(batch, steps, h, w, hidden_filters, output_filters, groups, size, stride, stride, dilation, pad, activation, batch_normalize, 0, xnor, 0, 0, 0, 0, NULL, 0, 0, train);
 	l.output_layer->batch = batch;
 	if (l.workspace_size < l.output_layer->workspace_size) l.workspace_size = l.output_layer->workspace_size;
@@ -88,7 +90,7 @@ layer make_crnn_layer(int batch, int h, int w, int c, int hidden_filters, int ou
 	return l;
 }
 
-void resize_crnn_layer(layer *l, int w, int h)
+void resize_crnn_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -130,19 +132,21 @@ void resize_crnn_layer(layer *l, int w, int h)
 #endif
 }
 
-void free_state_crnn(layer l)
+void free_state_crnn(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < l.outputs * l.batch; ++i) l.self_layer->output[i] = rand_uniform(-1, 1);
+	for (int i = 0; i < l.outputs * l.batch; ++i)
+	{
+		l.self_layer->output[i] = rand_uniform(-1, 1);
+	}
 
 #ifdef GPU
 	cuda_push_array(l.self_layer->output_gpu, l.self_layer->output, l.outputs * l.batch);
 #endif  // GPU
 }
 
-void update_crnn_layer(layer l, int batch, float learning_rate, float momentum, float decay)
+void update_crnn_layer(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay)
 {
 	TAT(TATPARMS);
 
@@ -151,28 +155,30 @@ void update_crnn_layer(layer l, int batch, float learning_rate, float momentum, 
 	update_convolutional_layer(*(l.output_layer), batch, learning_rate, momentum, decay);
 }
 
-void forward_crnn_layer(layer l, network_state state)
+void forward_crnn_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	s.net = state.net;
 	//s.index = state.index;
-	int i;
-	layer input_layer = *(l.input_layer);
-	layer self_layer = *(l.self_layer);
-	layer output_layer = *(l.output_layer);
 
-	if (state.train) {
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
+
+	if (state.train)
+	{
 		fill_cpu(l.outputs * l.batch * l.steps, 0, output_layer.delta, 1);
 		fill_cpu(l.hidden * l.batch * l.steps, 0, self_layer.delta, 1);
 		fill_cpu(l.hidden * l.batch * l.steps, 0, input_layer.delta, 1);
 		fill_cpu(l.hidden * l.batch, 0, l.state, 1);
 	}
 
-	for (i = 0; i < l.steps; ++i) {
+	for (int i = 0; i < l.steps; ++i)
+	{
 		s.input = state.input;
 		forward_convolutional_layer(input_layer, s);
 
@@ -180,10 +186,17 @@ void forward_crnn_layer(layer l, network_state state)
 		forward_convolutional_layer(self_layer, s);
 
 		float *old_state = l.state;
-		if(state.train) l.state += l.hidden*l.batch;
-		if(l.shortcut){
+		if (state.train)
+		{
+			l.state += l.hidden*l.batch;
+		}
+
+		if (l.shortcut)
+		{
 			copy_cpu(l.hidden * l.batch, old_state, 1, l.state, 1);
-		}else{
+		}
+		else
+		{
 			fill_cpu(l.hidden * l.batch, 0, l.state, 1);
 		}
 		axpy_cpu(l.hidden * l.batch, 1, input_layer.output, 1, l.state, 1);
@@ -199,26 +212,27 @@ void forward_crnn_layer(layer l, network_state state)
 	}
 }
 
-void backward_crnn_layer(layer l, network_state state)
+void backward_crnn_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	s.net = state.net;
 	//s.index = state.index;
-	int i;
-	layer input_layer = *(l.input_layer);
-	layer self_layer = *(l.self_layer);
-	layer output_layer = *(l.output_layer);
+
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
 
 	increment_layer(&input_layer, l.steps-1);
 	increment_layer(&self_layer, l.steps-1);
 	increment_layer(&output_layer, l.steps-1);
 
 	l.state += l.hidden*l.batch*l.steps;
-	for (i = l.steps-1; i >= 0; --i) {
+	for (int i = l.steps-1; i >= 0; --i)
+	{
 		copy_cpu(l.hidden * l.batch, input_layer.output, 1, l.state, 1);
 		axpy_cpu(l.hidden * l.batch, 1, self_layer.output, 1, l.state, 1);
 
@@ -242,10 +256,22 @@ void backward_crnn_layer(layer l, network_state state)
 		backward_convolutional_layer(self_layer, s);
 
 		copy_cpu(l.hidden*l.batch, self_layer.delta, 1, input_layer.delta, 1);
-		if (i > 0 && l.shortcut) axpy_cpu(l.hidden*l.batch, 1, self_layer.delta, 1, self_layer.delta - l.hidden*l.batch, 1);
+
+		if (i > 0 && l.shortcut)
+		{
+			axpy_cpu(l.hidden*l.batch, 1, self_layer.delta, 1, self_layer.delta - l.hidden*l.batch, 1);
+		}
+
 		s.input = state.input + i*l.inputs*l.batch;
-		if(state.delta) s.delta = state.delta + i*l.inputs*l.batch;
-		else s.delta = 0;
+
+		if (state.delta)
+		{
+			s.delta = state.delta + i*l.inputs*l.batch;
+		}
+		else
+		{
+			s.delta = 0;
+		}
 		backward_convolutional_layer(input_layer, s);
 
 		increment_layer(&input_layer, -1);
@@ -256,7 +282,7 @@ void backward_crnn_layer(layer l, network_state state)
 
 #ifdef GPU
 
-void pull_crnn_layer(layer l)
+void pull_crnn_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -265,7 +291,7 @@ void pull_crnn_layer(layer l)
 	pull_convolutional_layer(*(l.output_layer));
 }
 
-void push_crnn_layer(layer l)
+void push_crnn_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -274,7 +300,7 @@ void push_crnn_layer(layer l)
 	push_convolutional_layer(*(l.output_layer));
 }
 
-void update_crnn_layer_gpu(layer l, int batch, float learning_rate, float momentum, float decay, float loss_scale)
+void update_crnn_layer_gpu(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);
 
@@ -283,28 +309,33 @@ void update_crnn_layer_gpu(layer l, int batch, float learning_rate, float moment
 	update_convolutional_layer_gpu(*(l.output_layer), batch, learning_rate, momentum, decay, loss_scale);
 }
 
-void forward_crnn_layer_gpu(layer l, network_state state)
+void forward_crnn_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	s.net = state.net;
-	if(!state.train) s.index = state.index;  // don't use TC for training (especially without cuda_convert_f32_to_f16() )
-	int i;
-	layer input_layer = *(l.input_layer);
-	layer self_layer = *(l.self_layer);
-	layer output_layer = *(l.output_layer);
+	if (!state.train)
+	{
+		s.index = state.index;  // don't use TC for training (especially without cuda_convert_f32_to_f16() )
+	}
 
-	if (state.train) {
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
+
+	if (state.train)
+	{
 		fill_ongpu(l.outputs * l.batch * l.steps, 0, output_layer.delta_gpu, 1);
 		fill_ongpu(l.hidden * l.batch * l.steps, 0, self_layer.delta_gpu, 1);
 		fill_ongpu(l.hidden * l.batch * l.steps, 0, input_layer.delta_gpu, 1);
 		fill_ongpu(l.hidden * l.batch, 0, l.state_gpu, 1);
 	}
 
-	for (i = 0; i < l.steps; ++i) {
+	for (int i = 0; i < l.steps; ++i)
+	{
 		s.input = state.input;
 		forward_convolutional_layer_gpu(input_layer, s);
 
@@ -312,10 +343,17 @@ void forward_crnn_layer_gpu(layer l, network_state state)
 		forward_convolutional_layer_gpu(self_layer, s);
 
 		float *old_state = l.state_gpu;
-		if(state.train) l.state_gpu += l.hidden*l.batch;
-		if(l.shortcut){
+		if (state.train)
+		{
+			l.state_gpu += l.hidden*l.batch;
+		}
+
+		if (l.shortcut)
+		{
 			copy_ongpu(l.hidden * l.batch, old_state, 1, l.state_gpu, 1);
-		}else{
+		}
+		else
+		{
 			fill_ongpu(l.hidden * l.batch, 0, l.state_gpu, 1);
 		}
 		axpy_ongpu(l.hidden * l.batch, 1, input_layer.output_gpu, 1, l.state_gpu, 1);
@@ -331,25 +369,28 @@ void forward_crnn_layer_gpu(layer l, network_state state)
 	}
 }
 
-void backward_crnn_layer_gpu(layer l, network_state state)
+void backward_crnn_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	s.net = state.net;
 	//s.index = state.index;
-	int i;
-	layer input_layer = *(l.input_layer);
-	layer self_layer = *(l.self_layer);
-	layer output_layer = *(l.output_layer);
+
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
+
 	increment_layer(&input_layer,  l.steps - 1);
 	increment_layer(&self_layer,   l.steps - 1);
 	increment_layer(&output_layer, l.steps - 1);
 	float *init_state_gpu = l.state_gpu;
 	l.state_gpu += l.hidden*l.batch*l.steps;
-	for (i = l.steps-1; i >= 0; --i) {
+
+	for (int i = l.steps-1; i >= 0; --i)
+	{
 		//copy_ongpu(l.hidden * l.batch, input_layer.output_gpu, 1, l.state_gpu, 1);   // commented in RNN
 		//axpy_ongpu(l.hidden * l.batch, 1, self_layer.output_gpu, 1, l.state_gpu, 1); // commented in RNN
 
@@ -363,16 +404,33 @@ void backward_crnn_layer_gpu(layer l, network_state state)
 
 		s.input = l.state_gpu;
 		s.delta = self_layer.delta_gpu - l.hidden*l.batch;
-		if (i == 0) s.delta = 0;
+		if (i == 0)
+		{
+			s.delta = 0;
+		}
+
 		backward_convolutional_layer_gpu(self_layer, s);
 
-		if (i > 0 && l.shortcut) axpy_ongpu(l.hidden*l.batch, 1, self_layer.delta_gpu, 1, self_layer.delta_gpu - l.hidden*l.batch, 1);
+		if (i > 0 && l.shortcut)
+		{
+			axpy_ongpu(l.hidden*l.batch, 1, self_layer.delta_gpu, 1, self_layer.delta_gpu - l.hidden*l.batch, 1);
+		}
+
 		s.input = state.input + i*l.inputs*l.batch;
-		if(state.delta) s.delta = state.delta + i*l.inputs*l.batch;
-		else s.delta = 0;
+
+		if (state.delta)
+		{
+			s.delta = state.delta + i*l.inputs*l.batch;
+		}
+		else
+		{
+			s.delta = 0;
+		}
+
 		backward_convolutional_layer_gpu(input_layer, s);
 
-		if (state.net.try_fix_nan) {
+		if (state.net.try_fix_nan)
+		{
 			fix_nan_and_inf(output_layer.delta_gpu, output_layer.inputs * output_layer.batch);
 			fix_nan_and_inf(self_layer.delta_gpu, self_layer.inputs * self_layer.batch);
 			fix_nan_and_inf(input_layer.delta_gpu, input_layer.inputs * input_layer.batch);

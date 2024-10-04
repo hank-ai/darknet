@@ -1,10 +1,4 @@
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
-
-#include "col2im.hpp"
-#include "dark_cuda.hpp"
-#include "Timing.hpp"
+#include "darknet_internal.hpp"
 
 // src: https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cu
 // You may also want to read: https://github.com/BVLC/caffe/blob/master/LICENSE

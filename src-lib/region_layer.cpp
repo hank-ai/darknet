@@ -2,12 +2,12 @@
 
 #define DOABS 1
 
-region_layer make_region_layer(int batch, int w, int h, int n, int classes, int coords, int max_boxes)
+Darknet::Layer make_region_layer(int batch, int w, int h, int n, int classes, int coords, int max_boxes)
 {
 	TAT(TATPARMS);
 
-	region_layer l = { (LAYER_TYPE)0 };
-	l.type = REGION;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::REGION;
 
 	l.n = n;
 	l.batch = batch;
@@ -29,8 +29,9 @@ region_layer make_region_layer(int batch, int w, int h, int n, int classes, int 
 	l.truths = max_boxes*l.truth_size;
 	l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
-	int i;
-	for(i = 0; i < n*2; ++i){
+
+	for (int i = 0; i < n*2; ++i)
+	{
 		l.biases[i] = .5;
 	}
 
@@ -43,14 +44,10 @@ region_layer make_region_layer(int batch, int w, int h, int n, int classes, int 
 	l.delta_gpu = cuda_make_array(l.delta, batch*l.outputs);
 #endif
 
-	fprintf(stderr, "detection\n");
-	/// @todo why!?
-//	srand(time(0));
-
 	return l;
 }
 
-void resize_region_layer(layer *l, int w, int h)
+void resize_region_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -79,11 +76,11 @@ void resize_region_layer(layer *l, int w, int h)
 #endif
 }
 
-box get_region_box(float *x, float *biases, int n, int index, int i, int j, int w, int h)
+Darknet::Box get_region_box(float *x, float *biases, int n, int index, int i, int j, int w, int h)
 {
 	TAT(TATPARMS);
 
-	box b;
+	Darknet::Box b;
 	b.x = (i + logistic_activate(x[index + 0])) / w;
 	b.y = (j + logistic_activate(x[index + 1])) / h;
 	b.w = exp(x[index + 2]) * biases[2*n];
@@ -95,11 +92,11 @@ box get_region_box(float *x, float *biases, int n, int index, int i, int j, int 
 	return b;
 }
 
-float delta_region_box(box truth, float *x, float *biases, int n, int index, int i, int j, int w, int h, float *delta, float scale)
+float delta_region_box(Darknet::Box truth, float *x, float *biases, int n, int index, int i, int j, int w, int h, float *delta, float scale)
 {
 	TAT(TATPARMS);
 
-	box pred = get_region_box(x, biases, n, index, i, j, w, h);
+	Darknet::Box pred = get_region_box(x, biases, n, index, i, j, w, h);
 	float iou = box_iou(pred, truth);
 
 	float tx = (truth.x*w - i);
@@ -118,7 +115,7 @@ float delta_region_box(box truth, float *x, float *biases, int n, int index, int
 	return iou;
 }
 
-void delta_region_class(float *output, float *delta, int index, int class_id, int classes, tree *hier, float scale, float *avg_cat, int focal_loss)
+void delta_region_class(float *output, float *delta, int index, int class_id, int classes, Darknet::Tree *hier, float scale, float *avg_cat, int focal_loss)
 {
 	TAT(TATPARMS);
 
@@ -184,7 +181,7 @@ float tisnan(float x)
 
 namespace
 {
-	inline int entry_index(const layer & l, const int batch, const int location, const int entry)
+	static inline int region_entry_index(const Darknet::Layer & l, const int batch, const int location, const int entry)
 	{
 		// similar function exists in yolo_layer.cpp, but the math is slightly different
 
@@ -197,8 +194,8 @@ namespace
 	}
 }
 
-void softmax_tree(float *input, int batch, int inputs, float temp, tree *hierarchy, float *output);
-void forward_region_layer(const region_layer l, network_state state)
+void softmax_tree(float *input, int batch, int inputs, float temp, Darknet::Tree *hierarchy, float *output);
+void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -243,21 +240,30 @@ void forward_region_layer(const region_layer l, network_state state)
 	int count = 0;
 	int class_count = 0;
 	*(l.cost) = 0;
-	for (b = 0; b < l.batch; ++b) {
-		if(l.softmax_tree){
+	for (b = 0; b < l.batch; ++b)
+	{
+		if (l.softmax_tree)
+		{
 			int onlyclass_id = 0;
-			for(t = 0; t < l.max_boxes; ++t){
-				box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
-				if(!truth.x) break; // continue;
+			for (t = 0; t < l.max_boxes; ++t)
+			{
+				Darknet::Box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
+				if (!truth.x)
+				{
+					break; // continue;
+				}
 				int class_id = state.truth[t*l.truth_size + b*l.truths + 4];
 				float maxp = 0;
 				int maxi = 0;
-				if(truth.x > 100000 && truth.y > 100000){
-					for(n = 0; n < l.n*l.w*l.h; ++n){
+				if (truth.x > 100000 && truth.y > 100000)
+				{
+					for (n = 0; n < l.n*l.w*l.h; ++n)
+					{
 						int index = size*n + b*l.outputs + 5;
 						float scale =  l.output[index-1];
 						float p = scale*get_hierarchy_probability(l.output + index, l.softmax_tree, class_id);
-						if(p > maxp){
+						if (p > maxp)
+						{
 							maxp = p;
 							maxi = n;
 						}
@@ -275,11 +281,11 @@ void forward_region_layer(const region_layer l, network_state state)
 			for (i = 0; i < l.w; ++i) {
 				for (n = 0; n < l.n; ++n) {
 					int index = size*(j*l.w*l.n + i*l.n + n) + b*l.outputs;
-					box pred = get_region_box(l.output, l.biases, n, index, i, j, l.w, l.h);
+					Darknet::Box pred = get_region_box(l.output, l.biases, n, index, i, j, l.w, l.h);
 					float best_iou = 0;
 					int best_class_id = -1;
 					for(t = 0; t < l.max_boxes; ++t){
-						box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
+						Darknet::Box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
 						int class_id = state.truth[t * l.truth_size + b*l.truths + 4];
 						if (class_id >= l.classes) continue; // if label contains class_id more than number of classes in the cfg-file
 						if(!truth.x) break; // continue;
@@ -303,7 +309,7 @@ void forward_region_layer(const region_layer l, network_state state)
 					}
 
 					if(*(state.net.seen) < 12800){
-						box truth = {0};
+						Darknet::Box truth = {0};
 						truth.x = (i + .5)/l.w;
 						truth.y = (j + .5)/l.h;
 						truth.w = l.biases[2*n];
@@ -318,7 +324,7 @@ void forward_region_layer(const region_layer l, network_state state)
 			}
 		}
 		for(t = 0; t < l.max_boxes; ++t){
-			box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
+			Darknet::Box truth = float_to_box(state.truth + t*l.truth_size + b*l.truths);
 			int class_id = state.truth[t * l.truth_size + b*l.truths + 4];
 			if (class_id >= l.classes)
 			{
@@ -332,13 +338,13 @@ void forward_region_layer(const region_layer l, network_state state)
 			i = (truth.x * l.w);
 			j = (truth.y * l.h);
 			//printf("%d %f %d %f\n", i, truth.x*l.w, j, truth.y*l.h);
-			box truth_shift = truth;
+			Darknet::Box truth_shift = truth;
 			truth_shift.x = 0;
 			truth_shift.y = 0;
 			//printf("index %d %d\n",i, j);
 			for(n = 0; n < l.n; ++n){
 				int index = size*(j*l.w*l.n + i*l.n + n) + b*l.outputs;
-				box pred = get_region_box(l.output, l.biases, n, index, i, j, l.w, l.h);
+				Darknet::Box pred = get_region_box(l.output, l.biases, n, index, i, j, l.w, l.h);
 				if(l.bias_match){
 					pred.w = l.biases[2*n];
 					pred.h = l.biases[2*n+1];
@@ -384,29 +390,34 @@ void forward_region_layer(const region_layer l, network_state state)
 	printf("Region Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, Avg Recall: %f,  count: %d\n", avg_iou/count, avg_cat/class_count, avg_obj/count, avg_anyobj/(l.w*l.h*l.n*l.batch), recall/count, count);
 }
 
-void backward_region_layer(const region_layer l, network_state state)
+void backward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
 	axpy_cpu(l.batch*l.inputs, 1, l.delta, 1, state.delta, 1);
 }
 
-void get_region_boxes(layer l, int w, int h, float thresh, float **probs, box *boxes, int only_objectness, int *map)
+void get_region_boxes(const Darknet::Layer & l, int w, int h, float thresh, float **probs, Darknet::Box *boxes, int only_objectness, int *map)
 {
 	TAT(TATPARMS);
 
 	int i;
 	float *const predictions = l.output;
 	#pragma omp parallel for
-	for (i = 0; i < l.w*l.h; ++i){
+	for (i = 0; i < l.w*l.h; ++i)
+	{
 		int j, n;
 		int row = i / l.w;
 		int col = i % l.w;
-		for(n = 0; n < l.n; ++n){
+		for (n = 0; n < l.n; ++n)
+		{
 			int index = i*l.n + n;
 			int p_index = index * (l.classes + 5) + 4;
 			float scale = predictions[p_index];
-			if(l.classfix == -1 && scale < .5) scale = 0;
+			if (l.classfix == -1 && scale < .5)
+			{
+				scale = 0;
+			}
 			int box_index = index * (l.classes + 5);
 			boxes[index] = get_region_box(predictions, l.biases, n, box_index, col, row, l.w, l.h);
 			boxes[index].x *= w;
@@ -415,33 +426,45 @@ void get_region_boxes(layer l, int w, int h, float thresh, float **probs, box *b
 			boxes[index].h *= h;
 
 			int class_index = index * (l.classes + 5) + 5;
-			if(l.softmax_tree){
-
+			if (l.softmax_tree)
+			{
 				hierarchy_predictions(predictions + class_index, l.classes, l.softmax_tree, 0);
 				int found = 0;
-				if(map){
-					for(j = 0; j < 200; ++j){
+				if (map)
+				{
+					for(j = 0; j < 200; ++j)
+					{
 						float prob = scale*predictions[class_index+map[j]];
 						probs[index][j] = (prob > thresh) ? prob : 0;
 					}
-				} else {
-					for(j = l.classes - 1; j >= 0; --j){
-						if(!found && predictions[class_index + j] > .5){
+				}
+				else
+				{
+					for(j = l.classes - 1; j >= 0; --j)
+					{
+						if(!found && predictions[class_index + j] > .5)
+						{
 							found = 1;
-						} else {
+						}
+						else
+						{
 							predictions[class_index + j] = 0;
 						}
 						float prob = predictions[class_index+j];
 						probs[index][j] = (scale > thresh) ? prob : 0;
 					}
 				}
-			} else {
-				for(j = 0; j < l.classes; ++j){
+			}
+			else
+			{
+				for (j = 0; j < l.classes; ++j)
+				{
 					float prob = scale*predictions[class_index+j];
 					probs[index][j] = (prob > thresh) ? prob : 0;
 				}
 			}
-			if(only_objectness){
+			if (only_objectness)
+			{
 				probs[index][0] = scale;
 			}
 		}
@@ -450,7 +473,7 @@ void get_region_boxes(layer l, int w, int h, float thresh, float **probs, box *b
 
 #ifdef GPU
 
-void forward_region_layer_gpu(const region_layer l, network_state state)
+void forward_region_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -482,7 +505,7 @@ void forward_region_layer_gpu(const region_layer l, network_state state)
 	}
 	cuda_pull_array(l.output_gpu, in_cpu, l.batch*l.inputs);
 	//cudaStreamSynchronize(get_cuda_stream());
-	network_state cpu_state = state;
+	Darknet::NetworkState cpu_state = state;
 	cpu_state.train = state.train;
 	cpu_state.truth = truth_cpu;
 	cpu_state.input = in_cpu;
@@ -495,7 +518,7 @@ void forward_region_layer_gpu(const region_layer l, network_state state)
 	if(cpu_state.truth) free(cpu_state.truth);
 }
 
-void backward_region_layer_gpu(region_layer l, network_state state)
+void backward_region_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -504,7 +527,7 @@ void backward_region_layer_gpu(region_layer l, network_state state)
 #endif
 
 
-void correct_region_boxes(detection *dets, int n, int w, int h, int netw, int neth, int relative)
+void correct_region_boxes(Darknet::Detection * dets, int n, int w, int h, int netw, int neth, int relative)
 {
 	TAT(TATPARMS);
 
@@ -520,7 +543,7 @@ void correct_region_boxes(detection *dets, int n, int w, int h, int netw, int ne
 		new_w = (w * neth) / h;
 	}
 	for (i = 0; i < n; ++i) {
-		box b = dets[i].bbox;
+		Darknet::Box b = dets[i].bbox;
 		b.x = (b.x - (netw - new_w) / 2. / netw) / ((float)new_w / netw);
 		b.y = (b.y - (neth - new_h) / 2. / neth) / ((float)new_h / neth);
 		b.w *= (float)netw / new_w;
@@ -536,7 +559,7 @@ void correct_region_boxes(detection *dets, int n, int w, int h, int netw, int ne
 }
 
 
-void get_region_detections(layer l, int w, int h, int netw, int neth, float thresh, int *map, float tree_thresh, int relative, detection *dets)
+void get_region_detections(Darknet::Layer l, int w, int h, int netw, int neth, float thresh, int *map, float tree_thresh, int relative, Darknet::Detection * dets)
 {
 	TAT(TATPARMS);
 
@@ -565,46 +588,57 @@ void get_region_detections(layer l, int w, int h, int netw, int neth, float thre
 			l.output[i] = (l.output[i] + flip[i]) / 2.;
 		}
 	}
-	for (i = 0; i < l.w*l.h; ++i) {
+	for (i = 0; i < l.w*l.h; ++i)
+	{
 		int row = i / l.w;
 		int col = i % l.w;
-		for (n = 0; n < l.n; ++n) {
+		for (n = 0; n < l.n; ++n)
+		{
 			int index = n*l.w*l.h + i;
-			for (j = 0; j < l.classes; ++j) {
+			for (j = 0; j < l.classes; ++j)
+			{
 				dets[index].prob[j] = 0;
 			}
-			int obj_index = entry_index(l, 0, n*l.w*l.h + i, l.coords);
-			int box_index = entry_index(l, 0, n*l.w*l.h + i, 0);
-			int mask_index = entry_index(l, 0, n*l.w*l.h + i, 4);
+			int obj_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords);
+			int box_index = region_entry_index(l, 0, n*l.w*l.h + i, 0);
+			int mask_index = region_entry_index(l, 0, n*l.w*l.h + i, 4);
 			float scale = l.background ? 1 : predictions[obj_index];
 			dets[index].bbox = get_region_box(predictions, l.biases, n, box_index, col, row, l.w, l.h);// , l.w*l.h);
 			dets[index].objectness = scale > thresh ? scale : 0;
-			if (dets[index].mask) {
-				for (j = 0; j < l.coords - 4; ++j) {
+			if (dets[index].mask)
+			{
+				for (j = 0; j < l.coords - 4; ++j)
+				{
 					dets[index].mask[j] = l.output[mask_index + j*l.w*l.h];
 				}
 			}
 
-			int class_index = entry_index(l, 0, n*l.w*l.h + i, l.coords + !l.background);
-			if (l.softmax_tree) {
-
+			int class_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + !l.background);
+			if (l.softmax_tree)
+			{
 				hierarchy_predictions(predictions + class_index, l.classes, l.softmax_tree, 0);// , l.w*l.h);
-				if (map) {
-					for (j = 0; j < 200; ++j) {
-						int class_index = entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + map[j]);
+				if (map)
+				{
+					for (j = 0; j < 200; ++j)
+					{
+						int class_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + map[j]);
 						float prob = scale*predictions[class_index];
 						dets[index].prob[j] = (prob > thresh) ? prob : 0;
 					}
 				}
-				else {
+				else
+				{
 					int j = hierarchy_top_prediction(predictions + class_index, l.softmax_tree, tree_thresh, l.w*l.h);
 					dets[index].prob[j] = (scale > thresh) ? scale : 0;
 				}
 			}
-			else {
-				if (dets[index].objectness) {
-					for (j = 0; j < l.classes; ++j) {
-						int class_index = entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + j);
+			else
+			{
+				if (dets[index].objectness)
+				{
+					for (j = 0; j < l.classes; ++j)
+					{
+						int class_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + j);
 						float prob = scale*predictions[class_index];
 						dets[index].prob[j] = (prob > thresh) ? prob : 0;
 					}
@@ -615,14 +649,14 @@ void get_region_detections(layer l, int w, int h, int netw, int neth, float thre
 	correct_region_boxes(dets, l.w*l.h*l.n, w, h, netw, neth, relative);
 }
 
-void zero_objectness(layer l)
+void zero_objectness(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
 	int i, n;
 	for (i = 0; i < l.w*l.h; ++i) {
 		for (n = 0; n < l.n; ++n) {
-			int obj_index = entry_index(l, 0, n*l.w*l.h + i, l.coords);
+			int obj_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords);
 			l.output[obj_index] = 0;
 		}
 	}

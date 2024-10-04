@@ -38,9 +38,11 @@ IF (CMAKE_CUDA_COMPILER)
 	#	89: RTX 4090, 4080, 6000, Tesla L40
 	#	90: H100, GH100
 	#
-#	SET (DARKNET_CUDA_ARCHITECTURES "86")
-#	SET (DARKNET_CUDA_ARCHITECTURES "75;80;86")
-	SET (DARKNET_CUDA_ARCHITECTURES "native")
+	IF (NOT DEFINED DARKNET_CUDA_ARCHITECTURES)
+	#	SET (DARKNET_CUDA_ARCHITECTURES "86")
+	#	SET (DARKNET_CUDA_ARCHITECTURES "75;80;86")
+		SET (DARKNET_CUDA_ARCHITECTURES "native")
+	ENDIF ()
 	SET (DARKNET_USE_CUDA ON)
 	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} CUDA::cudart CUDA::cuda_driver CUDA::cublas CUDA::curand)
 ELSE ()
@@ -52,26 +54,26 @@ ENDIF ()
 # == cuDNN ==
 # ===========
 IF (DARKNET_USE_CUDA)
-		# Look for cudnn, we will look in the same place as other CUDA libraries and also a few other places as well.
-		FIND_PATH(cudnn_include cudnn.h
-					HINTS ${CUDA_INCLUDE_DIRS} ENV CUDNN_INCLUDE_DIR ENV CUDA_PATH ENV CUDNN_HOME
-					PATHS /usr/local /usr/local/cuda ENV CPATH
-					PATH_SUFFIXES include)
-		GET_FILENAME_COMPONENT(cudnn_hint_path "${CUDA_CUBLAS_LIBRARIES}" PATH)
-		FIND_LIBRARY(cudnn cudnn
-					HINTS ${cudnn_hint_path} ENV CUDNN_LIBRARY_DIR ENV CUDA_PATH ENV CUDNN_HOME
-					PATHS /usr/local /usr/local/cuda ENV LD_LIBRARY_PATH
-					PATH_SUFFIXES lib64 lib/x64 lib x64)
-		IF (cudnn AND cudnn_include)
-			MESSAGE (STATUS "Found cuDNN library: " ${cudnn})
-			ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
-			ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
-			SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${cudnn})
-			MESSAGE (STATUS "Found cuDNN include: " ${cudnn_include})
-			INCLUDE_DIRECTORIES (${cudnn_include})
-		ELSE ()
-			MESSAGE (WARNING "cuDNN not found.")
-		ENDIF ()
+	# Look for cudnn, we will look in the same place as other CUDA libraries and also a few other places as well.
+	FIND_PATH(cudnn_include cudnn.h
+				HINTS ${CUDA_INCLUDE_DIRS} ENV CUDNN_INCLUDE_DIR ENV CUDA_PATH ENV CUDNN_HOME
+				PATHS /usr/local /usr/local/cuda ENV CPATH
+				PATH_SUFFIXES include)
+	GET_FILENAME_COMPONENT(cudnn_hint_path "${CUDA_CUBLAS_LIBRARIES}" PATH)
+	FIND_LIBRARY(cudnn cudnn
+				HINTS ${cudnn_hint_path} ENV CUDNN_LIBRARY_DIR ENV CUDA_PATH ENV CUDNN_HOME
+				PATHS /usr/local /usr/local/cuda ENV LD_LIBRARY_PATH
+				PATH_SUFFIXES lib64 lib/x64 lib x64)
+	IF (cudnn AND cudnn_include)
+	MESSAGE (STATUS "Found cuDNN library: " ${cudnn})
+		ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
+		ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
+		SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${cudnn})
+		MESSAGE (STATUS "Found cuDNN include: " ${cudnn_include})
+		INCLUDE_DIRECTORIES (${cudnn_include})
+	ELSE ()
+		MESSAGE (WARNING "cuDNN not found.")
+	ENDIF ()
 ENDIF ()
 
 

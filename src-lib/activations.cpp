@@ -1,18 +1,7 @@
-#ifdef __GNUC__
-// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
-#pragma GCC diagnostic ignored "-Wswitch"
-#endif
-
 #include "activations.hpp"
 #include "darknet_internal.hpp"
 
-//#include <math.h>
-//#include <stdio.h>
-//#include <stdlib.h>
-//#include <string.h>
-//#include <float.h>
-
-char *get_activation_string(ACTIVATION a)
+const char *get_activation_string(ACTIVATION a)
 {
 	TAT(TATPARMS);
 
@@ -91,40 +80,35 @@ float activate(float x, ACTIVATION a)
 
 	switch(a)
 	{
-		/// @todo what about other values like RELUG, SWISH, etc?
-		case LINEAR:
-			return linear_activate(x);
-		case LOGISTIC:
-			return logistic_activate(x);
-		case LOGGY:
-			return loggy_activate(x);
-		case RELU:
-			return relu_activate(x);
-		case ELU:
-			return elu_activate(x);
-		case SELU:
-			return selu_activate(x);
-		case GELU:
-			return gelu_activate(x);
-		case RELIE:
-			return relie_activate(x);
-		case RAMP:
-			return ramp_activate(x);
+		case LINEAR:			return linear_activate(x);
+		case LOGISTIC:			return logistic_activate(x);
+		case LOGGY:				return loggy_activate(x);
+		case RELU:				return relu_activate(x);
+		case ELU:				return elu_activate(x);
+		case SELU:				return selu_activate(x);
+		case GELU:				return gelu_activate(x);
+		case RELIE:				return relie_activate(x);
+		case RAMP:				return ramp_activate(x);
 		case REVLEAKY:
-		case LEAKY:
-			return leaky_activate(x);
-		case TANH:
-			return tanh_activate(x);
-		case PLSE:
-			return plse_activate(x);
-		case STAIR:
-			return stair_activate(x);
-		case HARDTAN:
-			return hardtan_activate(x);
-		case LHTAN:
-			return lhtan_activate(x);
+		case LEAKY:				return leaky_activate(x);
+		case TANH:				return tanh_activate(x);
+		case PLSE:				return plse_activate(x);
+		case STAIR:				return stair_activate(x);
+		case HARDTAN:			return hardtan_activate(x);
+		case LHTAN:				return lhtan_activate(x);
+
+		/// @todo V3 Why were some activations missing?  Was that intentional?
+
+		case RELU6:						return relu6_activate(x);
+		case SWISH:						return 0.0f;
+		case MISH:						return 0.0f;
+		case HARD_MISH:					return 0.0f;
+		case NORM_CHAN:					return 0.0f;
+		case NORM_CHAN_SOFTMAX:			return 0.0f;
+		case NORM_CHAN_SOFTMAX_MAXVAL:	return 0.0f;
 	}
-	return 0;
+
+	return 0.0f;
 }
 
 void activate_array(float *x, const int n, const ACTIVATION a)
@@ -342,47 +326,33 @@ float gradient(float x, ACTIVATION a)
 {
 	TAT(TATPARMS);
 
-	switch(a){
-		/// @todo what about other values like SWISH, etc?
-		case LINEAR:
-			return linear_gradient(x);
-		case LOGISTIC:
-			return logistic_gradient(x);
-		case LOGGY:
-			return loggy_gradient(x);
-		case RELU:
-			return relu_gradient(x);
-		case RELU6:
-			return relu6_gradient(x);
-		case NORM_CHAN:
-			//return relu_gradient(x);
-		case NORM_CHAN_SOFTMAX_MAXVAL:
-			//...
-		case NORM_CHAN_SOFTMAX:
-			darknet_fatal_error(DARKNET_LOC, "should be used custom NORM_CHAN or NORM_CHAN_SOFTMAX-function for gradient");
-		case ELU:
-			return elu_gradient(x);
-		case SELU:
-			return selu_gradient(x);
-		case GELU:
-			return gelu_gradient(x);
-		case RELIE:
-			return relie_gradient(x);
-		case RAMP:
-			return ramp_gradient(x);
+	switch(a)
+	{
+		case LINEAR:			return linear_gradient(x);
+		case LOGISTIC:			return logistic_gradient(x);
+		case LOGGY:				return loggy_gradient(x);
+		case RELU:				return relu_gradient(x);
+		case RELU6:				return relu6_gradient(x);
+		case ELU:				return elu_gradient(x);
+		case SELU:				return selu_gradient(x);
+		case GELU:				return gelu_gradient(x);
+		case RELIE:				return relie_gradient(x);
+		case RAMP:				return ramp_gradient(x);
 		case REVLEAKY:
-		case LEAKY:
-			return leaky_gradient(x);
-		case TANH:
-			return tanh_gradient(x);
-		case PLSE:
-			return plse_gradient(x);
-		case STAIR:
-			return stair_gradient(x);
-		case HARDTAN:
-			return hardtan_gradient(x);
-		case LHTAN:
-			return lhtan_gradient(x);
+		case LEAKY:				return leaky_gradient(x);
+		case TANH:				return tanh_gradient(x);
+		case PLSE:				return plse_gradient(x);
+		case STAIR:				return stair_gradient(x);
+		case HARDTAN:			return hardtan_gradient(x);
+		case LHTAN:				return lhtan_gradient(x);
+		case NORM_CHAN:
+		case NORM_CHAN_SOFTMAX_MAXVAL:
+		case NORM_CHAN_SOFTMAX:	darknet_fatal_error(DARKNET_LOC, "should be used custom NORM_CHAN or NORM_CHAN_SOFTMAX-function for gradient");
+
+		/// @todo V3 why were these 3 missed?
+		case SWISH:				return 0.0f;
+		case MISH:				return 0.0f;
+		case HARD_MISH:			return 0.0f;
 	}
 	return 0;
 }

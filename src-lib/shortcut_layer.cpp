@@ -1,19 +1,15 @@
 #include "gemm.hpp"
 #include "darknet_internal.hpp"
 
-layer make_shortcut_layer(int batch, int n, int *input_layers, int* input_sizes, int w, int h, int c,
+Darknet::Layer make_shortcut_layer(int batch, int n, int *input_layers, int* input_sizes, int w, int h, int c,
 	float **layers_output, float **layers_delta, float **layers_output_gpu, float **layers_delta_gpu, WEIGHTS_TYPE_T weights_type, WEIGHTS_NORMALIZATION_T weights_normalization,
 	ACTIVATION activation, int train)
 {
 	TAT(TATPARMS);
 
-	fprintf(stderr, "Shortcut Layer: ");
-	int i;
-	for(i = 0; i < n; ++i) fprintf(stderr, "%d, ", input_layers[i]);
-
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.train = train;
-	l.type = SHORTCUT;
+	l.type = Darknet::ELayerType::SHORTCUT;
 	l.batch = batch;
 	l.activation = activation;
 	l.n = n;
@@ -38,42 +34,70 @@ layer make_shortcut_layer(int batch, int n, int *input_layers, int* input_sizes,
 
 	l.index = l.input_layers[0];
 
-
-	if (train) l.delta = (float*)xcalloc(l.outputs * batch, sizeof(float));
+	if (train)
+	{
+		l.delta = (float*)xcalloc(l.outputs * batch, sizeof(float));
+	}
 	l.output = (float*)xcalloc(l.outputs * batch, sizeof(float));
 
 	l.nweights = 0;
-	if (l.weights_type == PER_FEATURE) l.nweights = (l.n + 1);
-	else if (l.weights_type == PER_CHANNEL) l.nweights = (l.n + 1) * l.c;
+	if (l.weights_type == PER_FEATURE)
+	{
+		l.nweights = (l.n + 1);
+	}
+	else if (l.weights_type == PER_CHANNEL)
+	{
+		l.nweights = (l.n + 1) * l.c;
+	}
 
-	if (l.nweights > 0) {
+	if (l.nweights > 0)
+	{
 		l.weights = (float*)calloc(l.nweights, sizeof(float));
 		//float scale = sqrt(2. / l.nweights);
-		for (i = 0; i < l.nweights; ++i) l.weights[i] = 1;// +0.01*rand_uniform(-1, 1);// scale*rand_uniform(-1, 1);   // rand_normal();
+		for (int i = 0; i < l.nweights; ++i)
+		{
+			l.weights[i] = 1;// +0.01*rand_uniform(-1, 1);// scale*rand_uniform(-1, 1);   // rand_normal();
+		}
 
-		if (train) l.weight_updates = (float*)calloc(l.nweights, sizeof(float));
+		if (train)
+		{
+			l.weight_updates = (float*)calloc(l.nweights, sizeof(float));
+		}
 		l.update = update_shortcut_layer;
 	}
 
 	l.forward = forward_shortcut_layer;
 	l.backward = backward_shortcut_layer;
 #ifndef GPU
-	if (l.activation == SWISH || l.activation == MISH) l.activation_input = (float*)calloc(l.batch*l.outputs, sizeof(float));
+	if (l.activation == SWISH || l.activation == MISH)
+	{
+		l.activation_input = (float*)calloc(l.batch*l.outputs, sizeof(float));
+	}
 #endif // GPU
 
 #ifdef GPU
-	if (l.activation == SWISH || l.activation == MISH) l.activation_input_gpu = cuda_make_array(l.activation_input, l.batch*l.outputs);
+	if (l.activation == SWISH || l.activation == MISH)
+	{
+		l.activation_input_gpu = cuda_make_array(l.activation_input, l.batch*l.outputs);
+	}
 
 	l.forward_gpu = forward_shortcut_layer_gpu;
 	l.backward_gpu = backward_shortcut_layer_gpu;
 
-	if (l.nweights > 0) {
+	if (l.nweights > 0)
+	{
 		l.update_gpu = update_shortcut_layer_gpu;
 		l.weights_gpu = cuda_make_array(l.weights, l.nweights);
-		if (train) l.weight_updates_gpu = cuda_make_array(l.weight_updates, l.nweights);
+		if (train)
+		{
+			l.weight_updates_gpu = cuda_make_array(l.weight_updates, l.nweights);
+		}
 	}
 
-	if (train) l.delta_gpu =  cuda_make_array(l.delta, l.outputs*batch);
+	if (train)
+	{
+		l.delta_gpu =  cuda_make_array(l.delta, l.outputs*batch);
+	}
 	l.output_gpu = cuda_make_array(l.output, l.outputs*batch);
 
 	l.input_sizes_gpu = cuda_make_int_array_new_api(input_sizes, l.n);
@@ -82,12 +106,15 @@ layer make_shortcut_layer(int batch, int n, int *input_layers, int* input_sizes,
 #endif  // GPU
 
 	l.bflops = l.out_w * l.out_h * l.out_c * l.n / 1000000000.;
-	if (l.weights_type) l.bflops *= 2;
-	fprintf(stderr, " wt = %d, wn = %d, outputs:%4d x%4d x%4d %5.3f BF\n", l.weights_type, l.weights_normalization, l.out_w, l.out_h, l.out_c, l.bflops);
+	if (l.weights_type)
+	{
+		l.bflops *= 2;
+	}
+
 	return l;
 }
 
-void resize_shortcut_layer(layer *l, int w, int h, network *net)
+void resize_shortcut_layer(Darknet::Layer *l, int w, int h, Darknet::Network * net)
 {
 	TAT(TATPARMS);
 
@@ -145,7 +172,7 @@ void resize_shortcut_layer(layer *l, int w, int h, network *net)
 
 }
 
-void forward_shortcut_layer(const layer l, network_state state)
+void forward_shortcut_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -173,7 +200,7 @@ void forward_shortcut_layer(const layer l, network_state state)
 	else activate_array_cpu_custom(l.output, l.outputs*l.batch, l.activation);
 }
 
-void backward_shortcut_layer(const layer l, network_state state)
+void backward_shortcut_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -188,7 +215,7 @@ void backward_shortcut_layer(const layer l, network_state state)
 	//shortcut_cpu(l.batch, l.out_w, l.out_h, l.out_c, l.delta, l.w, l.h, l.c, state.net.layers[l.index].delta);
 }
 
-void update_shortcut_layer(layer l, int batch, float learning_rate_init, float momentum, float decay)
+void update_shortcut_layer(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay)
 {
 	TAT(TATPARMS);
 
@@ -205,7 +232,7 @@ void update_shortcut_layer(layer l, int batch, float learning_rate_init, float m
 }
 
 #ifdef GPU
-void forward_shortcut_layer_gpu(const layer l, network_state state)
+void forward_shortcut_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -233,7 +260,7 @@ void forward_shortcut_layer_gpu(const layer l, network_state state)
 
 }
 
-void backward_shortcut_layer_gpu(const layer l, network_state state)
+void backward_shortcut_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -248,7 +275,7 @@ void backward_shortcut_layer_gpu(const layer l, network_state state)
 	//shortcut_gpu(l.batch, l.out_w, l.out_h, l.out_c, l.delta_gpu, l.w, l.h, l.c, state.net.layers[l.index].delta_gpu);
 }
 
-void update_shortcut_layer_gpu(layer l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
+void update_shortcut_layer_gpu(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);
 
@@ -286,7 +313,7 @@ void update_shortcut_layer_gpu(layer l, int batch, float learning_rate_init, flo
 	}
 }
 
-void pull_shortcut_layer(layer l)
+void pull_shortcut_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -297,7 +324,7 @@ void pull_shortcut_layer(layer l)
 	CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));
 }
 
-void push_shortcut_layer(layer l)
+void push_shortcut_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 

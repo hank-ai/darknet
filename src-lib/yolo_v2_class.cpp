@@ -16,28 +16,8 @@
  */
 
 
-#include "darknet.h"
+#include "darknet_internal.hpp"
 #include "yolo_v2_class.hpp"
-
-#include "network.hpp"
-
-extern "C" {
-#include "detection_layer.hpp"
-#include "region_layer.hpp"
-#include "cost_layer.hpp"
-#include "utils.hpp"
-#include "parser.hpp"
-#include "box.hpp"
-#include "image_opencv.hpp"
-#include "demo.hpp"
-#include "option_list.hpp"
-}
-//#include <sys/time.h>
-
-#include <vector>
-#include <iostream>
-#include <algorithm>
-#include <cmath>
 
 #define NFRAMES 3
 
@@ -128,9 +108,10 @@ void check_cuda(cudaError_t status) {
 }
 #endif
 
-struct detector_gpu_t {
-	network net;
-	image images[NFRAMES];
+struct detector_gpu_t
+{
+	Darknet::Network net;
+	Darknet::Image images[NFRAMES];
 	float *avg;
 	float* predictions[NFRAMES];
 	int demo_index;
@@ -154,7 +135,7 @@ Detector::Detector(std::string cfg_filename, std::string weight_filename, int gp
 	cuda_set_device(cur_gpu_id);
 	printf(" Used GPU %d \n", cur_gpu_id);
 #endif
-	network &net = detector_gpu.net;
+	Darknet::Network & net = detector_gpu.net;
 	net.gpu_index = cur_gpu_id;
 	//gpu_index = i;
 
@@ -172,7 +153,7 @@ Detector::Detector(std::string cfg_filename, std::string weight_filename, int gp
 	net.gpu_index = cur_gpu_id;
 	fuse_conv_batchnorm(net);
 
-	layer l = net.layers[net.n - 1];
+	Darknet::Layer & l = net.layers[net.n - 1];
 	int j;
 
 	detector_gpu.avg = (float *)calloc(l.outputs, sizeof(float));
@@ -236,7 +217,7 @@ std::vector<bbox_t> Detector::detect(std::string image_filename, float thresh, b
 
 image_t Detector::load_image(std::string image_filename)
 {
-	image im = load_image_cv(const_cast<char*>(image_filename.c_str()), 3);
+	Darknet::Image im = Darknet::load_image(const_cast<char*>(image_filename.c_str()), 0, 0, 3);
 
 	image_t img;
 	img.c = im.c;
@@ -250,7 +231,8 @@ image_t Detector::load_image(std::string image_filename)
 
 void Detector::free_image(image_t m)
 {
-	if (m.data) {
+	if (m.data)
+	{
 		free(m.data);
 	}
 }
@@ -258,7 +240,7 @@ void Detector::free_image(image_t m)
 std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
-	network &net = detector_gpu.net;
+	Darknet::Network & net = detector_gpu.net;
 #ifdef GPU
 	int old_gpu_index;
 	cudaGetDevice(&old_gpu_index);
@@ -269,22 +251,25 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 #endif
 	//std::cout << "net.gpu_index = " << net.gpu_index << std::endl;
 
-	image im;
+	Darknet::Image im;
 	im.c = img.c;
 	im.data = img.data;
 	im.h = img.h;
 	im.w = img.w;
 
-	image sized;
+	Darknet::Image sized;
 
-	if (net.w == im.w && net.h == im.h) {
+	if (net.w == im.w && net.h == im.h)
+	{
 		sized = make_image(im.w, im.h, im.c);
 		memcpy(sized.data, im.data, im.w*im.h*im.c * sizeof(float));
 	}
 	else
-		sized = resize_image(im, net.w, net.h);
+	{
+		sized = Darknet::resize_image(im, net.w, net.h);
+	}
 
-	layer l = net.layers[net.n - 1];
+	Darknet::Layer & l = net.layers[net.n - 1];
 
 	float *X = sized.data;
 
@@ -302,13 +287,13 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 	int nboxes = 0;
 	int letterbox = 0;
 	float hier_thresh = 0.5;
-	detection *dets = get_network_boxes(&net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letterbox);
+	Darknet::Detection * dets = get_network_boxes(&net, im.w, im.h, thresh, hier_thresh, 0, 1, &nboxes, letterbox);
 	if (nms) do_nms_sort(dets, nboxes, l.classes, nms);
 
 	std::vector<bbox_t> bbox_vec;
 
 	for (int i = 0; i < nboxes; ++i) {
-		box b = dets[i].bbox;
+		Darknet::Box b = dets[i].bbox;
 		int const obj_id = max_index(dets[i].prob, l.classes);
 		float const prob = dets[i].prob[obj_id];
 
@@ -346,7 +331,7 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_size, int width, int height, float thresh, bool make_nms)
 {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
-	network &net = detector_gpu.net;
+	Darknet::Network net = detector_gpu.net;
 #ifdef GPU
 	int old_gpu_index;
 	cudaGetDevice(&old_gpu_index);
@@ -357,10 +342,10 @@ std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_si
 #endif
 	//std::cout << "net.gpu_index = " << net.gpu_index << std::endl;
 
-	layer l = net.layers[net.n - 1];
+	Darknet::Layer & l = net.layers[net.n - 1];
 
 	float hier_thresh = 0.5;
-	image in_img;
+	Darknet::Image in_img;
 	in_img.c = img.c;
 	in_img.w = img.w;
 	in_img.h = img.h;
@@ -378,7 +363,7 @@ std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_si
 
 		for (int i = 0; i < prediction[bi].num; ++i)
 		{
-			box b = dets[i].bbox;
+			Darknet::Box b = dets[i].bbox;
 			int const obj_id = max_index(dets[i].prob, l.classes);
 			float const prob = dets[i].prob[obj_id];
 

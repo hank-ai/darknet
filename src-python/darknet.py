@@ -58,11 +58,6 @@ class IMAGE(Structure):
                 ("c", c_int),            # Number of channels
                 ("data", POINTER(c_float))]  # Pointer to image data
 
-# Define a structure to represent metadata for classes
-class METADATA(Structure):
-    _fields_ = [("classes", c_int),        # Number of classes
-                ("names", POINTER(c_char_p))]  # Pointer to class names
-
 # Function to get the width of a network
 def network_width(net):
     return lib.network_width(net)
@@ -110,16 +105,11 @@ def load_network(config_file, data_file, weights, batch_size=1):
         weights (str): path to weights
     returns:
         network: trained model
-        class_names
-        class_colors
     """
     network = load_net_custom(
         config_file.encode("ascii"),
         weights.encode("ascii"), 0, batch_size)
-    metadata = load_meta(data_file.encode("ascii"))
-    class_names = [metadata.names[i].decode("ascii") for i in range(metadata.classes)]
-    colors = class_colors(class_names)
-    return network, class_names, colors
+    return network
 
 
 # Function to print detected objects and their confidence scores
@@ -350,9 +340,6 @@ predict.restype = POINTER(c_float)
 # Define and comment function to set the GPU device for Darknet
 set_gpu = lib.cuda_set_device
 
-# Define and comment function to initialize Darknet for CPU processing
-init_cpu = lib.init_cpu
-
 # Define and comment function to create a Darknet IMAGE object
 make_image = lib.make_image
 make_image.argtypes = [c_int, c_int, c_int]
@@ -419,11 +406,6 @@ free_image.argtypes = [IMAGE]
 letterbox_image = lib.letterbox_image
 letterbox_image.argtypes = [IMAGE, c_int, c_int]
 letterbox_image.restype = IMAGE
-
-# Define and comment function to load metadata for Darknet
-load_meta = lib.get_metadata
-lib.get_metadata.argtypes = [c_char_p]
-lib.get_metadata.restype = METADATA
 
 # Define and comment function to load a color image for Darknet
 load_image = lib.load_image

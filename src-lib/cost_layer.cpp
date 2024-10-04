@@ -1,12 +1,5 @@
-#include "cost_layer.hpp"
-#include "utils.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
-#include "Timing.hpp"
-#include <math.h>
-#include <string.h>
-#include <stdlib.h>
-#include <stdio.h>
+#include "darknet_internal.hpp"
+
 
 COST_TYPE get_cost_type(char *s)
 {
@@ -19,7 +12,7 @@ COST_TYPE get_cost_type(char *s)
 	return SSE;
 }
 
-char *get_cost_string(COST_TYPE a)
+const char *get_cost_string(COST_TYPE a)
 {
 	TAT(TATPARMS);
 
@@ -35,13 +28,13 @@ char *get_cost_string(COST_TYPE a)
 	}
 }
 
-cost_layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float scale)
+Darknet::Layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float scale)
 {
 	TAT(TATPARMS);
 
 	fprintf(stderr, "cost                                           %4d\n",  inputs);
-	cost_layer l = { (LAYER_TYPE)0 };
-	l.type = COST;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::COST;
 
 	l.scale = scale;
 	l.batch = batch;
@@ -64,7 +57,7 @@ cost_layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float sca
 	return l;
 }
 
-void resize_cost_layer(cost_layer *l, int inputs)
+void resize_cost_layer(Darknet::Layer *l, int inputs)
 {
 	TAT(TATPARMS);
 
@@ -80,7 +73,7 @@ void resize_cost_layer(cost_layer *l, int inputs)
 #endif
 }
 
-void forward_cost_layer(cost_layer l, network_state state)
+void forward_cost_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -99,7 +92,7 @@ void forward_cost_layer(cost_layer l, network_state state)
 	l.cost[0] = sum_array(l.output, l.batch*l.inputs);
 }
 
-void backward_cost_layer(const cost_layer l, network_state state)
+void backward_cost_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -108,14 +101,14 @@ void backward_cost_layer(const cost_layer l, network_state state)
 
 #ifdef GPU
 
-void pull_cost_layer(cost_layer l)
+void pull_cost_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
 	cuda_pull_array(l.delta_gpu, l.delta, l.batch*l.inputs);
 }
 
-void push_cost_layer(cost_layer l)
+void push_cost_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -141,7 +134,7 @@ int float_abs_compare (const void * a, const void * b)
 	return (fa > fb) - (fa < fb);
 }
 
-void forward_cost_layer_gpu(cost_layer l, network_state state)
+void forward_cost_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -182,7 +175,7 @@ void forward_cost_layer_gpu(cost_layer l, network_state state)
 	l.cost[0] = sum_array(l.output, l.batch*l.inputs);
 }
 
-void backward_cost_layer_gpu(const cost_layer l, network_state state)
+void backward_cost_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

@@ -72,74 +72,61 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 
 	static const SArgsAndParms all =
 	{
-		ArgsAndParms("3d"			, ArgsAndParms::EType::kCommand, "Pass in 2 images as input."),
-		ArgsAndParms("help"			, ArgsAndParms::EType::kCommand, "Display usage information."),
-		ArgsAndParms("version"		, ArgsAndParms::EType::kCommand, "Display version information."),
-		ArgsAndParms("average"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("yolo"			, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("voxel"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("super"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("detect"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("cifar"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("go"			, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("rnn"			, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("vid"			, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("coco"			, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("classify"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("classifier"	, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("art"			, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("tag"			, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("compare"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("dice"			, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("writing"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("test"			, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("captcha"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("nightmare"	, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("rgbgr"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("reset"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("denormalize"	, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("statistics"	, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("normalize"	, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("rescale"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("ops"			, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("speed"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("oneoff"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("partial"		, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("visualize"	, ArgsAndParms::EType::kCommand	),
-		ArgsAndParms("imtest"		, ArgsAndParms::EType::kCommand	),
-
-		ArgsAndParms("detector"		, ArgsAndParms::EType::kCommand, "Train or check neural networks."),
-		ArgsAndParms("test"			, ArgsAndParms::EType::kFunction),
-		ArgsAndParms("train"		, ArgsAndParms::EType::kFunction, "Train a new neural network, or continue training an existing neural network."),
-		ArgsAndParms("valid"		, ArgsAndParms::EType::kFunction),
-		ArgsAndParms("recall"		, ArgsAndParms::EType::kFunction),
+		ArgsAndParms("3d"			, ArgsAndParms::EType::kCommand	, "Pass in 2 images as input."),
+		ArgsAndParms("average"		, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("calcanchors"	, ArgsAndParms::EType::kFunction, "Recalculate YOLO anchors."),
+		ArgsAndParms("cfglayers"	, ArgsAndParms::EType::kCommand, "Display some information on all config files and layers used."),
+		ArgsAndParms("denormalize"	, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("detect"		, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("detector"		, ArgsAndParms::EType::kCommand	, "Train or check neural networks."),
+		ArgsAndParms("help"			, ArgsAndParms::EType::kCommand	, "Display usage information."),
+		ArgsAndParms("imtest"		, ArgsAndParms::EType::kCommand	, ""),
 		ArgsAndParms("map"			, ArgsAndParms::EType::kFunction, "Calculate mean average precision for a given dataset."),
-		ArgsAndParms("calcanchors"	, ArgsAndParms::EType::kFunction),
-		ArgsAndParms("draw"			, ArgsAndParms::EType::kFunction),
-		ArgsAndParms("demo"			, ArgsAndParms::EType::kFunction, "Process a video using the given neural network."),
+		ArgsAndParms("nightmare"	, ArgsAndParms::EType::kCommand	, "Run a neural network in reverse to generate strange images."),
+		ArgsAndParms("normalize"	, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("oneoff"		, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("ops"			, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("partial"		, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("recall"		, ArgsAndParms::EType::kFunction, ""),
+		ArgsAndParms("rescale"		, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("reset"		, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("rgbgr"		, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("speed"		, ArgsAndParms::EType::kCommand	, "Perform a quick test to see how fast the specified neural network runs."),
+		ArgsAndParms("statistics"	, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("test"			, ArgsAndParms::EType::kCommand	, ""),
+		ArgsAndParms("test"			, ArgsAndParms::EType::kFunction, ""),
+		ArgsAndParms("train"		, ArgsAndParms::EType::kFunction, "Train a new neural network, or continue training an existing neural network."),
+		ArgsAndParms("valid"		, ArgsAndParms::EType::kFunction, ""),
+		ArgsAndParms("version"		, ArgsAndParms::EType::kCommand	, "Display version information."),
+		ArgsAndParms("visualize"	, ArgsAndParms::EType::kCommand	, "Display the weights from diferent layers in a neural network."),
 
 		// global options
-		ArgsAndParms("colour"	, "color"	),
-		ArgsAndParms("nocolour"	, "nocolor"	),
-		ArgsAndParms("verbose"	, "show_details"), // I originally didn't know about "show_details" when I implemented "verbose"
+		ArgsAndParms("colour"	, "color"							, "Enable colour output in the console.  This is the default."),
+		ArgsAndParms("nocolour"	, "nocolor"							, "Disable colour output in the console."),
+
+		// I originally didn't know about "show_details" when I implemented "verbose".
+		ArgsAndParms("verbose"	, "show_details"					, "Logs more verbose messages."),
+		ArgsAndParms("trace"	, ArgsAndParms::EType::kParameter	, "Intended for debug purposes.  This allows Darknet to log trace messages for some commands."),
 
 		// other options
 
+		ArgsAndParms("dontshow"	, "noshow"							, "Do not open a GUI window.  Especially useful when used on a headless server.  This will cause the output image to be saved to disk."),
+		ArgsAndParms("clear"	, ArgsAndParms::EType::kParameter	, "Used during training to reset the \"image count\" to zero, necessary when pre-existing weights are used."),
+		ArgsAndParms("map"		, ArgsAndParms::EType::kParameter	, "Regularly calculate mAP% score while training."),
+
 		ArgsAndParms("camera"	, "c"			, 0		),
-		ArgsAndParms("dontshow"	, "noshow"				),
 		ArgsAndParms("thresh"	, "threshold"	, 0.24f	),
 
 		ArgsAndParms("avgframes"			), //-- takes an int  3
 		ArgsAndParms("benchmark"			),
 		ArgsAndParms("benchmarklayers"		),
 		ArgsAndParms("checkmistakes"		),
-		ArgsAndParms("clear"				),
 		ArgsAndParms("dontdrawbbox"			),
 		ArgsAndParms("jsonport"				),
 		ArgsAndParms("letterbox"			),
 		ArgsAndParms("mjpegport"			), //-- takes an int?
 		ArgsAndParms("points"				), //-- takes an int?  0
-		ArgsAndParms("show"					),
+		ArgsAndParms("show"					, ArgsAndParms::EType::kParameter, "Visually display the anchors."),
 		ArgsAndParms("showimgs"				),
 		ArgsAndParms("httpposthost"			),
 		ArgsAndParms("timelimitsec"			),
@@ -148,11 +135,10 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("prefix"				),
 		ArgsAndParms("iouthresh"			),
 		ArgsAndParms("hier"					),
-//		ArgsAndParms("c"					),
 		ArgsAndParms("s"					),
-		ArgsAndParms("numofclusters"		),
-		ArgsAndParms("width"				),
-		ArgsAndParms("height"				),
+		ArgsAndParms("numofclusters"		, "", 6	, "The number of YOLO anchors in the configuration."	),
+		ArgsAndParms("width"				, "", 416	, "The width of the network."							),
+		ArgsAndParms("height"				, "", 416	, "The height of the network."							),
 		ArgsAndParms("extoutput"			),
 		ArgsAndParms("savelabels"			),
 		ArgsAndParms("chart"				),
@@ -174,7 +160,9 @@ void Darknet::display_usage()
 		<< std::endl
 		<< "\t\t" << CfgAndState::get().argv[0] << " <command> [<options>] [<function>] [<more options and filenames>]" << std::endl
 		<< std::endl
-		<< "Commands:" << std::endl;
+		<< "Commands:" << std::endl
+		<< Darknet::in_colour(Darknet::EColour::kBrightCyan)
+		;
 
 	// show all commands (short form)
 	int col = 0;
@@ -192,19 +180,19 @@ void Darknet::display_usage()
 		}
 	}
 
-	std::cout << std::endl << std::endl;
+	std::cout << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
 
 	// show the details for the commands where we have descriptions, one per line
 	for (const auto & item : all)
 	{
 		if (item.type == ArgsAndParms::EType::kCommand and not item.description.empty())
 		{
-			std::cout << "  " << std::setw(10) << item.name << ":  " << item.description << std::endl;
+			std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -10) << ":  " << item.description << std::endl;
 		}
 	}
 
 	// show all the functions (short form)
-	std::cout  << std::endl << "Functions:" << std::endl;
+	std::cout << std::endl << "Functions:" << std::endl << Darknet::in_colour(Darknet::EColour::kBrightCyan);
 	col = 0;
 	for (const auto & item : all)
 	{
@@ -220,18 +208,18 @@ void Darknet::display_usage()
 		}
 	}
 
-	std::cout << std::endl << std::endl;
+	std::cout << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
 
 	// show the details for the functions where we have descriptions, one per line
 	for (const auto & item : all)
 	{
 		if (item.type == ArgsAndParms::EType::kFunction and not item.description.empty())
 		{
-			std::cout << "  " << std::setw(10) << item.name << ":  " << item.description << std::endl;
+			std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -10) << ":  " << item.description << std::endl;
 		}
 	}
 
-	std::cout << std::endl << "Options:" << std::endl;
+	std::cout << std::endl << "Options:" << std::endl << Darknet::in_colour(Darknet::EColour::kBrightCyan);
 	col = 0;
 	for (const auto & item : all)
 	{
@@ -246,7 +234,89 @@ void Darknet::display_usage()
 			std::cout << "  " << item.name;
 		}
 	}
-	std::cout <<  std::endl;
+	std::cout << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
+
+	for (const auto & item : all)
+	{
+		if (item.type == ArgsAndParms::EType::kParameter and not item.description.empty())
+		{
+			std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -10) << ":  " << item.description << std::endl;
+		}
+	}
+
+	std::cout << std::endl << "Several options have aliases for convenience:" << std::endl;
+
+	for (const auto & item : all)
+	{
+		if (item.type == ArgsAndParms::EType::kParameter and not item.name_alternate.empty())
+		{
+			std::cout
+				<< "  "		<< Darknet::format_in_colour(item.name			, Darknet::EColour::kBrightWhite, -10)
+				<< " -> "	<< Darknet::format_in_colour(item.name_alternate, Darknet::EColour::kBrightWhite, 10)
+				<< std::endl;
+		}
+	}
+
+	const auto YELLOW = [](const std::string & msg) -> std::string
+	{
+		return Darknet::in_colour(Darknet::EColour::kYellow, msg);
+	};
+
+	std::cout
+		<< ""																						<< std::endl
+		<< "For most Darknet commands, dashes and underscores for CLI parameters are"				<< std::endl
+		<< "ignored.  Additionally, the order in which parameters are specified should"				<< std::endl
+		<< "be insignificant.  For example, these parameters:"										<< std::endl
+		<< ""																						<< std::endl
+		<< "    " << in_colour(EColour::kBrightWhite, "-verbose -show -num_of_clusters 6")			<< std::endl
+		<< ""																						<< std::endl
+		<< "...are exactly the same as:"															<< std::endl
+		<< ""																						<< std::endl
+		<< "    " << in_colour(EColour::kBrightWhite, "numofclusters 6 verbose show")				<< std::endl
+		<< ""																						<< std::endl
+		<< "Some legacy commands have not yet been fixed or converted to use the new"				<< std::endl
+		<< "command-line parsing, but with time all commands will be retrofited to"					<< std::endl
+		<< "use this new format."																	<< std::endl
+		<< ""																						<< std::endl
+		<< "Several example commands to run:"														<< std::endl
+		<< ""																						<< std::endl
+		<< "  Recalculate YOLO anchors:"															<< std::endl
+		<< YELLOW("    darknet detector calcanchors cars.data -show -num_of_clusters 6 -width 320 -height 160") << std::endl
+		<< ""																						<< std::endl
+		<< "  Train a new network:"																	<< std::endl
+		<< YELLOW("    darknet detector train -map -dont_show cars.data cars.cfg")					<< std::endl
+		<< ""																						<< std::endl
+		<< "  Train a network starting using existing weights:"										<< std::endl
+		<< YELLOW("    darknet detector train -map -dont_show -clear cars.data cars.cfg cars_best.weights") << std::endl
+		<< ""																						<< std::endl
+		<< "  Check the mAP% results:"																<< std::endl
+		<< YELLOW("    darknet detector map cars.data cars.cfg cars_best.weights")					<< std::endl
+		<< ""																						<< std::endl
+		<< "  Apply the neural network to an image and save the results to disk:"					<< std::endl
+		<< YELLOW("    darknet detector test -dont_show cars.data cars.cfg cars_best.weights image1.jpg") << std::endl
+		<< "  The equivalent V3 simplified command:"												<< std::endl
+		<< YELLOW("    darknet_01_inference_images cars.cfg image1.jpg")							<< std::endl
+		<< ""																						<< std::endl
+		<< "  Apply the neural network to an image and show the results:"							<< std::endl
+		<< YELLOW("    darknet detector test cars.data cars.cfg cars_best.weights image1.jpg")		<< std::endl
+		<< "  The equivalent V3 simplified command:"												<< std::endl
+		<< YELLOW("    darknet_02_display_annotated_images cars.cfg image1.jpg")					<< std::endl
+		<< ""																						<< std::endl
+		<< "  Apply the neural network to a video:"													<< std::endl
+		<< YELLOW("    darknet detector demo cars.data cars.cfg cars_best.weights -ext_output video1.mp4") << std::endl
+		<< "  The equivalent V3 simplified command to display the video in \"realtime\":"			<< std::endl
+		<< YELLOW("    darknet_03_display_videos cars.cfg video1.mp4")								<< std::endl
+		<< "  The equivalent V3 simplified command to process the video using a single thread:"		<< std::endl
+		<< YELLOW("    darknet_04_process_videos cars.cfg video1.mp4")								<< std::endl
+		<< "  The equivalent V3 simplified command to process the video using multiple threads:"	<< std::endl
+		<< YELLOW("    darknet_05_process_videos_multithreaded cars.cfg video1.mp4")				<< std::endl
+		<< "  The previous V3 commands will generate an output video.  The equivalent V2-style command is:" << std::endl
+		<< YELLOW("    darknet detector demo cars.data cars.cfg cars_best.weights video1.mp4 -out_filename output.mp4") << std::endl
+		<< ""																						<< std::endl
+		<< "  Display the weights from different layers in a neural network:"						<< std::endl
+		<< YELLOW("    darknet visualize --verbose cars.cfg cars_best.weights")						<< std::endl
+		<< ""																						<< std::endl
+		;
 
 	return;
 }

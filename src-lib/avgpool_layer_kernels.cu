@@ -1,11 +1,5 @@
-#include "darknet.h"
-#include "Timing.hpp"
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
+#include "darknet_internal.hpp"
 
-#include "avgpool_layer.hpp"
-#include "dark_cuda.hpp"
 
 __global__ void forward_avgpool_layer_kernel(int n, int w, int h, int c, float *input, float *output)
 {
@@ -43,22 +37,22 @@ __global__ void backward_avgpool_layer_kernel(int n, int w, int h, int c, float 
 	}
 }
 
-extern "C" void forward_avgpool_layer_gpu(avgpool_layer layer, network_state state)
+void forward_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	size_t n = layer.c*layer.batch;
+	size_t n = l.c * l.batch;
 
-	forward_avgpool_layer_kernel<<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(n, layer.w, layer.h, layer.c, state.input, layer.output_gpu);
+	forward_avgpool_layer_kernel<<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(n, l.w, l.h, l.c, state.input, l.output_gpu);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void backward_avgpool_layer_gpu(avgpool_layer layer, network_state state)
+void backward_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	size_t n = layer.c*layer.batch;
+	size_t n = l.c * l.batch;
 
-	backward_avgpool_layer_kernel<<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(n, layer.w, layer.h, layer.c, state.delta, layer.delta_gpu);
+	backward_avgpool_layer_kernel<<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(n, l.w, l.h, l.c, state.delta, l.delta_gpu);
 	CHECK_CUDA(cudaPeekAtLastError());
 }

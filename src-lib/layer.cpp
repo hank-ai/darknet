@@ -2,7 +2,7 @@
 
 namespace
 {
-	void free_and_clear(uint32_t* & ptr)
+	void static inline free_and_clear(uint32_t* & ptr)
 	{
 		TAT(TATPARMS);
 
@@ -15,7 +15,7 @@ namespace
 		return;
 	}
 
-	void free_and_clear(float* & ptr)
+	void static inline free_and_clear(float* & ptr)
 	{
 		TAT(TATPARMS);
 
@@ -28,7 +28,7 @@ namespace
 		return;
 	}
 
-	void free_and_clear(float** & array)
+	void static inline free_and_clear(float** & array)
 	{
 		TAT(TATPARMS);
 
@@ -45,7 +45,7 @@ namespace
 		return;
 	}
 
-	void free_and_clear(int* & ptr)
+	void static inline free_and_clear(int* & ptr)
 	{
 		TAT(TATPARMS);
 
@@ -58,7 +58,7 @@ namespace
 		return;
 	}
 
-	void free_and_clear(char* & ptr)
+	void static inline free_and_clear(char* & ptr)
 	{
 		TAT(TATPARMS);
 
@@ -71,7 +71,7 @@ namespace
 		return;
 	}
 
-	void free_sublayer(layer* & l)
+	void static inline free_sublayer(Darknet::Layer* & l)
 	{
 		TAT(TATPARMS);
 
@@ -86,7 +86,7 @@ namespace
 	}
 
 	#ifdef GPU
-	void cuda_free_and_clear(float* & ptr)
+	void static inline cuda_free_and_clear(float* & ptr)
 	{
 		TAT(TATPARMS);
 
@@ -102,7 +102,7 @@ namespace
 }
 
 
-void free_layer(layer l)
+void free_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -110,7 +110,7 @@ void free_layer(layer l)
 }
 
 
-void free_layer_custom(layer l, int keep_cudnn_desc)
+void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 {
 	TAT(TATPARMS);
 
@@ -123,37 +123,8 @@ void free_layer_custom(layer l, int keep_cudnn_desc)
 	{
 		free_sublayer(l.input_layer);
 	}
-	if (l.type == CONV_LSTM)
-	{
-		if (l.peephole)
-		{
-			free_sublayer(l.vf);
-			free_sublayer(l.vi);
-			free_sublayer(l.vo);
-		}
-		else
-		{
-			free(l.vf);
-			free(l.vi);
-			free(l.vo);
-			l.vf = nullptr;
-			l.vi = nullptr;
-			l.vo = nullptr;
-		}
-		free_sublayer(l.wf);
-		if (!l.bottleneck)
-		{
-			free_sublayer(l.wi);
-			free_sublayer(l.wg);
-			free_sublayer(l.wo);
-		}
-		free_sublayer(l.uf);
-		free_sublayer(l.ui);
-		free_sublayer(l.ug);
-		free_sublayer(l.uo);
-	}
 
-	if (l.type == CRNN)
+	if (l.type == Darknet::ELayerType::CRNN)
 	{
 		free_sublayer(l.input_layer);
 		free_sublayer(l.self_layer);
@@ -166,7 +137,7 @@ void free_layer_custom(layer l, int keep_cudnn_desc)
 #endif // GPU
 	}
 
-	if (l.type == DROPOUT)
+	if (l.type == Darknet::ELayerType::DROPOUT)
 	{
 		if (l.rand)						free_and_clear(l.rand);
 #ifdef GPU
@@ -227,8 +198,8 @@ void free_layer_custom(layer l, int keep_cudnn_desc)
 		cudaFreeHost(l.output);
 		l.output = nullptr;
 	}
-
 #endif  // GPU
+
 	if (l.delta)						free_and_clear(l.delta);
 	if (l.output)						free_and_clear(l.output);
 	if (l.activation_input)				free_and_clear(l.activation_input);
@@ -330,17 +301,10 @@ void free_layer_custom(layer l, int keep_cudnn_desc)
 		if (l.activation_input_gpu)		cuda_free_and_clear(l.activation_input_gpu);
 	}
 
-/// @todo 2023-06-26 For now I'd rather ignore this warning than to try and mess with this old code and risk breaking things.
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wparentheses"
-#endif
-
-	if (l.delta_gpu && (l.optimized_memory < 1 || l.keep_delta_gpu && l.optimized_memory < 3)) cuda_free_and_clear(l.delta_gpu);
-
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
+	if (l.delta_gpu && (l.optimized_memory < 1 || (l.keep_delta_gpu && l.optimized_memory < 3)))
+	{
+		cuda_free_and_clear(l.delta_gpu);
+	}
 
 	if (l.cos_sim_gpu)					cuda_free_and_clear(l.cos_sim_gpu);
 	if (l.rand_gpu)						cuda_free_and_clear(l.rand_gpu);

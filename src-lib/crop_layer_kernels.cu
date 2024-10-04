@@ -1,12 +1,7 @@
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
+#include "darknet_internal.hpp"
 
-#include "crop_layer.hpp"
-#include "dark_cuda.hpp"
-#include "Timing.hpp"
 
-/// @todo #COLOR - specific RGB - HSV logic in here that won't work (well) with multispectral
+/// @todo COLOR - specific RGB - HSV logic in here that won't work (well) with multispectral
 __device__ float get_pixel_kernel(float *image, int w, int h, int x, int y, int c)
 {
 	if(x < 0 || x >= w || y < 0 || y >= h) return 0;
@@ -178,28 +173,29 @@ __global__ void forward_crop_layer_kernel(float *input, float *rand, int size, i
 	output[count] = bilinear_interpolate_kernel(input, w, h, rx, ry, k);
 }
 
-extern "C" void forward_crop_layer_gpu(crop_layer layer, network_state state)
+void forward_crop_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	cuda_random(layer.rand_gpu, layer.batch*8);
+	cuda_random(l.rand_gpu, l.batch * 8);
 
-	float radians = layer.angle*3.14159265/180.;
+	const float radians = l.angle * 3.14159265f / 180.0f;
 
 	float scale = 2;
 	float translate = -1;
-	if(layer.noadjust){
+	if (l.noadjust)
+	{
 		scale = 1;
 		translate = 0;
 	}
 
-	int size = layer.batch * layer.w * layer.h;
+	int size = l.batch * l.w * l.h;
 
-	levels_image_kernel<<<cuda_gridsize(size), BLOCK, 0, get_cuda_stream() >>>(state.input, layer.rand_gpu, layer.batch, layer.w, layer.h, state.train, layer.saturation, layer.exposure, translate, scale, layer.shift);
+	levels_image_kernel<<<cuda_gridsize(size), BLOCK, 0, get_cuda_stream() >>>(state.input, l.rand_gpu, l.batch, l.w, l.h, state.train, l.saturation, l.exposure, translate, scale, l.shift);
 	CHECK_CUDA(cudaPeekAtLastError());
 
-	size = layer.batch*layer.c*layer.out_w*layer.out_h;
+	size = l.batch * l.c * l.out_w * l.out_h;
 
-	forward_crop_layer_kernel<<<cuda_gridsize(size), BLOCK, 0, get_cuda_stream() >>>(state.input, layer.rand_gpu, size, layer.c, layer.h, layer.w, layer.out_h, layer.out_w, state.train, layer.flip, radians, layer.output_gpu);
+	forward_crop_layer_kernel<<<cuda_gridsize(size), BLOCK, 0, get_cuda_stream() >>>(state.input, l.rand_gpu, size, l.c, l.h, l.w, l.out_h, l.out_w, state.train, l.flip, radians, l.output_gpu);
 	CHECK_CUDA(cudaPeekAtLastError());
 }

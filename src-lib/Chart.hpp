@@ -1,3 +1,7 @@
+/* Darknet/YOLO:  https://github.com/hank-ai/darknet
+ * Copyright 2024 Stephane Charette
+ */
+
 #pragma once
 
 /** @file
@@ -6,7 +10,7 @@
 
 
 #ifndef __cplusplus
-#error Attempting to include the C++ header file from within C code.
+#error "The Darknet/YOLO project requires a C++ compiler."
 #endif
 
 

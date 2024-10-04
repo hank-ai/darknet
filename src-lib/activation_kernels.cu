@@ -1,15 +1,9 @@
-#include "darknet.h"
+#include "darknet_internal.hpp"
 #include <cuda_runtime.h>
 #include <curand.h>
 #include <cublas_v2.h>
 
-//#include <float.h>
-#include <cfloat>
-
-#include "Timing.hpp"
-#include "activations.hpp"
-#include "dark_cuda.hpp"
-
+//#include <cfloat>
 
 __device__ float lhtan_activate_kernel(float x)
 {
@@ -187,7 +181,7 @@ __global__ void binary_gradient_array_kernel(float *x, float *dy, int n, int s, 
 	}
 }
 
-extern "C" void binary_gradient_array_gpu(float *x, float *dx, int n, int size, BINARY_ACTIVATION a, float *y)
+void binary_gradient_array_gpu(float *x, float *dx, int n, int size, BINARY_ACTIVATION a, float *y)
 {
 	TAT(TATPARMS);
 
@@ -205,7 +199,7 @@ __global__ void binary_activate_array_kernel(float *x, int n, int s, BINARY_ACTI
 	if (id < n) y[id] = x1*x2;
 }
 
-extern "C" void binary_activate_array_gpu(float *x, int n, int size, BINARY_ACTIVATION a, float *y)
+void binary_activate_array_gpu(float *x, int n, int size, BINARY_ACTIVATION a, float *y)
 {
 	TAT(TATPARMS);
 
@@ -500,7 +494,7 @@ __global__ void gradient_array_relu6_kernel(float *x, int n, float *delta)
 	}
 }
 
-extern "C" void activate_array_ongpu(float *x, int n, ACTIVATION a)
+void activate_array_ongpu(float *x, int n, ACTIVATION a)
 {
 	TAT(TATPARMS);
 
@@ -519,7 +513,7 @@ extern "C" void activate_array_ongpu(float *x, int n, ACTIVATION a)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void activate_array_swish_ongpu(float *x, int n, float *output_sigmoid_gpu, float *output_gpu)
+void activate_array_swish_ongpu(float *x, int n, float *output_sigmoid_gpu, float *output_gpu)
 {
 	TAT(TATPARMS);
 
@@ -528,7 +522,7 @@ extern "C" void activate_array_swish_ongpu(float *x, int n, float *output_sigmoi
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void activate_array_mish_ongpu(float *x, int n, float *activation_input_gpu, float *output_gpu)
+void activate_array_mish_ongpu(float *x, int n, float *activation_input_gpu, float *output_gpu)
 {
 	TAT(TATPARMS);
 
@@ -537,7 +531,7 @@ extern "C" void activate_array_mish_ongpu(float *x, int n, float *activation_inp
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void activate_array_hard_mish_ongpu(float *x, int n, float *activation_input_gpu, float *output_gpu)
+void activate_array_hard_mish_ongpu(float *x, int n, float *activation_input_gpu, float *output_gpu)
 {
 	TAT(TATPARMS);
 
@@ -546,7 +540,7 @@ extern "C" void activate_array_hard_mish_ongpu(float *x, int n, float *activatio
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void gradient_array_ongpu(float *x, int n, ACTIVATION a, float *delta)
+void gradient_array_ongpu(float *x, int n, ACTIVATION a, float *delta)
 {
 	TAT(TATPARMS);
 
@@ -572,7 +566,7 @@ extern "C" void gradient_array_ongpu(float *x, int n, ACTIVATION a, float *delta
 }
 
 
-extern "C" void gradient_array_swish_ongpu(float *x, int n, float *sigmoid_gpu, float *delta)
+void gradient_array_swish_ongpu(float *x, int n, float *sigmoid_gpu, float *delta)
 {
 	TAT(TATPARMS);
 
@@ -581,7 +575,7 @@ extern "C" void gradient_array_swish_ongpu(float *x, int n, float *sigmoid_gpu, 
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void gradient_array_mish_ongpu(int n, float *activation_input_gpu, float *delta)
+void gradient_array_mish_ongpu(int n, float *activation_input_gpu, float *delta)
 {
 	TAT(TATPARMS);
 
@@ -590,7 +584,7 @@ extern "C" void gradient_array_mish_ongpu(int n, float *activation_input_gpu, fl
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-extern "C" void gradient_array_hard_mish_ongpu(int n, float *activation_input_gpu, float *delta)
+void gradient_array_hard_mish_ongpu(int n, float *activation_input_gpu, float *delta)
 {
 	TAT(TATPARMS);
 
@@ -624,7 +618,7 @@ __global__ void activate_array_normalize_channels_kernel(float *x, int size, int
 	}
 }
 
-extern "C" void activate_array_normalize_channels_ongpu(float *x, int n, int batch, int channels, int wh_step, float *output_gpu)
+void activate_array_normalize_channels_ongpu(float *x, int n, int batch, int channels, int wh_step, float *output_gpu)
 {
 	TAT(TATPARMS);
 
@@ -674,7 +668,7 @@ __global__ void activate_array_normalize_channels_softmax_kernel(float *x, int s
 	}
 }
 
-extern "C" void activate_array_normalize_channels_softmax_ongpu(float *x, int n, int batch, int channels, int wh_step, float *output_gpu, int use_max_val)
+void activate_array_normalize_channels_softmax_ongpu(float *x, int n, int batch, int channels, int wh_step, float *output_gpu, int use_max_val)
 {
 	TAT(TATPARMS);
 
@@ -719,7 +713,7 @@ __global__ void gradient_array_normalize_channels_softmax_kernel(float *x, int s
 	}
 }
 
-extern "C" void gradient_array_normalize_channels_softmax_ongpu(float *output_gpu, int n, int batch, int channels, int wh_step, float *delta_gpu)
+void gradient_array_normalize_channels_softmax_ongpu(float *output_gpu, int n, int batch, int channels, int wh_step, float *delta_gpu)
 {
 	TAT(TATPARMS);
 
@@ -764,7 +758,7 @@ __global__ void gradient_array_normalize_channels_kernel(float *x, int size, int
 	}
 }
 
-extern "C" void gradient_array_normalize_channels_ongpu(float *output_gpu, int n, int batch, int channels, int wh_step, float *delta_gpu)
+void gradient_array_normalize_channels_ongpu(float *output_gpu, int n, int batch, int channels, int wh_step, float *delta_gpu)
 {
 	TAT(TATPARMS);
 

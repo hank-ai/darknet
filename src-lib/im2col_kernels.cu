@@ -464,7 +464,6 @@ __device__ void transpose32_optimized(uint32_t A[32])
 	}
 }
 
-extern "C" {
 __device__ void transpose_32x32_bits_reversed_diagonale(uint32_t *A, uint32_t *B, int m, int n)
 {
 	//unsigned A_tmp[32];
@@ -484,7 +483,6 @@ __device__ void transpose_32x32_bits_reversed_diagonale(uint32_t *A, uint32_t *B
 	transpose32_optimized(A_tmp);
 	#pragma unroll 32
 	for (i = 0; i < 32; ++i) B[i*n] = A_tmp[i];
-}
 }
 
 // transpose 32x32 bit
@@ -605,21 +603,6 @@ __global__ void transpose_uint32_kernel_2(uint32_t *src, uint32_t *dst, int src_
 	}
 }
 
-#define TRANS_BLOCK 1024
-void transpose_uint32_gpu_2(uint32_t *src, uint32_t *dst, int src_h, int src_w, int src_align, int dst_align)
-{
-	TAT(TATPARMS);
-
-	int src_w_align = src_w + (32 - src_w % 32);
-	int src_h_align = src_h + (32 - src_h % 32);
-
-	int size = src_w_align * src_h_align;
-	int num_blocks = size / TRANS_BLOCK;
-	transpose_uint32_kernel_2 << <num_blocks, TRANS_BLOCK, 0, get_cuda_stream() >> >(src, dst, src_h, src_w, src_align, dst_align);
-	CHECK_CUDA(cudaPeekAtLastError());
-}
-// --------------------------------
-
 
 // 32 channels -> 1 channel (with 32 floats)
 // 256 channels -> 8 channels (with 32 floats)
@@ -690,17 +673,6 @@ __global__ void repack_input_kernel_2(float *input, float *re_packed_input, int 
 		}
 	}
 }
-
-void repack_input_gpu_2(float *input, float *re_packed_input, int w, int h, int c)
-{
-	TAT(TATPARMS);
-
-	int size = w * h * c;
-	const int num_blocks = size / BLOCK + 1;
-	repack_input_kernel_2 << <num_blocks, BLOCK, 0, get_cuda_stream() >> >(input, re_packed_input, w, h, c);
-	CHECK_CUDA(cudaPeekAtLastError());
-}
-// --------------------------------
 
 
 // 32 channels -> 1 channel (with 32 floats)

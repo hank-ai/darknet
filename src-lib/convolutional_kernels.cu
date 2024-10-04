@@ -1,27 +1,6 @@
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
-
-#include "convolutional_layer.hpp"
-#include "batchnorm_layer.hpp"
-#include "gemm.hpp"
-#include "blas.hpp"
+#include "darknet_internal.hpp"
 #include "im2col.hpp"
-#include "col2im.hpp"
-#include "dark_cuda.hpp"
-#include "box.hpp"
-#include "Timing.hpp"
 
-
-extern "C"
-{
-	int64_t get_current_iteration(network net);
-	image float_to_image(int w, int h, int c, float *data);
-	void show_image_cv(image p, const char *name);
-	image float_to_image_scaled(int w, int h, int c, float *data);
-	int wait_key_cv(int delay);
-	int wait_until_press_key_cv();
-}
 
 __global__ void binarize_kernel(float *x, int n, float *binary)
 {
@@ -192,7 +171,7 @@ half *cuda_make_f16_from_f32_array(float *src, size_t n)
 	return dst16;
 }
 
-void forward_convolutional_layer_gpu(convolutional_layer l, network_state state)
+void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -664,7 +643,7 @@ void forward_convolutional_layer_gpu(convolutional_layer l, network_state state)
 	if(l.assisted_excitation && state.train) assisted_excitation_forward_gpu(l, state);
 
 	if (l.antialiasing) {
-		network_state s = { 0 };
+		Darknet::NetworkState s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
 		s.net = state.net;
@@ -680,7 +659,7 @@ void forward_convolutional_layer_gpu(convolutional_layer l, network_state state)
 	}
 }
 
-void backward_convolutional_layer_gpu(convolutional_layer l, network_state state)
+void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -689,7 +668,7 @@ void backward_convolutional_layer_gpu(convolutional_layer l, network_state state
 	}
 
 	if (l.antialiasing) {
-		network_state s = { 0 };
+		Darknet::NetworkState s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
 		s.net = state.net;
@@ -1091,7 +1070,7 @@ void assisted_activation2_gpu(float alpha, float *output, float *gt_gpu, float *
 	assisted_activation2_kernel << <num_blocks, BLOCK, 0, get_cuda_stream() >> > (alpha, output, gt_gpu, a_avg_gpu, size, channels, batches);
 }
 
-void assisted_excitation_forward_gpu(convolutional_layer l, network_state state)
+void assisted_excitation_forward_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1142,7 +1121,7 @@ void assisted_excitation_forward_gpu(convolutional_layer l, network_state state)
 		// calculate G
 		int t;
 		for (t = 0; t < state.net.num_boxes; ++t) {
-			box truth = float_to_box_stride(truth_cpu + t*(4 + 1) + b*l.truths, 1);
+			Darknet::Box truth = float_to_box_stride(truth_cpu + t*(4 + 1) + b*l.truths, 1);
 			if (!truth.x) break;  // continue;
 			float beta = 0;
 			//float beta = 1 - alpha; // from 0 to 1
@@ -1229,13 +1208,13 @@ void assisted_excitation_forward_gpu(convolutional_layer l, network_state state)
 		for (b = 0; b < l.batch; ++b)
 		{
 			printf(" Assisted Excitation alpha = %f \n", alpha);
-			image img = float_to_image(l.out_w, l.out_h, 1, &gt[l.out_w*l.out_h*b]);
+			Darknet::Image img = Darknet::float_to_image(l.out_w, l.out_h, 1, &gt[l.out_w*l.out_h*b]);
 			char buff[100];
 			sprintf(buff, "a_excitation_gt_%d", b);
 			show_image_cv(img, buff);
 
 			//image img2 = float_to_image(l.out_w, l.out_h, 1, &l.output[l.out_w*l.out_h*l.out_c*b]);
-			image img2 = float_to_image_scaled(l.out_w, l.out_h, 1, &l.output[l.out_w*l.out_h*l.out_c*b]);
+			Darknet::Image img2 = Darknet::float_to_image_scaled(l.out_w, l.out_h, 1, &l.output[l.out_w*l.out_h*l.out_c*b]);
 			char buff2[100];
 			sprintf(buff2, "a_excitation_output_%d", b);
 			show_image_cv(img2, buff2);
@@ -1250,9 +1229,9 @@ void assisted_excitation_forward_gpu(convolutional_layer l, network_state state)
 			show_image_cv(dc, buff3);
 			*/
 
-			wait_key_cv(5);
+			cv::waitKey(5);
 		}
-		wait_until_press_key_cv();
+		cv::waitKey(0);
 	}
 
 	free(truth_cpu);
@@ -1260,7 +1239,7 @@ void assisted_excitation_forward_gpu(convolutional_layer l, network_state state)
 	free(a_avg);
 }
 
-void pull_convolutional_layer(convolutional_layer l)
+void pull_convolutional_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -1281,7 +1260,7 @@ void pull_convolutional_layer(convolutional_layer l)
 	cudaStreamSynchronize(get_cuda_stream());
 }
 
-void push_convolutional_layer(convolutional_layer l)
+void push_convolutional_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -1307,7 +1286,7 @@ void push_convolutional_layer(convolutional_layer l)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
-void update_convolutional_layer_gpu(layer l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
+void update_convolutional_layer_gpu(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);
 
@@ -1387,7 +1366,7 @@ void update_convolutional_layer_gpu(layer l, int batch, float learning_rate_init
 			//printf(" angle = %f, reverse = %d \n", l.angle, 0);
 			//cuda_pull_array(l.weights_gpu, l.weights, l.nweights);
 			//visualize_convolutional_layer(l, "weights", NULL);
-			//wait_key_cv(10);
+			//cv::waitKey(10);
 		//}
 	}
 

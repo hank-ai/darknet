@@ -1,16 +1,236 @@
-#ifdef __GNUC__
-// 2023-06-25:  hide some of the warnings which for now we need to ignore in this file
-#pragma GCC diagnostic ignored "-Wswitch"
-#endif
-
 #include "darknet_internal.hpp"
 
-box float_to_box(const float * f)
+namespace
+{
+	static inline dbox derivative(const Darknet::Box & a, const Darknet::Box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-03-19 inlined");
+
+		dbox d;
+		d.dx = a.x < b.x ? 1.0 : -1.0;
+		d.dy = a.y < b.y ? 1.0 : -1.0;
+		d.dw = a.w < b.w ? 1.0 : -1.0;
+		d.dh = a.h < b.h ? 1.0 : -1.0;
+
+		return d;
+	}
+
+
+	/// where c is the smallest box that fully encompases a and b
+	static inline boxabs box_c(const Darknet::Box & a, const Darknet::Box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		boxabs ba;
+		ba.top		= fmin(a.y - a.h / 2.0f, b.y - b.h / 2.0f);
+		ba.bot		= fmax(a.y + a.h / 2.0f, b.y + b.h / 2.0f);
+		ba.left		= fmin(a.x - a.w / 2.0f, b.x - b.w / 2.0f);
+		ba.right	= fmax(a.x + a.w / 2.0f, b.x + b.w / 2.0f);
+
+		return ba;
+	}
+
+
+	/// representation from x, y, w, h to top, left, bottom, right
+	static inline boxabs to_tblr(const Darknet::Box & a)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		boxabs tblr;
+		tblr.top	= a.y - (a.h / 2.0f);
+		tblr.bot	= a.y + (a.h / 2.0f);
+		tblr.left	= a.x - (a.w / 2.0f);
+		tblr.right	= a.x + (a.w / 2.0f);
+
+		return tblr;
+	}
+
+
+	static inline float overlap(const float x1, const float w1, const float x2, const float w2)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		const float l1 = x1 - w1 / 2.0f;
+		const float l2 = x2 - w2 / 2.0f;
+		const float left = std::max(l1, l2);
+
+		const float r1 = x1 + w1 / 2.0f;
+		const float r2 = x2 + w2 / 2.0f;
+		const float right = std::min(r1, r2);
+
+		return right - left;
+	}
+
+
+	static inline float box_intersection(const Darknet::Box & a, const Darknet::Box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		const float w = overlap(a.x, a.w, b.x, b.w);
+		if (w <= 0.0f)
+		{
+			return 0.0f;
+		}
+
+		const float h = overlap(a.y, a.h, b.y, b.h);
+		if (h <= 0.0f)
+		{
+			return 0.0f;
+		}
+
+		return w * h;
+	}
+
+
+	static inline float box_union(const Darknet::Box & a, const Darknet::Box & b, const float intersection)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		const float u = a.w * a.h + b.w * b.h - intersection;
+
+		return u;
+	}
+
+
+	static inline float box_union(const Darknet::Box & a, const Darknet::Box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
+
+		const float i = box_intersection(a, b);
+		const float u = a.w * a.h + b.w * b.h - i;
+
+		return u;
+	}
+
+
+	static inline float box_diounms(const Darknet::Box & a, const Darknet::Box & b, const float beta1)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12");
+
+		const boxabs ba = box_c(a, b);
+		const float w = ba.right - ba.left;
+		const float h = ba.bot - ba.top;
+		const float c = w * w + h * h;
+		const float iou = box_iou(a, b);
+		if (c == 0.0f)
+		{
+			return iou;
+		}
+
+		float d = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
+		float diou_term = pow(d / c, beta1);
+
+		return iou - diou_term;
+	}
+
+
+	static inline dbox dintersect(const Darknet::Box & a, const Darknet::Box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12");
+
+		const float w = overlap(a.x, a.w, b.x, b.w);
+		const float h = overlap(a.y, a.h, b.y, b.h);
+		const dbox dover = derivative(a, b);
+
+		dbox di;
+		di.dw = dover.dw * h;
+		di.dx = dover.dx * h;
+		di.dh = dover.dh * w;
+		di.dy = dover.dy * w;
+
+		return di;
+	}
+
+
+	static inline dbox dunion(const Darknet::Box & a, const Darknet::Box & b)
+	{
+		// this function is only used in this file
+		TAT_REVIEWED(TATPARMS, "2024-05-12");
+
+		const dbox di = dintersect(a, b);
+
+		dbox du;
+		du.dw = a.h - di.dw;
+		du.dh = a.w - di.dh;
+		du.dx = -di.dx;
+		du.dy = -di.dy;
+
+		return du;
+	}
+
+
+	struct sortable_bbox
+	{
+		int index;
+		int class_id;
+		float **probs;
+	};
+
+
+	static inline int nms_comparator(const void *pa, const void *pb)
+	{
+		// this is only called from 1 place
+		TAT(TATPARMS);
+
+		sortable_bbox a = *(sortable_bbox *)pa;
+		sortable_bbox b = *(sortable_bbox *)pb;
+
+		float diff = a.probs[a.index][b.class_id] - b.probs[b.index][b.class_id];
+
+		if(diff < 0.0f)
+		{
+			return 1;
+		}
+
+		if(diff > 0.0f)
+		{
+			return -1;
+		}
+
+		return 0;
+	}
+
+
+	static inline void sort_box_detections(Darknet::Detection * dets, const int total)
+	{
+		TAT(TATPARMS);
+
+		if (total > 1)
+		{
+			// We want to sort from high probability to low probability.  The default sort behaviour would be to
+			// sort from low to high.  We reverse the sort order by comparing RHS to LHS instead of LHS to RHS.
+
+			std::sort(dets, dets + total,
+					[](const Darknet::Detection & lhs, const Darknet::Detection & rhs) -> bool
+					{
+						if (rhs.sort_class < 0)
+						{
+							return rhs.objectness < lhs.objectness;
+						}
+
+						return rhs.prob[rhs.sort_class] < lhs.prob[rhs.sort_class];
+					});
+		}
+	}
+
+} // anonymous namespace
+
+
+Darknet::Box float_to_box(const float * f)
 {
 	// this function is used in several places
 	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
-	box b;
+	Darknet::Box b;
 	b.x = f[0];
 	b.y = f[1];
 	b.w = f[2];
@@ -20,12 +240,12 @@ box float_to_box(const float * f)
 }
 
 
-box float_to_box_stride(const float *f, const int stride)
+Darknet::Box float_to_box_stride(const float *f, const int stride)
 {
 	// this function is used in several places
 	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
-	box b;
+	Darknet::Box b;
 	b.x = f[0];
 	b.y = f[1 * stride];
 	b.w = f[2 * stride];
@@ -35,111 +255,7 @@ box float_to_box_stride(const float *f, const int stride)
 }
 
 
-inline dbox derivative(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-03-19 inlined");
-
-	dbox d;
-	d.dx = a.x < b.x ? 1.0 : -1.0;
-	d.dy = a.y < b.y ? 1.0 : -1.0;
-	d.dw = a.w < b.w ? 1.0 : -1.0;
-	d.dh = a.h < b.h ? 1.0 : -1.0;
-
-	return d;
-}
-
-
-/// where c is the smallest box that fully encompases a and b
-inline boxabs box_c(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	boxabs ba;
-	ba.top		= fmin(a.y - a.h / 2.0f, b.y - b.h / 2.0f);
-	ba.bot		= fmax(a.y + a.h / 2.0f, b.y + b.h / 2.0f);
-	ba.left		= fmin(a.x - a.w / 2.0f, b.x - b.w / 2.0f);
-	ba.right	= fmax(a.x + a.w / 2.0f, b.x + b.w / 2.0f);
-
-	return ba;
-}
-
-
-/// representation from x, y, w, h to top, left, bottom, right
-inline boxabs to_tblr(const box & a)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	boxabs tblr;
-	tblr.top	= a.y - (a.h / 2.0f);
-	tblr.bot	= a.y + (a.h / 2.0f);
-	tblr.left	= a.x - (a.w / 2.0f);
-	tblr.right	= a.x + (a.w / 2.0f);
-
-	return tblr;
-}
-
-
-inline float overlap(const float x1, const float w1, const float x2, const float w2)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	const float l1 = x1 - w1 / 2.0f;
-	const float l2 = x2 - w2 / 2.0f;
-	const float left = std::max(l1, l2);
-
-	const float r1 = x1 + w1 / 2.0f;
-	const float r2 = x2 + w2 / 2.0f;
-	const float right = std::min(r1, r2);
-
-	return right - left;
-}
-
-inline float box_intersection(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	const float w = overlap(a.x, a.w, b.x, b.w);
-	if (w <= 0.0f)
-	{
-		return 0.0f;
-	}
-
-	const float h = overlap(a.y, a.h, b.y, b.h);
-	if (h <= 0.0f)
-	{
-		return 0.0f;
-	}
-
-	return w * h;
-}
-
-inline float box_union(const box & a, const box & b, const float intersection)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	const float u = a.w * a.h + b.w * b.h - intersection;
-
-	return u;
-}
-
-inline float box_union(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12 inlined");
-
-	const float i = box_intersection(a, b);
-	const float u = a.w * a.h + b.w * b.h - i;
-
-	return u;
-}
-
-float box_iou_kind(const box & a, const box & b, const IOU_LOSS iou_kind)
+float box_iou_kind(const Darknet::Box & a, const Darknet::Box & b, const IOU_LOSS iou_kind)
 {
 	// this function is used in several places
 	TAT_REVIEWED(TATPARMS, "2024-03-19");
@@ -147,17 +263,18 @@ float box_iou_kind(const box & a, const box & b, const IOU_LOSS iou_kind)
 	//IOU, GIOU, MSE, DIOU, CIOU
 	switch(iou_kind)
 	{
-		/// @todo what about MSE?
 		case IOU:	return box_iou(a, b);
 		case GIOU:	return box_giou(a, b);
 		case DIOU:	return box_diou(a, b);
 		case CIOU:	return box_ciou(a, b);
+		default:	break;
 	}
 
 	return box_iou(a, b);
 }
 
-float box_iou(const box & a, const box & b)
+
+float box_iou(const Darknet::Box & a, const Darknet::Box & b)
 {
 	// this function is used in many places
 	TAT_REVIEWED(TATPARMS, "2024-03-19");
@@ -174,7 +291,33 @@ float box_iou(const box & a, const box & b)
 	return I / U;
 }
 
-float box_giou(const box & a, const box & b)
+
+float Darknet::iou(const cv::Rect & lhs, const cv::Rect & rhs)
+{
+	TAT_REVIEWED(TATPARMS, "2024-09-07");
+
+	// see: https://stackoverflow.com/questions/9324339/how-much-do-two-rectangles-overlap/9325084
+	const auto tl1 = lhs.tl();	// blue_triangle
+	const auto tl2 = rhs.tl();	// orange_triangle
+	const auto br1 = lhs.br();	// blue_circle
+	const auto br2 = rhs.br();	// orange_circle
+
+	const float intersection = std::max(0, std::min(br2.x, br1.x) - std::max(tl2.x, tl1.x)) * std::max(0, std::min(br2.y, br1.y) - std::max(tl2.y, tl1.y));
+
+	// if the interesction is zero, then don't bother with the rest, we know the answer will be zero
+	float intersection_over_union = 0.0f;
+	if (intersection > 0.0f)
+	{
+		const float a1 = lhs.area();
+		const float a2 = rhs.area();
+		intersection_over_union = intersection / (a1 + std::min(a2, intersection) - intersection);
+	}
+
+	return intersection_over_union;
+}
+
+
+float box_giou(const Darknet::Box & a, const Darknet::Box & b)
 {
 	// this function is used in several places
 	TAT_REVIEWED(TATPARMS, "2024-05-12");
@@ -196,7 +339,8 @@ float box_giou(const box & a, const box & b)
 	return iou - giou_term;
 }
 
-float box_diou(const box & a, const box & b)
+
+float box_diou(const Darknet::Box & a, const Darknet::Box & b)
 {
 	/// https://github.com/Zzh-tju/DIoU-darknet
 	/// https://arxiv.org/abs/1911.08287
@@ -221,28 +365,8 @@ float box_diou(const box & a, const box & b)
 	return iou - diou_term;
 }
 
-inline float box_diounms(const box & a, const box & b, const float beta1)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
-	const boxabs ba = box_c(a, b);
-	const float w = ba.right - ba.left;
-	const float h = ba.bot - ba.top;
-	const float c = w * w + h * h;
-	const float iou = box_iou(a, b);
-	if (c == 0.0f)
-	{
-		return iou;
-	}
-
-	float d = (a.x - b.x) * (a.x - b.x) + (a.y - b.y) * (a.y - b.y);
-	float diou_term = pow(d / c, beta1);
-
-	return iou - diou_term;
-}
-
-float box_ciou(const box & a, const box & b)
+float box_ciou(const Darknet::Box & a, const Darknet::Box & b)
 {
 	// https://github.com/Zzh-tju/DIoU-darknet
 	// https://arxiv.org/abs/1911.08287
@@ -272,7 +396,8 @@ float box_ciou(const box & a, const box & b)
 	return iou - ciou_term;
 }
 
-dxrep dx_box_iou(const box & pred, const box & truth, const IOU_LOSS iou_loss)
+
+dxrep dx_box_iou(const Darknet::Box & pred, const Darknet::Box & truth, const IOU_LOSS iou_loss)
 {
 	// this function is used in several places
 	TAT(TATPARMS);
@@ -463,7 +588,8 @@ dxrep dx_box_iou(const box & pred, const box & truth, const IOU_LOSS iou_loss)
 	return ddx;
 }
 
-float box_rmse(const box & a, const box & b)
+
+float box_rmse(const Darknet::Box & a, const Darknet::Box & b)
 {
 	// this function is used in multiple places
 	TAT_REVIEWED(TATPARMS, "2024-03-19");
@@ -474,52 +600,18 @@ float box_rmse(const box & a, const box & b)
 				pow(a.h-b.h, 2));
 }
 
-inline dbox dintersect(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12");
-
-	const float w = overlap(a.x, a.w, b.x, b.w);
-	const float h = overlap(a.y, a.h, b.y, b.h);
-	const dbox dover = derivative(a, b);
-
-	dbox di;
-	di.dw = dover.dw * h;
-	di.dx = dover.dx * h;
-	di.dh = dover.dh * w;
-	di.dy = dover.dy * w;
-
-	return di;
-}
-
-inline dbox dunion(const box & a, const box & b)
-{
-	// this function is only used in this file
-	TAT_REVIEWED(TATPARMS, "2024-05-12");
-
-	const dbox di = dintersect(a, b);
-
-	dbox du;
-	du.dw = a.h - di.dw;
-	du.dh = a.w - di.dh;
-	du.dx = -di.dx;
-	du.dy = -di.dy;
-
-	return du;
-}
-
 
 void test_dunion()
 {
 	TAT(TATPARMS);
 
-	box a = {0, 0, 1, 1};
-	box dxa= {0+.0001, 0, 1, 1};
-	box dya= {0, 0+.0001, 1, 1};
-	box dwa= {0, 0, 1+.0001, 1};
-	box dha= {0, 0, 1, 1+.0001};
+	Darknet::Box a = {0, 0, 1, 1};
+	Darknet::Box dxa= {0+.0001, 0, 1, 1};
+	Darknet::Box dya= {0, 0+.0001, 1, 1};
+	Darknet::Box dwa= {0, 0, 1+.0001, 1};
+	Darknet::Box dha= {0, 0, 1, 1+.0001};
 
-	box b = {.5, .5, .2, .2};
+	Darknet::Box b = {.5, .5, .2, .2};
 	dbox di = dunion(a,b);
 	printf("Union: %f %f %f %f\n", di.dx, di.dy, di.dw, di.dh);
 	float inter =  box_union(a, b);
@@ -534,17 +626,18 @@ void test_dunion()
 	printf("Union Manual %f %f %f %f\n", xinter, yinter, winter, hinter);
 }
 
+
 void test_dintersect()
 {
 	TAT(TATPARMS);
 
-	box a = {0, 0, 1, 1};
-	box dxa= {0+.0001, 0, 1, 1};
-	box dya= {0, 0+.0001, 1, 1};
-	box dwa= {0, 0, 1+.0001, 1};
-	box dha= {0, 0, 1, 1+.0001};
+	Darknet::Box a = {0, 0, 1, 1};
+	Darknet::Box dxa= {0+.0001, 0, 1, 1};
+	Darknet::Box dya= {0, 0+.0001, 1, 1};
+	Darknet::Box dwa= {0, 0, 1+.0001, 1};
+	Darknet::Box dha= {0, 0, 1, 1+.0001};
 
-	box b = {.5, .5, .2, .2};
+	Darknet::Box b = {.5, .5, .2, .2};
 	dbox di = dintersect(a,b);
 	printf("Inter: %f %f %f %f\n", di.dx, di.dy, di.dw, di.dh);
 	float inter =  box_intersection(a, b);
@@ -559,19 +652,20 @@ void test_dintersect()
 	printf("Inter Manual %f %f %f %f\n", xinter, yinter, winter, hinter);
 }
 
+
 void test_box()
 {
 	TAT(TATPARMS);
 
 	test_dintersect();
 	test_dunion();
-	box a = {0, 0, 1, 1};
-	box dxa= {0+.00001, 0, 1, 1};
-	box dya= {0, 0+.00001, 1, 1};
-	box dwa= {0, 0, 1+.00001, 1};
-	box dha= {0, 0, 1, 1+.00001};
+	Darknet::Box a = {0, 0, 1, 1};
+	Darknet::Box dxa= {0+.00001, 0, 1, 1};
+	Darknet::Box dya= {0, 0+.00001, 1, 1};
+	Darknet::Box dwa= {0, 0, 1+.00001, 1};
+	Darknet::Box dha= {0, 0, 1, 1+.00001};
 
-	box b = {.5, 0, .2, .2};
+	Darknet::Box b = {.5, 0, .2, .2};
 
 	float iou = box_iou(a,b);
 	iou = (1-iou)*(1-iou);
@@ -590,7 +684,8 @@ void test_box()
 	printf("manual %f %f %f %f\n", xiou, yiou, wiou, hiou);
 }
 
-dbox diou(const box & a, const box & b)
+
+dbox diou(const Darknet::Box & a, const Darknet::Box & b)
 {
 	// this function is called from multiple locations
 	TAT(TATPARMS); // not marking it as reviewed since the code below has a serious bug!
@@ -627,41 +722,8 @@ dbox diou(const box & a, const box & b)
 	return dd;
 }
 
-namespace
-{
-	struct sortable_bbox
-	{
-		int index;
-		int class_id;
-		float **probs;
-	};
-}
 
-inline int nms_comparator(const void *pa, const void *pb)
-{
-	// this is only called from 1 place
-	TAT(TATPARMS);
-
-	sortable_bbox a = *(sortable_bbox *)pa;
-	sortable_bbox b = *(sortable_bbox *)pb;
-
-	float diff = a.probs[a.index][b.class_id] - b.probs[b.index][b.class_id];
-
-	if(diff < 0.0f)
-	{
-		return 1;
-	}
-
-	if(diff > 0.0f)
-	{
-		return -1;
-	}
-
-	return 0;
-}
-
-
-void do_nms_sort_v2(box *boxes, float **probs, int total, int classes, float thresh)
+void do_nms_sort_v2(Darknet::Box *boxes, float **probs, int total, int classes, float thresh)
 {
 	// 2024-04-25:  I think this one is no longer called.
 
@@ -692,10 +754,10 @@ void do_nms_sort_v2(box *boxes, float **probs, int total, int classes, float thr
 			{
 				continue;
 			}
-			box a = boxes[s[i].index];
+			Darknet::Box a = boxes[s[i].index];
 			for(j = i+1; j < total; ++j)
 			{
-				box b = boxes[s[j].index];
+				Darknet::Box b = boxes[s[j].index];
 				if (box_iou(a, b) > thresh)
 				{
 					probs[s[j].index][k] = 0;
@@ -708,34 +770,10 @@ void do_nms_sort_v2(box *boxes, float **probs, int total, int classes, float thr
 }
 
 
-namespace
-{
-	static inline void sort_box_detections(detection * dets, const int total)
-	{
-		TAT(TATPARMS);
-
-		if (total > 1)
-		{
-			// We want to sort from high probability to low probability.  The default sort behaviour would be to
-			// sort from low to high.  We reverse the sort order by comparing RHS to LHS instead of LHS to RHS.
-
-			std::sort(dets, dets + total,
-					[](const detection & lhs, const detection & rhs) -> bool
-					{
-						if (rhs.sort_class < 0)
-						{
-							return rhs.objectness < lhs.objectness;
-						}
-
-						return rhs.prob[rhs.sort_class] < lhs.prob[rhs.sort_class];
-					});
-		}
-	}
-}
-
-
 void do_nms_obj(detection *dets, int total, int classes, float thresh)
 {
+	// this is a "C" function call
+
 	// 2024-04-25:  this one seems to be called often
 
 	TAT(TATPARMS);
@@ -765,14 +803,14 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 		{
 			continue;
 		}
-		box a = dets[i].bbox;
+		Darknet::Box a = dets[i].bbox;
 		for (int j = i + 1; j < total; ++j)
 		{
 			if (dets[j].objectness == 0)
 			{
 				continue;
 			}
-			box b = dets[j].bbox;
+			Darknet::Box b = dets[j].bbox;
 			if (box_iou(a, b) > thresh)
 			{
 				dets[j].objectness = 0;
@@ -785,9 +823,13 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 	}
 }
 
-void do_nms_sort(detection *dets, int total, int classes, float thresh)
+
+void do_nms_sort(detection * dets, int total, int classes, float thresh)
 {
+	// this is a "C" function call
+
 	// this is called from everywhere
+
 	TAT(TATPARMS);
 
 	int k = total - 1;
@@ -818,10 +860,10 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
 			{
 				continue;
 			}
-			box a = dets[i].bbox;
+			Darknet::Box a = dets[i].bbox;
 			for (int j = i + 1; j < total; ++j)
 			{
-				box b = dets[j].bbox;
+				Darknet::Box b = dets[j].bbox;
 				if (box_iou(a, b) > thresh)
 				{
 					dets[j].prob[k] = 0.0f;
@@ -829,9 +871,12 @@ void do_nms_sort(detection *dets, int total, int classes, float thresh)
 			}
 		}
 	}
+
+	return;
 }
 
-void do_nms(box *boxes, float **probs, int total, int classes, float thresh)
+
+void do_nms(Darknet::Box *boxes, float **probs, int total, int classes, float thresh)
 {
 	// this is called from many locations
 	TAT(TATPARMS);
@@ -873,6 +918,8 @@ void do_nms(box *boxes, float **probs, int total, int classes, float thresh)
 // https://arxiv.org/abs/1911.08287
 void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1)
 {
+	// this is a "C" call
+
 	// this is called from several locations
 	TAT(TATPARMS);
 
@@ -905,10 +952,10 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 			{
 				continue;
 			}
-			box a = dets[i].bbox;
+			Darknet::Box a = dets[i].bbox;
 			for (int j = i + 1; j < total; ++j)
 			{
-				box b = dets[j].bbox;
+				Darknet::Box b = dets[j].bbox;
 				if (box_iou(a, b) > thresh && nms_kind == CORNERS_NMS)
 				{
 					dets[j].prob[k] = 0;
@@ -929,12 +976,13 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 	}
 }
 
-box encode_box(const box & b, const box & anchor)
+
+Darknet::Box encode_box(const Darknet::Box & b, const Darknet::Box & anchor)
 {
 	// not called, but exposed in the API
 	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
-	box encode;
+	Darknet::Box encode;
 	encode.x = (b.x - anchor.x) / anchor.w;
 	encode.y = (b.y - anchor.y) / anchor.h;
 	encode.w = log2(b.w / anchor.w);
@@ -943,12 +991,13 @@ box encode_box(const box & b, const box & anchor)
 	return encode;
 }
 
-box decode_box(const box & b, const box & anchor)
+
+Darknet::Box decode_box(const Darknet::Box & b, const Darknet::Box & anchor)
 {
 	// not called, but exposed in the API
 	TAT_REVIEWED(TATPARMS, "2024-05-12");
 
-	box decode;
+	Darknet::Box decode;
 	decode.x = b.x * anchor.w + anchor.x;
 	decode.y = b.y * anchor.h + anchor.y;
 	decode.w = pow(2.0, b.w) * anchor.w;

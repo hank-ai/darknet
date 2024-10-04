@@ -1,0 +1,99 @@
+/** @page api Darknet/YOLO API
+
+@tableofcontents
+
+Since %Darknet started in 2013, there have been several APIs available to access Darknet/YOLO from other applications.
+
+The @ref apiv2_c is the original Darknet/YOLO API.  It is recommended that new applications skip the original API, and use the new @ref apiv3_c or @ref apiv3_cpp instead.
+
+For Python users, see @ref apiv3_python.
+
+@section apiv2_c V2 C API
+
+Earlier versions of the %Darknet tool exported @em all functions and structures publicly.  The API was not documented.
+
+@note Where possible, it is recommended that new or refactored code use the @ref apiv3_c or @ref apiv3_cpp instead.
+
+The original V2 API consisted of @p C functions such as:
+
+- @ref load_network()
+- @ref load_network_custom()
+- @ref free_network()
+- @ref network_predict()
+- @ref network_predict_ptr()
+- @ref network_predict_image()
+- @ref get_network_boxes()
+- @ref free_detections()
+
+The V2 API also exposed many @p C structures including:
+
+- @ref box
+- @ref detection
+- @ref image
+- network
+- layer
+
+In July 2024, the old V2 @p C API had to be modified due to changes in the Darknet/YOLO codebase for V3 released in August 2024.  If your application uses the old %Darknet V2 API, you will have to make some minor changes to continue to use the original %Darknet V2 API.
+
+- Before including the @p darknet.h header file, you must define @p DARKNET_INCLUDE_ORIGINAL_API:
+
+~~~~{.cpp}
+#define DARKNET_INCLUDE_ORIGINAL_API
+#include <darknet.h>
+~~~~
+
+- The internal %Darknet @p network and @p layer structures are no longer exposed in the public V2 API.
+- The large @p network structure is no longer passed by value within Darknet/YOLO.  Instead, you must now pass a @p void* pointer, which is known as @ref DarknetNetworkPtr in @p C or @ref Darknet::NetworkPtr in @p C++.  Some examples:
+	- The function @ref network_predict() which took a @p network object should be replaced by @ref network_predict_ptr(), and the first parameter is no longer a full @p network structure but a pointer to the neural network (@ref DarknetNetworkPtr).
+	- The function @ref free_network() which took a @p network object should be replaced by @ref free_network_ptr(), and the first parameter is a pointer to the network (@ref DarknetNetworkPtr).
+
+@note If you previously used other %Darknet functions which are no longer exposed, please <a target="_blank" href="https://discord.gg/zSq8rtW">come chat with us on the Darknet/YOLO discord</a> so we can determine exactly what is needed by users of the Darknet/YOLO API.
+
+@section apiv3_cpp V3 C++ API
+
+The %Darknet V3 API is defined in files such as @p darknet.hpp and @p darknet_image.hpp.  It is meant to be simpler to use than the V2 API, and should be better documented.  This includes functions such as:
+
+- @ref Darknet::parse_arguments()
+- @ref Darknet::load_neural_network()
+- @ref Darknet::set_detection_threshold()
+- @ref Darknet::predict()
+- @ref Darknet::annotate()
+- @ref Darknet::predict_and_annotate()
+
+Header files that define the public Darknet/YOLO C++ API include
+- @ref darknet.h
+- @ref darknet.hpp
+- @ref darknet_cfg.hpp
+- @ref darknet_image.hpp
+- @ref darknet_version.h
+
+Also see the documentation for the @ref Darknet namespace.
+
+The simplest way to understand the V3 API is to look at the source examples, such as @p src-examples/darknet_02_display_annotated_images.cpp.
+
+@section apiv3_c V3 C API
+
+The %Darknet V3 @p C API should be very similar to the @p C++ API.  The functions and structures are named almost the same way.  For example:
+
+V3 C API												| V3 C++ API
+--------------------------------------------------------|-----------
+@ref darknet_set_detection_threshold()					| @ref Darknet::set_detection_threshold()
+@ref darknet_set_non_maximal_suppression_threshold()	| @ref Darknet::set_non_maximal_suppression_threshold()
+@ref darknet_network_dimensions()						| @ref Darknet::network_dimensions()
+@ref darknet_load_neural_network()						| @ref Darknet::load_neural_network()
+@ref darknet_free_neural_network()						| @ref Darknet::free_neural_network()
+
+The full list of function calls is in @ref darknet.h.
+
+@note The neural network structure passed around as a @p void* pointer can be used interchangibly between the @p C and @p C++ API.
+There is no difference between @ref DarknetNetworkPtr, @ref Darknet::NetworkPtr, and @p void*.  Behind the scenes there is only 1
+neural network structure known as @ref Darknet::Network.  Note that starting with %Darknet V3, this structure is no longer exposed
+publicly.
+
+@section apiv3_python V3 Python API
+
+The Python API is very similar to the C API.  See @p src-python/darknet.py for details, or @p src-python/example.py for sample code.
+
+For documentation, see @ref apiv3_c.
+
+*/

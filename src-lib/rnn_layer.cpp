@@ -1,6 +1,6 @@
 #include "darknet_internal.hpp"
 
-static void increment_layer(layer *l, int steps)
+static void increment_layer(Darknet::Layer *l, int steps)
 {
 	TAT(TATPARMS);
 
@@ -18,15 +18,15 @@ static void increment_layer(layer *l, int steps)
 #endif
 }
 
-layer make_rnn_layer(int batch, int inputs, int hidden, int outputs, int steps, ACTIVATION activation, int batch_normalize, int log)
+Darknet::Layer make_rnn_layer(int batch, int inputs, int hidden, int outputs, int steps, ACTIVATION activation, int batch_normalize, int log)
 {
 	TAT(TATPARMS);
 
 	fprintf(stderr, "RNN Layer: %d inputs, %d outputs\n", inputs, outputs);
 	batch = batch / steps;
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.batch = batch;
-	l.type = RNN;
+	l.type = Darknet::ELayerType::RNN;
 	l.steps = steps;
 	l.hidden = hidden;
 	l.inputs = inputs;
@@ -36,19 +36,19 @@ layer make_rnn_layer(int batch, int inputs, int hidden, int outputs, int steps, 
 
 	l.state = (float*)xcalloc(batch * hidden * (steps + 1), sizeof(float));
 
-	l.input_layer = (layer*)xcalloc(1, sizeof(layer));
+	l.input_layer = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	fprintf(stderr, "\t\t");
 	*(l.input_layer) = make_connected_layer(batch, steps, inputs, hidden, activation, batch_normalize);
 	l.input_layer->batch = batch;
 	if (l.workspace_size < l.input_layer->workspace_size) l.workspace_size = l.input_layer->workspace_size;
 
-	l.self_layer = (layer*)xcalloc(1, sizeof(layer));
+	l.self_layer = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	fprintf(stderr, "\t\t");
 	*(l.self_layer) = make_connected_layer(batch, steps, hidden, hidden, (log==2)?LOGGY:(log==1?LOGISTIC:activation), batch_normalize);
 	l.self_layer->batch = batch;
 	if (l.workspace_size < l.self_layer->workspace_size) l.workspace_size = l.self_layer->workspace_size;
 
-	l.output_layer = (layer*)xcalloc(1, sizeof(layer));
+	l.output_layer = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	fprintf(stderr, "\t\t");
 	*(l.output_layer) = make_connected_layer(batch, steps, hidden, outputs, activation, batch_normalize);
 	l.output_layer->batch = batch;
@@ -73,7 +73,7 @@ layer make_rnn_layer(int batch, int inputs, int hidden, int outputs, int steps, 
 	return l;
 }
 
-void update_rnn_layer(layer l, int batch, float learning_rate, float momentum, float decay)
+void update_rnn_layer(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay)
 {
 	TAT(TATPARMS);
 
@@ -82,17 +82,17 @@ void update_rnn_layer(layer l, int batch, float learning_rate, float momentum, f
 	update_connected_layer(*(l.output_layer), batch, learning_rate, momentum, decay);
 }
 
-void forward_rnn_layer(layer l, network_state state)
+void forward_rnn_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	layer input_layer = *(l.input_layer);
-	layer self_layer = *(l.self_layer);
-	layer output_layer = *(l.output_layer);
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
 
 	fill_cpu(l.outputs * l.batch * l.steps, 0, output_layer.delta, 1);
 	fill_cpu(l.hidden * l.batch * l.steps, 0, self_layer.delta, 1);
@@ -127,17 +127,17 @@ void forward_rnn_layer(layer l, network_state state)
 	}
 }
 
-void backward_rnn_layer(layer l, network_state state)
+void backward_rnn_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	layer input_layer = *(l.input_layer);
-	layer self_layer = *(l.self_layer);
-	layer output_layer = *(l.output_layer);
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
 
 	increment_layer(&input_layer, l.steps-1);
 	increment_layer(&self_layer, l.steps-1);
@@ -182,7 +182,7 @@ void backward_rnn_layer(layer l, network_state state)
 
 #ifdef GPU
 
-void pull_rnn_layer(layer l)
+void pull_rnn_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -191,7 +191,7 @@ void pull_rnn_layer(layer l)
 	pull_connected_layer(*(l.output_layer));
 }
 
-void push_rnn_layer(layer l)
+void push_rnn_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -200,7 +200,7 @@ void push_rnn_layer(layer l)
 	push_connected_layer(*(l.output_layer));
 }
 
-void update_rnn_layer_gpu(layer l, int batch, float learning_rate, float momentum, float decay, float loss_scale)
+void update_rnn_layer_gpu(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);
 
@@ -209,17 +209,17 @@ void update_rnn_layer_gpu(layer l, int batch, float learning_rate, float momentu
 	update_connected_layer_gpu(*(l.output_layer), batch, learning_rate, momentum, decay, loss_scale);
 }
 
-void forward_rnn_layer_gpu(layer l, network_state state)
+void forward_rnn_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	layer input_layer = *(l.input_layer);
-	layer self_layer = *(l.self_layer);
-	layer output_layer = *(l.output_layer);
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
 
 	fill_ongpu(l.outputs * l.batch * l.steps, 0, output_layer.delta_gpu, 1);
 	fill_ongpu(l.hidden * l.batch * l.steps, 0, self_layer.delta_gpu, 1);
@@ -254,17 +254,17 @@ void forward_rnn_layer_gpu(layer l, network_state state)
 	}
 }
 
-void backward_rnn_layer_gpu(layer l, network_state state)
+void backward_rnn_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = {0};
+	Darknet::NetworkState s = {0};
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	layer input_layer = *(l.input_layer);
-	layer self_layer = *(l.self_layer);
-	layer output_layer = *(l.output_layer);
+	Darknet::Layer & input_layer = *(l.input_layer);
+	Darknet::Layer & self_layer = *(l.self_layer);
+	Darknet::Layer & output_layer = *(l.output_layer);
 	increment_layer(&input_layer,  l.steps - 1);
 	increment_layer(&self_layer,   l.steps - 1);
 	increment_layer(&output_layer, l.steps - 1);

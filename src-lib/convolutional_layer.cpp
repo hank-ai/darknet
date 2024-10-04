@@ -18,7 +18,7 @@ namespace
 		}
 	}
 
-	inline size_t get_workspace_size32(const layer & l)
+	inline size_t get_workspace_size32(const Darknet::Layer & l)
 	{
 		TAT(TATPARMS);
 
@@ -79,7 +79,7 @@ namespace
 	}
 
 
-	inline size_t get_workspace_size16(const layer & l)
+	inline size_t get_workspace_size16(const Darknet::Layer & l)
 	{
 		TAT(TATPARMS);
 
@@ -157,15 +157,15 @@ namespace
 	}
 
 
-	inline image *get_weights(const convolutional_layer & l)
+	inline Darknet::Image *get_weights(const Darknet::Layer & l)
 	{
 		TAT(TATPARMS);
 
-		image * weights = (image *)xcalloc(l.n, sizeof(image));
+		Darknet::Image * weights = (Darknet::Image *)xcalloc(l.n, sizeof(Darknet::Image));
 		for (int i = 0; i < l.n; ++i)
 		{
-			weights[i] = copy_image(get_convolutional_weight(l, i));
-			normalize_image(weights[i]);
+			weights[i] = Darknet::copy_image(get_convolutional_weight(l, i));
+			Darknet::normalize_image(weights[i]);
 		}
 
 		return weights;
@@ -173,7 +173,7 @@ namespace
 }
 
 
-void swap_binary(convolutional_layer * l)
+void swap_binary(Darknet::Layer * l)
 {
 	TAT(TATPARMS);
 
@@ -216,14 +216,14 @@ void binarize_input(float *input, int n, int size, float *binary)
 	for(int s = 0; s < size; ++s)
 	{
 		float mean = 0;
-		for(int i = 0; i < n; ++i)
+		for (int i = 0; i < n; ++i)
 		{
 			mean += fabs(input[i*size + s]);
 		}
 
 		mean = mean / n;
 
-		for(int i = 0; i < n; ++i)
+		for (int i = 0; i < n; ++i)
 		{
 			binary[i*size + s] = (input[i*size + s] > 0) ? mean : -mean;
 		}
@@ -231,7 +231,7 @@ void binarize_input(float *input, int n, int size, float *binary)
 }
 
 
-int convolutional_out_height(convolutional_layer l)
+int convolutional_out_height(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -239,7 +239,7 @@ int convolutional_out_height(convolutional_layer l)
 }
 
 
-int convolutional_out_width(convolutional_layer l)
+int convolutional_out_width(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -247,7 +247,7 @@ int convolutional_out_width(convolutional_layer l)
 }
 
 
-image get_convolutional_image(convolutional_layer l)
+Darknet::Image get_convolutional_image(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -255,11 +255,11 @@ image get_convolutional_image(convolutional_layer l)
 	const int w = convolutional_out_width(l);
 	const int c = l.n;
 
-	return float_to_image(w, h, c, l.output);
+	return Darknet::float_to_image(w, h, c, l.output);
 }
 
 
-image get_convolutional_delta(convolutional_layer l)
+Darknet::Image get_convolutional_delta(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -267,17 +267,21 @@ image get_convolutional_delta(convolutional_layer l)
 	const int w = convolutional_out_width(l);
 	const int c = l.n;
 
-	return float_to_image(w, h, c, l.delta);
+	return Darknet::float_to_image(w, h, c, l.delta);
 }
 
 
-size_t get_convolutional_workspace_size(layer l)
+size_t get_convolutional_workspace_size(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
 	size_t workspace_size = get_workspace_size32(l);
 	size_t workspace_size16 = get_workspace_size16(l);
-	if (workspace_size16 > workspace_size) workspace_size = workspace_size16;
+	if (workspace_size16 > workspace_size)
+	{
+		workspace_size = workspace_size16;
+	}
+
 	return workspace_size;
 }
 
@@ -289,7 +293,7 @@ size_t get_convolutional_workspace_size(layer l)
 #ifdef CUDNN
 
 
-void create_convolutional_cudnn_tensors(layer *l)
+void create_convolutional_cudnn_tensors(Darknet::Layer *l)
 {
 	TAT(TATPARMS);
 
@@ -315,7 +319,28 @@ void create_convolutional_cudnn_tensors(layer *l)
 }
 
 
-void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_size_specify)
+#if 0
+std::string to_string(cudnnConvolutionFwdAlgo_t algo)
+{
+	switch(algo)
+	{
+		case CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM:			return "IMPLICIT_GEMM";
+		case CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM:	return "IMPLICIT_PRECOMP_GEMM";
+		case CUDNN_CONVOLUTION_FWD_ALGO_GEMM:					return "GEMM";
+		case CUDNN_CONVOLUTION_FWD_ALGO_DIRECT:					return "DIRECT";
+		case CUDNN_CONVOLUTION_FWD_ALGO_FFT:					return "FFT";
+		case CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING:				return "FFT_TILING";
+		case CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD:				return "WINOGRAD";
+		case CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED:		return "WINOGRAD_NONFUSED";
+		case CUDNN_CONVOLUTION_FWD_ALGO_COUNT:					return "COUNT";
+	}
+
+	return "unknown";
+}
+#endif
+
+
+void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t workspace_size_specify)
 {
 	TAT(TATPARMS);
 
@@ -416,28 +441,109 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
 		conv_fwd_results));
 
 	CHECK_CUDA(cudaMemGetInfo(&free_memory, &total_memory));
+//	std::cout << "CUDA memory: free=" << size_to_IEC_string(free_memory) << " total=" << size_to_IEC_string(total_memory) << std::endl;
+
+	cudaDeviceProp prop;
+	CHECK_CUDA(cudaGetDeviceProperties(&prop, std::max(0, cfg_and_state.gpu_index)));
+	const auto compu_capability_ver = prop.major * 10 + prop.minor; // e.g., "86" for RTX30xx, or "89" for RTX40xx
 
 	found_conv_algorithm = 0;
 	min_time = 1000000;   // 1000 sec
+
 	for (int i = 0; i < returned_algo_count; i++)
 	{
-		if (conv_fwd_results[i].status == CUDNN_STATUS_SUCCESS &&
-			conv_fwd_results[i].algo != CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM && ///< @todo I'm not convinced this is the best fix for issue #1.  See BAD_PARAM at https://docs.nvidia.com/deeplearning/cudnn/release-notes/
-			conv_fwd_results[i].algo != CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED &&
-			conv_fwd_results[i].memory < free_memory &&
-			(conv_fwd_results[i].memory <= workspace_size_specify || cudnn_preference == cudnn_fastest) &&
-			conv_fwd_results[i].time < min_time)
+		/* Summary of a 2015 blog post on cuDNN:  https://developer.nvidia.com/blog/cudnn-v2-higher-performance-deep-learning-gpus/
+		 *
+		 * There are 4 algorithms for forward convolution:
+		 *
+		 * - IMPLICIT_GEMM
+		 * - IMPLICIT_PRECOMP_GEMM
+		 * - GEMM
+		 * - DIRECT
+		 *
+		 * IMPLICIT_GEMM supports all input sizes and requires no extra working space.  When there isn't much memory, or the
+		 * network is large, this is the algorithm to use.
+		 *
+		 * IMPLICIT_PRECOMP_GEMM is a modification of IMPLICIT_GEMM which uses a small amount of working space to achieve
+		 * higher performance than IMPLICIT_GEMM.
+		 *
+		 * GEMM is an "im2col" approach that requires significant working space but in some cases is the fastest approach.
+		 *
+		 * DIRECT is not implemented but is a placeholder for a future feature.
+		 */
+
+#if 0
+		std::cout
+			<< "FWD ALGO:"
+			<< " i="			<< i
+//			<< " name="			<< std::left << std::setw(22) << to_string(conv_fwd_results[i].algo)
+			<< " algo="			<< conv_fwd_results[i].algo
+			<< " status="		<< conv_fwd_results[i].status
+			<< " time="			<< conv_fwd_results[i].time
+			<< " memory="		<< size_to_IEC_string(conv_fwd_results[i].memory)
+			<< " determinism="	<< conv_fwd_results[i].determinism
+			<< " math="			<< conv_fwd_results[i].mathType
+			<< std::endl;
+#endif
+
+		if (conv_fwd_results[i].status != CUDNN_STATUS_SUCCESS)
+		{
+			// algorithm is not supported, so skip to the next one
+			continue;
+		}
+
+		if (conv_fwd_results[i].algo == CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED)
+		{
+			/// @todo V3 why are we skipping this algorithm?
+			continue;
+		}
+
+		if (conv_fwd_results[i].algo == CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM)
+		{
+			/* The IMPLICIT_PRECOMP_GEMM algorithm causes problems for some people.  Maybe due to low memory?
+			 *
+			 * For example, see:  https://github.com/hank-ai/darknet/pull/36
+			 *
+			 * If you get a cuDNN status of BAD_PARAM during the mAP calculations, this algorithms may need to be skipped.
+			 * For now, because we don't understand the exact cause of the error, we'll only skip it on older GPUs.
+			 *
+			 *		- major=6, minor=x, "Pascal":  GTX 10xx, Quadro Pxxxx, Tesla P4
+			 *		- major=7, minor=5, "Turing":  RTX 20xx, GTX 16xx, Quadro RTX, Tesla T4
+			 *		- major=8, minor=6, "Ampere":  RTX 30xx, A6xxx, A5xxx
+			 *		- major=8, minor=7, "Ampere":  Jetson Orin -- reported on Discord on 2024-09-09, training on an Orin device
+			 *		- major=8, minor=9, "Lovelace":  RTX 40xx
+			 *		- major=9, minor=x, "Hopper":  RTX 50xx
+			 *
+			 * If you think you've run into this error and you'd like to skip this algorithm, change the version number
+			 * we verify against on the next line from "86" to a very large value such as "999".
+			 */
+			if (compu_capability_ver < 86 or compu_capability_ver == 87)
+			{
+				continue;
+			}
+		}
+
+		if (conv_fwd_results[i].time >= min_time)
+		{
+			// this algorithm is slower, or the same as a previous algo we already selected
+			continue;
+		}
+
+		if (conv_fwd_results[i].memory < free_memory &&
+			(conv_fwd_results[i].memory <= workspace_size_specify || cudnn_preference == cudnn_fastest))
 		{
 			found_conv_algorithm = 1;
 			l->fw_algo = conv_fwd_results[i].algo;
+
+			// use the algo with the lowest time; if there are multiple algos with the exact same time,
+			// then we end up using the first one in the list returned by cudnn
 			min_time = conv_fwd_results[i].time;
-			//printf(" - cuDNN FWD algo: %d, time = %f ms \n", l->fw_algo, min_time);
 		}
 	}
 
 	if (!found_conv_algorithm)
 	{
-		darknet_fatal_error(DARKNET_LOC, "cuDNN did not find FWD algo for convolution");
+		darknet_fatal_error(DARKNET_LOC, "cuDNN did not find a usable algorithm to use for forward convolution");
 	}
 	//printf(" cuDNN FWD algo: %d, time = %f ms \n", l->fw_algo, min_time);
 
@@ -473,7 +579,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
 
 	if (!found_conv_algorithm)
 	{
-		darknet_fatal_error(DARKNET_LOC, "cuDNN did not find BWD-data algo for convolution");
+		darknet_fatal_error(DARKNET_LOC, "cuDNN did not find a usable algorithm to use for backward convolution");
 	}
 	//printf(" cuDNN BWD-data algo: %d \n", l->bd_algo);
 
@@ -583,7 +689,7 @@ void cudnn_convolutional_setup(layer *l, int cudnn_preference, size_t workspace_
 // **********************************************
 
 
-void free_convolutional_batchnorm(convolutional_layer *l)
+void free_convolutional_batchnorm(Darknet::Layer *l)
 {
 	TAT(TATPARMS);
 
@@ -616,14 +722,14 @@ void free_convolutional_batchnorm(convolutional_layer *l)
 }
 
 
-convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w, int c, int n, int groups, int size, int stride_x, int stride_y, int dilation, int padding, ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam, int use_bin_output, int index, int antialiasing, convolutional_layer *share_layer, int assisted_excitation, int deform, int train)
+Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int c, int n, int groups, int size, int stride_x, int stride_y, int dilation, int padding, ACTIVATION activation, int batch_normalize, int binary, int xnor, int adam, int use_bin_output, int index, int antialiasing, Darknet::Layer *share_layer, int assisted_excitation, int deform, int train)
 {
 	TAT(TATPARMS);
 
 	int total_batch = batch*steps;
 	int i;
-	convolutional_layer l = { (LAYER_TYPE)0 };
-	l.type = CONVOLUTIONAL;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::CONVOLUTIONAL;
 	l.train = train;
 
 	if (xnor) groups = 1;   // disable groups for XNOR-net
@@ -942,50 +1048,39 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
 #endif  // GPU
 	l.workspace_size = get_convolutional_workspace_size(l);
 
-	//fprintf(stderr, "conv  %5d %2d x%2d /%2d  %4d x%4d x%4d   ->  %4d x%4d x%4d\n", n, size, size, stride, w, h, c, l.out_w, l.out_h, l.out_c);
 	l.bflops = (2.0 * l.nweights * l.out_h*l.out_w) / 1000000000.;
-	if (l.xnor) l.bflops = l.bflops / 32;
-	if (l.xnor && l.use_bin_output) fprintf(stderr, "convXB");
-	else if (l.xnor) fprintf(stderr, "convX ");
-	else if (l.share_layer) fprintf(stderr, "convS ");
-	else if (l.assisted_excitation) fprintf(stderr, "convAE");
-	else fprintf(stderr, "conv  ");
-
-	if (groups > 1) fprintf(stderr, "%5d/%4d ", n, groups);
-	else           fprintf(stderr, "%5d      ", n);
-
-	if (stride_x != stride_y) fprintf(stderr, "%2dx%2d/%2dx%2d ", size, size, stride_x, stride_y);
-	else {
-		if (dilation > 1) fprintf(stderr, "%2d x%2d/%2d(%1d)", size, size, stride_x, dilation);
-		else             fprintf(stderr, "%2d x%2d/%2d   ", size, size, stride_x);
+	if (l.xnor)
+	{
+		l.bflops = l.bflops / 32;
 	}
 
-	fprintf(stderr, "%4d x%4d x%4d -> %4d x%4d x%4d %5.3f BF\n", w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-
-	//fprintf(stderr, "%5d/%2d %2d x%2d /%2d(%d)%4d x%4d x%4d  -> %4d x%4d x%4d %5.3f BF\n", n, groups, size, size, stride, dilation, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-
-	if (l.antialiasing) {
-		printf("AA:  ");
-		l.input_layer = (layer*)calloc(1, sizeof(layer));
+	if (l.antialiasing)
+	{
+//		printf("AA:  ");
+		l.input_layer = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 		int blur_size = 3;
 		int blur_pad = blur_size / 2;
-		if (l.antialiasing == 2) {
+		if (l.antialiasing == 2)
+		{
 			blur_size = 2;
 			blur_pad = 0;
 		}
 		*(l.input_layer) = make_convolutional_layer(batch, steps, out_h, out_w, n, n, n, blur_size, blur_stride_x, blur_stride_y, 1, blur_pad, LINEAR, 0, 0, 0, 0, 0, index, 0, NULL, 0, 0, train);
 		const int blur_nweights = n * blur_size * blur_size;  // (n / n) * n * blur_size * blur_size;
-		int i;
-		if (blur_size == 2) {
-			for (i = 0; i < blur_nweights; i += (blur_size*blur_size)) {
+		if (blur_size == 2)
+		{
+			for (int i = 0; i < blur_nweights; i += (blur_size*blur_size))
+			{
 				l.input_layer->weights[i + 0] = 1 / 4.f;
 				l.input_layer->weights[i + 1] = 1 / 4.f;
 				l.input_layer->weights[i + 2] = 1 / 4.f;
 				l.input_layer->weights[i + 3] = 1 / 4.f;
 			}
 		}
-		else {
-			for (i = 0; i < blur_nweights; i += (blur_size*blur_size)) {
+		else
+		{
+			for (int i = 0; i < blur_nweights; i += (blur_size*blur_size))
+			{
 				l.input_layer->weights[i + 0] = 1 / 16.f;
 				l.input_layer->weights[i + 1] = 2 / 16.f;
 				l.input_layer->weights[i + 2] = 1 / 16.f;
@@ -999,7 +1094,10 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
 				l.input_layer->weights[i + 8] = 1 / 16.f;
 			}
 		}
-		for (i = 0; i < n; ++i) l.input_layer->biases[i] = 0;
+		for (i = 0; i < n; ++i)
+		{
+			l.input_layer->biases[i] = 0;
+		}
 #ifdef GPU
 		if (cfg_and_state.gpu_index >= 0)
 		{
@@ -1012,7 +1110,7 @@ convolutional_layer make_convolutional_layer(int batch, int steps, int h, int w,
 	return l;
 }
 
-void denormalize_convolutional_layer(convolutional_layer l)
+void denormalize_convolutional_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
@@ -1034,7 +1132,7 @@ void test_convolutional_layer()
 {
 	TAT(TATPARMS);
 
-	convolutional_layer l = make_convolutional_layer(1, 1, 5, 5, 3, 2, 1, 5, 2, 2, 1, 1, LEAKY, 1, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0);
+	Darknet::Layer l = make_convolutional_layer(1, 1, 5, 5, 3, 2, 1, 5, 2, 2, 1, 1, LEAKY, 1, 0, 0, 0, 0, 0, 0, NULL, 0, 0, 0);
 	l.batch_normalize = 1;
 	float data[] = {1,1,1,1,1,
 		1,1,1,1,1,
@@ -1051,12 +1149,12 @@ void test_convolutional_layer()
 		3,3,3,3,3,
 		3,3,3,3,3,
 		3,3,3,3,3};
-	network_state state = {0};
+	Darknet::NetworkState state = {0};
 	state.input = data;
 	forward_convolutional_layer(l, state);
 }
 
-void resize_convolutional_layer(convolutional_layer *l, int w, int h)
+void resize_convolutional_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -1153,7 +1251,7 @@ void resize_convolutional_layer(convolutional_layer *l, int w, int h)
 #endif
 }
 
-void set_specified_workspace_limit(convolutional_layer * l, size_t workspace_size_limit)
+void set_specified_workspace_limit(Darknet::Layer * l, size_t workspace_size_limit)
 {
 	TAT(TATPARMS);
 
@@ -1231,7 +1329,7 @@ void gemm_nn_custom(int M, int N, int K, float ALPHA, float *A, int lda, float *
 }
 
 
-void binary_align_weights(convolutional_layer *l)
+void binary_align_weights(Darknet::Layer *l)
 {
 	TAT(TATPARMS);
 
@@ -1328,7 +1426,7 @@ void binary_align_weights(convolutional_layer *l)
 	free(align_weights);
 }
 
-void forward_convolutional_layer(convolutional_layer l, network_state state)
+void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1535,7 +1633,7 @@ void forward_convolutional_layer(convolutional_layer l, network_state state)
 	if(l.binary || l.xnor) swap_binary(&l);
 
 	//visualize_convolutional_layer(l, "conv_visual", NULL);
-	//wait_until_press_key_cv();
+	//cv::waitKey(0);
 
 	if (l.assisted_excitation && state.train)
 	{
@@ -1544,7 +1642,7 @@ void forward_convolutional_layer(convolutional_layer l, network_state state)
 
 	if (l.antialiasing)
 	{
-		network_state s = { 0 };
+		Darknet::NetworkState s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
 		s.net = state.net;
@@ -1555,7 +1653,7 @@ void forward_convolutional_layer(convolutional_layer l, network_state state)
 	}
 }
 
-void assisted_excitation_forward(convolutional_layer l, network_state state)
+void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1590,7 +1688,7 @@ void assisted_excitation_forward(convolutional_layer l, network_state state)
 		// calculate G
 		for (int t = 0; t < state.net.num_boxes; ++t)
 		{
-			box truth = float_to_box_stride(state.truth + t*(4 + 1) + b*l.truths, 1);
+			Darknet::Box truth = float_to_box_stride(state.truth + t*(4 + 1) + b*l.truths, 1);
 			if (!truth.x)
 			{
 				break;  // continue;
@@ -1663,9 +1761,9 @@ void assisted_excitation_forward(convolutional_layer l, network_state state)
 			char buff2[100];
 			sprintf(buff2, "a_excitation_act_%d", b);
 			show_image_cv(img2, buff2);
-			wait_key_cv(5);
+			cv::waitKey(5);
 		}
-		wait_until_press_key_cv();
+		cv::waitKey(0);
 	}
 #endif
 
@@ -1674,7 +1772,7 @@ void assisted_excitation_forward(convolutional_layer l, network_state state)
 }
 
 
-void backward_convolutional_layer(convolutional_layer l, network_state state)
+void backward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1742,7 +1840,7 @@ void backward_convolutional_layer(convolutional_layer l, network_state state)
 	}
 }
 
-void update_convolutional_layer(convolutional_layer l, int batch, float learning_rate_init, float momentum, float decay)
+void update_convolutional_layer(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay)
 {
 	TAT(TATPARMS);
 
@@ -1763,62 +1861,65 @@ void update_convolutional_layer(convolutional_layer l, int batch, float learning
 }
 
 
-
-image get_convolutional_weight(convolutional_layer l, int i)
+Darknet::Image get_convolutional_weight(const Darknet::Layer & l, int i)
 {
 	TAT(TATPARMS);
 
-	int h = l.size;
-	int w = l.size;
-	int c = l.c / l.groups;
-	return float_to_image(w, h, c, l.weights + i*h*w*c);
+	const int h = l.size;
+	const int w = l.size;
+	const int c = l.c / l.groups;
+
+	return Darknet::float_to_image(w, h, c, l.weights + i * h * w * c);
 }
 
-void rgbgr_weights(convolutional_layer l)
+
+void rgbgr_weights(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < l.n; ++i)
+	for (int i = 0; i < l.n; ++i)
 	{
-		image im = get_convolutional_weight(l, i);
+		Darknet::Image im = get_convolutional_weight(l, i);
 		if (im.c == 3)
 		{
-			rgbgr_image(im);
+			Darknet::rgbgr_image(im);
 		}
 	}
 }
 
-void rescale_weights(convolutional_layer l, float scale, float trans)
+void rescale_weights(Darknet::Layer & l, float scale, float trans)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < l.n; ++i)
+	for (int i = 0; i < l.n; ++i)
 	{
-		image im = get_convolutional_weight(l, i);
+		Darknet::Image im = get_convolutional_weight(l, i);
 		if (im.c == 3)
 		{
-			scale_image(im, scale);
+			Darknet::scale_image(im, scale);
 			float sum = sum_array(im.data, im.w*im.h*im.c);
 			l.biases[i] += sum*trans;
 		}
 	}
 }
 
-image *visualize_convolutional_layer(convolutional_layer l, char *window, image *prev_weights)
+Darknet::Image *visualize_convolutional_layer(const Darknet::Layer & l, const char * window, Darknet::Image * prev_weights)
 {
 	TAT(TATPARMS);
 
-	image *single_weights = get_weights(l);
-	show_images(single_weights, l.n, window);
+	Darknet::Image *single_weights = get_weights(l);
 
-	image delta = get_convolutional_image(l);
-	image dc = collapse_image_layers(delta, 1);
-	char buff[256];
-	sprintf(buff, "%s: Output", window);
-	show_image(dc, buff);
+	std::string title = window;
+	title += " " + std::to_string(single_weights->w) + "x" + std::to_string(single_weights->h) + "x" + std::to_string(single_weights->c);
+	Darknet::show_images(single_weights, l.n, title.c_str());
+
+	Darknet::Image delta = get_convolutional_image(l);
+	Darknet::Image dc = Darknet::collapse_image_layers(delta, 1);
+
+	title += " [Output]";
+
+	Darknet::show_image(dc, title.c_str());
 	//save_image(dc, buff);
-	free_image(dc);
+	Darknet::free_image(dc);
 	return single_weights;
 }

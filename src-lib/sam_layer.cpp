@@ -1,12 +1,12 @@
 #include "darknet_internal.hpp"
 
-layer make_sam_layer(int batch, int index, int w, int h, int c, int w2, int h2, int c2)
+Darknet::Layer make_sam_layer(int batch, int index, int w, int h, int c, int w2, int h2, int c2)
 {
 	TAT(TATPARMS);
 
 	fprintf(stderr,"scale Layer: %d\n", index);
-	layer l = { (LAYER_TYPE)0 };
-	l.type = SAM;
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::SAM;
 	l.batch = batch;
 	l.w = w;
 	l.h = h;
@@ -37,7 +37,7 @@ layer make_sam_layer(int batch, int index, int w, int h, int c, int w2, int h2, 
 	return l;
 }
 
-void resize_sam_layer(layer *l, int w, int h)
+void resize_sam_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -57,7 +57,7 @@ void resize_sam_layer(layer *l, int w, int h)
 
 }
 
-void forward_sam_layer(const layer l, network_state state)
+void forward_sam_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -74,7 +74,7 @@ void forward_sam_layer(const layer l, network_state state)
 	activate_array(l.output, l.outputs*l.batch, l.activation);
 }
 
-void backward_sam_layer(const layer l, network_state state)
+void backward_sam_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -97,7 +97,7 @@ void backward_sam_layer(const layer l, network_state state)
 }
 
 #ifdef GPU
-void forward_sam_layer_gpu(const layer l, network_state state)
+void forward_sam_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -109,7 +109,7 @@ void forward_sam_layer_gpu(const layer l, network_state state)
 	activate_array_ongpu(l.output_gpu, l.outputs*l.batch, l.activation);
 }
 
-void backward_sam_layer_gpu(const layer l, network_state state)
+void backward_sam_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

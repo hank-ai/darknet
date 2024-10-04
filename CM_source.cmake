@@ -51,19 +51,21 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-Wall)					# enable "all" warnings
 	ADD_COMPILE_OPTIONS (-Wextra)				# enable even more warnings
 	ADD_COMPILE_OPTIONS (-Wno-unused-parameter)	# don't report this error
-	ADD_COMPILE_OPTIONS (-march=native)			# optimize for the architecture where g++ is running
-	ADD_COMPILE_OPTIONS (-mtune=native)			# optimize for the architecture where g++ is running
 
 	IF (CMAKE_BUILD_TYPE MATCHES DEBUG OR
 		CMAKE_BUILD_TYPE MATCHES Debug OR
 		CMAKE_BUILD_TYPE MATCHES debug)
 		MESSAGE (WARNING "Making a DEBUG build.")
+		ADD_COMPILE_DEFINITIONS (DEBUG)
 		ADD_COMPILE_OPTIONS (-O0)				# turn off optimizations
 		ADD_COMPILE_OPTIONS (-ggdb)				# turn on GDB info
-		ADD_COMPILE_DEFINITIONS (DEBUG)
 	ELSE ()
 		MESSAGE (STATUS "Making an optimized release build.")
+		# also see src-lib/CMakeLists.txt where -Ofast is set on some files
+		ADD_COMPILE_DEFINITIONS (NDEBUG)
 		ADD_COMPILE_OPTIONS (-O3)				# turn on optimizations
+		ADD_COMPILE_OPTIONS (-march=native)		# optimize for the architecture where g++ is running
+		ADD_COMPILE_OPTIONS (-mtune=native)		# optimize for the architecture where g++ is running
 
 		# this breaks the windows build, so even though it shouldn't be a
 		# linux-only optimization, we only set this for UNIX-type builds
@@ -98,10 +100,7 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-funsafe-math-optimizations)	# [7:49] allow optimizations for floating-point arithmetic that (a) assume that arguments and results are valid and (b) may violate IEEE or ANSI standards.
 
 	# TODO remove the following options and clean up the code instead of ignoring the problem
-	ADD_COMPILE_OPTIONS (-Wno-write-strings)
-	ADD_COMPILE_OPTIONS (-Wno-unused-result)
 	ADD_COMPILE_OPTIONS (-Wno-missing-field-initializers)
-	ADD_COMPILE_OPTIONS (-Wno-ignored-qualifiers)
 	ADD_COMPILE_OPTIONS (-Wno-sign-compare)
 ENDIF ()
 
@@ -115,8 +114,10 @@ SET (CMAKE_POSITION_INDEPENDENT_CODE TRUE)		# equivalent to -fpic (position inde
 
 INCLUDE_DIRECTORIES (src-cli)
 INCLUDE_DIRECTORIES (src-lib)
+INCLUDE_DIRECTORIES (src-other)
 
 ADD_SUBDIRECTORY (doc)
 ADD_SUBDIRECTORY (cfg)
 ADD_SUBDIRECTORY (src-lib)
 ADD_SUBDIRECTORY (src-cli)
+ADD_SUBDIRECTORY (src-examples)

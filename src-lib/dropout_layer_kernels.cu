@@ -1,19 +1,9 @@
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
-#include <cstring>
-
-#include "dropout_layer.hpp"
-#include "Timing.hpp"
-
-extern "C"
-{
-	void fill_ongpu(int N, float ALPHA, float * X, int INCX);
-	int64_t get_current_iteration(network net);
-}
+#include "darknet_internal.hpp"
 
 
-#include "dark_cuda.hpp"
+//void fill_ongpu(int N, float ALPHA, float * X, int INCX);
+//int64_t get_current_iteration(Darknet::Network net);
+
 
 __global__ void dropblock_fast_kernel(float *rand, float prob, int w, int h, int spatial, int filters, int batch, int block_size, float *drop_blocks_scale, float *output)
 {
@@ -124,7 +114,7 @@ __global__ void yoloswag420blazeit360noscope(float *input, int size, float *rand
 }
 
 
-void forward_dropout_layer_gpu(dropout_layer l, network_state state)
+void forward_dropout_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -203,7 +193,7 @@ void forward_dropout_layer_gpu(dropout_layer l, network_state state)
 			//normalize_image(img);
 
 			show_image(img, "dropout - forward");
-			wait_key_cv(0);
+			cv::waitKey(0);
 			//free_image(img);
 			//free(output);
 		}
@@ -231,7 +221,7 @@ void forward_dropout_layer_gpu(dropout_layer l, network_state state)
 	}
 }
 
-void backward_dropout_layer_gpu(dropout_layer l, network_state state)
+void backward_dropout_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -303,7 +293,7 @@ void backward_dropout_layer_gpu(dropout_layer l, network_state state)
 			//normalize_image(img);
 
 			show_image(img, "dropout - delta");
-			wait_key_cv(0);
+			cv::waitKey(0);
 			//free_image(img);
 			//free(output);
 		}

@@ -6,27 +6,27 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 }
 
-image get_maxpool_image(maxpool_layer l)
+Darknet::Image get_maxpool_image(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
 	int h = l.out_h;
 	int w = l.out_w;
 	int c = l.c;
-	return float_to_image(w,h,c,l.output);
+	return Darknet::float_to_image(w,h,c,l.output);
 }
 
-image get_maxpool_delta(maxpool_layer l)
+Darknet::Image get_maxpool_delta(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
 	int h = l.out_h;
 	int w = l.out_w;
 	int c = l.c;
-	return float_to_image(w,h,c,l.delta);
+	return Darknet::float_to_image(w,h,c,l.delta);
 }
 
-void create_maxpool_cudnn_tensors(layer *l)
+void create_maxpool_cudnn_tensors(Darknet::Layer *l)
 {
 	TAT(TATPARMS);
 
@@ -37,7 +37,7 @@ void create_maxpool_cudnn_tensors(layer *l)
 #endif // CUDNN
 }
 
-void cudnn_maxpool_setup(layer *l)
+void cudnn_maxpool_setup(Darknet::Layer *l)
 {
 	TAT(TATPARMS);
 
@@ -50,8 +50,8 @@ void cudnn_maxpool_setup(layer *l)
 		l->size,
 		l->pad/2, //0, //l.pad,
 		l->pad/2, //0, //l.pad,
-		l->stride_x,
-		l->stride_y));
+		l->stride_y,
+		l->stride_x));
 
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->srcTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->c, l->h, l->w));
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->dstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->out_c, l->out_h, l->out_w));
@@ -59,7 +59,7 @@ void cudnn_maxpool_setup(layer *l)
 }
 
 
-void cudnn_local_avgpool_setup(layer *l)
+void cudnn_local_avgpool_setup(Darknet::Layer *l)
 {
 	TAT(TATPARMS);
 
@@ -72,28 +72,36 @@ void cudnn_local_avgpool_setup(layer *l)
 		l->size,
 		l->pad / 2, //0, //l.pad,
 		l->pad / 2, //0, //l.pad,
-		l->stride_x,
-		l->stride_y));
+		l->stride_y,
+		l->stride_x));
 
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->srcTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->c, l->h, l->w));
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->dstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->out_c, l->out_h, l->out_w));
 #endif // CUDNN
 }
 
-maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x, int stride_y, int padding, int maxpool_depth, int out_channels, int antialiasing, int avgpool, int train)
+Darknet::Layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x, int stride_y, int padding, int maxpool_depth, int out_channels, int antialiasing, int avgpool, int train)
 {
 	TAT(TATPARMS);
 
-	maxpool_layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.avgpool = avgpool;
-	if (avgpool) l.type = LOCAL_AVGPOOL;
-	else l.type = MAXPOOL;
+
+	if (avgpool)
+	{
+		l.type = Darknet::ELayerType::LOCAL_AVGPOOL;
+	}
+	else
+	{
+		l.type = Darknet::ELayerType::MAXPOOL;
+	}
 	l.train = train;
 
 	const int blur_stride_x = stride_x;
 	const int blur_stride_y = stride_y;
 	l.antialiasing = antialiasing;
-	if (antialiasing) {
+	if (antialiasing)
+	{
 		stride_x = stride_y = l.stride = l.stride_x = l.stride_y = 1; // use stride=1 in host-layer
 	}
 
@@ -104,12 +112,14 @@ maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size, int s
 	l.pad = padding;
 	l.maxpool_depth = maxpool_depth;
 	l.out_channels = out_channels;
-	if (maxpool_depth) {
+	if (maxpool_depth)
+	{
 		l.out_c = out_channels;
 		l.out_w = l.w;
 		l.out_h = l.h;
 	}
-	else {
+	else
+	{
 		l.out_w = (w + padding - size) / stride_x + 1;
 		l.out_h = (h + padding - size) / stride_y + 1;
 		l.out_c = c;
@@ -155,25 +165,11 @@ maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size, int s
 	else cudnn_maxpool_setup(&l);
 
 #endif  // GPU
-	l.bflops = (l.size*l.size*l.c * l.out_h*l.out_w) / 1000000000.;
-	if (avgpool) {
-		if (stride_x == stride_y)
-			fprintf(stderr, "avg               %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d %5.3f BF\n", size, size, stride_x, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-		else
-			fprintf(stderr, "avg              %2dx%2d/%2dx%2d %4d x%4d x%4d -> %4d x%4d x%4d %5.3f BF\n", size, size, stride_x, stride_y, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-	}
-	else {
-		if (maxpool_depth)
-			fprintf(stderr, "max-depth         %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d %5.3f BF\n", size, size, stride_x, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-		else if (stride_x == stride_y)
-			fprintf(stderr, "max               %2dx%2d/%2d   %4d x%4d x%4d -> %4d x%4d x%4d %5.3f BF\n", size, size, stride_x, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-		else
-			fprintf(stderr, "max              %2dx%2d/%2dx%2d %4d x%4d x%4d -> %4d x%4d x%4d %5.3f BF\n", size, size, stride_x, stride_y, w, h, c, l.out_w, l.out_h, l.out_c, l.bflops);
-	}
+	l.bflops = (l.size * l.size * l.c * l.out_h * l.out_w) / 1000000000.0f;
 
-	if (l.antialiasing) {
-		printf("AA:  ");
-		l.input_layer = (layer*)calloc(1, sizeof(layer));
+	if (l.antialiasing)
+	{
+		l.input_layer = (Darknet::Layer*)calloc(1, sizeof(Darknet::Layer));
 		int blur_size = 3;
 		int blur_pad = blur_size / 2;
 		if (l.antialiasing == 2) {
@@ -219,7 +215,7 @@ maxpool_layer make_maxpool_layer(int batch, int h, int w, int c, int size, int s
 	return l;
 }
 
-void resize_maxpool_layer(maxpool_layer *l, int w, int h)
+void resize_maxpool_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -256,7 +252,7 @@ void resize_maxpool_layer(maxpool_layer *l, int w, int h)
 #endif
 }
 
-void forward_maxpool_layer(const maxpool_layer l, network_state state)
+void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -291,7 +287,8 @@ void forward_maxpool_layer(const maxpool_layer l, network_state state)
 	}
 
 
-	if (!state.train && l.stride_x == l.stride_y) {
+	if (!state.train && l.stride_x == l.stride_y)
+	{
 		forward_maxpool_layer_avx(state.input, l.output, l.indexes, l.size, l.w, l.h, l.out_w, l.out_h, l.c, l.pad, l.stride, l.batch);
 	}
 	else
@@ -332,8 +329,9 @@ void forward_maxpool_layer(const maxpool_layer l, network_state state)
 		}
 	}
 
-	if (l.antialiasing) {
-		network_state s = { 0 };
+	if (l.antialiasing)
+	{
+		Darknet::NetworkState s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
 		s.net = state.net;
@@ -344,7 +342,7 @@ void forward_maxpool_layer(const maxpool_layer l, network_state state)
 	}
 }
 
-void backward_maxpool_layer(const maxpool_layer l, network_state state)
+void backward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -360,7 +358,7 @@ void backward_maxpool_layer(const maxpool_layer l, network_state state)
 }
 
 
-void forward_local_avgpool_layer(const maxpool_layer l, network_state state)
+void forward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -400,7 +398,7 @@ void forward_local_avgpool_layer(const maxpool_layer l, network_state state)
 	}
 }
 
-void backward_local_avgpool_layer(const maxpool_layer l, network_state state)
+void backward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 

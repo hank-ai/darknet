@@ -13,8 +13,12 @@ FILE (GLOB LIBSRC *.cpp)
 LIST (REMOVE_ITEM LIBSRC yolo_v2_class.cpp)
 
 IF (COMPILER_IS_GNU_OR_CLANG)
-	# nvcc doesn't like this flag, so we have to set it specifically on the .cpp files and not on the .cu files
-	SET_SOURCE_FILES_PROPERTIES (${LIBSRC} PROPERTIES COMPILE_FLAGS -Ofast)
+	IF (CMAKE_BUILD_TYPE MATCHES RELEASE OR
+		CMAKE_BUILD_TYPE MATCHES Release OR
+		CMAKE_BUILD_TYPE MATCHES release)
+		# nvcc doesn't like this flag, so we have to set it specifically on the .cpp files and not on the .cu files
+		SET_SOURCE_FILES_PROPERTIES (${LIBSRC} PROPERTIES COMPILE_FLAGS -Ofast)
+	ENDIF ()
 ENDIF ()
 
 IF (DARKNET_USE_CUDA)
@@ -48,8 +52,16 @@ TARGET_LINK_LIBRARIES (darknetobjlib PRIVATE ${DARKNET_LINK_LIBS})
 # Next step is to create the actual darknet library.
 # ==
 MESSAGE(STATUS "Setting up DARKNET LIB")
+SET (DARKNET_PUBLIC_HEADERS
+	darknet.h
+	darknet.hpp
+	darknet_cfg.hpp
+	darknet_image.hpp
+	darknet_keypoints.hpp
+	darknet_version.h
+	)
 ADD_LIBRARY (darknet SHARED $<TARGET_OBJECTS:darknetobjlib>)
-SET_TARGET_PROPERTIES (darknet PROPERTIES PUBLIC_HEADER "darknet.h;darknet_version.h")
+SET_TARGET_PROPERTIES (darknet PROPERTIES PUBLIC_HEADER "${DARKNET_PUBLIC_HEADERS}")
 IF (DARKNET_USE_CUDA)
 	SET_TARGET_PROPERTIES (darknet PROPERTIES CUDA_ARCHITECTURES "${DARKNET_CUDA_ARCHITECTURES}")
 	SET_TARGET_PROPERTIES (darknet PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)

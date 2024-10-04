@@ -1,16 +1,6 @@
 #pragma once
 
-#include "darknet.h"
-#include "list.hpp"
-
-#include <errno.h>
-#include <stdio.h>
-#include <time.h>
-#include <stdbool.h>
-#include <limits>
-#ifdef __cplusplus
-extern "C" {
-#endif
+#include "darknet_internal.hpp"
 
 #define DARKNET_LOC __FILE__, __func__, __LINE__
 
@@ -29,7 +19,7 @@ void *xrealloc_location(void *ptr, const size_t size, const char * const filenam
 #define xrealloc(p, s)  xrealloc_location(p, s, DARKNET_LOC)
 
 /// Calling this function ends the application.  This function will @em never return control back to the caller.  @see @ref DARKNET_LOC
-void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...);
+[[noreturn]] void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...);
 
 /// Convert the given size to a human-readable string.  This uses 1024 as a divider, so 1 KiB == 1024 bytes.
 const char * size_to_IEC_string(const size_t size);
@@ -39,10 +29,10 @@ const char * size_to_IEC_string(const size_t size);
  */
 double what_time_is_it_now();
 
-int *read_map(char *filename);
+int *read_map(const char *filename);
 void shuffle(void *arr, size_t n, size_t size);
 void sorta_shuffle(void *arr, size_t n, size_t size, size_t sections);
-char *basecfg(char *cfgfile);
+const char * basecfg(const char * cfgfile);
 int alphanum_to_int(char c);
 char int_to_alphanum(int i);
 int read_int(int fd);
@@ -72,7 +62,7 @@ void translate_array(float *a, int n, float s);
 int max_index(float *a, int n);
 int top_max_index(float *a, int n, int k);
 float constrain(float min, float max, float a);
-int constrain_int(int a, int min, int max);
+
 float mse_array(float *a, int n);
 float rand_normal();
 size_t rand_size_t();
@@ -91,7 +81,7 @@ float sec(clock_t clocks);
 int find_int_arg(int argc, char **argv, const char * const arg, int def);
 float find_float_arg(int argc, char **argv, const char * const arg, float def);
 int find_arg(int argc, char* argv[], const char * const arg);
-char *find_char_arg(int argc, char **argv, char *arg, char *def);
+const char * find_char_arg(int argc, char **argv, const char *arg, const char *def);
 int sample_array(float *a, int n);
 int sample_array_custom(float *a, int n);
 void print_statistics(float *a, int n);
@@ -109,14 +99,10 @@ int check_array_is_inf(float *arr, int size);
 int int_index(int *a, int val, int n);
 int *random_index_order(int min, int max);
 int max_int_index(int *a, int n);
-boxabs box_to_boxabs(const box* b, const int img_w, const int img_h, const int bounds_check);
+boxabs box_to_boxabs(const Darknet::Box * b, const int img_w, const int img_h, const int bounds_check);
 int make_directory(char *path, int mode);
 unsigned long custom_hash(char *str);
 bool is_live_stream(const char * path);
 
 #define max_val_cmp(a,b) (((a) > (b)) ? (a) : (b))
 #define min_val_cmp(a,b) (((a) < (b)) ? (a) : (b))
-
-#ifdef __cplusplus
-}
-#endif

@@ -1,17 +1,7 @@
-#include "lstm_layer.hpp"
-#include "connected_layer.hpp"
-#include "utils.hpp"
-#include "dark_cuda.hpp"
-#include "blas.hpp"
-#include "gemm.hpp"
-#include "Timing.hpp"
+#include "darknet_internal.hpp"
 
-#include <math.h>
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
 
-static void increment_layer(layer *l, int steps)
+static void increment_layer(Darknet::Layer *l, int steps)
 {
 	TAT(TATPARMS);
 
@@ -29,64 +19,64 @@ static void increment_layer(layer *l, int steps)
 #endif
 }
 
-layer make_lstm_layer(int batch, int inputs, int outputs, int steps, int batch_normalize)
+Darknet::Layer make_lstm_layer(int batch, int inputs, int outputs, int steps, int batch_normalize)
 {
 	TAT(TATPARMS);
 
 	fprintf(stderr, "LSTM Layer: %d inputs, %d outputs\n", inputs, outputs);
 	batch = batch / steps;
-	layer l = { (LAYER_TYPE)0 };
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.batch = batch;
-	l.type = LSTM;
+	l.type = Darknet::ELayerType::LSTM;
 	l.steps = steps;
 	l.inputs = inputs;
 	l.out_w = 1;
 	l.out_h = 1;
 	l.out_c = outputs;
 
-	l.uf = (layer*)xcalloc(1, sizeof(layer));
+	l.uf = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	fprintf(stderr, "\t\t");
 	*(l.uf) = make_connected_layer(batch, steps, inputs, outputs, LINEAR, batch_normalize);
 	l.uf->batch = batch;
 	if (l.workspace_size < l.uf->workspace_size) l.workspace_size = l.uf->workspace_size;
 
-	l.ui = (layer*)xcalloc(1, sizeof(layer));
+	l.ui = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	fprintf(stderr, "\t\t");
 	*(l.ui) = make_connected_layer(batch, steps, inputs, outputs, LINEAR, batch_normalize);
 	l.ui->batch = batch;
 	if (l.workspace_size < l.ui->workspace_size) l.workspace_size = l.ui->workspace_size;
 
-	l.ug = (layer*)xcalloc(1, sizeof(layer));
+	l.ug = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	fprintf(stderr, "\t\t");
 	*(l.ug) = make_connected_layer(batch, steps, inputs, outputs, LINEAR, batch_normalize);
 	l.ug->batch = batch;
 	if (l.workspace_size < l.ug->workspace_size) l.workspace_size = l.ug->workspace_size;
 
-	l.uo = (layer*)xcalloc(1, sizeof(layer));
+	l.uo = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	fprintf(stderr, "\t\t");
 	*(l.uo) = make_connected_layer(batch, steps, inputs, outputs, LINEAR, batch_normalize);
 	l.uo->batch = batch;
 	if (l.workspace_size < l.uo->workspace_size) l.workspace_size = l.uo->workspace_size;
 
-	l.wf = (layer*)xcalloc(1, sizeof(layer));
+	l.wf = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	fprintf(stderr, "\t\t");
 	*(l.wf) = make_connected_layer(batch, steps, outputs, outputs, LINEAR, batch_normalize);
 	l.wf->batch = batch;
 	if (l.workspace_size < l.wf->workspace_size) l.workspace_size = l.wf->workspace_size;
 
-	l.wi = (layer*)xcalloc(1, sizeof(layer));
+	l.wi = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	fprintf(stderr, "\t\t");
 	*(l.wi) = make_connected_layer(batch, steps, outputs, outputs, LINEAR, batch_normalize);
 	l.wi->batch = batch;
 	if (l.workspace_size < l.wi->workspace_size) l.workspace_size = l.wi->workspace_size;
 
-	l.wg = (layer*)xcalloc(1, sizeof(layer));
+	l.wg = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	fprintf(stderr, "\t\t");
 	*(l.wg) = make_connected_layer(batch, steps, outputs, outputs, LINEAR, batch_normalize);
 	l.wg->batch = batch;
 	if (l.workspace_size < l.wg->workspace_size) l.workspace_size = l.wg->workspace_size;
 
-	l.wo = (layer*)xcalloc(1, sizeof(layer));
+	l.wo = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 	fprintf(stderr, "\t\t");
 	*(l.wo) = make_connected_layer(batch, steps, outputs, outputs, LINEAR, batch_normalize);
 	l.wo->batch = batch;
@@ -162,7 +152,7 @@ layer make_lstm_layer(int batch, int inputs, int outputs, int steps, int batch_n
 	return l;
 }
 
-void update_lstm_layer(layer l, int batch, float learning_rate, float momentum, float decay)
+void update_lstm_layer(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay)
 {
 	TAT(TATPARMS);
 
@@ -176,23 +166,23 @@ void update_lstm_layer(layer l, int batch, float learning_rate, float momentum, 
 	update_connected_layer(*(l.uo), batch, learning_rate, momentum, decay);
 }
 
-void forward_lstm_layer(layer l, network_state state)
+void forward_lstm_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = { 0 };
+	Darknet::NetworkState s = { 0 };
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	layer wf = *(l.wf);
-	layer wi = *(l.wi);
-	layer wg = *(l.wg);
-	layer wo = *(l.wo);
+	Darknet::Layer & wf = *(l.wf);
+	Darknet::Layer & wi = *(l.wi);
+	Darknet::Layer & wg = *(l.wg);
+	Darknet::Layer & wo = *(l.wo);
 
-	layer uf = *(l.uf);
-	layer ui = *(l.ui);
-	layer ug = *(l.ug);
-	layer uo = *(l.uo);
+	Darknet::Layer & uf = *(l.uf);
+	Darknet::Layer & ui = *(l.ui);
+	Darknet::Layer & ug = *(l.ug);
+	Darknet::Layer & uo = *(l.uo);
 
 	fill_cpu(l.outputs * l.batch * l.steps, 0, wf.delta, 1);
 	fill_cpu(l.outputs * l.batch * l.steps, 0, wi.delta, 1);
@@ -265,23 +255,23 @@ void forward_lstm_layer(layer l, network_state state)
 	}
 }
 
-void backward_lstm_layer(layer l, network_state state)
+void backward_lstm_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = { 0 };
+	Darknet::NetworkState s = { 0 };
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	layer wf = *(l.wf);
-	layer wi = *(l.wi);
-	layer wg = *(l.wg);
-	layer wo = *(l.wo);
+	Darknet::Layer & wf = *(l.wf);
+	Darknet::Layer & wi = *(l.wi);
+	Darknet::Layer & wg = *(l.wg);
+	Darknet::Layer & wo = *(l.wo);
 
-	layer uf = *(l.uf);
-	layer ui = *(l.ui);
-	layer ug = *(l.ug);
-	layer uo = *(l.uo);
+	Darknet::Layer & uf = *(l.uf);
+	Darknet::Layer & ui = *(l.ui);
+	Darknet::Layer & ug = *(l.ug);
+	Darknet::Layer & uo = *(l.uo);
 
 	increment_layer(&wf, l.steps - 1);
 	increment_layer(&wi, l.steps - 1);
@@ -412,7 +402,7 @@ void backward_lstm_layer(layer l, network_state state)
 }
 
 #ifdef GPU
-void update_lstm_layer_gpu(layer l, int batch, float learning_rate, float momentum, float decay, float loss_scale)
+void update_lstm_layer_gpu(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);
 
@@ -426,23 +416,23 @@ void update_lstm_layer_gpu(layer l, int batch, float learning_rate, float moment
 	update_connected_layer_gpu(*(l.uo), batch, learning_rate, momentum, decay, loss_scale);
 }
 
-void forward_lstm_layer_gpu(layer l, network_state state)
+void forward_lstm_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = { 0 };
+	Darknet::NetworkState s = { 0 };
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	layer wf = *(l.wf);
-	layer wi = *(l.wi);
-	layer wg = *(l.wg);
-	layer wo = *(l.wo);
+	Darknet::Layer & wf = *(l.wf);
+	Darknet::Layer & wi = *(l.wi);
+	Darknet::Layer & wg = *(l.wg);
+	Darknet::Layer & wo = *(l.wo);
 
-	layer uf = *(l.uf);
-	layer ui = *(l.ui);
-	layer ug = *(l.ug);
-	layer uo = *(l.uo);
+	Darknet::Layer & uf = *(l.uf);
+	Darknet::Layer & ui = *(l.ui);
+	Darknet::Layer & ug = *(l.ug);
+	Darknet::Layer & uo = *(l.uo);
 
 	fill_ongpu(l.outputs * l.batch * l.steps, 0, wf.delta_gpu, 1);
 	fill_ongpu(l.outputs * l.batch * l.steps, 0, wi.delta_gpu, 1);
@@ -515,23 +505,23 @@ void forward_lstm_layer_gpu(layer l, network_state state)
 	}
 }
 
-void backward_lstm_layer_gpu(layer l, network_state state)
+void backward_lstm_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	network_state s = { 0 };
+	Darknet::NetworkState s = { 0 };
 	s.train = state.train;
 	s.workspace = state.workspace;
 	int i;
-	layer wf = *(l.wf);
-	layer wi = *(l.wi);
-	layer wg = *(l.wg);
-	layer wo = *(l.wo);
+	Darknet::Layer & wf = *(l.wf);
+	Darknet::Layer & wi = *(l.wi);
+	Darknet::Layer & wg = *(l.wg);
+	Darknet::Layer & wo = *(l.wo);
 
-	layer uf = *(l.uf);
-	layer ui = *(l.ui);
-	layer ug = *(l.ug);
-	layer uo = *(l.uo);
+	Darknet::Layer & uf = *(l.uf);
+	Darknet::Layer & ui = *(l.ui);
+	Darknet::Layer & ug = *(l.ug);
+	Darknet::Layer & uo = *(l.uo);
 
 	increment_layer(&wf, l.steps - 1);
 	increment_layer(&wi, l.steps - 1);

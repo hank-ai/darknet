@@ -1,3 +1,7 @@
+/* Darknet/YOLO:  https://github.com/hank-ai/darknet
+ * Copyright 2024 Stephane Charette
+ */
+
 #pragma once
 
 #include "darknet_internal.hpp"
@@ -41,17 +45,23 @@ namespace Darknet
 			 */
 			const ArgsAndParms & get(const std::string & arg) const;
 
+			/// Get a float parameter.  This provided default value will be used if this parameter does not exist.
 			float get(const std::string & arg, const float f) const;
 
+			/// Get an integer parameter.  The provided default value will be used if this parameter does not exist.
 			int get(const std::string & arg, const int i) const;
+
+			/// Get a float parameter.  This @em must exist, otherwise @ref darknet_fatal_error() is called.
+			float get_float(const std::string & arg) const;
+
+			/// Get an integer parameter.  This @em must exist, otherwise @ref darknet_fatal_error() is called.
+			int get_int(const std::string & arg) const;
 
 			/// Return a name for the current thread.  Thread name must previous have been added using @ref set_thread_name().
 			std::string get_thread_name();
 
-
 			/// Set a name to use for the given thread.  @see @ref del_thread_name()
 			void set_thread_name(const std::thread::id & tid, const std::string & name);
-
 
 			/// Alias for @ref set_thread_name().
 			void set_thread_name(const std::thread & t, const std::string & name)
@@ -89,11 +99,22 @@ namespace Darknet
 			/// When @p -dont_show has been set, this value will be set to @p false.
 			bool is_shown;
 
-			/// Determines if ANSI colour output will be used with the console output.  Defaults to @p true on Linux and @p false on Windows.
+			/// Determines if ANSI colour output will be used with the console output.  Default is @p true.
 			bool colour_is_enabled;
 
-			/// Whether Darknet was started with the --verbose flag.  Default is @p false.
+			/** Whether Darknet was started with the @p --verbose flag.  Default is @p false.
+			 * @see @ref Darknet::set_verbose()
+			 * @see @ref darknet_set_verbose()
+			 * @see @ref is_trace
+			 */
 			bool is_verbose;
+
+			/** Whether %Darknet was started with the @p --trace flag.  This will also enable @ref is_verbose.  Default is @p false.
+			 * @see @ref Darknet::set_trace()
+			 * @see @ref darknet_set_trace()
+			 * @see @ref is_verbose
+			 */
+			bool is_trace;
 
 			/// Every argument starting with @p argv[0], unmodified, and in the exact order they were specified.
 			VStr argv;
