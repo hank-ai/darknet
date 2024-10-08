@@ -217,6 +217,33 @@ extern "C"
 
 		return;
 	}
+
+	void darknet_clear_skipped_classes(DarknetNetworkPtr ptr)
+	{
+		TAT(TATPARMS);
+
+		Darknet::clear_skipped_classes(ptr);
+
+		return;
+	}
+
+	void darknet_add_skipped_class(DarknetNetworkPtr ptr, const int class_to_skip)
+	{
+		TAT(TATPARMS);
+
+		Darknet::add_skipped_class(ptr, class_to_skip);
+
+		return;
+	}
+
+	void darknet_del_skipped_class(DarknetNetworkPtr ptr, const int class_to_include)
+	{
+		TAT(TATPARMS);
+
+		Darknet::del_skipped_class(ptr, class_to_include);
+
+		return;
+	}
 }
 
 

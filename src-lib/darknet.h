@@ -69,6 +69,15 @@ DarknetNetworkPtr darknet_load_neural_network(const char * const cfg_filename, c
 /// This is the @p C equivalent to @ref Darknet::free_neural_network().
 void darknet_free_neural_network(DarknetNetworkPtr * ptr);
 
+/// This is the @p C equivalent to @ref Darknet::clear_skipped_classes().
+void darknet_clear_skipped_classes(DarknetNetworkPtr ptr);
+
+/// This is the @p C equivalent to @ref Darknet::add_skipped_class().
+void darknet_add_skipped_class(DarknetNetworkPtr ptr, const int class_to_skip);
+
+/// This is the @p C equivalent to @ref Darknet::del_skipped_classes().
+void darknet_del_skipped_class(DarknetNetworkPtr ptr, const int class_to_include);
+
 /// Bounding box used with normalized coordinates (between 0.0 and 1.0).
 typedef struct DarknetBox
 {

@@ -462,7 +462,7 @@ namespace Darknet
 	 */
 	float iou(const cv::Rect & lhs, const cv::Rect & rhs);
 
-	/** Return the set of classes which Darknet must ignore.  Default set is empty.
+	/** Return the set of classes which %Darknet must ignore.  Default set is empty.
 	 *
 	 * @see @ref Darknet::skipped_classes()
 	 * @see @ref Darknet::clear_skipped_classes()
@@ -473,7 +473,9 @@ namespace Darknet
 	 */
 	SInt skipped_classes(const Darknet::NetworkPtr ptr);
 
-	/** Set the classes which Darknet must ignore, over-writing any previous values.
+	/** Set the classes which %Darknet must ignore, completely over-writing all previous values.  If you'd rather add a
+	 * single class at a time, call @ref add_skipped_class() which can be called repeatedly without overwriting previous
+	 * settings.
 	 *
 	 * @see @ref Darknet::skipped_classes()
 	 * @see @ref Darknet::clear_skipped_classes()
@@ -484,7 +486,8 @@ namespace Darknet
 	 */
 	SInt skipped_classes(Darknet::NetworkPtr ptr, const SInt & classes_to_skip);
 
-	/** Clear the set of classes which Darknet must ignore.
+	/** Clear the set of classes which %Darknet must ignore.  The default is for Darknet/YOLO to not skip any classes,
+	 * as if this function has been called.
 	 *
 	 * @see @ref Darknet::skipped_classes()
 	 * @see @ref Darknet::add_skipped_class()
@@ -494,7 +497,8 @@ namespace Darknet
 	 */
 	SInt clear_skipped_classes(Darknet::NetworkPtr ptr);
 
-	/** Add the given class index to the set of classes that Darknet must ignore.
+	/** Add the given class index to the set of classes that %Darknet must ignore.  This may be called multiple times if
+	 * you have many classes you want skipped, or you can call @ref skipped_classes() if you want to set them all at once.
 	 *
 	 * @see @ref Darknet::skipped_classes()
 	 * @see @ref Darknet::clear_skipped_classes()
@@ -504,7 +508,8 @@ namespace Darknet
 	 */
 	SInt add_skipped_class(Darknet::NetworkPtr ptr, const int class_to_skip);
 
-	/** Remove the given class index from the set of classes that Darknet must ignore.
+	/** Remove the given class index from the set of classes that %Darknet must ignore.  This may be called multiple times
+	 * if there are several class indexes you'll like to restore.
 	 *
 	 * @see @ref Darknet::skipped_classes()
 	 * @see @ref Darknet::clear_skipped_classes()
