@@ -462,6 +462,58 @@ namespace Darknet
 	 */
 	float iou(const cv::Rect & lhs, const cv::Rect & rhs);
 
+	/** Return the set of classes which Darknet must ignore.  Default set is empty.
+	 *
+	 * @see @ref Darknet::skipped_classes()
+	 * @see @ref Darknet::clear_skipped_classes()
+	 * @see @ref Darknet::add_skipped_class()
+	 * @see @ref Darknet::del_skipped_class()
+	 *
+	 * @since 2024-10-07
+	 */
+	SInt skipped_classes(const Darknet::NetworkPtr ptr);
+
+	/** Set the classes which Darknet must ignore, over-writing any previous values.
+	 *
+	 * @see @ref Darknet::skipped_classes()
+	 * @see @ref Darknet::clear_skipped_classes()
+	 * @see @ref Darknet::add_skipped_class()
+	 * @see @ref Darknet::del_skipped_class()
+	 *
+	 * @since 2024-10-07
+	 */
+	SInt skipped_classes(Darknet::NetworkPtr ptr, const SInt & classes_to_skip);
+
+	/** Clear the set of classes which Darknet must ignore.
+	 *
+	 * @see @ref Darknet::skipped_classes()
+	 * @see @ref Darknet::add_skipped_class()
+	 * @see @ref Darknet::del_skipped_class()
+	 *
+	 * @since 2024-10-07
+	 */
+	SInt clear_skipped_classes(Darknet::NetworkPtr ptr);
+
+	/** Add the given class index to the set of classes that Darknet must ignore.
+	 *
+	 * @see @ref Darknet::skipped_classes()
+	 * @see @ref Darknet::clear_skipped_classes()
+	 * @see @ref Darknet::del_skipped_class()
+	 *
+	 * @since 2024-10-07
+	 */
+	SInt add_skipped_class(Darknet::NetworkPtr ptr, const int class_to_skip);
+
+	/** Remove the given class index from the set of classes that Darknet must ignore.
+	 *
+	 * @see @ref Darknet::skipped_classes()
+	 * @see @ref Darknet::clear_skipped_classes()
+	 * @see @ref Darknet::add_skipped_class()
+	 *
+	 * @since 2024-10-07
+	 */
+	SInt del_skipped_class(Darknet::NetworkPtr ptr, const int class_to_include);
+
 	/** Display some information about this specific prediction.
 	 *
 	 * Use like this:

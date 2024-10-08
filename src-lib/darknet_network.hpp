@@ -131,6 +131,15 @@ namespace Darknet
 			 * @since 2024-07-30
 			 */
 			bool annotate_draw_label;
+
+			/** Indexes of classes which Darknet should ignore.
+			 *
+			 * @ref Darknet::skipped_classes()
+			 *
+			 * @since 2024-10-07
+			 */
+			SInt classes_to_ignore;
+
 	};
 
 

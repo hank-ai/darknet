@@ -971,7 +971,9 @@ Darknet::NetworkPtr Darknet::load_neural_network(const Darknet::Parms & parms)
 		if (parm.type == EParmType::kWeightsFilename	and weights	.empty())	weights	= parm.string;
 	}
 
-	return load_neural_network(cfg, names, weights);
+	auto ptr = load_neural_network(cfg, names, weights);
+
+	return ptr;
 }
 
 
@@ -1126,6 +1128,12 @@ Darknet::Predictions Darknet::predict(Darknet::NetworkPtr ptr, Darknet::Image & 
 
 		// most of the output from Darknet/YOLO will have a confidence of 0.0f which we need to completely ignore
 		if (pred.best_class == -1)
+		{
+			continue;
+		}
+
+		// optional:  sometimes there are classes we want to completely ignore
+		if (net->details->classes_to_ignore.count(pred.best_class))
 		{
 			continue;
 		}
@@ -1359,6 +1367,94 @@ cv::Mat Darknet::resize_keeping_aspect_ratio(cv::Mat & mat, cv::Size desired_siz
 	cv::resize(mat, mat, new_size, method);
 
 	return mat;
+}
+
+
+Darknet::SInt Darknet::skipped_classes(const Darknet::NetworkPtr ptr)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot get the skipped classes without a network pointer");
+	}
+
+	return net->details->classes_to_ignore;
+}
+
+
+Darknet::SInt Darknet::skipped_classes(Darknet::NetworkPtr ptr, const Darknet::SInt & classes_to_skip)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot set the skipped classes without a network pointer");
+	}
+
+	net->details->classes_to_ignore.clear();
+	for (const int & idx : classes_to_skip)
+	{
+		if (idx >= 0 and idx < net->details->class_names.size())
+		{
+			net->details->classes_to_ignore.insert(idx);
+		}
+	}
+
+	return net->details->classes_to_ignore;
+}
+
+
+Darknet::SInt Darknet::clear_skipped_classes(Darknet::NetworkPtr ptr)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot clear the skipped classes without a network pointer");
+	}
+
+	net->details->classes_to_ignore.clear();
+
+	return net->details->classes_to_ignore;
+}
+
+
+Darknet::SInt Darknet::add_skipped_class(Darknet::NetworkPtr ptr, const int class_to_skip)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot add to the skipped classes without a network pointer");
+	}
+
+	if (class_to_skip >= 0 and class_to_skip < net->details->class_names.size())
+	{
+		net->details->classes_to_ignore.insert(class_to_skip);
+	}
+
+	return net->details->classes_to_ignore;
+}
+
+
+Darknet::SInt Darknet::del_skipped_class(Darknet::NetworkPtr ptr, const int class_to_include)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot remove from the skipped classes without a network pointer");
+	}
+
+	net->details->classes_to_ignore.erase(class_to_include);
+
+	return net->details->classes_to_ignore;
 }
 
 
