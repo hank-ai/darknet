@@ -1000,6 +1000,20 @@ Darknet::NetworkPtr Darknet::load_neural_network(const Darknet::Parms & parms)
 
 	auto ptr = load_neural_network(cfg, names, weights);
 
+	VStr v;
+	for (const auto & parm : parms)
+	{
+		if (parm.type == EParmType::kOther)
+		{
+			v.push_back(parm.string);
+		}
+	}
+
+	if (not v.empty())
+	{
+		cfg_and_state.process_arguments(v, ptr);
+	}
+
 	return ptr;
 }
 

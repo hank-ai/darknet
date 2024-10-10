@@ -85,7 +85,7 @@ namespace Darknet
 	 */
 	enum class EParmType
 	{
-		kUnknown		,
+		kUnknown		, ///< Should be unused.  See "kOther" instead for all other parameter types.
 		kCfgFilename	, ///< The configuration file to load.  There should only be 1 parameter of this type.
 		kNamesFilename	, ///< The names file to load.  There should only be 1 parameter of this type.
 		kWeightsFilename, ///< The weights file to load.  There should only be 1 parameter of this type.

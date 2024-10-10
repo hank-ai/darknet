@@ -28,6 +28,9 @@ namespace Darknet
 			/// Process @p argv[] from @p main() and store the results in @p argv and @p args.
 			CfgAndState & process_arguments(int argc, char ** argp);
 
+			/// Process the given arguments.
+			CfgAndState & process_arguments(const VStr & v, Darknet::NetworkPtr ptr = nullptr);
+
 			/** Determine if the user specified the given option, or if unspecified then use the default value.
 			 *
 			 * For example:
