@@ -185,7 +185,6 @@ namespace Darknet
 
 	void hsv_to_rgb(Darknet::Image & im);
 
-	void copy_image_from_bytes(Darknet::Image im, char *pdata);
 	Darknet::Image letterbox_image(const Darknet::Image & im, int w, int h);
 	void letterbox_image_into(const Darknet::Image & im, int w, int h, Darknet::Image & boxed);
 	void random_distort_image(Darknet::Image & im, float hue, float saturation, float exposure);

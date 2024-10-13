@@ -16,7 +16,7 @@ Directly viewing or returning bounding-boxed images requires scikit-image to be 
 
 - pip3 install scikit-image
 
-See the example code (such as "example_images.py") which imports this module.
+See the example code (such as "example.py") which imports this module.
 """
 
 from ctypes import *
@@ -58,13 +58,29 @@ class IMAGE(Structure):
                 ("c", c_int),            # Number of channels
                 ("data", POINTER(c_float))]  # Pointer to image data
 
-# Function to get the width of a network
-def network_width(net):
-    return lib.network_width(net)
+# Function to get the network dimensions (width, height, and number of channels)
+def network_dimensions(net):
+    w = c_int()
+    h = c_int()
+    c = c_int()
+    lib.darknet_network_dimensions(net, w, h, c)
+    return w.value, h.value, c.value
 
-# Function to get the height of a network
+# For convenience, since this function used to exist in V2.  See network_dimensions() instead.
+def network_width(net):
+    w = c_int()
+    h = c_int()
+    c = c_int()
+    lib.darknet_network_dimensions(net, w, h, c)
+    return w.value
+
+# For convenience, since this function used to exist in V2.  See network_dimensions() instead.
 def network_height(net):
-    return lib.network_height(net)
+    w = c_int()
+    h = c_int()
+    c = c_int()
+    lib.darknet_network_dimensions(net, w, h, c)
+    return h.value
 
 # Function to convert YOLO bounding box format to corner points in CV2 rectangle format
 def bbox2points(bbox):
@@ -77,8 +93,6 @@ def bbox2points(bbox):
     ymin = int(round(y - (h / 2)))
     ymax = int(round(y + (h / 2)))
     return xmin, ymin, xmax, ymax
-
-
 
 def class_colors(names):
     """
@@ -110,7 +124,6 @@ def load_network(config_file, data_file, weights, batch_size=1):
         config_file.encode("ascii"),
         weights.encode("ascii"), 0, batch_size)
     return network
-
 
 # Function to print detected objects and their confidence scores
 def print_detections(detections, coordinates=False):
@@ -237,7 +250,6 @@ def non_max_suppression_fast(detections, overlap_thresh):
     # Return only the bounding boxes that were picked using the integer data type
     return [detections[i] for i in pick]
 
-
 # Function to remove all classes with 0% confidence within the detection
 def remove_negatives(detections, class_names, num):
     """
@@ -322,48 +334,47 @@ else:
 lib = CDLL(libpath, RTLD_GLOBAL)
 
 # Argument types and return types for Darknet functions
-lib.network_width.argtypes = [c_void_p]
-lib.network_width.restype = c_int
-lib.network_height.argtypes = [c_void_p]
-lib.network_height.restype = c_int
 
+network_dimensions = lib.darknet_network_dimensions
+network_dimensions.argtypes = [c_void_p, POINTER(c_int), POINTER(c_int), POINTER(c_int)]
 
-# Define and comment function to copy image data from bytes to a Darknet IMAGE object
+# Function to copy image data from bytes to a Darknet IMAGE object
 copy_image_from_bytes = lib.copy_image_from_bytes
 copy_image_from_bytes.argtypes = [IMAGE, c_char_p]
 
-# Define and comment function to predict using a Darknet network
+# Function to predict using a Darknet network
 predict = lib.network_predict_ptr
 predict.argtypes = [c_void_p, POINTER(c_float)]
 predict.restype = POINTER(c_float)
 
 # Define and comment function to set the GPU device for Darknet
 set_gpu = lib.cuda_set_device
+set_gpu.argtypes = [c_int]
 
 # Define and comment function to create a Darknet IMAGE object
 make_image = lib.make_image
 make_image.argtypes = [c_int, c_int, c_int]
 make_image.restype = IMAGE
 
-# Define and comment function to get network boxes for detections
+# Function to get network boxes for detections
 get_network_boxes = lib.get_network_boxes
 get_network_boxes.argtypes = [c_void_p, c_int, c_int, c_float, c_float, POINTER(c_int), c_int, POINTER(c_int), c_int]
 get_network_boxes.restype = POINTER(DETECTION)
 
-# Define and comment function to create network boxes
+# Function to create network boxes
 make_network_boxes = lib.make_network_boxes
-make_network_boxes.argtypes = [c_void_p]
+make_network_boxes.argtypes = [c_void_p, c_float, POINTER(c_int)]
 make_network_boxes.restype = POINTER(DETECTION)
 
 # Define and comment function to free detections
 free_detections = lib.free_detections
 free_detections.argtypes = [POINTER(DETECTION), c_int]
 
-# Define and comment function to free batch detections
-free_batch_detections = lib.free_batch_detections
-free_batch_detections.argtypes = [POINTER(DETNUMPAIR), c_int]
+# Function to free batch detections
+#free_batch_detections = lib.free_batch_detections
+#free_batch_detections.argtypes = [POINTER(DETNUMPAIR), c_int]
 
-# Define and comment function to free pointers
+# Function to free pointers
 free_ptrs = lib.free_ptrs
 free_ptrs.argtypes = [POINTER(c_void_p), c_int]
 
@@ -403,30 +414,50 @@ free_image = lib.free_image
 free_image.argtypes = [IMAGE]
 
 # Define and comment function to letterbox a Darknet image
-letterbox_image = lib.letterbox_image
-letterbox_image.argtypes = [IMAGE, c_int, c_int]
-letterbox_image.restype = IMAGE
+#letterbox_image = lib.letterbox_image
+#letterbox_image.argtypes = [IMAGE, c_int, c_int]
+#letterbox_image.restype = IMAGE
 
-# Define and comment function to load a color image for Darknet
-load_image = lib.load_image
+# Function to load a color image for Darknet
+load_image = lib.load_image_v2
 load_image.argtypes = [c_char_p, c_int, c_int, c_int]
 load_image.restype = IMAGE
 
 # Define and comment function to convert RGB image to BGR
-rgbgr_image = lib.rgbgr_image
-rgbgr_image.argtypes = [IMAGE]
+#rgbgr_image = lib.rgbgr_image
+#rgbgr_image.argtypes = [IMAGE]
 
-# Define and comment function to predict using an image and a Darknet network
+# Function to predict using an image and a Darknet network
 predict_image = lib.network_predict_image
 predict_image.argtypes = [c_void_p, IMAGE]
 predict_image.restype = POINTER(c_float)
 
-# Define and comment function to predict using a letterboxed image and a Darknet network
+# Function to predict using a letterboxed image and a Darknet network
 predict_image_letterbox = lib.network_predict_image_letterbox
 predict_image_letterbox.argtypes = [c_void_p, IMAGE]
 predict_image_letterbox.restype = POINTER(c_float)
 
-# Define and comment function to predict using a batch of images and a Darknet network
-network_predict_batch = lib.network_predict_batch
-network_predict_batch.argtypes = [c_void_p, IMAGE, c_int, c_int, c_int, c_float, c_float, POINTER(c_int), c_int, c_int]
-network_predict_batch.restype = POINTER(DETNUMPAIR)
+# Function to predict using a batch of images and a Darknet network
+#network_predict_batch = lib.network_predict_batch
+#network_predict_batch.argtypes = [c_void_p, IMAGE, c_int, c_int, c_int, c_float, c_float, POINTER(c_int), c_int, c_int]
+#network_predict_batch.restype = POINTER(DETNUMPAIR)
+
+show_version_info = lib.darknet_show_version_info
+
+version_string = lib.darknet_version_string
+version_string.restype = c_char_p
+
+version_short = lib.darknet_version_short
+version_short.restype = c_char_p
+
+set_verbose = lib.darknet_set_verbose
+set_verbose.argtypes = [c_int]
+
+clear_skipped_classes = lib.darknet_clear_skipped_classes
+clear_skipped_classes.argtypes = [c_void_p]
+
+add_skipped_class = lib.darknet_add_skipped_class
+add_skipped_class.argtypes = [c_void_p, c_int]
+
+del_skipped_class = lib.darknet_del_skipped_class
+del_skipped_class.argtypes = [c_void_p, c_int]

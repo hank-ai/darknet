@@ -42,8 +42,8 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
 	// remember that OpenCV colours are BGR, not RGB
-	static const auto		white									= cv::Scalar(255, 255, 255);
-	static const auto		black									= cv::Scalar(0, 0, 0);
+	static const auto white = cv::Scalar(255, 255, 255);
+	static const auto black	= cv::Scalar(0, 0, 0);
 
 	// shamlessly stolen from DarkHelp
 	static inline void fix_out_of_bound_normalized_rect(float & cx, float & cy, float & w, float & h)
@@ -128,6 +128,28 @@ namespace
 
 extern "C"
 {
+	void darknet_show_version_info()
+	{
+		TAT(TATPARMS);
+		Darknet::show_version_info();
+		return;
+	}
+
+
+	const char * darknet_version_string()
+	{
+		TAT(TATPARMS);
+		return DARKNET_VERSION_STRING;
+	}
+
+
+	const char * darknet_version_short()
+	{
+		TAT(TATPARMS);
+		return DARKNET_VERSION_SHORT;
+	}
+
+
 	void darknet_set_verbose(const bool flag)
 	{
 		TAT(TATPARMS);

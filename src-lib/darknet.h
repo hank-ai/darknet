@@ -42,6 +42,15 @@ extern "C"
 /// An opaque pointer to a @ref Darknet::Network object, without needing to expose the internals of the network structure.
 typedef void* DarknetNetworkPtr;
 
+/// This is the @p C equivalent to @ref Darknet::show_version_info().
+void darknet_show_version_info();
+
+/// Return the full version string, such as @p "v3.0-163-g56145bf".  @see @ref DARKNET_VERSION_STRING
+const char * darknet_version_string();
+
+/// Return the short version string, such as @p "3.0.163".  @see @ref DARKNET_VERSION_SHORT
+const char * darknet_version_short();
+
 /// This is the @p C equivalent to @ref Darknet::set_verbose().
 void darknet_set_verbose(const bool flag);
 
@@ -283,6 +292,26 @@ void do_nms_obj(detection * dets, int total, int classes, float thresh);
 /// This is part of the original @p C API.  Non Maxima Suppression.
 void diounms_sort(detection * dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1);
 
+/// This is part of the original @p C API.  Convert from data pointer to a %Darknet image.  Used by the Python API.
+void copy_image_from_bytes(DarknetImage im, char *pdata);
+
+/// This is part of the original @p C API.  This function does nothing when %Darknet was built to run on the CPU.
+void cuda_set_device(int n);
+
+/// This is part of the original @p C API.
+detection * make_network_boxes(DarknetNetworkPtr ptr, float thresh, int * num);
+
+/// This is part of the original @p C API.
+void free_ptrs(void **ptrs, int n);
+
+/// This is part of the original @p C API.
+void reset_rnn(DarknetNetworkPtr ptr);
+
+/// This is part of the original @p C API.  This function exists for the Python API.
+DarknetImage load_image_v2(const char * filename, int desired_width, int desired_height, int channels);
+
+/// This is part of the original @p C API.
+float * network_predict_image_letterbox(DarknetNetworkPtr ptr, DarknetImage im);
 
 #endif // DARKNET_INCLUDE_ORIGINAL_API
 

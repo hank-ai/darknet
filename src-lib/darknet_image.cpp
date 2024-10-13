@@ -1742,6 +1742,14 @@ void Darknet::test_resize(char *filename)
 }
 
 
+DarknetImage load_image_v2(const char * filename, int desired_width, int desired_height, int channels)
+{
+	TAT(TATPARMS);
+
+	return Darknet::load_image(filename, desired_width, desired_height, channels);
+}
+
+
 Darknet::Image Darknet::load_image(const char * filename, int desired_width, int desired_height, int channels)
 {
 	TAT(TATPARMS);
@@ -1987,7 +1995,7 @@ void Darknet::free_image(Darknet::Image & im)
 
 
 // Fast copy data from a contiguous byte array into the image.
-void copy_image_from_bytes(Darknet::Image im, char *pdata)
+void copy_image_from_bytes(DarknetImage im, char *pdata)
 {
 	TAT(TATPARMS);
 
