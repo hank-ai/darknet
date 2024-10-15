@@ -134,6 +134,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("benchmarklayers"		),
 		ArgsAndParms("letterbox"			),
 		ArgsAndParms("points"				), //-- takes an int?  0
+		ArgsAndParms("random"				, ArgsAndParms::EType::kParameter, "Randomize the list of images."),
 		ArgsAndParms("show"					, ArgsAndParms::EType::kParameter, "Visually display the anchors."),
 		ArgsAndParms("showimgs"				),
 		ArgsAndParms("httpposthost"			),

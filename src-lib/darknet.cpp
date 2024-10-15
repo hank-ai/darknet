@@ -1005,7 +1005,7 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 }
 
 
-Darknet::NetworkPtr Darknet::load_neural_network(const Darknet::Parms & parms)
+Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 {
 	TAT(TATPARMS);
 
@@ -1034,6 +1034,44 @@ Darknet::NetworkPtr Darknet::load_neural_network(const Darknet::Parms & parms)
 	if (not v.empty())
 	{
 		cfg_and_state.process_arguments(v, ptr);
+	}
+
+	v.clear();
+	for (const auto & parm : parms)
+	{
+		if (parm.type == EParmType::kDirectory)
+		{
+			for (const auto & entry : std::filesystem::directory_iterator(parm.string))
+			{
+				const auto ext = Darknet::lowercase(entry.path().extension().string());
+				if (ext == ".jpg" or ext == ".png")
+				{
+					v.push_back(entry.path().string());
+				}
+			}
+		}
+	}
+	if (not v.empty())
+	{
+		if (cfg_and_state.is_set("random"))
+		{
+			std::random_shuffle(v.begin(), v.end());
+		}
+		else
+		{
+			std::sort(v.begin(), v.end());
+		}
+
+		// insert all the image filenames into "parms"
+		for (const auto fn : v)
+		{
+			Parm parm;
+			parm.idx = -1;
+			parm.original = fn;
+			parm.string = fn;
+			parm.type = EParmType::kFilename;
+			parms.push_back(parm);
+		}
 	}
 
 	return ptr;

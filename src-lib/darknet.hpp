@@ -315,7 +315,7 @@ namespace Darknet
 	 * @see @ref Darknet::parse_arguments()
 	 * @since 2024-07-29
 	 */
-	Darknet::NetworkPtr load_neural_network(const Darknet::Parms & parms);
+	Darknet::NetworkPtr load_neural_network(Darknet::Parms & parms);
 
 	/** Free the neural network pointer allocated in @ref Darknet::load_neural_network().  Does nothing if the pointer has
 	 * already been freed.  Will reset the pointer to @p nullptr once the structure has been freed.
