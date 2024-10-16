@@ -516,8 +516,14 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 			 *
 			 * If you think you've run into this error and you'd like to skip this algorithm, change the version number
 			 * we verify against on the next line from "86" to a very large value such as "999".
+			 *
+			 * ------------------------
+			 *
+			 * 2024-10-16 update:  Just ran into this error on my RTX 3090 when training YOLOv4-tiny-3L.  Network was large
+			 * (1440x800x3, subdiv=4) but only used 15 GiB out of the 24 GiB available.  For now, disabling this algo until
+			 * a proper fix can be found.
 			 */
-			if (compu_capability_ver < 86 or compu_capability_ver == 87)
+//			if (compu_capability_ver < 86 or compu_capability_ver == 87)
 			{
 				continue;
 			}
