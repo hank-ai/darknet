@@ -1055,7 +1055,9 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 	{
 		if (cfg_and_state.is_set("random"))
 		{
-			std::random_shuffle(v.begin(), v.end());
+			std::mt19937 rng(std::random_device{}());
+
+			std::shuffle(v.begin(), v.end(), rng);
 		}
 		else
 		{
