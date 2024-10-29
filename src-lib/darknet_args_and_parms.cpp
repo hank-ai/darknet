@@ -66,6 +66,18 @@ Darknet::ArgsAndParms::ArgsAndParms(const std::string & n1, const std::string & 
 }
 
 
+Darknet::ArgsAndParms::ArgsAndParms(const std::string & n1, const std::string & n2, const std::string & str, const std::string & txt) :
+	ArgsAndParms(n1, n2, txt)
+{
+	TAT(TATPARMS);
+
+	expect_parm	= true;
+	this->str = str;
+
+	return;
+}
+
+
 const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 {
 	TAT(TATPARMS);
@@ -101,18 +113,18 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("visualize"	, ArgsAndParms::EType::kCommand	, "Display the weights from diferent layers in a neural network."),
 
 		// global options
-		ArgsAndParms("colour"	, "color"							, "Enable colour output in the console.  This is the default."),
-		ArgsAndParms("nocolour"	, "nocolor"							, "Disable colour output in the console."),
+		ArgsAndParms("colour"		, "color"							, "Enable colour output in the console.  This is the default."),
+		ArgsAndParms("nocolour"		, "nocolor"							, "Disable colour output in the console."),
 
 		// I originally didn't know about "show_details" when I implemented "verbose".
-		ArgsAndParms("verbose"	, "show_details"					, "Logs more verbose messages."),
-		ArgsAndParms("trace"	, ArgsAndParms::EType::kParameter	, "Intended for debug purposes.  This allows Darknet to log trace messages for some commands."),
+		ArgsAndParms("verbose"		, "show_details"					, "Logs more verbose messages."),
+		ArgsAndParms("trace"		, ArgsAndParms::EType::kParameter	, "Intended for debug purposes.  This allows Darknet to log trace messages for some commands."),
 
 		// other options
 
-		ArgsAndParms("dontshow"	, "noshow"							, "Do not open a GUI window.  Especially useful when used on a headless server.  This will cause the output image to be saved to disk."),
-		ArgsAndParms("clear"	, ArgsAndParms::EType::kParameter	, "Used during training to reset the \"image count\" to zero, necessary when pre-existing weights are used."),
-		ArgsAndParms("map"		, ArgsAndParms::EType::kParameter	, "Regularly calculate mAP% score while training."),
+		ArgsAndParms("dontshow"		, "noshow"							, "Do not open a GUI window.  Especially useful when used on a headless server.  This will cause the output image to be saved to disk."),
+		ArgsAndParms("clear"		, ArgsAndParms::EType::kParameter	, "Used during training to reset the \"image count\" to zero, necessary when pre-existing weights are used."),
+		ArgsAndParms("map"			, ArgsAndParms::EType::kParameter	, "Regularly calculate mAP% score while training."),
 
 		ArgsAndParms("camera"	, "c"			, 0		),
 		ArgsAndParms("thresh"	, "threshold"	, 0.24f	),
@@ -120,12 +132,9 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("avgframes"			), //-- takes an int  3
 		ArgsAndParms("benchmark"			),
 		ArgsAndParms("benchmarklayers"		),
-		ArgsAndParms("checkmistakes"		),
-		ArgsAndParms("dontdrawbbox"			),
-		ArgsAndParms("jsonport"				),
 		ArgsAndParms("letterbox"			),
-		ArgsAndParms("mjpegport"			), //-- takes an int?
 		ArgsAndParms("points"				), //-- takes an int?  0
+		ArgsAndParms("random"				, ArgsAndParms::EType::kParameter, "Randomize the list of images."),
 		ArgsAndParms("show"					, ArgsAndParms::EType::kParameter, "Visually display the anchors."),
 		ArgsAndParms("showimgs"				),
 		ArgsAndParms("httpposthost"			),
@@ -136,9 +145,10 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("iouthresh"			),
 		ArgsAndParms("hier"					),
 		ArgsAndParms("s"					),
-		ArgsAndParms("numofclusters"		, "", 6	, "The number of YOLO anchors in the configuration."	),
-		ArgsAndParms("width"				, "", 416	, "The width of the network."							),
-		ArgsAndParms("height"				, "", 416	, "The height of the network."							),
+		ArgsAndParms("numofclusters"		, "", 6		, "The number of YOLO anchors in the configuration. --num_of_clusters 6"	),
+		ArgsAndParms("width"				, "", 416	, "The width of the network.  --width 416"									),
+		ArgsAndParms("height"				, "", 416	, "The height of the network.  --width 416"									),
+		ArgsAndParms("skipclasses"			, "", " "	, "Class indexes which Darknet should skip when returning results or annotating images.  --skip-classes=2,5-8"),
 		ArgsAndParms("extoutput"			),
 		ArgsAndParms("savelabels"			),
 		ArgsAndParms("chart"				),
@@ -158,7 +168,7 @@ void Darknet::display_usage()
 		<< std::endl
 		<< "Darknet/YOLO CLI usage:" << std::endl
 		<< std::endl
-		<< "\t\t" << CfgAndState::get().argv[0] << " <command> [<options>] [<function>] [<more options and filenames>]" << std::endl
+		<< "\t\tdarknet <command> [<options>] [<function>] [<more options and filenames>]" << std::endl
 		<< std::endl
 		<< "Commands:" << std::endl
 		<< Darknet::in_colour(Darknet::EColour::kBrightCyan)
@@ -240,7 +250,14 @@ void Darknet::display_usage()
 	{
 		if (item.type == ArgsAndParms::EType::kParameter and not item.description.empty())
 		{
-			std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -10) << ":  " << item.description << std::endl;
+			if (item.expect_parm)
+			{
+				std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -15) << " <...>  " << item.description << std::endl;
+			}
+			else
+			{
+				std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -15) << "        " << item.description << std::endl;
+			}
 		}
 	}
 

@@ -40,28 +40,39 @@ YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection sys
 
 # General Information
 
-YOLOv7 is more accurate and faster than YOLOv5 by **120% FPS**, than YOLOX by **180% FPS**, than Dual-Swin-T by **1200% FPS**, than ConvNext by **550% FPS**, than SWIN-L by **500% FPS**, and PPYOLOE-X by **150% FPS**.
+The Darknet/YOLO framework continues to be both **faster** and **more accurate** than other frameworks and versions of YOLO.
 
-YOLOv7 surpasses all known object detectors in both speed and accuracy in the range from 5 FPS to 160 FPS and has the highest accuracy 56.8% AP among all known real-time object detectors with 30 FPS or higher on GPU V100, batch=1.
+This framework is both **completely free** and **open source**.  You can incorporate Darknet/YOLO into existing projects and
+products -- including commercial ones -- without a license or paying a fee.
 
-![comparison](https://user-images.githubusercontent.com/4096485/179425274-f55a36d4-8450-4471-816b-8c105841effd.jpg)
+Darknet V3 ("Jazz") released in October 2024 can accurately run the LEGO dataset videos at up to **1000 FPS** when using
+a NVIDIA RTX 3090 GPU, meaning each video frame is read, resized, and processed by Darknet/YOLO in 1 millisecond or less.
+
+Please join the Darknet/YOLO Discord server if you need help or you want to discuss Darknet/YOLO:  https://discord.gg/zSq8rtW
+
+The CPU version of Darknet/YOLO can run on simple devices such as Raspberry Pi, cloud &amp; colab servers, desktops,
+laptops, and high-end training rigs.  The GPU version of Darknet/YOLO requires a CUDA-capable GPU from NVIDIA.
+
+Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building instructions](#building) below.
 
 ## Darknet Version
 
 * The original Darknet tool written by Joseph Redmon in 2013-2017 did not have a version number.  We consider this version 0.x.
 * The next popular Darknet repo maintained by Alexey Bochkovskiy between 2017-2021 also did not have a version number.  We consider this version 1.x.
-* The Darknet repo sponsored by Hank.ai and maintained by Stéphane Charette starting in 2023 was the first one with a `version` command.  From 2023 until mid-2024, it returned version 2.0.
+* The Darknet repo sponsored by Hank.ai and maintained by Stéphane Charette starting in 2023 was the first one with a `version` command.  From 2023 until late 2024, it returned version 2.x "OAK".
 	* The goal was to try and break as little of the existing functionality while getting familiar with the codebase.
-	* Re-wrote the build steps so we have 1 unified way to build using CMake on both Windows and Linux
-	* Converted the codebase to use the C++ compiler
-	* Enhanced chart.png while training
-	* Bug fixes and performance-related optimizations, mostly related to cutting down the time it takes to train a network
-	* The last branch of this codebase is version 2.1
-* The next phase of development started in mid-2024.  The `version` command now returns 3.0.
-	* Removed many old and unmaintained commands
-	* Many performance optimizations
-	* Legacy C API was modified; applications that use the original Darknet API will need minor modifications
-	* New Darknet V3 C and C++ API
+	* Re-wrote the build steps so we have 1 unified way to build using CMake on both Windows and Linux.
+	* Converted the codebase to use the C++ compiler.
+	* Enhanced chart.png while training.
+	* Bug fixes and performance-related optimizations, mostly related to cutting down the time it takes to train a network.
+	* The last branch of this codebase is version 2.1 in the `v2` branch.
+* The next phase of development started in mid-2024 and was released in October 2024.  The `version` command now returns 3.x "JAZZ".
+	* Removed many old and unmaintained commands.
+		* You can always do a checkout of the previous `v2` branch if you need to run one of these commands.  Let us know so we can investigate adding back any missing commands.
+	* Many performance optimizations, both when training and during inference.
+	* Legacy C API was modified; applications that use the original Darknet API will need minor modifications:  https://darknetcv.ai/api/api.html
+	* New Darknet V3 C and C++ API:  https://darknetcv.ai/api/api.html
+	* New apps and sample code in `src-examples`:  https://darknetcv.ai/api/files.html
 
 # MSCOCO Pre-trained Weights
 
@@ -94,11 +105,13 @@ DarkHelp coco.names yolov4-tiny.cfg yolov4-tiny.weights image1.jpg
 DarkHelp coco.names yolov4-tiny.cfg yolov4-tiny.weights video1.avi
 ```
 
-Note that people are expected to [train their own networks](#training).  MSCOCO is normally used just to confirm that everything is working correctly.
+Note that people are expected to [train their own networks](#training).  MSCOCO is normally used to confirm that everything is working correctly.
 
 # Building
 
-The various build methods available in the past have been merged together into a single unified solution.  Darknet requires OpenCV, and uses CMake to generate the necessary project files.
+The various build methods available in the past (pre-2023) have been merged together into a single unified solution.  Darknet requires C++17 or newer, OpenCV, and uses CMake to generate the necessary project files.
+
+**You do not need to know C++ to build, install, nor run Darknet/YOLO, the same way you don't need to be a mechanic to drive a car.**
 
 * [Google Colab](#google-colab)
 * [Linux](#linux-cmake-method)
@@ -112,7 +125,7 @@ Software developers are encouraged to visit https://darknetcv.ai/ to get informa
 
 The Google Colab instructions are the same as the [Linux](#linux-cmake-method) instructions.  Several Jupyter notebooks are available showing how to do certain tasks, such as training a new network.
 
-See the notebooks in the `colab` subdirectory.
+See the notebooks in the `colab` subdirectory, and/or follow the Linux instructions below.
 
 ## Linux CMake Method
 
@@ -127,9 +140,7 @@ See the notebooks in the `colab` subdirectory.
 		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
 		* Remember to re-build Darknet.
 
-> TODO: is libomp-dev also necessary for OpenMP?
-
-These instructions assume a system running Ubuntu 22.04.
+These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different distribution.
 
 ```sh
 sudo apt-get install build-essential git libopencv-dev cmake
@@ -144,14 +155,14 @@ make -j4 package
 sudo dpkg -i darknet-VERSION.deb
 ```
 
-If you are using an older version of CMake then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu can be done with the following commands:
+**If you are using an older version of CMake** then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu can be done with the following commands:
 
 ```sh
 sudo apt-get purge cmake
 sudo snap install cmake --classic
 ```
 
-If using `bash` as your command shell, you'll want to re-start your shell at this point.  If using `fish`, it should immediately pick up the new path.
+**If using `bash` as your command shell** you'll want to re-start your shell at this point.  If using `fish`, it should immediately pick up the new path.
 
 > Advanced users:
 >
@@ -169,13 +180,13 @@ SET (CPACK_GENERATOR "DEB")
 SET (CPACK_GENERATOR "RPM")
 ```
 
-To install the installation package, use the usual package manager for your distribution.  For example, on Debian-based systems such as Ubuntu:
+**To install the installation package** once it has finished building, use the usual package manager for your distribution.  For example, on Debian-based systems such as Ubuntu:
 
 ```sh
 sudo dpkg -i darknet-2.0.1-Linux.deb
 ```
 
-Installing the package will copy the following files:
+Installing the `.deb` package will copy the following files:
 
 * `/usr/bin/darknet` is the usual Darknet executable.  Run `darknet version` from the CLI to confirm it is installed correctly.
 * `/usr/include/darknet.h` is the Darknet API for C, C++, and Python developers.
@@ -185,7 +196,7 @@ Installing the package will copy the following files:
 
 You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run this to test:  `darknet version`.
 
-> If you don't have /usr/bin/darknet` then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file as described above.
+> **If you don't have `/usr/bin/darknet`** then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file as described above.
 
 ## Windows CMake Method
 
@@ -212,7 +223,7 @@ Once everything is downloaded and installed, click on the "Windows Start" menu a
 >
 > Instead of running the `Developer Command Prompt`, you can use a normal command prompt or ssh into the device and manually run `"\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`.
 
-Once you have the Developer Command Prompt running as described above, run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
+Once you have the **Developer Command Prompt** running as described above (not PowerShell!) run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
 
 ```bat
 cd c:\
@@ -256,7 +267,7 @@ msbuild.exe /property:Platform=x64;Configuration=Release /target:Build -maxCpuCo
 msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 ```
 
-If you get an error about some missing CUDA or cuDNN DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
+**If you get an error** about some missing CUDA or cuDNN DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
 ```bat
 copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\*.dll" src-cli\Release\
 ```
@@ -273,7 +284,7 @@ msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 
 You should now have this file you can run:  `C:\src\Darknet\build\src-cli\Release\darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src-cli\Release\darknet.exe version`.
 
-To correctly install Darknet, the libraries, the include files, and the necessary DLLs, run the NSIS installation wizard that was built in the last step.  See the file `darknet-VERSION.exe` in the `build` directory.  For example:
+To correctly install Darknet, the libraries, the include files, and the necessary DLLs, **run the NSIS installation wizard** that was built in the last step.  See the file `darknet-VERSION.exe` in the `build` directory.  For example:
 ```bat
 darknet-2.0.31-win64.exe
 ```
@@ -281,7 +292,7 @@ darknet-2.0.31-win64.exe
 Installing the NSIS installation package will:
 
 * Create a directory called `Darknet`, such as `C:\Program Files\Darknet\`.
-* Install the CLI application, `darknet.exe`.
+* Install the CLI application, `darknet.exe` and other sample apps.
 * Install the required 3rd-party `.dll` files, such as those from OpenCV.
 * Install the neccesary Darknet `.dll`, `.lib` and `.h` files to use `darknet.dll` from another application.
 * Install the template `.cfg` files.
@@ -433,7 +444,7 @@ darknet detector -map -dont_show --verbose train animals.data animals.cfg
 
 # Roadmap
 
-Last updated 2024-09-21:
+Last updated 2024-10-03:
 
 ## Completed
 
@@ -478,6 +489,8 @@ Last updated 2024-09-21:
 * [ ] remove all `char*` code and replace with `std::string`
 * [ ] don't hide warnings and clean up compiler warnings (in progress)
 * [ ] fix build for ARM-based Jetson devices
+	* [ ] original Jetson devices are unlikely to be fixed
+	* [X] new Jetson Orin devices should work
 * [ ] better use of `cv::Mat` instead of the custom `image` structure in C (in progress)
 * [ ] replace old `list` functionality with `std::vector` or `std::list`
 * [ ] fix support for 1-channel greyscale images

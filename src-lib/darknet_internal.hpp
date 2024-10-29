@@ -35,6 +35,7 @@
 #include <map>
 #include <mutex>
 #include <optional>
+#include <random>
 #include <regex>
 #include <set>
 #include <string>
@@ -312,11 +313,9 @@ void free_layer(Darknet::Layer & l);
 // dark_cuda.h
 void cuda_pull_array(float *x_gpu, float *x, size_t n);
 void cuda_pull_array_async(float *x_gpu, float *x, size_t n);
-void cuda_set_device(int n);
 void *cuda_get_context();
 
 // utils.h
-void free_ptrs(void **ptrs, int n);
 void top_k(float *a, int n, int k, int *index);
 
 // gemm.h

@@ -7,6 +7,56 @@
 #endif
 
 
+namespace
+{
+	void parse_skip_classes(Darknet::SInt & classes_to_ignore, std::string str)
+	{
+		// take a string like this:   2,5-7,9
+		// ...and populate the std::set with the individual values 2, 5, 6, 7, and 9
+
+		classes_to_ignore.clear();
+
+		const std::regex rx(
+				"(\\d+)-(\\d+)"	// range
+				"|"
+				"(\\d+)"		// single value
+				);
+
+		while (not str.empty())
+		{
+			std::smatch matches;
+
+			if (not std::regex_search(str, matches, rx))
+			{
+				break;
+			}
+
+			if (matches.length() == 1)
+			{
+				// we have a single value
+				const int idx = std::stod(matches[3].str());
+				classes_to_ignore.insert(idx);
+			}
+			else if (matches.length() > 2)
+			{
+				// we have a range
+				const int i1 = std::stod(matches[1].str());
+				const int i2 = std::stod(matches[2].str());
+				for (auto idx = i1; idx <= i2; idx ++)
+				{
+					classes_to_ignore.insert(idx);
+				}
+			}
+
+			const size_t len = matches.position() + matches.length();
+			str.erase(0, len);
+		}
+
+		return;
+	}
+}
+
+
 Darknet::CfgAndState::CfgAndState()
 {
 	TAT(TATPARMS);
@@ -118,21 +168,33 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 
 	argv.reserve(argc);
 
-	const auto & all_known_args = Darknet::get_all_possible_arguments();
-
 	for (int idx = 0; idx < argc; idx ++)
 	{
-		errno = 0;
-
-		const std::string original_arg = argp[idx];
-		argv.push_back(original_arg);
-
 		if (idx == 0)
 		{
-			// don't expect argv[0] to be in the list of supported commands
+			// ignore argv[0]
 			continue;
 		}
 
+		argv.push_back(argp[idx]);
+	}
+
+	return process_arguments(argv);
+}
+
+
+Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, Darknet::NetworkPtr ptr)
+{
+	const auto & all_known_args = Darknet::get_all_possible_arguments();
+
+	// WARNING:  it is perfectly valid for this pointer to be NULL if a network
+	// has not yet been loaded, so check before attempting to dereference it!
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+
+	for (int idx = 0; idx < v.size(); idx ++)
+	{
+		errno = 0;
+		const std::string & original_arg = v.at(idx);
 		const std::string str = convert_to_lowercase_alphanum(original_arg);
 
 		// see if this parameter exists, either as primary name or an alternate spelling
@@ -193,7 +255,6 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 
 		ArgsAndParms args_and_parms	= *iter;
 		args_and_parms.arg_index	= idx;
-		args[iter->name]			= args_and_parms;
 
 		if (args_and_parms.type == ArgsAndParms::EType::kCommand)
 		{
@@ -234,33 +295,45 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 		{
 			// the next parm should be a numeric value
 			const int next_arg_idx = idx + 1;
-			if (next_arg_idx < argc)
+			if (next_arg_idx < v.size())
 			{
-				size_t pos = 0;
-				try
+				if (args_and_parms.str.empty())
 				{
-					args_and_parms.value = std::stof(argp[next_arg_idx], &pos);
-				}
-				catch (...)
-				{
-					// do nothing, this is not a number
-				}
+					// field must be numeric
+					size_t pos = 0;
+					try
+					{
+						args_and_parms.value = std::stof(v.at(next_arg_idx), &pos);
+					}
+					catch (...)
+					{
+						// do nothing, this is not a number
+					}
 
-				if (pos == strlen(argp[next_arg_idx]))
-				{
-					// consume the next argument
-					idx ++;
+					if (pos == v.at(next_arg_idx).size())
+					{
+						// consume the next argument
+						idx ++;
+					}
+					else
+					{
+						darknet_fatal_error(DARKNET_LOC, "expected a numeric parameter after %s, not %s", v.at(idx).c_str(), v.at(next_arg_idx).c_str());
+					}
 				}
 				else
 				{
-					darknet_fatal_error(DARKNET_LOC, "expected a numeric parameter after %s, not %s", argp[idx], argp[next_arg_idx]);
+					// this is a "text" argument
+					args_and_parms.str = v.at(next_arg_idx);
+					idx ++;
 				}
 			}
 			else
 			{
-				darknet_fatal_error(DARKNET_LOC, "expected a numeric parameter after %s", argp[idx]);
+				darknet_fatal_error(DARKNET_LOC, "expected an additional parameter after %s", v.at(idx).c_str());
 			}
 		}
+
+		args[iter->name] = args_and_parms;
 	}
 
 	if (args.count("verbose"		) > 0 or
@@ -317,6 +390,13 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 	}
 #endif
 
+	if (net and args.count("skipclasses"))
+	{
+		const ArgsAndParms & arg = get("skipclasses");
+
+		parse_skip_classes(net->details->classes_to_ignore, arg.str);
+	}
+
 #if 0 // for debug purposes, display all arguments
 	std::cout
 		<< "--------------------------------" << std::endl
@@ -328,8 +408,10 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 		std::cout
 			<< "IDX=" << val.arg_index
 			<< " NUM=" << val.value
+			<< " EXPECT=" << val.expect_parm
 			<< " KEY=" << key
-			<< " VAL=" << val.name;
+			<< " VAL=" << val.name
+			<< " STR=" << val.str;
 		if (val.name_alternate.empty() == false)
 		{
 			std::cout << " ALT=" << val.name_alternate;

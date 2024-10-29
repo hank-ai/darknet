@@ -69,9 +69,11 @@ void reset_network_state(Darknet::Network *net, int b)
 }
 
 
-void reset_rnn(Darknet::Network *net)
+void reset_rnn(DarknetNetworkPtr ptr)
 {
 	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 
 	reset_network_state(net, 0);
 }
@@ -930,11 +932,13 @@ int num_detections_batch(Darknet::Network * net, float thresh, int batch)
 }
 
 
-Darknet::Detection * make_network_boxes(Darknet::Network * net, float thresh, int *num)
+detection * make_network_boxes(DarknetNetworkPtr ptr, float thresh, int * num)
 {
 	/// @see @ref make_network_boxes_batch()
 
 	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 
 	// find the first layer that is one of these output types
 	Darknet::Layer l;
@@ -958,7 +962,7 @@ Darknet::Detection * make_network_boxes(Darknet::Network * net, float thresh, in
 		*num = nboxes;
 	}
 
-	Darknet::Detection * dets = (Darknet::Detection*)xcalloc(nboxes, sizeof(Darknet::Detection));
+	DarknetDetection * dets = (DarknetDetection*)xcalloc(nboxes, sizeof(DarknetDetection));
 	for (int i = 0; i < nboxes; ++i)
 	{
 		dets[i].prob = (float*)xcalloc(l.classes, sizeof(float));
@@ -1435,9 +1439,11 @@ det_num_pair * network_predict_batch(Darknet::Network * net, Darknet::Image im, 
 }
 
 
-float * network_predict_image_letterbox(Darknet::Network * net, Darknet::Image im)
+float * network_predict_image_letterbox(DarknetNetworkPtr ptr, DarknetImage im)
 {
 	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 
 	if (net->batch != 1)
 	{

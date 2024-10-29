@@ -131,6 +131,15 @@ namespace Darknet
 			 * @since 2024-07-30
 			 */
 			bool annotate_draw_label;
+
+			/** Indexes of classes which Darknet should ignore.
+			 *
+			 * @ref Darknet::skipped_classes()
+			 *
+			 * @since 2024-10-07
+			 */
+			SInt classes_to_ignore;
+
 	};
 
 
@@ -358,9 +367,6 @@ det_num_pair* network_predict_batch(Darknet::Network *net, Darknet::Image im, in
 void free_batch_detections(det_num_pair *det_num_pairs, int n);
 void fuse_conv_batchnorm(Darknet::Network & net);
 
-Darknet::Detection * make_network_boxes(Darknet::Network *net, float thresh, int *num);
-void reset_rnn(Darknet::Network *net);
-float * network_predict_image_letterbox(Darknet::Network *net, Darknet::Image im);
 float validate_detector_map(const char * datacfg, const char * cfgfile, const char * weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network *existing_net);
 void train_detector(const char *datacfg, const char *cfgfile, const char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, const char* chart_path);
 void test_detector(const char *datacfg, const char *cfgfile, const char *weightfile, const char *filename, float thresh, float hier_thresh, int dont_show, int ext_output, int save_labels, const char *outfile, int letter_box, int benchmark_layers);

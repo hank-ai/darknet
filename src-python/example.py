@@ -19,6 +19,9 @@ cfg_file = "../cfg/yolov4-tiny.cfg"
 names_file = "../cfg/coco.names"
 weights_file = "../yolov4-tiny.weights"
 
+darknet.set_verbose(True)
+darknet.show_version_info()
+
 # First thing we do is load the neural network.
 network = darknet.load_net_custom(cfg_file.encode("ascii"), weights_file.encode("ascii"), 0, 1)
 class_names = open(names_file).read().splitlines()

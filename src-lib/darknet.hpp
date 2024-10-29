@@ -85,7 +85,7 @@ namespace Darknet
 	 */
 	enum class EParmType
 	{
-		kUnknown		,
+		kUnknown		, ///< Should be unused.  See "kOther" instead for all other parameter types.
 		kCfgFilename	, ///< The configuration file to load.  There should only be 1 parameter of this type.
 		kNamesFilename	, ///< The names file to load.  There should only be 1 parameter of this type.
 		kWeightsFilename, ///< The weights file to load.  There should only be 1 parameter of this type.
@@ -315,7 +315,7 @@ namespace Darknet
 	 * @see @ref Darknet::parse_arguments()
 	 * @since 2024-07-29
 	 */
-	Darknet::NetworkPtr load_neural_network(const Darknet::Parms & parms);
+	Darknet::NetworkPtr load_neural_network(Darknet::Parms & parms);
 
 	/** Free the neural network pointer allocated in @ref Darknet::load_neural_network().  Does nothing if the pointer has
 	 * already been freed.  Will reset the pointer to @p nullptr once the structure has been freed.
@@ -461,6 +461,63 @@ namespace Darknet
 	 * @since 2024-09-07
 	 */
 	float iou(const cv::Rect & lhs, const cv::Rect & rhs);
+
+	/** Return the set of classes which %Darknet must ignore.  Default set is empty.
+	 *
+	 * @see @ref Darknet::skipped_classes()
+	 * @see @ref Darknet::clear_skipped_classes()
+	 * @see @ref Darknet::add_skipped_class()
+	 * @see @ref Darknet::del_skipped_class()
+	 *
+	 * @since 2024-10-07
+	 */
+	SInt skipped_classes(const Darknet::NetworkPtr ptr);
+
+	/** Set the classes which %Darknet must ignore, completely over-writing all previous values.  If you'd rather add a
+	 * single class at a time, call @ref add_skipped_class() which can be called repeatedly without overwriting previous
+	 * settings.
+	 *
+	 * @see @ref Darknet::skipped_classes()
+	 * @see @ref Darknet::clear_skipped_classes()
+	 * @see @ref Darknet::add_skipped_class()
+	 * @see @ref Darknet::del_skipped_class()
+	 *
+	 * @since 2024-10-07
+	 */
+	SInt skipped_classes(Darknet::NetworkPtr ptr, const SInt & classes_to_skip);
+
+	/** Clear the set of classes which %Darknet must ignore.  The default is for Darknet/YOLO to not skip any classes,
+	 * as if this function has been called.
+	 *
+	 * @see @ref Darknet::skipped_classes()
+	 * @see @ref Darknet::add_skipped_class()
+	 * @see @ref Darknet::del_skipped_class()
+	 *
+	 * @since 2024-10-07
+	 */
+	SInt clear_skipped_classes(Darknet::NetworkPtr ptr);
+
+	/** Add the given class index to the set of classes that %Darknet must ignore.  This may be called multiple times if
+	 * you have many classes you want skipped, or you can call @ref skipped_classes() if you want to set them all at once.
+	 *
+	 * @see @ref Darknet::skipped_classes()
+	 * @see @ref Darknet::clear_skipped_classes()
+	 * @see @ref Darknet::del_skipped_class()
+	 *
+	 * @since 2024-10-07
+	 */
+	SInt add_skipped_class(Darknet::NetworkPtr ptr, const int class_to_skip);
+
+	/** Remove the given class index from the set of classes that %Darknet must ignore.  This may be called multiple times
+	 * if there are several class indexes you'll like to restore.
+	 *
+	 * @see @ref Darknet::skipped_classes()
+	 * @see @ref Darknet::clear_skipped_classes()
+	 * @see @ref Darknet::add_skipped_class()
+	 *
+	 * @since 2024-10-07
+	 */
+	SInt del_skipped_class(Darknet::NetworkPtr ptr, const int class_to_include);
 
 	/** Display some information about this specific prediction.
 	 *

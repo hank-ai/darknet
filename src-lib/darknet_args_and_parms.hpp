@@ -27,16 +27,43 @@ namespace Darknet
 			/// Default constructor is needed for std::map.
 			ArgsAndParms();
 
-			/// Constructor.  @p n1 is the argument name, while @p n2 is an alternate name or spelling.
+			/** Constructor.
+			 * @param [in] n1 is the argument name.
+			 * @param [in] n2 is an alternate name or spelling.  This may be blank if there are no alternate spellings.
+			 * @param [in] txt is a short text description for this parameter.
+			 */
 			ArgsAndParms(const std::string & n1, const std::string & n2 = "", const std::string & txt = "");
 
+			/** Constructor.  This is mostly used for commands and functions, not parameters.
+			 * @param [in] n1 is the command or function name.
+			 * @param [in] t sets the parameter type.
+			 * @param [in] txt is a short text description for this parameter.
+			 */
 			ArgsAndParms(const std::string & n1, const EType t, const std::string & txt = "");
 
-			/// Constructor.  Next argument must be an @p int parameter.
+			/** Constructor.  This parameter requires the next argument be an @p int parameter.
+			 * @param [in] n1 is the argument name.
+			 * @param [in] n2 is an alternate name or spelling.  This may be blank if there are no alternate spellings.
+			 * @param [in] i is the default value to use for this parameter.
+			 * @param [in] txt is a short text description for this parameter.
+			 */
 			ArgsAndParms(const std::string & n1, const std::string & n2, const int i, const std::string & txt = "");
 
-			/// Constructor.  Next argument must be a @p float parameter.
+			/** Constructor.  This parameter requires the next argument be a @p float parameter.
+			 * @param [in] n1 is the argument name.
+			 * @param [in] n2 is an alternate name or spelling.  This may be blank if there are no alternate spellings.
+			 * @param [in] f is the default value to use for this parameter.
+			 * @param [in] txt is a short text description for this parameter.
+			 */
 			ArgsAndParms(const std::string & n1, const std::string & n2, const float f, const std::string & txt = "");
+
+			/** Constructor.  This parameter requires the next argument be a @p string parameter.
+			 * @param [in] n1 is the argument name.
+			 * @param [in] n2 is an alternate name or spelling.  This may be blank if there are no alternate spellings.
+			 * @param [in] str is the default value to use for this parameter.
+			 * @param [in] txt is a short text description for this parameter.
+			 */
+			ArgsAndParms(const std::string & n1, const std::string & n2, const std::string & str, const std::string & txt);
 
 			/// The name of the argument or command.  For example, this could be @p "dontshow" or @p "version".
 			std::string name;
@@ -56,6 +83,9 @@ namespace Darknet
 
 			/// If @p expect_parm is @p true, then this would be the numeric value that comes next.
 			float value;
+
+			/// If @p expect_parm is @p true, then this would be the text string that comes next.
+			std::string str;
 
 			/// If this parameter is a filename, or the value is a filename, the path is stored here.
 			std::filesystem::path filename;
