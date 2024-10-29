@@ -32,10 +32,11 @@ int main(int argc, char * argv[])
 
 		std::string stream = "rtp://239.0.0.1:43210";
 
-		// see if the user gave a specific RTP stream to use
+		// see if the user gave a specific RTP or RTSP stream to use
 		for (const auto & parm : parms)
 		{
-			if (parm.type == Darknet::EParmType::kOther and parm.string.find("rtp") == 0)
+			if (parm.type == Darknet::EParmType::kOther and
+				(parm.string.find("rtp") == 0 or parm.string.find("rtsp") == 0))
 			{
 				stream = parm.string;
 				break;
