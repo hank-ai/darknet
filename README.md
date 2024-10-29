@@ -95,7 +95,7 @@ The MSCOCO pre-trained weights can be downloaded from several different location
   * [YOLOv7-tiny](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807483279)
   * [YOLOv7-full](https://github.com/hank-ai/darknet/issues/21#issuecomment-1807483787)
 
-The MSCOCO pre-trained weights are provided for demo-purpose only.  The corresponding @p .cfg and @p .names files for MSCOCO are in [the cfg directory](cfg/).  Example commands:
+The MSCOCO pre-trained weights are provided for demo-purpose only.  The corresponding `.cfg` and `.names` files for MSCOCO are in [the cfg directory](cfg/).  Example commands:
 
 ```sh
 wget --no-clobber https://github.com/hank-ai/darknet/releases/download/v2.0/yolov4-tiny.weights
