@@ -26,17 +26,18 @@ Darknet is an open source neural network framework written in C, C++, and CUDA.
 
 YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection system, which runs in the Darknet framework.
 
-* Read how [Hank.ai is helping the Darknet/YOLO community](https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/)
-* See the Darknet/YOLO web site:  https://darknetcv.ai/
-* Please read through the Darknet/YOLO FAQ:  https://www.ccoderun.ca/programming/darknet_faq/
-* Join the Darknet/YOLO discord server:  https://discord.gg/zSq8rtW
+* Read how **[Hank.ai is helping the Darknet/YOLO community](https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/)**
+* Announcing **[Darknet V3 "Jazz"](https://hank.ai/announcing-darknet-v3-a-quantum-leap-in-open-source-object-detection/)**
+* See the **[Darknet/YOLO web site](https://darknetcv.ai/)**
+* Please read through the **[Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/)**
+* Join the **[Darknet/YOLO discord server](https://discord.gg/zSq8rtW)**
 
 # Papers
 
-* Paper **YOLOv7**:  https://arxiv.org/abs/2207.02696
-* Paper **Scaled-YOLOv4**:  https://openaccess.thecvf.com/content/CVPR2021/html/Wang_Scaled-YOLOv4_Scaling_Cross_Stage_Partial_Network_CVPR_2021_paper.html
-* Paper **YOLOv4**:  https://arxiv.org/abs/2004.10934
-* Paper **YOLOv3**:  https://arxiv.org/abs/1804.02767
+* Paper **[YOLOv7](https://arxiv.org/abs/2207.02696)**
+* Paper **[Scaled-YOLOv4](https://openaccess.thecvf.com/content/CVPR2021/html/Wang_Scaled-YOLOv4_Scaling_Cross_Stage_Partial_Network_CVPR_2021_paper.html)**
+* Paper **[YOLOv4](https://arxiv.org/abs/2004.10934)**
+* Paper **[YOLOv3](https://arxiv.org/abs/1804.02767)**
 
 # General Information
 
@@ -444,7 +445,7 @@ darknet detector -map -dont_show --verbose train animals.data animals.cfg
 
 # Roadmap
 
-Last updated 2024-10-03:
+Last updated 2024-10-30:
 
 ## Completed
 
@@ -476,26 +477,27 @@ Last updated 2024-10-03:
 * [X] re-write darknet.h
 * [X] do not cast `cv::Mat` to `void*` but use it as a proper C++ object
 * [X] fix or be consistent in how internal `image` structure gets used
+* [X] fix build for ARM-based Jetson devices
+	* [ ] ~~original Jetson devices are unlikely to be fixed since they are no longer supported by NVIDIA (no C++17 compiler)~~
+	* [X] new Jetson Orin devices are working
+* [X] fix Python API in V3
+	* [ ] better support for Python is needed (any Python developers want to help with this?)
 
 ## Short-term goals
 
-* [ ] fix Python API in V3
-* [ ] swap out printf() for std::cout (in progress)
+* [ ] swap out printf() for std::cout **(in progress)**
 * [ ] look into old zed camera support
-* [ ] better and more consistent command line parsing (in progress)
+* [ ] better and more consistent command line parsing **(in progress)**
 
 ## Mid-term goals
 
 * [ ] remove all `char*` code and replace with `std::string`
-* [ ] don't hide warnings and clean up compiler warnings (in progress)
-* [ ] fix build for ARM-based Jetson devices
-	* [ ] original Jetson devices are unlikely to be fixed
-	* [X] new Jetson Orin devices should work
-* [ ] better use of `cv::Mat` instead of the custom `image` structure in C (in progress)
+* [ ] don't hide warnings and clean up compiler warnings **(in progress)**
+* [ ] better use of `cv::Mat` instead of the custom `image` structure in C **(in progress)**
 * [ ] replace old `list` functionality with `std::vector` or `std::list`
 * [ ] fix support for 1-channel greyscale images
 * [ ] add support for N-channel images where N > 3 (e.g., images with an additional depth or thermal channel)
-* [ ] on-going code cleanup (in progress)
+* [ ] on-going code cleanup **(in progress)**
 
 ## Long-term goals
 
@@ -504,5 +506,6 @@ Last updated 2024-10-03:
 * [ ] look into adding support for non-NVIDIA GPUs
 * [ ] rotated bounding boxes, or some sort of "angle" support
 * [ ] keypoints/skeletons
-* [ ] heatmaps
+* [ ] heatmaps **(in progress)**
 * [ ] segmentation
+
