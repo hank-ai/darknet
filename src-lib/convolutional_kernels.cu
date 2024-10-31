@@ -1,4 +1,6 @@
 #include "darknet_internal.hpp"
+#include "gemm.hpp"
+#include "col2im.hpp"
 #include "im2col.hpp"
 
 
