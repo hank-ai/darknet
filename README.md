@@ -153,7 +153,7 @@ mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release ..
 make -j4 package
-sudo dpkg -i darknet-VERSION.deb
+sudo dpkg -i darknet-<INSERT-VERSION-YOU-BUILT-HERE>.deb
 ```
 
 **If you are using an older version of CMake** then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu can be done with the following commands:
@@ -224,7 +224,9 @@ Once everything is downloaded and installed, click on the "Windows Start" menu a
 >
 > Instead of running the `Developer Command Prompt`, you can use a normal command prompt or ssh into the device and manually run `"\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`.
 
-Once you have the **Developer Command Prompt** running as described above (not PowerShell!) run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
+Lots of people make the same mistake and think they can skip the previous step.  **Please don't skip this step!**  Do not use a normal command prompt nor PowerShell!  Re-read the steps above to see what kind of window you **must** be using.  Anytime you want to use Visual Studio from the command prompt to compile C++ code you must use the Visual Studio developer command prompt as described above.
+
+Once you have the **Developer Command Prompt** running as described above run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
 
 ```bat
 cd c:\
@@ -283,11 +285,11 @@ msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 >
 > Note that the output of the `cmake` command is a normal Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio.
 
-You should now have this file you can run:  `C:\src\Darknet\build\src-cli\Release\darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src-cli\Release\darknet.exe version`.
+You should now have this file you can run:  `C:\src\Darknet\build\src-cli\Release\darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src-cli\Release\darknet.exe --version`.
 
-To correctly install Darknet, the libraries, the include files, and the necessary DLLs, **run the NSIS installation wizard** that was built in the last step.  See the file `darknet-VERSION.exe` in the `build` directory.  For example:
+To correctly install Darknet, the libraries, the include files, and the necessary DLLs, **run the NSIS installation wizard** that was built in the last step.  See the file `darknet-<INSERT-VERSION-YOU-BUILT-HERE>-win64.exe` in the `build` directory.  For example:
 ```bat
-darknet-2.0.31-win64.exe
+darknet-<INSERT-VERSION-YOU-BUILT-HERE>-win64.exe
 ```
 
 Installing the NSIS installation package will:
@@ -445,7 +447,7 @@ darknet detector -map -dont_show --verbose train animals.data animals.cfg
 
 # Roadmap
 
-Last updated 2024-10-30:
+Last updated 2024-11-02:
 
 ## Completed
 
@@ -478,7 +480,7 @@ Last updated 2024-10-30:
 * [X] do not cast `cv::Mat` to `void*` but use it as a proper C++ object
 * [X] fix or be consistent in how internal `image` structure gets used
 * [X] fix build for ARM-based Jetson devices
-	* [ ] ~~original Jetson devices are unlikely to be fixed since they are no longer supported by NVIDIA (no C++17 compiler)~~
+	* [ ] ~~original Jetson devices~~ (unlikely to fix since they are no longer supported by NVIDIA and do not have a C++17 compiler)
 	* [X] new Jetson Orin devices are working
 * [X] fix Python API in V3
 	* [ ] better support for Python is needed (any Python developers want to help with this?)
@@ -508,4 +510,3 @@ Last updated 2024-10-30:
 * [ ] keypoints/skeletons
 * [ ] heatmaps **(in progress)**
 * [ ] segmentation
-
