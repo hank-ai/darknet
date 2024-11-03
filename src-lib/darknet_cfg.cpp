@@ -582,7 +582,8 @@ Darknet::CfgFile & Darknet::CfgFile::read()
 		total_lines ++;
 
 		std::smatch matches;
-		if (std::regex_match(line, matches, rx))
+
+		if (std::regex_search(line, matches, rx))
 		{
 			// line is either a section name, or a key-value pair -- check for a section name first
 
@@ -606,8 +607,8 @@ Darknet::CfgFile & Darknet::CfgFile::read()
 					darknet_fatal_error(DARKNET_LOC, "cannot add a configuration line without a section at line #%ld in %s", total_lines, filename.string().c_str());
 				}
 
-				const std::string key = matches.str(2);
-				const std::string val = matches.str(3);
+				const std::string key = Darknet::trim(matches.str(2));
+				const std::string val = Darknet::trim(matches.str(3));
 
 				auto & s = (sections.empty() == false ? sections.back() : network_section);
 
