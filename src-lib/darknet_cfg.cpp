@@ -581,6 +581,13 @@ Darknet::CfgFile & Darknet::CfgFile::read()
 	{
 		total_lines ++;
 
+		// strip whitespace at the end of line, which should help us ignore \n and \r\n problems between Windows and Linux
+		const size_t pos = line.find_last_not_of(" \t\r\n");
+		if (pos != std::string::npos)
+		{
+			line.erase(pos + 1);
+		}
+
 		std::smatch matches;
 
 		if (std::regex_search(line, matches, rx))
