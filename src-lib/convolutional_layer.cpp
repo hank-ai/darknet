@@ -443,9 +443,11 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 	CHECK_CUDA(cudaMemGetInfo(&free_memory, &total_memory));
 //	std::cout << "CUDA memory: free=" << size_to_IEC_string(free_memory) << " total=" << size_to_IEC_string(total_memory) << std::endl;
 
+#if 0
 	cudaDeviceProp prop;
 	CHECK_CUDA(cudaGetDeviceProperties(&prop, std::max(0, cfg_and_state.gpu_index)));
 	const auto compu_capability_ver = prop.major * 10 + prop.minor; // e.g., "86" for RTX30xx, or "89" for RTX40xx
+#endif
 
 	found_conv_algorithm = 0;
 	min_time = 1000000;   // 1000 sec
