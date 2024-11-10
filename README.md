@@ -132,9 +132,13 @@ See the notebooks in the `colab` subdirectory, and/or follow the Linux instructi
 
 ## WSL
 
-If you have a modern version of Windows and a decent computer, then the use of WSL (Windows Subsystem for Linux) and Ubuntu 24.04 LTS is **highly recommended**.  If not already familiar with it, WSL is a feature in Windows which allows people to run Linux-based applications from within their Windows desktop.  This is similar to a virtual machine with host/guest extensions.  Linux apps running in WSL have access to the GPU if you install the Linux NVIDIA driver for WSL, and you can train a new network with Darknet/YOLO running within WSL.
+If you have a modern version of Windows and a decent computer, then the use of WSL (Windows Subsystem for Linux) and Ubuntu 24.04 LTS is **highly recommended**.
 
-Once WSL is installed, run `sudo apt-get update` at least once from your Ubuntu command prompt to get the updated list of packages, and then follow the usual [Linux instructions](#linux-cmake-method).
+WSL is a feature in Windows which allows people to run Linux-based applications from within their Windows desktop.  This is similar to a virtual machine with host/guest extensions.  Linux apps running in WSL have access to the GPU if you [install the Linux NVIDIA driver for WSL](https://docs.nvidia.com/cuda/wsl-user-guide/), and you can train a new network with Darknet/YOLO running within WSL.
+
+[Once WSL is installed](https://learn.microsoft.com/windows/wsl/install), run `sudo apt-get update` at least once from your Ubuntu command prompt to get the updated list of packages, and then follow the usual [Linux instructions](#linux-cmake-method).
+
+If you don't want to use Darknet/YOLO from within WSL, then skip ahead to the [Windows instructions](#windows-cmake-method).
 
 ## Linux CMake Method
 
@@ -209,9 +213,10 @@ You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run t
 
 ## Windows CMake Method
 
-These instructions assume a brand new installation of Windows 11 22H2.
+> Before building Darknet/YOLO for Windows please see the note about using [WSL](#wsl).  (Spoiler ... Darknet/YOLO works great in WSL!)
 
-> If you've not yet seen it, before building Darknet/YOLO for Windows please see the note about using [WSL](#wsl).  (Spoiler ... Darknet/YOLO works great in WSL!)
+- These instructions assume a brand new installation of Windows 11 22H2.
+- These instructions are for a native Windows installation, not using WSL.  If you'd rather use WSL, see [above](#wsl).
 
 Open a normal `cmd.exe` command prompt window and run the following commands:
 
