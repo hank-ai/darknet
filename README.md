@@ -7,6 +7,7 @@
 * [MSCOCO Pre-trained Weights](#mscoco-pre-trained-weights)
 * [Building](#building)
 	* [Google Colab](#google-colab)
+	* [WSL](#wsl)
 	* [Linux CMake Method](#linux-cmake-method)
 	* [Windows CMake Method](#windows-cmake-method)
 * [Using Darknet](#using-darknet)
@@ -115,6 +116,7 @@ The various build methods available in the past (pre-2023) have been merged toge
 **You do not need to know C++ to build, install, nor run Darknet/YOLO, the same way you don't need to be a mechanic to drive a car.**
 
 * [Google Colab](#google-colab)
+* [WSL](#wsl)
 * [Linux](#linux-cmake-method)
 * [Windows](#windows-cmake-method)
 
@@ -127,6 +129,12 @@ Software developers are encouraged to visit https://darknetcv.ai/ to get informa
 The Google Colab instructions are the same as the [Linux](#linux-cmake-method) instructions.  Several Jupyter notebooks are available showing how to do certain tasks, such as training a new network.
 
 See the notebooks in the `colab` subdirectory, and/or follow the Linux instructions below.
+
+## WSL
+
+If you have a modern version of Windows and a decent computer, then the use of WSL (Windows Subsystem for Linux) and Ubuntu 24.04 LTS is **highly recommended**.  If not already familiar with it, WSL is a feature in Windows which allows people to run Linux-based applications from within their Windows desktop.  This is similar to a virtual machine with host/guest extensions.  Linux apps running in WSL have access to the GPU if you install the Linux NVIDIA driver for WSL, and you can train a new network with Darknet/YOLO running within WSL.
+
+Once WSL is installed, run `sudo apt-get update` at least once from your Ubuntu command prompt to get the updated list of packages, and then follow the usual [Linux instructions](#linux-cmake-method).
 
 ## Linux CMake Method
 
@@ -203,6 +211,8 @@ You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run t
 
 These instructions assume a brand new installation of Windows 11 22H2.
 
+> If you've not yet seen it, before building Darknet/YOLO for Windows please see the note about using [WSL](#wsl).  (Spoiler ... Darknet/YOLO works great in WSL!)
+
 Open a normal `cmd.exe` command prompt window and run the following commands:
 
 ```bat
@@ -218,13 +228,14 @@ At this point we need to modify the Visual Studio installation to include suppor
 * click on `Modify`
 * select `Desktop Development With C++`
 * click on `Modify` in the bottom-right corner, and then click on `Yes`
-Once everything is downloaded and installed, click on the "Windows Start" menu again and select `Developer Command Prompt for VS 2022`.  **Do not** use PowerShell for these steps, you will run into problems!
+
+**IMPORTANT:** Once everything is downloaded and installed, click on the "Windows Start" menu again and select `Developer Command Prompt for VS 2022`.  **Do not** use PowerShell for these steps, you will run into problems!
 
 > Advanced users:
 >
 > Instead of running the `Developer Command Prompt`, you can use a normal command prompt or ssh into the device and manually run `"\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`.
 
-Lots of people make the same mistake and think they can skip the previous step.  **Please don't skip this step!**  Do not use a normal command prompt nor PowerShell!  Re-read the steps above to see what kind of window you **must** be using.  Anytime you want to use Visual Studio from the command prompt to compile C++ code you must use the Visual Studio developer command prompt as described above.
+Lots of people make the same mistake and think they can skip the previous step.  **Please don't skip this step!**  Do not use a normal command prompt, nor PowerShell!  Re-read the steps above to see what kind of window you **must** be using.  Anytime you want to use Visual Studio from the command prompt to compile C++ code you must use the Visual Studio developer command prompt as described above.
 
 Once you have the **Developer Command Prompt** running as described above run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
 
@@ -255,9 +266,10 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
 		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
 		* Remember to re-build Darknet.
-	* CUDA **must** be installed **after** Visual Studio.  If you upgrade Visual Studio, remember to re-install CUDA.
+	* CUDA **must** be installed **after** Visual Studio.  If you re-install or upgrade Visual Studio, remember to re-install CUDA.
+	* It is a good idea to reboot Windows after installing CUDA or CUDA+cuDNN.
 
-Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies:
+Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies.  Make sure you continue to use the **Developer Command Prompt** as described above when you run these commands:
 
 ```bat
 cd c:\src
