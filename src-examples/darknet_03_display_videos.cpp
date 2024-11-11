@@ -83,7 +83,7 @@ int main(int argc, char * argv[])
 			}
 
 			const std::string title = "Darknet/YOLO - " + std::filesystem::path(parm.string).filename().string();
-			cv::Mat mat(video_height, video_width, CV_8UC3, cv::Scalar::zeros());
+			cv::Mat mat(video_height, video_width, CV_8UC3, {0, 0, 0});
 			cv::namedWindow("output", cv::WindowFlags::WINDOW_GUI_NORMAL);
 			cv::setWindowTitle("output", title);
 			cv::resizeWindow("output", mat.size());

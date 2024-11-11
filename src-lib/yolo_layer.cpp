@@ -908,7 +908,6 @@ void process_batch(void* ptr)
 }
 
 
-
 void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
@@ -1618,12 +1617,12 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 	const float two_times_sigma_square = 2.0f * std::max(1.0f, sigma * sigma);
 
 	MMats m;
-	m[-1] = cv::Mat(net->h, net->w, CV_32FC1, cv::Scalar::zeros());
+	m[-1] = cv::Mat(net->h, net->w, CV_32FC1, {0, 0, 0});
 	for (size_t idx = 0; idx < net->details->class_names.size(); idx ++)
 	{
 		if (net->details->classes_to_ignore.count(idx) == 0)
 		{
-			m[idx] = cv::Mat(net->h, net->w, CV_32FC1, cv::Scalar::zeros());
+			m[idx] = cv::Mat(net->h, net->w, CV_32FC1, {0, 0, 0});
 		}
 	}
 
