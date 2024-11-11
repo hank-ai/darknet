@@ -2102,6 +2102,8 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold)
 
 cv::Mat Darknet::visualize_heatmap(const cv::Mat & heatmap, const cv::ColormapTypes colourmap)
 {
+	TAT(TATPARMS);
+
 	if (heatmap.type() != CV_32FC1)
 	{
 		throw std::invalid_argument("heatmap should be of type 32FC1, not " + std::to_string(heatmap.type()));

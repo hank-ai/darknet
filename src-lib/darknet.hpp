@@ -13,14 +13,17 @@
  * https://darknetcv.ai/api/api.html
  */
 
+#include <atomic>
+#include <ciso646>
 #include <filesystem>
+#include <iostream>
 #include <map>
 #include <optional>
 #include <ostream>
 #include <set>
 #include <string>
+#include <thread>
 #include <vector>
-#include <ciso646>
 
 #include <opencv2/opencv.hpp>
 
@@ -569,7 +572,7 @@ namespace Darknet
 	 *
 	 * @since 2024-11-09
 	 */
-	MMats create_yolo_heatmaps(Darknet::Network * net, const float sigma = 15.0f);
+	MMats create_yolo_heatmaps(Darknet::NetworkPtr ptr, const float sigma = 15.0f);
 
 	/** Convert a heatmap created with @ref Darknet::create_yolo_heatmaps() to an easy-to-view image.  This will normalize
 	 * the image, and apply some false colours.  The OpenCV colour map @p COLORMAP_JET is quite colourful; others that can

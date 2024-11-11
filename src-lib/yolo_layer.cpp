@@ -1605,8 +1605,16 @@ void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 #endif
 
 
-Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::Network * net, const float sigma)
+Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const float sigma)
 {
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	if (net == nullptr)
+	{
+		throw std::invalid_argument("cannot generate heatmaps without a network pointer");
+	}
+
 	const float two_times_sigma_square = 2.0f * std::max(1.0f, sigma * sigma);
 
 	MMats m;
