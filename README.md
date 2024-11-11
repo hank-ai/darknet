@@ -399,6 +399,10 @@ darknet detector calc_anchors animals.data -num_of_clusters 6 -width 320 -height
 * Train a new network:
 	* `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below)
 
+* Display YOLO heatmaps:
+	* V3:  `darknet_02_display_annotated_images --heatmaps cars images/*.jpg`
+	* V3:  `darknet_03_display_videos --heatmaps cars videos/*.m4v`
+
 ## Training
 
 Quick links to relevant sections of the Darknet/YOLO FAQ:

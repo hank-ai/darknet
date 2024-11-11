@@ -134,7 +134,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("benchmarklayers"		),
 		ArgsAndParms("letterbox"			),
 		ArgsAndParms("points"				), //-- takes an int?  0
-		ArgsAndParms("random"				, ArgsAndParms::EType::kParameter, "Randomize the list of images."),
+		ArgsAndParms("random"				, ArgsAndParms::EType::kParameter, "Randomize the list of images.  Default is to sort alphabetically."),
 		ArgsAndParms("show"					, ArgsAndParms::EType::kParameter, "Visually display the anchors."),
 		ArgsAndParms("heatmaps"				, ArgsAndParms::EType::kParameter, "Display the heatmaps for each class."),
 		ArgsAndParms("showimgs"				),
@@ -334,7 +334,15 @@ void Darknet::display_usage()
 		<< "  Display the weights from different layers in a neural network:"						<< std::endl
 		<< YELLOW("    darknet visualize --verbose cars.cfg cars_best.weights")						<< std::endl
 		<< ""																						<< std::endl
-		;
+		<< "  Display the YOLO heatmaps alongside images and videos:"								<< std::endl
+		<< YELLOW("    darknet_02_display_annotated_images --heatmaps cars images/*.jpg")			<< std::endl
+		<< YELLOW("    darknet_03_display_videos --heatmaps cars videos/*.m4v")						<< std::endl
+		<< ""																						<< std::endl
+		<< "  Randomize (versus alphabetically sorting) the set of images or videos:"				<< std::endl
+		<< YELLOW("    darknet_02_display_annotated_images --random cars images/*.jpg")				<< std::endl
+		<< YELLOW("    darknet_03_display_videos --random cars videos/*.m4v")						<< std::endl
+		<< ""																						<< std::endl;
 
 	return;
 }
+

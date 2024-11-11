@@ -3,6 +3,8 @@
  */
 
 #include "darknet.hpp"
+#include "darknet_cfg_and_state.hpp"
+
 
 /** @file
  * This application will display processed images in a GUI window.  Call it like this:
@@ -26,31 +28,47 @@ int main(int argc, char * argv[])
 
 		for (const auto & parm : parms)
 		{
-			if (parm.type == Darknet::EParmType::kFilename)
+			if (parm.type != Darknet::EParmType::kFilename)
 			{
-				std::cout << "processing " << parm.string << std::endl;
+				continue;
+			}
 
-				const std::string title = "Darknet/YOLO - " + std::filesystem::path(parm.string).filename().string();
+			std::cout << "processing " << parm.string << std::endl;
 
-				cv::Mat mat = cv::imread(parm.string);
+			const std::string title = "Darknet/YOLO - " + std::filesystem::path(parm.string).filename().string();
 
-				Darknet::resize_keeping_aspect_ratio(mat, cv::Size(1024, 768));
+			cv::Mat mat = cv::imread(parm.string);
 
-				cv::imshow("original", mat);
-				cv::resizeWindow("original", mat.size());
-				cv::setWindowTitle("original", title + " [original]");
+			Darknet::resize_keeping_aspect_ratio(mat, cv::Size(1024, 768));
 
-				Darknet::predict_and_annotate(net, mat);
+			cv::namedWindow("original", cv::WindowFlags::WINDOW_GUI_NORMAL);
+			cv::setWindowTitle("original", title + " [original]");
+			cv::resizeWindow("original", mat.size());
+			cv::imshow("original", mat);
 
-				cv::imshow("output", mat);
-				cv::resizeWindow("output", mat.size());
-				cv::setWindowTitle("output", title + " [annotated]");
+			Darknet::predict_and_annotate(net, mat);
 
-				const char c = cv::waitKey(-1);
-				if (c == 27) // ESC
+			cv::namedWindow("output", cv::WindowFlags::WINDOW_GUI_NORMAL);
+			cv::setWindowTitle("output", title + " [annotated]");
+			cv::resizeWindow("output", mat.size());
+			cv::imshow("output", mat);
+
+			if (Darknet::CfgAndState::get().is_set("heatmaps"))
+			{
+				const auto maps = Darknet::create_yolo_heatmaps(net);
+				for (const auto & [k, v] : maps)
 				{
-					break;
+					const std::string name = std::to_string(k);
+					cv::namedWindow(name, cv::WindowFlags::WINDOW_GUI_NORMAL);
+					cv::resizeWindow(name, v.size());
+					cv::imshow(name, Darknet::visualize_heatmap(v));
 				}
+			}
+
+			const char c = cv::waitKey(-1);
+			if (c == 27) // ESC
+			{
+				break;
 			}
 		}
 
