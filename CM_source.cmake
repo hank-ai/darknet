@@ -50,7 +50,7 @@ IF (UNIX)
 
 	ADD_COMPILE_OPTIONS (-Wall)					# enable "all" warnings
 	ADD_COMPILE_OPTIONS (-Wextra)				# enable even more warnings
-	ADD_COMPILE_OPTIONS (-Wshadow=global)		# enable warnings when duplicate variables are created with the same name
+	ADD_COMPILE_OPTIONS (-Wshadow=local)		# enable warnings when duplicate variables are created with the same name
 	ADD_COMPILE_OPTIONS (-Wno-unused-parameter)	# don't report this error
 
 	IF (CMAKE_BUILD_TYPE MATCHES DEBUG OR
