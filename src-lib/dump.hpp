@@ -13,4 +13,10 @@ namespace Darknet
 	void dump(Darknet::Network * net, const Darknet::CfgFile::CommonParms & parms);
 	void dump(Darknet::CfgFile & cfg);
 	/// @}
+
+	/// Dump to @p std::cout the given block of memory.
+	void dump(const float * ptr, const size_t count, const size_t row_len = 20);
+
+	/// Dump the given layer's output buffer to @p std::cout.
+	void dump(const Darknet::Layer & l);
 }

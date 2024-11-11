@@ -68,13 +68,19 @@ namespace Darknet
 	/** This is used to help keep some state between calls to functions fill_network_boxes(), get_yolo_detections(), etc.
 	 * We use the cache to track objects within the output array, so we don't have to walk over the entire array every
 	 * time we need to find all the objects and bounding boxes.
+	 *
+	 * @since 2024-06-02
+	 *
+	 * @see @ref yolo_num_detections_v3() where the cache is populated (in yolo_layer.cpp)
+	 * @see @ref get_yolo_detections_v3() where the cache is accessed and converted to bounding boxes
+	 * @see @ref make_network_boxes_v3()
 	 */
 	struct Output_Object
 	{
 		int layer_index;	///< The layer index where this was found.
-		int n;				///< What is "n"...the mask number?
-		int i;				///< The index into the float output array for the given layer.
-		int obj_index;		///< The object index.
+		int n;				///< What is "n"...the mask (anchor?) number?
+		int i;				///< The entry index into the W x H output array for the given YOLO layer.
+		int obj_index;		///< The index into the YOLO output array -- as obtained from @ref yolo_entry_index() -- which is used to get the objectness value.  E.g., a value of @p "l.output[obj_index] == 0.999f" would indicate that there is an object at this location.
 	};
 	using Output_Object_Cache = std::list<Output_Object>;
 
@@ -321,7 +327,14 @@ void top_k(float *a, int n, int k, int *index);
 // gemm.h
 void init_cpu();
 
+/** Count the number of objects found in the current image.  Only looks at the YOLO layer at @p index within the
+ * network.  Starting with V3 JAZZ, this will also populate (appends, does not clear!) the object cache with the
+ * location of all objects found so we don't have to look through the entire YOLO output again when creating the
+ * boxes.
+ */
 int yolo_num_detections_v3(Darknet::Network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache);
+
+/// Convert everything we've detected into bounding boxes and confidence scores for each class.
 int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection *dets, int letter, Darknet::Output_Object_Cache & cache);
 
 #include "darknet_args_and_parms.hpp"
@@ -347,3 +360,4 @@ int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int n
 #include "dark_cuda.hpp"
 #include "tree.hpp"
 #include "activations.hpp"
+#include "dump.hpp"

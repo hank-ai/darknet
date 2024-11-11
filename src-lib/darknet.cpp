@@ -5,6 +5,7 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
+
 std::string get_windows_version()
 {
 	// Oh, this is ugly...why is it so complicated to get an accurate version number or product name from Windows?
@@ -1065,7 +1066,7 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 		}
 
 		// insert all the image filenames into "parms"
-		for (const auto fn : v)
+		for (const auto & fn : v)
 		{
 			Parm parm;
 			parm.idx = -1;

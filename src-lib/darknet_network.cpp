@@ -878,6 +878,7 @@ int num_detections(Darknet::Network * net, float thresh)
 }
 
 
+/// Basically a wrapper for @ref yolo_num_detections_v3().  @returns the number of objects found in the current image
 int num_detections_v3(Darknet::Network * net, float thresh, Darknet::Output_Object_Cache & cache)
 {
 	TAT(TATPARMS);
@@ -1005,7 +1006,7 @@ Darknet::Detection * make_network_boxes_v3(Darknet::Network * net, const float t
 {
 	TAT(TATPARMS);
 
-	// find a layer that is one of these 4 types
+	// find a layer that is one of these types
 	const Darknet::Layer & l = [&net]()
 	{
 		for (int i = 0; i < net->n; ++i)
@@ -2096,4 +2097,27 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold)
 #endif
 		}
 	}
+}
+
+
+cv::Mat Darknet::visualize_heatmap(const cv::Mat & heatmap, const cv::ColormapTypes colourmap)
+{
+	if (heatmap.type() != CV_32FC1)
+	{
+		throw std::invalid_argument("heatmap should be of type 32FC1, not " + std::to_string(heatmap.type()));
+	}
+
+	double min_val = 0.0;
+	double max_val = 0.0;
+	cv::minMaxLoc(heatmap, &min_val, &max_val);
+
+	// normalize the heatmap values
+	cv::Mat mat = (heatmap - min_val) / (max_val - min_val);
+
+	// convert the single-channel normalized heatmap to a colour image
+	mat.convertTo(mat, CV_8UC1, 255.0); // mat contains normalized values, so multiply by 255 to get the full range of "bytes"
+	cv::Mat colour;
+	cv::applyColorMap(mat, colour, colourmap);
+
+	return colour;
 }

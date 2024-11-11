@@ -41,6 +41,7 @@ namespace Darknet
 	using VInt			= std::vector<int>;
 	using VStr			= std::vector<std::string>;
 	using VScalars		= std::vector<cv::Scalar>;
+	using MMats			= std::map<int, cv::Mat>;
 	using NetworkPtr	= DarknetNetworkPtr;
 	using Box			= DarknetBox;
 	using Detection		= DarknetDetection;
@@ -554,4 +555,27 @@ namespace Darknet
 	 * @since 2024-08-06
 	 */
 	std::ostream & operator<<(std::ostream & os, const Darknet::Predictions & preds);
+
+	/** Create several @p CV_32FC1 (array of 32-bit floats, single channel) @p cv::Mat objects representing heatmaps
+	 * obtained from the YOLO layers in the network.  There is a heatmap for each class, and then another heatmap which
+	 * combines all classes.  The class index is used to store each heatmap in the @p std::map result, while the combined
+	 * heatmap is stored with an index of @p -1.
+	 *
+	 * The dimensions of each heatmap will match the network dimensions.  The values returned in each heatmap will be
+	 * between @p 0.0f and some relatively small float value which may be larger than @p 1.0f.
+	 *
+	 * The heatmaps can be shown directly using OpenCV's @p cv::imshow(), but the results will appear much better if the
+	 * values are normalized and coloured, similar to how it is done in @ref Darknet::visualize_heatmap().
+	 *
+	 * @since 2024-11-09
+	 */
+	MMats create_yolo_heatmaps(Darknet::Network * net, const float sigma = 15.0f);
+
+	/** Convert a heatmap created with @ref Darknet::create_yolo_heatmaps() to an easy-to-view image.  This will normalize
+	 * the image, and apply some false colours.  The OpenCV colour map @p COLORMAP_JET is quite colourful; others that can
+	 * be tried include @p COLORMAP_RAINBOW, @p COLORMAP_HOT, @p COLORMAP_TURBO, and many others.
+	 *
+	 * @since 2024-11-09
+	 */
+	cv::Mat visualize_heatmap(const cv::Mat & heatmap, const cv::ColormapTypes colourmap = cv::ColormapTypes::COLORMAP_JET);
 }

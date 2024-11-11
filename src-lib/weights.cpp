@@ -1,6 +1,5 @@
 #include "option_list.hpp"
 #include "darknet_internal.hpp"
-#include "dump.hpp"
 
 namespace
 {

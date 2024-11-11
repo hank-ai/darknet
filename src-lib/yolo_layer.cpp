@@ -943,13 +943,12 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		return;
 	}
 
-	int i;
-	for (i = 0; i < l.batch * l.w*l.h*l.n; ++i)
+	for (int i = 0; i < l.batch * l.w*l.h*l.n; ++i)
 	{
 		l.labels[i] = -1;
 	}
 
-	for (i = 0; i < l.batch * l.w*l.h*l.n; ++i)
+	for (int i = 0; i < l.batch * l.w*l.h*l.n; ++i)
 	{
 		l.class_ids[i] = -1;
 	}
@@ -1022,7 +1021,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		float cur_max = 0;
 		float cur_avg = 0;
 		float counter = 0;
-		for (i = 0; i < l.batch * l.outputs; ++i)
+		for (int i = 0; i < l.batch * l.outputs; ++i)
 		{
 			if (l.delta[i] != 0)
 			{
@@ -1055,7 +1054,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 
 			float cur_std = 0;
 			float counter = 0;
-			for (i = 0; i < l.batch * l.outputs; ++i)
+			for (int i = 0; i < l.batch * l.outputs; ++i)
 			{
 				if (l.delta[i] != 0)
 				{
@@ -1070,7 +1069,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			float final_badlebels_threshold = rolling_avg + rolling_std * state.net.num_sigmas_reject_badlabels;
 			float badlabels_threshold = rolling_max - progress_badlabels * fabs(rolling_max - final_badlebels_threshold);
 			badlabels_threshold = max_val_cmp(final_badlebels_threshold, badlabels_threshold);
-			for (i = 0; i < l.batch * l.outputs; ++i)
+			for (int i = 0; i < l.batch * l.outputs; ++i)
 			{
 				if (fabs(l.delta[i]) > badlabels_threshold)
 				{
@@ -1097,7 +1096,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			const float num_deltas_per_anchor = (l.classes + 4 + 1);
 			float counter_reject = 0;
 			float counter_all = 0;
-			for (i = 0; i < l.batch * l.outputs; ++i)
+			for (int i = 0; i < l.batch * l.outputs; ++i)
 			{
 				if (l.delta[i] != 0)
 				{
@@ -1130,7 +1129,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		if (state.net.equidistant_point && state.net.equidistant_point < iteration_num)
 		{
 			printf(" equidistant_point loss_threshold = %f, start_it = %d, progress = %3.1f %% \n", ep_loss_threshold, state.net.equidistant_point, progress * 100);
-			for (i = 0; i < l.batch * l.outputs; ++i)
+			for (int i = 0; i < l.batch * l.outputs; ++i)
 			{
 				if (fabs(l.delta[i]) < ep_loss_threshold)
 				{
@@ -1328,6 +1327,9 @@ int yolo_num_detections_v3(Darknet::Network * net, const int index, const float 
 {
 	TAT(TATPARMS);
 
+	// IMPORTANT:  note the object cache is NOT cleared here.  Because there may be multiple YOLO layers within a network,
+	// we only want to append to the cache, not overwrite previous entries from earlier YOLO layers.
+
 	int count = 0;
 
 	const Darknet::Layer & l = net->layers[index];
@@ -1444,21 +1446,23 @@ int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int n
 		const int col			= i % l.w;
 		const float objectness	= predictions[obj_index];
 
-		int box_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 0);
+		const int box_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 0);
+
 		dets[count].bbox		= get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w * l.h, l.new_coords);
 		dets[count].objectness	= objectness;
 		dets[count].classes		= l.classes;
 
 		if (l.embedding_output)
 		{
+			/// @todo V3 what is this and where does it get used?
 			get_embedding(l.embedding_output, l.w, l.h, l.n * l.embedding_size, l.embedding_size, col, row, n, 0, dets[count].embeddings);
 		}
 
 		for (int j = 0; j < l.classes; ++j)
 		{
-			int class_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 4 + 1 + j);
-			float prob = objectness * predictions[class_index];
-			dets[count].prob[j] = (prob > thresh) ? prob : 0;
+			const int class_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 4 + 1 + j);
+			const float prob = objectness * predictions[class_index];
+			dets[count].prob[j] = (prob > thresh) ? prob : 0.0f;
 		}
 		++count;
 	}
@@ -1599,3 +1603,85 @@ void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 	axpy_ongpu(l.batch*l.inputs, state.net.loss_scale * l.delta_normalizer, l.delta_gpu, 1, state.delta, 1);
 }
 #endif
+
+
+Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::Network * net, const float sigma)
+{
+	const float two_times_sigma_square = 2.0f * std::max(1.0f, sigma * sigma);
+
+	MMats m;
+	m[-1] = cv::Mat(net->h, net->w, CV_32FC1, cv::Scalar::zeros());
+	for (size_t idx = 0; idx < net->details->class_names.size(); idx ++)
+	{
+		if (net->details->classes_to_ignore.count(idx) == 0)
+		{
+			m[idx] = cv::Mat(net->h, net->w, CV_32FC1, cv::Scalar::zeros());
+		}
+	}
+
+	// look through all the layers to find the YOLO ones
+	for (int layer_index = 0; layer_index < net->n; layer_index ++)
+	{
+		const Darknet::Layer & l = net->layers[layer_index];
+		if (l.type != Darknet::ELayerType::YOLO)
+		{
+			// not YOLO...keep looking for another layer
+			continue;
+		}
+
+//		Darknet::dump(l);
+
+		for (int n = 0; n < l.n; ++n) // anchors?
+		{
+			for (int idx = 0; idx < l.w * l.h; idx ++) // loop through all entries in the YOLO output buffer
+			{
+				const size_t objectness_index = yolo_entry_index(l, 0, n * l.w * l.h + idx, 4);
+				const float & objectness = l.output[objectness_index];
+
+				for (int class_index = 0; class_index < l.classes; class_index ++)
+				{
+					if (m.count(class_index) == 0)
+					{
+						// we've been told to ignore this class
+						continue;
+					}
+
+					const size_t confidence_index = yolo_entry_index(l, 0, n * l.w * l.h + idx, 5 + class_index);
+					const float & confidence = l.output[confidence_index];
+
+					// check needed because if both values are negative then multiplying them gives us a positive number
+					if (confidence * objectness > 0.01f and confidence > 0.01f)
+					{
+						// need the X and Y coordinates
+						const int box_index = yolo_entry_index(l, 0, n * l.w * l.h + idx, 0);
+						int row = idx / l.w;
+						int col = idx % l.w;
+						const auto bbox = get_yolo_box(l.output, l.biases, l.mask[n], box_index, col, row, l.w, l.h, net->w, net->h, l.w * l.h, l.new_coords);
+						/// @todo What about the width and height?  Isn't there something we can do with those?
+						row = bbox.y * net->h;
+						col = bbox.x * net->w;
+
+						// apply Gaussian distribution around detection
+						for (int y = 0; y < net->h; y++)
+						{
+							// get a pointer to the start of the row, then we'll use the "x" as an offset into this pointer
+							float * ptr1 = m[-1			].ptr<float>(y); // "total" heatmap
+							float * ptr2 = m[class_index].ptr<float>(y); // class-based heatmap
+
+							for (int x = 0; x < net->w; x++)
+							{
+								const float dx = x - col;
+								const float dy = y - row;
+								const float value = confidence * objectness * expf(-(dx * dx + dy * dy) / two_times_sigma_square);
+								ptr1[x] += value;
+								ptr2[x] += value;
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return m;
+}

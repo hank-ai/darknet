@@ -139,7 +139,6 @@ namespace Darknet
 			 * @since 2024-10-07
 			 */
 			SInt classes_to_ignore;
-
 	};
 
 

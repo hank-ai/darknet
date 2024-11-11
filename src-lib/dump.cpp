@@ -431,3 +431,102 @@ void Darknet::dump(Darknet::CfgFile & cfg)
 
 	return;
 }
+
+
+void Darknet::dump(const float * ptr, const size_t count, const size_t row_len)
+{
+	std::cout << "Dump " << count << " floats starting at " << (void*)ptr << ":";
+	for (auto idx = 0; idx < count; idx ++)
+	{
+		std::string buffer;
+
+		if (idx % row_len == 0)
+		{
+			buffer = std::to_string(idx);
+			while (buffer.length() < 4)
+			{
+				buffer = " " + buffer;
+			}
+			std::cout << std::endl << buffer << ":";
+		}
+
+		buffer = std::to_string(ptr[idx]);
+		buffer.erase(6);
+
+		std::cout << " " << buffer;
+	}
+
+	std::cout << std::endl;
+
+	return;
+}
+
+
+void Darknet::dump(const Darknet::Layer & l)
+{
+	std::cout << "Dump " << to_string(l.type) << " layer's " << l.w << "x" << l.h << " output buffer:" << std::endl;
+
+	if (l.type == ELayerType::YOLO)
+	{
+		/* This is an attempt to reverse-engineer the YOLO output layer.  Do not assume any of this is correct as
+		 * I'm not familiar with the output buffers and this is only an attempt at figuring out what is going on!
+		 *
+		 * Output buffer contains several sections.  Data is not interlaced.  For example, boxes are not stored as X, Y, W, H,
+		 * but instead are X0, X1, X2, X3, X4, X5, ... Xn, Y0, Y1, Y2, ... Yn, W0, W1, W2, W3, ...
+		 *
+		 * Sections seems to be:
+		 *
+		 *		- X
+		 *		- Y
+		 *		- W
+		 *		- H
+		 *		- objectness
+		 *		- class #0
+		 *		- class #1
+		 *		- class #2
+		 *		- ...etc...
+		 *		- class #n
+		 *
+		 * This was my understanding based on what I saw happening in the following functions:
+		 *
+		 *		- get_yolo_box()
+		 *		- get_yolo_detections_v3()
+		 *		- yolo_num_detections_v3()
+		 *
+		 * All of this is repeated "n" times, once for each anchor in the layer.
+		 */
+		const int sections = l.n * (5 + l.classes); // "5" means X, Y, W, H, objectness
+		const int count = l.outputs / sections;
+		std::cout << "Output buffer contains " << sections << " sections, each of which should be " << count << " floats." << std::endl;
+
+		size_t idx = 0;
+		for (int n = 0; n < l.n; n ++)
+		{
+			VStr names =
+			{
+				"X",
+				"Y",
+				"W",
+				"H",
+				"objectness"
+			};
+			for (int i = 0; i < l.classes; i ++)
+			{
+				names.push_back("class #" + std::to_string(i));
+			}
+
+			for (size_t section_counter = 0; section_counter < names.size(); section_counter ++)
+			{
+				std::cout << "-> YOLO n=" << n << ": \"" << names[section_counter] << "\": ";
+				dump(l.output + idx, count, l.w);
+				idx += count;
+			}
+		}
+	}
+	else
+	{
+		dump(l.output, l.outputs, l.w);
+	}
+
+	return;
+}
