@@ -23,24 +23,15 @@
 #include <ciso646>
 
 // C++ headers
-#include <atomic>
 #include <chrono>
-#include <ciso646>
 #include <condition_variable>
 #include <deque>
-#include <filesystem>
 #include <fstream>
-#include <iostream>
 #include <list>
-#include <map>
 #include <mutex>
 #include <optional>
 #include <random>
 #include <regex>
-#include <set>
-#include <string>
-#include <thread>
-#include <vector>
 
 // 3rd-party lib headers
 #include <opencv2/opencv.hpp>

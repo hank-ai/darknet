@@ -1,5 +1,4 @@
-#include "darknet_cfg_and_state.hpp"
-#include <iostream>
+#include "darknet_internal.hpp"
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN

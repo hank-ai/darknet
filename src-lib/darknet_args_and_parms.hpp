@@ -4,7 +4,7 @@
 
 #pragma once
 
-#include "darknet_internal.hpp"
+#include "darknet.hpp"
 
 
 namespace Darknet

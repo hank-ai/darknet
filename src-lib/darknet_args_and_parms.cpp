@@ -136,6 +136,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("points"				), //-- takes an int?  0
 		ArgsAndParms("random"				, ArgsAndParms::EType::kParameter, "Randomize the list of images."),
 		ArgsAndParms("show"					, ArgsAndParms::EType::kParameter, "Visually display the anchors."),
+		ArgsAndParms("heatmaps"				, ArgsAndParms::EType::kParameter, "Display the heatmaps for each class."),
 		ArgsAndParms("showimgs"				),
 		ArgsAndParms("httpposthost"			),
 		ArgsAndParms("timelimitsec"			),
