@@ -4,6 +4,8 @@
 
 #include "darknet.hpp"
 #include "darknet_keypoints.hpp"
+#include "darknet_cfg_and_state.hpp"
+
 
 /** @file
  * This application combines the functionality of darknet_03_display_videos and darknet_09_keypoints_images.
@@ -75,12 +77,24 @@ int main(int argc, char * argv[])
 				continue;
 			}
 
+			if (Darknet::CfgAndState::get().is_set("heatmaps"))
+			{
+				auto maps = Darknet::create_yolo_heatmaps(net);
+				auto & mat = maps[-1]; // only grab the heatmap with all the classes
+				cv::namedWindow("heatmap", cv::WindowFlags::WINDOW_GUI_NORMAL);
+				cv::resizeWindow("heatmap", mat.size());
+				cv::imshow("heatmap", Darknet::visualize_heatmap(mat));
+			}
+
 			const std::string title = "Darknet/YOLO - " + std::filesystem::path(parm.string).filename().string();
 			cv::Mat mat(video_height, video_width, CV_8UC3, {0, 0, 0});
-			cv::imshow("output", mat);
+			cv::namedWindow("output", cv::WindowFlags::WINDOW_GUI_NORMAL);
 			cv::resizeWindow("output", mat.size());
 			cv::setWindowTitle("output", title);
+			cv::imshow("output", mat);
+			cv::waitKey(5);
 
+			size_t fell_behind = 0;
 			size_t frame_counter = 0;
 			size_t recent_frame_counter	= 0;
 			double total_sleep_in_milliseconds = 0.0;
@@ -104,6 +118,13 @@ int main(int argc, char * argv[])
 				cv::imshow("output", mat);
 				frame_counter ++;
 
+				if (Darknet::CfgAndState::get().is_set("heatmaps"))
+				{
+					auto maps = Darknet::create_yolo_heatmaps(net);
+					auto & mat = maps[-1]; // only grab the heatmap with all the classes
+					cv::imshow("heatmap", Darknet::visualize_heatmap(mat));
+				}
+
 				if (frame_counter == video_frames_count or frame_counter % show_stats_frequency == 0)
 				{
 					const int percentage = std::round(100.0f * frame_counter / video_frames_count);
@@ -125,16 +146,25 @@ int main(int argc, char * argv[])
 				const auto now				= std::chrono::high_resolution_clock::now();
 				const auto time_remaining	= timestamp_next_frame - now;
 				const int milliseconds		= std::chrono::duration_cast<std::chrono::milliseconds>(time_remaining).count();
-				if (milliseconds >= 1)
+				if (milliseconds >= 0)
 				{
 					total_sleep_in_milliseconds	+= milliseconds;
-					const char c = cv::waitKey(milliseconds);
-					if (c == 27) // ESC
+				}
+				else
+				{
+					fell_behind ++;
+					if (fell_behind == 10)
 					{
-						escape_detected = true;
-						std::cout << std::endl << "ESC!";
-						break;
+						std::cout << std::endl << "WARNING: cannot maintain " << fps << " FPS" << std::endl;
 					}
+				}
+
+				const char c = cv::waitKey(std::max(5, milliseconds));
+				if (c == 27) // ESC
+				{
+					escape_detected = true;
+					std::cout << std::endl << "ESC!";
+					break;
 				}
 				timestamp_next_frame += frame_duration;
 			}
@@ -145,12 +175,17 @@ int main(int argc, char * argv[])
 			const double final_fps = 1000.0 * frame_counter / video_length_in_milliseconds;
 
 			std::cout
-				<< std::endl
 				<< "-> number of frames shown ... " << frame_counter													<< std::endl
 				<< "-> average sleep per frame .. " << total_sleep_in_milliseconds / frame_counter << " milliseconds"	<< std::endl
 				<< "-> total length of video .... " << video_length_in_milliseconds << " milliseconds"					<< std::endl
 				<< "-> processed frame rate ..... " << final_fps << " FPS"												<< std::endl;
+			if (fell_behind)
+			{
+				std::cout << "-> failed to maintain FPS ... " << fell_behind << " frame" << (fell_behind == 1 ? "" : "s") << std::endl;
+			}
 		}
+
+		cv::destroyAllWindows();
 
 		Darknet::free_neural_network(net);
 	}
