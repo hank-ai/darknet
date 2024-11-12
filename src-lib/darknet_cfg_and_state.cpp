@@ -233,11 +233,14 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 		if (iter == all_known_args.end())
 		{
 			// this argument is unknown to Darknet (we even looked through the alternate spellings)
+
+#if 0 // too many rarely-used and poorly document parameters, go ahead and warn if something comes up, but don't throw
 			if (idx <= 1)
 			{
 				throw std::invalid_argument("unknown argument \"" + original_arg + "\" (argument #" + std::to_string(idx) + ")");
 			}
 			else
+#endif
 			{
 				additional_arguments.push_back(original_arg);
 				display_warning_msg("skipped validating of argument #" + std::to_string(idx) + " (" + original_arg + ")");
