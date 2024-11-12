@@ -87,6 +87,9 @@ int main(int argc, char * argv[])
 		double total_sleep_in_milliseconds	= 0.0;
 		const auto timestamp_when_stream_started = std::chrono::high_resolution_clock::now();
 
+		cv::namedWindow(stream, cv::WindowFlags::WINDOW_GUI_NORMAL);
+		cv::resizeWindow(stream, cv::Size(video_width, video_height));
+
 		while (cap.isOpened() and recent_error_counter < 20)
 		{
 			cv::Mat mat;
