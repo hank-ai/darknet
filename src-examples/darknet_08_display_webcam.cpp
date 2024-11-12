@@ -18,7 +18,8 @@
  *
  * See the console output to compare what was requested, what OpenCV sais it found, and what is actually being returned.
  */
-#if 1
+
+#if 0
 const auto REQUEST_WEBCAM_WIDTH		= 1920;
 const auto REQUEST_WEBCAM_HEIGHT	= 1080;
 const auto REQUEST_WEBCAM_FPS		= 30.0;
@@ -27,6 +28,28 @@ const auto REQUEST_WEBCAM_WIDTH		= 640;
 const auto REQUEST_WEBCAM_HEIGHT	= 480;
 const auto REQUEST_WEBCAM_FPS		= 30.0;
 #endif
+
+/* If you want to try and increase the frame rate, turn off things that cause the camera to monitor and automatically
+ * modify some settings, such as dynamic-framerate.  Beware, not all cameras support all settings!  On Linux, the
+ * following command will list settings that can be modified:
+ *
+ *		v4l2-ctl --list-ctrls-menus
+ *
+ * If you have more than 1 webcam, you may need to specify which one to use:
+ *
+ *		v4l2-ctl --list-ctrls-menus --device 2
+  *
+ * Here is a possible command to modify some values on the first webcam:
+ *
+ *		v4l2-ctl --set-ctrl auto_exposure=3 --set-ctrl white_balance_automatic=1 --set-ctrl exposure_dynamic_framerate=0 --set-ctrl backlight_compensation=2
+ *
+ * On my webcam, those values mean:
+ *
+ *		- auto-exposure ................ 3 => aperture priority mode
+ *		- white balance ................ 1 => enable
+ *		- exposure dynamic framerate ... 0 => disable
+ *		- backlight compensation ....... 2 => maximum
+ */
 
 // 0==first camera, 1=second camera, etc
 const auto REQUEST_WEBCAM_INDEX		= 0;
@@ -120,9 +143,10 @@ int main(int argc, char * argv[])
 
 		cv::Mat mat;
 		cap >> mat;
-		cv::imshow("output", mat);
+		cv::namedWindow("output", cv::WindowFlags::WINDOW_GUI_NORMAL);
 		cv::resizeWindow("output", mat.size());
 		cv::setWindowTitle("output", title);
+		cv::imshow("output", mat);
 		cv::waitKey(10);
 
 		std::string output_video_filename = "<skipped>";
