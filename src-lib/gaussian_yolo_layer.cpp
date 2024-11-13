@@ -87,16 +87,12 @@ namespace
 		float sigma_const = 0.3;
 		float epsi = pow(10,-9);
 
-		float dx, dy, dw, dh;
-
 		iou = all_ious.iou;
 
-		float tx, ty, tw, th;
-
-		tx = (truth.x*lw - i);
-		ty = (truth.y*lh - j);
-		tw = log(truth.w*w / biases[2 * n]);
-		th = log(truth.h*h / biases[2 * n + 1]);
+		float tx = (truth.x*lw - i);
+		float ty = (truth.y*lh - j);
+		float tw = log(truth.w*w / biases[2 * n]);
+		float th = log(truth.h*h / biases[2 * n + 1]);
 
 		if (yolo_point == YOLO_CENTER)
 		{
@@ -112,25 +108,25 @@ namespace
 			ty = ((truth.y + truth.h / 2)*lh - j);
 		}
 
-		dx = (tx - x[index + 0 * stride]);
-		dy = (ty - x[index + 2 * stride]);
-		dw = (tw - x[index + 4 * stride]);
-		dh = (th - x[index + 6 * stride]);
+		float dx2 = (tx - x[index + 0 * stride]);
+		float dy2 = (ty - x[index + 2 * stride]);
+		float dw2 = (tw - x[index + 4 * stride]);
+		float dh2 = (th - x[index + 6 * stride]);
 
 		// Gaussian
-		float in_exp_x = dx / x[index+1*stride];
+		float in_exp_x = dx2 / x[index+1*stride];
 		float in_exp_x_2 = pow(in_exp_x, 2);
 		float normal_dist_x = exp(in_exp_x_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+1*stride]+sigma_const));
 
-		float in_exp_y = dy / x[index+3*stride];
+		float in_exp_y = dy2 / x[index+3*stride];
 		float in_exp_y_2 = pow(in_exp_y, 2);
 		float normal_dist_y = exp(in_exp_y_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+3*stride]+sigma_const));
 
-		float in_exp_w = dw / x[index+5*stride];
+		float in_exp_w = dw2 / x[index+5*stride];
 		float in_exp_w_2 = pow(in_exp_w, 2);
 		float normal_dist_w = exp(in_exp_w_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+5*stride]+sigma_const));
 
-		float in_exp_h = dh / x[index+7*stride];
+		float in_exp_h = dh2 / x[index+7*stride];
 		float in_exp_h_2 = pow(in_exp_h, 2);
 		float normal_dist_h = exp(in_exp_h_2*(-1./2.))/(sqrt(M_PI * 2.0)*(x[index+7*stride]+sigma_const));
 
@@ -173,12 +169,10 @@ namespace
 			// https://github.com/Zzh-tju/DIoU-darknet
 			all_ious.dx_iou = dx_box_iou(pred, truth, iou_loss);
 
-			float dx, dy, dw, dh;
-
-			dx = all_ious.dx_iou.dt;
-			dy = all_ious.dx_iou.db;
-			dw = all_ious.dx_iou.dl;
-			dh = all_ious.dx_iou.dr;
+			float dx = all_ious.dx_iou.dt;
+			float dy = all_ious.dx_iou.db;
+			float dw = all_ious.dx_iou.dl;
+			float dh = all_ious.dx_iou.dr;
 
 			if (yolo_point == YOLO_CENTER)
 			{
@@ -685,8 +679,8 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 				}
 			}
 
-			int mask_n = int_index(l.mask, best_n, l.n);
-			if(mask_n >= 0)
+			int mask_n2 = int_index(l.mask, best_n, l.n);
+			if(mask_n2 >= 0)
 			{
 				int class_id = state.truth[t*l.truth_size + b*l.truths + 4];
 				if (l.map)
@@ -694,15 +688,15 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 					class_id = l.map[class_id];
 				}
 
-				int box_index = entry_gaussian_index(l, b, mask_n*l.w*l.h + j*l.w + i, 0);
+				int box_index = entry_gaussian_index(l, b, mask_n2*l.w*l.h + j*l.w + i, 0);
 				const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
 				float iou = delta_gaussian_yolo_box(truth, l.output, l.biases, best_n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2-truth.w*truth.h), l.w*l.h, l.iou_normalizer * class_multiplier, l.iou_loss, l.uc_normalizer, 1, l.yolo_point, l.max_delta);
 
-				int obj_index = entry_gaussian_index(l, b, mask_n*l.w*l.h + j*l.w + i, 8);
+				int obj_index = entry_gaussian_index(l, b, mask_n2*l.w*l.h + j*l.w + i, 8);
 				avg_obj += l.output[obj_index];
 				l.delta[obj_index] = class_multiplier * l.obj_normalizer * (1 - l.output[obj_index]);
 
-				int class_index = entry_gaussian_index(l, b, mask_n*l.w*l.h + j*l.w + i, 9);
+				int class_index = entry_gaussian_index(l, b, mask_n2*l.w*l.h + j*l.w + i, 9);
 				delta_gaussian_yolo_class(l.output, l.delta, class_index, class_id, l.classes, l.w*l.h, &avg_cat, l.label_smooth_eps, l.classes_multipliers, l.cls_normalizer);
 
 				++count;
@@ -728,10 +722,10 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 					Darknet::Box pred = { 0 };
 					pred.w = l.biases[2 * n] / state.net.w;
 					pred.h = l.biases[2 * n + 1] / state.net.h;
-					float iou = box_iou_kind(pred, truth_shift, l.iou_thresh_kind); // IOU, GIOU, MSE, DIOU, CIOU
+					float box_iou = box_iou_kind(pred, truth_shift, l.iou_thresh_kind); // IOU, GIOU, MSE, DIOU, CIOU
 					// iou, n
 
-					if (iou > l.iou_thresh)
+					if (box_iou > l.iou_thresh)
 					{
 						int class_id = state.truth[t*l.truth_size + b*l.truths + 4];
 						if (l.map)

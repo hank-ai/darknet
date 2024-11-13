@@ -121,8 +121,8 @@ int main(int argc, char * argv[])
 				if (Darknet::CfgAndState::get().is_set("heatmaps"))
 				{
 					auto maps = Darknet::create_yolo_heatmaps(net);
-					auto & mat = maps[-1]; // only grab the heatmap with all the classes
-					cv::imshow("heatmap", Darknet::visualize_heatmap(mat));
+					auto & heatmap = maps[-1]; // only grab the heatmap with all the classes
+					cv::imshow("heatmap", Darknet::visualize_heatmap(heatmap));
 				}
 
 				if (frame_counter == video_frames_count or frame_counter % show_stats_frequency == 0)
@@ -130,12 +130,12 @@ int main(int argc, char * argv[])
 					const int percentage = std::round(100.0f * frame_counter / video_frames_count);
 					const auto now = std::chrono::high_resolution_clock::now();
 					const double nanoseconds_elapsed = std::chrono::duration_cast<std::chrono::nanoseconds>(now - timestamp_recent).count();
-					const double fps = (frame_counter - recent_frame_counter) / nanoseconds_elapsed * 1000000000.0;
+					const double recent_fps = (frame_counter - recent_frame_counter) / nanoseconds_elapsed * 1000000000.0;
 
 					std::cout
 						<< "\r-> frame #" << frame_counter << "/" << video_frames_count
 						<< " (" << percentage << "%)"
-						<< ", " << fps << " FPS "
+						<< ", " << recent_fps << " FPS "
 						<< std::flush;
 
 					timestamp_recent = now;

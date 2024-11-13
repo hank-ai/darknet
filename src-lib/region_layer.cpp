@@ -563,20 +563,23 @@ void get_region_detections(Darknet::Layer l, int w, int h, int netw, int neth, f
 {
 	TAT(TATPARMS);
 
-	int i, j, n, z;
 	float *predictions = l.output;
-	if (l.batch == 2) {
+	if (l.batch == 2)
+	{
 		float *flip = l.output + l.outputs;
-		for (j = 0; j < l.h; ++j) {
-			for (i = 0; i < l.w / 2; ++i) {
-				for (n = 0; n < l.n; ++n) {
-					for (z = 0; z < l.classes + l.coords + 1; ++z) {
+		for (int j = 0; j < l.h; ++j)
+		{
+			for (int i = 0; i < l.w / 2; ++i)
+			{
+				for (int n = 0; n < l.n; ++n)
+				{
+					for (int z = 0; z < l.classes + l.coords + 1; ++z)
+					{
 						int i1 = z*l.w*l.h*l.n + n*l.w*l.h + j*l.w + i;
 						int i2 = z*l.w*l.h*l.n + n*l.w*l.h + j*l.w + (l.w - i - 1);
-						float swap = flip[i1];
-						flip[i1] = flip[i2];
-						flip[i2] = swap;
-						if (z == 0) {
+						std::swap(flip[i1], flip[i2]);
+						if (z == 0)
+						{
 							flip[i1] = -flip[i1];
 							flip[i2] = -flip[i2];
 						}
@@ -584,18 +587,19 @@ void get_region_detections(Darknet::Layer l, int w, int h, int netw, int neth, f
 				}
 			}
 		}
-		for (i = 0; i < l.outputs; ++i) {
+		for (int i = 0; i < l.outputs; ++i)
+		{
 			l.output[i] = (l.output[i] + flip[i]) / 2.;
 		}
 	}
-	for (i = 0; i < l.w*l.h; ++i)
+	for (int i = 0; i < l.w*l.h; ++i)
 	{
 		int row = i / l.w;
 		int col = i % l.w;
-		for (n = 0; n < l.n; ++n)
+		for (int n = 0; n < l.n; ++n)
 		{
 			int index = n*l.w*l.h + i;
-			for (j = 0; j < l.classes; ++j)
+			for (int j = 0; j < l.classes; ++j)
 			{
 				dets[index].prob[j] = 0;
 			}
@@ -607,7 +611,7 @@ void get_region_detections(Darknet::Layer l, int w, int h, int netw, int neth, f
 			dets[index].objectness = scale > thresh ? scale : 0;
 			if (dets[index].mask)
 			{
-				for (j = 0; j < l.coords - 4; ++j)
+				for (int j = 0; j < l.coords - 4; ++j)
 				{
 					dets[index].mask[j] = l.output[mask_index + j*l.w*l.h];
 				}
@@ -619,10 +623,10 @@ void get_region_detections(Darknet::Layer l, int w, int h, int netw, int neth, f
 				hierarchy_predictions(predictions + class_index, l.classes, l.softmax_tree, 0);// , l.w*l.h);
 				if (map)
 				{
-					for (j = 0; j < 200; ++j)
+					for (int j = 0; j < 200; ++j)
 					{
-						int class_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + map[j]);
-						float prob = scale*predictions[class_index];
+						int class_idx = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + map[j]);
+						float prob = scale*predictions[class_idx];
 						dets[index].prob[j] = (prob > thresh) ? prob : 0;
 					}
 				}
@@ -636,10 +640,10 @@ void get_region_detections(Darknet::Layer l, int w, int h, int netw, int neth, f
 			{
 				if (dets[index].objectness)
 				{
-					for (j = 0; j < l.classes; ++j)
+					for (int j = 0; j < l.classes; ++j)
 					{
-						int class_index = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + j);
-						float prob = scale*predictions[class_index];
+						int class_idx = region_entry_index(l, 0, n*l.w*l.h + i, l.coords + 1 + j);
+						float prob = scale*predictions[class_idx];
 						dets[index].prob[j] = (prob > thresh) ? prob : 0;
 					}
 				}

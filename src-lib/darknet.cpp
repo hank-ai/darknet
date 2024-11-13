@@ -614,12 +614,12 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 
 				size_t header_bytes_matched = 0;
 				std::ifstream ifs(filename, std::ifstream::binary | std::ifstream::in);
-				for (size_t idx = 0; ifs.good() and idx < 3; idx ++)
+				for (size_t i = 0; ifs.good() and i < 3; i ++)
 				{
 					uint32_t tmp = 0;
 					ifs.read(reinterpret_cast<char*>(&tmp), sizeof(tmp));
 
-					if (tmp == expected_header[idx])
+					if (tmp == expected_header[i])
 					{
 						header_bytes_matched ++;
 					}
@@ -688,10 +688,10 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 				else if (extension == ".names" and names_idx == -1)
 				{
 					std::cout << tmp << " matches this names file:   " << Darknet::in_colour(Darknet::EColour::kBrightCyan, filename) << std::endl;
-					Parm parm = parms[idx];
-					parm.type = EParmType::kNamesFilename;
-					parm.string = filename;
-					parms.push_back(parm);
+					Parm names = parms[idx];
+					names.type = EParmType::kNamesFilename;
+					names.string = filename;
+					parms.push_back(names);
 					names_idx = parms.size() - 1;
 				}
 				else if (extension == ".weights")
@@ -699,10 +699,10 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 					if (weights_idx == -1 and filename.find("_best.weights") != std::string::npos)
 					{
 						std::cout << tmp << " matches this weights file: " << Darknet::in_colour(Darknet::EColour::kBrightCyan, filename) << std::endl;
-						Parm parm = parms[idx];
-						parm.type = EParmType::kWeightsFilename;
-						parm.string = filename;
-						parms.push_back(parm);
+						Parm weights = parms[idx];
+						weights.type = EParmType::kWeightsFilename;
+						weights.string = filename;
+						parms.push_back(weights);
 						weights_idx = parms.size() - 1;
 					}
 					else
@@ -716,10 +716,10 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 			{
 				// in case we don't find "best" weights, we'll end up here and use whatever weights we found
 				std::cout << tmp << " matches this weights file: " << Darknet::in_colour(Darknet::EColour::kBrightCyan, backup_weights) << std::endl;
-				Parm parm = parms[idx];
-				parm.type = EParmType::kWeightsFilename;
-				parm.string = backup_weights;
-				parms.push_back(parm);
+				Parm weights = parms[idx];
+				weights.type = EParmType::kWeightsFilename;
+				weights.string = backup_weights;
+				parms.push_back(weights);
 				weights_idx = parms.size() - 1;
 			}
 		}

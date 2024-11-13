@@ -740,12 +740,12 @@ float train_networks(Darknet::Network * nets, int n, data d, int interval)
 		 p[i] = get_data_part(d, i, n);
 
 		threads.emplace_back(
-			[](Darknet::Network & net, data &d, float * err)
+			[](Darknet::Network & net, data &d2, float * err)
 			{
 				TAT(TATPARMS);
 
 				cuda_set_device(net.gpu_index);
-				*err = train_network(net, d); // note this is the "singular" train function (e.g., for a single GPU)
+				*err = train_network(net, d2); // note this is the "singular" train function (e.g., for a single GPU)
 			},
 			std::ref(nets[i]), std::ref(p[i]), errors + i);
 	}

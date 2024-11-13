@@ -238,25 +238,34 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 
 	const int mini_batch = l.batch / l.steps;
 
-	int b, n, w, h;
 	fill_cpu(l.batch*l.inputs, 0, l.delta, 1);
 
-	if (!l.detection) {
+	if (!l.detection)
+	{
 
-		for (b = 0; b < l.batch; ++b) {
-			if (state.net.adversarial) l.labels[b] = b % 2;
-			else l.labels[b] = b / 2;
+		for (int b = 0; b < l.batch; ++b)
+		{
+			if (state.net.adversarial)
+			{
+				l.labels[b] = b % 2;
+			}
+			else
+			{
+				l.labels[b] = b / 2;
+			}
 		}
 
 		// set labels
-		for (b = 0; b < l.batch; ++b) {
-			for (h = 0; h < l.h; ++h) {
-				for (w = 0; w < l.w; ++w)
+		for (int b = 0; b < l.batch; ++b)
+		{
+			for (int h = 0; h < l.h; ++h)
+			{
+				for (int w = 0; w < l.w; ++w)
 				{
 					// find truth with max prob (only 1 label even if mosaic is used)
 					//float max_truth = 0;
-					int n;
-					for (n = 0; n < l.classes; ++n) {
+					for (int n = 0; n < l.classes; ++n)
+					{
 						const float truth_prob = state.truth[b*l.classes + n];
 						//printf(" truth_prob = %f, ", truth_prob);
 						//if (truth_prob > max_truth)
@@ -278,10 +287,13 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	// set pointers to features
 	float **z = (float**)xcalloc(l.batch*l.n*l.h*l.w, sizeof(float*));
 
-	for (b = 0; b < l.batch; ++b) {
-		for (n = 0; n < l.n; ++n) {
-			for (h = 0; h < l.h; ++h) {
-				for (w = 0; w < l.w; ++w)
+	for (int b = 0; b < l.batch; ++b)
+	{
+		for (int n = 0; n < l.n; ++n)
+		{
+			for (int h = 0; h < l.h; ++h)
+			{
+				for (int w = 0; w < l.w; ++w)
 				{
 					const int z_index = b*l.n*l.h*l.w + n*l.h*l.w + h*l.w + w;
 					if (l.labels[z_index] < 0) continue;
@@ -297,12 +309,14 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		}
 	}
 
-	int b2, n2, h2, w2;
 	int contrast_p_index = 0;
 
 	const size_t step = l.batch*l.n*l.h*l.w;
 	size_t contrast_p_size = step;
-	if (!l.detection) contrast_p_size = l.batch*l.batch;
+	if (!l.detection)
+	{
+		contrast_p_size = l.batch*l.batch;
+	}
 	contrastive_params *contrast_p = (contrastive_params*)xcalloc(contrast_p_size, sizeof(contrastive_params));
 
 	float *max_sim_same = (float *)xcalloc(l.batch*l.inputs, sizeof(float));
@@ -311,18 +325,27 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	fill_cpu(l.batch*l.inputs, -10, max_sim_diff, 1);
 
 	// precalculate cosine similiraty
-	for (b = 0; b < l.batch; ++b) {
-		for (n = 0; n < l.n; ++n) {
-			for (h = 0; h < l.h; ++h) {
-				for (w = 0; w < l.w; ++w)
+	for (int b = 0; b < l.batch; ++b)
+	{
+		for (int n = 0; n < l.n; ++n)
+		{
+			for (int h = 0; h < l.h; ++h)
+			{
+				for (int w = 0; w < l.w; ++w)
 				{
 					const int z_index = b*l.n*l.h*l.w + n*l.h*l.w + h*l.w + w;
-					if (l.labels[z_index] < 0) continue;
+					if (l.labels[z_index] < 0)
+					{
+						continue;
+					}
 
-					for (b2 = 0; b2 < l.batch; ++b2) {
-						for (n2 = 0; n2 < l.n; ++n2) {
-							for (h2 = 0; h2 < l.h; ++h2) {
-								for (w2 = 0; w2 < l.w; ++w2)
+					for (int b2 = 0; b2 < l.batch; ++b2)
+					{
+						for (int n2 = 0; n2 < l.n; ++n2)
+						{
+							for (int h2 = 0; h2 < l.h; ++h2)
+							{
+								for (int w2 = 0; w2 < l.w; ++w2)
 								{
 									const int z_index2 = b2*l.n*l.h*l.w + n2*l.h*l.w + h2*l.w + w2;
 									if (l.labels[z_index2] < 0) continue;
@@ -334,11 +357,12 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 									const int time_step_j = b2 / mini_batch;
 									if (time_step_i != time_step_j) continue;
 
-									const size_t step = l.batch*l.n*l.h*l.w;
+//									const size_t step = l.batch*l.n*l.h*l.w;
 
 									const float sim = cosine_similarity(z[z_index], z[z_index2], l.embedding_size);
 									const float exp_sim = expf(sim / l.temperature);
-									if (!l.detection) {
+									if (!l.detection)
+									{
 										l.cos_sim[z_index*step + z_index2] = sim;
 										l.exp_cos_sim[z_index*step + z_index2] = exp_sim;
 									}
@@ -457,18 +481,24 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 	else {
 		// precalculate P-contrastive
-		for (b = 0; b < l.batch; ++b) {
-			for (n = 0; n < l.n; ++n) {
-				for (h = 0; h < l.h; ++h) {
-					for (w = 0; w < l.w; ++w)
+		for (int b = 0; b < l.batch; ++b)
+		{
+			for (int n = 0; n < l.n; ++n)
+			{
+				for (int h = 0; h < l.h; ++h)
+				{
+					for (int w = 0; w < l.w; ++w)
 					{
 						const int z_index = b*l.n*l.h*l.w + n*l.h*l.w + h*l.w + w;
 						if (l.labels[z_index] < 0) continue;
 
-						for (b2 = 0; b2 < l.batch; ++b2) {
-							for (n2 = 0; n2 < l.n; ++n2) {
-								for (h2 = 0; h2 < l.h; ++h2) {
-									for (w2 = 0; w2 < l.w; ++w2)
+						for (int b2 = 0; b2 < l.batch; ++b2)
+						{
+							for (int n2 = 0; n2 < l.n; ++n2)
+							{
+								for (int h2 = 0; h2 < l.h; ++h2)
+								{
+									for (int w2 = 0; w2 < l.w; ++w2)
 									{
 										const int z_index2 = b2*l.n*l.h*l.w + n2*l.h*l.w + h2*l.w + w2;
 										if (l.labels[z_index2] < 0) continue;
@@ -480,7 +510,7 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 										const int time_step_j = b2 / mini_batch;
 										if (time_step_i != time_step_j) continue;
 
-										const size_t step = l.batch*l.n*l.h*l.w;
+//										const size_t step = l.batch*l.n*l.h*l.w;
 
 										float P = -10;
 										if (l.detection) {
@@ -524,7 +554,7 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 				for (int wd = 0; wd < l.w; ++wd)
 				{
 					const int z_index = bd*l.n*l.h*l.w + nd*l.h*l.w + hd*l.w + wd;
-					const size_t step = l.batch*l.n*l.h*l.w;
+//					const size_t step = l.batch*l.n*l.h*l.w;
 					if (l.labels[z_index] < 0) continue;
 
 					const int delta_index = bd*l.embedding_size*l.n*l.h*l.w + nd*l.embedding_size*l.h*l.w + hd*l.w + wd;
@@ -569,10 +599,13 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		printf(" contrastive loss = %f \n\n", *(l.cost));
 	}
 
-	for (b = 0; b < l.batch; ++b) {
-		for (n = 0; n < l.n; ++n) {
-			for (h = 0; h < l.h; ++h) {
-				for (w = 0; w < l.w; ++w)
+	for (int b = 0; b < l.batch; ++b)
+	{
+		for (int n = 0; n < l.n; ++n)
+		{
+			for (int h = 0; h < l.h; ++h)
+			{
+				for (int w = 0; w < l.w; ++w)
 				{
 					const int z_index = b*l.n*l.h*l.w + n*l.h*l.w + h*l.w + w;
 					//if (l.labels[z_index] < 0) continue;

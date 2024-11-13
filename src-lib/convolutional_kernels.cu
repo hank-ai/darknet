@@ -218,8 +218,8 @@ void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState s
 			// for(i = 0; i < l.batch; ++i){
 			// for (j = 0; j < l.groups; ++j) {
 
-			int ldb_align = l.lda_align;
-			size_t new_ldb = k + (ldb_align - k%ldb_align); // (k / 8 + 1) * 8;
+			const int ldb_align = l.lda_align;
+			const size_t new_ldb = k + (ldb_align - k%ldb_align); // (k / 8 + 1) * 8;
 			//size_t t_intput_size = new_ldb * n;
 			//size_t t_bit_input_size = t_intput_size / 8;// +1;
 
@@ -232,8 +232,8 @@ void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState s
 				// state.input
 				//cudaMemcpy(intput_cpu, state.input, l.inputs * sizeof(float), cudaMemcpyDefault);
 
-				int ldb_align = l.lda_align;
-				size_t new_ldb = k + (ldb_align - k%ldb_align); // (k / 8 + 1) * 8;
+//				int ldb_align = l.lda_align;
+//				size_t new_ldb = k + (ldb_align - k%ldb_align); // (k / 8 + 1) * 8;
 				//size_t t_intput_size = new_ldb * l.bit_align;// n;
 				//size_t t_bit_input_size = t_intput_size / 8;// +1;
 
@@ -706,8 +706,8 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 
 	if(l.xnor) state.input = l.binary_input_gpu;
 #ifdef CUDNN
-	float one = 1.f;
-	float alpha = 1, beta = 0;
+	float alpha = 1.0f;
+	float beta = 0.0f;
 
 //#ifdef CUDNN_HALF
 	int iteration_num = get_current_iteration(state.net); //(*state.net.seen) / (state.net.batch*state.net.subdivisions);
@@ -783,6 +783,7 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 		assert((l.nweights) > 0);
 		cuda_convert_f32_to_f16(l.weight_updates_gpu, l.nweights, l.weight_updates_gpu16);
 
+		float one = 1.0f;
 		if (!state.net.adversarial && !l.train_only_bn) {
 			CHECK_CUDNN(cudnnConvolutionBackwardFilter(cudnn_handle(),
 				&one,
@@ -857,6 +858,7 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 
 			// calculate conv weight updates
 			// if used: beta=1 then loss decreases faster
+			float one = 1.0f;
 			CHECK_CUDNN(cudnnConvolutionBackwardFilter(cudnn_handle(),
 				&one,
 				l.srcTensorDesc,
@@ -898,6 +900,7 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 
 			// http://docs.nvidia.com/deeplearning/sdk/cudnn-developer-guide/index.html#cudnnConvolutionBackwardData
 			// calculate delta for the next layer
+			float one = 1.0f;
 			CHECK_CUDNN(cudnnConvolutionBackwardData(cudnn_handle(),
 				&one,
 				l.weightDesc,

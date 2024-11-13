@@ -129,6 +129,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 	TAT(TATPARMS);
 
 	#ifdef DEBUG
+	#if 0 // force Darknet to run specific code in the debugger
 	if (argc == 1)
 	{
 		// if no argument has been specified _AND_ we're in debug mode, then run a "fake" command.
@@ -160,6 +161,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 
 		return process_arguments(c, v);
 	}
+	#endif
 	#endif
 
 	argv.clear();

@@ -1011,11 +1011,11 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
 								//sum += input[input_index] * weights[weights_index];
 
 								__m256 in = *((__m256*)&input[input_index]);
-								__m256 w = _mm256_set1_ps(weights[weights_index]);
-								//__m256 w_sign = _mm256_and_ps(w, _mm256_castsi256_ps(all256_sing1)); // check sign in 8 x 32-bit floats
-								__m256 xor256 = _mm256_xor_ps(w, in);
+								__m256 ww = _mm256_set1_ps(weights[weights_index]);
+								//__m256 w_sign = _mm256_and_ps(ww, _mm256_castsi256_ps(all256_sing1)); // check sign in 8 x 32-bit floats
+								__m256 xor256 = _mm256_xor_ps(ww, in);
 								//printf("\n xor256_1 = %f, xor256_2 = %f \n", xor256.m256_f32[0], xor256.m256_f32[1]);
-								//printf("\n in = %f, w = %f, xor256 = %f \n", in.m256_f32[0], w_sign.m256_f32[0], xor256.m256_f32[0]);
+								//printf("\n in = %f, ww = %f, xor256 = %f \n", in.m256_f32[0], w_sign.m256_f32[0], xor256.m256_f32[0]);
 
 								//__m256 pn1 = _mm256_and_ps(_mm256_castsi256_ps(all256i_one), xor256);
 

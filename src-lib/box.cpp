@@ -814,9 +814,9 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 			if (box_iou(a, b) > thresh)
 			{
 				dets[j].objectness = 0;
-				for (int k = 0; k < classes; ++k)
+				for (int class_idx = 0; class_idx < classes; ++class_idx)
 				{
-					dets[j].prob[k] = 0;
+					dets[j].prob[class_idx] = 0;
 				}
 			}
 		}

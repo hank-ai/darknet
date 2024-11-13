@@ -198,16 +198,16 @@ Darknet::Skeletons Darknet::Keypoints::create_skeletons(const Predictions & pred
 		}
 
 		// now see which is the most likely skeleton that needs one of these keypoints
-		for (auto iter = mm.rbegin(); iter != mm.rend(); iter ++)
+		for (auto ri = mm.rbegin(); ri != mm.rend(); ri ++)
 		{
-			if (iter->first <= 0.0f)
+			if (ri->first <= 0.0f)
 			{
 				// we need to drop this prediction, we did not find where it is needed
 //				std::cout << "dropping prediction, no skeleton found which needed: " << pred << std::endl;
 				break;
 			}
 
-			const int skeleton_idx = iter->second;
+			const int skeleton_idx = ri->second;
 			auto & skeleton = skeletons[skeleton_idx];
 			if (skeleton[best_class] == -1)
 			{

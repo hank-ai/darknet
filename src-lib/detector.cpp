@@ -1075,7 +1075,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		int unique_truth_index;	// ?
 	};
 
-	int j;
 	list *options = read_data_cfg(datacfg);
 	const char *valid_images = option_find_str(options, "valid", nullptr);
 	const char *difficult_valid_images = option_find_str(options, "difficult", NULL);
@@ -1278,16 +1277,16 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 			const int checkpoint_detections_count = detections_count;
 
-			for (int i = 0; i < nboxes; ++i)
+			for (int idx = 0; idx < nboxes; ++idx)
 			{
 				for (int class_id = 0; class_id < classes; ++class_id)
 				{
-					float prob = dets[i].prob[class_id];
+					float prob = dets[idx].prob[class_id];
 					if (prob > 0.0f)
 					{
 						detections_count++;
 						detections = (box_prob*)xrealloc(detections, detections_count * sizeof(box_prob));
-						detections[detections_count - 1].b = dets[i].bbox;
+						detections[detections_count - 1].b = dets[idx].bbox;
 						detections[detections_count - 1].p = prob;
 						detections[detections_count - 1].image_index = image_index;
 						detections[detections_count - 1].class_id = class_id;
@@ -1296,12 +1295,12 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 						int truth_index = -1;
 						float max_iou = 0;
-						for (j = 0; j < num_labels; ++j)
+						for (int j = 0; j < num_labels; ++j)
 						{
-							Darknet::Box t = { truth[j].x, truth[j].y, truth[j].w, truth[j].h };
+							Darknet::Box box = { truth[j].x, truth[j].y, truth[j].w, truth[j].h };
 							//printf(" IoU = %f, prob = %f, class_id = %d, truth[j].id = %d \n",
-							//    box_iou(dets[i].bbox, t), prob, class_id, truth[j].id);
-							float current_iou = box_iou(dets[i].bbox, t);
+							//    box_iou(dets[idx].bbox, box), prob, class_id, truth[j].id);
+							float current_iou = box_iou(dets[idx].bbox, box);
 							if (current_iou > iou_thresh && class_id == truth[j].id)
 							{
 								if (current_iou > max_iou)
@@ -1321,10 +1320,10 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 						else
 						{
 							// if object is difficult then remove detection
-							for (j = 0; j < num_labels_dif; ++j)
+							for (int j = 0; j < num_labels_dif; ++j)
 							{
-								Darknet::Box t = { truth_dif[j].x, truth_dif[j].y, truth_dif[j].w, truth_dif[j].h };
-								float current_iou = box_iou(dets[i].bbox, t);
+								Darknet::Box box = { truth_dif[j].x, truth_dif[j].y, truth_dif[j].w, truth_dif[j].h };
+								float current_iou = box_iou(dets[idx].bbox, box);
 								if (current_iou > iou_thresh && class_id == truth_dif[j].id)
 								{
 									--detections_count;
@@ -1429,7 +1428,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	printf("\n detections_count = %d, unique_truth_count = %d  \n", detections_count, unique_truth_count);
 
 	int* detection_per_class_count = (int*)xcalloc(classes, sizeof(int));
-	for (j = 0; j < detections_count; ++j)
+	for (int j = 0; j < detections_count; ++j)
 	{
 		detection_per_class_count[detections[j].class_id]++;
 	}
@@ -1948,8 +1947,8 @@ void test_detector(const char *datacfg, const char *cfgfile, const char *weightf
 		const char *tmp = "[\n";
 		fwrite(tmp, sizeof(char), strlen(tmp), json_file);
 	}
-	int j;
-	float nms = .45;    // 0.4F
+
+	float nms = 0.45f;    // 0.4F
 	while (1)
 	{
 		if (filename)
@@ -2049,20 +2048,23 @@ void test_detector(const char *datacfg, const char *cfgfile, const char *weightf
 			replace_image_to_label(input, labelpath);
 
 			FILE* fw = fopen(labelpath, "wb");
-			int i;
-			for (i = 0; i < nboxes; ++i) {
-				char buff[1024];
+			for (int i = 0; i < nboxes; ++i)
+			{
+				char tmp[1024];
 				int class_id = -1;
 				float prob = 0;
-				for (j = 0; j < l.classes; ++j) {
-					if (dets[i].prob[j] > thresh && dets[i].prob[j] > prob) {
+				for (int j = 0; j < l.classes; ++j)
+				{
+					if (dets[i].prob[j] > thresh && dets[i].prob[j] > prob)
+					{
 						prob = dets[i].prob[j];
 						class_id = j;
 					}
 				}
-				if (class_id >= 0) {
-					sprintf(buff, "%d %2.4f %2.4f %2.4f %2.4f\n", class_id, dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h);
-					fwrite(buff, sizeof(char), strlen(buff), fw);
+				if (class_id >= 0)
+				{
+					sprintf(tmp, "%d %2.4f %2.4f %2.4f %2.4f\n", class_id, dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h);
+					fwrite(tmp, sizeof(char), strlen(tmp), fw);
 				}
 			}
 			fclose(fw);

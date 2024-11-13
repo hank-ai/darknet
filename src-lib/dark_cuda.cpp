@@ -649,7 +649,7 @@ int *cuda_make_int_array_new_api(int *x, size_t n)
 	CHECK_CUDA(status);
 	if (x) {
 		//status = cudaMemcpy(x_gpu, x, size, cudaMemcpyHostToDevice);
-		cudaError_t status = cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyHostToDevice, get_cuda_stream());
+		status = cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyHostToDevice, get_cuda_stream());
 		CHECK_CUDA(status);
 	}
 	if (!x_gpu)

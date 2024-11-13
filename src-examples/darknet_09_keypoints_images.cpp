@@ -86,10 +86,10 @@ int main(int argc, char * argv[])
 			if (Darknet::CfgAndState::get().is_set("heatmaps"))
 			{
 				auto maps = Darknet::create_yolo_heatmaps(net);
-				auto & mat = maps[-1]; // only grab the heatmap with all the classes
+				auto & heatmap = maps[-1]; // only grab the heatmap with all the classes
 				cv::namedWindow("heatmap", cv::WindowFlags::WINDOW_GUI_NORMAL);
-				cv::resizeWindow("heatmap", mat.size());
-				cv::imshow("heatmap", Darknet::visualize_heatmap(mat));
+				cv::resizeWindow("heatmap", heatmap.size());
+				cv::imshow("heatmap", Darknet::visualize_heatmap(heatmap));
 			}
 
 			const std::string title = "Darknet/YOLO Keypoints & Skeletons - " + std::filesystem::path(parm.string).filename().string();

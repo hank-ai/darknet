@@ -735,7 +735,6 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 	TAT(TATPARMS);
 
 	int total_batch = batch*steps;
-	int i;
 	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.type = Darknet::ELayerType::CONVOLUTIONAL;
 	l.train = train;
@@ -806,14 +805,14 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 	float scale = sqrt(2./(size*size*c/groups));
 	if (l.activation == NORM_CHAN || l.activation == NORM_CHAN_SOFTMAX || l.activation == NORM_CHAN_SOFTMAX_MAXVAL)
 	{
-		for (i = 0; i < l.nweights; ++i)
+		for (int i = 0; i < l.nweights; ++i)
 		{
 			l.weights[i] = 1;
 		}
 	}
 	else
 	{
-		for (i = 0; i < l.nweights; ++i)
+		for (int i = 0; i < l.nweights; ++i)
 		{
 			l.weights[i] = scale*rand_uniform(-1, 1);
 		}
@@ -883,7 +882,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 		else
 		{
 			l.scales = (float*)xcalloc(n, sizeof(float));
-			for (i = 0; i < n; ++i)
+			for (int i = 0; i < n; ++i)
 			{
 				l.scales[i] = 1;
 			}
@@ -1044,9 +1043,9 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 
 		if (l.assisted_excitation)
 		{
-			const int size = l.out_w * l.out_h * l.batch;
-			l.gt_gpu = cuda_make_array(NULL, size);
-			l.a_avg_gpu = cuda_make_array(NULL, size);
+			const int size2 = l.out_w * l.out_h * l.batch;
+			l.gt_gpu = cuda_make_array(NULL, size2);
+			l.a_avg_gpu = cuda_make_array(NULL, size2);
 		}
 #ifdef CUDNN
 		create_convolutional_cudnn_tensors(&l);
@@ -1102,7 +1101,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 				l.input_layer->weights[i + 8] = 1 / 16.f;
 			}
 		}
-		for (i = 0; i < n; ++i)
+		for (int i = 0; i < n; ++i)
 		{
 			l.input_layer->biases[i] = 0;
 		}

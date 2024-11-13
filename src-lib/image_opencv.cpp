@@ -392,7 +392,7 @@ Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
 
 			if (blur == 1)
 			{
-				cv::Rect img_rect(0, 0, sized.cols, sized.rows);
+				cv::Rect r(0, 0, sized.cols, sized.rows);
 				for (int t = 0; t < num_boxes; ++t)
 				{
 					Darknet::Box b = float_to_box_stride(truth + t*truth_size, 1);
@@ -402,7 +402,7 @@ Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
 					int top = (b.y - b.h / 2.)*sized.rows;
 					int height = b.h*sized.rows;
 					cv::Rect roi(left, top, width, height);
-					roi = roi & img_rect;
+					roi = roi & r;
 
 					sized(roi).copyTo(dst(roi));
 				}

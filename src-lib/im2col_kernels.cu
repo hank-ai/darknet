@@ -1161,8 +1161,8 @@ void gemm_nn_custom_bin_mean_transposed_gpu(int M, int N, int K,
 	float *C, int ldc, float *mean_arr, float *bias, int leaky_activation,
 	float *shortcut_in_gpu, float *shortcut_out_gpu)
 {
-	int size = M*N;
-	const int num_blocks = get_number_of_blocks(size, BLOCK);
+//	int size = M*N;
+//	const int num_blocks = get_number_of_blocks(size, BLOCK);
 
 	//printf("\n M = %d, N = %d, M %% 8 = %d, N %% 8 = %d \n", M, N, M % 8, N % 8);
 
@@ -1200,6 +1200,9 @@ void gemm_nn_custom_bin_mean_transposed_gpu(int M, int N, int K,
 	else
 #endif  //# CUDART_VERSION >= 10000
 	{
+		int size = M*N;
+		const int num_blocks = get_number_of_blocks(size, BLOCK);
+
 		gemm_nn_custom_bin_mean_transposed_gpu_kernel << <num_blocks, BLOCK, 0, get_cuda_stream() >> > (
 			M, N, K,
 			A, lda,

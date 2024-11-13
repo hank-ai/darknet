@@ -129,7 +129,7 @@ public:
 		else if (img_src.channels() == 3) cv::cvtColor(img_src, img, cv::COLOR_RGB2BGR);
 		else if (img_src.channels() == 1) cv::cvtColor(img_src, img, cv::COLOR_GRAY2BGR);
 		else std::cerr << " Warning: img_src.channels() is not 1, 3 or 4. It is = " << img_src.channels() << std::endl;
-		std::shared_ptr<image_t> image_ptr(new image_t, [](image_t *img) { free_image(*img); delete img; });
+		std::shared_ptr<image_t> image_ptr(new image_t, [](image_t *image) { free_image(*image); delete image; });
 		*image_ptr = mat_to_image_custom(img);
 		return image_ptr;
 	}

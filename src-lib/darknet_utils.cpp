@@ -585,14 +585,14 @@ void Darknet::cfg_layers()
 				line[0] == '[' and
 				line[sz - 1] == ']')
 			{
-				const auto name = line.substr(1, sz - 2);
+				const auto layer_name = line.substr(1, sz - 2);
 
-				if (layer_name_to_type.count(name) == 0)
+				if (layer_name_to_type.count(layer_name) == 0)
 				{
-					darknet_fatal_error(DARKNET_LOC, "layer \"%s\" in %s does not seem to be a valid name", name.c_str(), fn.c_str());
+					darknet_fatal_error(DARKNET_LOC, "layer \"%s\" in %s does not seem to be a valid name", layer_name.c_str(), fn.c_str());
 				}
 
-				m[name] ++;
+				m[layer_name] ++;
 			}
 		}
 
@@ -628,15 +628,15 @@ void Darknet::cfg_layers()
 		for (int layer_index = 0; layer_index <= static_cast<int>(Darknet::ELayerType::LAYER_LAST_IDX); layer_index ++)
 		{
 			const auto type = static_cast<Darknet::ELayerType>(layer_index);
-			const auto name = layer_type_to_name[type];
+			const auto layer_name = layer_type_to_name[type];
 
-			if (m.count(name) == 0)
+			if (m.count(layer_name) == 0)
 			{
 				ofs << "\t\t<td style=\"background-color: yellow;\">&nbsp;</td>" << std::endl;
 			}
 			else
 			{
-				ofs << "\t\t<td style=\"text-align: center;\">" << m[name] << "</td>" << std::endl;
+				ofs << "\t\t<td style=\"text-align: center;\">" << m[layer_name] << "</td>" << std::endl;
 				completely_unused_layer_types.erase(type);
 				number_of_times_layer_was_referenced[type] ++;
 
