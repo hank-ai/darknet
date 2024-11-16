@@ -126,8 +126,8 @@ namespace Darknet
 
 	/** Add the default %Darknet Keypoints neural network files to the given @p parms.
 	 *
-	 * If @p parms doesn't seem to reference neural network files, then this function will automatically add the names
-	 * @p "Darknet-Keypoints.cfg" and @p "Darknet-Keypoints.weights".
+	 * If @p parms doesn't seem to reference neural network files, then this function will automatically add the hint
+	 * @p "Darknet-Keypoints" in an attempt to load @p "Darknet-Keypoints.cfg" and @p "Darknet-Keypoints_best.weights".
 	 *
 	 * @since 2024-09-20
 	 */

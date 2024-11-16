@@ -356,7 +356,10 @@ Darknet::Parms Darknet::parse_arguments(int argc, char * argv[])
 	// fix up the indexes, since we started with argv[1] and not argv[0]
 	for (auto & parm : parms)
 	{
-		parm.idx ++;
+		if (parm.idx >= 0)
+		{
+			parm.idx ++;
+		}
 	}
 
 	return parms;
@@ -471,6 +474,27 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 		}
 	}
 
+	find_neural_network_files(parms);
+
+	if (cfg_and_state.is_trace)
+	{
+		for (size_t idx = 0; idx < parms.size(); idx ++)
+		{
+			std::cout << "Parameter parsing: #" << idx << " [type " << (int)parms[idx].type << "] -> " << parms[idx].string;
+			if (parms[idx].original != parms[idx].string)
+			{
+				std::cout << " (" << parms[idx].original << ")";
+			}
+			std::cout << std::endl;
+		}
+	}
+
+	return parms;
+}
+
+
+bool Darknet::find_neural_network_files(Darknet::Parms & parms)
+{
 	// 1st step:  see if we can identify the 3 files we need to load the network
 	for (auto & parm : parms)
 	{
@@ -557,28 +581,28 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 
 		if (weights_idx == -1)
 		{
-			path.replace_extension(".weights");
-			if (std::filesystem::exists(path))
+			std::string tmp = path.string();
+			auto pos = tmp.rfind(".");
+			tmp.erase(pos);
+			tmp += "_best.weights";
+			if (std::filesystem::exists(tmp))
 			{
-				std::cout << "Guessed weights:     " << Darknet::in_colour(Darknet::EColour::kBrightGreen, path.string()) << std::endl;
+				std::cout << "Guessed weights:     " << Darknet::in_colour(Darknet::EColour::kBrightGreen, tmp) << std::endl;
 				Parm parm = parms[cfg_idx];
 				parm.type = EParmType::kWeightsFilename;
-				parm.string = path.string();
+				parm.string = tmp;
 				parms.push_back(parm);
 				weights_idx = parms.size() - 1;
 			}
 			else
 			{
-				std::string tmp = path.string();
-				auto pos = tmp.rfind(".weights");
-				tmp.erase(pos);
-				tmp += "_best.weights";
-				if (std::filesystem::exists(tmp))
+				path.replace_extension(".weights");
+				if (std::filesystem::exists(path))
 				{
-					std::cout << "Guessed weights:     " << Darknet::in_colour(Darknet::EColour::kBrightGreen, tmp) << std::endl;
+					std::cout << "Guessed weights:     " << Darknet::in_colour(Darknet::EColour::kBrightGreen, path.string()) << std::endl;
 					Parm parm = parms[cfg_idx];
 					parm.type = EParmType::kWeightsFilename;
-					parm.string = tmp;
+					parm.string = path.string();
 					parms.push_back(parm);
 					weights_idx = parms.size() - 1;
 				}
@@ -587,7 +611,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 	}
 
 	// 3rd step:  if we have the .cfg, and we're missing the .weights, but we have other possible filenames to use...
-	if (cfg_idx > -1 and weights_idx == -1)
+	if (cfg_idx >= 0 and weights_idx == -1)
 	{
 		// the weights file might have an unusual extension?  look for a file > 10 MiB in size and peek at the header
 
@@ -725,20 +749,87 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 		}
 	}
 
-	if (cfg_and_state.is_trace)
+	return (cfg_idx		!= -1 and
+			names_idx	!= -1 and
+			weights_idx	!= -1);
+}
+
+
+Darknet::Parms & Darknet::set_default_neural_network(Darknet::Parms & parms, const std::string & hint1, const std::string & hint2, const std::string & hint3)
+{
+	if (get_config_filename(parms).empty())
 	{
-		for (size_t idx = 0; idx < parms.size(); idx ++)
+		Parms hints;
+
+		for (const std::string & hint : {hint1, hint2, hint3})
 		{
-			std::cout << "Parameter parsing: #" << idx << " [type " << (int)parms[idx].type << "] -> " << parms[idx].string;
-			if (parms[idx].original != parms[idx].string)
+			if (not hint.empty())
 			{
-				std::cout << " (" << parms[idx].original << ")";
+				Parm p;
+				p.idx		= -1;
+				p.type		= EParmType::kOther;
+				p.original	= hint;
+				p.string	= hint;
+				hints.push_back(p);
 			}
-			std::cout << std::endl;
 		}
+
+		find_neural_network_files(hints);
+		parms.insert(parms.end(), hints.begin(), hints.end());
 	}
 
 	return parms;
+}
+
+
+std::filesystem::path Darknet::get_config_filename(const Darknet::Parms & parms)
+{
+	std::filesystem::path path;
+
+	for (const auto & parm : parms)
+	{
+		if (parm.type == EParmType::kCfgFilename)
+		{
+			path = parm.string;
+			break;
+		}
+	}
+
+	return path;
+}
+
+
+std::filesystem::path Darknet::get_names_filename(const Darknet::Parms & parms)
+{
+	std::filesystem::path path;
+
+	for (const auto & parm : parms)
+	{
+		if (parm.type == EParmType::kNamesFilename)
+		{
+			path = parm.string;
+			break;
+		}
+	}
+
+	return path;
+}
+
+
+std::filesystem::path Darknet::get_weights_filename(const Darknet::Parms & parms)
+{
+	std::filesystem::path path;
+
+	for (const auto & parm : parms)
+	{
+		if (parm.type == EParmType::kWeightsFilename)
+		{
+			path = parm.string;
+			break;
+		}
+	}
+
+	return path;
 }
 
 

@@ -172,6 +172,41 @@ namespace Darknet
 	 */
 	Darknet::Parms parse_arguments(const Darknet::VStr & v);
 
+	/** Given some hints in the parsed parameters, this function attempts to find the neural network files and converts
+	 * the necessary parameter(s) to filenames.  This is automatically called by @ref parse_arguments().
+	 *
+	 * @returns @p true if 3 usable filenames were found, otherwise returns @p false.
+	 *
+	 * The parameters used to help find the neural network files can be:
+	 *
+	 * - partial filename word matches
+	 * - relative filenames
+	 * - absolute filenames
+	 * - relative directory name (if the network is named the same as the directory)
+	 * - absolute directory name (if the network is named the same as the directory)
+	 *
+	 * First example: Given the unknown parameter @p "ani", then this might be used to match the filenames @p animal.cfg,
+	 * @p animal.names, and @p animal_best.weights, in which case all 3 of those filenames will be set as the neural
+	 * network files within @p parms.
+	 *
+	 * Second example: Given the unknown parameter @p "cars", then if there is a subdirectory named @p "cars", it will
+	 * be parsed to see if it contains any @p .cfg, @p .names, and @p .weights files.
+	 *
+	 * @since 2024-11-15
+	 */
+	bool find_neural_network_files(Darknet::Parms & parms);
+
+	/** If no neural network has been set in the parameters, this can be used to provide hints as to which files need
+	 * to be loaded.  If a neural network has already been defined, then these "hints" are ignored, and the @p parms
+	 * are left unchanged.
+	 *
+	 * The "hints" are used in a call to @ref find_neural_network_files().  See the documentation for that function
+	 * which desribes what can be used as "hints".
+	 *
+	 * @since 2024-11-15
+	 */
+	Darknet::Parms & set_default_neural_network(Darknet::Parms & parms, const std::string & hint1, const std::string & hint2 = "", const std::string & hint3 = "");
+
 	/** Set the @ref Darknet::CfgAndState::is_verbose flag.  When enabled, extra information will be sent to @p STDOUT.
 	 * Default value is @p false.
 	 *
@@ -431,17 +466,38 @@ namespace Darknet
 	 */
 	std::filesystem::path get_config_filename(const Darknet::NetworkPtr ptr);
 
+	/** Get the filename of the configuration file from the provided parameters.  This will return an empty "path" if
+	 * a @p .cfg file has not been set.
+	 *
+	 * @since 2024-11-15
+	 */
+	std::filesystem::path get_config_filename(const Parms & parms);
+
 	/** Get the filename of the names file that was used to load this neural network.
 	 *
 	 * @since 2024-08-29
 	 */
 	std::filesystem::path get_names_filename(const Darknet::NetworkPtr ptr);
 
+	/** Get the filename of the names file from the provided parameters.  This will return an empty "path" if
+	 * a @p .names file has not been set.
+	 *
+	 * @since 2024-11-15
+	 */
+	std::filesystem::path get_names_filename(const Parms & parms);
+
 	/** Get the filename of the weights file that was used to load this neural network.
 	 *
 	 * @since 2024-08-29
 	 */
 	std::filesystem::path get_weights_filename(const Darknet::NetworkPtr ptr);
+
+	/** Get the filename of the weights file from the provided parameters.  This will return an empty "path" if
+	 * a @p .weights file has not been set.
+	 *
+	 * @since 2024-11-15
+	 */
+	std::filesystem::path get_weights_filename(const Parms & parms);
 
 	/** Resize the image as close as we can to the given size, but keep the aspect ratio the same as the original image.
 	 *

@@ -424,40 +424,10 @@ void Darknet::set_default_keypoints_files(Darknet::Parms & parms)
 {
 	// if we know which neural network to load, then there is nothing for us to change,
 	// but if the user didn't specify files to load then we'll default to the usual MSCOCO-style keypoints
-
-	bool found_cfg		= false;
-	bool found_weights	= false;
-	for (const auto & parm : parms)
-	{
-		if (parm.type == Darknet::EParmType::kCfgFilename)
-		{
-			found_cfg = true;
-		}
-		else if (parm.type == Darknet::EParmType::kWeightsFilename)
-		{
-			found_weights = true;
-		}
-	}
-
-	if (not found_cfg)
-	{
-		Darknet::Parm parm;
-		parm.idx		= 0;
-		parm.type		= Darknet::EParmType::kCfgFilename;
-		parm.original	= "Darknet-Keypoints.cfg";
-		parm.string		= parm.original;
-		parms.push_back(parm);
-	}
-
-	if (not found_weights)
-	{
-		Darknet::Parm parm;
-		parm.idx		= 0;
-		parm.type		= Darknet::EParmType::kWeightsFilename;
-		parm.original	= "Darknet-Keypoints.weights";
-		parm.string		= parm.original;
-		parms.push_back(parm);
-	}
+	//
+	// 2024-11-15:  the logic that used be here is now in Darknet::set_default_neural_network()
+	//
+	Darknet::set_default_neural_network(parms, "Darknet-Keypoints");
 
 	return;
 }
