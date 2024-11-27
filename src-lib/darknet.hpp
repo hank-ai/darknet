@@ -621,7 +621,8 @@ namespace Darknet
 	 * heatmap is stored with an index of @p -1.
 	 *
 	 * The dimensions of each heatmap will match the network dimensions.  The values returned in each heatmap will be
-	 * between @p 0.0f and some relatively small float value which may be larger than @p 1.0f.
+	 * between @p 0.0f and some relatively small float value which may be larger than @p 1.0f.  See the function
+	 * @ref Darknet::visualize_heatmap() where the values are normalized.
 	 *
 	 * The heatmaps can be shown directly using OpenCV's @p cv::imshow(), but the results will appear much better if the
 	 * values are normalized and coloured, similar to how it is done in @ref Darknet::visualize_heatmap().
