@@ -44,6 +44,17 @@ Darknet::ArgsAndParms::ArgsAndParms(const std::string & n1, const EType t, const
 }
 
 
+Darknet::ArgsAndParms::ArgsAndParms(const std::string & n1, const std::string & n2, const EType t, const std::string & txt) :
+	ArgsAndParms(n1, n2, txt)
+{
+	TAT(TATPARMS);
+
+	type = t;
+
+	return;
+}
+
+
 Darknet::ArgsAndParms::ArgsAndParms(const std::string & n1, const std::string & n2, const int i, const std::string & txt) :
 	ArgsAndParms(n1, n2, txt)
 {
@@ -136,7 +147,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("points"				), //-- takes an int?  0
 		ArgsAndParms("random"				, ArgsAndParms::EType::kParameter, "Randomize the list of images.  Default is to sort alphabetically."),
 		ArgsAndParms("show"					, ArgsAndParms::EType::kParameter, "Visually display the anchors."),
-		ArgsAndParms("heatmaps"				, ArgsAndParms::EType::kParameter, "Display the heatmaps for each class."),
+		ArgsAndParms("heatmaps", "heatmap"	, ArgsAndParms::EType::kParameter, "Display the heatmaps for each class."),
 		ArgsAndParms("showimgs"				),
 		ArgsAndParms("httpposthost"			),
 		ArgsAndParms("timelimitsec"			),

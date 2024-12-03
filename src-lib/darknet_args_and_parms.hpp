@@ -34,12 +34,20 @@ namespace Darknet
 			 */
 			ArgsAndParms(const std::string & n1, const std::string & n2 = "", const std::string & txt = "");
 
-			/** Constructor.  This is mostly used for commands and functions, not parameters.
+			/** Constructor.
 			 * @param [in] n1 is the command or function name.
 			 * @param [in] t sets the parameter type.
 			 * @param [in] txt is a short text description for this parameter.
 			 */
 			ArgsAndParms(const std::string & n1, const EType t, const std::string & txt = "");
+
+			/** Constructor.
+			 * @param [in] n1 is the command or function name.
+			 * @param [in] n2 is an alternate name or spelling.
+			 * @param [in] t sets the parameter type.
+			 * @param [in] txt is a short text description for this parameter.
+			 */
+			ArgsAndParms(const std::string & n1, const std::string & n2, const EType t, const std::string & txt);
 
 			/** Constructor.  This parameter requires the next argument be an @p int parameter.
 			 * @param [in] n1 is the argument name.
