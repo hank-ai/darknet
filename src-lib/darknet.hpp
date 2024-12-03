@@ -616,9 +616,9 @@ namespace Darknet
 	std::ostream & operator<<(std::ostream & os, const Darknet::Predictions & preds);
 
 	/** Create several @p CV_32FC1 (array of 32-bit floats, single channel) @p cv::Mat objects representing heatmaps
-	 * obtained from the YOLO layers in the network.  There is a heatmap for each class, and then another heatmap which
-	 * combines all classes.  The class index is used to store each heatmap in the @p std::map result, while the combined
-	 * heatmap is stored with an index of @p -1.
+	 * obtained from the internals of the YOLO layers in the network.  There is a heatmap for each class, and then another
+	 * heatmap which combines all classes.  The class index is used to store each heatmap in the @p std::map result, while
+	 * the combined heatmap is stored with an index of @p -1.
 	 *
 	 * The dimensions of each heatmap will match the network dimensions.  The values returned in each heatmap will be
 	 * between @p 0.0f and some relatively small float value which may be larger than @p 1.0f.  See the function

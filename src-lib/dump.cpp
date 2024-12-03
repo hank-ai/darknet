@@ -435,7 +435,7 @@ void Darknet::dump(Darknet::CfgFile & cfg)
 
 void Darknet::dump(const float * ptr, const size_t count, const size_t row_len)
 {
-	std::cout << "Dump " << count << " floats starting at " << (void*)ptr << ":";
+	std::cout << "Dump " << count << " floats (" << row_len << "x" << (count / row_len) << ") starting at " << (void*)ptr << ":";
 	for (auto idx = 0; idx < count; idx ++)
 	{
 		std::string buffer;
@@ -447,13 +447,31 @@ void Darknet::dump(const float * ptr, const size_t count, const size_t row_len)
 			{
 				buffer = " " + buffer;
 			}
-			std::cout << std::endl << buffer << ":";
+			std::cout << std::endl << "\033[90m" << buffer << ":\033[0m";
 		}
 
 		buffer = std::to_string(ptr[idx]);
 		buffer.erase(6);
 
-		std::cout << " " << buffer;
+		std::string colour;
+		if (ptr[idx] < 0.0f)
+		{
+			colour = "\033[91m"; // RED
+		}
+		else if (ptr[idx] < 0.0001f)
+		{
+			colour = "\033[93m"; // YELLOW
+		}
+		else if (ptr[idx] < 0.1f)
+		{
+			colour = "\033[94m"; // BLUE
+		}
+		else
+		{
+			colour = "\033[92m"; // GREEN
+		}
+
+		std::cout << " " << colour << buffer << "\033[0m";
 	}
 
 	std::cout << std::endl;
@@ -517,7 +535,7 @@ void Darknet::dump(const Darknet::Layer & l)
 
 			for (size_t section_counter = 0; section_counter < names.size(); section_counter ++)
 			{
-				std::cout << "-> YOLO n=" << n << ": \"" << names[section_counter] << "\": ";
+				std::cout << "-> YOLO n=" << n << ": \"\033[97m" << names[section_counter] << "\033[0m\": ";
 				dump(l.output + idx, count, l.w);
 				idx += count;
 			}
