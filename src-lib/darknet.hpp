@@ -624,12 +624,15 @@ namespace Darknet
 	 * between @p 0.0f and some relatively small float value which may be larger than @p 1.0f.  See the function
 	 * @ref Darknet::visualize_heatmap() where the values are normalized.
 	 *
+	 * The @p threshold should be between @p 0.0f and @p 1.0f.  The smaller the value, the more predictions will be included
+	 * in the heatmap, but also the longer it takes to generate the heatmaps.
+	 *
 	 * The heatmaps can be shown directly using OpenCV's @p cv::imshow(), but the results will appear much better if the
-	 * values are normalized and coloured, similar to how it is done in @ref Darknet::visualize_heatmap().
+	 * values are both normalized and coloured, similar to how it is done in @ref Darknet::visualize_heatmap().
 	 *
 	 * @since 2024-11-09
 	 */
-	MMats create_yolo_heatmaps(Darknet::NetworkPtr ptr, const float sigma = 15.0f);
+	MMats create_yolo_heatmaps(Darknet::NetworkPtr ptr, const float threshold = 0.1f);
 
 	/** Convert a heatmap created with @ref Darknet::create_yolo_heatmaps() to an easy-to-view image.  This will normalize
 	 * the image, and apply some false colours.  The OpenCV colour map @p COLORMAP_JET is quite colourful; others that can

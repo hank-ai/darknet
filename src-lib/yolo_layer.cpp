@@ -1604,7 +1604,7 @@ void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 #endif
 
 
-Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const float sigma)
+Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const float threshold)
 {
 	TAT(TATPARMS);
 
@@ -1613,8 +1613,6 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 	{
 		throw std::invalid_argument("cannot generate heatmaps without a network pointer");
 	}
-
-	const float two_times_sigma_square = 2.0f * std::max(1.0f, sigma * sigma);
 
 	MMats m;
 	m[-1] = cv::Mat(net->h, net->w, CV_32FC1, {0, 0, 0});
@@ -1655,36 +1653,85 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 
 					const size_t confidence_index = yolo_entry_index(l, 0, n * l.w * l.h + idx, 5 + class_index);
 					const float & confidence = l.output[confidence_index];
+					const float probability = objectness * confidence;
 
-					// check needed because if both values are negative then multiplying them gives us a positive number
-					if (confidence * objectness > 0.01f and confidence > 0.01f)
+					if (probability < threshold)
 					{
-						// need the X and Y coordinates
-						const int box_index = yolo_entry_index(l, 0, n * l.w * l.h + idx, 0);
-						int row = idx / l.w;
-						int col = idx % l.w;
-						const auto bbox = get_yolo_box(l.output, l.biases, l.mask[n], box_index, col, row, l.w, l.h, net->w, net->h, l.w * l.h, l.new_coords);
-						/// @todo What about the width and height?  Isn't there something we can do with those?
-						row = bbox.y * net->h;
-						col = bbox.x * net->w;
-
-						// apply Gaussian distribution around detection
-						for (int y = 0; y < net->h; y++)
-						{
-							// get a pointer to the start of the row, then we'll use the "x" as an offset into this pointer
-							float * ptr1 = m[-1			].ptr<float>(y); // "total" heatmap
-							float * ptr2 = m[class_index].ptr<float>(y); // class-based heatmap
-
-							for (int x = 0; x < net->w; x++)
-							{
-								const float dx = x - col;
-								const float dy = y - row;
-								const float value = confidence * objectness * expf(-(dx * dx + dy * dy) / two_times_sigma_square);
-								ptr1[x] += value;
-								ptr2[x] += value;
-							}
-						}
+						// ignore this prediction (does not match threshold)
+						continue;
 					}
+
+					// need the X and Y coordinates
+					const int box_index = yolo_entry_index(l, 0, n * l.w * l.h + idx, 0);
+					const int row = idx / l.w;
+					const int col = idx % l.w;
+					const auto bbox = get_yolo_box(l.output, l.biases, l.mask[n], box_index, col, row, l.w, l.h, net->w, net->h, l.w * l.h, l.new_coords);
+
+					#if 0
+					std::cout
+						<< "layer=" << layer_index
+						<< " anchor=" << n
+						<< " idx=" << idx
+						<< " class=" << class_index
+						<< " row=" << row
+						<< " col=" << col
+						<< " obj=" << objectness
+						<< " conf=" << confidence
+						<< " prob=" << probability
+						<< " x=" << bbox.x
+						<< " y=" << bbox.y
+						<< " w=" << bbox.w
+						<< " h=" << bbox.h
+						<< std::endl;
+					#endif
+
+					const int w = std::round(net->w * bbox.w);
+					const int h = std::round(net->h * bbox.h);
+					const int x = std::round(net->w * (bbox.x - bbox.w / 2.0f));
+					const int y = std::round(net->h * (bbox.y - bbox.h / 2.0f));
+					cv::Rect r(x, y, w, h);
+					if (r.x < 0) r.x = 0;
+					if (r.y < 0) r.y = 0;
+					if (r.x + r.width >= net->w) r.width = net->w - r.x - 1;
+					if (r.y + r.height >= net->h) r.height = net->h - r.y - 1;
+
+					// create a mask with rounded corners
+					// https://stackoverflow.com/a/78814207/13022
+
+					cv::Mat mask(net->h, net->w, CV_32FC1);
+					mask = 0.0f;
+
+					const auto linetype = cv::LineTypes::LINE_4;
+					const auto linethickness = 1;
+					const auto colour = cv::Scalar(1.0f);
+
+					const cv::Point tl(r.tl());
+					const cv::Point br(r.br());
+					const cv::Point tr(br.x, tl.y);
+					const cv::Point bl(tl.x, br.y);
+
+					const int hoffset = std::round((tr.x - tl.x) / 5.0f);
+					const int voffset = std::round((bl.y - tl.y) / 5.0f);
+
+					// draw horizontal and vertical segments
+					cv::line(mask, cv::Point(tl.x + hoffset, tl.y), cv::Point(tr.x - hoffset, tr.y), colour, linethickness, linetype);
+					cv::line(mask, cv::Point(tr.x, tr.y + voffset), cv::Point(br.x, br.y - voffset), colour, linethickness, linetype);
+					cv::line(mask, cv::Point(br.x - hoffset, br.y), cv::Point(bl.x + hoffset, bl.y), colour, linethickness, linetype);
+					cv::line(mask, cv::Point(bl.x, bl.y - voffset), cv::Point(tl.x, tl.y + voffset), colour, linethickness, linetype);
+
+					// draw each of the corners
+					cv::ellipse(mask, tl + cv::Point(+hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 180.0 , 270.0 , colour, linethickness, linetype);
+					cv::ellipse(mask, tr + cv::Point(-hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 270.0 , 360.0 , colour, linethickness, linetype);
+					cv::ellipse(mask, br + cv::Point(-hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 0.0   , 90.0  , colour, linethickness, linetype);
+					cv::ellipse(mask, bl + cv::Point(+hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 90.0  , 180.0 , colour, linethickness, linetype);
+
+					cv::floodFill(mask, cv::Point(r.x + r.width / 2, r.y + r.height / 2), colour);
+
+					cv::Mat value(net->h, net->w, CV_32FC1);
+					value = probability;
+
+					m[-1] += (value & mask);
+					m[class_index] += (value & mask);
 				}
 			}
 		}
