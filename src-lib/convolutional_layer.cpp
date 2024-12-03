@@ -449,6 +449,9 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 	const auto compu_capability_ver = prop.major * 10 + prop.minor; // e.g., "86" for RTX30xx, or "89" for RTX40xx
 #endif
 
+	const bool is_training	= (cfg_and_state.command == "detector" and cfg_and_state.function == "train");
+	const bool is_map		= (cfg_and_state.command == "detector" and cfg_and_state.function == "map");
+
 	found_conv_algorithm = 0;
 	min_time = 1000000;   // 1000 sec
 
@@ -524,8 +527,10 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 			 * 2024-10-16 update:  Just ran into this error on my RTX 3090 when training YOLOv4-tiny-3L.  Network was large
 			 * (1440x800x3, subdiv=4) but only used 15 GiB out of the 24 GiB available.  For now, disabling this algo until
 			 * a proper fix can be found.
+			 *
+			 * 2024-12-02 update:  This doesn't work while training, but no reason why we cannot use it during inference.
 			 */
-//			if (compu_capability_ver < 86 or compu_capability_ver == 87)
+			if (is_training or is_map)
 			{
 				continue;
 			}
