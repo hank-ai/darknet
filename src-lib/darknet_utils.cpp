@@ -580,6 +580,12 @@ void Darknet::cfg_layers()
 		std::string line;
 		while (std::getline(ifs, line))
 		{
+			const size_t pos = line.find_last_not_of(" \t\r\n");
+			if (pos != std::string::npos)
+			{
+				line.erase(pos + 1);
+			}
+
 			size_t sz = line.size();
 			if (sz > 2 and
 				line[0] == '[' and
