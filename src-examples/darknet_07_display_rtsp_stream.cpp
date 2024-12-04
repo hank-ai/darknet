@@ -43,10 +43,16 @@ int main(int argc, char * argv[])
 			}
 		}
 
-//		const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_ANY; // let OpenCV choose a back-end to use
+#ifdef WIN32
+		// There are *many* possible backends we can use.  Over 30.  Many of which are Windows-specific.  But it appears
+		// that CAP_ANY might be a good choice to make.  See issue #97:  https://github.com/hank-ai/darknet/issues/97
+		const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_ANY; // let OpenCV choose a back-end to use
+#else
+//		const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_ANY;
 //		const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_V4L2;
 //		const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_FFMPEG;
 		const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_GSTREAMER;
+#endif
 
 		std::cout << "Connecting to stream " << stream << "..." << std::endl;
 		cv::VideoCapture cap(stream, backend);
