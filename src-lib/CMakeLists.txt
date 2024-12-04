@@ -55,6 +55,8 @@ MESSAGE(STATUS "Setting up DARKNET LIB")
 SET (DARKNET_PUBLIC_HEADERS
 	darknet.h
 	darknet.hpp
+	darknet_args_and_parms.hpp
+	darknet_cfg_and_state.hpp
 	darknet_cfg.hpp
 	darknet_image.hpp
 	darknet_keypoints.hpp

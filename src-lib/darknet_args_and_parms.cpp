@@ -137,7 +137,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("clear"		, ArgsAndParms::EType::kParameter	, "Used during training to reset the \"image count\" to zero, necessary when pre-existing weights are used."),
 		ArgsAndParms("map"			, ArgsAndParms::EType::kParameter	, "Regularly calculate mAP% score while training."),
 
-		ArgsAndParms("camera"	, "c"			, 0		),
+		ArgsAndParms("camera"	, "c"			, 0		, "The camera (webcam) index, where numbering is typically sequential and begins with zero."),
 		ArgsAndParms("thresh"	, "threshold"	, 0.24f	),
 
 		ArgsAndParms("avgframes"			), //-- takes an int  3

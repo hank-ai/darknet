@@ -3,9 +3,12 @@
  */
 
 #include "darknet.hpp"
+#include "darknet_cfg_and_state.hpp"
 
 /** @file
- * This application will read from a webcam, run the video through Darknet/YOLO, and display the results.
+ * This application will read from a webcam, run the video through Darknet/YOLO, and display the results.  Use the "-c"
+ * or "--camera" parameter to open a specific webcam.  For example, you can use "darknet_08_display_webcam --camera 3"
+ * to open the 4th webcam.  (Camera indexes are zero-based.)
  */
 
 
@@ -51,18 +54,13 @@ const auto REQUEST_WEBCAM_FPS		= 30.0;
  *		- backlight compensation ....... 2 => maximum
  */
 
-// 0==first camera, 1=second camera, etc
-const auto REQUEST_WEBCAM_INDEX		= 0;
-
 // When set to TRUE, a recording of the annotated webcam feed will be saved to output.mp4.
 // When set to FALSE, the annotated webcam output is shown on screen but not saved to disk.
-const auto SAVE_OUTPUT_VIDEO		= false;
+const auto SAVE_OUTPUT_VIDEO = false;
 
 
 cv::VideoCapture open_and_configure_camera(cv::VideoCapture & cap)
 {
-	std::cout << "Opening webcam..." << std::endl;
-
 #ifdef WIN32
 	// on Windows we'll let OpenCV automatically choose a backend to use
 	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_ANY;
@@ -74,10 +72,15 @@ cv::VideoCapture open_and_configure_camera(cv::VideoCapture & cap)
 //	const cv::VideoCaptureAPIs backend = cv::VideoCaptureAPIs::CAP_GSTREAMER;
 #endif
 
-	cap.open(REQUEST_WEBCAM_INDEX, backend);
+	auto & cfg_and_state = Darknet::CfgAndState::get();
+	const int camera_index = cfg_and_state.get("camera", 0);
+
+	std::cout << "Opening webcam #" << camera_index << "..." << std::endl;
+
+	cap.open(camera_index, backend);
 	if (not cap.isOpened())
 	{
-		throw std::runtime_error("failed to open the webcam #" + std::to_string(REQUEST_WEBCAM_INDEX));
+		throw std::runtime_error("failed to open the webcam #" + std::to_string(camera_index));
 	}
 
 	// set the resolution and frame rate -- see the top of this file for the REQUEST_... values
