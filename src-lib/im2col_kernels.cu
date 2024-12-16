@@ -39,9 +39,10 @@ __global__ void im2col_gpu_kernel(const int n, const float* data_im,
 		const int pad,
 		const int stride,
 		const int height_col, const int width_col,
-		float *data_col) {
-	int index = blockIdx.x*blockDim.x+threadIdx.x;
-	for(; index < n; index += blockDim.x*gridDim.x){
+		float *data_col)
+{
+	for (int index = blockIdx.x * blockDim.x + threadIdx.x; index < n; index += blockDim.x * gridDim.x)
+	{
 		int w_out = index % width_col;
 		int h_index = index / width_col;
 		int h_out = h_index % height_col;
@@ -53,13 +54,14 @@ __global__ void im2col_gpu_kernel(const int n, const float* data_im,
 		data_col_ptr += (channel_out * height_col + h_out) * width_col + w_out;
 		const float* data_im_ptr = data_im;
 		data_im_ptr += (channel_in * height + h_in) * width + w_in;
-		for (int i = 0; i < ksize; ++i) {
-			for (int j = 0; j < ksize; ++j) {
+		for (int i = 0; i < ksize; ++i)
+		{
+			for (int j = 0; j < ksize; ++j)
+			{
 				int h = h_in + i;
 				int w = w_in + j;
 
-				*data_col_ptr = (h >= 0 && w >= 0 && h < height && w < width) ?
-					data_im_ptr[i * width + j] : 0;
+				*data_col_ptr = (h >= 0 && w >= 0 && h < height && w < width) ? data_im_ptr[i * width + j] : 0;
 
 				//data_im[(channel_in * height + h_in) * width + w_in + i * width + j];
 				//(*data_col_ptr) = data_im_ptr[ii * width + jj];
@@ -99,8 +101,8 @@ __global__ void im2col_align_gpu_kernel(const int n, const float* data_im,
 	const int height_col, const int width_col,
 	float *data_col, const int bit_align)
 {
-	int index = blockIdx.x*blockDim.x + threadIdx.x;
-	for (; index < n; index += blockDim.x*gridDim.x) {
+	for (int index = blockIdx.x * blockDim.x + threadIdx.x; index < n; index += blockDim.x * gridDim.x)
+	{
 		int w_out = index % width_col;
 		int h_index = index / width_col;
 		int h_out = h_index % height_col;
@@ -115,13 +117,14 @@ __global__ void im2col_align_gpu_kernel(const int n, const float* data_im,
 		float* data_col_ptr = &data_col[channel_out * bit_align + h_out * width_col + w_out];
 		const float* data_im_ptr = data_im;
 		data_im_ptr += (channel_in * height + h_in) * width + w_in;
-		for (int i = 0; i < ksize; ++i) {
-			for (int j = 0; j < ksize; ++j) {
+		for (int i = 0; i < ksize; ++i)
+		{
+			for (int j = 0; j < ksize; ++j)
+			{
 				int h = h_in + i;
 				int w = w_in + j;
 
-				float val = (h >= 0 && w >= 0 && h < height && w < width) ?
-					data_im_ptr[i * width + j] : 0;
+				float val = (h >= 0 && w >= 0 && h < height && w < width) ? data_im_ptr[i * width + j] : 0.0f;
 
 				int pre_out_index = index % (width_col*height_col);
 				int out_index = (channel_out + i*ksize + j) * bit_align + pre_out_index;// h_out * width_col + w_out;
@@ -290,8 +293,7 @@ __global__ void float_to_bit_gpu_kernel(float *src, unsigned char *dst, size_t s
 	float src_val;
 	uint32_t *dst32_ptr = ((unsigned int*)dst);
 
-	int i;
-	for(i = 0; i < 32; ++i)
+	for (int i = 0; i < 32; ++i)
 	{
 		if ((index + i * 1024) < size) src_val = src[index + i*1024];
 		else src_val = 0;
@@ -1407,7 +1409,11 @@ __global__ void im2col_gpu_kernel_ext(const int n, const float* data_im,
 	const int height_col, const int width_col,
 	float* data_col)
 {
-	CUDA_KERNEL_LOOP(index, n) {
+	/// @todo V3 what "index" is this referencing?  How does this compile?
+
+	// CUDA: grid stride looping
+	CUDA_KERNEL_LOOP(index, n)
+	{
 		const int h_index = index / width_col;
 		const int h_col = h_index % height_col;
 		const int w_col = index % width_col;
@@ -1419,8 +1425,10 @@ __global__ void im2col_gpu_kernel_ext(const int n, const float* data_im,
 		data_col_ptr += (c_col * height_col + h_col) * width_col + w_col;
 		const float* data_im_ptr = data_im;
 		data_im_ptr += (c_im * height + h_offset) * width + w_offset;
-		for (int i = 0; i < kernel_h; ++i) {
-			for (int j = 0; j < kernel_w; ++j) {
+		for (int i = 0; i < kernel_h; ++i)
+		{
+			for (int j = 0; j < kernel_w; ++j)
+			{
 				int h_im = h_offset + i * dilation_h;
 				int w_im = w_offset + j * dilation_w;
 				*data_col_ptr =
