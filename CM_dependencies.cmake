@@ -133,6 +133,24 @@ SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${OpenCV_LIBS})
 # == OpenMP ==
 # ============
 FIND_PACKAGE (OpenMP QUIET) # optional
+if(APPLE AND NOT OPENMP_FOUND)
+  # libomp 15.0+ from brew is keg-only, so have to search in other locations.
+  # See https://github.com/Homebrew/homebrew-core/issues/112107#issuecomment-1278042927.
+  execute_process(COMMAND brew --prefix libomp
+                  OUTPUT_VARIABLE HOMEBREW_LIBOMP_PREFIX
+                  OUTPUT_STRIP_TRAILING_WHITESPACE)
+  set(OpenMP_C_FLAGS "-Xpreprocessor -fopenmp -I${HOMEBREW_LIBOMP_PREFIX}/include")
+  set(OpenMP_CXX_FLAGS "-Xpreprocessor -fopenmp -I${HOMEBREW_LIBOMP_PREFIX}/include")
+  set(OpenMP_C_LIB_NAMES omp)
+  set(OpenMP_CXX_LIB_NAMES omp)
+  set(OpenMP_omp_LIBRARY ${HOMEBREW_LIBOMP_PREFIX}/lib/libomp.dylib)
+  set(OPENMP_HOMEBREW_USED TRUE)
+  find_package(OpenMP QUIET)
+  if(NOT OPENMP_FOUND)
+    message(STATUS "  ->  To enable OpenMP on macOS, please install libomp from Homebrew")
+  endif()
+endif()
+
 IF (NOT OPENMP_FOUND)
 	MESSAGE (WARNING "OpenMP not found. Building Darknet without support for OpenMP.")
 ELSE ()
@@ -140,7 +158,15 @@ ELSE ()
 	ADD_COMPILE_DEFINITIONS (OPENMP)
 	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 	IF (COMPILER_IS_GNU_OR_CLANG)
-		ADD_COMPILE_OPTIONS(-fopenmp)
+		IF (APPLE)
+			IF (OPENMP_HOMEBREW_USED)
+				ADD_COMPILE_OPTIONS(${OpenMP_CXX_FLAGS})
+			ELSE ()
+				ADD_COMPILE_OPTIONS(-Xpreprocessor -fopenmp)
+			ENDIF ()
+		ELSE ()
+			ADD_COMPILE_OPTIONS(-fopenmp)
+		ENDIF()
 	ENDIF ()
 ENDIF ()
 
