@@ -641,4 +641,9 @@ namespace Darknet
 	 * @since 2024-11-09
 	 */
 	cv::Mat visualize_heatmap(const cv::Mat & heatmap, const cv::ColormapTypes colourmap = cv::ColormapTypes::COLORMAP_JET);
+
+	/** Format the C++ duration as an easy-to-read text string, such as @p "3.432 milliseconds" or @p "4.250 hours".
+	 * @see @ref Darknet::format_time_remaining()
+	 */
+	std::string format_duration_string(std::chrono::high_resolution_clock::duration duration, const int decimals = 1);
 }

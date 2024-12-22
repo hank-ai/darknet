@@ -42,7 +42,9 @@ namespace Darknet
 	 */
 	std::string format_time(const double & seconds_remaining);
 
-	/// Format the time remaining using simple-to-read text.  The time must be in @em seconds.
+	/** Format the time remaining using simple-to-read text.  The time must be in @em seconds.
+	 * @see @ref Darknet::format_duration_string()
+	 */
 	std::string format_time_remaining(const float & seconds_remaining);
 
 	/// Format the loss combined with ANSI colours.

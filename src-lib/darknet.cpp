@@ -1693,3 +1693,65 @@ std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Predictions
 
 	return os;
 }
+
+
+std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::duration duration, const int decimals)
+{
+	if (duration < std::chrono::high_resolution_clock::duration::zero())
+	{
+		duration = std::chrono::abs(duration);
+	}
+
+	// Use one of the following durations:
+	//
+	//	1) milliseconds
+	//	2) seconds
+	//	3) minutes
+	//	4) hours
+	//	5) days
+	//
+	// I intentionally skipped the units smaller than milliseconds.
+	// With decimal values, hopefully milliseconds is precise enough.
+
+	const float nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
+
+	std::stringstream ss;
+	if (duration == std::chrono::high_resolution_clock::duration::zero())
+	{
+		ss << "now";
+	}
+	else if (duration <= std::chrono::seconds(1))
+	{
+		const float milliseconds = nanoseconds / 1000000.0f;
+		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << milliseconds << " milliseconds";
+	}
+	else if (duration <= std::chrono::minutes(2))
+	{
+		const float seconds = nanoseconds / 1000000000.0f;
+		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << seconds << " seconds";
+	}
+	else if (duration <= std::chrono::hours(2))
+	{
+		const float minutes = nanoseconds / (60.0f * 1000000000.0f);
+		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << minutes << " minutes";
+	}
+	else if (duration <= std::chrono::hours(48))
+	{
+		const float hours = nanoseconds / (60.0f * 60.0f * 1000000000.0f);
+		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << hours << " hours";
+	}
+	else
+	{
+		const float days = nanoseconds / (24.0f * 60.0f * 60.0f * 1000000000.0f);
+		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << days << " days";
+	}
+
+	std::string str = ss.str();
+	const auto pos = str.find('.');
+	if (pos < 3)
+	{
+		str = std::string(3 - pos, ' ') + str;
+	}
+
+	return str;
+}
