@@ -177,7 +177,7 @@ sudo snap install cmake --classic
 
 
 
-**If you are using Docker to generate an imate** you'll need to modify the line 25 of the file `CM_package.cmake` before you can run the `cmake` command above, by replacing `ON` to `OFF` in the `CPACK_DEBIAN_PACKAGE_SHLIBDEPS` field.
+**If you are using Docker to generate an image** you'll need to modify the line 25 of the file `CM_package.cmake` before you can run the `cmake` command above, by replacing `ON` to `OFF` in the `CPACK_DEBIAN_PACKAGE_SHLIBDEPS` field.
 
 
 **If using `bash` as your command shell** you'll want to re-start your shell at this point.  If using `fish`, it should immediately pick up the new path.
