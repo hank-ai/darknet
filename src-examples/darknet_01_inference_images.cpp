@@ -32,6 +32,11 @@ int main(int argc, char * argv[])
 		Darknet::Parms parms = Darknet::parse_arguments(argc, argv);
 		Darknet::NetworkPtr net = Darknet::load_neural_network(parms);
 
+		int network_w = 0;
+		int network_h = 0;
+		int network_c = 0;
+		Darknet::network_dimensions(net, network_w, network_h, network_c);
+
 		for (const auto & parm : parms)
 		{
 			if (parm.type == Darknet::EParmType::kFilename)
@@ -39,7 +44,9 @@ int main(int argc, char * argv[])
 				const std::filesystem::path input_filename(parm.string);
 
 				std::cout << "loading " << input_filename << std::endl;
+				const auto t1 = std::chrono::high_resolution_clock::now();
 				cv::Mat mat = cv::imread(input_filename.string());
+				const auto t2 = std::chrono::high_resolution_clock::now();
 				if (mat.empty())
 				{
 					std::cout << "...invalid image?" << std::endl;
@@ -47,12 +54,17 @@ int main(int argc, char * argv[])
 				}
 
 				// output all of the predictions on the console as plain text
+				const auto t3 = std::chrono::high_resolution_clock::now();
 				const auto results = Darknet::predict(net, input_filename);
-				std::cout << results << std::endl;
+				const auto t4 = std::chrono::high_resolution_clock::now();
 
 				// save the annotated image to disk
+				const auto t5 = std::chrono::high_resolution_clock::now();
 				cv::Mat output = Darknet::annotate(net, results, mat);
+				const auto t6 = std::chrono::high_resolution_clock::now();
 				std::string output_filename = input_filename.stem().string() + "_output";
+
+				const auto t7 = std::chrono::high_resolution_clock::now();
 #if 1
 				output_filename += ".jpg";
 				const bool successful = cv::imwrite(output_filename, output, {cv::ImwriteFlags::IMWRITE_JPEG_QUALITY, 70});
@@ -60,10 +72,19 @@ int main(int argc, char * argv[])
 				output_filename += ".png";
 				const bool successful = cv::imwrite(output_filename, output, {cv::ImwriteFlags::IMWRITE_PNG_COMPRESSION, 5});
 #endif
+				const auto t8 = std::chrono::high_resolution_clock::now();
+
 				if (not successful)
 				{
 					std::cout << "failed to save the output to " << output_filename << std::endl;
 				}
+
+				std::cout
+					<< "-> reading image from disk ........... " << Darknet::format_duration_string(t2 - t1) << " [" << output.cols << " x " << output.rows << " x " << output.channels() << "]" << std::endl
+					<< "-> using Darknet to predict .......... " << Darknet::format_duration_string(t4 - t3) << " [" << results.size() << " object" << (results.size() == 1 ? "" : "s") << "]" << std::endl
+					<< "-> using Darknet to annotate image ... " << Darknet::format_duration_string(t6 - t5) << std::endl
+					<< "-> save output image to disk ......... " << Darknet::format_duration_string(t8 - t7) << std::endl
+					<< results << std::endl << std::endl;
 			}
 		}
 
