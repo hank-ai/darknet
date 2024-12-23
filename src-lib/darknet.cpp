@@ -1702,23 +1702,24 @@ std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::
 		duration = std::chrono::abs(duration);
 	}
 
-	// Use one of the following durations:
-	//
-	//	1) milliseconds
-	//	2) seconds
-	//	3) minutes
-	//	4) hours
-	//	5) days
-	//
-	// I intentionally skipped the units smaller than milliseconds.
-	// With decimal values, hopefully milliseconds is precise enough.
-
 	const float nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
+
+	// it is difficult to compare things when we have nanoseconds, microseconds, and milliseconds,
+	// so if we have enough decimals to work with, prefer using milliseconds when possible
 
 	std::stringstream ss;
 	if (duration == std::chrono::high_resolution_clock::duration::zero())
 	{
 		ss << "now";
+	}
+	else if (decimals < 3 and duration <= std::chrono::microseconds(1))
+	{
+		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << nanoseconds << " nanoseconds";
+	}
+	else if (decimals < 3 and duration <= std::chrono::microseconds(100))
+	{
+		const float microseconds = nanoseconds / 1000.0f;
+		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << microseconds << " microseconds";
 	}
 	else if (duration <= std::chrono::seconds(1))
 	{
