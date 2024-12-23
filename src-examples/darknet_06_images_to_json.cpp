@@ -17,6 +17,23 @@ using JSON = nlohmann::json;
  */
 
 
+std::string trim(std::string str)
+{
+	auto pos = str.find_last_not_of(" \t\r\n");
+	if (pos != std::string::npos)
+	{
+		str.erase(pos + 1);
+	}
+	pos = str.find_first_not_of(" \t\r\n");
+	if (pos != std::string::npos)
+	{
+		str.erase(0, pos);
+	}
+
+	return str;
+}
+
+
 int main(int argc, char * argv[])
 {
 	try
@@ -35,18 +52,26 @@ int main(int argc, char * argv[])
 
 		const Darknet::VStr & names = Darknet::get_class_names(net);
 
+		const auto start_time = std::chrono::high_resolution_clock::now();
+
 		for (const auto & parm : parms)
 		{
 			if (parm.type == Darknet::EParmType::kFilename)
 			{
 				std::cout << "processing " << parm.string << ": ";
+
+				// so we end up timing 1) loading from disk, 2) resize to network dimensions, and 3) predicting
+				const auto t1 = std::chrono::high_resolution_clock::now();
 				const auto results = Darknet::predict(net, parm.string);
+				const auto t2 = std::chrono::high_resolution_clock::now();
+
 				std::cout << results.size() << " object" << (results.size() == 1 ? "" : "s") << std::endl;
 				// store the results in JSON format
 
 				const size_t file_counter = json["file"].size();
 				json["file"][file_counter]["filename"	] = parm.string;
 				json["file"][file_counter]["count"		] = results.size();
+				json["file"][file_counter]["duration"	] = trim(Darknet::format_duration_string(t2 - t1));
 
 				total_objects_detected += results.size();
 
@@ -80,6 +105,8 @@ int main(int argc, char * argv[])
 			}
 		}
 
+		const auto end_time = std::chrono::high_resolution_clock::now();
+
 		if (not json.empty())
 		{
 			std::ofstream ofs(json_path);
@@ -89,7 +116,8 @@ int main(int argc, char * argv[])
 			std::cout
 				<< "-> JSON results ....... " << std::filesystem::canonical(json_path).string()	<< std::endl
 				<< "-> images processed ... " << json["file"].size()							<< std::endl
-				<< "-> objects detected ... " << total_objects_detected							<< std::endl;
+				<< "-> objects detected ... " << total_objects_detected							<< std::endl
+				<< "-> time elapsed ....... " << trim(Darknet::format_duration_string(end_time - start_time)) << std::endl;
 		}
 
 		Darknet::free_neural_network(net);
