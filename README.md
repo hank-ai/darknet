@@ -175,6 +175,18 @@ sudo apt-get purge cmake
 sudo snap install cmake --classic
 ```
 
+
+
+**If you are using Docker to generate an image** you'll need to modify the line 25 of the file `CM_package.cmake` before you can run the `cmake` command above, by replacing `ON` to `OFF` in the `CPACK_DEBIAN_PACKAGE_SHLIBDEPS` field.
+Can be done by editing the file with Vi or any other text IDE, or with the following commands:
+```sh
+cd ..
+cat CM_package.cmake | sed 's/SHLIBDEPS "ON"/SHLIBDEPS "OFF"/' >> CM_package.cmake
+cd build
+```
+
+
+
 **If using `bash` as your command shell** you'll want to re-start your shell at this point.  If using `fish`, it should immediately pick up the new path.
 
 > Advanced users:
