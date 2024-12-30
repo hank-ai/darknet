@@ -527,7 +527,7 @@ Darknet::CfgFile & Darknet::CfgFile::read()
 
 	if (not std::filesystem::exists(filename))
 	{
-		darknet_fatal_error(DARKNET_LOC, "config file does not exist: \"%s\"", filename.string());
+		darknet_fatal_error(DARKNET_LOC, "config file does not exist: \"%s\"", filename.string().c_str());
 	}
 
 	filename = std::filesystem::canonical(filename);
