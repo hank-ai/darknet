@@ -23,9 +23,23 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	TAT(TATPARMS);
 
 	#ifndef GPU
-	// If you know what you are doing, you can comment out this next line.
-	// But if you know what you are doing, then I'm guessing you'll also have access to a decent GPU.
-	darknet_fatal_error(DARKNET_LOC, "An attempt was made to start training without a GPU.  Please see the FAQ.");
+	std::cout << std::endl;
+	Darknet::display_warning_msg("THIS VERSION OF DARKNET WAS NOT BUILT TO RUN ON A GPU!");
+	std::cout																				<< std::endl
+		<< ""																				<< std::endl
+		<< "While you can attempt to train a network using your CPU, it is not"				<< std::endl
+		<< "recommended.  The output will not be the same as if you use a GPU,"				<< std::endl
+		<< "and it will take much longer to train with this CPU-only version of"			<< std::endl
+		<< "Darknet.  Are you certain you want to proceed with training on a CPU?"			<< std::endl
+		<< ""																				<< std::endl
+		<< "Type \"yes\" to begin training, or anything else to quit:  "					<< std::flush;
+
+	std::string prompt;
+	std::cin >> prompt;
+	if (prompt != "yes")
+	{
+		darknet_fatal_error(DARKNET_LOC, "Cancel the attempt to train a neural network using a CPU.");
+	}
 	#endif
 
 //	const std::filesystem::path & datacfg		= cfg_and_state.data_filename;
