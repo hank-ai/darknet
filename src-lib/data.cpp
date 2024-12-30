@@ -103,7 +103,7 @@ char **get_sequential_paths(char **paths, int n, int m, int mini_batch, int augm
 		}
 		else
 		{
-			start_time_indexes[i] = random_gen() % m;
+			start_time_indexes[i] = random_gen(0, m - 1);
 		}
 	}
 
@@ -132,7 +132,7 @@ char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 	// "n" is the total number of filenames to be returned at once
 	for (int i = 0; i < n; ++i)
 	{
-		int index = random_gen() % m;
+		int index = random_gen(0, m - 1);
 		if (contrastive && (i % 2 == 1))
 		{
 			index = old_index;
@@ -202,7 +202,7 @@ void randomize_boxes(box_label *b, int n)
 	int i;
 	for(i = 0; i < n; ++i)
 	{
-		const auto index = random_gen()%n;
+		const auto index = random_gen(0, n - 1);
 		std::swap(b[i], b[index]);
 	}
 }

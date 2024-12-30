@@ -957,21 +957,6 @@ float mag_array(float *a, int n)
 	return sqrt(sum);
 }
 
-// indicies to skip is a bit array
-float mag_array_skip(float *a, int n, int * indices_to_skip)
-{
-	TAT(TATPARMS);
-
-	int i;
-	float sum = 0;
-	for (i = 0; i < n; ++i) {
-		if (indices_to_skip[i] != 1) {
-			sum += a[i] * a[i];
-		}
-	}
-	return sqrt(sum);
-}
-
 void scale_array(float *a, int n, float s)
 {
 	TAT(TATPARMS);
@@ -980,37 +965,6 @@ void scale_array(float *a, int n, float s)
 	for(i = 0; i < n; ++i){
 		a[i] *= s;
 	}
-}
-
-int sample_array(float *a, int n)
-{
-	TAT(TATPARMS);
-
-	float sum = sum_array(a, n);
-	scale_array(a, n, 1. / sum);
-	float r = rand_uniform(0, 1);
-	int i;
-	for (i = 0; i < n; ++i) {
-		r = r - a[i];
-		if (r <= 0) return i;
-	}
-	return n - 1;
-}
-
-int sample_array_custom(float *a, int n)
-{
-	TAT(TATPARMS);
-
-	float sum = sum_array(a, n);
-	scale_array(a, n, 1./sum);
-	float r = rand_uniform(0, 1);
-	int start_index = rand_int(0, 0);
-	int i;
-	for(i = 0; i < n; ++i){
-		r = r - a[(i + start_index) % n];
-		if (r <= 0) return i;
-	}
-	return n-1;
 }
 
 int max_index(float *a, int n)
@@ -1081,7 +1035,7 @@ int rand_int(int min, int max)
 		std::swap(min, max);
 	}
 
-	int r = (random_gen()%(max - min + 1)) + min;
+	int r = random_gen(min, max);
 
 	return r;
 }
@@ -1110,22 +1064,10 @@ float rand_normal()
 	return sqrt(rand1) * cos(rand2);
 }
 
-size_t rand_size_t()
-{
-	TAT(TATPARMS);
-
-	return  ((size_t)(random_gen()&0xff) << 56) |
-			((size_t)(random_gen()&0xff) << 48) |
-			((size_t)(random_gen()&0xff) << 40) |
-			((size_t)(random_gen()&0xff) << 32) |
-			((size_t)(random_gen()&0xff) << 24) |
-			((size_t)(random_gen()&0xff) << 16) |
-			((size_t)(random_gen()&0xff) << 8) |
-			((size_t)(random_gen()&0xff) << 0);
-}
-
 float rand_uniform(float min, float max)
 {
+	/// @todo Re-write this using std::uniform_real_distribution
+
 	TAT(TATPARMS);
 
 	if (max < min)
@@ -1151,20 +1093,6 @@ float rand_scale(float s)
 	return 1./scale;
 }
 
-float **one_hot_encode(float *a, int n, int k)
-{
-	TAT(TATPARMS);
-
-	int i;
-	float** t = (float**)xcalloc(n, sizeof(float*));
-	for(i = 0; i < n; ++i){
-		t[i] = (float*)xcalloc(k, sizeof(float));
-		int index = (int)a[i];
-		t[i][index] = 1;
-	}
-	return t;
-}
-
 namespace
 {
 	inline std::mt19937 & get_rnd_engine()
@@ -1178,55 +1106,11 @@ namespace
 	}
 }
 
-// Marsaglia's xorshf96 generator: period 2^96-1
-unsigned int random_gen_fast(void)
-{
-	/// @todo Is this really faster than using the C++11 rng?  Do we gain something by keeping this?
-
-	TAT(TATPARMS);
-
-	static unsigned int x = 123456789;
-	static unsigned int y = 362436069;
-	static unsigned int z = 521288629;
-
-	unsigned int t;
-	x ^= x << 16;
-	x ^= x >> 5;
-	x ^= x << 1;
-
-	t = x;
-	x = y;
-	y = z;
-	z = t ^ x ^ y;
-
-	return z;
-}
-
-float random_float_fast()
-{
-	TAT(TATPARMS);
-
-	return ((float)random_gen_fast() / (float)UINT_MAX);
-}
-
-int rand_int_fast(int min, int max)
-{
-	TAT(TATPARMS);
-
-	if (max < min)
-	{
-		std::swap(max, min);
-	}
-
-	int r = (random_gen_fast() % (max - min + 1)) + min;
-
-	return r;
-}
-
 unsigned int random_gen(unsigned int min, unsigned int max)
 {
 	TAT(TATPARMS);
 
+	// This is inclusive.  It is possible to get back "min", "max", and every integer value in between.
 	std::uniform_int_distribution<unsigned int> distribution(min, max);
 
 	return distribution(get_rnd_engine());
@@ -1235,6 +1119,8 @@ unsigned int random_gen(unsigned int min, unsigned int max)
 
 float random_float()
 {
+	/// @todo Re-write this using std::uniform_real_distribution
+
 	TAT(TATPARMS);
 
 	unsigned int rnd = 0;
@@ -1255,6 +1141,8 @@ float random_float()
 
 float rand_uniform_strong(float min, float max)
 {
+	/// @todo Re-write this using std::uniform_real_distribution
+
 	TAT(TATPARMS);
 
 	if (max < min)
@@ -1273,105 +1161,6 @@ float rand_precalc_random(float min, float max, float random_part)
 		std::swap(min, max);
 	}
 	return (random_part * (max - min)) + min;
-}
-
-#define RS_SCALE (1.0 / (1.0 + RAND_MAX))
-
-double double_rand(void)
-{
-	TAT(TATPARMS);
-
-	double d;
-	do {
-		d = (((rand() * RS_SCALE) + rand()) * RS_SCALE + rand()) * RS_SCALE;
-	} while (d >= 1); // Round off
-	return d;
-}
-
-unsigned int uint_rand(unsigned int less_than)
-{
-	TAT(TATPARMS);
-
-	return (unsigned int)((less_than)* double_rand());
-}
-
-int check_array_is_nan(float *arr, int size)
-{
-	TAT(TATPARMS);
-
-	int i;
-	for (i = 0; i < size; ++i) {
-		if (isnan(arr[i])) return 1;
-	}
-	return 0;
-}
-
-int check_array_is_inf(float *arr, int size)
-{
-	TAT(TATPARMS);
-
-	int i;
-	for (i = 0; i < size; ++i) {
-		if (isinf(arr[i])) return 1;
-	}
-	return 0;
-}
-
-int *random_index_order(int min, int max)
-{
-	TAT(TATPARMS);
-
-	int *inds = (int *)xcalloc(max - min, sizeof(int));
-	int i;
-	for (i = min; i < max; ++i) {
-		inds[i - min] = i;
-	}
-	for (i = min; i < max - 1; ++i) {
-		int swap = inds[i - min];
-		int index = i + rand() % (max - i);
-		inds[i - min] = inds[index - min];
-		inds[index - min] = swap;
-	}
-	return inds;
-}
-
-int max_int_index(int *a, int n)
-{
-	TAT(TATPARMS);
-
-	if (n <= 0) return -1;
-	int i, max_i = 0;
-	int max = a[0];
-	for (i = 1; i < n; ++i) {
-		if (a[i] > max) {
-			max = a[i];
-			max_i = i;
-		}
-	}
-	return max_i;
-}
-
-
-// Absolute box from relative coordinate bounding box and image size
-boxabs box_to_boxabs(const Darknet::Box * b, const int img_w, const int img_h, const int bounds_check)
-{
-	TAT(TATPARMS);
-
-	boxabs ba;
-	ba.left = (b->x - b->w / 2.)*img_w;
-	ba.right = (b->x + b->w / 2.)*img_w;
-	ba.top = (b->y - b->h / 2.)*img_h;
-	ba.bot = (b->y + b->h / 2.)*img_h;
-
-	if (bounds_check)
-	{
-		if (ba.left < 0) ba.left = 0;
-		if (ba.right > img_w - 1) ba.right = img_w - 1;
-		if (ba.top < 0) ba.top = 0;
-		if (ba.bot > img_h - 1) ba.bot = img_h - 1;
-	}
-
-	return ba;
 }
 
 int make_directory(char *path, int mode)
@@ -1398,12 +1187,4 @@ unsigned long custom_hash(char *str)
 	}
 
 	return hash;
-}
-
-bool is_live_stream(const char * path)
-{
-	TAT(TATPARMS);
-
-	const char *url_schema = "://";
-	return (NULL != strstr(path, url_schema));
 }
