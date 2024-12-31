@@ -177,8 +177,8 @@ void dump(Darknet::Network * net, const Darknet::CfgFile::CommonParms & parms)
 		<< "truth_gpu="						<< net->truth_gpu						<< std::endl
 		<< "input16_gpu="					<< net->input16_gpu						<< std::endl
 		<< "output16_gpu="					<< net->output16_gpu					<< std::endl
-		<< "max_input16_size="				<< dump(net->max_input16_size)			<< std::endl
-		<< "max_output16_size="				<< dump(net->max_output16_size)			<< std::endl
+		<< "max_input16_size="				<< dump(reinterpret_cast<uint64_t*>(net->max_input16_size))		<< std::endl
+		<< "max_output16_size="				<< dump(reinterpret_cast<uint64_t*>(net->max_output16_size))	<< std::endl
 		<< "wait_stream="					<< net->wait_stream						<< std::endl
 		<< "cuda_graph="					<< net->cuda_graph						<< std::endl
 		<< "cuda_graph_exec="				<< net->cuda_graph_exec					<< std::endl
