@@ -11,7 +11,7 @@ static void increment_layer(Darknet::Layer *l, int steps)
 	l->x += num;
 	l->x_norm += num;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l->output_gpu += num;
 	l->delta_gpu += num;
 	l->x_gpu += num;
@@ -108,7 +108,7 @@ Darknet::Layer make_lstm_layer(int batch, int inputs, int outputs, int steps, in
 	l.dc_cpu =          (float*)xcalloc(batch*outputs, sizeof(float));
 	l.dh_cpu =          (float*)xcalloc(batch*outputs, sizeof(float));
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_lstm_layer_gpu;
 	l.backward_gpu = backward_lstm_layer_gpu;
 	l.update_gpu = update_lstm_layer_gpu;
@@ -401,7 +401,7 @@ void backward_lstm_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void update_lstm_layer_gpu(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay, float loss_scale)
 {
 	TAT(TATPARMS);

@@ -7,7 +7,7 @@ void forward_route_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_route_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void resize_route_layer(Darknet::Layer *l, Darknet::Network *net);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_route_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_route_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 #endif

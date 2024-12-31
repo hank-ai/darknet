@@ -2,7 +2,7 @@
 
 #include "darknet_internal.hpp"
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void update_convolutional_layer_gpu(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay, float loss_scale);

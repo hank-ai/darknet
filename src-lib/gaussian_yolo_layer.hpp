@@ -12,7 +12,7 @@ int gaussian_yolo_num_detections(const Darknet::Layer & l, float thresh);
 int get_gaussian_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection *dets, int letter);
 void correct_gaussian_yolo_boxes(Darknet::Detection *dets, int n, int w, int h, int netw, int neth, int relative, int letter);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_gaussian_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_gaussian_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 #endif

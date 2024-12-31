@@ -11,7 +11,7 @@ void update_connected_layer(Darknet::Layer & l, int batch, float learning_rate, 
 void denormalize_connected_layer(Darknet::Layer & l);
 void statistics_connected_layer(Darknet::Layer & l);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_connected_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_connected_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void update_connected_layer_gpu(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay, float loss_scale);

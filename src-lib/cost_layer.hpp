@@ -9,7 +9,7 @@ void forward_cost_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_cost_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void resize_cost_layer(Darknet::Layer *l, int inputs);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_cost_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_cost_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 #endif

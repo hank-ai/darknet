@@ -57,17 +57,17 @@ int dispose() {
 }
 
 int get_device_count() {
-#ifdef GPU
+#ifdef DARKNET_GPU
 	int count = 0;
 	cudaGetDeviceCount(&count);
 	return count;
 #else
 	return -1;
-#endif	// GPU
+#endif	// DARKNET_GPU
 }
 
 bool built_with_cuda(){
-#ifdef GPU
+#ifdef DARKNET_GPU
 	return true;
 #else
 	return false;
@@ -88,7 +88,7 @@ bool built_with_opencv(){
 
 
 int get_device_name(int gpu, char* deviceName) {
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cudaDeviceProp prop;
 	cudaGetDeviceProperties(&prop, gpu);
 	std::string result = prop.name;
@@ -96,10 +96,10 @@ int get_device_name(int gpu, char* deviceName) {
 	return 1;
 #else
 	return -1;
-#endif	// GPU
+#endif	// DARKNET_GPU
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void check_cuda(cudaError_t status) {
 	if (status != cudaSuccess) {
 		const char *s = cudaGetErrorString(status);
@@ -122,7 +122,7 @@ Detector::Detector(std::string cfg_filename, std::string weight_filename, int gp
 	: cur_gpu_id(gpu_id)
 {
 	wait_stream = 0;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	int old_gpu_index;
 	check_cuda( cudaGetDevice(&old_gpu_index) );
 #endif
@@ -130,7 +130,7 @@ Detector::Detector(std::string cfg_filename, std::string weight_filename, int gp
 	detector_gpu_ptr = std::make_shared<detector_gpu_t>();
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	//check_cuda( cudaSetDevice(cur_gpu_id) );
 	cuda_set_device(cur_gpu_id);
 	printf(" Used GPU %d \n", cur_gpu_id);
@@ -163,7 +163,7 @@ Detector::Detector(std::string cfg_filename, std::string weight_filename, int gp
 	detector_gpu.track_id = (unsigned int *)calloc(l.classes, sizeof(unsigned int));
 	for (j = 0; j < l.classes; ++j) detector_gpu.track_id[j] = 1;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	check_cuda( cudaSetDevice(old_gpu_index) );
 #endif
 }
@@ -180,7 +180,7 @@ Detector::~Detector()
 	for (int j = 0; j < NFRAMES; ++j) free(detector_gpu.predictions[j]);
 	for (int j = 0; j < NFRAMES; ++j) if (detector_gpu.images[j].data) free(detector_gpu.images[j].data);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	int old_gpu_index;
 	cudaGetDevice(&old_gpu_index);
 	cuda_set_device(detector_gpu.net.gpu_index);
@@ -188,7 +188,7 @@ Detector::~Detector()
 
 	free_network(detector_gpu.net);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cudaSetDevice(old_gpu_index);
 #endif
 }
@@ -241,7 +241,7 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	Darknet::Network & net = detector_gpu.net;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	int old_gpu_index;
 	cudaGetDevice(&old_gpu_index);
 	if(cur_gpu_id != old_gpu_index)
@@ -320,7 +320,7 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 	if(sized.data)
 		free(sized.data);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cur_gpu_id != old_gpu_index)
 		cudaSetDevice(old_gpu_index);
 #endif
@@ -332,7 +332,7 @@ std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_si
 {
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	Darknet::Network net = detector_gpu.net;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	int old_gpu_index;
 	cudaGetDevice(&old_gpu_index);
 	if(cur_gpu_id != old_gpu_index)
@@ -388,7 +388,7 @@ std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_si
 	}
 	free_batch_detections(prediction, batch_size);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cur_gpu_id != old_gpu_index)
 		cudaSetDevice(old_gpu_index);
 #endif
@@ -457,7 +457,7 @@ std::vector<bbox_t> Detector::tracking_id(std::vector<bbox_t> cur_bbox_vec, bool
 
 void *Detector::get_cuda_context()
 {
-#ifdef GPU
+#ifdef DARKNET_GPU
 	int old_gpu_index;
 	cudaGetDevice(&old_gpu_index);
 	if (cur_gpu_id != old_gpu_index)
@@ -469,7 +469,7 @@ void *Detector::get_cuda_context()
 		cudaSetDevice(old_gpu_index);
 
 	return cuda_context;
-#else   // GPU
+#else   // DARKNET_GPU
 	return NULL;
-#endif  // GPU
+#endif  // DARKNET_GPU
 }

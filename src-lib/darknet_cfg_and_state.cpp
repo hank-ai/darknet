@@ -103,7 +103,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	is_verbose				= false;
 	is_trace				= false;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	gpu_index				= 0;
 #else
 	gpu_index				= -1;

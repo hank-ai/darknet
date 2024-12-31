@@ -7,7 +7,7 @@ void forward_sam_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_sam_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void resize_sam_layer(Darknet::Layer *l, int w, int h);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_sam_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_sam_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 #endif

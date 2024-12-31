@@ -5,7 +5,7 @@
 /// @todo V3 is this still needed?
 extern int cuda_debug_sync;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 /// @todo What is this?  See where it is used in all the .cu files.
 #define BLOCK 512
@@ -78,4 +78,4 @@ void cudnn_check_error_extended(cudnnStatus_t status, const char * const filenam
 #endif
 
 
-#endif // GPU
+#endif // DARKNET_GPU

@@ -27,7 +27,7 @@ Darknet::Layer make_sam_layer(int batch, int index, int w, int h, int c, int w2,
 
 	l.forward = forward_sam_layer;
 	l.backward = backward_sam_layer;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_sam_layer_gpu;
 	l.backward_gpu = backward_sam_layer_gpu;
 
@@ -48,7 +48,7 @@ void resize_sam_layer(Darknet::Layer *l, int w, int h)
 	l->delta = (float*)xrealloc(l->delta, l->outputs * l->batch * sizeof(float));
 	l->output = (float*)xrealloc(l->output, l->outputs * l->batch * sizeof(float));
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cuda_free(l->output_gpu);
 	cuda_free(l->delta_gpu);
 	l->output_gpu = cuda_make_array(l->output, l->outputs*l->batch);
@@ -96,7 +96,7 @@ void backward_sam_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_sam_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);

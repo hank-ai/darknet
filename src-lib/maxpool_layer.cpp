@@ -145,7 +145,7 @@ Darknet::Layer make_maxpool_layer(int batch, int h, int w, int c, int size, int 
 		l.forward = forward_maxpool_layer;
 		l.backward = backward_maxpool_layer;
 	}
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (avgpool) {
 		l.forward_gpu = forward_local_avgpool_layer_gpu;
 		l.backward_gpu = backward_local_avgpool_layer_gpu;
@@ -164,7 +164,7 @@ Darknet::Layer make_maxpool_layer(int batch, int h, int w, int c, int size, int 
 	if (avgpool) cudnn_local_avgpool_setup(&l);
 	else cudnn_maxpool_setup(&l);
 
-#endif  // GPU
+#endif  // DARKNET_GPU
 	l.bflops = (l.size * l.size * l.c * l.out_h * l.out_w) / 1000000000.0f;
 
 	if (l.antialiasing)
@@ -203,13 +203,13 @@ Darknet::Layer make_maxpool_layer(int batch, int h, int w, int c, int size, int 
 			}
 		}
 		for (i = 0; i < l.out_c; ++i) l.input_layer->biases[i] = 0;
-#ifdef GPU
+#ifdef DARKNET_GPU
 		if (cfg_and_state.gpu_index >= 0)
 		{
 			if (l.antialiasing) l.input_antialiasing_gpu = cuda_make_array(NULL, l.batch*l.outputs);
 			push_convolutional_layer(*(l.input_layer));
 		}
-#endif  // GPU
+#endif  // DARKNET_GPU
 	}
 
 	return l;
@@ -234,7 +234,7 @@ void resize_maxpool_layer(Darknet::Layer *l, int w, int h)
 	}
 	l->output = (float*)xrealloc(l->output, output_size * sizeof(float));
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	CHECK_CUDA(cudaFree(l->output_gpu));
 	l->output_gpu  = cuda_make_array(l->output, output_size);
 

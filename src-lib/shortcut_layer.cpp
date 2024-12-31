@@ -68,14 +68,14 @@ Darknet::Layer make_shortcut_layer(int batch, int n, int *input_layers, int* inp
 
 	l.forward = forward_shortcut_layer;
 	l.backward = backward_shortcut_layer;
-#ifndef GPU
+#ifndef DARKNET_GPU
 	if (l.activation == SWISH || l.activation == MISH)
 	{
 		l.activation_input = (float*)calloc(l.batch*l.outputs, sizeof(float));
 	}
-#endif // GPU
+#endif // DARKNET_GPU
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (l.activation == SWISH || l.activation == MISH)
 	{
 		l.activation_input_gpu = cuda_make_array(l.activation_input, l.batch*l.outputs);
@@ -103,7 +103,7 @@ Darknet::Layer make_shortcut_layer(int batch, int n, int *input_layers, int* inp
 	l.input_sizes_gpu = cuda_make_int_array_new_api(input_sizes, l.n);
 	l.layers_output_gpu = (float**)cuda_make_array_pointers((void**)layers_output_gpu, l.n);
 	l.layers_delta_gpu = (float**)cuda_make_array_pointers((void**)layers_delta_gpu, l.n);
-#endif  // GPU
+#endif  // DARKNET_GPU
 
 	l.bflops = l.out_w * l.out_h * l.out_c * l.n / 1000000000.;
 	if (l.weights_type)
@@ -139,7 +139,7 @@ void resize_shortcut_layer(Darknet::Layer *l, int w, int h, Darknet::Network * n
 
 	if (l->activation == SWISH || l->activation == MISH) l->activation_input = (float*)realloc(l->activation_input, l->batch*l->outputs * sizeof(float));
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cuda_free(l->output_gpu);
 	l->output_gpu = cuda_make_array(l->output, l->outputs*l->batch);
 
@@ -231,7 +231,7 @@ void update_shortcut_layer(Darknet::Layer & l, int batch, float learning_rate_in
 	}
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_shortcut_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);

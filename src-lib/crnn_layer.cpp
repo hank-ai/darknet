@@ -11,7 +11,7 @@ static void increment_layer(Darknet::Layer *l, int steps)
 	l->x += num;
 	l->x_norm += num;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l->output_gpu += num;
 	l->delta_gpu += num;
 	l->x_gpu += num;
@@ -76,7 +76,7 @@ Darknet::Layer make_crnn_layer(int batch, int h, int w, int c, int hidden_filter
 	l.backward = backward_crnn_layer;
 	l.update = update_crnn_layer;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_crnn_layer_gpu;
 	l.backward_gpu = backward_crnn_layer_gpu;
 	l.update_gpu = update_crnn_layer_gpu;
@@ -123,7 +123,7 @@ void resize_crnn_layer(Darknet::Layer *l, int w, int h)
 
 	l->state = (float*)xrealloc(l->state, l->batch*l->hidden*(l->steps + 1)*sizeof(float));
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (l->state_gpu) cudaFree(l->state_gpu);
 	l->state_gpu = cuda_make_array(l->state, l->batch*l->hidden*(l->steps + 1));
 
@@ -141,9 +141,9 @@ void free_state_crnn(Darknet::Layer & l)
 		l.self_layer->output[i] = rand_uniform(-1, 1);
 	}
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cuda_push_array(l.self_layer->output_gpu, l.self_layer->output, l.outputs * l.batch);
-#endif  // GPU
+#endif  // DARKNET_GPU
 }
 
 void update_crnn_layer(Darknet::Layer & l, int batch, float learning_rate, float momentum, float decay)
@@ -280,7 +280,7 @@ void backward_crnn_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 void pull_crnn_layer(Darknet::Layer & l)
 {

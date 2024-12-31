@@ -53,7 +53,7 @@ void reset_network_state(Darknet::Network *net, int b)
 
 	for (int i = 0; i < net->n; ++i)
 	{
-#ifdef GPU
+#ifdef DARKNET_GPU
 		Darknet::Layer & l = net->layers[i];
 		if (l.state_gpu)
 		{
@@ -210,7 +210,7 @@ Darknet::Network make_network(int n)
 	net.total_bbox = (int*)xcalloc(1, sizeof(int));
 	net.rewritten_bbox = (int*)xcalloc(1, sizeof(int));
 	*net.rewritten_bbox = *net.total_bbox = 0;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	net.input_gpu = (float**)xcalloc(1, sizeof(float*));
 	net.truth_gpu = (float**)xcalloc(1, sizeof(float*));
 
@@ -273,7 +273,7 @@ float *get_network_output(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		return get_network_output_gpu(net);
@@ -358,7 +358,7 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 
 	float error = 0.0f;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if(cfg_and_state.gpu_index >= 0)
 	{
 		error = train_network_datum_gpu(net, x, y);
@@ -379,7 +379,7 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 		backward_network(net, state);
 		error = get_network_cost(net);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	}
 #endif
 
@@ -430,11 +430,11 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 	}
 
 	(*net.cur_iteration) += 1;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	update_network_gpu(net);
-#else   // GPU
+#else   // DARKNET_GPU
 	update_network(net);
-#endif  // GPU
+#endif  // DARKNET_GPU
 
 	int ema_start_point = net.max_batches / 2;
 
@@ -515,7 +515,7 @@ int recalculate_workspace_size(Darknet::Network * net)
 {
 	TAT(TATPARMS);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cuda_set_device(net->gpu_index);
 	if (cfg_and_state.gpu_index >= 0) cuda_free(net->workspace);
 #endif
@@ -543,7 +543,7 @@ int recalculate_workspace_size(Darknet::Network * net)
 //		net->layers[i] = l;
 	}
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		const auto workspace_to_allocate = workspace_size / sizeof(float) + 1;
@@ -596,7 +596,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 {
 	TAT(TATPARMS);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cuda_set_device(net->gpu_index);
 	if(cfg_and_state.gpu_index >= 0)
 	{
@@ -664,7 +664,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 				l.out_h			= l.h = h;
 				l.output		= net->layers[i - 1].output;
 				l.delta			= net->layers[i - 1].delta;
-#ifdef GPU
+#ifdef DARKNET_GPU
 				l.output_gpu	= net->layers[i-1].output_gpu;
 				l.delta_gpu		= net->layers[i-1].delta_gpu;
 #endif
@@ -692,7 +692,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 	}
 
 	std::cout << "Allocating workspace:  " << size_to_IEC_string(workspace_size) << std::endl;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	const int size = get_network_input_size(*net) * net->batch;
 	if (cfg_and_state.gpu_index >= 0)
 	{
@@ -828,7 +828,7 @@ float *network_predict(Darknet::Network & net, float * input)
 {
 	TAT(TATPARMS);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		return network_predict_gpu(net, input);
@@ -1604,7 +1604,7 @@ void free_network(Darknet::Network & net)
 	free(net.total_bbox);
 	free(net.rewritten_bbox);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		cuda_free(net.workspace);
@@ -1705,7 +1705,7 @@ void fuse_conv_batchnorm(Darknet::Network & net)
 
 				free_convolutional_batchnorm(l);
 				l->batch_normalize = 0;
-#ifdef GPU
+#ifdef DARKNET_GPU
 				if (cfg_and_state.gpu_index >= 0)
 				{
 					push_convolutional_layer(*l);
@@ -1762,7 +1762,7 @@ void fuse_conv_batchnorm(Darknet::Network & net)
 
 			l->weights_normalization = NO_NORMALIZATION;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 			if (cfg_and_state.gpu_index >= 0)
 			{
 				push_shortcut_layer(*l);
@@ -1810,7 +1810,7 @@ void calculate_binary_weights(DarknetNetworkPtr ptr)
 					l->activation = LINEAR;
 				}
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 				// fuse conv_xnor + shortcut -> conv_xnor
 				if ((j + 1) < net.n && net.layers[j].type == Darknet::ELayerType::CONVOLUTIONAL)
 				{
@@ -1824,7 +1824,7 @@ void calculate_binary_weights(DarknetNetworkPtr ptr)
 						net.layers[j + 1].forward_gpu = forward_blank_layer;
 					}
 				}
-#endif  // GPU
+#endif  // DARKNET_GPU
 			}
 		}
 	}
@@ -1954,7 +1954,7 @@ void ema_update(Darknet::Network & net, float ema_alpha)
 		Darknet::Layer & l = net.layers[i];
 		if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
-#ifdef GPU
+#ifdef DARKNET_GPU
 			if (cfg_and_state.gpu_index >= 0)
 			{
 				pull_convolutional_layer(l);
@@ -2016,7 +2016,7 @@ void ema_apply(Darknet::Network & net)
 				}
 			}
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 			if (cfg_and_state.gpu_index >= 0)
 			{
 				push_convolutional_layer(l);
@@ -2046,7 +2046,7 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold)
 
 		if (l.type == Darknet::ELayerType::CONVOLUTIONAL && l.activation != LINEAR)
 		{
-#ifdef GPU
+#ifdef DARKNET_GPU
 			if (cfg_and_state.gpu_index >= 0)
 			{
 				pull_convolutional_layer(l);
@@ -2089,7 +2089,7 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold)
 				if (l.scales) l.scales[max_sim_index] = 1.0f;
 			}
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 			if (cfg_and_state.gpu_index >= 0)
 			{
 				push_convolutional_layer(l);

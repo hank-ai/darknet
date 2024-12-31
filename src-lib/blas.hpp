@@ -1,6 +1,6 @@
 #pragma once
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 #include "dark_cuda.hpp"
 #include "tree.hpp"
 #endif
@@ -70,7 +70,7 @@ void grad_contrastive_loss_positive(size_t i, int *labels, size_t num_of_samples
 void grad_contrastive_loss_negative(size_t i, int *labels, size_t num_of_samples, float **z, unsigned int feature_size, float temperature, float *cos_sim, float *p_constrastive, float *delta, int wh);
 
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 void constrain_weight_updates_ongpu(int N, float coef, float *weights_gpu, float *weight_updates_gpu);
 void axpy_ongpu(int N, float ALPHA, float * X, int INCX, float * Y, int INCY);
@@ -171,4 +171,4 @@ void coord_conv_gpu(float *dst, int size, int w, int h, int chan, int b, int typ
 void forward_implicit_gpu(int batch, int nweights, float *weight_gpu, float *output_gpu);
 void backward_implicit_gpu(int batch, int nweights, float *weight_updates_gpu, float *delta_gpu);
 
-#endif // GPU
+#endif // DARKNET_GPU

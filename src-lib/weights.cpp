@@ -58,7 +58,7 @@ void save_convolutional_weights_binary(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_convolutional_layer(l);
@@ -106,7 +106,7 @@ void save_shortcut_weights(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_shortcut_layer(l);
@@ -135,7 +135,7 @@ void save_convolutional_weights(Darknet::Layer & l, FILE *fp)
 		//save_convolutional_weights_binary(l, fp);
 		//return;
 	}
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_convolutional_layer(l);
@@ -165,7 +165,7 @@ void save_convolutional_weights_ema(Darknet::Layer & l, FILE *fp)
 		//save_convolutional_weights_binary(l, fp);
 		//return;
 	}
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_convolutional_layer(l);
@@ -190,7 +190,7 @@ void save_batchnorm_weights(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_batchnorm_layer(l);
@@ -206,7 +206,7 @@ void save_connected_weights(Darknet::Layer & l, FILE *fp)
 {
 	TAT(TATPARMS);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_connected_layer(l);
@@ -226,7 +226,7 @@ void save_weights_upto(const Darknet::Network & net, char *filename, int cutoff,
 {
 	TAT(TATPARMS);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (net.gpu_index >= 0)
 	{
 		cuda_set_device(net.gpu_index);
@@ -346,7 +346,7 @@ void load_connected_weights(Darknet::Layer & l, FILE *fp, int transpose)
 		//printf("rolling_mean: %f mean %f variance\n", mean_array(l.rolling_mean, l.outputs), variance_array(l.rolling_mean, l.outputs));
 		//printf("rolling_variance: %f mean %f variance\n", mean_array(l.rolling_variance, l.outputs), variance_array(l.rolling_variance, l.outputs));
 	}
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_connected_layer(l);
@@ -362,7 +362,7 @@ void load_batchnorm_weights(Darknet::Layer & l, FILE *fp)
 	xfread(l.scales, sizeof(float), l.c, fp);
 	xfread(l.rolling_mean, sizeof(float), l.c, fp);
 	xfread(l.rolling_variance, sizeof(float), l.c, fp);
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_batchnorm_layer(l);
@@ -399,7 +399,7 @@ void load_convolutional_weights_binary(Darknet::Layer & l, FILE *fp)
 			}
 		}
 	}
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_convolutional_layer(l);
@@ -427,7 +427,7 @@ void load_convolutional_weights(Darknet::Layer & l, FILE *fp)
 		transpose_matrix(l.weights, (l.c/l.groups)*l.size*l.size, l.n);
 	}
 	//if (l.binary) binarize_weights(l.weights, l.n, (l.c/l.groups)*l.size*l.size, l.weights);
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_convolutional_layer(l);
@@ -445,7 +445,7 @@ void load_shortcut_weights(Darknet::Layer & l, FILE *fp)
 
 	//for (int i = 0; i < l.nweights; ++i) printf(" %f, ", l.weights[i]);
 	//printf(" read_bytes = %d \n\n", read_bytes);
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		push_shortcut_layer(l);
@@ -477,7 +477,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 		std::cout << "Loading weights from \"" << filename << "\"" << std::endl;
 	}
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (net->gpu_index >= 0)
 	{
 		cuda_set_device(net->gpu_index);

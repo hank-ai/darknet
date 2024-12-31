@@ -11,7 +11,7 @@ void get_region_detections(Darknet::Layer & l, int w, int h, int netw, int neth,
 void correct_region_boxes(Darknet::Detection *dets, int n, int w, int h, int netw, int neth, int relative);
 void zero_objectness(Darknet::Layer & l);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_region_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_region_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 #endif

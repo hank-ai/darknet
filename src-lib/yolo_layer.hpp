@@ -12,7 +12,7 @@ int get_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int ne
 int get_yolo_detections_batch(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection *dets, int letter, int batch);
 void correct_yolo_boxes(Darknet::Detection *dets, int n, int w, int h, int netw, int neth, int relative, int letter);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 #endif

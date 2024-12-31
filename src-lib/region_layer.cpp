@@ -37,7 +37,7 @@ Darknet::Layer make_region_layer(int batch, int w, int h, int n, int classes, in
 
 	l.forward = forward_region_layer;
 	l.backward = backward_region_layer;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_region_layer_gpu;
 	l.backward_gpu = backward_region_layer_gpu;
 	l.output_gpu = cuda_make_array(l.output, batch*l.outputs);
@@ -51,7 +51,7 @@ void resize_region_layer(Darknet::Layer *l, int w, int h)
 {
 	TAT(TATPARMS);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	//int old_w = l->w;
 	//int old_h = l->h;
 #endif
@@ -64,7 +64,7 @@ void resize_region_layer(Darknet::Layer *l, int w, int h)
 	l->output = (float*)xrealloc(l->output, l->batch * l->outputs * sizeof(float));
 	l->delta = (float*)xrealloc(l->delta, l->batch * l->outputs * sizeof(float));
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	//if (old_w < w || old_h < h)
 	{
 		cuda_free(l->delta_gpu);
@@ -202,7 +202,7 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	int i,j,b,t,n;
 	int size = l.coords + l.classes + 1;
 	memcpy(l.output, state.input, l.outputs*l.batch*sizeof(float));
-	#ifndef GPU
+	#ifndef DARKNET_GPU
 	flatten(l.output, l.w*l.h, size*l.n, l.batch, 1);
 	#endif
 	for (b = 0; b < l.batch; ++b){
@@ -213,7 +213,7 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 
 
-#ifndef GPU
+#ifndef DARKNET_GPU
 	if (l.softmax_tree){
 		for (b = 0; b < l.batch; ++b){
 			for(i = 0; i < l.h*l.w*l.n; ++i){
@@ -383,7 +383,7 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		}
 	}
 	//printf("\n");
-	#ifndef GPU
+	#ifndef DARKNET_GPU
 	flatten(l.delta, l.w*l.h, size*l.n, l.batch, 0);
 	#endif
 	*(l.cost) = pow(mag_array(l.delta, l.outputs * l.batch), 2);
@@ -471,7 +471,7 @@ void get_region_boxes(const Darknet::Layer & l, int w, int h, float thresh, floa
 	}
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 void forward_region_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {

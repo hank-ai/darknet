@@ -8,7 +8,7 @@ void forward_dropout_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_dropout_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void resize_dropout_layer(Darknet::Layer *l, int inputs);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_dropout_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_dropout_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 #endif

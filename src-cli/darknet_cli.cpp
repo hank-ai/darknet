@@ -509,7 +509,7 @@ int main(int argc, char **argv)
 
 		cfg_and_state.gpu_index = find_int_arg(argc, argv, "-i", 0);
 
-#ifndef GPU
+#ifndef DARKNET_GPU
 		cfg_and_state.gpu_index = -1;
 		init_cpu();
 #else

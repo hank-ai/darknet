@@ -7,7 +7,7 @@ void forward_scale_channels_layer(Darknet::Layer & l, Darknet::NetworkState stat
 void backward_scale_channels_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void resize_scale_channels_layer(Darknet::Layer *l, Darknet::Network * net);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_scale_channels_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_scale_channels_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 #endif

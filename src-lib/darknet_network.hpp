@@ -245,7 +245,7 @@ namespace Darknet
 			float *cost;
 			float clip;
 
-			//#ifdef GPU
+			//#ifdef DARKNET_GPU
 			//float *input_gpu;
 			//float *truth_gpu;
 			float *delta_gpu;
@@ -271,7 +271,7 @@ namespace Darknet
 			float *global_delta_gpu;
 			float *state_delta_gpu;
 			size_t max_delta_gpu_size;
-			//#endif  // GPU
+			//#endif  // DARKNET_GPU
 			int optimized_memory;
 			int dynamic_minibatch;
 			size_t workspace_size_limit;
@@ -294,7 +294,7 @@ namespace Darknet
 
 
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 float train_networks(Darknet::Network *nets, int n, data d, int interval);
 void sync_nets(Darknet::Network *nets, int n, int interval);
 float train_network_datum_gpu(Darknet::Network & net, float *x, float *y);

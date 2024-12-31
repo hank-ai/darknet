@@ -38,7 +38,7 @@ Darknet::Layer make_softmax_layer(int batch, int inputs, int groups)
 
 	l.forward = forward_softmax_layer;
 	l.backward = backward_softmax_layer;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_softmax_layer_gpu;
 	l.backward_gpu = backward_softmax_layer_gpu;
 
@@ -78,7 +78,7 @@ void backward_softmax_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	axpy_cpu(l.inputs*l.batch, 1, l.delta, 1, state.delta, 1);
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 void pull_softmax_layer_output(const Darknet::Layer & l)
 {
@@ -198,7 +198,7 @@ Darknet::Layer make_contrastive_layer(int batch, int w, int h, int c, int classe
 
 	l.forward = forward_contrastive_layer;
 	l.backward = backward_contrastive_layer;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_contrastive_layer_gpu;
 	l.backward_gpu = backward_contrastive_layer_gpu;
 
@@ -459,7 +459,7 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	const size_t contr_size = contrast_p_index;
 
 	if (l.detection) {
-#ifdef GPU
+#ifdef DARKNET_GPU
 		const int max_contr_size = (l.max_boxes*l.batch)*(l.max_boxes*l.batch);
 		if (max_contr_size < contr_size)
 		{
@@ -471,13 +471,13 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			P_constrastive_f_det_gpu(labels, l.embedding_size, l.temperature, l.contrast_p_gpu, contr_size);
 			cuda_pull_array((float *)l.contrast_p_gpu, (float *)contrast_p, contr_size * sizeof(contrastive_params) / 4);
 		}
-#else   // GPU
+#else   // DARKNET_GPU
 		int k;
 		//#pragma omp parallel for
 		for (k = 0; k < contr_size; ++k) {
 			contrast_p[k].P = P_constrastive_f_det(k, l.labels, z, l.embedding_size, l.temperature, contrast_p, contr_size);
 		}
-#endif  // GPU
+#endif  // DARKNET_GPU
 	}
 	else {
 		// precalculate P-contrastive
@@ -627,7 +627,7 @@ void backward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 }
 
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 void pull_contrastive_layer_output(const Darknet::Layer & l)
 {

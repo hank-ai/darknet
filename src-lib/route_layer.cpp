@@ -29,7 +29,7 @@ Darknet::Layer make_route_layer(int batch, int n, int *input_layers, int *input_
 
 	l.forward = forward_route_layer;
 	l.backward = backward_route_layer;
-	#ifdef GPU
+	#ifdef DARKNET_GPU
 	l.forward_gpu = forward_route_layer_gpu;
 	l.backward_gpu = backward_route_layer_gpu;
 
@@ -70,7 +70,7 @@ void resize_route_layer(Darknet::Layer *l, Darknet::Network * net)
 	l->delta = (float*)xrealloc(l->delta, l->outputs * l->batch * sizeof(float));
 	l->output = (float*)xrealloc(l->output, l->outputs * l->batch * sizeof(float));
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cuda_free(l->output_gpu);
 	cuda_free(l->delta_gpu);
 	l->output_gpu  = cuda_make_array(l->output, l->outputs*l->batch);
@@ -119,7 +119,7 @@ void backward_route_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_route_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);

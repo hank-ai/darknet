@@ -28,7 +28,7 @@ Darknet::Layer make_dropout_layer(int batch, int inputs, float probability, int 
 	l.scale = 1./(1.0 - probability);
 	l.forward = forward_dropout_layer;
 	l.backward = backward_dropout_layer;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_dropout_layer_gpu;
 	l.backward_gpu = backward_dropout_layer_gpu;
 	l.rand_gpu = cuda_make_array(l.rand, inputs*batch);
@@ -63,7 +63,7 @@ void resize_dropout_layer(Darknet::Layer *l, int inputs)
 
 	l->inputs = l->outputs = inputs;
 	l->rand = (float*)xrealloc(l->rand, l->inputs * l->batch * sizeof(float));
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cuda_free(l->rand_gpu);
 	l->rand_gpu = cuda_make_array(l->rand, l->inputs*l->batch);
 

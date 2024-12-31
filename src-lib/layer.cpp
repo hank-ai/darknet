@@ -85,7 +85,7 @@ namespace
 		return;
 	}
 
-	#ifdef GPU
+	#ifdef DARKNET_GPU
 	void static inline cuda_free_and_clear(float* & ptr)
 	{
 		TAT(TATPARMS);
@@ -131,16 +131,16 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 		free_sublayer(l.output_layer);
 		l.output		= nullptr;
 		l.delta			= nullptr;
-#ifdef GPU
+#ifdef DARKNET_GPU
 		l.output_gpu	= nullptr;
 		l.delta_gpu		= nullptr;
-#endif // GPU
+#endif // DARKNET_GPU
 	}
 
 	if (l.type == Darknet::ELayerType::DROPOUT)
 	{
 		if (l.rand)						free_and_clear(l.rand);
-#ifdef GPU
+#ifdef DARKNET_GPU
 		if (l.rand_gpu)					cuda_free_and_clear(l.rand_gpu);
 		if (l.drop_blocks_scale)		cuda_free_host(l.drop_blocks_scale);
 		l.drop_blocks_scale = nullptr;
@@ -186,7 +186,7 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 	if (l.align_bit_weights)			free_and_clear(l.align_bit_weights);
 	if (l.mean_arr)						free_and_clear(l.mean_arr);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (l.delta && l.delta_pinned)
 	{
 		cudaFreeHost(l.delta);
@@ -198,7 +198,7 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 		cudaFreeHost(l.output);
 		l.output = nullptr;
 	}
-#endif  // GPU
+#endif  // DARKNET_GPU
 
 	if (l.delta)						free_and_clear(l.delta);
 	if (l.output)						free_and_clear(l.output);
@@ -241,7 +241,7 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 	if (l.stored_h_cpu)					free_and_clear(l.stored_h_cpu);
 	if (l.cell_cpu)						free_and_clear(l.cell_cpu);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (l.indexes_gpu)					cuda_free((float *)l.indexes_gpu);
 	if (l.contrast_p_gpu)				cuda_free((float *)l.contrast_p_gpu);
 	l.indexes_gpu = nullptr;
@@ -369,5 +369,5 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 	}
 #endif  // CUDNN
 
-#endif  // GPU
+#endif  // DARKNET_GPU
 }

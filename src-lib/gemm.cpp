@@ -207,7 +207,7 @@ void binary_int64_printf(uint64_t src)
 	printf("\n");
 }
 
-#ifndef GPU
+#ifndef DARKNET_GPU
 uint8_t reverse_8_bit(uint8_t a)
 {
 	TAT(TATPARMS);
@@ -2655,9 +2655,9 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 	}
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
-#include <math.h>
+#include <cmath>
 
 void gemm_ongpu(int TA, int TB, int M, int N, int K, float ALPHA,
 		float *A_gpu, int lda,

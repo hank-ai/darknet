@@ -181,7 +181,7 @@ void swap_binary(Darknet::Layer * l)
 	l->weights = l->binary_weights;
 	l->binary_weights = swap;
 
-	#ifdef GPU
+	#ifdef DARKNET_GPU
 	swap = l->weights_gpu;
 	l->weights_gpu = l->binary_weights_gpu;
 	l->binary_weights_gpu = swap;
@@ -289,7 +289,7 @@ size_t get_convolutional_workspace_size(const Darknet::Layer & l)
 // **********************************************
 
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 #ifdef CUDNN
 
 
@@ -719,7 +719,7 @@ void free_convolutional_batchnorm(Darknet::Layer *l)
 		if (l->x)						{free(l->x);							l->x = nullptr;						}
 		if (l->x_norm)					{free(l->x_norm);						l->x_norm = nullptr;				}
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 		if (l->scales_gpu)				{cuda_free(l->scales_gpu);				l->scales_gpu = nullptr;			}
 		if (l->scale_updates_gpu)		{cuda_free(l->scale_updates_gpu);		l->scale_updates_gpu = nullptr;		}
 		if (l->mean_gpu)				{cuda_free(l->mean_gpu);				l->mean_gpu = nullptr;				}
@@ -832,12 +832,12 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 	l.activation = activation;
 
 	l.output = (float*)xcalloc(total_batch*l.outputs, sizeof(float));
-#ifndef GPU
+#ifndef DARKNET_GPU
 	if (train)
 	{
 		l.delta = (float*)xcalloc(total_batch*l.outputs, sizeof(float));
 	}
-#endif  // not GPU
+#endif  // not DARKNET_GPU
 
 	l.forward = forward_convolutional_layer;
 	l.backward = backward_convolutional_layer;
@@ -906,18 +906,18 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 			l.rolling_variance = (float*)xcalloc(n, sizeof(float));
 		}
 
-#ifndef GPU
+#ifndef DARKNET_GPU
 		if (train)
 		{
 			l.x = (float*)xcalloc(total_batch * l.outputs, sizeof(float));
 			l.x_norm = (float*)xcalloc(total_batch * l.outputs, sizeof(float));
 		}
-#endif  // not GPU
+#endif  // not DARKNET_GPU
 	}
 
-#ifndef GPU
+#ifndef DARKNET_GPU
 	if (l.activation == SWISH || l.activation == MISH || l.activation == HARD_MISH) l.activation_input = (float*)calloc(total_batch*l.outputs, sizeof(float));
-#endif  // not GPU
+#endif  // not DARKNET_GPU
 
 	if(adam)
 	{
@@ -930,8 +930,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 		l.scale_v = (float*)xcalloc(n, sizeof(float));
 	}
 
-#ifdef GPU
-
+#ifdef DARKNET_GPU
 
 	l.forward_gpu = forward_convolutional_layer_gpu;
 	l.backward_gpu = backward_convolutional_layer_gpu;
@@ -1057,7 +1056,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 		cudnn_convolutional_setup(&l, cudnn_fastest, 0);
 #endif  // CUDNN
 	}
-#endif  // GPU
+#endif  // DARKNET_GPU
 	l.workspace_size = get_convolutional_workspace_size(l);
 
 	l.bflops = (2.0 * l.nweights * l.out_h*l.out_w) / 1000000000.;
@@ -1110,13 +1109,13 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 		{
 			l.input_layer->biases[i] = 0;
 		}
-#ifdef GPU
+#ifdef DARKNET_GPU
 		if (cfg_and_state.gpu_index >= 0)
 		{
 			l.input_antialiasing_gpu = cuda_make_array(NULL, l.batch*l.outputs);
 			push_convolutional_layer(*(l.input_layer));
 		}
-#endif  // GPU
+#endif  // DARKNET_GPU
 	}
 
 	return l;
@@ -1172,7 +1171,7 @@ void resize_convolutional_layer(Darknet::Layer *l, int w, int h)
 
 	int total_batch = l->batch*l->steps;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	int old_w = l->w;
 	int old_h = l->h;
 #endif
@@ -1204,7 +1203,7 @@ void resize_convolutional_layer(Darknet::Layer *l, int w, int h)
 	}
 
 	if (l->activation == SWISH || l->activation == MISH || l->activation == HARD_MISH) l->activation_input = (float*)realloc(l->activation_input, total_batch*l->outputs * sizeof(float));
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (old_w < w || old_h < h || l->dynamic_minibatch) {
 		if (l->train) {
 			cuda_free(l->delta_gpu);
@@ -1415,7 +1414,7 @@ void binary_align_weights(Darknet::Layer *l)
 		get_mean_array(l->binary_weights, m*k, l->n, l->mean_arr);
 	}
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cudaError_t status;
 	l->align_workspace_size = l->bit_align * l->size * l->size * l->c;
 	status = cudaMalloc((void **)&l->align_workspace_gpu, l->align_workspace_size * sizeof(float));
@@ -1433,7 +1432,7 @@ void binary_align_weights(Darknet::Layer *l)
 	//l->mean_arr_gpu = cuda_make_array(l->mean_arr, l->n);
 	cuda_push_array(l->mean_arr_gpu, l->mean_arr, l->n);
 	CHECK_CUDA(cudaDeviceSynchronize());
-#endif // GPU
+#endif // DARKNET_GPU
 
 	free(align_weights);
 }

@@ -22,7 +22,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 {
 	TAT(TATPARMS);
 
-	#ifndef GPU
+	#ifndef DARKNET_GPU
 	std::cout << std::endl;
 	Darknet::display_warning_msg("THIS VERSION OF DARKNET WAS NOT BUILT TO RUN ON A GPU!");
 	std::cout																				<< std::endl
@@ -84,7 +84,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	Darknet::Network * nets = (Darknet::Network*)xcalloc(ngpus, sizeof(Darknet::Network));
 	for (int k = 0; k < ngpus; ++k)
 	{
-#ifdef GPU
+#ifdef DARKNET_GPU
 		cuda_set_device(gpus[k]);
 #endif
 		nets[k] = parse_network_cfg(cfgfile);
@@ -339,7 +339,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 
 		time = what_time_is_it_now();
 		float loss = 0.0f;
-#ifdef GPU
+#ifdef DARKNET_GPU
 		if (ngpus == 1)
 		{
 			int wait_key = (dont_show) ? 0 : 1;
@@ -500,7 +500,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 		if (iteration >= iter_save + how_often_we_save_weights || (iteration % how_often_we_save_weights) == 0)
 		{
 			iter_save = iteration;
-#ifdef GPU
+#ifdef DARKNET_GPU
 			if (ngpus != 1) sync_nets(nets, ngpus, 0);
 #endif
 			char buff[256];
@@ -511,7 +511,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 		if (iteration >= (iter_save_last + 100) || (iteration % 100 == 0 && iteration > 1))
 		{
 			iter_save_last = iteration;
-#ifdef GPU
+#ifdef DARKNET_GPU
 			if (ngpus != 1) sync_nets(nets, ngpus, 0);
 #endif
 			char buff[256];
@@ -529,7 +529,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 
 	} // end of training loop
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (ngpus != 1)
 	{
 		sync_nets(nets, ngpus, 0);

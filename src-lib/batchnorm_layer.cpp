@@ -47,7 +47,7 @@ layer make_batchnorm_layer(int batch, int w, int h, int c, int train)
 	l.forward = forward_batchnorm_layer;
 	l.backward = backward_batchnorm_layer;
 	l.update = update_batchnorm_layer;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_batchnorm_layer_gpu;
 	l.backward_gpu = backward_batchnorm_layer_gpu;
 	l.update_gpu = update_batchnorm_layer_gpu;
@@ -170,7 +170,7 @@ void resize_batchnorm_layer(Darknet::Layer *l, int w, int h)
 	l->output = (float*)realloc(l->output, output_size * sizeof(float));
 	l->delta = (float*)realloc(l->delta, output_size * sizeof(float));
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cuda_free(l->output_gpu);
 	l->output_gpu = cuda_make_array(l->output, output_size);
 
@@ -192,7 +192,7 @@ void resize_batchnorm_layer(Darknet::Layer *l, int w, int h)
 	CHECK_CUDNN(cudnnCreateTensorDescriptor(&l->normDstTensorDesc));
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->normDstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->out_c, l->out_h, l->out_w));
 #endif // CUDNN
-#endif // GPU
+#endif // DARKNET_GPU
 }
 
 void forward_batchnorm_layer(Darknet::Layer & l, Darknet::NetworkState state)
@@ -249,7 +249,7 @@ void update_batchnorm_layer(Darknet::Layer & l, int batch, float learning_rate, 
 	scal_cpu(l.c, momentum, l.scale_updates, 1);
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 void pull_batchnorm_layer(Darknet::Layer & l)
 {
@@ -465,4 +465,4 @@ void update_batchnorm_layer_gpu(Darknet::Layer & l, int batch, float learning_ra
 	scal_ongpu(l.c, momentum, l.scale_updates_gpu, 1);
 }
 
-#endif  // GPU
+#endif  // DARKNET_GPU

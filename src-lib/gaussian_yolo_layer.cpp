@@ -404,7 +404,7 @@ Darknet::Layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int tota
 
 	l.forward = forward_gaussian_yolo_layer;
 	l.backward = backward_gaussian_yolo_layer;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_gaussian_yolo_layer_gpu;
 	l.backward_gpu = backward_gaussian_yolo_layer_gpu;
 	l.output_gpu = cuda_make_array(l.output, batch*l.outputs);
@@ -450,7 +450,7 @@ void resize_gaussian_yolo_layer(Darknet::Layer *l, int w, int h)
 	if (!l->output_pinned) l->output = (float*)realloc(l->output, l->batch*l->outputs * sizeof(float));
 	if (!l->delta_pinned) l->delta = (float*)realloc(l->delta, l->batch*l->outputs * sizeof(float));
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 	if (l->output_pinned) {
 		CHECK_CUDA(cudaFreeHost(l->output));
@@ -487,7 +487,7 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 	int i,j,b,t,n;
 	memcpy(l.output, state.input, l.outputs*l.batch*sizeof(float));
 
-#ifndef GPU
+#ifndef DARKNET_GPU
 	for (b = 0; b < l.batch; ++b)
 	{
 		for(n = 0; n < l.n; ++n)
@@ -971,7 +971,7 @@ int get_gaussian_yolo_detections(const Darknet::Layer & l, int w, int h, int net
 	return count;
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 void forward_gaussian_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {

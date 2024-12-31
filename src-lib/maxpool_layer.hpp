@@ -11,11 +11,11 @@ void backward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void forward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void cudnn_maxpool_setup(Darknet::Layer *l);
 
 void forward_local_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_local_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
-#endif // GPU
+#endif // DARKNET_GPU

@@ -113,7 +113,7 @@ Darknet::Layer make_connected_layer(int batch, int steps, int inputs, int output
 		l.x_norm = (float*)xcalloc(total_batch * outputs, sizeof(float));
 	}
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_connected_layer_gpu;
 	l.backward_gpu = backward_connected_layer_gpu;
 	l.update_gpu = update_connected_layer_gpu;
@@ -147,7 +147,7 @@ Darknet::Layer make_connected_layer(int batch, int steps, int inputs, int output
 	cudnn_convolutional_setup(&l, cudnn_fastest, 0);   // cudnn_fastest, cudnn_smallest
 	l.workspace_size = get_connected_workspace_size(l);
 #endif  // CUDNN
-#endif  // GPU
+#endif  // DARKNET_GPU
 	fprintf(stderr, "connected                            %4d  ->  %4d\n", inputs, outputs);
 	return l;
 }
@@ -285,7 +285,7 @@ void statistics_connected_layer(Darknet::Layer & l)
 	print_statistics(l.weights, l.outputs);
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 void pull_connected_layer(Darknet::Layer & l)
 {

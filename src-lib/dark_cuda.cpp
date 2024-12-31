@@ -3,7 +3,7 @@
 /// @todo V3 is cuda_debug_sync still necessary?
 int cuda_debug_sync = 0;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 #include <cuda.h>
 
@@ -804,7 +804,7 @@ void show_cuda_cudnn_info()
 	}
 }
 
-#else // GPU
+#else // DARKNET_GPU
 
 // When doing a CPU-only build, make this a no-op.
 void cuda_set_device(int n)
@@ -812,4 +812,4 @@ void cuda_set_device(int n)
 	return;
 }
 
-#endif // GPU
+#endif // DARKNET_GPU

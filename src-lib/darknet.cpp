@@ -276,17 +276,13 @@ void Darknet::show_version_info()
 	std::cout << "Darknet V3 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
 
 	#if DARKNET_GPU_ROCM
-	Darknet::show_rocm_info();
-	#endif
-
-#if 0
-	#ifndef GPU
-	Darknet::display_warning_msg("Darknet is compiled to only use the CPU.");
-	std::cout << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
+		Darknet::show_rocm_info();
+	#elif defined(DARKNET_GPU_CUDA)
+		show_cuda_cudnn_info();
 	#else
-	show_cuda_cudnn_info();
+		Darknet::display_warning_msg("Darknet is compiled to only use the CPU.");
+		std::cout << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
 	#endif
-#endif
 
 	std::cout << "OpenCV " << Darknet::in_colour(Darknet::EColour::kBrightWhite, "v" CV_VERSION);
 
@@ -874,7 +870,7 @@ void Darknet::set_gpu_index(int idx)
 {
 	TAT(TATPARMS);
 
-	#ifdef GPU
+	#ifdef DARKNET_GPU
 	cfg_and_state.gpu_index = idx;
 	#else
 	// don't allow the GPU index to be set when Darknet was not compiled with CUDA support
@@ -1066,7 +1062,7 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 	}
 
 	static bool initialized = false;
-	#ifdef GPU
+	#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index < 0)
 	{
 		// no idea what GPU to use, so attempt to use the first one

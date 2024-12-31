@@ -68,7 +68,7 @@ void optimize_picture(Darknet::Network * net, Darknet::Image orig, int max_layer
 	Darknet::NetworkState state = {0};
 	state.net = *net;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	state.input = cuda_make_array(im.data, im.w*im.h*im.c);
 	state.delta = cuda_make_array(im.data, im.w*im.h*im.c);
 
@@ -171,7 +171,7 @@ void reconstruct_picture(Darknet::Network net, float *features, Darknet::Image r
 		Darknet::NetworkState state = {0};
 		state.net = net;
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 		state.input = cuda_make_array(recon.data, recon.w*recon.h*recon.c);
 		state.delta = cuda_make_array(delta.data, delta.w*delta.h*delta.c);
 		state.truth = cuda_make_array(features, get_network_output_size(net));

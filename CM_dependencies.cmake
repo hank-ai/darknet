@@ -6,11 +6,12 @@
 # ==========
 CHECK_LANGUAGE (CUDA)
 IF (CMAKE_CUDA_COMPILER)
-	MESSAGE (STATUS "CUDA detected. Darknet will use the GPU.")
+	MESSAGE (STATUS "CUDA detected. Darknet will use NVIDIA GPUs.")
 	ENABLE_LANGUAGE (CUDA)
 	FIND_PACKAGE(CUDAToolkit)
 	INCLUDE_DIRECTORIES (${CUDAToolkit_INCLUDE_DIRS})
-	ADD_COMPILE_DEFINITIONS (GPU) # TODO rename this to DARKNET_USE_GPU or DARKNET_USE_CUDA?
+	ADD_COMPILE_DEFINITIONS (DARKNET_GPU_CUDA)
+	ADD_COMPILE_DEFINITIONS (DARKNET_GPU)
 	SET (CMAKE_CUDA_STANDARD 17)
 	SET (CMAKE_CUDA_STANDARD_REQUIRED ON)
 	#
@@ -46,7 +47,7 @@ IF (CMAKE_CUDA_COMPILER)
 	SET (DARKNET_USE_CUDA ON)
 	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} CUDA::cudart CUDA::cuda_driver CUDA::cublas CUDA::curand)
 ELSE ()
-	MESSAGE (WARNING "CUDA not found. Darknet will be CPU-only.")
+	MESSAGE (WARNING "Support for NVIDIA CUDA not found.")
 ENDIF ()
 
 
@@ -80,9 +81,24 @@ ENDIF ()
 # =============
 # == AMD GPU ==
 # =============
-SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} /opt/rocm/lib/librocm-core.so /opt/rocm/lib/librocm_smi64.so)
-INCLUDE_DIRECTORIES ("/opt/rocm/include/")
-ADD_COMPILE_DEFINITIONS (DARKNET_GPU_ROCM)
+IF (NOT DARKNET_USE_CUDA) # TODO: how to detect AMD ROCm from within CMake?
+	MESSAGE (STATUS "AMD ROCm detected. Darknet will use AMD GPUs.")
+	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} /opt/rocm/lib/librocm-core.so /opt/rocm/lib/librocm_smi64.so)
+	INCLUDE_DIRECTORIES ("/opt/rocm/include/")
+	ADD_COMPILE_DEFINITIONS (DARKNET_GPU_ROCM)
+#	ADD_COMPILE_DEFINITIONS (DARKNET_GPU)
+	SET (DARKNET_USE_ROCM ON)
+ELSE ()
+	MESSAGE (WARNING "Support for AMD ROCm not found.")
+ENDIF ()
+
+
+# ==============
+# == CPU-only ==
+# ==============
+IF (NOT DARKNET_USE_CUDA AND NOT DARKNET_USE_ROCM)
+	MESSAGE (WARNING "Neither NVIDIA CUDA nor AMD ROCm detected.  Darknet will be CPU-only.")
+ENDIF ()
 
 
 # ========================

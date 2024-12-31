@@ -225,7 +225,7 @@ public:
 // --------------------------------------------------------------------------------
 
 
-#if defined(TRACK_OPTFLOW) && defined(GPU)
+#if defined(TRACK_OPTFLOW) && defined(DARKNET_GPU)
 
 #include <opencv2/cudaoptflow.hpp>
 #include <opencv2/cudaimgproc.hpp>
@@ -543,7 +543,7 @@ public:
 
 class Tracker_optflow {};
 
-#endif    // defined(TRACK_OPTFLOW) && defined(GPU)
+#endif    // defined(TRACK_OPTFLOW) && defined(DARKNET_GPU)
 
 
 static cv::Scalar obj_id_to_color(int obj_id) {

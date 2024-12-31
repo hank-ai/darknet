@@ -30,7 +30,7 @@ Darknet::Layer make_scale_channels_layer(int batch, int index, int w, int h, int
 
 	l.forward = forward_scale_channels_layer;
 	l.backward = backward_scale_channels_layer;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_scale_channels_layer_gpu;
 	l.backward_gpu = backward_scale_channels_layer_gpu;
 
@@ -52,7 +52,7 @@ void resize_scale_channels_layer(Darknet::Layer *l, Darknet::Network * net)
 	l->delta = (float*)xrealloc(l->delta, l->outputs * l->batch * sizeof(float));
 	l->output = (float*)xrealloc(l->output, l->outputs * l->batch * sizeof(float));
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cuda_free(l->output_gpu);
 	cuda_free(l->delta_gpu);
 	l->output_gpu = cuda_make_array(l->output, l->outputs*l->batch);
@@ -126,7 +126,7 @@ void backward_scale_channels_layer(Darknet::Layer & l, Darknet::NetworkState sta
 	}
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_scale_channels_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);

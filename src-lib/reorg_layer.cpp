@@ -30,7 +30,7 @@ Darknet::Layer make_reorg_layer(int batch, int w, int h, int c, int stride, int 
 
 	l.forward = forward_reorg_layer;
 	l.backward = backward_reorg_layer;
-#ifdef GPU
+#ifdef DARKNET_GPU
 	l.forward_gpu = forward_reorg_layer_gpu;
 	l.backward_gpu = backward_reorg_layer_gpu;
 
@@ -67,7 +67,7 @@ void resize_reorg_layer(Darknet::Layer *l, int w, int h)
 	l->output = (float*)xrealloc(l->output, output_size * sizeof(float));
 	l->delta = (float*)xrealloc(l->delta, output_size * sizeof(float));
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cuda_free(l->output_gpu);
 	cuda_free(l->delta_gpu);
 	l->output_gpu  = cuda_make_array(l->output, output_size);
@@ -99,7 +99,7 @@ void backward_reorg_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 void forward_reorg_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);

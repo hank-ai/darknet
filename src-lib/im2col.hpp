@@ -15,7 +15,7 @@ void im2col_cpu_ext(const float* data_im, const int channels,
     const int dilation_h, const int dilation_w,
     float* data_col);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 void im2col_ongpu(float *im,
          int channels, int height, int width,
@@ -61,4 +61,4 @@ void convolve_gpu(float *input, float *weights, float *output, int in_w, int in_
 void convolve_bin_gpu(float *input, float *weights, float *output, int in_w, int in_h, int in_c, int n, int size, int pad,
     int new_lda, float *mean_arr_gpu);
 
-#endif // GPU
+#endif // DARKNET_GPU

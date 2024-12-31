@@ -364,7 +364,7 @@ namespace Darknet
 
 		size_t workspace_size;
 
-		//#ifdef GPU
+		//#ifdef DARKNET_GPU
 		int *indexes_gpu;
 
 		int stream;
@@ -500,7 +500,7 @@ namespace Darknet
 		UNUSED_ENUM_TYPE bf_algo, bf_algo16;
 		void* poolingDesc;
 		#endif  // CUDNN
-		//#endif  // GPU
+		//#endif  // DARKNET_GPU
 	};
 }
 

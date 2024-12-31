@@ -694,7 +694,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 	parse_net_section();
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.is_verbose)
 	{
 		std::cout << "net.optimized_memory = " << net.optimized_memory << std::endl;
@@ -703,7 +703,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 	{
 		pre_allocate_pinned_memory((size_t)1024 * 1024 * 1024 * 8);   // pre-allocate 8 GB CPU-RAM for pinned memory
 	}
-#endif  // GPU
+#endif  // DARKNET_GPU
 
 	parms.h = net.h;
 	parms.w = net.w;
@@ -841,7 +841,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				l = parse_dropout_section(idx);
 				l.output			= net.layers[idx - 1].output;
 				l.delta				= net.layers[idx - 1].delta;
-				#ifdef GPU
+				#ifdef DARKNET_GPU
 				l.output_gpu		= net.layers[idx - 1].output_gpu;
 				l.delta_gpu			= net.layers[idx - 1].delta_gpu;
 				l.keep_delta_gpu	= 1;
@@ -905,7 +905,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			fprintf(stderr, "%4d - receptive field: %d x %d \n", idx, parms.receptive_w, parms.receptive_h);
 		}
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 		// futher GPU-memory optimization: net.optimized_memory == 2
 		l.optimized_memory = net.optimized_memory;
 		if (net.optimized_memory == 1 && parms.train && l.type != Darknet::ELayerType::DROPOUT)
@@ -952,7 +952,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				set_specified_workspace_limit(&l, net.workspace_size_limit);   // workspace size limit 1 GB
 			}
 		}
-#endif // GPU
+#endif // DARKNET_GPU
 
 		l.clip					= section.find_float("clip", 0);
 		l.dynamic_minibatch		= net.dynamic_minibatch;
@@ -1038,7 +1038,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				{
 					net.layers[k].delta = (float*)xcalloc(l.outputs*l.batch, sizeof(float));
 				}
-#ifdef GPU
+#ifdef DARKNET_GPU
 				if (!l.delta_gpu)
 				{
 					net.layers[k].delta_gpu = (float *)cuda_make_array(NULL, l.outputs*l.batch);
@@ -1051,7 +1051,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 		}
 	}
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (net.optimized_memory && parms.train)
 	{
 		for (int k = 0; k < net.n; ++k)
@@ -1116,7 +1116,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			<< "Total BFLOPS = "	<< parms.bflops			<< std::endl
 			<< "avg_outputs = "		<< parms.avg_outputs	<< std::endl;
 	}
-#ifdef GPU
+#ifdef DARKNET_GPU
 	get_cuda_stream();
 	//get_cuda_memcpy_stream();
 	if (cfg_and_state.gpu_index >= 0)
@@ -1294,7 +1294,7 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 
 	net.burn_in = s.find_int("burn_in", 0);
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 	if (net.gpu_index >= 0)
 	{
 		char device_name[1024];
@@ -1315,7 +1315,7 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 	{
 		fprintf(stderr, " GPU isn't used \n");
 	}
-#endif// GPU
+#endif// DARKNET_GPU
 
 	if (net.policy == STEP)
 	{
@@ -1751,7 +1751,7 @@ Darknet::Layer Darknet::CfgFile::parse_shortcut_section(const size_t section_idx
 		layers_delta[i]		= net.layers[index].delta;
 	}
 
-	#ifdef GPU
+	#ifdef DARKNET_GPU
 	for (int i = 0; i < n; ++i)
 	{
 		layers_output_gpu[i]	= net.layers[layers[i]].output_gpu;

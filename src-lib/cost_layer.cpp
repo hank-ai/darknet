@@ -47,7 +47,7 @@ Darknet::Layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float
 
 	l.forward = forward_cost_layer;
 	l.backward = backward_cost_layer;
-	#ifdef GPU
+	#ifdef DARKNET_GPU
 	l.forward_gpu = forward_cost_layer_gpu;
 	l.backward_gpu = backward_cost_layer_gpu;
 
@@ -65,7 +65,7 @@ void resize_cost_layer(Darknet::Layer *l, int inputs)
 	l->outputs = inputs;
 	l->delta = (float*)xrealloc(l->delta, inputs * l->batch * sizeof(float));
 	l->output = (float*)xrealloc(l->output, inputs * l->batch * sizeof(float));
-#ifdef GPU
+#ifdef DARKNET_GPU
 	cuda_free(l->delta_gpu);
 	cuda_free(l->output_gpu);
 	l->delta_gpu = cuda_make_array(l->delta, inputs*l->batch);
@@ -99,7 +99,7 @@ void backward_cost_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	axpy_cpu(l.batch*l.inputs, l.scale, l.delta, 1, state.delta, 1);
 }
 
-#ifdef GPU
+#ifdef DARKNET_GPU
 
 void pull_cost_layer(Darknet::Layer & l)
 {
