@@ -5,7 +5,6 @@
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
 
-
 std::string get_windows_version()
 {
 	// Oh, this is ugly...why is it so complicated to get an accurate version number or product name from Windows?
@@ -276,12 +275,18 @@ void Darknet::show_version_info()
 
 	std::cout << "Darknet V3 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
 
+	#if DARKNET_GPU_ROCM
+	Darknet::show_rocm_info();
+	#endif
+
+#if 0
 	#ifndef GPU
 	Darknet::display_warning_msg("Darknet is compiled to only use the CPU.");
 	std::cout << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
 	#else
 	show_cuda_cudnn_info();
 	#endif
+#endif
 
 	std::cout << "OpenCV " << Darknet::in_colour(Darknet::EColour::kBrightWhite, "v" CV_VERSION);
 

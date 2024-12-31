@@ -77,6 +77,14 @@ IF (DARKNET_USE_CUDA)
 ENDIF ()
 
 
+# =============
+# == AMD GPU ==
+# =============
+SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} /opt/rocm/lib/librocm-core.so /opt/rocm/lib/librocm_smi64.so)
+INCLUDE_DIRECTORIES ("/opt/rocm/include/")
+ADD_COMPILE_DEFINITIONS (DARKNET_GPU_ROCM)
+
+
 # ========================
 # == Intel/AMD Hardware ==
 # ========================

@@ -352,3 +352,7 @@ int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int n
 #include "tree.hpp"
 #include "activations.hpp"
 #include "dump.hpp"
+
+#if DARKNET_GPU_ROCM
+#include "amd_rocm.hpp"
+#endif
