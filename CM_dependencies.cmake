@@ -81,7 +81,7 @@ ENDIF ()
 # =============
 # == AMD GPU ==
 # =============
-IF (NOT DARKNET_USE_CUDA) # TODO: how to detect AMD ROCm from within CMake?
+IF (NOT DARKNET_USE_CUDA AND EXISTS "/opt/rocm/include/rocm-core/rocm_version.h") # TODO: how to detect AMD ROCm from within CMake?
 	MESSAGE (STATUS "AMD ROCm detected. Darknet will use AMD GPUs.")
 	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} /opt/rocm/lib/librocm-core.so /opt/rocm/lib/librocm_smi64.so)
 	INCLUDE_DIRECTORIES ("/opt/rocm/include/")
