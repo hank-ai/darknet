@@ -168,22 +168,22 @@ void draw_detections_cv_v3(cv::Mat mat, Darknet::Detection * dets, int num, floa
 
 	try
 	{
-		int i, j;
-/// @todo AMD: delete this?
-//		static int frame_id = 0;
-//		frame_id++;
-
-		for (i = 0; i < num; ++i) {
+		for (int i = 0; i < num; ++i)
+		{
 			char labelstr[4096] = { 0 };
 			int class_id = -1;
-			for (j = 0; j < classes; ++j) {
+			for (int j = 0; j < classes; ++j)
+			{
 				int show = strncmp(names[j], "dont_show", 9);
-				if (dets[i].prob[j] > thresh && show) {
-					if (class_id < 0) {
+				if (dets[i].prob[j] > thresh && show)
+				{
+					if (class_id < 0)
+					{
 						strcat(labelstr, names[j]);
 						class_id = j;
 						char buff[20];
-						if (dets[i].track_id) {
+						if (dets[i].track_id)
+						{
 							sprintf(buff, " (id: %d)", dets[i].track_id);
 							strcat(labelstr, buff);
 						}
@@ -192,7 +192,8 @@ void draw_detections_cv_v3(cv::Mat mat, Darknet::Detection * dets, int num, floa
 						printf("%s: %.0f%% ", names[j], dets[i].prob[j] * 100);
 						if (dets[i].track_id) printf("(track = %d, sim = %f) ", dets[i].track_id, dets[i].sim);
 					}
-					else {
+					else
+					{
 						strcat(labelstr, ", ");
 						strcat(labelstr, names[j]);
 						printf(", %s: %.0f%% ", names[j], dets[i].prob[j] * 100);

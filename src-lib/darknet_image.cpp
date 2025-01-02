@@ -325,10 +325,6 @@ void Darknet::draw_detections_v3(Darknet::Image & im, const Darknet::Detection *
 {
 	TAT(TATPARMS);
 
-/// @todo AMD: delete this
-//	static int frame_id = 0;
-//	frame_id++;
-
 	int selected_detections_num;
 	detection_with_class* selected_detections = get_actual_detections(dets, num, thresh, &selected_detections_num, names);
 

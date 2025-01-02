@@ -90,7 +90,7 @@ float *random_matrix(int rows, int cols)
 	float* m = (float*)xcalloc(rows * cols, sizeof(float));
 	for(i = 0; i < rows*cols; ++i)
 	{
-		m[i] = (float)rand()/RAND_MAX;
+		m[i] = (float)rand() / (float)RAND_MAX;
 	}
 	return m;
 }
@@ -137,57 +137,6 @@ void gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 //--------------------------------------------
 // XNOR bitwise GEMM for binary neural network
 //--------------------------------------------
-
-
-/// @todo AMD: delete this?
-static inline unsigned char UNUSED_xnor(unsigned char a, unsigned char b)
-{
-	TAT(TATPARMS);
-	//return a == b;
-	return !(a^b);
-}
-
-/// @todo AMD: delete this?
-// INT-32
-static inline uint32_t UNUSED_get_bit_int32(uint32_t const*const src, size_t index)
-{
-	TAT(TATPARMS);
-
-	size_t src_i = index / 32;
-	int src_shift = index % 32;
-	unsigned char val = (src[src_i] & (1 << src_shift)) > 0;
-	return val;
-}
-
-/// @todo AMD: delete this?
-static inline uint32_t UNUSED_xnor_int32(uint32_t a, uint32_t b)
-{
-	TAT(TATPARMS);
-	return ~(a^b);
-}
-
-/// @todo AMD: delete this?
-static inline uint64_t UNUSED_xnor_int64(uint64_t a, uint64_t b)
-{
-	TAT(TATPARMS);
-	return ~(a^b);
-}
-
-/// @todo AMD: delete this?
-static inline uint32_t UNUSED_fill_bit_int32(char src)
-{
-	TAT(TATPARMS);
-	if (src == 0) return 0x00000000;
-	else return  0xFFFFFFFF;
-}
-
-/// @todo AMD: delete this?
-static inline uint64_t UNUSED_fill_bit_int64(char src)
-{
-	TAT(TATPARMS);
-	if (src == 0) return 0x0000000000000000;
-	else return  0xFFFFFFFFFFFFFFFF;
-}
 
 void binary_int32_printf(uint32_t src)
 {
@@ -1064,22 +1013,6 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
 // https://stackoverflow.com/questions/17354971/fast-counting-the-number-of-set-bits-in-m128i-register
 // https://arxiv.org/pdf/1611.07612.pdf
 
-static inline int popcnt128(__m128i n)
-{
-	TAT(TATPARMS);
-
-	const __m128i n_hi = _mm_unpackhi_epi64(n, n);
-	return POPCNT64(_mm_cvtsi128_si64(n)) + POPCNT64(_mm_cvtsi128_si64(n_hi));
-}
-
-/// @todo AMD: delete this?
-static inline int UNUSED_popcnt256(__m256i n)
-{
-	TAT(TATPARMS);
-
-	return popcnt128(_mm256_extractf128_si256(n, 0)) + popcnt128(_mm256_extractf128_si256(n, 1));
-}
-
 static inline __m256i count256(__m256i v)
 {
 	TAT(TATPARMS);
@@ -1098,23 +1031,6 @@ static inline __m256i count256(__m256i v)
 	__m256i total = _mm256_add_epi8(popcnt1, popcnt2);
 
 	return _mm256_sad_epu8(total, _mm256_setzero_si256());
-}
-
-/// @todo AMD: delete this?
-static inline int UNUSED_popcnt256_custom(__m256i n)
-{
-	TAT(TATPARMS);
-
-	__m256i val = count256(n);
-
-	//return val.m256i_i64[0] +
-	//val.m256i_i64[1] +
-	//val.m256i_i64[2] +
-	//val.m256i_i64[3];
-	return _mm256_extract_epi64(val, 0)
-		+ _mm256_extract_epi64(val, 1)
-		+ _mm256_extract_epi64(val, 2)
-		+ _mm256_extract_epi64(val, 3);
 }
 
 static inline void xnor_avx2_popcnt(__m256i a_bit256, __m256i b_bit256, __m256i *count_sum)
@@ -1194,10 +1110,6 @@ void gemm_nn_custom_bin_mean_transposed(int M, int N, int K, float ALPHA_UNUSED,
 
 				xnor_avx2_popcnt(a_bit256_1, b_bit256_0, &count_sum_2);
 				xnor_avx2_popcnt(a_bit256_1, b_bit256_1, &count_sum_3);
-
-				//count += popcnt256(c_bit256);
-				//binary_int64_printf(c_bit64);
-				//printf(", count = %d \n\n", tmp_count);
 			}
 
 			int count_0 = get_count_mula(count_sum_0);

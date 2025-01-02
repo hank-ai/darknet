@@ -353,40 +353,6 @@ namespace
 		return batch * l.outputs + n * l.w * l.h * (4 + l.classes + 1) + entry * l.w * l.h + loc;
 	}
 
-
-	static inline void UNUSED_avg_flipped_yolo(Darknet::Layer & l) ///< @todo AMD: unused?
-	{
-		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
-
-		float * flip = l.output + l.outputs;
-
-		for (int j = 0; j < l.h; ++j)
-		{
-			for (int i = 0; i < l.w / 2; ++i)
-			{
-				for (int n = 0; n < l.n; ++n)
-				{
-					for (int z = 0; z < l.classes + 4 + 1; ++z)
-					{
-						const int i1 = z * l.w * l.h * l.n + n * l.w * l.h + j * l.w + i;
-						const int i2 = z * l.w * l.h * l.n + n * l.w * l.h + j * l.w + (l.w - i - 1);
-						std::swap(flip[i1], flip[i2]);
-						if (z == 0)
-						{
-							flip[i1] = -flip[i1];
-							flip[i2] = -flip[i2];
-						}
-					}
-				}
-			}
-		}
-
-		for (int i = 0; i < l.outputs; ++i)
-		{
-			l.output[i] = (l.output[i] + flip[i]) / 2.0f;
-		}
-	}
-
 } // anonymous namespace
 
 
@@ -552,23 +518,7 @@ void process_batch(void* ptr)
 	Darknet::NetworkState state = args->state;
 	int b = args->b;
 
-	//printf(" b = %d \n", b, b);
-
-	//float tot_iou = 0;
-	float tot_giou = 0; ///< @todo AMD: unused?
-	float tot_diou = 0; ///< @todo AMD: unused?
-	float tot_ciou = 0; ///< @todo AMD: unused?
-	//float tot_iou_loss = 0;
-	//float tot_giou_loss = 0;
-	float tot_diou_loss = 0; ///< @todo AMD: unused?
-	float tot_ciou_loss = 0; ///< @todo AMD: unused?
-	float recall = 0; ///< @todo AMD: unused?
-	float recall75 = 0; ///< @todo AMD: unused?
-	float avg_cat = 0;
-	float avg_obj = 0; ///< @todo AMD: unused?
-	float avg_anyobj = 0; ///< @todo AMD: unused?
-	//int count = 0;
-	//int class_count = 0;
+	float avg_cat = 0.0f;
 
 	for (int j = 0; j < l.h; ++j)
 	{
@@ -622,7 +572,6 @@ void process_batch(void* ptr)
 
 				// delta for objectness:
 
-				avg_anyobj += l.output[obj_index];
 				l.delta[obj_index] = l.obj_normalizer * (0 - l.output[obj_index]);
 				if (best_match_iou > l.ignore_thresh)
 				{
@@ -641,7 +590,6 @@ void process_batch(void* ptr)
 				}
 				else if (state.net.adversarial)
 				{
-//					int stride = l.w * l.h;
 					float scale = pred.w * pred.h;
 					if (scale > 0)
 					{
@@ -768,17 +716,9 @@ void process_batch(void* ptr)
 			args->tot_iou += all_ious.iou;
 			args->tot_iou_loss += 1 - all_ious.iou;
 			// range is -1 <= giou <= 1
-			tot_giou += all_ious.giou;
 			args->tot_giou_loss += 1 - all_ious.giou;
 
-			tot_diou += all_ious.diou;
-			tot_diou_loss += 1 - all_ious.diou;
-
-			tot_ciou += all_ious.ciou;
-			tot_ciou_loss += 1 - all_ious.ciou;
-
 			int obj_index = yolo_entry_index(l, b, mask_n2 * l.w * l.h + j * l.w + i, 4);
-			avg_obj += l.output[obj_index];
 			if (l.objectness_smooth)
 			{
 				float delta_obj = class_multiplier * l.obj_normalizer * (1 - l.output[obj_index]);
@@ -800,14 +740,6 @@ void process_batch(void* ptr)
 
 			++(args->count);
 			++(args->class_count);
-			if (all_ious.iou > 0.5f)
-			{
-				recall += 1;
-			}
-			if (all_ious.iou > 0.75f)
-			{
-				recall75 += 1;
-			}
 		}
 
 		// iou_thresh
@@ -839,17 +771,9 @@ void process_batch(void* ptr)
 					args->tot_iou += all_ious.iou;
 					args->tot_iou_loss += 1 - all_ious.iou;
 					// range is -1 <= giou <= 1
-					tot_giou += all_ious.giou;
 					args->tot_giou_loss += 1 - all_ious.giou;
 
-					tot_diou += all_ious.diou;
-					tot_diou_loss += 1 - all_ious.diou;
-
-					tot_ciou += all_ious.ciou;
-					tot_ciou_loss += 1 - all_ious.ciou;
-
 					int obj_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 4);
-					avg_obj += l.output[obj_index];
 					if (l.objectness_smooth)
 					{
 						float delta_obj = class_multiplier * l.obj_normalizer * (1 - l.output[obj_index]);
@@ -868,14 +792,6 @@ void process_batch(void* ptr)
 
 					++(args->count);
 					++(args->class_count);
-					if (all_ious.iou > 0.5f)
-					{
-						recall += 1;
-					}
-					if (all_ious.iou > 0.75f)
-					{
-						recall75 += 1;
-					}
 				}
 			}
 		}

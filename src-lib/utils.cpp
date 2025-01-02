@@ -1079,7 +1079,7 @@ float rand_uniform(float min, float max)
 		int rnd = rand()*(RAND_MAX + 1) + rand();
 		return ((float)rnd / (RAND_MAX*RAND_MAX) * (max - min)) + min;
 #else
-		return ((float)rand() / RAND_MAX * (max - min)) + min;
+		return ((float)rand() / (float)RAND_MAX * (max - min)) + min;
 #endif
 	//return (random_float() * (max - min)) + min;
 }
