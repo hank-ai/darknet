@@ -83,11 +83,19 @@ ENDIF ()
 # =============
 IF (NOT DARKNET_USE_CUDA AND EXISTS "/opt/rocm/include/rocm-core/rocm_version.h") # TODO: how to detect AMD ROCm from within CMake?
 	MESSAGE (STATUS "AMD ROCm detected. Darknet will use AMD GPUs.")
-	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} /opt/rocm/lib/librocm-core.so /opt/rocm/lib/librocm_smi64.so)
+
+	# TODO: we need to run:  hipconfig --cpp_config
+	# but for now, we'll hard-code the value until I get back to this
+	ADD_COMPILE_DEFINITIONS (__HIP_PLATFORM_HCC__)
+	ADD_COMPILE_DEFINITIONS (__HIP_PLATFORM_AMD__)
 	INCLUDE_DIRECTORIES ("/opt/rocm/include/")
+	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} /opt/rocm/lib/librocm-core.so /opt/rocm/lib/librocm_smi64.so /opt/rocm-6.3.1/lib/libhipblas.so /opt/rocm-6.3.1/lib/libhiprand.so /opt/rocm-6.3.1/lib/librocrand.so)
 	ADD_COMPILE_DEFINITIONS (DARKNET_GPU_ROCM)
 #	ADD_COMPILE_DEFINITIONS (DARKNET_GPU)
 	SET (DARKNET_USE_ROCM ON)
+	SET (CMAKE_C_COMPILER hipcc)
+	SET (CMAKE_CXX_COMPILER hipcc)
+	SET (CMAKE_CUDA_COMPILER hipcc)
 ELSE ()
 	MESSAGE (WARNING "Support for AMD ROCm not found.")
 ENDIF ()
@@ -135,6 +143,8 @@ ELSE ()
 	SET (COMPILER_IS_GNU_OR_CLANG_OR_MSVC FALSE)
 ENDIF ()
 
+MESSAGE (STATUS "Compiler:  GNU/Clang=${CMAKE_COMPILER_IS_GNUCC} GNU/Clang/MSVC=${COMPILER_IS_GNU_OR_CLANG_OR_MSVC}: ${CMAKE_CXX_COMPILER_ID}")
+
 
 # =============
 # == Threads ==
@@ -165,6 +175,7 @@ ELSE ()
 	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 	IF (COMPILER_IS_GNU_OR_CLANG)
 		ADD_COMPILE_OPTIONS(-fopenmp)
+		ADD_LINK_OPTIONS(-fopenmp)
 	ENDIF ()
 ENDIF ()
 

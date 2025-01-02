@@ -255,7 +255,8 @@ void cublas_check_error(cublasStatus_t status)
 	{
 		cudaDeviceSynchronize();
 	}
-	if (status != CUBLAS_STATUS_SUCCESS) {
+	if (status != CUBLAS_STATUS_SUCCESS)
+	{
 		printf("cuBLAS Error\n");
 	}
 }
