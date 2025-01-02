@@ -36,7 +36,7 @@
 // 3rd-party lib headers
 #include <opencv2/opencv.hpp>
 
-#ifdef OPENMP
+#ifdef DARKNET_OPENMP
 #include <omp.h>
 #endif
 

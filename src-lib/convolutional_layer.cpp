@@ -1461,8 +1461,9 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 	int k = l.size*l.size*l.c / l.groups;
 	int n = out_h*out_w;
 
-	static int u = 0;
-	u++;
+/// @todo AMD: delete this
+//	static int u = 0;
+//	u++;
 
 	for(i = 0; i < l.batch; ++i)
 	{

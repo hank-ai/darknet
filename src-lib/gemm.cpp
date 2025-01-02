@@ -13,7 +13,7 @@
 #include "im2col.hpp"
 #include "Timing.hpp"
 
-#if defined(_OPENMP) || defined(OPENMP)
+#ifdef DARKNET_OPENMP
 #include <omp.h>
 #endif
 
@@ -88,7 +88,8 @@ float *random_matrix(int rows, int cols)
 
 	int i;
 	float* m = (float*)xcalloc(rows * cols, sizeof(float));
-	for(i = 0; i < rows*cols; ++i){
+	for(i = 0; i < rows*cols; ++i)
+	{
 		m[i] = (float)rand()/RAND_MAX;
 	}
 	return m;
@@ -138,15 +139,17 @@ void gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 //--------------------------------------------
 
 
-static inline unsigned char xnor(unsigned char a, unsigned char b)
+/// @todo AMD: delete this?
+static inline unsigned char UNUSED_xnor(unsigned char a, unsigned char b)
 {
 	TAT(TATPARMS);
 	//return a == b;
 	return !(a^b);
 }
 
+/// @todo AMD: delete this?
 // INT-32
-static inline uint32_t get_bit_int32(uint32_t const*const src, size_t index)
+static inline uint32_t UNUSED_get_bit_int32(uint32_t const*const src, size_t index)
 {
 	TAT(TATPARMS);
 
@@ -156,27 +159,30 @@ static inline uint32_t get_bit_int32(uint32_t const*const src, size_t index)
 	return val;
 }
 
-static inline uint32_t xnor_int32(uint32_t a, uint32_t b)
+/// @todo AMD: delete this?
+static inline uint32_t UNUSED_xnor_int32(uint32_t a, uint32_t b)
 {
 	TAT(TATPARMS);
 	return ~(a^b);
 }
 
-static inline uint64_t xnor_int64(uint64_t a, uint64_t b)
+/// @todo AMD: delete this?
+static inline uint64_t UNUSED_xnor_int64(uint64_t a, uint64_t b)
 {
 	TAT(TATPARMS);
 	return ~(a^b);
 }
 
-
-static inline uint32_t fill_bit_int32(char src)
+/// @todo AMD: delete this?
+static inline uint32_t UNUSED_fill_bit_int32(char src)
 {
 	TAT(TATPARMS);
 	if (src == 0) return 0x00000000;
 	else return  0xFFFFFFFF;
 }
 
-static inline uint64_t fill_bit_int64(char src)
+/// @todo AMD: delete this?
+static inline uint64_t UNUSED_fill_bit_int64(char src)
 {
 	TAT(TATPARMS);
 	if (src == 0) return 0x0000000000000000;
@@ -934,9 +940,10 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
 	//const int out_w = (w + 2 * pad - ksize) / stride + 1;    // output_width=input_width for stride=1 and pad=1
 	int i;
 
-#if defined(_OPENMP)
+#ifdef DARKNET_OPENMP
 	static int max_num_threads = 0;
-	if (max_num_threads == 0) {
+	if (max_num_threads == 0)
+	{
 		max_num_threads = omp_get_max_threads();
 		//omp_set_num_threads( max_num_threads / 2);
 	}
@@ -1065,7 +1072,8 @@ static inline int popcnt128(__m128i n)
 	return POPCNT64(_mm_cvtsi128_si64(n)) + POPCNT64(_mm_cvtsi128_si64(n_hi));
 }
 
-static inline int popcnt256(__m256i n)
+/// @todo AMD: delete this?
+static inline int UNUSED_popcnt256(__m256i n)
 {
 	TAT(TATPARMS);
 
@@ -1092,7 +1100,8 @@ static inline __m256i count256(__m256i v)
 	return _mm256_sad_epu8(total, _mm256_setzero_si256());
 }
 
-static inline int popcnt256_custom(__m256i n)
+/// @todo AMD: delete this?
+static inline int UNUSED_popcnt256_custom(__m256i n)
 {
 	TAT(TATPARMS);
 
@@ -1142,9 +1151,10 @@ void gemm_nn_custom_bin_mean_transposed(int M, int N, int K, float ALPHA_UNUSED,
 
 	int i;
 
-#if defined(_OPENMP)
+#ifdef DARKNET_OPENMP
 	static int max_num_threads = 0;
-	if (max_num_threads == 0) {
+	if (max_num_threads == 0)
+	{
 		max_num_threads = omp_get_max_threads();
 		//omp_set_num_threads(max_num_threads / 2);
 	}

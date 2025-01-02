@@ -354,7 +354,7 @@ namespace
 	}
 
 
-	static inline void avg_flipped_yolo(Darknet::Layer & l)
+	static inline void UNUSED_avg_flipped_yolo(Darknet::Layer & l) ///< @todo AMD: unused?
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -555,18 +555,18 @@ void process_batch(void* ptr)
 	//printf(" b = %d \n", b, b);
 
 	//float tot_iou = 0;
-	float tot_giou = 0;
-	float tot_diou = 0;
-	float tot_ciou = 0;
+	float tot_giou = 0; ///< @todo AMD: unused?
+	float tot_diou = 0; ///< @todo AMD: unused?
+	float tot_ciou = 0; ///< @todo AMD: unused?
 	//float tot_iou_loss = 0;
 	//float tot_giou_loss = 0;
-	float tot_diou_loss = 0;
-	float tot_ciou_loss = 0;
-	float recall = 0;
-	float recall75 = 0;
+	float tot_diou_loss = 0; ///< @todo AMD: unused?
+	float tot_ciou_loss = 0; ///< @todo AMD: unused?
+	float recall = 0; ///< @todo AMD: unused?
+	float recall75 = 0; ///< @todo AMD: unused?
 	float avg_cat = 0;
-	float avg_obj = 0;
-	float avg_anyobj = 0;
+	float avg_obj = 0; ///< @todo AMD: unused?
+	float avg_anyobj = 0; ///< @todo AMD: unused?
 	//int count = 0;
 	//int class_count = 0;
 

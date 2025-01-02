@@ -169,8 +169,9 @@ void draw_detections_cv_v3(cv::Mat mat, Darknet::Detection * dets, int num, floa
 	try
 	{
 		int i, j;
-		static int frame_id = 0;
-		frame_id++;
+/// @todo AMD: delete this?
+//		static int frame_id = 0;
+//		frame_id++;
 
 		for (i = 0; i < num; ++i) {
 			char labelstr[4096] = { 0 };
