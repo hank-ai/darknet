@@ -153,7 +153,7 @@ void forward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 
 		size_t n = h*w*c*l.batch;
 
-		forward_maxpool_depth_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> >(n, l.w, l.h, l.c, l.out_c, l.batch, state.input, l.output_gpu, l.indexes_gpu);
+		forward_maxpool_depth_layer_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(n, l.w, l.h, l.c, l.out_c, l.batch, state.input, l.output_gpu, l.indexes_gpu);
 		CHECK_CUDA(cudaPeekAtLastError());
 
 		return;
@@ -189,12 +189,12 @@ void forward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 
 		size_t n = h * w * c * l.batch;
 
-		forward_maxpool_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, l.h, l.w, l.c, l.stride_x, l.stride_y, l.size, l.pad, state.input, l.output_gpu, l.indexes_gpu);
+		forward_maxpool_layer_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>> (n, l.h, l.w, l.c, l.stride_x, l.stride_y, l.size, l.pad, state.input, l.output_gpu, l.indexes_gpu);
 		CHECK_CUDA(cudaPeekAtLastError());
 
 		if (l.maxpool_zero_nonmax)
 		{
-			forward_zero_nonmax_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, state.input, l.output_gpu);
+			forward_zero_nonmax_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>> (n, state.input, l.output_gpu);
 			CHECK_CUDA(cudaPeekAtLastError());
 		}
 	}
@@ -240,7 +240,7 @@ void backward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 
 		size_t n = h * w * c * l.batch;
 
-		backward_maxpool_depth_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> >(n, l.w, l.h, l.c, l.batch, l.delta_gpu, state.delta, l.indexes_gpu);
+		backward_maxpool_depth_layer_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(n, l.w, l.h, l.c, l.batch, l.delta_gpu, state.delta, l.indexes_gpu);
 		CHECK_CUDA(cudaPeekAtLastError());
 		return;
 	}
@@ -252,7 +252,7 @@ void backward_maxpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 
 	if (l.maxpool_zero_nonmax)
 	{
-		backward_zero_nonmax_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, l.indexes_gpu, state.delta);
+		backward_zero_nonmax_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>> (n, l.indexes_gpu, state.delta);
 		CHECK_CUDA(cudaPeekAtLastError());
 	}
 }
@@ -378,7 +378,7 @@ void forward_local_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState s
 
 		size_t n = h*w*c*l.batch;
 
-		forward_local_avgpool_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> > (n, l.h, l.w, l.c, l.stride_x, l.stride_y, l.size, l.pad, state.input, l.output_gpu);
+		forward_local_avgpool_layer_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>> (n, l.h, l.w, l.c, l.stride_x, l.stride_y, l.size, l.pad, state.input, l.output_gpu);
 		CHECK_CUDA(cudaPeekAtLastError());
 	}
 }
@@ -389,6 +389,6 @@ void backward_local_avgpool_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 
 	size_t n = l.h * l.w * l.c * l.batch;
 
-	backward_local_avgpool_layer_kernel << <cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >> >(n, l.h, l.w, l.c, l.stride_x, l.stride_y, l.size, l.pad, l.delta_gpu, state.delta);
+	backward_local_avgpool_layer_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(n, l.h, l.w, l.c, l.stride_x, l.stride_y, l.size, l.pad, l.delta_gpu, state.delta);
 	CHECK_CUDA(cudaPeekAtLastError());
 }

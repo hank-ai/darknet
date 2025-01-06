@@ -83,7 +83,6 @@ ENDIF ()
 # =============
 IF (NOT DARKNET_USE_CUDA AND EXISTS "/opt/rocm/include/rocm-core/rocm_version.h") # TODO: how to detect AMD ROCm from within CMake?
 	MESSAGE (STATUS "AMD ROCm detected. Darknet will use AMD GPUs.")
-
 	# TODO: we need to run:  hipconfig --cpp_config
 	# but for now, we'll hard-code the value until I get back to this
 	ADD_COMPILE_DEFINITIONS (__HIP_PLATFORM_HCC__)
