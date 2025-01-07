@@ -1,12 +1,12 @@
 # Darknet object detection framework
 
 
-# ==========
-# == CUDA ==
-# ==========
+# =================
+# == NVIDIA CUDA ==
+# =================
 CHECK_LANGUAGE (CUDA)
 IF (CMAKE_CUDA_COMPILER)
-	MESSAGE (STATUS "CUDA detected. Darknet will use NVIDIA GPUs.")
+	MESSAGE (STATUS "CUDA detected. Darknet will use NVIDIA GPUs.  CUDA compiler is ${CMAKE_CUDA_COMPILER}.")
 	ENABLE_LANGUAGE (CUDA)
 	FIND_PACKAGE(CUDAToolkit)
 	INCLUDE_DIRECTORIES (${CUDAToolkit_INCLUDE_DIRS})
@@ -78,23 +78,43 @@ IF (DARKNET_USE_CUDA)
 ENDIF ()
 
 
-# =============
-# == AMD GPU ==
-# =============
-IF (NOT DARKNET_USE_CUDA AND EXISTS "/opt/rocm/include/rocm-core/rocm_version.h") # TODO: how to detect AMD ROCm from within CMake?
-	MESSAGE (STATUS "AMD ROCm detected. Darknet will use AMD GPUs.")
-	# TODO: we need to run:  hipconfig --cpp_config
-	# but for now, we'll hard-code the value until I get back to this
+# ======================
+# == AMD GPU aka ROCM ==
+# ======================
+CHECK_LANGUAGE (HIP)
+IF (CMAKE_HIP_COMPILER)
+	MESSAGE (STATUS "AMD ROCm detected. Darknet will use AMD GPUs.  HIP compiler is ${CMAKE_HIP_COMPILER}.")
+	IF (NOT DEFINED ROCM_PATH)
+		SET (ROCM_PATH "/opt/rocm")
+	ENDIF ()
+	LIST (APPEND CMAKE_PREFIX_PATH ${ROCM_PATH})
+	ENABLE_LANGUAGE (HIP)
+	FIND_PACKAGE(hip REQUIRED)
+
+	SET (CMAKE_HIP_STANDARD 17)
+	SET (CMAKE_HIP_STANDARD_REQUIRED ON)
+
 	ADD_COMPILE_DEFINITIONS (__HIP_PLATFORM_HCC__)
 	ADD_COMPILE_DEFINITIONS (__HIP_PLATFORM_AMD__)
-	INCLUDE_DIRECTORIES ("/opt/rocm/include/")
-	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} /opt/rocm/lib/librocm-core.so /opt/rocm/lib/librocm_smi64.so /opt/rocm-6.3.1/lib/libhipblas.so /opt/rocm-6.3.1/lib/libhiprand.so /opt/rocm-6.3.1/lib/librocrand.so)
 	ADD_COMPILE_DEFINITIONS (DARKNET_GPU_ROCM)
-#	ADD_COMPILE_DEFINITIONS (DARKNET_GPU)
+	ADD_COMPILE_DEFINITIONS (DARKNET_GPU)
+
+	INCLUDE_DIRECTORIES ("${ROCM_PATH}/include/")
+
+	# Run "rocm-smi --showproductname" or "rocm-smi --showhw" to see which architecture to use.
+	# For example, this can be set to "gfx1035;gfx1036;gfx1037" to build code for multiple architectures.
+	#
+	#	gfx1101: RX 7700 / 7800
+	#
+	SET (CMAKE_HIP_ARCHITECTURES "gfx1101")
+
+#	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} hip::host)
 	SET (DARKNET_USE_ROCM ON)
-	SET (CMAKE_C_COMPILER hipcc)
-	SET (CMAKE_CXX_COMPILER hipcc)
-	SET (CMAKE_CUDA_COMPILER hipcc)
+
+#	MESSAGE (STATUS "Enabling hipDNN")
+#	ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
+#	ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
+
 ELSE ()
 	MESSAGE (WARNING "Support for AMD ROCm not found.")
 ENDIF ()

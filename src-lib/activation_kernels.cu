@@ -1,9 +1,5 @@
 #include "darknet_internal.hpp"
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
-
-//#include <cfloat>
+#include "darknet_gpu.hpp"
 
 __device__ float lhtan_activate_kernel(float x)
 {

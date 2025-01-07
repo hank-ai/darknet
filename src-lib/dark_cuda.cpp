@@ -5,7 +5,7 @@ int cuda_debug_sync = 0;
 
 #ifdef DARKNET_GPU
 
-#include <cuda.h>
+#include "darknet_gpu.hpp"
 
 #if defined(CUDNN_HALF) && !defined(CUDNN)
 #error "If you set CUDNN_HALF=1 then you must set CUDNN=1"
@@ -93,13 +93,16 @@ void check_cuda_error_extended(cudaError_t status, const char * const filename, 
 
 dim3 cuda_gridsize(size_t n)
 {
-	size_t k = (n-1) / BLOCK + 1;
+	size_t k = (n - 1) / BLOCK + 1;
 	size_t x = k;
 	size_t y = 1;
-	if(x > 65535){
-		x = ceil(sqrt(k));
-		y = (n-1)/(x*BLOCK) + 1;
+
+	if (x > 65535)
+	{
+		x = std::ceil(std::sqrt(k));
+		y = (n - 1) / (x * BLOCK) + 1;
 	}
+
 	//dim3 d = { (unsigned int)x, (unsigned int)y, 1 };
 	dim3 d;
 	d.x = x;

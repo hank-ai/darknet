@@ -1,12 +1,8 @@
-// GOOD
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
-
 #include <cstdint>
 #include <cstdio>
 #include <cassert>
 
+#include "darknet_gpu.hpp"
 #include "im2col.hpp"
 #include "dark_cuda.hpp"
 #include "Timing.hpp"

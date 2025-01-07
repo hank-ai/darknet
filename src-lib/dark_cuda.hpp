@@ -14,16 +14,7 @@ extern int cuda_debug_sync;
 #define WARP_SIZE 32
 #define BLOCK_TRANSPOSE32 256
 
-#include <cuda.h>
-#include <cuda_runtime.h>
-#include <curand.h>
-#include <cublas_v2.h>
-#include <cuda_runtime_api.h>
-
-#ifdef CUDNN
-#include <cudnn.h>
-#endif // CUDNN
-
+#include "darknet_gpu.hpp"
 
 void check_cuda_error(cudaError_t status, const char * const filename, const char * const funcname, const int line);
 void check_cuda_error_extended(cudaError_t status, const char * const filename, const char * const funcname, const int line);
