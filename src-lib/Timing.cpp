@@ -3,6 +3,8 @@
 
 namespace
 {
+	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
+
 	Darknet::TimingRecords & get_tr()
 	{
 		/// There is only 1 of these objects.  All the the tracking/timing information is stored in this object.
@@ -13,6 +15,8 @@ namespace
 
 	/// Mutex used to lock access to @ref tr, to ensure we're not modifying the STL containers at the same time across multiple threads.
 	std::timed_mutex timing_and_tracking_container_mutex;
+
+	#endif
 }
 
 
