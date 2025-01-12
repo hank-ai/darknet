@@ -71,9 +71,9 @@ double what_time_is_it_now()
 
 int *read_map(const char *filename)
 {
-	/// @todo what is this "map" file that we're reading in?
-
 	TAT_COMMENT(TATPARMS, "realloc nightmare");
+
+	/// @todo what is this "map" file that we're reading in?
 
 	int n = 0;
 	int *map = 0;
@@ -368,6 +368,8 @@ namespace
 
 [[noreturn]] void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...)
 {
+//	TAT(TATPARMS); ... don't bother, we're already about to abort because something has gone wrong, don't make things worse
+
 	const int saved_errno = errno;
 
 	// make an attempt to lock, but proceed even if the lock failed (we're fatally exiting anyway!)
@@ -486,21 +488,25 @@ const char * size_to_IEC_string(const size_t size)
 
 void malloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
+//	TAT(TATPARMS); ... don't bother, we're about to abort
 	darknet_fatal_error(filename, funcname, line, "failed to malloc %s", size_to_IEC_string(size));
 }
 
 void calloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
+//	TAT(TATPARMS); ... don't bother, we're about to abort
 	darknet_fatal_error(filename, funcname, line, "failed to calloc %s", size_to_IEC_string(size));
 }
 
 void realloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
+//	TAT(TATPARMS); ... don't bother, we're about to abort
 	darknet_fatal_error(filename, funcname, line, "failed to realloc %s", size_to_IEC_string(size));
 }
 
 void file_error(const char * const s, const char * const filename, const char * const funcname, const int line)
 {
+//	TAT(TATPARMS); ... don't bother, we're about to abort
 	darknet_fatal_error(filename, funcname, line, "failed to open the file \"%s\"", s);
 }
 
@@ -1066,9 +1072,9 @@ float rand_normal()
 
 float rand_uniform(float min, float max)
 {
-	/// @todo Re-write this using std::uniform_real_distribution
-
 	TAT(TATPARMS);
+
+	/// @todo Re-write this using std::uniform_real_distribution
 
 	if (max < min)
 	{
@@ -1119,9 +1125,9 @@ unsigned int random_gen(unsigned int min, unsigned int max)
 
 float random_float()
 {
-	/// @todo Re-write this using std::uniform_real_distribution
-
 	TAT(TATPARMS);
+
+	/// @todo Re-write this using std::uniform_real_distribution
 
 	unsigned int rnd = 0;
 #ifdef WIN32
@@ -1141,9 +1147,9 @@ float random_float()
 
 float rand_uniform_strong(float min, float max)
 {
-	/// @todo Re-write this using std::uniform_real_distribution
-
 	TAT(TATPARMS);
+
+	/// @todo Re-write this using std::uniform_real_distribution
 
 	if (max < min)
 	{

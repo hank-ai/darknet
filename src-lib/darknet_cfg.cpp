@@ -91,6 +91,7 @@ Darknet::CfgLine::CfgLine() :
 	line_number(0),
 	used(false)
 {
+	TAT(TATPARMS);
 	return;
 }
 
@@ -133,6 +134,8 @@ Darknet::CfgLine::~CfgLine()
 
 Darknet::CfgLine & Darknet::CfgLine::clear()
 {
+	TAT(TATPARMS);
+
 	line_number	= 0;
 	used		= false;
 	line		.clear();
@@ -164,6 +167,7 @@ Darknet::CfgSection::CfgSection() :
 	type(ELayerType::BLANK),
 	line_number(0)
 {
+	TAT(TATPARMS);
 	return;
 }
 
@@ -189,6 +193,8 @@ Darknet::CfgSection::~CfgSection()
 
 Darknet::CfgSection & Darknet::CfgSection::clear()
 {
+	TAT(TATPARMS);
+
 	line_number	= 0;
 	type		= ELayerType::EMPTY;
 	name		.clear();
@@ -200,6 +206,8 @@ Darknet::CfgSection & Darknet::CfgSection::clear()
 
 const Darknet::CfgSection & Darknet::CfgSection::find_unused_lines() const
 {
+	TAT(TATPARMS);
+
 	for (const auto & [key, line] : lines)
 	{
 		if (line.used == false)
@@ -214,6 +222,8 @@ const Darknet::CfgSection & Darknet::CfgSection::find_unused_lines() const
 
 int Darknet::CfgSection::find_int(const std::string & key)
 {
+	TAT(TATPARMS);
+
 	if (lines.count(key) == 0)
 	{
 		darknet_fatal_error(DARKNET_LOC, "section [%s] at line %ld was expecting to find a key named \"%s\" but it does not exist", name.c_str(), line_number, key.c_str());
@@ -225,6 +235,8 @@ int Darknet::CfgSection::find_int(const std::string & key)
 
 int Darknet::CfgSection::find_int(const std::string & key, const int default_value)
 {
+	TAT(TATPARMS);
+
 	auto iter = lines.find(key);
 	if (iter != lines.end())
 	{
@@ -266,6 +278,8 @@ int Darknet::CfgSection::find_int(const std::string & key, const int default_val
 
 float Darknet::CfgSection::find_float(const std::string & key, const float default_value)
 {
+	TAT(TATPARMS);
+
 	auto iter = lines.find(key);
 	if (iter != lines.end())
 	{
@@ -299,6 +313,8 @@ float Darknet::CfgSection::find_float(const std::string & key, const float defau
 
 std::string Darknet::CfgSection::find_str(const std::string & key, const std::string & default_value)
 {
+	TAT(TATPARMS);
+
 	auto iter = lines.find(key);
 	if (iter != lines.end())
 	{
@@ -324,6 +340,8 @@ std::string Darknet::CfgSection::find_str(const std::string & key, const std::st
 
 Darknet::VFloat Darknet::CfgSection::find_float_array(const std::string & key)
 {
+	TAT(TATPARMS);
+
 	VFloat v;
 	auto line = line_number;
 
@@ -387,6 +405,8 @@ Darknet::VFloat Darknet::CfgSection::find_float_array(const std::string & key)
 
 Darknet::VInt Darknet::CfgSection::find_int_array(const std::string & key)
 {
+	TAT(TATPARMS);
+
 	VInt v;
 	auto line = line_number;
 
@@ -497,6 +517,8 @@ Darknet::CfgFile::~CfgFile()
 
 Darknet::CfgFile & Darknet::CfgFile::clear()
 {
+	TAT(TATPARMS);
+
 	filename		.clear();
 	network_section	.clear();
 	sections		.clear();

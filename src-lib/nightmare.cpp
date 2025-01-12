@@ -13,6 +13,8 @@
 
 float abs_mean(float *x, int n)
 {
+	TAT(TATPARMS);
+
 	float sum = 0.0f;
 	for (int i = 0; i < n; ++i)
 	{
@@ -25,6 +27,8 @@ float abs_mean(float *x, int n)
 
 void calculate_loss(float *output, float *delta, int n, float thresh)
 {
+	TAT(TATPARMS);
+
 	const float mean = mean_array(output, n);
 	const float var = variance_array(output, n);
 
@@ -44,6 +48,8 @@ void calculate_loss(float *output, float *delta, int n, float thresh)
 
 void optimize_picture(Darknet::Network * net, Darknet::Image orig, int max_layer, float scale, float rate, float thresh, int norm)
 {
+	TAT(TATPARMS);
+
 	//scale_image(orig, 2);
 	//translate_image(orig, -1);
 	net->n = max_layer + 1;
@@ -131,6 +137,8 @@ void optimize_picture(Darknet::Network * net, Darknet::Image orig, int max_layer
 
 void smooth(Darknet::Image recon, Darknet::Image update, float lambda, int num)
 {
+	TAT(TATPARMS);
+
 	for (int k = 0; k < recon.c; ++k)
 	{
 		for (int j = 0; j < recon.h; ++j)
@@ -164,6 +172,8 @@ void smooth(Darknet::Image recon, Darknet::Image update, float lambda, int num)
 
 void reconstruct_picture(Darknet::Network net, float *features, Darknet::Image recon, Darknet::Image update, float rate, float momentum, float lambda, int smooth_size, int iters)
 {
+	TAT(TATPARMS);
+
 	for (int iter = 0; iter < iters; ++iter)
 	{
 		Darknet::Image delta = make_image(recon.w, recon.h, recon.c);
@@ -210,6 +220,8 @@ void reconstruct_picture(Darknet::Network net, float *features, Darknet::Image r
 
 void run_nightmare(int argc, char **argv)
 {
+	TAT(TATPARMS);
+
 	if (argc < 4)
 	{
 		fprintf(stderr, "usage: %s %s [cfg] [weights] [image] [layer] [options! (optional)]\n", argv[0], argv[1]);

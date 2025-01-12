@@ -58,6 +58,7 @@ void im2col_cpu(float* data_im,
 // The casting allows to use one condition instead of two.
 inline static bool is_a_ge_zero_and_a_lt_b(int a, int b)
 {
+	TAT(TATPARMS);
 	return static_cast<unsigned>(a) < static_cast<unsigned>(b);
 }
 

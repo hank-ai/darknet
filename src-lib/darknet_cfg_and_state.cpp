@@ -10,6 +10,8 @@ namespace
 {
 	void parse_skip_classes(Darknet::SInt & classes_to_ignore, std::string str)
 	{
+		TAT(TATPARMS);
+
 		// take a string like this:   2,5-7,9
 		// ...and populate the std::set with the individual values 2, 5, 6, 7, and 9
 
@@ -186,6 +188,8 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 
 Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, Darknet::NetworkPtr ptr)
 {
+	TAT(TATPARMS);
+
 	const auto & all_known_args = Darknet::get_all_possible_arguments();
 
 	// WARNING:  it is perfectly valid for this pointer to be NULL if a network

@@ -16,6 +16,8 @@ float Darknet::get_hierarchy_probability(float *x, Darknet::Tree *hier, int c)
 
 void Darknet::hierarchy_predictions(float *predictions, int n, Darknet::Tree *hier, int only_leaves)
 {
+	TAT(TATPARMS);
+
 	for (int j = 0; j < n; ++j)
 	{
 		int parent = hier->parent[j];

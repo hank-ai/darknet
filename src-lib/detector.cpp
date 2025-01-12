@@ -1073,11 +1073,11 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 
 float validate_detector_map(const char * datacfg, const char * cfgfile, const char * weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network * existing_net)
 {
+	TAT(TATPARMS);
+
 	// Example command that calls this function:
 	//
 	//			darknet detector map cars.data cars.cfg cars_best.weights
-
-	TAT(TATPARMS);
 
 	struct box_prob
 	{
@@ -1722,9 +1722,9 @@ int anchors_data_comparator(const float **pa, const float **pb)
 
 void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int show)
 {
-	/// @todo shouldn't we check the .cfg file instead, and get the anchors, width, and height from there instead of requiring them as parms?
-
 	TAT(TATPARMS);
+
+	/// @todo shouldn't we check the .cfg file instead, and get the anchors, width, and height from there instead of requiring them as parms?
 
 	std::cout
 		<< "Recalculating anchors"

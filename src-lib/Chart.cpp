@@ -11,6 +11,8 @@ std::vector<Chart> more_charts;
 
 Chart::Chart()
 {
+	TAT(TATPARMS);
+
 	max_batches = 0.0f;
 	max_chart_loss = 0.0f;
 
@@ -39,6 +41,8 @@ Chart::Chart()
 Chart::Chart(const std::string & name, const size_t max_batch, const float max_loss) :
 	Chart()
 {
+	TAT(TATPARMS);
+
 	max_batches = max_batch;
 	max_chart_loss = max_loss;
 
@@ -64,18 +68,24 @@ Chart::Chart(const std::string & name, const size_t max_batch, const float max_l
 
 Chart::~Chart()
 {
+	TAT(TATPARMS);
+
 	return;
 }
 
 
 bool Chart::empty() const
 {
+	TAT(TATPARMS);
+
 	return mat.empty();
 }
 
 
 Chart & Chart::initialize()
 {
+	TAT(TATPARMS);
+
 	mat = cv::Mat(dimensions, CV_8UC3, CV_RGB(255, 255, 255));
 
 	cv::Mat grid = mat(grid_rect);
@@ -209,9 +219,9 @@ Chart & Chart::save_to_disk()
 
 Chart & Chart::update_loss(const int current_iteration, const float loss)
 {
-	/// @note This is called at @em every iteration to update the chart.
-
 	TAT(TATPARMS);
+
+	/// @note This is called at @em every iteration to update the chart.
 
 	cv::Mat grid = mat(grid_rect);
 	const cv::Size grid_size = grid.size();
@@ -231,6 +241,8 @@ Chart & Chart::update_loss(const int current_iteration, const float loss)
 
 Chart & Chart::update_accuracy(const float accuracy)
 {
+	TAT(TATPARMS);
+
 	// this is called prior to update_loss() where the iteration is recorded, so we must add 1
 	const int iteration_guess = 1 + static_cast<int>(std::max(previous_loss_iteration, previous_map_iteration));
 
@@ -240,9 +252,9 @@ Chart & Chart::update_accuracy(const float accuracy)
 
 Chart & Chart::update_accuracy(const int current_iteration, const float accuracy)
 {
-	/// @note This is called only when a new mAP% value has been calculated, typically every 1000 iterations.
-
 	TAT(TATPARMS);
+
+	/// @note This is called only when a new mAP% value has been calculated, typically every 1000 iterations.
 
 	cv::Mat grid = mat(grid_rect);
 	const cv::Size grid_size = grid.size();
@@ -287,9 +299,9 @@ Chart & Chart::update_accuracy(const int current_iteration, const float accuracy
 
 Chart & Chart::update_bottom_text(const float seconds_remaining)
 {
-	// draw the text at the bottom of the chart
-
 	TAT(TATPARMS);
+
+	// draw the text at the bottom of the chart (typically every 100 iterations)
 
 	const cv::Size grid_size = grid_rect.size();
 	cv::Size text_size;

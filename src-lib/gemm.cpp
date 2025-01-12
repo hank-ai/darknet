@@ -1833,11 +1833,13 @@ void forward_maxpool_layer_avx(float *src, float *dst, int *indexes, int size, i
 
 int is_avx()
 {
+	TAT(TATPARMS);
 	return 0;
 }
 
 int is_fma_avx2()
 {
+	TAT(TATPARMS);
 	return 0;
 }
 
@@ -2000,6 +2002,7 @@ void im2col_cpu_custom_transpose(float* data_im,
 	int channels, int height, int width,
 	int ksize, int stride, int pad, float* data_col, int ldb_align)
 {
+	TAT(TATPARMS);
 	std::cout << "im2col_cpu_custom_transpose() is not implemented without support for AVX" << std::endl;
 }
 

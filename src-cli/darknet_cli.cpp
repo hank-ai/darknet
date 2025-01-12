@@ -453,6 +453,8 @@ void visualize(const char * cfgfile, const char * weightfile)
 
 void darknet_signal_handler(int sig)
 {
+//	TAT(TATPARMS); ... don't bother, we're about to abort
+
 	// prevent recursion if this signal happens again (set the default signal action)
 	std::signal(sig, SIG_DFL);
 
@@ -468,6 +470,8 @@ void darknet_signal_handler(int sig)
 
 int main(int argc, char **argv)
 {
+	// on purpose move TAT into the try/catch block so it records the value once the try block ends
+
 	try
 	{
 		TAT(TATPARMS);

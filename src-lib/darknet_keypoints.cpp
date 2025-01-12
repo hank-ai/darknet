@@ -113,12 +113,14 @@ Darknet::Keypoints::Keypoints(const Darknet::NetworkPtr ptr) :
 
 Darknet::Keypoints::~Keypoints()
 {
+	TAT(TATPARMS);
 	return;
 }
 
 
 Darknet::VStr Darknet::Keypoints::names()
 {
+	TAT(TATPARMS);
 	return KPNames;
 }
 
@@ -422,6 +424,8 @@ cv::Mat Darknet::Keypoints::annotate(const Predictions & predictions, cv::Mat ma
 
 void Darknet::set_default_keypoints_files(Darknet::Parms & parms)
 {
+	TAT(TATPARMS);
+
 	// if we know which neural network to load, then there is nothing for us to change,
 	// but if the user didn't specify files to load then we'll default to the usual MSCOCO-style keypoints
 	//

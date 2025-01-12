@@ -93,9 +93,9 @@ void Darknet::composite_image(const Darknet::Image & source, Darknet::Image & de
 
 Darknet::Image get_opencv_label(const std::string & str, const int area)
 {
-	/// @todo what are the performance implications of LINE_AA over LINE_4 or LINE_8?
-
 	TAT(TATPARMS);
+
+	/// @todo what are the performance implications of LINE_AA over LINE_4 or LINE_8?
 
 	const auto font_lines		= cv::LineTypes::LINE_AA;
 	const auto font_face		= cv::HersheyFonts::FONT_HERSHEY_PLAIN;
@@ -684,9 +684,9 @@ void Darknet::show_image(const Darknet::Image & p, const char * name)
 
 void Darknet::save_image_png(const Darknet::Image & im, const char *name)
 {
-	/// @todo merge with @ref save_mat_png()
-
 	TAT(TATPARMS);
+
+	/// @todo merge with @ref save_mat_png()
 
 	std::string filename = name;
 	filename += ".png";
@@ -712,9 +712,9 @@ void Darknet::save_image_png(const Darknet::Image & im, const char *name)
 
 void Darknet::save_image_jpg(const Darknet::Image & im, const char *name)
 {
-	/// @todo merge with @ref save_mat_jpg()
-
 	TAT(TATPARMS);
+
+	/// @todo merge with @ref save_mat_jpg()
 
 	std::string filename = name;
 	filename += ".jpg";
@@ -778,9 +778,9 @@ void Darknet::show_image_collapsed(const Darknet::Image & p, const char * name)
 
 DarknetImage make_empty_image(int w, int h, int c)
 {
-	// this is part of the original C API
-
 	TAT(TATPARMS);
+
+	// this is part of the original C API
 
 	Darknet::Image out;
 	out.data = nullptr;
@@ -794,9 +794,9 @@ DarknetImage make_empty_image(int w, int h, int c)
 
 DarknetImage make_image(int w, int h, int c)
 {
-	// this is part of the original C API
-
 	TAT(TATPARMS);
+
+	// this is part of the original C API
 
 	Darknet::Image out = make_empty_image(w,h,c);
 	out.data = (float*)xcalloc(h * w * c, sizeof(float));
@@ -1305,11 +1305,11 @@ Darknet::Image Darknet::random_augment_image(const Darknet::Image & im, const fl
 
 void Darknet::rgb_to_hsv(Darknet::Image & im)
 {
+	TAT(TATPARMS);
+
 	// http://www.cs.rit.edu/~ncs/color/t_convert.html
 
 	/// @todo COLOR - cannot do HSV if channels > 3
-
-	TAT(TATPARMS);
 
 	assert(im.c == 3);
 	int i, j;
@@ -1349,9 +1349,9 @@ void Darknet::rgb_to_hsv(Darknet::Image & im)
 
 void Darknet::hsv_to_rgb(Darknet::Image & im)
 {
-	/// @todo COLOR - cannot do HSV if channels > 3
-
 	TAT(TATPARMS);
+
+	/// @todo COLOR - cannot do HSV if channels > 3
 
 	assert(im.c == 3);
 	int i, j;
@@ -1475,9 +1475,9 @@ void Darknet::scale_image_channel(Darknet::Image & im, int c, float v)
 
 void Darknet::distort_image(Darknet::Image & im, float hue, float sat, float val)
 {
-	/// @todo COLOR - needs to be fixed for 1 <= c <= N
-
 	TAT(TATPARMS);
+
+	/// @todo COLOR - needs to be fixed for 1 <= c <= N
 
 	if (im.c >= 3)
 	{
@@ -1506,9 +1506,9 @@ void Darknet::distort_image(Darknet::Image & im, float hue, float sat, float val
 
 void Darknet::random_distort_image(Darknet::Image & im, float hue, float saturation, float exposure)
 {
-	/// @todo COLOR - HSV no beuno
-
 	TAT(TATPARMS);
+
+	/// @todo COLOR - HSV no beuno
 
 	float dhue = rand_uniform_strong(-hue, hue);
 	float dsat = rand_scale(saturation);

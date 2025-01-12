@@ -7,6 +7,8 @@
 
 std::string get_windows_version()
 {
+	TAT(TATPARMS);
+
 	// Oh, this is ugly...why is it so complicated to get an accurate version number or product name from Windows?
 
 	std::string txt = "Windows";
@@ -48,6 +50,8 @@ namespace
 	// shamlessly stolen from DarkHelp
 	static inline void fix_out_of_bound_normalized_rect(float & cx, float & cy, float & w, float & h)
 	{
+		TAT(TATPARMS);
+
 		// coordinates are all normalized!
 
 		if (cx - w / 2.0f < 0.0f or	// too far left
@@ -79,6 +83,8 @@ namespace
 
 	static inline void draw_rounded_rectangle(cv::Mat & mat, const cv::Rect & r, const float roundness, const cv::Scalar & colour, const cv::LineTypes line_type)
 	{
+		TAT(TATPARMS);
+
 		/* This is what decides how "round" the bounding box needs to be.  The divider
 		 * decides the length of the line segments and the radius of each rounded corner.
 		 *
@@ -273,7 +279,14 @@ void Darknet::show_version_info()
 {
 	TAT(TATPARMS);
 
-	std::cout << "Darknet V3 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING) << std::endl;
+	std::cout << "Darknet V3 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING);
+	#ifndef NDEBUG
+	std::cout << " " << Darknet::in_colour(Darknet::EColour::kBrightRed, "DEBUG BUILD!");
+	#endif
+	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
+	std::cout << " " << Darknet::in_colour(Darknet::EColour::kBrightBlue, "TIMING BUILD!");
+	#endif
+	std::cout << std::endl;
 
 	#if DARKNET_GPU_ROCM
 		Darknet::show_rocm_info();
@@ -496,6 +509,8 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 
 bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 {
+	TAT(TATPARMS);
+
 	// 1st step:  see if we can identify the 3 files we need to load the network
 	for (auto & parm : parms)
 	{
@@ -758,6 +773,8 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 
 Darknet::Parms & Darknet::set_default_neural_network(Darknet::Parms & parms, const std::string & hint1, const std::string & hint2, const std::string & hint3)
 {
+	TAT(TATPARMS);
+
 	if (get_config_filename(parms).empty())
 	{
 		Parms hints;
@@ -785,6 +802,8 @@ Darknet::Parms & Darknet::set_default_neural_network(Darknet::Parms & parms, con
 
 std::filesystem::path Darknet::get_config_filename(const Darknet::Parms & parms)
 {
+	TAT(TATPARMS);
+
 	std::filesystem::path path;
 
 	for (const auto & parm : parms)
@@ -802,6 +821,8 @@ std::filesystem::path Darknet::get_config_filename(const Darknet::Parms & parms)
 
 std::filesystem::path Darknet::get_names_filename(const Darknet::Parms & parms)
 {
+	TAT(TATPARMS);
+
 	std::filesystem::path path;
 
 	for (const auto & parm : parms)
@@ -819,6 +840,8 @@ std::filesystem::path Darknet::get_names_filename(const Darknet::Parms & parms)
 
 std::filesystem::path Darknet::get_weights_filename(const Darknet::Parms & parms)
 {
+	TAT(TATPARMS);
+
 	std::filesystem::path path;
 
 	for (const auto & parm : parms)
@@ -1552,6 +1575,8 @@ std::filesystem::path Darknet::get_weights_filename(const Darknet::NetworkPtr pt
 
 cv::Mat Darknet::resize_keeping_aspect_ratio(cv::Mat & mat, cv::Size desired_size, const cv::InterpolationFlags method)
 {
+	TAT(TATPARMS);
+
 	const float width		= mat.cols;
 	const float height		= mat.rows;
 	const float horizontal	= width		/ desired_size.width;
@@ -1698,6 +1723,8 @@ std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Predictions
 
 std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::duration duration, const int decimals)
 {
+	TAT(TATPARMS);
+
 	if (duration < std::chrono::high_resolution_clock::duration::zero())
 	{
 		duration = std::chrono::abs(duration);

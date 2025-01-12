@@ -150,6 +150,8 @@ char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 
 char **get_random_paths(char **paths, int n, int m)
 {
+	TAT(TATPARMS);
+
 	return get_random_paths_custom(paths, n, m, 0);
 }
 
@@ -262,9 +264,9 @@ void correct_boxes(box_label *boxes, int n, float dx, float dy, float sx, float 
 
 int fill_truth_detection(const char *path, int num_boxes, int truth_size, float *truth, int classes, int flip, float dx, float dy, float sx, float sy, int net_w, int net_h)
 {
-	// This method is used during the training process to load the boxes for the given image.
-
 	TAT(TATPARMS);
+
+	// This method is used during the training process to load the boxes for the given image.
 
 	char labelpath[4096];
 	replace_image_to_label(path, labelpath);
@@ -628,9 +630,9 @@ void blend_truth_mosaic(float *new_truth, int boxes, int truth_size, float *old_
 data load_data_detection(int n, char **paths, int m, int w, int h, int c, int boxes, int truth_size, int classes, int use_flip, int use_gaussian_noise, int use_blur, int use_mixup,
 	float jitter, float resize, float hue, float saturation, float exposure, int mini_batch, int track, int augment_speed, int letter_box, int mosaic_bound, int contrastive, int contrastive_jit_flip, int contrastive_color, int show_imgs)
 {
-	// This is the method that gets called to load the "n" images for each loading thread while training a network.
-
 	TAT(TATPARMS);
+
+	// This is the method that gets called to load the "n" images for each loading thread while training a network.
 
 	c = c ? c : 3;
 
@@ -1009,10 +1011,10 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
 void Darknet::load_single_image_data(load_args args)
 {
+	TAT(TATPARMS);
+
 	// Note:  even though the name is load_single_image_data() note that this will likely result in more than 1 image
 	// loaded due to the args.n parameter.
-
-	TAT(TATPARMS);
 
 	if (args.aspect		== 0.0f)	args.aspect		= 1.0f;
 	if (args.exposure	== 0.0f)	args.exposure	= 1.0f;
@@ -1049,9 +1051,9 @@ void Darknet::load_single_image_data(load_args args)
 
 void Darknet::image_loading_loop(const int idx, load_args args)
 {
-	// This loop runs on a secondary thread.
-
 	TAT_REVIEWED(TATPARMS, "2024-04-11");
+
+	// This loop runs on a secondary thread.
 
 	cfg_and_state.set_thread_name("image loading loop #" + std::to_string(idx));
 
@@ -1093,12 +1095,12 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 
 void Darknet::run_image_loading_control_thread(load_args args)
 {
+	TAT(TATPARMS);
+
 	/* NOTE:  This is normally started on a new thread!  For example, you might see this:
 	 *
 	 *		std::thread t(Darknet::run_image_loading_control_thread, args);
 	 */
-
-	TAT(TATPARMS);
 
 	cfg_and_state.set_thread_name("image loading control thread");
 

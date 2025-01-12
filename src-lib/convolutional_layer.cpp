@@ -319,27 +319,6 @@ void create_convolutional_cudnn_tensors(Darknet::Layer *l)
 }
 
 
-#if 0
-std::string to_string(cudnnConvolutionFwdAlgo_t algo)
-{
-	switch(algo)
-	{
-		case CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM:			return "IMPLICIT_GEMM";
-		case CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM:	return "IMPLICIT_PRECOMP_GEMM";
-		case CUDNN_CONVOLUTION_FWD_ALGO_GEMM:					return "GEMM";
-		case CUDNN_CONVOLUTION_FWD_ALGO_DIRECT:					return "DIRECT";
-		case CUDNN_CONVOLUTION_FWD_ALGO_FFT:					return "FFT";
-		case CUDNN_CONVOLUTION_FWD_ALGO_FFT_TILING:				return "FFT_TILING";
-		case CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD:				return "WINOGRAD";
-		case CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED:		return "WINOGRAD_NONFUSED";
-		case CUDNN_CONVOLUTION_FWD_ALGO_COUNT:					return "COUNT";
-	}
-
-	return "unknown";
-}
-#endif
-
-
 void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t workspace_size_specify)
 {
 	TAT(TATPARMS);

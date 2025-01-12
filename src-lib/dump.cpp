@@ -3,6 +3,8 @@
 
 std::string dump(uint64_t * ui)
 {
+	TAT(TATPARMS);
+
 	std::stringstream ss;
 
 	if (ui == nullptr)
@@ -20,6 +22,8 @@ std::string dump(uint64_t * ui)
 
 std::string dump(float * f, size_t count=1)
 {
+	TAT(TATPARMS);
+
 	std::stringstream ss;
 
 	if (f == nullptr)
@@ -43,6 +47,8 @@ std::string dump(float * f, size_t count=1)
 
 std::string dump(int * i, int count=1)
 {
+	TAT(TATPARMS);
+
 	std::stringstream ss;
 
 	if (i == nullptr)
@@ -64,6 +70,8 @@ std::string dump(int * i, int count=1)
 
 void dump(Darknet::Network * net, const Darknet::CfgFile::CommonParms & parms)
 {
+	TAT(TATPARMS);
+
 	std::ofstream ofs("dump.txt");
 
 	if (net == nullptr)
@@ -419,6 +427,8 @@ void dump(Darknet::Network * net, const Darknet::CfgFile::CommonParms & parms)
 
 void Darknet::dump(Darknet::Network * net, const Darknet::CfgFile::CommonParms & parms)
 {
+	TAT(TATPARMS);
+
 	::dump(net, parms);
 
 	return;
@@ -427,6 +437,8 @@ void Darknet::dump(Darknet::Network * net, const Darknet::CfgFile::CommonParms &
 
 void Darknet::dump(Darknet::CfgFile & cfg)
 {
+	TAT(TATPARMS);
+
 	::dump(&cfg.net, cfg.parms);
 
 	return;
@@ -435,6 +447,8 @@ void Darknet::dump(Darknet::CfgFile & cfg)
 
 void Darknet::dump(const float * ptr, const size_t count, const size_t row_len)
 {
+	TAT(TATPARMS);
+
 	std::cout << "Dump " << count << " floats (" << row_len << "x" << (count / row_len) << ") starting at " << (void*)ptr << ":";
 	for (auto idx = 0; idx < count; idx ++)
 	{
@@ -482,6 +496,8 @@ void Darknet::dump(const float * ptr, const size_t count, const size_t row_len)
 
 void Darknet::dump(const Darknet::Layer & l)
 {
+	TAT(TATPARMS);
+
 	std::cout << "Dump " << to_string(l.type) << " layer's " << l.w << "x" << l.h << " output buffer:" << std::endl;
 
 	if (l.type == ELayerType::YOLO)

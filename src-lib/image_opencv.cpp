@@ -131,9 +131,9 @@ void show_image_cv(Darknet::Image p, const char *name)
 
 void save_mat_png(cv::Mat mat, const char *name)
 {
-	/// @todo merge with @ref Darknet::save_image_png()
-
 	TAT(TATPARMS);
+
+	/// @todo merge with @ref Darknet::save_image_png()
 
 	const bool success = cv::imwrite(name, mat, {cv::ImwriteFlags::IMWRITE_PNG_COMPRESSION, 9});
 	if (not success)
@@ -145,9 +145,9 @@ void save_mat_png(cv::Mat mat, const char *name)
 
 void save_mat_jpg(cv::Mat mat, const char *name)
 {
-	/// @todo merge with @ref Darknet::save_image_jpg()
-
 	TAT(TATPARMS);
+
+	/// @todo merge with @ref Darknet::save_image_jpg()
 
 	const bool success = cv::imwrite(name, mat, {cv::ImwriteFlags::IMWRITE_JPEG_QUALITY, 75});
 	if (not success)

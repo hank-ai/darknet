@@ -26,12 +26,16 @@ static std::unique_ptr<Detector> detector;
 
 int init(const char *configurationFilename, const char *weightsFilename, int gpu, int batch_size)
 {
+	TAT(TATPARMS);
+
 	detector.reset(new Detector(configurationFilename, weightsFilename, gpu, batch_size));
 	return 1;
 }
 
 int detect_image(const char *filename, bbox_t_container &container)
 {
+	TAT(TATPARMS);
+
 	std::vector<bbox_t> detection = detector->detect(filename);
 	for (size_t i = 0; i < detection.size() && i < C_SHARP_MAX_OBJECTS; ++i)
 		container.candidates[i] = detection[i];
@@ -40,6 +44,8 @@ int detect_image(const char *filename, bbox_t_container &container)
 
 int detect_mat(const uint8_t* data, const size_t data_length, bbox_t_container &container)
 {
+	TAT(TATPARMS);
+
 	std::vector<char> vdata(data, data + data_length);
 	cv::Mat image = imdecode(cv::Mat(vdata), 1);
 
@@ -49,14 +55,20 @@ int detect_mat(const uint8_t* data, const size_t data_length, bbox_t_container &
 	return detection.size();
 }
 
-int dispose() {
+int dispose()
+{
+	TAT(TATPARMS);
+
 	//if (detector != NULL) delete detector;
 	//detector = NULL;
 	detector.reset();
 	return 1;
 }
 
-int get_device_count() {
+int get_device_count()
+{
+	TAT(TATPARMS);
+
 #ifdef DARKNET_GPU
 	int count = 0;
 	cudaGetDeviceCount(&count);
@@ -66,7 +78,10 @@ int get_device_count() {
 #endif	// DARKNET_GPU
 }
 
-bool built_with_cuda(){
+bool built_with_cuda()
+{
+	TAT(TATPARMS);
+
 #ifdef DARKNET_GPU
 	return true;
 #else
@@ -74,7 +89,10 @@ bool built_with_cuda(){
 #endif
 }
 
-bool built_with_cudnn(){
+bool built_with_cudnn()
+{
+	TAT(TATPARMS);
+
 #ifdef CUDNN
 	return true;
 #else
@@ -82,12 +100,18 @@ bool built_with_cudnn(){
 #endif
 }
 
-bool built_with_opencv(){
+bool built_with_opencv()
+{
+	TAT(TATPARMS);
+
 	return true;
 }
 
 
-int get_device_name(int gpu, char* deviceName) {
+int get_device_name(int gpu, char* deviceName)
+{
+	TAT(TATPARMS);
+
 #ifdef DARKNET_GPU
 	cudaDeviceProp prop;
 	cudaGetDeviceProperties(&prop, gpu);
@@ -100,7 +124,10 @@ int get_device_name(int gpu, char* deviceName) {
 }
 
 #ifdef DARKNET_GPU
-void check_cuda(cudaError_t status) {
+void check_cuda(cudaError_t status)
+{
+	TAT(TATPARMS);
+
 	if (status != cudaSuccess) {
 		const char *s = cudaGetErrorString(status);
 		printf("CUDA Error Prev: %s\n", s);
@@ -121,6 +148,8 @@ struct detector_gpu_t
 Detector::Detector(std::string cfg_filename, std::string weight_filename, int gpu_id, int batch_size)
 	: cur_gpu_id(gpu_id)
 {
+	TAT(TATPARMS);
+
 	wait_stream = 0;
 #ifdef DARKNET_GPU
 	int old_gpu_index;
@@ -171,6 +200,8 @@ Detector::Detector(std::string cfg_filename, std::string weight_filename, int gp
 
 Detector::~Detector()
 {
+	TAT(TATPARMS);
+
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	//layer l = detector_gpu.net.layers[detector_gpu.net.n - 1];
 
@@ -193,30 +224,43 @@ Detector::~Detector()
 #endif
 }
 
-int Detector::get_net_width() const {
+int Detector::get_net_width() const
+{
+	TAT(TATPARMS);
+
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	return detector_gpu.net.w;
 }
-int Detector::get_net_height() const {
+
+int Detector::get_net_height() const
+{
+	TAT(TATPARMS);
+
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	return detector_gpu.net.h;
 }
-int Detector::get_net_color_depth() const {
+
+int Detector::get_net_color_depth() const
+{
+	TAT(TATPARMS);
+
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	return detector_gpu.net.c;
 }
 
-
 std::vector<bbox_t> Detector::detect(std::string image_filename, float thresh, bool use_mean)
 {
+	TAT(TATPARMS);
+
 	std::shared_ptr<image_t> image_ptr(new image_t, [](image_t *img) { if (img->data) free(img->data); delete img; });
 	*image_ptr = load_image(image_filename);
 	return detect(*image_ptr, thresh, use_mean);
 }
 
-
 image_t Detector::load_image(std::string image_filename)
 {
+	TAT(TATPARMS);
+
 	Darknet::Image im = Darknet::load_image(const_cast<char*>(image_filename.c_str()), 0, 0, 3);
 
 	image_t img;
@@ -231,6 +275,8 @@ image_t Detector::load_image(std::string image_filename)
 
 void Detector::free_image(image_t m)
 {
+	TAT(TATPARMS);
+
 	if (m.data)
 	{
 		free(m.data);
@@ -239,6 +285,8 @@ void Detector::free_image(image_t m)
 
 std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 {
+	TAT(TATPARMS);
+
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	Darknet::Network & net = detector_gpu.net;
 #ifdef DARKNET_GPU
@@ -330,6 +378,8 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 
 std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_size, int width, int height, float thresh, bool make_nms)
 {
+	TAT(TATPARMS);
+
 	detector_gpu_t &detector_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 	Darknet::Network net = detector_gpu.net;
 #ifdef DARKNET_GPU
@@ -399,6 +449,8 @@ std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_si
 std::vector<bbox_t> Detector::tracking_id(std::vector<bbox_t> cur_bbox_vec, bool const change_history,
 	int const frames_story, int const max_dist)
 {
+	TAT(TATPARMS);
+
 	detector_gpu_t &det_gpu = *static_cast<detector_gpu_t *>(detector_gpu_ptr.get());
 
 	bool prev_track_id_present = false;
@@ -457,6 +509,8 @@ std::vector<bbox_t> Detector::tracking_id(std::vector<bbox_t> cur_bbox_vec, bool
 
 void *Detector::get_cuda_context()
 {
+	TAT(TATPARMS);
+
 #ifdef DARKNET_GPU
 	int old_gpu_index;
 	cudaGetDevice(&old_gpu_index);

@@ -237,6 +237,8 @@ std::string Darknet::text_to_simple_label(std::string txt)
 
 std::string Darknet::trim(const std::string & str)
 {
+	TAT(TATPARMS);
+
 	std::string txt = str;
 	trim(txt);
 	return txt;
@@ -245,6 +247,8 @@ std::string Darknet::trim(const std::string & str)
 
 std::string & Darknet::trim(std::string & str)
 {
+	TAT(TATPARMS);
+
 	// trim trailing whitespace characters
 	auto pos = str.find_last_not_of(" \t\r\n");
 	if (pos != std::string::npos)
@@ -265,6 +269,8 @@ std::string & Darknet::trim(std::string & str)
 
 std::string Darknet::lowercase(const std::string & str)
 {
+	TAT(TATPARMS);
+
 	std::string txt = str;
 	lowercase(txt);
 	return txt;
@@ -273,6 +279,8 @@ std::string Darknet::lowercase(const std::string & str)
 
 std::string & Darknet::lowercase(std::string & str)
 {
+	TAT(TATPARMS);
+
 	std::transform(str.begin(), str.end(), str.begin(),
 		[](unsigned char c)
 		{
@@ -344,6 +352,8 @@ void Darknet::update_accuracy_in_new_charts(const int class_index, const float a
 
 std::string Darknet::get_command_output(const std::string & cmd)
 {
+	TAT(TATPARMS);
+
 	#ifdef WIN32
 	#define popen _popen
 	#define pclose _pclose

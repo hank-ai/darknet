@@ -93,6 +93,8 @@ void check_cuda_error_extended(cudaError_t status, const char * const filename, 
 
 dim3 cuda_gridsize(size_t n)
 {
+	TAT(TATPARMS);
+
 	size_t k = (n - 1) / BLOCK + 1;
 	size_t x = k;
 	size_t y = 1;
@@ -716,11 +718,15 @@ void cuda_pull_array_async(float *x_gpu, float *x, size_t n)
 
 int get_number_of_blocks(int array_size, int block_size)
 {
+	TAT(TATPARMS);
+
 	return array_size / block_size + ((array_size % block_size > 0) ? 1 : 0);
 }
 
 int get_gpu_compute_capability(int i, char *device_name)
 {
+	TAT(TATPARMS);
+
 	typedef struct cudaDeviceProp cudaDeviceProp;
 	cudaDeviceProp prop;
 	cudaError_t status = cudaGetDeviceProperties(&prop, i);
@@ -732,6 +738,8 @@ int get_gpu_compute_capability(int i, char *device_name)
 
 void show_cuda_cudnn_info()
 {
+	TAT(TATPARMS);
+
 	int device_count			= 0;
 	int cuda_runtime_version	= 0;
 	int cuda_driver_version		= 0;
@@ -813,6 +821,8 @@ void show_cuda_cudnn_info()
 // When doing a CPU-only build, make this a no-op.
 void cuda_set_device(int n)
 {
+	TAT(TATPARMS);
+
 	return;
 }
 

@@ -9,6 +9,8 @@ namespace
 
 Darknet::NetworkDetails::NetworkDetails()
 {
+	TAT(TATPARMS);
+
 	detection_threshold						= 0.25f;
 	non_maximal_suppression_threshold		= 0.45f;
 
@@ -397,9 +399,7 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 
 float train_network(Darknet::Network & net, data d)
 {
-	/* no need to track this since we simply call the other train function which is already tracked
 	TAT(TATPARMS);
-	 */
 
 	return train_network_waitkey(net, d, 0);
 }
@@ -814,9 +814,9 @@ void visualize_network(Darknet::Network & net)
 // struct to make the python binding work properly.
 float *network_predict_ptr(DarknetNetworkPtr ptr, float * input)
 {
-	// this is a "C" call
-
 	TAT(TATPARMS);
+
+	// this is a "C" call
 
 	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 
@@ -935,9 +935,9 @@ int num_detections_batch(Darknet::Network * net, float thresh, int batch)
 
 detection * make_network_boxes(DarknetNetworkPtr ptr, float thresh, int * num)
 {
-	/// @see @ref make_network_boxes_batch()
-
 	TAT(TATPARMS);
+
+	/// @see @ref make_network_boxes_batch()
 
 	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 
@@ -1063,9 +1063,9 @@ Darknet::Detection * make_network_boxes_v3(Darknet::Network * net, const float t
 
 Darknet::Detection *make_network_boxes_batch(Darknet::Network * net, float thresh, int *num, int batch)
 {
-	/// @see @ref make_network_boxes()
-
 	TAT(TATPARMS);
+
+	/// @see @ref make_network_boxes()
 
 	Darknet::Layer l = net->layers[net->n - 1];
 	for (int i = 0; i < net->n; ++i)
@@ -1252,9 +1252,9 @@ void fill_network_boxes_batch(Darknet::Network * net, int w, int h, float thresh
 
 detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter)
 {
-	// this is a "C" call
-
 	TAT(TATPARMS);
+
+	// this is a "C" call
 
 	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 
@@ -1282,9 +1282,9 @@ detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh,
 
 void free_detections(detection * dets, int n)
 {
-	// this is a "C" call
-
 	TAT(TATPARMS);
+
+	// this is a "C" call
 
 	for (int i = 0; i < n; ++i)
 	{
@@ -1391,9 +1391,9 @@ char * Darknet::detection_to_json(Darknet::Detection *dets, int nboxes, int clas
 
 float * network_predict_image(DarknetNetworkPtr ptr, const DarknetImage im)
 {
-	// this is a "C" call
-
 	TAT(TATPARMS);
+
+	// this is a "C" call
 
 	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 
@@ -1779,6 +1779,7 @@ void fuse_conv_batchnorm(Darknet::Network & net)
 
 void forward_blank_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
+	TAT(TATPARMS);
 	return;
 }
 

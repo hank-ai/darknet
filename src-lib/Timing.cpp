@@ -7,6 +7,8 @@ namespace
 
 	Darknet::TimingRecords & get_tr()
 	{
+//		TAT(TATPARMS); ... nope, don't cause recursion!
+
 		/// There is only 1 of these objects.  All the the tracking/timing information is stored in this object.
 		static Darknet::TimingRecords tr;
 
@@ -22,6 +24,8 @@ namespace
 
 Darknet::TimingAndTracking::TimingAndTracking(const std::string& n, const bool r, const std::string & c)
 {
+//	TAT(TATPARMS); ... nope, don't cause recursion!
+
 	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
 
 	name		= n;
@@ -37,6 +41,8 @@ Darknet::TimingAndTracking::TimingAndTracking(const std::string& n, const bool r
 
 Darknet::TimingAndTracking::~TimingAndTracking()
 {
+//	TAT(TATPARMS); ... nope, don't cause recursion!
+
 	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
 
 	end_time = std::chrono::high_resolution_clock::now();
@@ -51,12 +57,16 @@ Darknet::TimingAndTracking::~TimingAndTracking()
 
 Darknet::TimingRecords::TimingRecords()
 {
+//	TAT(TATPARMS); ... nope, don't cause recursion!
+
 	return;
 }
 
 
 Darknet::TimingRecords::~TimingRecords()
 {
+//	TAT(TATPARMS); ... nope, don't cause recursion!
+
 	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
 
 	// Remember this is the destruction of a *static* object.  By the time we get here,
@@ -181,6 +191,8 @@ Darknet::TimingRecords::~TimingRecords()
 
 Darknet::TimingRecords & Darknet::TimingRecords::add(const Darknet::TimingAndTracking & tat)
 {
+//	TAT(TATPARMS); ... nope, don't cause recursion!
+
 	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
 
 	const auto duration = tat.end_time - tat.start_time;
