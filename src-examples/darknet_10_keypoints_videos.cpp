@@ -150,7 +150,7 @@ int main(int argc, char * argv[])
 				{
 					total_sleep_in_milliseconds	+= milliseconds;
 				}
-				else
+				else if (frame_counter > 1) // not unusual for the very first frame to fall behind
 				{
 					fell_behind ++;
 					if (fell_behind == 10)
