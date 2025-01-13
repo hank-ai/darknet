@@ -67,8 +67,9 @@ void resize_dropout_layer(Darknet::Layer *l, int inputs)
 	cuda_free(l->rand_gpu);
 	l->rand_gpu = cuda_make_array(l->rand, l->inputs*l->batch);
 
-	if (l->dropblock) {
-		cudaFreeHost(l->drop_blocks_scale);
+	if (l->dropblock)
+	{
+		CHECK_CUDA(cudaFreeHost(l->drop_blocks_scale));
 		l->drop_blocks_scale = cuda_make_array_pinned(l->rand, l->batch);
 
 		cuda_free(l->drop_blocks_scale_gpu);

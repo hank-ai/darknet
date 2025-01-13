@@ -2670,9 +2670,10 @@ void time_ongpu(int TA, int TB, int m, int k, int n)
 
 	int i;
 	clock_t start = clock(), end;
-	for(i = 0; i<iter; ++i){
+	for (i = 0; i<iter; ++i)
+	{
 		gemm_ongpu(TA,TB,m,n,k,1,a_cl,lda,b_cl,ldb,1,c_cl,n);
-		cudaDeviceSynchronize();
+		CHECK_CUDA(cudaDeviceSynchronize());
 	}
 	double flop = ((double)m)*n*(2.*k + 2.)*iter;
 	double gflop = flop/pow(10., 9);

@@ -1927,7 +1927,7 @@ __global__  void stretch_weights_kernel(const float *src_weight_gpu, float *weig
 			const int x_c = kernel_size / 2;
 			const int y_c = kernel_size / 2;
 
-			float dropout_sum = 0;
+//			float dropout_sum = 0;
 
 			for (int y = 0; y < kernel_size; ++y) {
 				for (int x = 0; x < kernel_size; ++x) {
@@ -1951,16 +1951,16 @@ __global__  void stretch_weights_kernel(const float *src_weight_gpu, float *weig
 
 					float val = 0;
 					if (x_0 >= 0 && x_0 < kernel_size && y_0 >= 0 && y_0 < kernel_size) val += src_weight_gpu[x_0 + y_0*kernel_size + i] * c_x_0 * c_y_0;
-					else dropout_sum += c_x_0 * c_y_0;
+//					else dropout_sum += c_x_0 * c_y_0;
 
 					if (x_1 >= 0 && x_1 < kernel_size && y_0 >= 0 && y_0 < kernel_size) val += src_weight_gpu[x_1 + y_0*kernel_size + i] * c_x_1 * c_y_0;
-					else dropout_sum += c_x_1 * c_y_0;
+//					else dropout_sum += c_x_1 * c_y_0;
 
 					if (x_0 >= 0 && x_0 < kernel_size && y_1 >= 0 && y_1 < kernel_size) val += src_weight_gpu[x_0 + y_1*kernel_size + i] * c_x_0 * c_y_1;
-					else dropout_sum += c_x_0 * c_y_1;
+//					else dropout_sum += c_x_0 * c_y_1;
 
 					if (x_1 >= 0 && x_1 < kernel_size && y_1 >= 0 && y_1 < kernel_size) val += src_weight_gpu[x_1 + y_1*kernel_size + i] * c_x_1 * c_y_1;
-					else dropout_sum += c_x_1 * c_y_1;
+//					else dropout_sum += c_x_1 * c_y_1;
 
 					weight_deform_gpu[x + y*kernel_size + i] = val;
 				}
@@ -2216,7 +2216,7 @@ __global__  void stretch_sway_flip_weights_kernel(const float *src_weight_gpu, f
 			const int x_c = kernel_size / 2;
 			const int y_c = kernel_size / 2;
 
-			float dropout_sum = 0;
+//			float dropout_sum = 0;
 
 			for (int y = 0; y < kernel_size; ++y) {
 				for (int x = 0; x < kernel_size; ++x) {
@@ -2240,16 +2240,16 @@ __global__  void stretch_sway_flip_weights_kernel(const float *src_weight_gpu, f
 
 					float val = 0;
 					if (x_0 >= 0 && x_0 < kernel_size && y_0 >= 0 && y_0 < kernel_size) val += src_weight_gpu[x_0 + y_0*kernel_size + i] * c_x_0 * c_y_0;
-					else dropout_sum += c_x_0 * c_y_0;
+//					else dropout_sum += c_x_0 * c_y_0;
 
 					if (x_1 >= 0 && x_1 < kernel_size && y_0 >= 0 && y_0 < kernel_size) val += src_weight_gpu[x_1 + y_0*kernel_size + i] * c_x_1 * c_y_0;
-					else dropout_sum += c_x_1 * c_y_0;
+//					else dropout_sum += c_x_1 * c_y_0;
 
 					if (x_0 >= 0 && x_0 < kernel_size && y_1 >= 0 && y_1 < kernel_size) val += src_weight_gpu[x_0 + y_1*kernel_size + i] * c_x_0 * c_y_1;
-					else dropout_sum += c_x_0 * c_y_1;
+//					else dropout_sum += c_x_0 * c_y_1;
 
 					if (x_1 >= 0 && x_1 < kernel_size && y_1 >= 0 && y_1 < kernel_size) val += src_weight_gpu[x_1 + y_1*kernel_size + i] * c_x_1 * c_y_1;
-					else dropout_sum += c_x_1 * c_y_1;
+//					else dropout_sum += c_x_1 * c_y_1;
 
 					weight_deform_gpu[x + y*kernel_size + i] = val;
 				}

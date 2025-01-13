@@ -85,7 +85,7 @@ void forward_network_gpu(Darknet::Network & net, Darknet::NetworkState state)
 
 		if(net.wait_stream)
 		{
-			cudaStreamSynchronize(get_cuda_stream());
+			CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));
 		}
 		state.input = l.output_gpu;
 		//cudaDeviceSynchronize();
@@ -149,7 +149,7 @@ void backward_network_gpu(Darknet::Network & net, Darknet::NetworkState state)
 			avg_time_per_layer = (time_benchmark_layers *)calloc(net.n, sizeof(time_benchmark_layers));
 			sorted_avg_time_per_layer = (time_benchmark_layers *)calloc(net.n, sizeof(time_benchmark_layers));
 		}
-		cudaDeviceSynchronize();
+		CHECK_CUDA(cudaDeviceSynchronize());
 	}
 
 	state.workspace = net.workspace;

@@ -118,6 +118,7 @@ __device__ float activate_kernel(float x, ACTIVATION a)
 			return hardtan_activate_kernel(x);
 		case LHTAN:
 			return lhtan_activate_kernel(x);
+		default: break;
 	}
 	return 0;
 }
@@ -159,6 +160,7 @@ __device__ float gradient_kernel(float x, ACTIVATION a)
 		return hardtan_gradient_kernel(x);
 	case LHTAN:
 		return lhtan_gradient_kernel(x);
+	default: break;
 	}
 	return 0;
 }
@@ -513,7 +515,7 @@ void activate_array_swish_ongpu(float *x, int n, float *output_sigmoid_gpu, floa
 {
 	TAT(TATPARMS);
 
-	const int num_blocks = get_number_of_blocks(n, BLOCK);
+//	const int num_blocks = get_number_of_blocks(n, BLOCK);
 	activate_array_swish_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(x, n, output_sigmoid_gpu, output_gpu);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
@@ -522,7 +524,7 @@ void activate_array_mish_ongpu(float *x, int n, float *activation_input_gpu, flo
 {
 	TAT(TATPARMS);
 
-	const int num_blocks = get_number_of_blocks(n, BLOCK);
+//	const int num_blocks = get_number_of_blocks(n, BLOCK);
 	activate_array_mish_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(x, n, activation_input_gpu, output_gpu);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
@@ -531,7 +533,7 @@ void activate_array_hard_mish_ongpu(float *x, int n, float *activation_input_gpu
 {
 	TAT(TATPARMS);
 
-	const int num_blocks = get_number_of_blocks(n, BLOCK);
+//	const int num_blocks = get_number_of_blocks(n, BLOCK);
 	activate_array_hard_mish_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>>(x, n, activation_input_gpu, output_gpu);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
@@ -566,7 +568,7 @@ void gradient_array_swish_ongpu(float *x, int n, float *sigmoid_gpu, float *delt
 {
 	TAT(TATPARMS);
 
-	const int num_blocks = get_number_of_blocks(n, BLOCK);
+//	const int num_blocks = get_number_of_blocks(n, BLOCK);
 	gradient_array_swish_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>> (x, n, sigmoid_gpu, delta);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
@@ -575,7 +577,7 @@ void gradient_array_mish_ongpu(int n, float *activation_input_gpu, float *delta)
 {
 	TAT(TATPARMS);
 
-	const int num_blocks = get_number_of_blocks(n, BLOCK);
+//	const int num_blocks = get_number_of_blocks(n, BLOCK);
 	gradient_array_mish_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>> (n, activation_input_gpu, delta);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
@@ -584,7 +586,7 @@ void gradient_array_hard_mish_ongpu(int n, float *activation_input_gpu, float *d
 {
 	TAT(TATPARMS);
 
-	const int num_blocks = get_number_of_blocks(n, BLOCK);
+//	const int num_blocks = get_number_of_blocks(n, BLOCK);
 	gradient_array_hard_mish_kernel <<<cuda_gridsize(n), BLOCK, 0, get_cuda_stream() >>> (n, activation_input_gpu, delta);
 	CHECK_CUDA(cudaPeekAtLastError());
 }

@@ -618,7 +618,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 		{
 			if (net->input_pinned_cpu_flag)
 			{
-				cudaFreeHost(net->input_pinned_cpu);
+				CHECK_CUDA(cudaFreeHost(net->input_pinned_cpu));
 			}
 			else
 			{
@@ -1623,7 +1623,7 @@ void free_network(Darknet::Network & net)
 		// CPU
 		if (net.input_pinned_cpu_flag)
 		{
-			cudaFreeHost(net.input_pinned_cpu);
+			CHECK_CUDA(cudaFreeHost(net.input_pinned_cpu));
 		}
 		else
 		{

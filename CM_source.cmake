@@ -50,8 +50,12 @@ IF (UNIX)
 
 	ADD_COMPILE_OPTIONS (-Wall)					# enable "all" warnings
 	ADD_COMPILE_OPTIONS (-Wextra)				# enable even more warnings
-	ADD_COMPILE_OPTIONS (-Wshadow=local)		# enable warnings when duplicate variables are created with the same name
 	ADD_COMPILE_OPTIONS (-Wno-unused-parameter)	# don't report this error
+
+	IF (NOT DARKNET_USE_ROCM)
+		# The compiler we switch to when using ROCm/HIP complains about this option.
+		ADD_COMPILE_OPTIONS (-Wshadow=local)	# enable warnings when duplicate variables are created with the same name
+	ENDIF ()
 
 	IF (CMAKE_BUILD_TYPE MATCHES DEBUG OR
 		CMAKE_BUILD_TYPE MATCHES Debug OR

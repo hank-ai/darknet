@@ -1207,8 +1207,8 @@ void assisted_excitation_forward_gpu(Darknet::Layer & l, Darknet::NetworkState s
 	if (0)   // visualize ground truth
 	{
 		cuda_pull_array(l.output_gpu, l.output, l.outputs * l.batch);
-		cudaStreamSynchronize(get_cuda_stream());
-		CHECK_CUDA(cudaPeekAtLastError());
+		CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));
+//		CHECK_CUDA(cudaPeekAtLastError());
 
 		for (b = 0; b < l.batch; ++b)
 		{
@@ -1262,7 +1262,7 @@ void pull_convolutional_layer(Darknet::Layer & l)
 		cuda_pull_array_async(l.v_gpu, l.v, l.nweights);
 	}
 	CHECK_CUDA(cudaPeekAtLastError());
-	cudaStreamSynchronize(get_cuda_stream());
+	CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));
 }
 
 void push_convolutional_layer(Darknet::Layer & l)

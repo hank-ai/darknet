@@ -258,7 +258,7 @@ void cublas_check_error(cublasStatus_t status)
 #endif
 	if (cuda_debug_sync)
 	{
-		cudaDeviceSynchronize();
+		CHECK_CUDA(cudaDeviceSynchronize());
 	}
 	if (status != CUBLAS_STATUS_SUCCESS)
 	{
@@ -703,7 +703,7 @@ void cuda_pull_array(float *x_gpu, float *x, size_t n)
 	//printf("cuda_pull_array - get_cuda_stream() = %d \n", get_cuda_stream());
 	cudaError_t status = cudaMemcpyAsync(x, x_gpu, size, cudaMemcpyDeviceToHost, get_cuda_stream());
 	CHECK_CUDA(status);
-	cudaStreamSynchronize(get_cuda_stream());
+	CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));
 }
 
 void cuda_pull_array_async(float *x_gpu, float *x, size_t n)
@@ -806,7 +806,7 @@ void show_cuda_cudnn_info()
 		for (int idx = 0; idx < device_count; idx ++)
 		{
 			cudaDeviceProp prop;
-			cudaGetDeviceProperties(&prop, idx);
+			CHECK_CUDA(cudaGetDeviceProperties(&prop, idx));
 			std::cout
 				<< "=> " << idx << ": " << Darknet::in_colour(Darknet::EColour::kBrightGreen, prop.name)
 				<< " [#" << prop.major << "." << prop.minor << "]"

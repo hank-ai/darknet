@@ -71,7 +71,7 @@ int get_device_count()
 
 #ifdef DARKNET_GPU
 	int count = 0;
-	cudaGetDeviceCount(&count);
+	CHECK_CUDA(cudaGetDeviceCount(&count));
 	return count;
 #else
 	return -1;
@@ -114,7 +114,7 @@ int get_device_name(int gpu, char* deviceName)
 
 #ifdef DARKNET_GPU
 	cudaDeviceProp prop;
-	cudaGetDeviceProperties(&prop, gpu);
+	CHECK_CUDA(cudaGetDeviceProperties(&prop, gpu));
 	std::string result = prop.name;
 	std::copy(result.begin(), result.end(), deviceName);
 	return 1;
@@ -213,14 +213,14 @@ Detector::~Detector()
 
 #ifdef DARKNET_GPU
 	int old_gpu_index;
-	cudaGetDevice(&old_gpu_index);
+	CHECK_CUDA(cudaGetDevice(&old_gpu_index));
 	cuda_set_device(detector_gpu.net.gpu_index);
 #endif
 
 	free_network(detector_gpu.net);
 
 #ifdef DARKNET_GPU
-	cudaSetDevice(old_gpu_index);
+	CHECK_CUDA(cudaSetDevice(old_gpu_index));
 #endif
 }
 
@@ -291,9 +291,11 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 	Darknet::Network & net = detector_gpu.net;
 #ifdef DARKNET_GPU
 	int old_gpu_index;
-	cudaGetDevice(&old_gpu_index);
-	if(cur_gpu_id != old_gpu_index)
-		cudaSetDevice(net.gpu_index);
+	CHECK_CUDA(cudaGetDevice(&old_gpu_index));
+	if (cur_gpu_id != old_gpu_index)
+	{
+		CHECK_CUDA(cudaSetDevice(net.gpu_index));
+	}
 
 	net.wait_stream = wait_stream;    // 1 - wait CUDA-stream, 0 - not to wait
 #endif
@@ -370,7 +372,9 @@ std::vector<bbox_t> Detector::detect(image_t img, float thresh, bool use_mean)
 
 #ifdef DARKNET_GPU
 	if (cur_gpu_id != old_gpu_index)
-		cudaSetDevice(old_gpu_index);
+	{
+		CHECK_CUDA(cudaSetDevice(old_gpu_index));
+	}
 #endif
 
 	return bbox_vec;
@@ -384,9 +388,11 @@ std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_si
 	Darknet::Network net = detector_gpu.net;
 #ifdef DARKNET_GPU
 	int old_gpu_index;
-	cudaGetDevice(&old_gpu_index);
-	if(cur_gpu_id != old_gpu_index)
-		cudaSetDevice(net.gpu_index);
+	CHECK_CUDA(cudaGetDevice(&old_gpu_index));
+	if (cur_gpu_id != old_gpu_index)
+	{
+		CHECK_CUDA(cudaSetDevice(net.gpu_index));
+	}
 
 	net.wait_stream = wait_stream;    // 1 - wait CUDA-stream, 0 - not to wait
 #endif
@@ -440,7 +446,9 @@ std::vector<std::vector<bbox_t>> Detector::detectBatch(image_t img, int batch_si
 
 #ifdef DARKNET_GPU
 	if (cur_gpu_id != old_gpu_index)
-		cudaSetDevice(old_gpu_index);
+	{
+		CHECK_CUDA(cudaSetDevice(old_gpu_index));
+	}
 #endif
 
 	return bbox_vec;
@@ -513,14 +521,18 @@ void *Detector::get_cuda_context()
 
 #ifdef DARKNET_GPU
 	int old_gpu_index;
-	cudaGetDevice(&old_gpu_index);
+	CHECK_CUDA(cudaGetDevice(&old_gpu_index));
 	if (cur_gpu_id != old_gpu_index)
-		cudaSetDevice(cur_gpu_id);
+	{
+		CHECK_CUDA(cudaSetDevice(cur_gpu_id));
+	}
 
 	void *cuda_context = cuda_get_context();
 
 	if (cur_gpu_id != old_gpu_index)
-		cudaSetDevice(old_gpu_index);
+	{
+		CHECK_CUDA(cudaSetDevice(old_gpu_index));
+	}
 
 	return cuda_context;
 #else   // DARKNET_GPU

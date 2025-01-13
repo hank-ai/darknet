@@ -189,13 +189,13 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 #ifdef DARKNET_GPU
 	if (l.delta && l.delta_pinned)
 	{
-		cudaFreeHost(l.delta);
+		CHECK_CUDA(cudaFreeHost(l.delta));
 		l.delta = nullptr;
 	}
 
 	if (l.output && l.output_pinned)
 	{
-		cudaFreeHost(l.output);
+		CHECK_CUDA(cudaFreeHost(l.output));
 		l.output = nullptr;
 	}
 #endif  // DARKNET_GPU

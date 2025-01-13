@@ -1151,7 +1151,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 		}
 		else
 		{
-			cudaGetLastError(); // reset CUDA-error
+			std::ignore = cudaGetLastError(); // reset CUDA-error
 			net.input_pinned_cpu = (float*)xcalloc(size, sizeof(float));
 		}
 

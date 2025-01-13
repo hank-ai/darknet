@@ -443,7 +443,7 @@ Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *m
 	}
 	else
 	{
-		cudaGetLastError(); // reset CUDA-error
+		std::ignore = cudaGetLastError(); // reset CUDA-error
 		l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	}
 
@@ -454,7 +454,7 @@ Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *m
 	}
 	else
 	{
-		cudaGetLastError(); // reset CUDA-error
+		std::ignore = cudaGetLastError(); // reset CUDA-error
 		l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	}
 #endif
@@ -483,7 +483,7 @@ void resize_yolo_layer(Darknet::Layer * l, int w, int h)
 	if (l->output_pinned) {
 		CHECK_CUDA(cudaFreeHost(l->output));
 		if (cudaSuccess != cudaHostAlloc((void**)&l->output, l->batch*l->outputs * sizeof(float), cudaHostRegisterMapped)) {
-			cudaGetLastError(); // reset CUDA-error
+			std::ignore = cudaGetLastError(); // reset CUDA-error
 			l->output = (float*)xcalloc(l->batch * l->outputs, sizeof(float));
 			l->output_pinned = 0;
 		}
@@ -492,7 +492,7 @@ void resize_yolo_layer(Darknet::Layer * l, int w, int h)
 	if (l->delta_pinned) {
 		CHECK_CUDA(cudaFreeHost(l->delta));
 		if (cudaSuccess != cudaHostAlloc((void**)&l->delta, l->batch*l->outputs * sizeof(float), cudaHostRegisterMapped)) {
-			cudaGetLastError(); // reset CUDA-error
+			std::ignore = cudaGetLastError(); // reset CUDA-error
 			l->delta = (float*)xcalloc(l->batch * l->outputs, sizeof(float));
 			l->delta_pinned = 0;
 		}
