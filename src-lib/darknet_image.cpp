@@ -853,7 +853,7 @@ Darknet::Image Darknet::bgr_mat_to_rgb_image(const cv::Mat & mat)
 	cv::split(mat, views);
 
 	// create an empty Darknet::Image where the float results will be stored by OpenCV once we convert to CV_32F
-	Darknet:: Image img = make_image(mat.cols, mat.rows, mat.channels());
+	Darknet::Image img = make_image(mat.cols, mat.rows, mat.channels());
 
 	// note how the cv::Matf is using the Darknet::Image data buffer directly
 	cv::Mat1f tmp(img.h * 3, img.w, img.data);
