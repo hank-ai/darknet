@@ -58,6 +58,7 @@ return tmp_count;
 #define PUT_IN_REGISTER register
 #endif
 
+#if 0 // unused
 void gemm_bin(int M, int N, int K, float ALPHA,
 		char  *A, int lda,
 		float *B, int ldb,
@@ -81,6 +82,7 @@ void gemm_bin(int M, int N, int K, float ALPHA,
 		}
 	}
 }
+#endif
 
 float *random_matrix(int rows, int cols)
 {
@@ -95,6 +97,7 @@ float *random_matrix(int rows, int cols)
 	return m;
 }
 
+#if 0 // unused
 void time_random_matrix(int TA, int TB, int m, int k, int n)
 {
 	TAT(TATPARMS);
@@ -120,7 +123,7 @@ void time_random_matrix(int TA, int TB, int m, int k, int n)
 	free(b);
 	free(c);
 }
-
+#endif
 
 void gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 		float *A, int lda,
@@ -138,6 +141,7 @@ void gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 // XNOR bitwise GEMM for binary neural network
 //--------------------------------------------
 
+#if 0 // unused
 void binary_int32_printf(uint32_t src)
 {
 	TAT(TATPARMS);
@@ -149,7 +153,9 @@ void binary_int32_printf(uint32_t src)
 	}
 	printf("\n");
 }
+#endif
 
+#if 0 // unused
 void binary_int64_printf(uint64_t src)
 {
 	TAT(TATPARMS);
@@ -161,11 +167,15 @@ void binary_int64_printf(uint64_t src)
 	}
 	printf("\n");
 }
+#endif
 
 #ifndef DARKNET_GPU
+
 uint8_t reverse_8_bit(uint8_t a)
 {
 	TAT(TATPARMS);
+
+	/// @note This function is for CPU-only versions of Darknet.  See im2col_kernels.cu for GPU version.
 
 	return ((a * 0x0802LU & 0x22110LU) | (a * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
 }
@@ -173,6 +183,8 @@ uint8_t reverse_8_bit(uint8_t a)
 uint32_t reverse_32_bit(uint32_t a)
 {
 	TAT(TATPARMS);
+
+	/// @note This function is for CPU-only versions of Darknet.  See im2col_kernels.cu for GPU version.
 
 	// unsigned int __rbit(unsigned int val) // for ARM    //__asm__("rbit %0, %1\n" : "=r"(output) : "r"(input));
 	return (reverse_8_bit(a >> 24) << 0) |
@@ -186,6 +198,8 @@ uint32_t reverse_32_bit(uint32_t a)
 void transpose32_optimized(uint32_t A[32])
 {
 	TAT(TATPARMS);
+
+	/// @note This function is for CPU-only versions of Darknet.  See im2col_kernels.cu for GPU version.
 
 	int j, k;
 	unsigned m, t;
@@ -220,7 +234,8 @@ void transpose32_optimized(uint32_t A[32])
 	for (k = 0; k < 32; k = (k + j + 1) & ~j) { swap(A[k], A[k + j], j, m); }
 
 	// reverse Y
-	for (j = 0; j < 16; ++j) {
+	for (j = 0; j < 16; ++j)
+	{
 		uint32_t tmp = A[j];
 		A[j] = reverse_32_bit(A[31 - j]);
 		A[31 - j] = reverse_32_bit(tmp);
@@ -231,6 +246,8 @@ void transpose_32x32_bits_reversed_diagonale(uint32_t *A, uint32_t *B, int m, in
 {
 	TAT(TATPARMS);
 
+	/// @note This function is for CPU-only versions of Darknet.  See im2col_kernels.cu for GPU version.
+
 	unsigned A_tmp[32];
 	int i;
 	#pragma unroll
@@ -240,10 +257,12 @@ void transpose_32x32_bits_reversed_diagonale(uint32_t *A, uint32_t *B, int m, in
 	for (i = 0; i < 32; ++i) B[i*n] = A_tmp[i];
 }
 
-
+#if 0 // unused?
 void transpose_8x8_bits_my(unsigned char *A, unsigned char *B, int lda, int ldb)
 {
 	TAT(TATPARMS);
+
+	/// @note This function is for CPU-only versions of Darknet.
 
 	unsigned x, y;
 	for (y = 0; y < 8; ++y) {
@@ -252,40 +271,55 @@ void transpose_8x8_bits_my(unsigned char *A, unsigned char *B, int lda, int ldb)
 		}
 	}
 }
+#endif
 
+#if 0 // unused?
 unsigned char reverse_byte_1(char a)
 {
 	TAT(TATPARMS);
+
+	/// @note This function is for CPU-only versions of Darknet.
 
 	return ((a & 0x1) << 7) | ((a & 0x2) << 5) |
 		((a & 0x4) << 3) | ((a & 0x8) << 1) |
 		((a & 0x10) >> 1) | ((a & 0x20) >> 3) |
 		((a & 0x40) >> 5) | ((a & 0x80) >> 7);
 }
+#endif
 
 unsigned char reverse_byte(unsigned char a)
 {
 	TAT(TATPARMS);
 
+	/// @note This function is for CPU-only versions of Darknet.
+
 	return ((a * 0x0802LU & 0x22110LU) | (a * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
 }
 
-static unsigned char lookup[16] = {
-	0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
-	0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf, };
-
+#if 0 // unused?
 unsigned char reverse_byte_3(unsigned char n)
 {
 	TAT(TATPARMS);
 
+	/// @note This function is for CPU-only versions of Darknet.
+
+	static const unsigned char lookup[16] =
+	{
+		0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
+		0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf,
+	};
+
 	// Reverse the top and bottom nibble then swap them.
 	return (lookup[n & 0b1111] << 4) | lookup[n >> 4];
 }
+#endif
 
 
 void transpose8rS32_reversed_diagonale(unsigned char* A, unsigned char* B, int m, int n)
 {
 	TAT(TATPARMS);
+
+	/// @note This function is for CPU-only versions of Darknet.  See im2col_kernels.cu for GPU version.
 
 	unsigned x, y, t;
 
@@ -308,28 +342,35 @@ void transpose8rS32_reversed_diagonale(unsigned char* A, unsigned char* B, int m
 	B[3 * n] = reverse_byte(y >> 24);  B[2 * n] = reverse_byte(y >> 16);  B[1 * n] = reverse_byte(y >> 8);  B[0 * n] = reverse_byte(y);
 }
 
-#endif
+#endif // DARKNET_GPU
 
 // transpose by 32-bit
-void transpose_bin(uint32_t *A, uint32_t *B, const int n, const int m,
-	const int lda, const int ldb, const int block_size)
+void transpose_bin(uint32_t *A, uint32_t *B, const int n, const int m, const int lda, const int ldb, const int block_size)
 {
 	TAT(TATPARMS);
 
 	//printf("\n n = %d (n mod 32 = %d), m = %d (m mod 32 = %d) \n", n, n % 32, m, m % 32);
 	//printf("\n lda = %d (lda mod 32 = %d), ldb = %d (ldb mod 32 = %d) \n", lda, lda % 32, ldb, ldb % 32);
-	int i;
+
 	#pragma omp parallel for
-	for (i = 0; i < n; i += 32) {
+	for (int i = 0; i < n; i += 32)
+	{
 		int j;
-		for (j = 0; j < m; j += 32) {
+		for (j = 0; j < m; j += 32)
+		{
 			int a_index = i*lda + j;
 			int b_index = j*ldb + i;
 			transpose_32x32_bits_reversed_diagonale(&A[a_index / 32], &B[b_index / 32], lda / 32, ldb / 32);
 			//transpose_32x32_bits_my(&A[a_index/32], &B[b_index/32], lda/32, ldb/32);
 		}
-		for (; j < m; ++j) {
-			if (get_bit((const unsigned char* const)A, i * lda + j)) set_bit((unsigned char* const)B, j * ldb + i);
+
+		/// @todo V3 this will never run...right? Isn't "j" always going to be >= "m" by the time we get here?
+		for (; j < m; ++j)
+		{
+			if (get_bit((const unsigned char* const)A, i * lda + j))
+			{
+				set_bit((unsigned char* const)B, j * ldb + i);
+			}
 		}
 	}
 }

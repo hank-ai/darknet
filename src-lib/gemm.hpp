@@ -66,10 +66,12 @@ void activate_array_cpu_custom(float *x, const int n, const ACTIVATION a);
 
 void transpose_32x32_bits_reversed_diagonale(uint32_t *A, uint32_t *B, int m, int n);
 
+#if 0 // unused
 void gemm_bin(int M, int N, int K, float ALPHA,
         char  *A, int lda,
         float *B, int ldb,
         float *C, int ldc);
+#endif
 
 void repack_input(float *input, float *re_packed_input, int w, int h, int c);
 
