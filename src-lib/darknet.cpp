@@ -279,7 +279,11 @@ void Darknet::show_version_info()
 {
 	TAT(TATPARMS);
 
-	std::cout << "Darknet V3 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING);
+	std::cout << "Darknet V4 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING);
+	if (DARKNET_BRANCH_NAME != std::string("master"))
+	{
+		std::cout << " [" << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_BRANCH_NAME) << "]";
+	}
 	#ifndef NDEBUG
 	std::cout << " " << Darknet::in_colour(Darknet::EColour::kBrightRed, "DEBUG BUILD!");
 	#endif
@@ -293,7 +297,7 @@ void Darknet::show_version_info()
 	#elif defined(DARKNET_GPU_CUDA)
 		show_cuda_cudnn_info();
 	#else
-		Darknet::display_warning_msg("Darknet is compiled to only use the CPU.");
+		Darknet::display_warning_msg("Darknet is compiled to use the CPU.");
 		std::cout << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
 	#endif
 
@@ -345,7 +349,7 @@ void Darknet::show_version_info()
 	const std::string detect_virt = "/usr/bin/systemd-detect-virt";
 	if (std::filesystem::exists(detect_virt))
 	{
-		std::string output = Darknet::trim(Darknet::get_command_output(detect_virt));
+		const std::string output = Darknet::trim(Darknet::get_command_output(detect_virt));
 		if (not output.empty() and output != "none")
 		{
 			std::cout << ", " << output;

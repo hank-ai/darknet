@@ -41,5 +41,9 @@
  *	- n/a	v1 is the fork by AlexeyAB.
  *	- 2023	V2 is named "Oak".
  *	- 2024	V3 is named "Jazz".
+ *	- 2025	V4 is named "Slate".
  */
-#define DARKNET_VERSION_KEYWORD "Jazz"
+#define DARKNET_VERSION_KEYWORD "Slate"
+
+/// Name of the git branch.  This is normally "master".
+#define DARKNET_BRANCH_NAME "${DARKNET_BRANCH_NAME}"
