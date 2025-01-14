@@ -342,12 +342,12 @@ void transpose8rS32_reversed_diagonale(unsigned char* A, unsigned char* B, int m
 	B[3 * n] = reverse_byte(y >> 24);  B[2 * n] = reverse_byte(y >> 16);  B[1 * n] = reverse_byte(y >> 8);  B[0 * n] = reverse_byte(y);
 }
 
-#endif // DARKNET_GPU
-
 // transpose by 32-bit
 void transpose_bin(uint32_t *A, uint32_t *B, const int n, const int m, const int lda, const int ldb, const int block_size)
 {
 	TAT(TATPARMS);
+
+	/// @note This function is for CPU-only versions of Darknet.  See im2col_kernels.cu for GPU version.
 
 	//printf("\n n = %d (n mod 32 = %d), m = %d (m mod 32 = %d) \n", n, n % 32, m, m % 32);
 	//printf("\n lda = %d (lda mod 32 = %d), ldb = %d (ldb mod 32 = %d) \n", lda, lda % 32, ldb, ldb % 32);
@@ -374,6 +374,8 @@ void transpose_bin(uint32_t *A, uint32_t *B, const int n, const int m, const int
 		}
 	}
 }
+
+#endif // DARKNET_GPU
 
 #if (defined(__AVX__) && defined(__x86_64__)) || (defined(_WIN64) && !defined(__MINGW32__) && !defined(_M_ARM64))
 

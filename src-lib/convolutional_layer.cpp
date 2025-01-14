@@ -151,7 +151,11 @@ namespace
 
 		memset(*t_bit_input, 0, t_bit_input_size * sizeof(char));
 
+#ifdef DARKNET_GPU
+		transpose_bin_gpu((uint8_t*)b, (uint8_t*)*t_bit_input, k, n, bit_align, new_ldb, 8);
+#else
 		transpose_bin((uint32_t*)b, (uint32_t*)*t_bit_input, k, n, bit_align, new_ldb, 8);
+#endif
 
 		return t_intput_size;
 	}
