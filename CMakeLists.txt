@@ -18,7 +18,7 @@ IF (NOT CMAKE_BUILD_TYPE)
 ENDIF ()
 
 # to get verbose build output, set this to ON
-SET (CMAKE_VERBOSE_MAKEFILE OFF)
+SET (CMAKE_VERBOSE_MAKEFILE ON)
 
 # to get lots of debug output while running cmake, set this to ON
 SET (CMAKE_FIND_DEBUG_MODE OFF)

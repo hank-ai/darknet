@@ -62,7 +62,6 @@ __global__ void im2col_gpu_kernel(const int n, const float* data_im,
 				//data_im[(channel_in * height + h_in) * width + w_in + i * width + j];
 				//(*data_col_ptr) = data_im_ptr[ii * width + jj];
 
-				/// @todo V3 should this be "*data_col_ptr" instead?  Otherwise, what exactly are we incrementing here?  (answer: the pointer...but why?)
 				data_col_ptr += height_col * width_col;
 			}
 		}
