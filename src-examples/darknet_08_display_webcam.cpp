@@ -19,7 +19,7 @@
  * If the webcam does not support the requested dimension or frame rate, OpenCV normally tries to find the nearest
  * values that will work.
  *
- * See the console output to compare what was requested, what OpenCV sais it found, and what is actually being returned.
+ * See the console output to compare what was requested, what OpenCV said it found, and what is actually being returned.
  */
 
 #if 0
