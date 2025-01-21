@@ -84,10 +84,9 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 
 People are generally expected to [train their own network](#training).  But pre-trained weights are also popular.  These are weights which someone else has trained and made available for free on the internet.  This is sometimes convenient when first installing Darknet/YOLO, since the software can be quickly tested without having to train a new neural network.
 
-- People-R-People (2 classes, `person` and `head`)
-- MSCOCO (80 classes covering a large range of objects, such as `person`, `backpack`, `chair`, `clock`, ...)
-
-There are several other simpler datasets and pre-trained weights available for testing Darknet/YOLO, such as LEGO Gears and Rolodex.  See <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">the Darknet/YOLO FAQ</a> for details.
+* [People-R-People Pre-trained Weights](#people-r-people-pre-trained-weights) (2 classes, `person` and `head`)
+* [MSCOCO Pre-trained Weights](#mscoco-pre-trained-weights) (80 classes covering a large range of objects, such as `person`, `backpack`, `chair`, `clock`, ...)
+* There are several other simple datasets and pre-trained weights available for testing Darknet/YOLO, such as [LEGO Gears](https://www.ccoderun.ca/programming/2024-05-01_LegoGears/) and [Rolodex](https://www.ccoderun.ca/programming/2023-11-06_Rolodex/).  See <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">the Darknet/YOLO FAQ</a> for details.
 
 ## People-R-People Pre-trained Weights
 
@@ -145,7 +144,7 @@ Software developers are encouraged to visit https://darknetcv.ai/ to get informa
 
 The Google Colab instructions are the same as the [Linux](#linux-cmake-method) instructions.  Several Jupyter notebooks are available showing how to do certain tasks, such as training a new network.
 
-See the notebooks in the `colab` subdirectory, and/or follow the Linux instructions below.
+See the notebooks in the `colab` subdirectory, and/or follow [the Linux instructions](#linux_cmake-method) below.
 
 ## WSL
 
