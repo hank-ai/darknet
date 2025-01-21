@@ -4,7 +4,9 @@
 * [Papers](#papers)
 * [General Information](#general-information)
 	* [Darknet Version](#darknet-version)
-* [MSCOCO Pre-trained Weights](#mscoco-pre-trained-weights)
+* [Pre-trained Weights](#pre-trained-weights)
+	* [People-R-People Pre-trained Weights](#people-r-people-pre-trained-weights)
+	* [MSCOCO Pre-trained Weights](#mscoco-pre-trained-weights)
 * [Building](#building)
 	* [Google Colab](#google-colab)
 	* [WSL](#wsl)
@@ -75,12 +77,29 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* Legacy C API was modified; applications that use the original Darknet API will need minor modifications:  https://darknetcv.ai/api/api.html
 	* New Darknet V3 C and C++ API:  https://darknetcv.ai/api/api.html
 	* New apps and sample code in `src-examples`:  https://darknetcv.ai/api/files.html
+* The most recent version was released in early 2025.  The `version` command now returns 4.x "SLATE".
+	* Added experimental support for AMD GPUs using ROCm and HIP.
 
-# MSCOCO Pre-trained Weights
+# Pre-trained Weights
+
+People are generally expected to [train their own network](#training).  But pre-trained weights are also popular.  These are weights which someone else has trained and made available for free on the internet.  This is sometimes convenient when first installing Darknet/YOLO, since the software can be quickly tested without having to train a new neural network.
+
+- People-R-People (2 classes, `person` and `head`)
+- MSCOCO (80 classes covering a large range of objects, such as `person`, `backpack`, `chair`, `clock`, ...)
+
+There are several other simpler datasets and pre-trained weights available for testing Darknet/YOLO, such as LEGO Gears and Rolodex.  See <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">the Darknet/YOLO FAQ</a> for details.
+
+## People-R-People Pre-trained Weights
+
+The People-R-People pre-trained weights are used to find people.  This dataset only has 2 classes:  `person` and `head`.
+
+![people-r-people example output](https://www.ccoderun.ca/programming/yolo_faq/un_staff.jpg)
+
+You can download these pre-trained weights directly from [C Code Run's web site](https://www.ccoderun.ca/programming/2025-01-20_People-R-People/).
+
+## MSCOCO Pre-trained Weights
 
 Several popular versions of YOLO were pre-trained for convenience on the [MSCOCO dataset](https://cocodataset.org/).  This dataset has 80 classes, which can be seen in the text file [`cfg/coco.names`](cfg/coco.names).
-
-> There are several other simpler datasets and pre-trained weights available for testing Darknet/YOLO, such as LEGO Gears and Rolodex.  See <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">the Darknet/YOLO FAQ</a> for details.
 
 The MSCOCO pre-trained weights can be downloaded from several different locations, and are also available for download from this repo:
 
@@ -106,8 +125,6 @@ darknet_03_display_videos coco.names yolov4-tiny.cfg yolov4-tiny.weights video1.
 DarkHelp coco.names yolov4-tiny.cfg yolov4-tiny.weights image1.jpg
 DarkHelp coco.names yolov4-tiny.cfg yolov4-tiny.weights video1.avi
 ```
-
-Note that people are expected to [train their own networks](#training).  MSCOCO is normally used to confirm that everything is working correctly.
 
 # Building
 
@@ -468,7 +485,7 @@ darknet detector -map -dont_show --verbose train animals.data animals.cfg
 
 # Roadmap
 
-Last updated 2024-11-02:
+Last updated 2025-01-21:
 
 ## Completed
 
@@ -505,6 +522,7 @@ Last updated 2024-11-02:
 	* [X] new Jetson Orin devices are working
 * [X] fix Python API in V3
 	* [ ] better support for Python is needed (any Python developers want to help with this?)
+* [X] heatmaps
 
 ## Short-term goals
 
@@ -526,8 +544,8 @@ Last updated 2024-11-02:
 
 * [ ] fix CUDA/CUDNN issues with all GPUs
 * [ ] re-write CUDA+cuDNN code
-* [ ] look into adding support for non-NVIDIA GPUs
+* [ ] look into adding support for non-NVIDIA GPUs **(support for AMD GPU is in progress)**
 * [ ] rotated bounding boxes, or some sort of "angle" support
 * [ ] keypoints/skeletons
-* [ ] heatmaps **(in progress)**
 * [ ] segmentation
+
