@@ -152,7 +152,12 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	printf("mAP calculations will be every %d iterations\n", calc_map_for_each);
 
 	// normally we save the weights every 10K, unless max batches is <= 10K in which case we save every 1K
-	const int how_often_we_save_weights = (net.max_batches <= 10000 ? 1000 : 10000);
+	int how_often_we_save_weights = (net.max_batches <= 10000 ? 1000 : 10000);
+	if (cfg_and_state.get("saveweights", 0) > 0)
+	{
+		// ...or, you can customize how often Darknet outputs the .weights file with the command-line parm "--save-weights 5000"
+		how_often_we_save_weights = cfg_and_state.get_int("saveweights");
+	}
 	printf("weights will be saved every %d iterations\n", how_often_we_save_weights);
 
 	const int init_w = net.w;

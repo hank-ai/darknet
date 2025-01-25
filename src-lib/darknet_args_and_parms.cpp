@@ -140,6 +140,8 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("camera"	, "c"			, 0		, "The camera (webcam) index, where numbering is typically sequential and begins with zero."),
 		ArgsAndParms("thresh"	, "threshold"	, 0.24f	),
 
+		ArgsAndParms("saveweights", "", 0, "How often the .weights are saved during training.  For example, this could be set to \"500\" to save the weights every 500 iteration."),
+
 		ArgsAndParms("avgframes"			), //-- takes an int  3
 		ArgsAndParms("benchmark"			),
 		ArgsAndParms("benchmarklayers"		),
