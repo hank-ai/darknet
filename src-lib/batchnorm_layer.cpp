@@ -1,98 +1,6 @@
 #include "darknet_internal.hpp"
 
 
-#if 0
-layer make_batchnorm_layer(int batch, int w, int h, int c, int train)
-{
-	TAT(TATPARMS);
-
-	fprintf(stderr, "Batch Normalization Layer: %d x %d x %d image\n", w,h,c);
-	layer l = { (Darknet::ELayerType)0 };
-	l.type = BATCHNORM;
-	l.batch = batch;
-	l.train = train;
-	l.h = l.out_h = h;
-	l.w = l.out_w = w;
-	l.c = l.out_c = c;
-
-	l.n = l.c;
-	l.output = (float*)xcalloc(h * w * c * batch, sizeof(float));
-	l.delta = (float*)xcalloc(h * w * c * batch, sizeof(float));
-	l.inputs = w*h*c;
-	l.outputs = l.inputs;
-
-	l.biases = (float*)xcalloc(c, sizeof(float));
-	l.bias_updates = (float*)xcalloc(c, sizeof(float));
-
-	l.scales = (float*)xcalloc(c, sizeof(float));
-	l.scale_updates = (float*)xcalloc(c, sizeof(float));
-
-	for (int i = 0; i < c; ++i)
-	{
-		l.scales[i] = 1;
-	}
-
-	l.mean = (float*)xcalloc(c, sizeof(float));
-	l.variance = (float*)xcalloc(c, sizeof(float));
-
-	l.rolling_mean = (float*)xcalloc(c, sizeof(float));
-	l.rolling_variance = (float*)xcalloc(c, sizeof(float));
-
-	l.mean_delta = (float*)xcalloc(c, sizeof(float));
-	l.variance_delta = (float*)xcalloc(c, sizeof(float));
-
-	l.x = (float*)xcalloc(l.batch * l.outputs, sizeof(float));
-	l.x_norm = (float*)xcalloc(l.batch * l.outputs, sizeof(float));
-
-	l.forward = forward_batchnorm_layer;
-	l.backward = backward_batchnorm_layer;
-	l.update = update_batchnorm_layer;
-#ifdef DARKNET_GPU
-	l.forward_gpu = forward_batchnorm_layer_gpu;
-	l.backward_gpu = backward_batchnorm_layer_gpu;
-	l.update_gpu = update_batchnorm_layer_gpu;
-
-	l.output_gpu =  cuda_make_array(l.output, h * w * c * batch);
-
-	l.biases_gpu = cuda_make_array(l.biases, c);
-	l.scales_gpu = cuda_make_array(l.scales, c);
-
-	if (train)
-	{
-		l.delta_gpu = cuda_make_array(l.delta, h * w * c * batch);
-
-		l.bias_updates_gpu = cuda_make_array(l.bias_updates, c);
-		l.scale_updates_gpu = cuda_make_array(l.scale_updates, c);
-
-		l.mean_delta_gpu = cuda_make_array(l.mean, c);
-		l.variance_delta_gpu = cuda_make_array(l.variance, c);
-	}
-
-	l.mean_gpu = cuda_make_array(l.mean, c);
-	l.variance_gpu = cuda_make_array(l.variance, c);
-
-	l.rolling_mean_gpu = cuda_make_array(l.mean, c);
-	l.rolling_variance_gpu = cuda_make_array(l.variance, c);
-
-	if (train)
-	{
-		l.x_gpu = cuda_make_array(l.output, l.batch * l.outputs);
-#ifndef CUDNN
-		l.x_norm_gpu = cuda_make_array(l.output, l.batch * l.outputs);
-#endif  // not CUDNN
-	}
-
-#ifdef CUDNN
-	CHECK_CUDNN(cudnnCreateTensorDescriptor(&l.normTensorDesc));
-	CHECK_CUDNN(cudnnCreateTensorDescriptor(&l.normDstTensorDesc));
-	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l.normDstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l.batch, l.out_c, l.out_h, l.out_w));
-	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l.normTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, l.out_c, 1, 1));
-#endif
-#endif
-	return l;
-}
-#endif
-
 void backward_scale_cpu(float *x_norm, float *delta, int batch, int n, int size, float *scale_updates)
 {
 	TAT(TATPARMS);
@@ -300,7 +208,6 @@ void forward_batchnorm_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state
 			//fast_v_gpu(l.output_gpu, l.mean_gpu, l.batch, l.out_c, l.out_h*l.out_w, l.v_cbn_gpu);
 			const int minibatch_index = state.net.current_subdivision + 1;
 			const int max_minibatch_index = state.net.subdivisions;
-			//printf("\n minibatch_index = %d, max_minibatch_index = %d \n", minibatch_index, max_minibatch_index);
 			const float alpha = 0.01;
 
 			int inverse_variance = 0;
@@ -316,10 +223,9 @@ void forward_batchnorm_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state
 #ifndef CUDNN
 			simple_copy_ongpu(l.outputs*l.batch, l.output_gpu, l.x_norm_gpu);
 #endif  // CUDNN
-
-			//printf("\n CBN, minibatch_index = %d \n", minibatch_index);
 		}
-		else {
+		else
+		{
 #ifdef CUDNN
 			float one = 1;
 			float zero = 0;

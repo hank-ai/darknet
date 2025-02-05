@@ -2,6 +2,9 @@
 
 namespace
 {
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+
+
 	static inline dbox derivative(const Darknet::Box & a, const Darknet::Box & b)
 	{
 		TAT_REVIEWED(TATPARMS, "2024-03-19 inlined");
@@ -611,17 +614,30 @@ void test_dunion()
 
 	Darknet::Box b = {.5, .5, .2, .2};
 	dbox di = dunion(a,b);
-	printf("Union: %f %f %f %f\n", di.dx, di.dy, di.dw, di.dh);
+
+	*cfg_and_state.output
+		<< "Union: "
+		<< di.dx << " "
+		<< di.dy << " "
+		<< di.dw << " "
+		<< di.dh << std::endl;
+
 	float inter =  box_union(a, b);
 	float xinter = box_union(dxa, b);
 	float yinter = box_union(dya, b);
 	float winter = box_union(dwa, b);
 	float hinter = box_union(dha, b);
-	xinter = (xinter - inter)/(.0001);
-	yinter = (yinter - inter)/(.0001);
-	winter = (winter - inter)/(.0001);
-	hinter = (hinter - inter)/(.0001);
-	printf("Union Manual %f %f %f %f\n", xinter, yinter, winter, hinter);
+	xinter = (xinter - inter)/(0.0001f);
+	yinter = (yinter - inter)/(0.0001f);
+	winter = (winter - inter)/(0.0001f);
+	hinter = (hinter - inter)/(0.0001f);
+
+	*cfg_and_state.output
+		<< "Union Manual "
+		<< xinter << " "
+		<< yinter << " "
+		<< winter << " "
+		<< hinter << std::endl;
 }
 
 
@@ -637,17 +653,30 @@ void test_dintersect()
 
 	Darknet::Box b = {.5, .5, .2, .2};
 	dbox di = dintersect(a,b);
-	printf("Inter: %f %f %f %f\n", di.dx, di.dy, di.dw, di.dh);
+
+	*cfg_and_state.output
+		<< "Inter: "
+		<< di.dx << " "
+		<< di.dy << " "
+		<< di.dw << " "
+		<< di.dh << std::endl;
+
 	float inter =  box_intersection(a, b);
 	float xinter = box_intersection(dxa, b);
 	float yinter = box_intersection(dya, b);
 	float winter = box_intersection(dwa, b);
 	float hinter = box_intersection(dha, b);
-	xinter = (xinter - inter)/(.0001);
-	yinter = (yinter - inter)/(.0001);
-	winter = (winter - inter)/(.0001);
-	hinter = (hinter - inter)/(.0001);
-	printf("Inter Manual %f %f %f %f\n", xinter, yinter, winter, hinter);
+	xinter = (xinter - inter)/(0.0001f);
+	yinter = (yinter - inter)/(0.0001f);
+	winter = (winter - inter)/(0.0001f);
+	hinter = (hinter - inter)/(0.0001f);
+
+	*cfg_and_state.output
+		<< "Inter Manual "
+		<< xinter << " "
+		<< yinter << " "
+		<< winter << " "
+		<< hinter << std::endl;
 }
 
 
@@ -667,19 +696,33 @@ void test_box()
 
 	float iou = box_iou(a,b);
 	iou = (1-iou)*(1-iou);
-	printf("%f\n", iou);
+
+	*cfg_and_state.output << iou << std::endl;
+
 	dbox d = diou(a, b);
-	printf("%f %f %f %f\n", d.dx, d.dy, d.dw, d.dh);
+
+	*cfg_and_state.output
+		<< "Test: "
+		<< d.dx << " "
+		<< d.dy << " "
+		<< d.dw << " "
+		<< d.dh << std::endl;
 
 	float xiou = box_iou(dxa, b);
 	float yiou = box_iou(dya, b);
 	float wiou = box_iou(dwa, b);
 	float hiou = box_iou(dha, b);
-	xiou = ((1-xiou)*(1-xiou) - iou)/(.00001);
-	yiou = ((1-yiou)*(1-yiou) - iou)/(.00001);
-	wiou = ((1-wiou)*(1-wiou) - iou)/(.00001);
-	hiou = ((1-hiou)*(1-hiou) - iou)/(.00001);
-	printf("manual %f %f %f %f\n", xiou, yiou, wiou, hiou);
+	xiou = ((1-xiou)*(1-xiou) - iou)/(0.00001f);
+	yiou = ((1-yiou)*(1-yiou) - iou)/(0.00001f);
+	wiou = ((1-wiou)*(1-wiou) - iou)/(0.00001f);
+	hiou = ((1-hiou)*(1-hiou) - iou)/(0.00001f);
+
+	*cfg_and_state.output
+		<< "Manual "
+		<< xiou << " "
+		<< yiou << " "
+		<< wiou << " "
+		<< hiou << std::endl;
 }
 
 
@@ -849,7 +892,6 @@ void do_nms_sort(detection * dets, int total, int classes, float thresh)
 
 		for (int i = 0; i < total; ++i)
 		{
-			//printf("  k = %d, \t i = %d \n", k, i);
 			if (dets[i].prob[k] == 0.0f)
 			{
 				continue;
@@ -928,7 +970,7 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 	}
 	total = k + 1;
 
-//	std::cout << "diounms total is " << total << std::endl;
+//	*cfg_and_state.output << "diounms total is " << total << std::endl;
 
 	for (k = 0; k < classes; ++k)
 	{

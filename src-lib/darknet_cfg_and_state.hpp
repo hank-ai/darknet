@@ -12,10 +12,12 @@ namespace Darknet
 {
 	class CfgAndState final
 	{
-		public:
+		private:
 
-			/// Constructor.
+			/// Private constructor.  Use @ref get().
 			CfgAndState();
+
+		public:
 
 			/// Destructor.
 			~CfgAndState();
@@ -99,6 +101,9 @@ namespace Darknet
 			 * additional threads.
 			 */
 			std::atomic<bool> must_immediately_exit;
+
+			/// Output from Darknet/YOLO is logged to this stream, which defaults to @p std::cout.  This can be changed with @p --log.
+			std::ostream * output;
 
 			/// When @p -dont_show has been set, this value will be set to @p false.
 			bool is_shown;

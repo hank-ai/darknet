@@ -4,6 +4,8 @@
 
 
 /// @todo V3 Would be nice to know where this file came from, and to see if there are updates available.
+
+
 #ifdef __GNUC__
 #pragma GCC diagnostic ignored "-Wignored-qualifiers"
 #endif
@@ -58,6 +60,13 @@ return tmp_count;
 #define PUT_IN_REGISTER register
 #endif
 
+
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 #if 0 // unused
 void gemm_bin(int M, int N, int K, float ALPHA,
 		char  *A, int lda,
@@ -97,33 +106,6 @@ float *random_matrix(int rows, int cols)
 	return m;
 }
 
-#if 0 // unused
-void time_random_matrix(int TA, int TB, int m, int k, int n)
-{
-	TAT(TATPARMS);
-
-	float *a;
-	if(!TA) a = random_matrix(m,k);
-	else a = random_matrix(k,m);
-	int lda = (!TA)?k:m;
-	float *b;
-	if(!TB) b = random_matrix(k,n);
-	else b = random_matrix(n,k);
-	int ldb = (!TB)?n:k;
-
-	float *c = random_matrix(m,n);
-	int i;
-	clock_t start = clock(), end;
-	for(i = 0; i<10; ++i){
-		gemm_cpu(TA,TB,m,n,k,1,a,lda,b,ldb,1,c,n);
-	}
-	end = clock();
-	printf("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %lf ms\n",m,k,k,n, TA, TB, (float)(end-start)/CLOCKS_PER_SEC);
-	free(a);
-	free(b);
-	free(c);
-}
-#endif
 
 void gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 		float *A, int lda,
@@ -147,20 +129,6 @@ void binary_int32_printf(uint32_t src)
 	TAT(TATPARMS);
 	int i;
 	for (i = 0; i < 32; ++i) {
-		if (src & 1) printf("1");
-		else printf("0");
-		src = src >> 1;
-	}
-	printf("\n");
-}
-#endif
-
-#if 0 // unused
-void binary_int64_printf(uint64_t src)
-{
-	TAT(TATPARMS);
-	int i;
-	for (i = 0; i < 64; ++i) {
 		if (src & 1) printf("1");
 		else printf("0");
 		src = src >> 1;
@@ -204,15 +172,6 @@ void transpose32_optimized(uint32_t A[32])
 	int j, k;
 	unsigned m, t;
 
-	//m = 0x0000FFFF;
-	//for (j = 16; j != 0; j = j >> 1, m = m ^ (m << j)) {
-	//    for (k = 0; k < 32; k = (k + j + 1) & ~j) {
-	//        t = (A[k] ^ (A[k + j] >> j)) & m;
-	//        A[k] = A[k] ^ t;
-	//        A[k + j] = A[k + j] ^ (t << j);
-	//    }
-	//}
-
 	j = 16;
 	m = 0x0000FFFF;
 	for (k = 0; k < 32; k = (k + j + 1) & ~j) { swap(A[k], A[k + j], j, m); }
@@ -242,6 +201,7 @@ void transpose32_optimized(uint32_t A[32])
 	}
 }
 
+
 void transpose_32x32_bits_reversed_diagonale(uint32_t *A, uint32_t *B, int m, int n)
 {
 	TAT(TATPARMS);
@@ -257,35 +217,6 @@ void transpose_32x32_bits_reversed_diagonale(uint32_t *A, uint32_t *B, int m, in
 	for (i = 0; i < 32; ++i) B[i*n] = A_tmp[i];
 }
 
-#if 0 // unused?
-void transpose_8x8_bits_my(unsigned char *A, unsigned char *B, int lda, int ldb)
-{
-	TAT(TATPARMS);
-
-	/// @note This function is for CPU-only versions of Darknet.
-
-	unsigned x, y;
-	for (y = 0; y < 8; ++y) {
-		for (x = 0; x < 8; ++x) {
-			if (A[y * lda] & (1 << x)) B[x * ldb] |= 1 << y;
-		}
-	}
-}
-#endif
-
-#if 0 // unused?
-unsigned char reverse_byte_1(char a)
-{
-	TAT(TATPARMS);
-
-	/// @note This function is for CPU-only versions of Darknet.
-
-	return ((a & 0x1) << 7) | ((a & 0x2) << 5) |
-		((a & 0x4) << 3) | ((a & 0x8) << 1) |
-		((a & 0x10) >> 1) | ((a & 0x20) >> 3) |
-		((a & 0x40) >> 5) | ((a & 0x80) >> 7);
-}
-#endif
 
 unsigned char reverse_byte(unsigned char a)
 {
@@ -295,24 +226,6 @@ unsigned char reverse_byte(unsigned char a)
 
 	return ((a * 0x0802LU & 0x22110LU) | (a * 0x8020LU & 0x88440LU)) * 0x10101LU >> 16;
 }
-
-#if 0 // unused?
-unsigned char reverse_byte_3(unsigned char n)
-{
-	TAT(TATPARMS);
-
-	/// @note This function is for CPU-only versions of Darknet.
-
-	static const unsigned char lookup[16] =
-	{
-		0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
-		0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf,
-	};
-
-	// Reverse the top and bottom nibble then swap them.
-	return (lookup[n & 0b1111] << 4) | lookup[n >> 4];
-}
-#endif
 
 
 void transpose8rS32_reversed_diagonale(unsigned char* A, unsigned char* B, int m, int n)
@@ -577,11 +490,11 @@ int is_avx()
 		result = HW_AVX;
 		if (result == 1)
 		{
-			std::cout << "AVX detected." << std::endl;
+			*cfg_and_state.output << "AVX detected." << std::endl;
 		}
 		else
 		{
-			std::cout << "AVX not detected." << std::endl;
+			*cfg_and_state.output << "AVX not detected." << std::endl;
 		}
 	}
 
@@ -600,11 +513,11 @@ int is_fma_avx2()
 		result = HW_FMA3 && HW_AVX2;
 		if (result == 1)
 		{
-			std::cout << "FMA & AVX2 detected." << std::endl;
+			*cfg_and_state.output << "FMA & AVX2 detected." << std::endl;
 		}
 		else
 		{
-			std::cout << "FMA & AVX2 not detected." << std::endl;
+			*cfg_and_state.output << "FMA & AVX2 not detected." << std::endl;
 		}
 	}
 
@@ -915,9 +828,6 @@ void convolution_2d_old(int w, int h, int ksize, int n, int c, int pad, int stri
 							sum += input[input_index] * weights[weights_index];
 						}
 					}
-					// l.output[filters][width][height] +=
-					//        state.input[channels][width][height] *
-					//        l.weights[filters][channels][filter_width][filter_height];
 					output[output_index] += sum;
 				}
 	}
@@ -928,8 +838,6 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
 {
 	TAT(TATPARMS);
 
-	//const int out_h = (h + 2 * pad - ksize) / stride + 1;    // output_height=input_height for stride=1 and pad=1
-	//const int out_w = (w + 2 * pad - ksize) / stride + 1;    // output_width=input_width for stride=1 and pad=1
 	int i;
 
 #ifdef DARKNET_OPENMP
@@ -948,40 +856,17 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
 		*((__m256*)&weights[i]) = _mm256_and_ps(*((__m256*)&weights[i]), _mm256_castsi256_ps(all256_sing1));
 	}
 
-	//for (i = 0; i < w*h*c; i += 8) {
-		//(*(__m256*)&input[i]) = _mm256_and_ps(*((__m256*)&input[i]), _mm256_castsi256_ps(all256_sing1));
-	//}
-
-
-	//__m256i all256_last_zero = _mm256_set1_epi32(0xFFFFFFFF);
-	//all256_last_zero.m256i_i32[7] = 0;
-//	__m256i all256_last_zero =
-//		_mm256_set_epi32(0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x0);
-
-//	__m256i idx256 = _mm256_set_epi32(0, 7, 6, 5, 4, 3, 2, 1);
-	//__m256 all256_sing1 = _mm256_set1_ps(0x80000000);
-//	__m256 all256_one = _mm256_set1_ps(1);
-//	__m256i all256i_one = _mm256_set1_epi32(1);
-
-	///__m256i src256 = _mm256_loadu_si256((__m256i *)(&src[i]));
-	///__m256i result256 = _mm256_and_si256(src256, all256_sing1); // check sign in 8 x 32-bit floats
-
-	int fil;
 	// filter index
 	#pragma omp parallel for      // "omp parallel for" - automatic parallelization of loop by using OpenMP
-	for (fil = 0; fil < n; ++fil) {
+	for (int fil = 0; fil < n; ++fil) {
 		int chan, y, x, f_y, f_x;
 		float cur_mean = fabs(mean[fil]);
 		__m256 mean256 = _mm256_set1_ps(cur_mean);
 		// channel index
-		//for (chan = 0; chan < c; ++chan)
-			// input - y
 			for (y = 0; y < h; ++y)
-				// input - x
 				for (x = 0; x < w-8; x+=8)
 				{
 					int const output_index = fil*w*h + y*w + x;
-					//float sum = 0;
 					__m256 sum256 = _mm256_set1_ps(0);
 
 					for (chan = 0; chan < c; ++chan) {
@@ -989,67 +874,30 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
 						int const input_pre_index = chan*w*h;
 
 
-						// filter - y
 						for (f_y = 0; f_y < ksize; ++f_y)
 						{
 							int input_y = y + f_y - pad;
-							//__m256 in = *((__m256*)&input[input_pre_index + input_y*w]);
 							if (input_y < 0 || input_y >= h) continue;
-							//__m256 in = _mm256_loadu_ps(&input[input_pre_index + input_y*w + x - pad]);
-
-							// filter - x
 							for (f_x = 0; f_x < ksize; ++f_x)
 							{
 								int input_x = x + f_x - pad;
-								//if (input_y < 0 || input_x < 0 || input_y >= h || input_x >= w) continue;
 
 								int input_index = input_pre_index + input_y*w + input_x;
 								int weights_index = weights_pre_index + f_y*ksize + f_x;
-								//if (input_y < 0 || input_y >= h) continue;
-
-								//sum += input[input_index] * weights[weights_index];
 
 								__m256 in = *((__m256*)&input[input_index]);
 								__m256 ww = _mm256_set1_ps(weights[weights_index]);
-								//__m256 w_sign = _mm256_and_ps(ww, _mm256_castsi256_ps(all256_sing1)); // check sign in 8 x 32-bit floats
 								__m256 xor256 = _mm256_xor_ps(ww, in);
-								//printf("\n xor256_1 = %f, xor256_2 = %f \n", xor256.m256_f32[0], xor256.m256_f32[1]);
-								//printf("\n in = %f, ww = %f, xor256 = %f \n", in.m256_f32[0], w_sign.m256_f32[0], xor256.m256_f32[0]);
-
-								//__m256 pn1 = _mm256_and_ps(_mm256_castsi256_ps(all256i_one), xor256);
-
-
-								//sum256 = xor256;
 								sum256 = _mm256_add_ps(xor256, sum256);
-								//printf("\n --- \n");
-								//printf("\n 0 = %f, 1 = %f, 2 = %f, 3 = %f, 4 = %f, 5 = %f, 6 = %f, 7 = %f \n", in.m256_f32[0], in.m256_f32[1], in.m256_f32[2], in.m256_f32[3], in.m256_f32[4], in.m256_f32[5], in.m256_f32[6], in.m256_f32[7]);
-
-								if (f_x < ksize-1) {
-									//in = _mm256_permutevar8x32_ps(in, idx256);
-									//in = _mm256_and_ps(in, _mm256_castsi256_ps(all256_last_zero));
-								}
 							}
 						}
 					}
-					// l.output[filters][width][height] +=
-					//        state.input[channels][width][height] *
-					//        l.weights[filters][channels][filter_width][filter_height];
-					//output[output_index] += sum;
 
 					sum256 = _mm256_mul_ps(sum256, mean256);
-					//printf("\n cur_mean = %f, sum256 = %f, sum256 = %f, in = %f \n",
-					//    cur_mean, sum256.m256_f32[0], sum256.m256_f32[1], input[input_pre_index]);
-
-					//__m256 out = *((__m256*)&output[output_index]);
-					//out = _mm256_add_ps(out, sum256);
-					//(*(__m256*)&output[output_index]) = out;
 					*((__m256*)&output[output_index]) = sum256;
-
-					//_mm256_storeu_ps(&C[i*ldc + j], result256);
 				}
 	}
 }
-
 
 
 // http://graphics.stanford.edu/~seander/bithacks.html
@@ -1523,7 +1371,7 @@ void im2col_cpu_custom_align(float* data_im,
 
 	}
 	else {
-		std::cout << "im2col_cpu_custom_align() does not have a non-optimized version" << std::endl;
+		*cfg_and_state.output << "im2col_cpu_custom_align() does not have a non-optimized version" << std::endl;
 		//im2col_cpu(data_im, channels, height, width, ksize, stride, pad, data_col); // must be aligned for transpose after float_to_bin
 		// float_to_bit(b, t_input, src_size);
 		// transpose_bin(t_input, *t_bit_input, k, n, bit_align, new_ldb, 8);
@@ -1649,7 +1497,7 @@ void im2col_cpu_custom_bin(float* data_im,
 
 	}
 	else {
-		std::cout << "im2col_cpu_custom_bin() does not have a non-optimized version" << std::endl;
+		*cfg_and_state.output << "im2col_cpu_custom_bin() does not have a non-optimized version" << std::endl;
 		//im2col_cpu(data_im, channels, height, width, ksize, stride, pad, data_col); // must be aligned for transpose after float_to_bin
 		// float_to_bit(b, t_input, src_size);
 		// transpose_bin(t_input, *t_bit_input, k, n, bit_align, new_ldb, 8);
@@ -2046,7 +1894,7 @@ void im2col_cpu_custom_transpose(float* data_im,
 	int ksize, int stride, int pad, float* data_col, int ldb_align)
 {
 	TAT(TATPARMS);
-	std::cout << "im2col_cpu_custom_transpose() is not implemented without support for AVX" << std::endl;
+	*cfg_and_state.output << "im2col_cpu_custom_transpose() is not implemented without support for AVX" << std::endl;
 }
 
 //From Berkeley Vision's Caffe!
@@ -2252,7 +2100,7 @@ void im2col_cpu_custom_bin(float* data_im,
 	}
 	else
 	{
-		std::cout << "im2col_cpu_custom_bin() does not have a non-optimized version" << std::endl;
+		*cfg_and_state.output << "im2col_cpu_custom_bin() does not have a non-optimized version" << std::endl;
 		//im2col_cpu(data_im, channels, height, width, ksize, stride, pad, data_col); // must be aligned for transpose after float_to_bin
 		// float_to_bit(b, t_input, src_size);
 		// transpose_bin(t_input, *t_bit_input, k, n, bit_align, new_ldb, 8);

@@ -23,9 +23,9 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	TAT(TATPARMS);
 
 	#ifndef DARKNET_GPU
-	std::cout << std::endl;
+	*cfg_and_state.output << std::endl;
 	Darknet::display_warning_msg("THIS VERSION OF DARKNET WAS NOT BUILT TO RUN ON A GPU!");
-	std::cout																				<< std::endl
+	*cfg_and_state.output																	<< std::endl
 		<< ""																				<< std::endl
 		<< "While you can attempt to train a network using your CPU, it is not"				<< std::endl
 		<< "recommended.  The output will not be the same as if you use a GPU,"				<< std::endl
@@ -129,7 +129,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 			lk.type == Darknet::ELayerType::REGION)
 		{
 			l = lk;
-			std::cout << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
+			*cfg_and_state.output << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
 		}
 	}
 
@@ -246,7 +246,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	while (get_current_iteration(net) < net.max_batches and cfg_and_state.must_immediately_exit == false)
 	{
 		// we're starting a new iteration
-		std::cout << std::endl;
+		*cfg_and_state.output << std::endl;
 		errno = 0;
 
 		// yolov3-tiny, yolov3-tiny-3l, yolov3, and yolov4 all use "random=1"
@@ -335,7 +335,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 		const double load_time = (what_time_is_it_now() - time);
 		if (cfg_and_state.is_verbose)
 		{
-			std::cout << "loaded " << args.n << " images in " << Darknet::format_time(load_time) << std::endl;
+			*cfg_and_state.output << "loaded " << args.n << " images in " << Darknet::format_time(load_time) << std::endl;
 		}
 		if (load_time > 0.1 && avg_loss > 0.0f)
 		{
@@ -369,10 +369,10 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 
 		if (calc_map)
 		{
-			std::cout << "-> next mAP calculation will be at iteration #" << next_map_calc << std::endl;
+			*cfg_and_state.output << "-> next mAP calculation will be at iteration #" << next_map_calc << std::endl;
 			if (mean_average_precision > 0.0f)
 			{
-				std::cout
+				*cfg_and_state.output
 					<< "-> last accuracy mAP@" << std::setprecision(2) << iou_thresh
 					<< "="			<< Darknet::format_map_accuracy(mean_average_precision)
 					<< ", best="	<< Darknet::format_map_accuracy(best_map)
@@ -391,7 +391,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 		{
 			if (std::isfinite(mean_average_precision) && mean_average_precision > 0.0f)
 			{
-				std::cout
+				*cfg_and_state.output
 					<< "\033]2;"
 					<< iteration << "/" << net.max_batches
 					<< ": loss=" << std::setprecision(1) << loss
@@ -402,7 +402,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 			}
 			else
 			{
-				std::cout
+				*cfg_and_state.output
 					<< "\033]2;"
 					<< iteration << "/" << net.max_batches
 					<< ": loss=" << std::setprecision(1) << loss
@@ -415,11 +415,11 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 			net.cudnn_half				and
 			iteration < net.burn_in * 3)
 		{
-			std::cout << "Tensor cores are disabled until iteration #" << (3 * net.burn_in) << "." << std::endl;
+			*cfg_and_state.output << "Tensor cores are disabled until iteration #" << (3 * net.burn_in) << "." << std::endl;
 		}
 
 		// 5989: loss=0.444, avg loss=0.329, rate=0.000026, 64.424 milliseconds, 383296 images, time remaining=7 seconds
-		std::cout
+		*cfg_and_state.output
 			<< Darknet::in_colour(Darknet::EColour::kBrightWhite, iteration)
 			<< ": loss=" << Darknet::format_loss(loss)
 			<< ", avg loss=" << Darknet::format_loss(avg_loss)
@@ -600,12 +600,13 @@ static void print_cocos(FILE *fp, char *image_path, Darknet::Detection * dets, i
 		float bw = xmax - xmin;
 		float bh = ymax - ymin;
 
-		for (j = 0; j < classes; ++j) {
-			if (dets[i].prob[j] > 0) {
+		for (j = 0; j < classes; ++j)
+		{
+			if (dets[i].prob[j] > 0)
+			{
 				char buff[1024];
 				sprintf(buff, "{\"image_id\":%d, \"category_id\":%d, \"bbox\":[%f, %f, %f, %f], \"score\":%f},\n", image_id, coco_ids[j], bx, by, bw, bh, dets[i].prob[j]);
 				fprintf(fp, "%s", buff);
-				//printf("%s", buff);
 			}
 		}
 	}
@@ -800,7 +801,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, const cha
 			lk.type == Darknet::ELayerType::REGION)
 		{
 			l = lk;
-			std::cout << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
+			*cfg_and_state.output << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
 		}
 	}
 	int classes = l.classes;
@@ -1066,7 +1067,7 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 				++correct;
 			}
 		}
-		//fprintf(stderr, " %s - %s - ", paths[i], labelpath);
+
 		fprintf(stderr, "%5d %5d %5d\tRPs/Img: %.2f\tIOU: %.2f%%\tRecall:%.2f%%\n", i, correct, total, (float)proposals / (i + 1), avg_iou * 100 / total, 100.*correct / total);
 		free(truth);
 		free((void*)id);
@@ -1121,7 +1122,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		Darknet::load_names(&net, option_find_str(options, "names", "unknown.names"));
 	}
 
-	std::cout << "Calculating mAP (mean average precision)..." << std::endl;
+	*cfg_and_state.output << "Calculating mAP (mean average precision)..." << std::endl;
 
 	list *plist = get_paths(valid_images);
 	char **paths = (char **)list_to_array(plist);
@@ -1153,7 +1154,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			lk.type == Darknet::ELayerType::REGION)
 		{
 			l = lk;
-			std::cout << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
+			*cfg_and_state.output << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
 		}
 	}
 	int classes = l.classes;
@@ -1219,7 +1220,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	for (int i = nthreads; i < number_of_validation_images + nthreads; i += nthreads)
 	{
 		const int percentage = std::round(100.0f * (i - nthreads) / number_of_validation_images);
-		std::cout << "\rprocessing #" << (i - nthreads) << " (" << percentage << "%) " << std::flush;
+		*cfg_and_state.output << "\rprocessing #" << (i - nthreads) << " (" << percentage << "%) " << std::flush;
 
 		// wait until the 4 threads have finished loading in their image
 		for (int t = 0; t < nthreads && (i + t - nthreads) < number_of_validation_images; ++t)
@@ -1382,15 +1383,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			}
 
 			unique_truth_count += num_labels;
-
-			//static int previous_errors = 0;
-			//int total_errors = fp_for_thresh + (unique_truth_count - tp_for_thresh);
-			//int errors_in_this_image = total_errors - previous_errors;
-			//previous_errors = total_errors;
-			//if(reinforcement_fd == NULL) reinforcement_fd = fopen("reinforcement.txt", "wb");
-			//char buff[1000];
-			//sprintf(buff, "%s\n", path);
-			//if(errors_in_this_image > 0) fwrite(buff, sizeof(char), strlen(buff), reinforcement_fd);
 
 			free_detections(dets, nboxes);
 			free(truth);
@@ -1605,14 +1597,14 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 		if (i == 0)
 		{
-			std::cout
+			*cfg_and_state.output
 				<< std::endl
 				<< std::endl
 				<< "  Id Name             AvgPrecision     TP     FN     FP     TN Accuracy ErrorRate Precision Recall Specificity FalsePosRate" << std::endl
 				<< "  -- ----             ------------ ------ ------ ------ ------ -------- --------- --------- ------ ----------- ------------" << std::endl;
 		}
 
-		std::cout << Darknet::format_map_confusion_matrix_values(i, net.details->class_names[i], avg_precision, tp, fn, fp, tn, accuracy, error_rate, precision, recall, specificity, false_pos_rate) << std::endl;
+		*cfg_and_state.output << Darknet::format_map_confusion_matrix_values(i, net.details->class_names[i], avg_precision, tp, fn, fp, tn, accuracy, error_rate, precision, recall, specificity, false_pos_rate) << std::endl;
 
 		// send the result of this class to the C++ side of things so we can include it the right chart
 		Darknet::update_accuracy_in_new_charts(i, avg_precision);
@@ -1731,7 +1723,7 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 
 	/// @todo shouldn't we check the .cfg file instead, and get the anchors, width, and height from there instead of requiring them as parms?
 
-	std::cout
+	*cfg_and_state.output
 		<< "Recalculating anchors"
 		<< ", num_of_clusters="	<< num_of_clusters
 		<< ", width="			<< width
@@ -1740,7 +1732,7 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 
 	if (width < 32 || height < 32 || num_of_clusters <= 0)
 	{
-		std::cout << std::endl << "Usage example: darknet detector calc_anchors animals.data -num_of_clusters 6 -width 320 -height 256" << std::endl;
+		*cfg_and_state.output << std::endl << "Usage example: darknet detector calc_anchors animals.data -num_of_clusters 6 -width 320 -height 256" << std::endl;
 		darknet_fatal_error(DARKNET_LOC, "missing or invalid parameter required to recalculate YOLO anchors");
 	}
 
@@ -2014,7 +2006,7 @@ void test_detector(const char *datacfg, const char *cfgfile, const char *weightf
 				lk.type == Darknet::ELayerType::REGION)
 			{
 				l = lk;
-				std::cout << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
+				*cfg_and_state.output << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
 			}
 		}
 

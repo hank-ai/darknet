@@ -233,7 +233,7 @@ void save_weights_upto(const Darknet::Network & net, char *filename, int cutoff,
 	}
 #endif
 
-	std::cout << "Saving weights to " << Darknet::in_colour(Darknet::EColour::kBrightMagenta, filename) << std::endl;
+	*cfg_and_state.output << "Saving weights to " << Darknet::in_colour(Darknet::EColour::kBrightMagenta, filename) << std::endl;
 
 	FILE *fp = fopen(filename, "wb");
 	if (!fp)
@@ -474,7 +474,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 
 	if (cfg_and_state.is_verbose)
 	{
-		std::cout << "Loading weights from \"" << filename << "\"" << std::endl;
+		*cfg_and_state.output << "Loading weights from \"" << filename << "\"" << std::endl;
 	}
 
 #ifdef DARKNET_GPU
@@ -609,7 +609,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 
 	if (cfg_and_state.is_verbose)
 	{
-		std::cout << "Loaded weights for " << layers_with_weights << " of " << net->n << " layers from " << filename << std::endl;
+		*cfg_and_state.output << "Loaded weights for " << layers_with_weights << " of " << net->n << " layers from " << filename << std::endl;
 	}
 
 	fclose(fp);
@@ -633,7 +633,7 @@ DarknetNetworkPtr load_network_custom(const char * cfg, const char * weights, in
 
 	if (cfg_and_state.is_verbose)
 	{
-		std::cout << "Loading configuration from \"" << cfg << "\"" << std::endl;
+		*cfg_and_state.output << "Loading configuration from \"" << cfg << "\"" << std::endl;
 	}
 
 	Darknet::Network * net = (Darknet::Network*)xcalloc(1, sizeof(Darknet::Network));
@@ -663,7 +663,7 @@ DarknetNetworkPtr load_network(const char * cfg, const char * weights, int clear
 
 	if (cfg_and_state.is_verbose)
 	{
-		std::cout << "Loading configuration from \"" << cfg << "\"" << std::endl;
+		*cfg_and_state.output << "Loading configuration from \"" << cfg << "\"" << std::endl;
 	}
 
 	Darknet::Network* net = (Darknet::Network*)xcalloc(1, sizeof(Darknet::Network));
@@ -688,7 +688,7 @@ void Darknet::load_names(Darknet::NetworkPtr ptr, const std::filesystem::path & 
 
 	if (cfg_and_state.is_verbose)
 	{
-		std::cout << "Loading names from \"" << filename.string() << "\"" << std::endl;
+		*cfg_and_state.output << "Loading names from \"" << filename.string() << "\"" << std::endl;
 	}
 
 	if (not std::filesystem::exists(filename))
@@ -796,7 +796,7 @@ void Darknet::assign_default_class_colours(Darknet::Network * net)
 
 		if (cfg_and_state.is_verbose)
 		{
-			std::cout << "-> class #" << i << " will use colour 0x"
+			*cfg_and_state.output << "-> class #" << i << " will use colour 0x"
 				<< std::setw(2) << std::setfill('0') << std::hex << r
 				<< std::setw(2) << std::setfill('0') << std::hex << g
 				<< std::setw(2) << std::setfill('0') << std::hex << b

@@ -1,6 +1,12 @@
 #include "darknet_internal.hpp"
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 Darknet::ArgsAndParms::~ArgsAndParms()
 {
 	TAT(TATPARMS);
@@ -178,7 +184,7 @@ void Darknet::display_usage()
 
 	const auto & all = Darknet::get_all_possible_arguments();
 
-	std::cout
+	*cfg_and_state.output
 		<< std::endl
 		<< "Darknet/YOLO CLI usage:" << std::endl
 		<< std::endl
@@ -197,26 +203,26 @@ void Darknet::display_usage()
 			col += 2 + item.name.length();
 			if (col >= 80)
 			{
-				std::cout << std::endl;
+				*cfg_and_state.output << std::endl;
 				col = 0;
 			}
-			std::cout << "  " << item.name;
+			*cfg_and_state.output << "  " << item.name;
 		}
 	}
 
-	std::cout << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
+	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
 
 	// show the details for the commands where we have descriptions, one per line
 	for (const auto & item : all)
 	{
 		if (item.type == ArgsAndParms::EType::kCommand and not item.description.empty())
 		{
-			std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -10) << ":  " << item.description << std::endl;
+			*cfg_and_state.output << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -10) << ":  " << item.description << std::endl;
 		}
 	}
 
 	// show all the functions (short form)
-	std::cout << std::endl << "Functions:" << std::endl << Darknet::in_colour(Darknet::EColour::kBrightCyan);
+	*cfg_and_state.output << std::endl << "Functions:" << std::endl << Darknet::in_colour(Darknet::EColour::kBrightCyan);
 	col = 0;
 	for (const auto & item : all)
 	{
@@ -225,25 +231,25 @@ void Darknet::display_usage()
 			col += 2 + item.name.length();
 			if (col >= 80)
 			{
-				std::cout << std::endl;
+				*cfg_and_state.output << std::endl;
 				col = 0;
 			}
-			std::cout << "  " << item.name;
+			*cfg_and_state.output << "  " << item.name;
 		}
 	}
 
-	std::cout << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
+	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
 
 	// show the details for the functions where we have descriptions, one per line
 	for (const auto & item : all)
 	{
 		if (item.type == ArgsAndParms::EType::kFunction and not item.description.empty())
 		{
-			std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -10) << ":  " << item.description << std::endl;
+			*cfg_and_state.output << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -10) << ":  " << item.description << std::endl;
 		}
 	}
 
-	std::cout << std::endl << "Options:" << std::endl << Darknet::in_colour(Darknet::EColour::kBrightCyan);
+	*cfg_and_state.output << std::endl << "Options:" << std::endl << Darknet::in_colour(Darknet::EColour::kBrightCyan);
 	col = 0;
 	for (const auto & item : all)
 	{
@@ -252,13 +258,13 @@ void Darknet::display_usage()
 			col += 2 + item.name.length();
 			if (col >= 80)
 			{
-				std::cout << std::endl;
+				*cfg_and_state.output << std::endl;
 				col = 0;
 			}
-			std::cout << "  " << item.name;
+			*cfg_and_state.output << "  " << item.name;
 		}
 	}
-	std::cout << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
+	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl << std::endl;
 
 	for (const auto & item : all)
 	{
@@ -266,22 +272,22 @@ void Darknet::display_usage()
 		{
 			if (item.expect_parm)
 			{
-				std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -15) << " <...>  " << item.description << std::endl;
+				*cfg_and_state.output << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -15) << " <...>  " << item.description << std::endl;
 			}
 			else
 			{
-				std::cout << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -15) << "        " << item.description << std::endl;
+				*cfg_and_state.output << "  " << Darknet::format_in_colour(item.name, Darknet::EColour::kBrightWhite, -15) << "        " << item.description << std::endl;
 			}
 		}
 	}
 
-	std::cout << std::endl << "Several options have aliases for convenience:" << std::endl;
+	*cfg_and_state.output << std::endl << "Several options have aliases for convenience:" << std::endl;
 
 	for (const auto & item : all)
 	{
 		if (item.type == ArgsAndParms::EType::kParameter and not item.name_alternate.empty())
 		{
-			std::cout
+			*cfg_and_state.output
 				<< "  "		<< Darknet::format_in_colour(item.name			, Darknet::EColour::kBrightWhite, -10)
 				<< " -> "	<< Darknet::format_in_colour(item.name_alternate, Darknet::EColour::kBrightWhite, 10)
 				<< std::endl;
@@ -293,7 +299,7 @@ void Darknet::display_usage()
 		return Darknet::in_colour(Darknet::EColour::kYellow, msg);
 	};
 
-	std::cout
+	*cfg_and_state.output
 		<< ""																						<< std::endl
 		<< "For most Darknet commands, dashes and underscores for CLI parameters are"				<< std::endl
 		<< "ignored.  Additionally, the order in which parameters are specified should"				<< std::endl

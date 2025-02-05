@@ -279,18 +279,18 @@ void Darknet::show_version_info()
 {
 	TAT(TATPARMS);
 
-	std::cout << "Darknet V4 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING);
+	*cfg_and_state.output << "Darknet V4 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING);
 	if (DARKNET_BRANCH_NAME != std::string("master"))
 	{
-		std::cout << " [" << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_BRANCH_NAME) << "]";
+		*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_BRANCH_NAME) << "]";
 	}
 	#ifndef NDEBUG
-	std::cout << " " << Darknet::in_colour(Darknet::EColour::kBrightRed, "DEBUG BUILD!");
+	*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightRed, "DEBUG BUILD!");
 	#endif
 	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
-	std::cout << " " << Darknet::in_colour(Darknet::EColour::kBrightBlue, "TIMING BUILD!");
+	*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightBlue, "TIMING BUILD!");
 	#endif
-	std::cout << std::endl;
+	*cfg_and_state.output << std::endl;
 
 	#if DARKNET_GPU_ROCM
 		Darknet::show_rocm_info();
@@ -298,13 +298,13 @@ void Darknet::show_version_info()
 		show_cuda_cudnn_info();
 	#else
 		Darknet::display_warning_msg("Darknet is compiled to use the CPU.");
-		std::cout << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
+		*cfg_and_state.output << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
 	#endif
 
-	std::cout << "OpenCV " << Darknet::in_colour(Darknet::EColour::kBrightWhite, "v" CV_VERSION);
+	*cfg_and_state.output << "OpenCV " << Darknet::in_colour(Darknet::EColour::kBrightWhite, "v" CV_VERSION);
 
 	#ifdef WIN32
-	std::cout << ", " << get_windows_version();
+	*cfg_and_state.output << ", " << get_windows_version();
 	#else
 	const std::string lsb_release = "/etc/lsb-release";
 	if (std::filesystem::exists(lsb_release))
@@ -334,12 +334,11 @@ void Darknet::show_version_info()
 
 			if (not id.empty())
 			{
-				std::cout << ", " << id;
+				*cfg_and_state.output << ", " << id;
 
 				if (not release.empty())
 				{
-					std::cout << " " <<
-					Darknet::in_colour(Darknet::EColour::kBrightWhite, release);
+					*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightWhite, release);
 				}
 			}
 		}
@@ -352,13 +351,13 @@ void Darknet::show_version_info()
 		const std::string output = Darknet::trim(Darknet::get_command_output(detect_virt));
 		if (not output.empty() and output != "none")
 		{
-			std::cout << ", " << output;
+			*cfg_and_state.output << ", " << output;
 		}
 	}
 
 	#endif
 
-	std::cout << std::endl;
+	*cfg_and_state.output << std::endl;
 }
 
 
@@ -416,7 +415,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 		// if we get here, then we have either a "*" or "?"
 		if (cfg_and_state.is_trace)
 		{
-			std::cout << "-> performing file globbing with parameter \"" << parm.original << "\"" << std::endl;
+			*cfg_and_state.output << "-> performing file globbing with parameter \"" << parm.original << "\"" << std::endl;
 		}
 		std::filesystem::path path(parm.original);
 		std::filesystem::path parent = path.parent_path();
@@ -430,7 +429,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 			// not much we can do with this parm, we have no idea what it is
 			if (cfg_and_state.is_trace)
 			{
-				std::cout << "-> failed to find parent directory " << parent << std::endl;
+				*cfg_and_state.output << "-> failed to find parent directory " << parent << std::endl;
 			}
 			continue;
 		}
@@ -498,12 +497,12 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 	{
 		for (size_t idx = 0; idx < parms.size(); idx ++)
 		{
-			std::cout << "Parameter parsing: #" << idx << " [type " << (int)parms[idx].type << "] -> " << parms[idx].string;
+			*cfg_and_state.output << "Parameter parsing: #" << idx << " [type " << (int)parms[idx].type << "] -> " << parms[idx].string;
 			if (parms[idx].original != parms[idx].string)
 			{
-				std::cout << " (" << parms[idx].original << ")";
+				*cfg_and_state.output << " (" << parms[idx].original << ")";
 			}
-			std::cout << std::endl;
+			*cfg_and_state.output << std::endl;
 		}
 	}
 
@@ -545,7 +544,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 		{
 			if (cfg_and_state.is_verbose)
 			{
-				std::cout << "Found configuration: " << Darknet::in_colour(Darknet::EColour::kBrightWhite, path.string()) << std::endl;
+				*cfg_and_state.output << "Found configuration: " << Darknet::in_colour(Darknet::EColour::kBrightWhite, path.string()) << std::endl;
 			}
 			parm.type = EParmType::kCfgFilename;
 		}
@@ -553,7 +552,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 		{
 			if (cfg_and_state.is_verbose)
 			{
-				std::cout << "Found names file:    " << Darknet::in_colour(Darknet::EColour::kBrightWhite, path.string()) << std::endl;
+				*cfg_and_state.output << "Found names file:    " << Darknet::in_colour(Darknet::EColour::kBrightWhite, path.string()) << std::endl;
 			}
 			parm.type = EParmType::kNamesFilename;
 		}
@@ -561,7 +560,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 		{
 			if (cfg_and_state.is_verbose)
 			{
-				std::cout << "Found weights file:  " << Darknet::in_colour(Darknet::EColour::kBrightWhite, path.string()) << std::endl;
+				*cfg_and_state.output << "Found weights file:  " << Darknet::in_colour(Darknet::EColour::kBrightWhite, path.string()) << std::endl;
 			}
 			parm.type = EParmType::kWeightsFilename;
 		}
@@ -590,7 +589,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 			path.replace_extension(".names");
 			if (std::filesystem::exists(path))
 			{
-				std::cout << "Guessed names:       " << Darknet::in_colour(Darknet::EColour::kBrightGreen, path.string()) << std::endl;
+				*cfg_and_state.output << "Guessed names:       " << Darknet::in_colour(Darknet::EColour::kBrightGreen, path.string()) << std::endl;
 				Parm parm = parms[cfg_idx];
 				parm.type = EParmType::kNamesFilename;
 				parm.string = path.string();
@@ -607,7 +606,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 			tmp += "_best.weights";
 			if (std::filesystem::exists(tmp))
 			{
-				std::cout << "Guessed weights:     " << Darknet::in_colour(Darknet::EColour::kBrightGreen, tmp) << std::endl;
+				*cfg_and_state.output << "Guessed weights:     " << Darknet::in_colour(Darknet::EColour::kBrightGreen, tmp) << std::endl;
 				Parm parm = parms[cfg_idx];
 				parm.type = EParmType::kWeightsFilename;
 				parm.string = tmp;
@@ -619,7 +618,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 				path.replace_extension(".weights");
 				if (std::filesystem::exists(path))
 				{
-					std::cout << "Guessed weights:     " << Darknet::in_colour(Darknet::EColour::kBrightGreen, path.string()) << std::endl;
+					*cfg_and_state.output << "Guessed weights:     " << Darknet::in_colour(Darknet::EColour::kBrightGreen, path.string()) << std::endl;
 					Parm parm = parms[cfg_idx];
 					parm.type = EParmType::kWeightsFilename;
 					parm.string = path.string();
@@ -671,7 +670,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 
 				if (header_bytes_matched == 3)
 				{
-					std::cout << "Found these weights: " << Darknet::in_colour(Darknet::EColour::kYellow, filename) << std::endl;
+					*cfg_and_state.output << "Found these weights: " << Darknet::in_colour(Darknet::EColour::kYellow, filename) << std::endl;
 					parm.type = EParmType::kWeightsFilename;
 					weights_idx = idx;
 					break;
@@ -723,7 +722,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 				const auto extension = std::filesystem::path(filename).extension().string();
 				if (extension == ".cfg" and cfg_idx == -1)
 				{
-					std::cout << tmp << " matches this config file:  " << Darknet::in_colour(Darknet::EColour::kBrightCyan, filename) << std::endl;
+					*cfg_and_state.output << tmp << " matches this config file:  " << Darknet::in_colour(Darknet::EColour::kBrightCyan, filename) << std::endl;
 					parm.type = EParmType::kCfgFilename;
 					parm.string = filename;
 					parms[idx] = parm;
@@ -731,7 +730,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 				}
 				else if (extension == ".names" and names_idx == -1)
 				{
-					std::cout << tmp << " matches this names file:   " << Darknet::in_colour(Darknet::EColour::kBrightCyan, filename) << std::endl;
+					*cfg_and_state.output << tmp << " matches this names file:   " << Darknet::in_colour(Darknet::EColour::kBrightCyan, filename) << std::endl;
 					Parm names = parms[idx];
 					names.type = EParmType::kNamesFilename;
 					names.string = filename;
@@ -742,7 +741,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 				{
 					if (weights_idx == -1 and filename.find("_best.weights") != std::string::npos)
 					{
-						std::cout << tmp << " matches this weights file: " << Darknet::in_colour(Darknet::EColour::kBrightCyan, filename) << std::endl;
+						*cfg_and_state.output << tmp << " matches this weights file: " << Darknet::in_colour(Darknet::EColour::kBrightCyan, filename) << std::endl;
 						Parm weights = parms[idx];
 						weights.type = EParmType::kWeightsFilename;
 						weights.string = filename;
@@ -759,7 +758,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 			if (weights_idx == -1 and backup_weights.empty() == false)
 			{
 				// in case we don't find "best" weights, we'll end up here and use whatever weights we found
-				std::cout << tmp << " matches this weights file: " << Darknet::in_colour(Darknet::EColour::kBrightCyan, backup_weights) << std::endl;
+				*cfg_and_state.output << tmp << " matches this weights file: " << Darknet::in_colour(Darknet::EColour::kBrightCyan, backup_weights) << std::endl;
 				Parm weights = parms[idx];
 				weights.type = EParmType::kWeightsFilename;
 				weights.string = backup_weights;

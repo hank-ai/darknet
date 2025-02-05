@@ -7,6 +7,12 @@
 #include "darknet_internal.hpp"
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 extern void run_detector(int argc, char **argv);
 extern void run_nightmare(int argc, char **argv);
 
@@ -99,9 +105,11 @@ void speed(const char * cfgfile, int tics)
 		network_predict(net, im.data);
 	}
 	double t = difftime(time(0), start);
-	printf("\n%d evals, %f Seconds\n", tics, t);
-	printf("Speed: %f sec/eval\n", t/tics);
-	printf("Speed: %f Hz\n", tics/t);
+
+	*cfg_and_state.output							<< std::endl
+		<< tics << " evals, " << t << " seconds"	<< std::endl
+		<< "Speed: " << t/tics << " sec/eval"		<< std::endl
+		<< "Speed: " << tics/t << " Hz"				<< std::endl;
 }
 
 
@@ -141,8 +149,10 @@ void operations(char *cfgfile)
 			ops += 2l * l.wo->inputs * l.wo->outputs;
 		}
 	}
-	printf("Floating Point Operations: %ld\n", ops);
-	printf("Floating Point Operations: %.2f Bn\n", (float)ops/1000000000.);
+
+	*cfg_and_state.output
+		<< "Floating point operations: " << ops << std::endl
+		<< "Floating point operations: " << ops/1000000000.0f << " Bn" << std::endl;
 
 	free_network(net);
 }
@@ -168,7 +178,8 @@ void oneoff(char *cfgfile, char *weightfile, char *outfile)
 	net.layers[net.n - 2].biases -= 5;
 	net.layers[net.n - 2].weights -= 5*c;
 	net.layers[net.n - 2].n = oldn;
-	printf("%d\n", oldn);
+	*cfg_and_state.output << oldn << std::endl;
+
 	Darknet::Layer /*&*/ l = net.layers[net.n - 2];
 	copy_cpu(l.n/3, l.biases, 1, l.biases +   l.n/3, 1);
 	copy_cpu(l.n/3, l.biases, 1, l.biases + 2*l.n/3, 1);
@@ -362,30 +373,38 @@ void statistics_net(const char * cfgfile, const char * weightfile)
 		Darknet::Layer /*&*/ l = net.layers[i];
 		if (l.type == Darknet::ELayerType::CONNECTED && l.batch_normalize)
 		{
-			printf("Connected Layer %d\n", i);
+			*cfg_and_state.output << "Connected Layer " << i << std::endl;
 			statistics_connected_layer(l);
 		}
 		if (l.type == Darknet::ELayerType::LSTM && l.batch_normalize)
 		{
-			printf("LSTM Layer %d\n", i);
-			printf("wf\n");
+			*cfg_and_state.output << "LSTM Layer " << i << std::endl;
+
+			*cfg_and_state.output << "wf" << std::endl;
 			statistics_connected_layer(*l.wf);
-			printf("wi\n");
+
+			*cfg_and_state.output << "wi" << std::endl;
 			statistics_connected_layer(*l.wi);
-			printf("wg\n");
+
+			*cfg_and_state.output << "wg" << std::endl;
 			statistics_connected_layer(*l.wg);
-			printf("wo\n");
+
+			*cfg_and_state.output << "wo" << std::endl;
 			statistics_connected_layer(*l.wo);
-			printf("uf\n");
+
+			*cfg_and_state.output << "uf" << std::endl;
 			statistics_connected_layer(*l.uf);
-			printf("ui\n");
+
+			*cfg_and_state.output << "ui" << std::endl;
 			statistics_connected_layer(*l.ui);
-			printf("ug\n");
+
+			*cfg_and_state.output << "ug" << std::endl;
 			statistics_connected_layer(*l.ug);
-			printf("uo\n");
+
+			*cfg_and_state.output << "uo" << std::endl;
 			statistics_connected_layer(*l.uo);
 		}
-		printf("\n");
+		*cfg_and_state.output << std::endl;
 	}
 }
 
@@ -458,7 +477,7 @@ void darknet_signal_handler(int sig)
 	// prevent recursion if this signal happens again (set the default signal action)
 	std::signal(sig, SIG_DFL);
 
-	std::cout << "calling Darknet's fatal error handler due to signal #" << sig << std::endl;
+	*cfg_and_state.output << "calling Darknet's fatal error handler due to signal #" << sig << std::endl;
 
 	#ifdef WIN32
 	darknet_fatal_error(DARKNET_LOC, "signal handler invoked for signal #%d", sig);
@@ -475,10 +494,6 @@ int main(int argc, char **argv)
 	try
 	{
 		TAT(TATPARMS);
-
-		// disable console IO buffering since we're still mixing old printf() calls with std::cout
-		std::setvbuf(stdout, NULL, _IONBF, 0);
-		std::setvbuf(stderr, NULL, _IONBF, 0);
 
 		signal(SIGINT   , darknet_signal_handler);  // 2: CTRL+C
 		signal(SIGILL   , darknet_signal_handler);  // 4: illegal instruction
@@ -580,7 +595,7 @@ int main(int argc, char **argv)
 	}
 	catch (const std::exception & e)
 	{
-		std::cout << std::endl << "Exception: " << Darknet::in_colour(Darknet::EColour::kBrightRed, e.what()) << std::endl;
+		*cfg_and_state.output << std::endl << "Exception: " << Darknet::in_colour(Darknet::EColour::kBrightRed, e.what()) << std::endl;
 		darknet_fatal_error(DARKNET_LOC, e.what());
 	}
 

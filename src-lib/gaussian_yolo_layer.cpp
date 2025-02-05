@@ -427,10 +427,6 @@ Darknet::Layer make_gaussian_yolo_layer(int batch, int w, int h, int n, int tota
 
 #endif
 
-	//fprintf(stderr, "Gaussian_yolo\n");
-	/// @todo why!?
-//	srand(time(0));
-
 	return l;
 }
 

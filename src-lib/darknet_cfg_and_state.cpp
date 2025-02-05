@@ -96,8 +96,10 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	std::srand(std::time(nullptr));
 	// ... also see the seeding that happens in get_rnd_engine()
 
+	output = &std::cout;
+
 	// prefer using 500 over 5e+02 when outputting floats
-	std::cout << std::fixed;
+	*output << std::fixed;
 
 	must_immediately_exit	= false;
 	is_shown				= true;
@@ -155,10 +157,10 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 		int c = cmd.size();
 		char ** v = &cmd[0];
 
-		std::cout << "Inserting " << c << " fake arguments because we're running darknet in DEBUG mode!" << std::endl;
+		*output << "Inserting " << c << " fake arguments because we're running darknet in DEBUG mode!" << std::endl;
 		for (int i = 0; i < c; i ++)
 		{
-			std::cout << "argv[" << i << "] = \"" << v[i] << "\"" << std::endl;
+			*output << "argv[" << i << "] = \"" << v[i] << "\"" << std::endl;
 		}
 
 		return process_arguments(c, v);
@@ -250,7 +252,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 			{
 				additional_arguments.push_back(original_arg);
 				display_warning_msg("skipped validating of argument #" + std::to_string(idx) + " \"" + original_arg + "\" (does not appear to be a valid parameter, file, or directory)");
-				std::cout << std::endl;
+				*output << std::endl;
 				continue;
 			}
 		}
@@ -406,14 +408,14 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 	}
 
 #if 0 // for debug purposes, display all arguments
-	std::cout
+	*output
 		<< "--------------------------------" << std::endl
 		<< "CMD=" << command << std::endl
 		<< "FUN=" << function << std::endl
 		<< "ARG=" << args.size() << std::endl;
 	for (const auto & [key, val] : args)
 	{
-		std::cout
+		*output
 			<< "IDX=" << val.arg_index
 			<< " NUM=" << val.value
 			<< " EXPECT=" << val.expect_parm
@@ -422,11 +424,11 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 			<< " STR=" << val.str;
 		if (val.name_alternate.empty() == false)
 		{
-			std::cout << " ALT=" << val.name_alternate;
+			*output << " ALT=" << val.name_alternate;
 		}
-		std::cout << std::endl;
+		*output << std::endl;
 	}
-	std::cout << "--------------------------------" << std::endl;
+	*output << "--------------------------------" << std::endl;
 #endif
 
 	return *this;

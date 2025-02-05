@@ -453,8 +453,7 @@ namespace
 	std::fflush(stdout);
 	std::fflush(stderr);
 
-	std::cout << std::flush;
-	std::cerr << std::flush;
+	*cfg_and_state.output << std::flush;
 
 	if (is_locked)
 	{

@@ -389,9 +389,7 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->normTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, 1, l->out_c, 1, 1));
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->normDstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->out_c, l->out_h, l->out_w));
 
-	//printf("\n l->dilation = %d, l->pad = %d, l->size = %d, l->stride = %d, l->stride_x = %d, l->stride_y = %d, l->groups = %d, l->w = %d, l->h = %d, l->c = %d, l->n = %d, l->out_w = %d, l->out_h = %d, l->out_c = %d, l->batch = %d, data_type = %d \n",
-	//    l->dilation, l->pad, l->size, l->stride, l->stride_x, l->stride_y, l->groups, l->w, l->h, l->c, l->n, l->out_w, l->out_h, l->out_c, l->batch, data_type);
-#if(CUDNN_MAJOR >= 6)
+#if (CUDNN_MAJOR >= 6)
 	CHECK_CUDNN(cudnnSetConvolution2dDescriptor(l->convDesc, l->pad * l->dilation, l->pad * l->dilation, l->stride_y, l->stride_x, l->dilation, l->dilation, CUDNN_CROSS_CORRELATION, CUDNN_DATA_FLOAT));    // cudnn >= 6.0
 #else
 	CHECK_CUDNN(cudnnSetConvolution2dDescriptor(l->convDesc, l->pad * l->dilation, l->pad * l->dilation, l->stride_y, l->stride_x, l->dilation, l->dilation, CUDNN_CROSS_CORRELATION));    // cudnn 5.1
@@ -424,7 +422,7 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 		conv_fwd_results));
 
 	CHECK_CUDA(cudaMemGetInfo(&free_memory, &total_memory));
-//	std::cout << "CUDA memory: free=" << size_to_IEC_string(free_memory) << " total=" << size_to_IEC_string(total_memory) << std::endl;
+//	*cfg_and_state.output << "CUDA memory: free=" << size_to_IEC_string(free_memory) << " total=" << size_to_IEC_string(total_memory) << std::endl;
 
 #if 0
 	cudaDeviceProp prop;
@@ -461,7 +459,7 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 		 */
 
 #if 0
-		std::cout
+		*cfg_and_state.output
 			<< "FWD ALGO:"
 			<< " i="			<< i
 //			<< " name="			<< std::left << std::setw(22) << to_string(conv_fwd_results[i].algo)
@@ -541,7 +539,6 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 	{
 		darknet_fatal_error(DARKNET_LOC, "cuDNN did not find a usable algorithm to use for forward convolution");
 	}
-	//printf(" cuDNN FWD algo: %d, time = %f ms \n", l->fw_algo, min_time);
 
 	// Bwd-Data
 	cudnnConvolutionBwdDataAlgoPerf_t conv_bwd_data_results[100];
@@ -577,7 +574,6 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 	{
 		darknet_fatal_error(DARKNET_LOC, "cuDNN did not find a usable algorithm to use for backward convolution");
 	}
-	//printf(" cuDNN BWD-data algo: %d \n", l->bd_algo);
 
 	// Bwd-Filters
 	cudnnConvolutionBwdFilterAlgoPerf_t conv_bwd_filter_results[100];
@@ -613,7 +609,6 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 	{
 		darknet_fatal_error(DARKNET_LOC, "cuDNN did not find BWD-filter algo for convolution");
 	}
-	//printf(" cuDNN BWD-filter algo: %d \n", l->bf_algo);
 
 #else   // CUDNN_MAJOR >= 8
 
@@ -632,7 +627,6 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 		forward_algo = CUDNN_CONVOLUTION_FWD_SPECIFY_WORKSPACE_LIMIT;
 		backward_algo = CUDNN_CONVOLUTION_BWD_DATA_SPECIFY_WORKSPACE_LIMIT;
 		backward_filter = CUDNN_CONVOLUTION_BWD_FILTER_SPECIFY_WORKSPACE_LIMIT;
-		//printf(" CUDNN-specified %zu ", workspace_size_specify);
 	}
 
 	CHECK_CUDNN(cudnnGetConvolutionForwardAlgorithm(cudnn_handle(),
@@ -1050,7 +1044,6 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 
 	if (l.antialiasing)
 	{
-//		printf("AA:  ");
 		l.input_layer = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
 		int blur_size = 3;
 		int blur_pad = blur_size / 2;
@@ -1255,7 +1248,6 @@ void set_specified_workspace_limit(Darknet::Layer * l, size_t workspace_size_lim
 	CHECK_CUDA(cudaMemGetInfo(&free_byte, &total_byte));
 	cudnn_convolutional_setup(l, cudnn_specify, workspace_size_limit);
 	l->workspace_size = get_convolutional_workspace_size(*l);
-	//printf("Set specified workspace limit for cuDNN: %zu, available: %zu, workspace = %zu \n", workspace_size_limit, free_byte, l->workspace_size);
 #endif  // CUDNN
 }
 
@@ -1433,7 +1425,6 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 	if (l.xnor && (!l.align_bit_weights || state.train)) {
 		if (!l.align_bit_weights || state.train) {
 			binarize_weights(l.weights, l.n, l.nweights, l.binary_weights);
-			//printf("\n binarize_weights l.align_bit_weights = %p \n", l.align_bit_weights);
 		}
 		swap_binary(&l);
 		binarize_cpu(state.input, l.c*l.h*l.w*l.batch, l.binary_input);
@@ -1522,46 +1513,16 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 
 				}
 				else
-				{ // else (l.c % 32 != 0)
-
-					//--------------------------------------------------------
-					//printf(" l.index = %d - old XNOR \n", l.index);
-
-					//im2col_cpu_custom_align(state.input, l.c, l.h, l.w, l.size, l.stride, l.pad, b, l.bit_align);
+				{
 					im2col_cpu_custom_bin(state.input, l.c, l.h, l.w, l.size, l.stride, l.pad, state.workspace, l.bit_align);
 
-					//size_t output_size = l.outputs;
-					//float *count_output = calloc(output_size, sizeof(float));
-					//size_t bit_output_size = output_size / 8 + 1;
-					//char *bit_output = calloc(bit_output_size, sizeof(char));
+					//size_t ldb_align = 256; // 256 bit for AVX2
+					int ldb_align = l.lda_align;
+					size_t new_ldb = k + (ldb_align - k%ldb_align);
+					/*size_t t_intput_size = */ binary_transpose_align_input(k, n, state.workspace, &l.t_bit_input, ldb_align, l.bit_align);
 
-					//size_t intput_size = n * k; // (out_h*out_w) X (l.size*l.size*l.c) : after im2col()
-					//size_t bit_input_size = intput_size / 8 + 1;
-					//char *bit_input = calloc(bit_input_size, sizeof(char));
-
-					//size_t weights_size = k * m; //l.size*l.size*l.c*l.n; // l.nweights
-					//size_t bit_weights_size = weights_size / 8 + 1;
-
-					//char *bit_weights = calloc(bit_weights_size, sizeof(char));
-					//float *mean_arr = calloc(l.n, sizeof(float));
-
-					// transpose B from NxK to KxN (x-axis (ldb = l.size*l.size*l.c) - should be multiple of 8 bits)
-					{
-						//size_t ldb_align = 256; // 256 bit for AVX2
-						int ldb_align = l.lda_align;
-						size_t new_ldb = k + (ldb_align - k%ldb_align);
-						/*size_t t_intput_size = */ binary_transpose_align_input(k, n, state.workspace, &l.t_bit_input, ldb_align, l.bit_align);
-
-						// 5x times faster than gemm()-float32
-						gemm_nn_custom_bin_mean_transposed(m, n, k, 1, (unsigned char*)l.align_bit_weights, new_ldb, (unsigned char*)l.t_bit_input, new_ldb, c, n, l.mean_arr);
-
-						//gemm_nn_custom_bin_mean_transposed(m, n, k, 1, bit_weights, k, t_bit_input, new_ldb, c, n, mean_arr);
-
-						//free(t_input);
-						//free(t_bit_input);
-						//}
-					}
-
+					// 5x times faster than gemm()-float32
+					gemm_nn_custom_bin_mean_transposed(m, n, k, 1, (unsigned char*)l.align_bit_weights, new_ldb, (unsigned char*)l.t_bit_input, new_ldb, c, n, l.mean_arr);
 				}
 
 				add_bias(l.output, l.biases, l.batch, l.n, out_h*out_w);
@@ -1600,8 +1561,6 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 				gemm(0, 0, m, n, k, 1, a, k, b, n, 1, c, n);
 				// bit-count to float
 			}
-			//c += n*m;
-			//state.input += l.c*l.h*l.w;
 		}
 	}
 

@@ -1,10 +1,18 @@
 #include "darknet_internal.hpp"
 
+
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 Darknet::Layer make_avgpool_layer(int batch, int w, int h, int c)
 {
 	TAT(TATPARMS);
 
-	fprintf(stderr, "avg                          %4d x%4d x%4d ->   %4d\n",  w, h, c, c);
+	*cfg_and_state.output << "avg                          " << w << " x" << h << " x" << c << " ->   " << c << std::endl;
+
 	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.type = Darknet::ELayerType::AVGPOOL;
 	l.batch = batch;
@@ -27,6 +35,7 @@ Darknet::Layer make_avgpool_layer(int batch, int w, int h, int c)
 	l.output_gpu  = cuda_make_array(l.output, output_size);
 	l.delta_gpu   = cuda_make_array(l.delta, output_size);
 	#endif
+
 	return l;
 }
 

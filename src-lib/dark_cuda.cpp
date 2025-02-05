@@ -72,7 +72,7 @@ void check_cuda_error_extended(cudaError_t status, const char * const filename, 
 
 	if (status != cudaSuccess)
 	{
-		std::cout << "CUDA status error: " << filename << ", " << funcname << "(), line #" << line << std::endl;
+		*cfg_and_state.output << "CUDA status error: " << filename << ", " << funcname << "(), line #" << line << std::endl;
 		check_cuda_error(status, filename, funcname, line);
 	}
 
@@ -85,7 +85,7 @@ void check_cuda_error_extended(cudaError_t status, const char * const filename, 
 		status = cudaDeviceSynchronize();
 		if (status != cudaSuccess)
 		{
-			std::cout << "CUDA status = cudaDeviceSynchronize() error: " << filename << ", " << funcname << "(), line #" << line << std::endl;
+			*cfg_and_state.output << "CUDA status = cudaDeviceSynchronize() error: " << filename << ", " << funcname << "(), line #" << line << std::endl;
 		}
 	}
 	check_cuda_error(status, filename, funcname, line);
@@ -105,12 +105,11 @@ dim3 cuda_gridsize(size_t n)
 		y = (n - 1) / (x * BLOCK) + 1;
 	}
 
-	//dim3 d = { (unsigned int)x, (unsigned int)y, 1 };
 	dim3 d;
 	d.x = x;
 	d.y = y;
 	d.z = 1;
-	//printf("%ld %ld %ld %ld\n", n, x, y, x*y*BLOCK);
+
 	return d;
 }
 
@@ -126,7 +125,7 @@ cudaStream_t get_cuda_stream()
 	{
 		if (cfg_and_state.is_trace)
 		{
-			std::cout << "create CUDA stream for device #" << i << std::endl;
+			*cfg_and_state.output << "create CUDA stream for device #" << i << std::endl;
 		}
 #ifdef CUDNN
 		cudaError_t status = cudaStreamCreateWithFlags(&streamsArray[i], cudaStreamNonBlocking);
@@ -147,29 +146,6 @@ cudaStream_t get_cuda_stream()
 	return streamsArray[i];
 }
 
-/*
-static cudaStream_t streamsArray2[16];    // cudaStreamSynchronize( get_cuda_memcpy_stream() );
-static int streamInit2[16] = { 0 };
-
-cudaStream_t get_cuda_memcpy_stream() {
-	int i = cuda_get_device();
-	if (!streamInit2[i]) {
-		printf(" Create COPY stream %d \n", i);
-		//cudaError_t status = cudaStreamCreate(&streamsArray2[i], cudaStreamNonBlocking);
-		cudaError_t status = cudaStreamCreateWithFlags(&streamsArray2[i], cudaStreamNonBlocking);
-		if (status != cudaSuccess) {
-			printf(" cudaStreamCreate-Memcpy error: %d \n", status);
-			const char *s = cudaGetErrorString(status);
-			printf("CUDA Error: %s\n", s);
-			status = cudaStreamCreateWithFlags(&streamsArray2[i], cudaStreamNonBlocking);
-			CHECK_CUDA(status);
-		}
-		streamInit2[i] = 1;
-	}
-	return streamsArray2[i];
-}
-*/
-
 #ifdef CUDNN
 static int cudnnInit[16] = { 0 };
 static cudnnHandle_t cudnnHandle[16];
@@ -188,7 +164,7 @@ cudnnHandle_t cudnn_handle()
 
 		if (cfg_and_state.is_trace)
 		{
-			std::cout << "create cuDNN handle for device #" << i << std::endl;
+			*cfg_and_state.output << "create cuDNN handle for device #" << i << std::endl;
 		}
 	}
 	return cudnnHandle[i];
@@ -306,9 +282,6 @@ cublasHandle_t blas_handle()
 }
 
 
-//static int switchBlasInit[16] = { 0 };
-//static cublasHandle_t switchBlasHandle[16];
-
 static cudaStream_t switchStreamsArray[16];
 static int switchStreamInit[16] = { 0 };
 
@@ -318,29 +291,15 @@ cudaStream_t switch_stream(int i)
 
 	int dev_id = cuda_get_device();
 
-	//printf(" switch_stream = %d \n", i);
-	if (!switchStreamInit[i]) {
+	if (!switchStreamInit[i])
+	{
 		CHECK_CUDA(cudaStreamCreateWithFlags(&switchStreamsArray[i], cudaStreamNonBlocking));
 		switchStreamInit[i] = 1;
 		printf(" Create stream %d \n", i);
 	}
 
-	//cudaStreamQuery(streamsArray[0]);   // Flush previous stream queue
 	streamsArray[dev_id] = switchStreamsArray[i];
 	streamInit[dev_id] = switchStreamInit[i];
-
-	//printf("switch_stream %d - get_cuda_stream() = %d \n", i, get_cuda_stream());
-
-	/*
-	if (!switchBlasInit[i]) {
-		CHECK_CUDA( cublasCreate(&switchBlasHandle[i]) );
-		switchBlasInit[i] = 1;
-		CHECK_CUDA( cublasSetStream(switchBlasHandle[i], switchStreamsArray[i]) );
-		printf(" Create blas-handle %d \n", i);
-	}
-	blasHandle[dev_id] = switchBlasHandle[i];
-	blasInit[dev_id] = switchBlasInit[i];
-	*/
 
 #ifdef CUDNN
 	if (!switchCudnnInit[i]) {
@@ -375,12 +334,10 @@ void wait_stream(int i)
 	}
 
 	CHECK_CUDA( cudaEventCreateWithFlags(&switchEventsArray[event_counter], cudaEventDisableTiming) );
-	//printf(" create event = %d (wait for stream = %d) \n", event_counter, i);
 
-	//CHECK_CUDA(cudaEventRecordWithFlags(switchEventsArray[i], switchStreamsArray[i], cudaEventRecordExternal) );
 	CHECK_CUDA( cudaEventRecord(switchEventsArray[event_counter], switchStreamsArray[i]) );
 	CHECK_CUDA( cudaStreamWaitEvent(streamsArray[dev_id], switchEventsArray[event_counter], cudaEventWaitDefault) );
-	//cudaStreamWaitEvent(streamsArray[dev_id], switchEventsArray[i], cudaEventWaitExternal);
+
 	event_counter++;
 }
 
@@ -427,7 +384,7 @@ void pre_allocate_pinned_memory(const size_t size)
 
 	const size_t num_of_blocks = size / pinned_block_size + ((size % pinned_block_size) ? 1 : 0);
 
-	std::cout << "pre_allocate: pinned_ptr = " << pinned_ptr << std::endl;
+	*cfg_and_state.output << "pre_allocate: pinned_ptr = " << pinned_ptr << std::endl;
 
 	std::scoped_lock lock(mutex_pinned);
 
@@ -439,7 +396,7 @@ void pre_allocate_pinned_memory(const size_t size)
 			darknet_fatal_error(DARKNET_LOC, "calloc failed with num_of_blocks=%d", num_of_blocks);
 		}
 
-		std::cout
+		*cfg_and_state.output
 			<< "pre_allocate:"
 			<< " size="				<< size_to_IEC_string(size)
 			<< ", num_of_blocks="	<< num_of_blocks
@@ -459,7 +416,7 @@ void pre_allocate_pinned_memory(const size_t size)
 				darknet_fatal_error(DARKNET_LOC, "cudaHostAlloc() failed, k=%d, num=%ul, size=%ul", k, num_of_blocks, pinned_block_size);
 			}
 
-			std::cout << (k + 1) << "/" << num_of_blocks << ": allocated " << size_to_IEC_string(pinned_block_size) << " pinned block" << std::endl;
+			*cfg_and_state.output << (k + 1) << "/" << num_of_blocks << ": allocated " << size_to_IEC_string(pinned_block_size) << " pinned block" << std::endl;
 		}
 		pinned_num_of_blocks = num_of_blocks;
 	}
@@ -482,7 +439,7 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 		if ((allocation_size + pinned_index) > pinned_block_size)
 		{
 			const float filled = 100.0f * pinned_index / pinned_block_size;
-			std::cout << "Pinned block_id=" << pinned_block_id << ", filled=" << filled << std::endl;
+			*cfg_and_state.output << "Pinned block_id=" << pinned_block_id << ", filled=" << filled << std::endl;
 			pinned_block_id++;
 			pinned_index = 0;
 		}
@@ -501,7 +458,7 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 	{
 		if (allocation_size > pinned_block_size / 2)
 		{
-			std::cout << "Try to allocate new pinned memory, size=" << size_to_IEC_string(size) << std::endl;
+			*cfg_and_state.output << "Try to allocate new pinned memory, size=" << size_to_IEC_string(size) << std::endl;
 			cudaError_t status = cudaHostAlloc((void **)&x_cpu, size, cudaHostRegisterMapped);
 			if (status != cudaSuccess)
 			{
@@ -511,7 +468,7 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 		}
 		else
 		{
-			std::cout << "Try to allocate new pinned BLOCK, size=" << size_to_IEC_string(size) << std::endl;
+			*cfg_and_state.output << "Try to allocate new pinned BLOCK, size=" << size_to_IEC_string(size) << std::endl;
 			pinned_num_of_blocks++;
 			pinned_block_id = pinned_num_of_blocks - 1;
 			pinned_index = 0;
@@ -541,11 +498,11 @@ float *cuda_make_array_pinned(float *x, size_t n)
 
 	float *x_gpu;
 	size_t size = sizeof(float)*n;
-	//cudaError_t status = cudaMalloc((void **)&x_gpu, size);
 	cudaError_t status = cudaHostAlloc((void **)&x_gpu, size, cudaHostRegisterMapped);
 	if (status != cudaSuccess) fprintf(stderr, " Can't allocate CUDA-pinned memory on CPU-RAM \n");
 	CHECK_CUDA(status);
-	if (x) {
+	if (x)
+	{
 		status = cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyDefault, get_cuda_stream());
 		CHECK_CUDA(status);
 	}
@@ -591,7 +548,8 @@ void **cuda_make_array_pointers(void **x, size_t n)
 	cudaError_t status = cudaMalloc((void **)&x_gpu, size);
 	if (status != cudaSuccess) fprintf(stderr, "Try increasing subdivisions=... in your cfg file.\n");
 	CHECK_CUDA(status);
-	if (x) {
+	if (x)
+	{
 		status = cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyDefault, get_cuda_stream());
 		CHECK_CUDA(status);
 	}
@@ -624,8 +582,6 @@ float cuda_compare(float *x_gpu, float *x, size_t n, char *s)
 
 	float* tmp = (float*)xcalloc(n, sizeof(float));
 	cuda_pull_array(x_gpu, tmp, n);
-	//int i;
-	//for(i = 0; i < n; ++i) printf("%f %f\n", tmp[i], x[i]);
 	axpy_cpu(n, -1, x, 1, tmp, 1);
 	float err = dot_cpu(n, tmp, 1, tmp, 1);
 	printf("Error %s: %f\n", s, sqrt(err/n));
@@ -669,7 +625,6 @@ void cuda_free(float *x_gpu)
 {
 	TAT(TATPARMS);
 
-	//cudaStreamSynchronize(get_cuda_stream());
 	cudaError_t status = cudaFree(x_gpu);
 	CHECK_CUDA(status);
 }
@@ -678,7 +633,6 @@ void cuda_free_host(float *x_cpu)
 {
 	TAT(TATPARMS);
 
-	//cudaStreamSynchronize(get_cuda_stream());
 	cudaError_t status = cudaFreeHost(x_cpu);
 	CHECK_CUDA(status);
 }
@@ -688,8 +642,6 @@ void cuda_push_array(float *x_gpu, float *x, size_t n)
 	TAT(TATPARMS);
 
 	const size_t size = n * sizeof(float);
-//    printf("cuda_push_array(): src=%p, dst=%p, n=%d, total_size=%d (%s)\n", x, x_gpu, n, size, size_to_IEC_string(size));
-//    cudaError_t status = cudaMemcpy(x_gpu, x, size, cudaMemcpyHostToDevice);
 	cudaError_t status = cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyHostToDevice, get_cuda_stream());
 	CHECK_CUDA(status);
 }
@@ -753,7 +705,7 @@ void show_cuda_cudnn_info()
 	int cuda_driver_major	= cuda_driver_version / 1000;
 	int cuda_driver_minor	= (cuda_driver_version - cuda_driver_major * 1000) / 10;
 
-	std::cout
+	*cfg_and_state.output
 		<< "CUDA runtime version " << cuda_runtime_version
 		<< " ("
 		<< Darknet::in_colour(Darknet::EColour::kBrightWhite) << "v" << cuda_runtime_major << "." << cuda_runtime_minor
@@ -767,7 +719,7 @@ void show_cuda_cudnn_info()
 		<< std::endl;
 
 #ifndef CUDNN
-	std::cout << "cuDNN is DISABLED" << std::endl;
+	*cfg_and_state.output << "cuDNN is DISABLED" << std::endl;
 #else
 	size_t cudnn_version = cudnnGetCudartVersion();
 	int cudnn_version_major = 0;
@@ -776,7 +728,7 @@ void show_cuda_cudnn_info()
 	cudnnGetProperty(MAJOR_VERSION, &cudnn_version_major);
 	cudnnGetProperty(MINOR_VERSION, &cudnn_version_minor);
 	cudnnGetProperty(PATCH_LEVEL, &cudnn_version_patch);
-	std::cout
+	*cfg_and_state.output
 		<< "cuDNN version " << cudnn_version
 		<< " ("
 		<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
@@ -787,15 +739,15 @@ void show_cuda_cudnn_info()
 		<< "), "
 		<< "use of half-size floats is ";
 #ifndef CUDNN_HALF
-	std::cout << Darknet::in_colour(Darknet::EColour::kBrightRed, "DISABLED") << std::endl;
+	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kBrightRed, "DISABLED") << std::endl;
 #else
-	std::cout << Darknet::in_colour(Darknet::EColour::kBrightWhite, "ENABLED") << std::endl;
+	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kBrightWhite, "ENABLED") << std::endl;
 #endif
 #endif
 
 	if (device_count < 1)
 	{
-		std::cout
+		*cfg_and_state.output
 			<< "=> "
 			<< Darknet::in_colour(Darknet::EColour::kBrightRed, "no CUDA devices")
 			<< " (count=" << device_count << ")"
@@ -807,7 +759,7 @@ void show_cuda_cudnn_info()
 		{
 			cudaDeviceProp prop;
 			CHECK_CUDA(cudaGetDeviceProperties(&prop, idx));
-			std::cout
+			*cfg_and_state.output
 				<< "=> " << idx << ": " << Darknet::in_colour(Darknet::EColour::kBrightGreen, prop.name)
 				<< " [#" << prop.major << "." << prop.minor << "]"
 				<< ", " << Darknet::in_colour(Darknet::EColour::kYellow, size_to_IEC_string(prop.totalGlobalMem))

@@ -174,7 +174,7 @@ box_label *read_boxes(char *filename, int *n)
 	int count = 0;
 	while(fscanf(file, "%d %f %f %f %f", &id, &x, &y, &w, &h) == 5)
 	{
-//		std::cout << "x=" << x << " y=" << y << " w=" << w << " h=" << h << std::endl;
+//		*cfg_and_state.output << "x=" << x << " y=" << y << " w=" << w << " h=" << h << std::endl;
 
 		boxes = (box_label*)xrealloc(boxes, (count + 1) * sizeof(box_label));
 		boxes[count].track_id = count + img_hash;
@@ -306,8 +306,6 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 		}
 		if ((w < lowest_w || h < lowest_h))
 		{
-			//sprintf(buff, "echo %s \"Very small object: w < lowest_w OR h < lowest_h\" >> bad_label.list", labelpath);
-			//system(buff);
 			++sub;
 			continue;
 		}
@@ -341,8 +339,6 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 		truth[(i-sub)*truth_size +3] = h;
 		truth[(i-sub)*truth_size +4] = id;
 		truth[(i-sub)*truth_size +5] = track_id;
-		//float val = track_id;
-		//printf(" i = %d, sub = %d, truth_size = %d, track_id = %d, %f, %f\n", i, sub, truth_size, track_id, truth[(i - sub)*truth_size + 5], val);
 
 		if (min_w_h == 0) min_w_h = w*net_w;
 		if (min_w_h > w*net_w) min_w_h = w*net_w;
@@ -449,7 +445,6 @@ void blend_truth(float *new_truth, int boxes, int truth_size, float *old_truth)
 		new_truth_ptr[3] = old_truth_ptr[3];
 		new_truth_ptr[4] = old_truth_ptr[4];
 	}
-	//printf("\n was %d bboxes, now %d bboxes \n", count_new_truth, t);
 }
 
 
@@ -554,12 +549,10 @@ void blend_truth_mosaic(float *new_truth, int boxes, int truth_size, float *old_
 
 			if (left < left_bound)
 			{
-				//printf(" i_mixup = %d, left = %d, left_bound = %f \n", i_mixup, left, left_bound);
 				left = left_bound;
 			}
 			if (right > right_bound)
 			{
-				//printf(" i_mixup = %d, right = %d, right_bound = %f \n", i_mixup, right, right_bound);
 				right = right_bound;
 			}
 			if (top < top_bound) top = top_bound;
@@ -643,9 +636,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
 	if (use_mixup == 3 && letter_box)
 	{
-		//printf("\n Combination: letter_box=1 & mosaic=1 - isn't supported, use only 1 of these parameters \n");
-		//if (check_mistakes) getzzzchar();
-		//exit(0);
+		darknet_fatal_error(DARKNET_LOC, "letterbox and mosaic cannot be combined");
 	}
 
 	if (random_gen() % 2 == 0)
@@ -811,24 +802,17 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 				pbot += rand_precalc_random(min_rdh, max_rdh, resize_r2);
 			}
 
-			//printf("\n pleft = %d, pright = %d, ptop = %d, pbot = %d, ow = %d, oh = %d \n", pleft, pright, ptop, pbot, ow, oh);
-
-			//float scale = rand_precalc_random(.25, 2, r_scale); // unused currently
-			//printf(" letter_box = %d \n", letter_box);
-
 			if (letter_box)
 			{
 				float img_ar = (float)ow / (float)oh;
 				float net_ar = (float)w / (float)h;
 				float result_ar = img_ar / net_ar;
-				//printf(" ow = %d, oh = %d, w = %d, h = %d, img_ar = %f, net_ar = %f, result_ar = %f \n", ow, oh, w, h, img_ar, net_ar, result_ar);
 				if (result_ar > 1)  // sheight - should be increased
 				{
 					float oh_tmp = ow / net_ar;
 					float delta_h = (oh_tmp - oh)/2;
 					ptop = ptop - delta_h;
 					pbot = pbot - delta_h;
-					//printf(" result_ar = %f, oh_tmp = %f, delta_h = %d, ptop = %f, pbot = %f \n", result_ar, oh_tmp, delta_h, ptop, pbot);
 				}
 				else  // swidth - should be increased
 				{
@@ -836,10 +820,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 					float delta_w = (ow_tmp - ow)/2;
 					pleft = pleft - delta_w;
 					pright = pright - delta_w;
-					//printf(" result_ar = %f, ow_tmp = %f, delta_w = %d, pleft = %f, pright = %f \n", result_ar, ow_tmp, delta_w, pleft, pright);
 				}
-
-				//printf("\n pleft = %d, pright = %d, ptop = %d, pbot = %d, ow = %d, oh = %d \n", pleft, pright, ptop, pbot, ow, oh);
 			}
 
 			// move each 2nd image to the corner - so that most of it was visible
@@ -872,8 +853,6 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
 			// This is where we get the annotations for this image.
 			const int min_w_h = fill_truth_detection(filename, boxes, truth_size, truth, classes, flip, dx, dy, 1. / sx, 1. / sy, w, h);
-			//for (int z = 0; z < boxes; ++z) if(truth[z*truth_size] > 0) printf(" track_id = %f \n", truth[z*truth_size + 5]);
-			//printf(" truth_size = %d \n", truth_size);
 
 			if ((min_w_h / 8) < blur && blur > 1)
 			{
@@ -898,9 +877,6 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 				{
 					Darknet::Image old_img = make_empty_image(w, h, c);
 					old_img.data = d.X.vals[i];
-					//show_image(ai, "new");
-					//show_image(old_img, "old");
-					//cv::waitKey(0);
 					blend_images_cv(ai, 0.5, old_img, 0.5);
 					blend_truth(d.y.vals[i], boxes, truth_size, truth);
 					Darknet::free_image(old_img);
@@ -1117,7 +1093,7 @@ void Darknet::run_image_loading_control_thread(load_args args)
 	// create the secondary threads
 	if (data_loading_threads.empty())
 	{
-		std::cout << "Creating " << number_of_threads << " permanent CPU threads to load images and bounding boxes." << std::endl;
+		*cfg_and_state.output << "Creating " << number_of_threads << " permanent CPU threads to load images and bounding boxes." << std::endl;
 
 		data_loading_threads			.reserve(number_of_threads);
 		data_loading_per_thread_flag	.reserve(number_of_threads);

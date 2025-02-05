@@ -1,6 +1,12 @@
 #include "darknet_internal.hpp"
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 typedef struct time_benchmark_layers
 {
 	float time;
@@ -763,9 +769,9 @@ float train_networks(Darknet::Network * nets, int n, data d, int interval)
 	*nets[0].seen = nets[0].batch * nets[0].subdivisions * get_current_iteration(nets[0]); // remove this line, when you will save to weights-file both: seen & cur_iteration
 	if (get_current_iteration(nets[0]) % interval == 0)
 	{
-		std::cout << "Syncing..." << std::flush;
+		*cfg_and_state.output << "Syncing..." << std::flush;
 		sync_nets(nets, n, interval);
-		std::cout << "done!" << std::endl;
+		*cfg_and_state.output << "done!" << std::endl;
 	}
 
 	//cudaDeviceSynchronize();

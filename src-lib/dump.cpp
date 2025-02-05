@@ -1,6 +1,12 @@
 #include "dump.hpp"
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 std::string dump(uint64_t * ui)
 {
 	TAT(TATPARMS);
@@ -449,7 +455,7 @@ void Darknet::dump(const float * ptr, const size_t count, const size_t row_len)
 {
 	TAT(TATPARMS);
 
-	std::cout << "Dump " << count << " floats (" << row_len << "x" << (count / row_len) << ") starting at " << (void*)ptr << ":";
+	*cfg_and_state.output << "Dump " << count << " floats (" << row_len << "x" << (count / row_len) << ") starting at " << (void*)ptr << ":";
 	for (auto idx = 0; idx < count; idx ++)
 	{
 		std::string buffer;
@@ -461,7 +467,7 @@ void Darknet::dump(const float * ptr, const size_t count, const size_t row_len)
 			{
 				buffer = " " + buffer;
 			}
-			std::cout << std::endl << "\033[90m" << buffer << ":\033[0m";
+			*cfg_and_state.output << std::endl << "\033[90m" << buffer << ":\033[0m";
 		}
 
 		buffer = std::to_string(ptr[idx]);
@@ -485,10 +491,10 @@ void Darknet::dump(const float * ptr, const size_t count, const size_t row_len)
 			colour = "\033[92m"; // GREEN
 		}
 
-		std::cout << " " << colour << buffer << "\033[0m";
+		*cfg_and_state.output << " " << colour << buffer << "\033[0m";
 	}
 
-	std::cout << std::endl;
+	*cfg_and_state.output << std::endl;
 
 	return;
 }
@@ -498,7 +504,7 @@ void Darknet::dump(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
-	std::cout << "Dump " << to_string(l.type) << " layer's " << l.w << "x" << l.h << " output buffer:" << std::endl;
+	*cfg_and_state.output << "Dump " << to_string(l.type) << " layer's " << l.w << "x" << l.h << " output buffer:" << std::endl;
 
 	if (l.type == ELayerType::YOLO)
 	{
@@ -531,7 +537,7 @@ void Darknet::dump(const Darknet::Layer & l)
 		 */
 		const int sections = l.n * (5 + l.classes); // "5" means X, Y, W, H, objectness
 		const int count = l.outputs / sections;
-		std::cout << "Output buffer contains " << sections << " sections, each of which should be " << count << " floats." << std::endl;
+		*cfg_and_state.output << "Output buffer contains " << sections << " sections, each of which should be " << count << " floats." << std::endl;
 
 		size_t idx = 0;
 		for (int n = 0; n < l.n; n ++)
@@ -551,7 +557,7 @@ void Darknet::dump(const Darknet::Layer & l)
 
 			for (size_t section_counter = 0; section_counter < names.size(); section_counter ++)
 			{
-				std::cout << "-> YOLO n=" << n << ": \"\033[97m" << names[section_counter] << "\033[0m\": ";
+				*cfg_and_state.output << "-> YOLO n=" << n << ": \"\033[97m" << names[section_counter] << "\033[0m\": ";
 				dump(l.output + idx, count, l.w);
 				idx += count;
 			}

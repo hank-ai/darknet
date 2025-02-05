@@ -118,7 +118,7 @@ Darknet::CfgLine::CfgLine(const std::string & l, const size_t ln, const std::str
 		}
 	}
 
-//	std::cout << "#" << line_number << ": line=\"" << line << "\" key=" << key << " val=" << val << std::endl;
+//	*cfg_and_state.output << "#" << line_number << ": line=\"" << line << "\" key=" << key << " val=" << val << std::endl;
 
 	return;
 };
@@ -248,14 +248,14 @@ int Darknet::CfgSection::find_int(const std::string & key, const int default_val
 
 			if (frac != 0.0f)
 			{
-				std::cout << "-> expected an integer for \"" << key << "\" on line #" << l.line_number << " but found \"" << l.f.value() << "\"" << std::endl;
+				*cfg_and_state.output << "-> expected an integer for \"" << key << "\" on line #" << l.line_number << " but found \"" << l.f.value() << "\"" << std::endl;
 			}
 
 			const int i = static_cast<int>(iptr);
 
 			if (cfg_and_state.is_trace)
 			{
-				std::cout << "[" << name << "] #" << l.line_number << " " << key << "=" << i << std::endl;
+				*cfg_and_state.output << "[" << name << "] #" << l.line_number << " " << key << "=" << i << std::endl;
 			}
 
 			l.used = true;
@@ -269,7 +269,7 @@ int Darknet::CfgSection::find_int(const std::string & key, const int default_val
 
 	if (cfg_and_state.is_trace)
 	{
-		std::cout << "[" << name << "] #" << line_number << " DEFAULT " << key << "=" << default_value << std::endl;
+		*cfg_and_state.output << "[" << name << "] #" << line_number << " DEFAULT " << key << "=" << default_value << std::endl;
 	}
 
 	return default_value;
@@ -290,7 +290,7 @@ float Darknet::CfgSection::find_float(const std::string & key, const float defau
 
 			if (cfg_and_state.is_trace)
 			{
-				std::cout << "[" << name << "] #" << l.line_number << " " << key << "=" << f << std::endl;
+				*cfg_and_state.output << "[" << name << "] #" << l.line_number << " " << key << "=" << f << std::endl;
 			}
 
 			l.used = true;
@@ -304,7 +304,7 @@ float Darknet::CfgSection::find_float(const std::string & key, const float defau
 
 	if (cfg_and_state.is_trace)
 	{
-		std::cout << "[" << name << "] #" << line_number << " DEFAULT " << key << "=" << default_value << std::endl;
+		*cfg_and_state.output << "[" << name << "] #" << line_number << " DEFAULT " << key << "=" << default_value << std::endl;
 	}
 
 	return default_value;
@@ -322,7 +322,7 @@ std::string Darknet::CfgSection::find_str(const std::string & key, const std::st
 
 		if (cfg_and_state.is_trace)
 		{
-			std::cout << "[" << name << "] #" << l.line_number << " " << key << "=" << l.val << std::endl;
+			*cfg_and_state.output << "[" << name << "] #" << l.line_number << " " << key << "=" << l.val << std::endl;
 		}
 
 		l.used = true;
@@ -331,7 +331,7 @@ std::string Darknet::CfgSection::find_str(const std::string & key, const std::st
 
 	if (cfg_and_state.is_trace)
 	{
-		std::cout << "[" << name << "] #" << line_number << " DEFAULT " << key << "=" << default_value << std::endl;
+		*cfg_and_state.output << "[" << name << "] #" << line_number << " DEFAULT " << key << "=" << default_value << std::endl;
 	}
 
 	return default_value;
@@ -390,13 +390,13 @@ Darknet::VFloat Darknet::CfgSection::find_float_array(const std::string & key)
 
 	if (cfg_and_state.is_trace)
 	{
-		std::cout << "[" << name << "] #" << line << " " << key << "=[";
+		*cfg_and_state.output << "[" << name << "] #" << line << " " << key << "=[";
 		for (size_t idx = 0; idx < v.size(); idx ++)
 		{
-			if (idx > 0) std::cout << ", ";
-			std::cout << v[idx];
+			if (idx > 0) *cfg_and_state.output << ", ";
+			*cfg_and_state.output << v[idx];
 		}
-		std::cout << "]" << std::endl;
+		*cfg_and_state.output << "]" << std::endl;
 	}
 
 	return v;
@@ -455,13 +455,13 @@ Darknet::VInt Darknet::CfgSection::find_int_array(const std::string & key)
 
 	if (cfg_and_state.is_trace)
 	{
-		std::cout << "[" << name << "] #" << line << " " << key << "=[";
+		*cfg_and_state.output << "[" << name << "] #" << line << " " << key << "=[";
 		for (size_t idx = 0; idx < v.size(); idx ++)
 		{
-			if (idx > 0) std::cout << ", ";
-			std::cout << v[idx];
+			if (idx > 0) *cfg_and_state.output << ", ";
+			*cfg_and_state.output << v[idx];
 		}
-		std::cout << "]" << std::endl;
+		*cfg_and_state.output << "]" << std::endl;
 	}
 
 	return v;
@@ -719,7 +719,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 #ifdef DARKNET_GPU
 	if (cfg_and_state.is_verbose)
 	{
-		std::cout << "net.optimized_memory = " << net.optimized_memory << std::endl;
+		*cfg_and_state.output << "net.optimized_memory = " << net.optimized_memory << std::endl;
 	}
 	if (net.optimized_memory >= 2 && parms.train)
 	{
@@ -744,7 +744,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 	if (cfg_and_state.is_verbose)
 	{
-		std::cout
+		*cfg_and_state.output
 			<< "mini_batch="	<< net.batch
 			<< ", batch="		<< net.batch * net.subdivisions
 			<< ", time_steps="	<< net.time_steps
@@ -922,7 +922,6 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				l.receptive_w_scale = parms.receptive_w_scale;
 				l.receptive_h_scale = parms.receptive_h_scale;
 			}
-			//printf(" size = %d, dilation = %d, stride = %d, receptive_w = %d, receptive_w_scale = %d - ", size, dilation, stride, receptive_w, receptive_w_scale);
 
 			fprintf(stderr, "%4d - receptive field: %d x %d \n", idx, parms.receptive_w, parms.receptive_h);
 		}
@@ -964,8 +963,6 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				if (l.delta_gpu)
 				{
 					cuda_free(l.delta_gpu);
-					//l.delta_gpu = cuda_make_array_pinned_preallocated(NULL, l.batch*l.outputs); // l.steps
-					//printf("\n\n PINNED DELTA GPU = %d \n", l.batch*l.outputs);
 				}
 			}
 
@@ -991,7 +988,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 		if (l.stopbackward == 1)
 		{
-			std::cout << " ------- previous layers are frozen -------" << std::endl;
+			*cfg_and_state.output << " ------- previous layers are frozen -------" << std::endl;
 		}
 
 		net.layers[idx] = l;
@@ -1038,13 +1035,13 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 		{
 			if (idx == 0)
 			{
-				std::cout
+				*cfg_and_state.output
 					<< "configuration filename=" << filename << std::endl
 					<< "  # line    layer     filters   sz/rte/other    input              output       bflops" << std::endl;
 													// "size, stride, dilation, route, anchors, more...
 			}
 
-			std::cout << format_layer_summary(idx, section, l) << std::endl;
+			*cfg_and_state.output << format_layer_summary(idx, section, l) << std::endl;
 		}
 
 	} // while loop (sections)
@@ -1134,7 +1131,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 	if (cfg_and_state.is_verbose)
 	{
-		std::cout
+		*cfg_and_state.output
 			<< "Total BFLOPS = "	<< parms.bflops			<< std::endl
 			<< "avg_outputs = "		<< parms.avg_outputs	<< std::endl;
 	}
@@ -1168,20 +1165,20 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 		if (parms.workspace_size)
 		{
-			std::cout << "Allocating workspace to transfer between CPU and GPU:  " << size_to_IEC_string(parms.workspace_size) << std::endl;
+			*cfg_and_state.output << "Allocating workspace to transfer between CPU and GPU:  " << size_to_IEC_string(parms.workspace_size) << std::endl;
 
 			net.workspace = cuda_make_array(0, parms.workspace_size / sizeof(float) + 1);
 		}
 		else
 		{
-			std::cout << "Allocating workspace:  " << size_to_IEC_string(parms.workspace_size) << std::endl;
+			*cfg_and_state.output << "Allocating workspace:  " << size_to_IEC_string(parms.workspace_size) << std::endl;
 			net.workspace = (float*)xcalloc(1, parms.workspace_size);
 		}
 	}
 #else
 	if (parms.workspace_size)
 	{
-		std::cout << "Allocating workspace:  " << size_to_IEC_string(parms.workspace_size) << std::endl;
+		*cfg_and_state.output << "Allocating workspace:  " << size_to_IEC_string(parms.workspace_size) << std::endl;
 		net.workspace = (float*)xcalloc(1, parms.workspace_size);
 	}
 #endif
@@ -1685,12 +1682,10 @@ Darknet::Layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	if (embedding_layer_id < 0) embedding_layer_id = parms.index + embedding_layer_id;
 	if (embedding_layer_id != 999999)
 	{
-//		printf(" embedding_layer_id = %d, ", embedding_layer_id);
 		const Darknet::Layer & le = net.layers[embedding_layer_id];
 		l.embedding_layer_id = embedding_layer_id;
 		l.embedding_output = (float*)xcalloc(le.batch * le.outputs, sizeof(float));
 		l.embedding_size = le.n / l.n;
-//		printf(" embedding_size = %d \n", l.embedding_size);
 		if (le.n % l.n != 0)
 		{
 			darknet_fatal_error(DARKNET_LOC, "filters=%d number in embedding_layer=%d isn't divisable by number of anchors %d", le.n, embedding_layer_id, l.n);

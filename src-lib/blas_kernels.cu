@@ -12,26 +12,6 @@ float warpAllReduceSum(float val) {
 	return val;
 }
 
-__global__ void compare_2_arrays_kernel(float *one, float *two, int size)
-{
-	const int index = blockIdx.x*blockDim.x + threadIdx.x;
-	if (index >= size) return;
-
-	const float diff = 100 * fabs(one[index] - two[index]) / fabs(one[index]);
-
-	if (diff > 10) printf(" i: %d - one = %f, two = %f, diff = %f %% \n", index, one[index], two[index], diff);
-}
-
-void compare_2_arrays_gpu(float *one, float *two, int size)
-{
-	TAT(TATPARMS);
-
-	const int num_blocks = get_number_of_blocks(size, BLOCK);
-
-	compare_2_arrays_kernel <<<num_blocks, BLOCK, 0, get_cuda_stream() >>>(one, two, size);
-	CHECK_CUDA(cudaPeekAtLastError());
-	CHECK_CUDA(cudaDeviceSynchronize());
-}
 
 __global__ void mean_array_kernel(float *src, int size, float alpha, float *avg)
 {
@@ -399,17 +379,16 @@ __global__ void reorg_kernel(int N, float *x, int w, int h, int c, int batch, in
 	int offset = in_c / out_c;
 	int w2 = in_w*stride + offset % stride;
 	int h2 = in_h*stride + offset / stride;
-	//printf("%d\n", offset);
 	int out_index = w2 + w*stride*(h2 + h*stride*(c2 + out_c*b));
 
-// printf("%d %d %d\n", w2, h2, c2);
-	//printf("%d %d\n", in_index, out_index);
-	//if(out_index >= N || out_index < 0) printf("bad bad bad \n");
-
-	if(forward) out[out_index] = x[in_index];
-	else out[in_index] = x[out_index];
-	//if(forward) out[1] = x[1];
-	//else out[0] = x[0];
+	if(forward)
+	{
+		out[out_index] = x[in_index];
+	}
+	else
+	{
+		out[in_index] = x[out_index];
+	}
 }
 
 __global__ void constrain_weight_updates_kernel(int N, float coef, float *weights_gpu, float *weight_updates_gpu)
@@ -1034,7 +1013,6 @@ void shortcut_multilayer_gpu(int src_outputs, int batch, int n, int *outputs_of_
 {
 	TAT(TATPARMS);
 
-	//printf(" src_outputs = %d, batch = %d, n = %d \n", src_outputs, batch, n);
 	int size = batch * src_outputs;
 	if (nweights == 0 && n == 1) {
 		shortcut_singlelayer_simple_kernel <<<cuda_gridsize(size), BLOCK, 0, get_cuda_stream() >>> (size, src_outputs, batch, n, outputs_of_layers_gpu, layers_output_gpu, out, in, weights_gpu, nweights, weights_normalization);
@@ -1142,8 +1120,6 @@ __global__ void backward_shortcut_multilayer_kernel(int size, int src_outputs, i
 					if (threadIdx.x % 32 == 0) {
 						if (!isnan(wu) && !isinf(wu))
 							atomicAdd(&weight_updates_gpu[weights_index], wu);
-						//if(weights_gpu[weights_index] != 1) printf(" wu = %f, weights_update_tmp = %f, w = %f, weights_gpu[weights_index] = %f, grad = %f, weights_normalization = %d ",
-						//    wu, weights_update_tmp, w, weights_gpu[weights_index], grad, weights_normalization);
 					}
 				}
 				else {
@@ -1162,12 +1138,6 @@ void backward_shortcut_multilayer_gpu(int src_outputs, int batch, int n, int *ou
 {
 	TAT(TATPARMS);
 
-	//const int layer_step = nweights / (n + 1);    // 1 or l.c or (l.c * l.h * l.w)
-	//int step = 0;
-	//if (nweights > 0) step = src_outputs / layer_step; // (l.c * l.h * l.w) or (l.w*l.h) or 1
-	//printf(" nweights = %d, n = %d, layer_step = %d, step = %d \n", nweights, n, layer_step, step);
-
-	//printf(" src_outputs = %d, batch = %d, n = %d \n", src_outputs, batch, n);
 	int size = batch * src_outputs;
 	backward_shortcut_multilayer_kernel <<<cuda_gridsize(size), BLOCK, 0, get_cuda_stream() >>> (size, src_outputs, batch, n, outputs_of_layers_gpu,
 		layers_delta_gpu, delta_out, delta_in, weights_gpu, weight_updates_gpu, nweights, in, layers_output_gpu, weights_normalization);

@@ -170,7 +170,7 @@ Darknet::Skeletons Darknet::Keypoints::create_skeletons(const Predictions & pred
 
 		const auto & pred = predictions.at(prediction_idx);
 		const int best_class = pred.best_class;
-//		std::cout << "-> looking for skeleton for this keypoint (best_class=" << best_class << ", " << KPNames[best_class] << ") at idx=" << prediction_idx << ": " << pred << std::endl;
+//		*cfg_and_state.output << "-> looking for skeleton for this keypoint (best_class=" << best_class << ", " << KPNames[best_class] << ") at idx=" << prediction_idx << ": " << pred << std::endl;
 
 		if (skeletons.size() == 1 and skeletons[0][best_class] == -1)
 		{
@@ -183,7 +183,7 @@ Darknet::Skeletons Darknet::Keypoints::create_skeletons(const Predictions & pred
 
 		if (skeletons.size() == 1)
 		{
-//			std::cout << "dropping prediction since it is a duplicate: " << pred << std::endl;
+//			*cfg_and_state.output << "dropping prediction since it is a duplicate: " << pred << std::endl;
 			continue;
 		}
 
@@ -205,7 +205,7 @@ Darknet::Skeletons Darknet::Keypoints::create_skeletons(const Predictions & pred
 			if (ri->first <= 0.0f)
 			{
 				// we need to drop this prediction, we did not find where it is needed
-//				std::cout << "dropping prediction, no skeleton found which needed: " << pred << std::endl;
+//				*cfg_and_state.output << "dropping prediction, no skeleton found which needed: " << pred << std::endl;
 				break;
 			}
 
@@ -224,17 +224,17 @@ Darknet::Skeletons Darknet::Keypoints::create_skeletons(const Predictions & pred
 	{
 		for (const auto & skeleton : skeletons)
 		{
-			std::cout << "next skeleton:" << std::endl;
+			*cfg_and_state.output << "next skeleton:" << std::endl;
 			for (size_t idx = 0; idx < skeleton.size(); idx ++)
 			{
 				const int prediction_idx = skeleton[idx];
 
-				std::cout << "-> " << idx << " (" << KPNames[idx] << ") = prediction idx " << prediction_idx;
+				*cfg_and_state.output << "-> " << idx << " (" << KPNames[idx] << ") = prediction idx " << prediction_idx;
 				if (prediction_idx >= 0)
 				{
-					std::cout << " => " << predictions[prediction_idx];
+					*cfg_and_state.output << " => " << predictions[prediction_idx];
 				}
-				std::cout << std::endl;
+				*cfg_and_state.output << std::endl;
 			}
 		}
 	}

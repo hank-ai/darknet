@@ -387,7 +387,7 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 
 	if (cfg_and_state.is_verbose and *(net.total_bbox) > 0)
 	{
-		std::cout
+		*cfg_and_state.output
 			<< "total_bbox=" << *(net.total_bbox)
 			<< ", rewritten_bbox=" << 100.0f * float(*(net.rewritten_bbox)) / float(*(net.total_bbox))
 			<< "%" << std::endl;
@@ -524,7 +524,6 @@ int recalculate_workspace_size(Darknet::Network * net)
 	for (int i = 0; i < net->n; ++i)
 	{
 		Darknet::Layer & l = net->layers[i];
-		//printf(" %d: layer = %d,", i, l.type);
 
 		if (l.type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
@@ -539,18 +538,15 @@ int recalculate_workspace_size(Darknet::Network * net)
 		{
 			workspace_size = l.workspace_size;
 		}
-
-//		net->layers[i] = l;
 	}
 
 #ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		const auto workspace_to_allocate = workspace_size / sizeof(float) + 1;
-		std::cout << std::endl << "allocating workspace: " << size_to_IEC_string(workspace_to_allocate) << std::endl;
-//		printf("\n try to allocate additional workspace_size = %1.2f MB \n", (float)workspace_size / 1000000);
+		*cfg_and_state.output << std::endl << "allocating workspace: " << size_to_IEC_string(workspace_to_allocate) << std::endl;
 		net->workspace = cuda_make_array(0, workspace_to_allocate);
-		printf(" CUDA allocate done! \n");
+		*cfg_and_state.output << "CUDA allocate done!" << std::endl;
 	}
 	else
 	{
@@ -561,7 +557,7 @@ int recalculate_workspace_size(Darknet::Network * net)
 	free(net->workspace);
 	net->workspace = (float*)xcalloc(1, workspace_size);
 #endif
-	//fprintf(stderr, " Done!\n");
+
 	return 0;
 }
 
@@ -633,8 +629,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 	net->h = h;
 	int inputs = 0;
 	size_t workspace_size = 0;
-	//fprintf(stderr, "Resizing to %d x %d...\n", w, h);
-	//fflush(stderr);
+
 	for (int i = 0; i < net->n; ++i)
 	{
 		Darknet::Layer & l = net->layers[i];
@@ -691,7 +686,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 		//if(l.type == AVGPOOL) break;
 	}
 
-	std::cout << "Allocating workspace:  " << size_to_IEC_string(workspace_size) << std::endl;
+	*cfg_and_state.output << "Allocating workspace:  " << size_to_IEC_string(workspace_size) << std::endl;
 #ifdef DARKNET_GPU
 	const int size = get_network_input_size(*net) * net->batch;
 	if (cfg_and_state.gpu_index >= 0)
@@ -1769,10 +1764,6 @@ void fuse_conv_batchnorm(Darknet::Network & net)
 			}
 #endif
 		}
-		else
-		{
-			//printf(" Fusion skip layer type: %d \n", l->type);
-		}
 	}
 }
 
@@ -1796,14 +1787,8 @@ void calculate_binary_weights(DarknetNetworkPtr ptr)
 
 		if (l->type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
-			//printf(" Merges Convolutional-%d and batch_norm \n", j);
-
 			if (l->xnor)
 			{
-				//printf("\n %d \n", j);
-				//l->lda_align = 256; // 256bit for AVX2    // set in make_convolutional_layer()
-				//if (l->size*l->size*l->c >= 2048) l->lda_align = 512;
-
 				binary_align_weights(l);
 
 				if (net.layers[j].use_bin_output)
@@ -1829,7 +1814,6 @@ void calculate_binary_weights(DarknetNetworkPtr ptr)
 			}
 		}
 	}
-	//printf("\n calculate_binary_weights Done! \n");
 }
 
 

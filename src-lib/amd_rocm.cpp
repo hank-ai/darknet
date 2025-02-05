@@ -6,11 +6,17 @@
 #include <rocm_smi/rocm_smi.h>
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 void Darknet::show_rocm_info()
 {
 	TAT(TATPARMS);
 
-	std::cout << "AMD ROCm v" << ROCM_BUILD_INFO << std::endl;
+	*cfg_and_state.output << "AMD ROCm v" << ROCM_BUILD_INFO << std::endl;
 
 	const auto status1 = rsmi_init(0);
 
@@ -24,14 +30,14 @@ void Darknet::show_rocm_info()
 		rsmi_status_string(status1, &msg1);
 		rsmi_status_string(status2, &msg2);
 
-		std::cout
+		*cfg_and_state.output
 			<< "- status #" << status1 << ": " << (msg1 ? msg1 : "unknown") << std::endl
 			<< "- status #" << status2 << ": " << (msg2 ? msg2 : "unknown") << std::endl;
 	}
 
 	if (number_of_devices == 0)
 	{
-		std::cout << Darknet::in_colour(Darknet::EColour::kBrightRed, "AMD GPU not detected!") << std::endl;
+		*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kBrightRed, "AMD GPU not detected!") << std::endl;
 	}
 
 	for (uint32_t device_idx = 0; device_idx < number_of_devices; device_idx ++)
@@ -43,7 +49,7 @@ void Darknet::show_rocm_info()
 		uint64_t memory = 0;
 		rsmi_dev_memory_total_get(device_idx, rsmi_memory_type_t::RSMI_MEM_TYPE_VIS_VRAM, &memory);
 
-		std::cout
+		*cfg_and_state.output
 			<< "=> " << device_idx
 			<< ": " << Darknet::in_colour(Darknet::EColour::kBrightGreen, name)
 			<< ", " << Darknet::in_colour(Darknet::EColour::kYellow, size_to_IEC_string(memory))

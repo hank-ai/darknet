@@ -149,7 +149,7 @@ void Darknet::display_error_msg(const std::string & msg)
 
 	if (not msg.empty())
 	{
-		std::cout << in_colour(EColour::kBrightRed, msg);
+		*cfg_and_state.output << in_colour(EColour::kBrightRed, msg);
 	}
 
 	return;
@@ -162,7 +162,7 @@ void Darknet::display_warning_msg(const std::string & msg)
 
 	if (not msg.empty())
 	{
-		std::cout << in_colour(EColour::kYellow, msg) << std::flush;
+		*cfg_and_state.output << in_colour(EColour::kYellow, msg) << std::flush;
 	}
 
 	return;
@@ -397,7 +397,7 @@ void Darknet::cfg_layers()
 
 		layer_type_to_name[type] = name;
 		layer_name_to_type[name] = type;
-		std::cout << "layer #" << layer_type_index << "=" << name << std::endl;
+		*cfg_and_state.output << "layer #" << layer_type_index << "=" << name << std::endl;
 	}
 
 	if (layer_type_to_name.size() != layer_name_to_type.size())
@@ -436,7 +436,7 @@ void Darknet::cfg_layers()
 	std::filesystem::path config_dir;
 	for (const auto & fn : places_to_look)
 	{
-		std::cout << "Looking for \"" << fn << "\"" << std::endl;
+		*cfg_and_state.output << "Looking for \"" << fn << "\"" << std::endl;
 		if (std::filesystem::exists(fn))
 		{
 			// we found something we can use!
@@ -449,7 +449,7 @@ void Darknet::cfg_layers()
 		darknet_fatal_error(DARKNET_LOC, "cannot proceed since we did not find the .cfg files in any of the usual locations");
 	}
 
-	std::cout << "Using configuration subdirectory " << config_dir.string() << std::endl;
+	*cfg_and_state.output << "Using configuration subdirectory " << config_dir.string() << std::endl;
 
 	// iterate over all the .cfg files in this directory
 	VStr filenames;
@@ -503,7 +503,7 @@ void Darknet::cfg_layers()
 	// YOLOv3 has a date of 2018-05-06, so let's use the start of that month as the cutoff for what we consider "modern"
 	const std::string modern_cutoff_date = "2018-05-01";
 
-	std::cout << "Saving results for " << filenames.size() << " config files to cfg_layers_output.html" << std::endl;
+	*cfg_and_state.output << "Saving results for " << filenames.size() << " config files to cfg_layers_output.html" << std::endl;
 
 	std::ofstream ofs("cfg_layers_output.html");
 	ofs << "<html>" << std::endl
@@ -712,7 +712,7 @@ void Darknet::cfg_layers()
 	ofs	<< "</body>" << std::endl
 		<< "</html>" << std::endl;
 
-	std::cout << "Done." << std::endl;
+	*cfg_and_state.output << "Done." << std::endl;
 
 	return;
 }

@@ -1,6 +1,13 @@
 #include "activations.hpp"
 #include "darknet_internal.hpp"
 
+
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 const char *get_activation_string(ACTIVATION a)
 {
 	TAT(TATPARMS);
@@ -70,7 +77,9 @@ ACTIVATION get_activation(char *s)
 	if (strcmp(s, "leaky")==0) return LEAKY;
 	if (strcmp(s, "tanh")==0) return TANH;
 	if (strcmp(s, "stair")==0) return STAIR;
-	fprintf(stderr, "Couldn't find activation function %s, going with ReLU\n", s);
+
+	*cfg_and_state.output << "ERROR: Couldn't find activation function \"" << s << "\", going with ReLU" << std::endl;
+
 	return RELU;
 }
 

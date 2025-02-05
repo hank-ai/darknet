@@ -390,7 +390,7 @@ Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
 				//cv::addWeighted(dst, 1.5, img_tmp, -0.5, 0, img_tmp);
 				//dst = img_tmp;
 			}
-			//std::cout << " blur num_boxes = " << num_boxes << std::endl;
+			//*cfg_and_state.output << " blur num_boxes = " << num_boxes << std::endl;
 
 			if (blur == 1)
 			{

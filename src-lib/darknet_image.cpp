@@ -382,7 +382,6 @@ void Darknet::draw_detections_v3(Darknet::Image & im, const Darknet::Detection *
 			width = 1;
 		}
 
-		//printf("%d %s: %.0f%%\n", i, names[selected_detections[i].best_class], prob*100);
 		int offset = selected_detections[i].best_class * 123457 % classes;
 		float red	= Darknet::get_color(2, offset, classes);
 		float green	= Darknet::get_color(1, offset, classes);

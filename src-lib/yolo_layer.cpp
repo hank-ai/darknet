@@ -1121,7 +1121,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	// show detailed output
 	if (cfg_and_state.is_verbose)
 	{
-		std::cout <<
+		*cfg_and_state.output <<
 				"v3 " << (	l.iou_loss == MSE	?	"mse"	:
 							l.iou_loss == GIOU	?	"giou"	:
 													"iou"	) << " loss, "
@@ -1584,7 +1584,7 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 					const auto bbox = get_yolo_box(l.output, l.biases, l.mask[n], box_index, col, row, l.w, l.h, net->w, net->h, l.w * l.h, l.new_coords);
 
 					#if 0
-					std::cout
+					*cfg_and_state.output
 						<< "layer=" << layer_index
 						<< " anchor=" << n
 						<< " idx=" << idx
