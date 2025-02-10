@@ -74,12 +74,12 @@ namespace
 				}
 			}
 
-			printf("classes_multipliers: ");
+			*cfg_and_state.output << "classes_multipliers: ";
 			for (size_t i = 0; i < vi.size(); ++i)
 			{
-				printf("%.1f, ", classes_multipliers[i]);
+				*cfg_and_state.output << classes_multipliers[i] << ", ";
 			}
-			printf("\n");
+			*cfg_and_state.output << std::endl;
 		}
 
 		return classes_multipliers;
@@ -923,7 +923,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 				l.receptive_h_scale = parms.receptive_h_scale;
 			}
 
-			fprintf(stderr, "%4d - receptive field: %d x %d \n", idx, parms.receptive_w, parms.receptive_h);
+			*cfg_and_state.output << idx << " - receptive field: " << parms.receptive_w << " x " << parms.receptive_h << std::endl;
 		}
 
 #ifdef DARKNET_GPU
@@ -1114,9 +1114,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			{
 				if (l.delta_gpu && l.keep_delta_gpu)
 				{
-					//cuda_free(l.delta_gpu);   // already called above
 					l.delta_gpu = cuda_make_array_pinned_preallocated(NULL, l.batch*l.outputs); // l.steps
-					//printf("\n\n PINNED DELTA GPU = %d \n", l.batch*l.outputs);
 				}
 			}
 		}
@@ -1327,14 +1325,14 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 		{
 			net.cudnn_half = 0;
 		}
-#endif// CUDNN_HALF
-		fprintf(stderr, " %d : compute_capability = %d, cudnn_half = %d, GPU: %s \n", net.gpu_index, compute_capability, net.cudnn_half, device_name);
+#endif // CUDNN_HALF
+		*cfg_and_state.output << net.gpu_index << ": compute_capability=" << compute_capability << ", cudnn_half=" << net.cudnn_half << ", GPU=" << device_name << std::endl;
 	}
 	else
 	{
-		fprintf(stderr, " GPU isn't used \n");
+		*cfg_and_state.output << "GPU not used" << std::endl;
 	}
-#endif// DARKNET_GPU
+#endif // DARKNET_GPU
 
 	if (net.policy == STEP)
 	{
@@ -1652,8 +1650,6 @@ Darknet::Layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	const std::string iou_loss = s.find_str("iou_loss", "mse");
 	l.iou_loss = static_cast<IOU_LOSS>(get_IoU_loss_from_name(iou_loss)); // "iou"
 
-//	fprintf(stderr, "[yolo] params: iou loss: %s (%d), iou_norm: %2.2f, obj_norm: %2.2f, cls_norm: %2.2f, delta_norm: %2.2f, scale_x_y: %2.2f\n", iou_loss.c_str(), l.iou_loss, l.iou_normalizer, l.obj_normalizer, l.cls_normalizer, l.delta_normalizer, l.scale_x_y);
-
 	const std::string iou_thresh_kind = s.find_str("iou_thresh_kind", "iou");
 	l.iou_thresh_kind = static_cast<IOU_LOSS>(get_IoU_loss_from_name(iou_thresh_kind));
 
@@ -1661,8 +1657,6 @@ Darknet::Layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 
 	const std::string nms_kind = s.find_str("nms_kind", "default");
 	l.nms_kind = static_cast<NMS_KIND>(get_NMS_kind_from_name(nms_kind));
-
-//	printf("nms_kind: %s (%d), beta = %f\n", nms_kind.c_str(), l.nms_kind, l.beta_nms);
 
 	l.jitter = s.find_float("jitter", .2);
 	l.resize = s.find_float("resize", 1.0);
@@ -1788,7 +1782,12 @@ Darknet::Layer Darknet::CfgFile::parse_shortcut_section(const size_t section_idx
 
 		if (parms.w != net.layers[index].out_w || parms.h != net.layers[index].out_h || parms.c != net.layers[index].out_c)
 		{
-			printf(" (%4d x%4d x%4d) + (%4d x%4d x%4d)\n", parms.w, parms.h, parms.c, net.layers[index].out_w, net.layers[index].out_h, net.layers[index].out_c);
+			*cfg_and_state.output
+				<< "("
+				<< parms.w << " x " << parms.h << " x " << parms.c
+				<< ") + ("
+				<< net.layers[index].out_w << " x " << net.layers[index].out_h << " x " << net.layers[index].out_c
+				<< ")" << std::endl;
 		}
 	}
 
@@ -2087,12 +2086,21 @@ Darknet::Layer Darknet::CfgFile::parse_gaussian_yolo_section(const size_t sectio
 	l.beta_nms = s.find_float("beta_nms", 0.6f);
 	const std::string nms_kind = s.find_str("nms_kind", "default");
 	l.nms_kind = static_cast<NMS_KIND>(get_NMS_kind_from_name(nms_kind));
-	printf("nms_kind: %s (%d), beta = %f\n", nms_kind.c_str(), l.nms_kind, l.beta_nms);
+
+	*cfg_and_state.output << "nms_kind: " << nms_kind << "(" << l.nms_kind << "), beta=" << l.beta_nms << std::endl;
 
 	const std::string yolo_point = s.find_str("yolo_point", "center");
 	l.yolo_point = static_cast<YOLO_POINT>(get_yolo_point_types_from_name(yolo_point));
 
-	fprintf(stderr, "[Gaussian_yolo] iou loss: %s (%d), iou_norm: %2.2f, obj_norm: %2.2f, cls_norm: %2.2f, delta_norm: %2.2f, scale: %2.2f, point: %d\n", iou_loss.c_str(), l.iou_loss, l.iou_normalizer, l.obj_normalizer, l.cls_normalizer, l.delta_normalizer, l.scale_x_y, l.yolo_point);
+	*cfg_and_state.output
+		<< "[Gaussian_yolo] iou loss: " << iou_loss << " (" << l.iou_loss << ")"
+		<< ", iou_norm: " << l.iou_normalizer
+		<< ", obj_norm: " << l.obj_normalizer
+		<< ", cls_norm: " << l.cls_normalizer
+		<< ", delta_norm: " << l.delta_normalizer
+		<< ", scale: " << l.scale_x_y
+		<< ", point: " << l.yolo_point
+		<< std::endl;
 
 	l.jitter		= s.find_float("jitter"			, 0.2f);
 	l.resize		= s.find_float("resize"			, 1.0f);
@@ -2249,17 +2257,17 @@ Darknet::Layer Darknet::CfgFile::parse_dropout_section(const size_t section_idx)
 
 	if (dropblock_size_abs > parms.w || dropblock_size_abs > parms.h)
 	{
-		printf(" [dropout] - dropblock_size_abs = %d that is bigger than layer size %d x %d \n", dropblock_size_abs, parms.w, parms.h);
+		*cfg_and_state.output << "[dropout] - dropblock_size_abs=" << dropblock_size_abs << " that is bigger than layer size " << parms.w << " x " << parms.h << std::endl;
 		dropblock_size_abs = min_val_cmp(parms.w, parms.h);
 	}
 	if (dropblock && !dropblock_size_rel && !dropblock_size_abs)
 	{
-		printf(" [dropout] - None of the parameters (dropblock_size_rel or dropblock_size_abs) are set, will be used: dropblock_size_abs = 7 \n");
+		*cfg_and_state.output << "[dropout] - None of the parameters (dropblock_size_rel or dropblock_size_abs) are set, will use dropblock_size_abs=7" << std::endl;
 		dropblock_size_abs = 7;
 	}
 	if (dropblock_size_rel && dropblock_size_abs)
 	{
-		printf(" [dropout] - Both parameters are set, only the parameter will be used: dropblock_size_abs = %d \n", dropblock_size_abs);
+		*cfg_and_state.output << "[dropout] - Both parameters are set, only this parameter will be used: dropblock_size_abs=" << dropblock_size_abs << std::endl;
 		dropblock_size_rel = 0;
 	}
 

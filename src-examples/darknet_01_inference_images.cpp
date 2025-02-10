@@ -26,10 +26,9 @@ int main(int argc, char * argv[])
 {
 	try
 	{
-		Darknet::show_version_info();
-
 		Darknet::set_verbose(true);
 		Darknet::Parms parms = Darknet::parse_arguments(argc, argv);
+		Darknet::show_version_info();
 		Darknet::NetworkPtr net = Darknet::load_neural_network(parms);
 
 		int network_w = 0;

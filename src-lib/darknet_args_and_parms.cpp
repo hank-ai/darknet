@@ -169,6 +169,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("width"				, "", 416	, "The width of the network.  --width 416"									),
 		ArgsAndParms("height"				, "", 416	, "The height of the network.  --width 416"									),
 		ArgsAndParms("skipclasses"			, "", " "	, "Class indexes which Darknet should skip when returning results or annotating images.  --skip-classes=2,5-8"),
+		ArgsAndParms("log"					, "", ""	, "File to which Darknet/YOLO messages are logged.  Default is to use STDOUT."),
 		ArgsAndParms("extoutput"			),
 		ArgsAndParms("savelabels"			),
 		ArgsAndParms("chart"				),

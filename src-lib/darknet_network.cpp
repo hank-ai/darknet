@@ -633,7 +633,6 @@ int resize_network(Darknet::Network * net, int w, int h)
 	for (int i = 0; i < net->n; ++i)
 	{
 		Darknet::Layer & l = net->layers[i];
-		//printf(" (resize %d: layer = %d) , ", i, l.type);
 
 		switch (l.type)
 		{
@@ -1238,7 +1237,6 @@ void fill_network_boxes_batch(Darknet::Network * net, int w, int h, float thresh
 		else if (l.type == Darknet::ELayerType::REGION)
 		{
 			custom_get_region_detections(l, w, h, net->w, net->h, thresh, map, hier, relative, dets, letter);
-			//get_region_detections(l, w, h, net->w, net->h, thresh, map, hier, relative, dets);
 			dets += l.w*l.h*l.n;
 		}
 	}
@@ -1340,7 +1338,6 @@ char * Darknet::detection_to_json(Darknet::Detection *dets, int nboxes, int clas
 	{
 		for (int j = 0; j < classes; ++j)
 		{
-//			int show = strncmp(names[j], "dont_show", 9);
 			const bool show = (names[j].find("dont_show") != 0);
 			if (dets[i].prob[j] > thresh && show)
 			{
@@ -1354,8 +1351,6 @@ char * Darknet::detection_to_json(Darknet::Detection *dets, int nboxes, int clas
 				{
 					return 0;
 				}
-				//sprintf(buf, "{\"image_id\":%d, \"category_id\":%d, \"bbox\":[%f, %f, %f, %f], \"score\":%f}",
-				//    image_id, j, dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h, dets[i].prob[j]);
 
 				sprintf(buf, "  {\"class_id\":%d, \"name\":\"%s\", \"relative_coordinates\":{\"center_x\":%f, \"center_y\":%f, \"width\":%f, \"height\":%f}, \"confidence\":%f}",
 					j, names[j].c_str(), dets[i].bbox.x, dets[i].bbox.y, dets[i].bbox.w, dets[i].bbox.h, dets[i].prob[j]);
@@ -1674,8 +1669,6 @@ void fuse_conv_batchnorm(Darknet::Network & net)
 
 		if (l->type == Darknet::ELayerType::CONVOLUTIONAL)
 		{
-			//printf(" Merges Convolutional-%d and batch_norm \n", j);
-
 			if (l->share_layer != NULL)
 			{
 				l->batch_normalize = 0;
@@ -1718,7 +1711,6 @@ void fuse_conv_batchnorm(Darknet::Network & net)
 				printf(" l->nweights = %d, j = %d \n", l->nweights, j);
 			}
 
-			// nweights - l.n or l.n*l.c or (l.n*l.c*l.h*l.w)
 			const int layer_step = l->nweights / (l->n + 1);    // 1 or l.c or (l.c * l.h * l.w)
 
 			for (int chan = 0; chan < layer_step; ++chan)

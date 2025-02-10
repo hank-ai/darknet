@@ -113,10 +113,7 @@ void save_shortcut_weights(Darknet::Layer & l, FILE *fp)
 		printf("\n pull_shortcut_layer \n");
 	}
 #endif
-	int i;
-	//if (l.weight_updates) for (i = 0; i < l.nweights; ++i) printf(" %f, ", l.weight_updates[i]);
-	//printf(" l.nweights = %d - update \n", l.nweights);
-	for (i = 0; i < l.nweights; ++i)
+	for (int i = 0; i < l.nweights; ++i)
 	{
 		printf(" %f, ", l.weights[i]);
 	}
@@ -335,16 +332,11 @@ void load_connected_weights(Darknet::Layer & l, FILE *fp, int transpose)
 	{
 		transpose_matrix(l.weights, l.inputs, l.outputs);
 	}
-	//printf("Biases: %f mean %f variance\n", mean_array(l.biases, l.outputs), variance_array(l.biases, l.outputs));
-	//printf("Weights: %f mean %f variance\n", mean_array(l.weights, l.outputs*l.inputs), variance_array(l.weights, l.outputs*l.inputs));
 	if (l.batch_normalize && (!l.dontloadscales))
 	{
 		xfread(l.scales, sizeof(float), l.outputs, fp);
 		xfread(l.rolling_mean, sizeof(float), l.outputs, fp);
 		xfread(l.rolling_variance, sizeof(float), l.outputs, fp);
-		//printf("Scales: %f mean %f variance\n", mean_array(l.scales, l.outputs), variance_array(l.scales, l.outputs));
-		//printf("rolling_mean: %f mean %f variance\n", mean_array(l.rolling_mean, l.outputs), variance_array(l.rolling_mean, l.outputs));
-		//printf("rolling_variance: %f mean %f variance\n", mean_array(l.rolling_variance, l.outputs), variance_array(l.rolling_variance, l.outputs));
 	}
 #ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
@@ -443,8 +435,6 @@ void load_shortcut_weights(Darknet::Layer & l, FILE *fp)
 
 	xfread(l.weights, sizeof(float), num, fp);
 
-	//for (int i = 0; i < l.nweights; ++i) printf(" %f, ", l.weights[i]);
-	//printf(" read_bytes = %d \n\n", read_bytes);
 #ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0)
 	{
@@ -499,21 +489,18 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 
 	if ((major * 10 + minor) >= 2)
 	{
-//		printf("\n seen 64");
 		uint64_t iseen = 0;
 		xfread(&iseen, sizeof(uint64_t), 1, fp);
 		*net->seen = iseen;
 	}
 	else
 	{
-//		printf("\n seen 32");
 		uint32_t iseen = 0;
 		xfread(&iseen, sizeof(uint32_t), 1, fp);
 		*net->seen = iseen;
 	}
 
 	*net->cur_iteration = get_current_batch(*net);
-//	printf(", trained: %.0f K-images (%.0f Kilo-batches_64) \n", (float)(*net->seen / 1000), (float)(*net->seen / 64000));
 	int transpose = (major > 1000) || (minor > 1000);
 
 	size_t layers_with_weights = 0;

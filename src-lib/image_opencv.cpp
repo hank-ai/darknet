@@ -204,18 +204,11 @@ void draw_detections_cv_v3(cv::Mat mat, Darknet::Detection * dets, int num, floa
 			{
 				int width = std::max(1.0f, mat.rows * .002f);
 
-				//printf("%d %s: %.0f%%\n", i, names[class_id], prob*100);
 				int offset = class_id * 123457 % classes;
 				float red	= Darknet::get_color(2, offset, classes);
 				float green	= Darknet::get_color(1, offset, classes);
 				float blue	= Darknet::get_color(0, offset, classes);
-				//float rgb[3];
 
-				//width = prob*20+2;
-
-				//rgb[0] = red;
-				//rgb[1] = green;
-				//rgb[2] = blue;
 				Darknet::Box b = dets[i].bbox;
 				if (std::isnan(b.w) || std::isinf(b.w)) b.w = 0.5;
 				if (std::isnan(b.h) || std::isinf(b.h)) b.h = 0.5;
@@ -225,7 +218,6 @@ void draw_detections_cv_v3(cv::Mat mat, Darknet::Detection * dets, int num, floa
 				b.h = (b.h < 1) ? b.h : 1;
 				b.x = (b.x < 1) ? b.x : 1;
 				b.y = (b.y < 1) ? b.y : 1;
-				//printf("%f %f %f %f\n", b.x, b.y, b.w, b.h);
 
 				int left = (b.x - b.w / 2.) * mat.cols;
 				int right = (b.x + b.w / 2.) * mat.cols;
@@ -236,12 +228,6 @@ void draw_detections_cv_v3(cv::Mat mat, Darknet::Detection * dets, int num, floa
 				if (right > mat.cols - 1) right = mat.cols - 1;
 				if (top < 0) top = 0;
 				if (bot > mat.rows - 1) bot = mat.rows - 1;
-
-				//int b_x_center = (left + right) / 2;
-				//int b_y_center = (top + bot) / 2;
-				//int b_width = right - left;
-				//int b_height = bot - top;
-				//sprintf(labelstr, "%d x %d - w: %d, h: %d", b_x_center, b_y_center, b_width, b_height);
 
 				float const font_size = mat.rows / 1000.F;
 				cv::Size const text_size = cv::getTextSize(labelstr, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, 1, 0);

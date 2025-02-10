@@ -115,14 +115,9 @@ namespace
 
 			if (new_coords)
 			{
-				//tx = (truth.x*lw - i + 0.5) / 2;
-				//ty = (truth.y*lh - j + 0.5) / 2;
 				tw = sqrt(truth.w*w / (4 * biases[2 * n]));
 				th = sqrt(truth.h*h / (4 * biases[2 * n + 1]));
 			}
-
-			//printf(" tx = %f, ty = %f, tw = %f, th = %f \n", tx, ty, tw, th);
-			//printf(" x = %f, y = %f, w = %f, h = %f \n", x[index + 0 * stride], x[index + 1 * stride], x[index + 2 * stride], x[index + 3 * stride]);
 
 			// accumulate delta
 			delta[index + 0 * stride] += scale * (tx - x[index + 0 * stride]) * iou_normalizer;
@@ -996,7 +991,6 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 
 			ep_loss_threshold = min_val_cmp(final_badlebels_threshold, rolling_avg) * progress;
 		}
-
 
 		// reject some percent of the highest deltas to filter bad labels
 		if (state.net.badlabels_rejection_percentage && start_point < iteration_num)

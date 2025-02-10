@@ -113,8 +113,6 @@ Darknet::Layer make_lstm_layer(int batch, int inputs, int outputs, int steps, in
 	l.backward_gpu = backward_lstm_layer_gpu;
 	l.update_gpu = update_lstm_layer_gpu;
 
-	//l.state_gpu = cuda_make_array(l.state, batch*l.outputs);
-
 	l.output_gpu = cuda_make_array(0, batch*outputs*steps);
 	l.delta_gpu = cuda_make_array(0, batch*l.outputs*steps);
 

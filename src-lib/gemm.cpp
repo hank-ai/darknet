@@ -123,20 +123,6 @@ void gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 // XNOR bitwise GEMM for binary neural network
 //--------------------------------------------
 
-#if 0 // unused
-void binary_int32_printf(uint32_t src)
-{
-	TAT(TATPARMS);
-	int i;
-	for (i = 0; i < 32; ++i) {
-		if (src & 1) printf("1");
-		else printf("0");
-		src = src >> 1;
-	}
-	printf("\n");
-}
-#endif
-
 #ifndef DARKNET_GPU
 
 uint8_t reverse_8_bit(uint8_t a)
@@ -274,7 +260,6 @@ void transpose_bin(uint32_t *A, uint32_t *B, const int n, const int m, const int
 			int a_index = i*lda + j;
 			int b_index = j*ldb + i;
 			transpose_32x32_bits_reversed_diagonale(&A[a_index / 32], &B[b_index / 32], lda / 32, ldb / 32);
-			//transpose_32x32_bits_my(&A[a_index/32], &B[b_index/32], lda/32, ldb/32);
 		}
 
 		/// @todo V3 this will never run...right? Isn't "j" always going to be >= "m" by the time we get here?
@@ -1790,14 +1775,11 @@ void gemm_nn_bin_32bit_packed(int M, int N, int K, float ALPHA,
 			PUT_IN_REGISTER uint32_t A_PART = A[i * lda + s];
 			for (j = 0; j < N; ++j) // out_h*out_w;
 			{
-				//c[i*n + j] += A_PART*b[s*n + j];
 				PUT_IN_REGISTER uint32_t B_PART = B[s * ldb + j];
 				uint32_t xnor_result = ~(A_PART ^ B_PART);
-				//printf(" xnor_result = %d, ", xnor_result);
 				int32_t count = POPCNT(xnor_result);  // must be Signed int
 
 				C[i*ldc + j] += (2 * count - 32) * mean_val;
-				//c[i*n + j] += count*mean;
 			}
 		}
 	}
@@ -1811,7 +1793,6 @@ void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride,
 
 	const int out_h = (h + 2 * pad - ksize) / stride + 1;    // output_height=input_height for stride=1 and pad=1
 	const int out_w = (w + 2 * pad - ksize) / stride + 1;    // output_width=input_width for stride=1 and pad=1
-	//int i, f, j;
 
 	int fil;
 	// filter index
@@ -2341,26 +2322,7 @@ void convolution_repacked(uint32_t *packed_input, uint32_t *packed_weights, floa
 							int input_x = x + f_x - pad;
 							if (input_y < 0 || input_x < 0 || input_y >= h || input_x >= w) continue;
 
-							// normal
-							//float input = state.input[(chan + c_pack)*l.w*l.h + input_y*l.w + input_x];
-							//float weight = l.weights[fil*l.c*l.size*l.size + (chan + c_pack)*l.size*l.size + f_y*l.size + f_x];
-
-							// packed
-							//float input = re_packed_input[chan*l.w*l.h + (input_y*l.w + input_x) * 32 + c_pack];
-							//float weight = l.weights[fil*l.c*l.size*l.size + chan*l.size*l.size + (f_y*l.size + f_x) * 32 + c_pack];
-							//sum += input * weight;
-
-							//float input = re_packed_input[chan*l.w*l.h + (input_y*l.w + input_x) * 32 + c_pack];
-							//float weight = l.weights[fil*l.c*l.size*l.size + chan*l.size*l.size + (f_y*l.size + f_x) * 32 + c_pack];
-							//uint32_t bit1 = input > 0;
-							//uint32_t bit2 = weight > 0;
-							//uint32_t count = (~(bit1 ^ bit2)) & 1;
-							//float result = (2 * (float)count - 1) * mean_val;
-							//printf("\n mul = %f, bit1 = %d, bit2 = %d, count = %d, mean = %f, result = %f  ", input*weight, bit1, bit2, count, mean_val, result);
-							//sum += result;
-
 							uint32_t input = ((uint32_t *)packed_input)[chan*w*h + input_y*w + input_x];
-							//uint32_t weight = ((uint32_t *)l.align_bit_weights)[fil*l.c*l.size*l.size/32 + chan*l.size*l.size + f_y*l.size + f_x];
 							uint32_t weight = ((uint32_t *)packed_weights)[fil*new_lda / 32 + chan*size*size + f_y*size + f_x];
 
 							uint32_t xnor_result = ~(input ^ weight);
@@ -2368,9 +2330,7 @@ void convolution_repacked(uint32_t *packed_input, uint32_t *packed_weights, floa
 							sum += (2 * count - 32) * mean_val;
 						}
 					}
-					// l.output[filters][width][height] +=
-					//        state.input[channels][width][height] *
-					//        l.weights[filters][channels][filter_width][filter_height];
+
 					output[output_index] += sum;
 				}
 	}

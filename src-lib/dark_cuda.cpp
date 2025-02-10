@@ -46,7 +46,11 @@ void *cuda_get_context()
 
 	CUcontext pctx;
 	CUresult status = cuCtxGetCurrent(&pctx);
-	if(status != CUDA_SUCCESS) fprintf(stderr, " Error: cuCtxGetCurrent() is failed \n");
+	if (status != CUDA_SUCCESS)
+	{
+		*cfg_and_state.output << "Error: cuCtxGetCurrent() has failed" << std::endl;
+	}
+
 	return (void *)pctx;
 }
 
@@ -134,10 +138,10 @@ cudaStream_t get_cuda_stream()
 #endif
 		if (status != cudaSuccess)
 		{
-			fflush(NULL);
-			printf("\ncudaStreamCreate error: %d\n", status);
-			const char *s = cudaGetErrorString(status);
-			printf("CUDA Error: %s\n", s);
+			*cfg_and_state.output
+				<< std::endl
+				<< "cudaStreamCreate() error: " << status << std::endl
+				<< "CUDA error: " << cudaGetErrorString(status) << std::endl;
 			status = cudaStreamCreateWithFlags(&streamsArray[i], cudaStreamNonBlocking);    // cudaStreamDefault
 			CHECK_CUDA(status);
 		}
@@ -202,8 +206,7 @@ void cudnn_check_error_extended(cudnnStatus_t status, const char * const filenam
 
 	if (status != CUDNN_STATUS_SUCCESS)
 	{
-		fflush(NULL);
-		printf("\ncuDNN status error in %s, %s(), line #%d\n", filename, function, line);
+		*cfg_and_state.output << std::endl << "cuDNN status error in " << filename << ", " << function << "(), line #" << line << std::endl;
 		cudnn_check_error(status, filename, function, line);
 	}
 #if defined(DEBUG) || defined(CUDA_DEBUG)
@@ -214,7 +217,7 @@ void cudnn_check_error_extended(cudnnStatus_t status, const char * const filenam
 		cudaError_t cuda_status = cudaDeviceSynchronize();
 		if (cuda_status != (cudaError_t)CUDA_SUCCESS)
 		{
-			printf("\ncudaDeviceSynchronize() error in %s, %s(), line #%d\n", filename, function, line);
+			*cfg_and_state.output << std::endl << "cudaDeviceSynchronize() error in " << filename << ", " << function << "(), line #" << line << std::endl;
 		}
 	}
 	cudnn_check_error(status, filename, function, line);
@@ -238,7 +241,7 @@ void cublas_check_error(cublasStatus_t status)
 	}
 	if (status != CUBLAS_STATUS_SUCCESS)
 	{
-		printf("cuBLAS Error\n");
+		*cfg_and_state.output << "cuBLAS Error" << std::endl;
 	}
 }
 
@@ -248,7 +251,7 @@ void cublas_check_error_extended(cublasStatus_t status, const char * const filen
 
 	if (status != CUBLAS_STATUS_SUCCESS)
 	{
-	printf("\n cuBLAS status Error in: file: %s function: %s() line: %d\n", filename, function, line);
+		*cfg_and_state.output << std::endl << "cuBLAS status error in " << filename << ", " << function << "(), line #" << line << std::endl;
 	}
 #if defined(DEBUG) || defined(CUDA_DEBUG)
 	cuda_debug_sync = 1;
@@ -258,7 +261,7 @@ void cublas_check_error_extended(cublasStatus_t status, const char * const filen
 		cudaError_t cuda_status = cudaDeviceSynchronize();
 		if (cuda_status != (cudaError_t)CUDA_SUCCESS)
 		{
-			printf("\ncudaDeviceSynchronize() Error in: file: %s function: %s() line: %d\n", filename, function, line);
+			*cfg_and_state.output << std::endl << "cudaDeviceSynchronize() error in " << filename << ", " << function << "(), line #" << line << std::endl;
 		}
 	}
 	cublas_check_error(status);
@@ -272,7 +275,8 @@ cublasHandle_t blas_handle()
 	TAT(TATPARMS);
 
 	int i = cuda_get_device();
-	if (!blasInit[i]) {
+	if (!blasInit[i])
+	{
 		CHECK_CUBLAS(cublasCreate(&blasHandle[i]));
 		cublasStatus_t status = cublasSetStream(blasHandle[i], get_cuda_stream());
 		CHECK_CUBLAS(status);
@@ -295,7 +299,7 @@ cudaStream_t switch_stream(int i)
 	{
 		CHECK_CUDA(cudaStreamCreateWithFlags(&switchStreamsArray[i], cudaStreamNonBlocking));
 		switchStreamInit[i] = 1;
-		printf(" Create stream %d \n", i);
+		*cfg_and_state.output << "Create CUDA stream #" << i << std::endl;
 	}
 
 	streamsArray[dev_id] = switchStreamsArray[i];
@@ -306,7 +310,7 @@ cudaStream_t switch_stream(int i)
 		CHECK_CUDNN( cudnnCreate(&switchCudnnHandle[i]) );
 		switchCudnnInit[i] = 1;
 		CHECK_CUDNN(cudnnSetStream(switchCudnnHandle[i], switchStreamsArray[i]));
-		printf(" Create cudnn-handle %d \n", i);
+		*cfg_and_state.output << "Create cuDNN handle #" << i << std::endl;
 	}
 	cudnnHandle[dev_id] = switchCudnnHandle[i];
 	cudnnInit[dev_id] = switchCudnnInit[i];
@@ -448,10 +452,6 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 			x_cpu = (float *)((char *)pinned_ptr[pinned_block_id] + pinned_index);
 			pinned_index += allocation_size;
 		}
-		else
-		{
-			//printf("Pre-allocated pinned memory is over! \n");
-		}
 	}
 
 	if(!x_cpu)
@@ -499,7 +499,10 @@ float *cuda_make_array_pinned(float *x, size_t n)
 	float *x_gpu;
 	size_t size = sizeof(float)*n;
 	cudaError_t status = cudaHostAlloc((void **)&x_gpu, size, cudaHostRegisterMapped);
-	if (status != cudaSuccess) fprintf(stderr, " Can't allocate CUDA-pinned memory on CPU-RAM \n");
+	if (status != cudaSuccess)
+	{
+		*cfg_and_state.output << "Failed to allocate CUDA pinned memory (x=" << x << ", size=" << n << ")" << std::endl;
+	}
 	CHECK_CUDA(status);
 	if (x)
 	{
@@ -519,7 +522,6 @@ float *cuda_make_array(float *x, size_t n)
 	TAT(TATPARMS);
 
 	const size_t size = n * sizeof(float);
-//    printf("allocating CUDA memory: %d floats (%s)\n", n, size_to_IEC_string(size));
 
 	float * x_gpu = NULL;
 	cudaError_t status = cudaMalloc((void **)&x_gpu, size);
@@ -543,10 +545,13 @@ void **cuda_make_array_pointers(void **x, size_t n)
 {
 	TAT(TATPARMS);
 
-	void **x_gpu;
+	void **x_gpu = nullptr;
 	size_t size = sizeof(void*) * n;
 	cudaError_t status = cudaMalloc((void **)&x_gpu, size);
-	if (status != cudaSuccess) fprintf(stderr, "Try increasing subdivisions=... in your cfg file.\n");
+	if (status != cudaSuccess)
+	{
+		*cfg_and_state.output << "Try increasing subdivisions=... in your cfg file." << std::endl;
+	}
 	CHECK_CUDA(status);
 	if (x)
 	{
@@ -584,7 +589,9 @@ float cuda_compare(float *x_gpu, float *x, size_t n, char *s)
 	cuda_pull_array(x_gpu, tmp, n);
 	axpy_cpu(n, -1, x, 1, tmp, 1);
 	float err = dot_cpu(n, tmp, 1, tmp, 1);
-	printf("Error %s: %f\n", s, sqrt(err/n));
+
+	*cfg_and_state.output << "Error " << s << ": " << sqrt(err/n) << std::endl;
+
 	free(tmp);
 	return err;
 }
@@ -596,8 +603,14 @@ int *cuda_make_int_array(size_t n)
 	int *x_gpu;
 	size_t size = sizeof(int)*n;
 	cudaError_t status = cudaMalloc((void **)&x_gpu, size);
-	if(status != cudaSuccess) fprintf(stderr, " Try to set subdivisions=... to a larger value in your cfg-file. \n");
+
+	if(status != cudaSuccess)
+	{
+		*cfg_and_state.output << "Try increasing subdivisions=... in your cfg file." << std::endl;
+	}
+
 	CHECK_CUDA(status);
+
 	return x_gpu;
 }
 
@@ -651,8 +664,6 @@ void cuda_pull_array(float *x_gpu, float *x, size_t n)
 	TAT(TATPARMS);
 
 	size_t size = sizeof(float)*n;
-	//cudaError_t status = cudaMemcpy(x, x_gpu, size, cudaMemcpyDeviceToHost);
-	//printf("cuda_pull_array - get_cuda_stream() = %d \n", get_cuda_stream());
 	cudaError_t status = cudaMemcpyAsync(x, x_gpu, size, cudaMemcpyDeviceToHost, get_cuda_stream());
 	CHECK_CUDA(status);
 	CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));

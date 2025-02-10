@@ -4,6 +4,12 @@
 #include "im2col.hpp"
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 __global__ void binarize_kernel(float *x, int n, float *binary)
 {
 	int i = (blockIdx.x + blockIdx.y*gridDim.x) * blockDim.x + threadIdx.x;
@@ -916,7 +922,7 @@ void assisted_excitation_forward_gpu(Darknet::Layer & l, Darknet::NetworkState s
 
 		for (b = 0; b < l.batch; ++b)
 		{
-			printf(" Assisted Excitation alpha = %f \n", alpha);
+			*cfg_and_state.output << "Assisted Excitation alpha = " << alpha << std::endl;
 			Darknet::Image img = Darknet::float_to_image(l.out_w, l.out_h, 1, &gt[l.out_w*l.out_h*b]);
 			char buff[100];
 			sprintf(buff, "a_excitation_gt_%d", b);

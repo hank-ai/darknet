@@ -370,7 +370,6 @@ void fill_hierarchy(float *truth, int k, Darknet::Tree *hierarchy)
 	int count = 0;
 	for (j = 0; j < hierarchy->groups; ++j)
 	{
-		//printf("%d\n", count);
 		int mask = 1;
 		for (i = 0; i < hierarchy->group_size[j]; ++i)
 		{
@@ -616,7 +615,6 @@ void blend_truth_mosaic(float *new_truth, int boxes, int truth_size, float *old_
 			new_t++;
 		}
 	}
-	//printf("\n was %d bboxes, now %d bboxes \n", count_new_truth, t);
 }
 
 
@@ -946,7 +944,6 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
 				Darknet::Image tmp_ai = Darknet::copy_image(ai);
 				char buff[1000];
-				//sprintf(buff, "aug_%d_%d_%s_%d", random_index, i, basecfg((char*)filename), random_gen());
 				sprintf(buff, "aug_%d_%d_%d", random_index, i, random_gen());
 				int t;
 				for (t = 0; t < boxes; ++t)

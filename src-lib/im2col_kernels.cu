@@ -719,7 +719,6 @@ void repack_input_gpu_bin(float *input, uint32_t *re_packed_input_bin, int w, in
 	int size = (w * h * c) / 32 + 1;
 	const int block_size = BLOCK;
 	const int num_blocks = get_number_of_blocks(size, block_size);
-	//printf("\n num_blocks = %d, num_blocks/32 = %d,  block_size = %d \n", num_blocks, num_blocks / 32, block_size);
 	repack_input_kernel_bin <<<num_blocks, block_size, 0, get_cuda_stream() >>>(input, re_packed_input_bin, w, h, c);
 	CHECK_CUDA(cudaPeekAtLastError());
 }
@@ -1160,21 +1159,6 @@ void gemm_nn_custom_bin_mean_transposed_gpu(int M, int N, int K,
 	float *C, int ldc, float *mean_arr, float *bias, int leaky_activation,
 	float *shortcut_in_gpu, float *shortcut_out_gpu)
 {
-//	int size = M*N;
-//	const int num_blocks = get_number_of_blocks(size, BLOCK);
-
-	//printf("\n M = %d, N = %d, M %% 8 = %d, N %% 8 = %d \n", M, N, M % 8, N % 8);
-
-	/*
-	printf("\n gemm_bin size = %d, num_blocks = %d, M*K = %d KB, N*K = %d KB \n (w) M*K/num_blocks = %d KB, (i) N*K/num_blocks = %d KB \n",
-		size, num_blocks, M*K / 1024, N*K / 1024, M*lda / num_blocks / 1024, N*ldb / num_blocks / 1024);
-	printf(" M / 512 = %d, N / 512 = %d, M*lda / 512 = %d, N*ldb / 512 = %d \n", M / 512, N / 512, M*lda/512, N*ldb/512);
-	*/
-	//printf(" shared_memory: (w) lda*BLOCK/N = %d, (i) ldb*BLOCK/M = %d, \t lda = %d \n\n", lda*BLOCK / N, ldb*BLOCK / M, lda);
-
-
-	//if (M % 8 == 0 && N % 8 == 0 && M == 128)
-	//if (M >= 32)    // l.n >= 32
 #if CUDART_VERSION >= 10000
 	if (1)
 	{
@@ -1183,8 +1167,6 @@ void gemm_nn_custom_bin_mean_transposed_gpu(int M, int N, int K,
 		int size = (M_aligned / 8)*(N_aligned / 16)*WARP_SIZE;
 		const int num_blocks = get_number_of_blocks(size, BLOCK);
 
-		//printf(" lda = %d, ldb = %d, ldc = %d, lda/32 = %d, ldb/32 = %d, ldc/32 = %d \n", lda, ldb, ldc, lda / 32, ldb / 32, ldc / 32);
-		//printf("  l.c (K/9) = %d, M (l.n) = %d \n", (K%9 == 0)? K / 9: K, M);
 		gemm_nn_custom_bin_mean_transposed_tensor_kernel <<<num_blocks, BLOCK, 0, get_cuda_stream() >>> (
 			M, N, K,
 			A, lda,
@@ -1192,9 +1174,6 @@ void gemm_nn_custom_bin_mean_transposed_gpu(int M, int N, int K,
 			C, ldc,
 			mean_arr, bias, leaky_activation,
 			shortcut_in_gpu, shortcut_out_gpu);
-
-		//cudaDeviceSynchronize();
-		//getzzzchar();
 	}
 	else
 #endif  //# CUDART_VERSION >= 10000
@@ -1285,21 +1264,13 @@ __global__ void convolve_bin_gpu_kernel(float *input, float *weights, float *out
 
 	int fil;
 	// filter index
-	//for (fil = 0; fil < n; ++fil)
 	int chan, y, x, f_y, f_x;
 	// channel index
-	//for (chan = 0; chan < in_c; ++chan)
-	// input - y
-	//for (y = 0; y < in_h; ++y)
-	// input - x
-	//for (x = 0; x < in_w; ++x)
 	x = index % in_w;
 	int index2 = index / in_w;
 	y = index2 % in_h;
 	fil = index2 / in_h;
-	//if (fil < n)    // (1-6 for one BLOCK)
 	{
-		//float mean_val = mean_arr_gpu[fil];
 		int const output_index = fil*in_w*in_h + y*in_w + x;
 		int sum = 0;
 		int good_val = 0;
@@ -1310,7 +1281,6 @@ __global__ void convolve_bin_gpu_kernel(float *input, float *weights, float *out
 		int max_fil = (max_index / in_w) / in_h;
 
 		__shared__ uint32_t weights_shared[3*3*1024*6/32 + 1];  // 7 KB (6 filters) - use (new_lda) for size calculation
-		//const int weights_size = size*size*in_c/8;
 		const int weights_size = size*size*in_c / 32 + 1;
 
 		for (int tmp_fil = min_fil; tmp_fil <= max_fil; tmp_fil++) {
@@ -1323,8 +1293,6 @@ __global__ void convolve_bin_gpu_kernel(float *input, float *weights, float *out
 
 		for (chan = 0; chan < in_c; ++chan)
 		{
-			//int const weights_pre_index = fil*in_c*size*size + chan*size*size;
-			//int const weights_pre_index = fil*new_lda + chan*size*size;
 			int const input_pre_index = chan*in_w*in_h;
 
 			__shared__ uint32_t input_shared[416*416/32 + 1];   // 21.2 KB bytes (for input size 832x832)

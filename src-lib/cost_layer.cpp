@@ -1,6 +1,12 @@
 #include "darknet_internal.hpp"
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 COST_TYPE get_cost_type(char *s)
 {
 	TAT(TATPARMS);
@@ -8,7 +14,9 @@ COST_TYPE get_cost_type(char *s)
 	if (strcmp(s, "sse")==0) return SSE;
 	if (strcmp(s, "masked")==0) return MASKED;
 	if (strcmp(s, "smooth")==0) return SMOOTH;
-	fprintf(stderr, "Couldn't find cost type %s, going with SSE\n", s);
+
+	*cfg_and_state.output << "Couldn't find cost type " << s << ", going with SSE" << std::endl;
+
 	return SSE;
 }
 
@@ -32,7 +40,8 @@ Darknet::Layer make_cost_layer(int batch, int inputs, COST_TYPE cost_type, float
 {
 	TAT(TATPARMS);
 
-	fprintf(stderr, "cost                                           %4d\n",  inputs);
+	*cfg_and_state.output << "cost                                           " << inputs << std::endl;
+
 	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.type = Darknet::ELayerType::COST;
 
@@ -167,7 +176,7 @@ void forward_cost_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 		int n = (1-l.ratio) * l.batch*l.inputs;
 		float thresh = l.delta[n];
 		thresh = 0;
-		printf("%f\n", thresh);
+		*cfg_and_state.output << thresh << std::endl;
 		supp_ongpu(l.batch*l.inputs, thresh, l.delta_gpu, 1);
 	}
 

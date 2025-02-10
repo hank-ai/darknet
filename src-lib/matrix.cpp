@@ -167,7 +167,6 @@ float dist(float *x, float *y, int n)
 {
 	TAT(TATPARMS);
 
-	//printf(" x0 = %f, x1 = %f, y0 = %f, y1 = %f \n", x[0], x[1], y[0], y[1]);
 	float mw = (x[0] < y[0]) ? x[0] : y[0];
 	float mh = (x[1] < y[1]) ? x[1] : y[1];
 	float inter = mw*mh;
@@ -191,21 +190,7 @@ model do_kmeans(matrix data, int k)
 
 	matrix centers = make_matrix(k, data.cols);
 	int* assignments = (int*)xcalloc(data.rows, sizeof(int));
-	//smart_centers(data, centers);
 	random_centers(data, centers);  // IoU = 67.31% after kmeans
-
-	/*
-	// IoU = 63.29%, anchors = 10,13,  16,30,  33,23,  30,61,  62,45,  59,119,  116,90,  156,198,  373,326
-	centers.vals[0][0] = 10; centers.vals[0][1] = 13;
-	centers.vals[1][0] = 16; centers.vals[1][1] = 30;
-	centers.vals[2][0] = 33; centers.vals[2][1] = 23;
-	centers.vals[3][0] = 30; centers.vals[3][1] = 61;
-	centers.vals[4][0] = 62; centers.vals[4][1] = 45;
-	centers.vals[5][0] = 59; centers.vals[5][1] = 119;
-	centers.vals[6][0] = 116; centers.vals[6][1] = 90;
-	centers.vals[7][0] = 156; centers.vals[7][1] = 198;
-	centers.vals[8][0] = 373; centers.vals[8][1] = 326;
-	*/
 
 	// range centers [min - max] using exp graph or Pyth example
 	if (k == 1) kmeans_maximization(data, assignments, centers);

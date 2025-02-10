@@ -65,7 +65,6 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 		printf("Prepare additional network for mAP calculation...\n");
 		net_map = parse_network_cfg_custom(cfgfile, 1, 1);
 		net_map.benchmark_layers = benchmark_layers;
-//		const int net_classes = net_map.layers[net_map.n - 1].classes;
 
 		// free memory unnecessary arrays
 		for (int k = 0; k < net_map.n - 1; ++k)
@@ -628,9 +627,12 @@ void print_detector_detections(FILE **fps, const char *id, Darknet::Detection * 
 		if (xmax > w) xmax = w;
 		if (ymax > h) ymax = h;
 
-		for (j = 0; j < classes; ++j) {
-			if (dets[i].prob[j]) fprintf(fps[j], "%s %f %f %f %f %f\n", id, dets[i].prob[j],
-				xmin, ymin, xmax, ymax);
+		for (j = 0; j < classes; ++j)
+		{
+			if (dets[i].prob[j])
+			{
+				fprintf(fps[j], "%s %f %f %f %f %f\n", id, dets[i].prob[j], xmin, ymin, xmax, ymax);
+			}
 		}
 	}
 }
@@ -640,7 +642,8 @@ void print_imagenet_detections(FILE *fp, int id, Darknet::Detection * dets, int 
 	TAT(TATPARMS);
 
 	int i, j;
-	for (i = 0; i < total; ++i) {
+	for (i = 0; i < total; ++i)
+	{
 		float xmin = dets[i].bbox.x - dets[i].bbox.w / 2.;
 		float xmax = dets[i].bbox.x + dets[i].bbox.w / 2.;
 		float ymin = dets[i].bbox.y - dets[i].bbox.h / 2.;
@@ -651,10 +654,13 @@ void print_imagenet_detections(FILE *fp, int id, Darknet::Detection * dets, int 
 		if (xmax > w) xmax = w;
 		if (ymax > h) ymax = h;
 
-		for (j = 0; j < classes; ++j) {
+		for (j = 0; j < classes; ++j)
+		{
 			int myclass = j;
-			if (dets[i].prob[myclass] > 0) fprintf(fp, "%d %d %f %f %f %f %f\n", id, j + 1, dets[i].prob[myclass],
-				xmin, ymin, xmax, ymax);
+			if (dets[i].prob[myclass] > 0)
+			{
+				fprintf(fp, "%d %d %f %f %f %f %f\n", id, j + 1, dets[i].prob[myclass], xmin, ymin, xmax, ymax);
+			}
 		}
 	}
 }
@@ -684,8 +690,10 @@ static void print_kitti_detections(FILE **fps, const char *id, Darknet::Detectio
 
 		for (j = 0; j < classes; ++j)
 		{
-			//if (dets[i].prob[j]) fprintf(fpd, "%s 0 0 0 %f %f %f %f -1 -1 -1 -1 0 0 0 %f\n", kitti_ids[j], xmin, ymin, xmax, ymax, dets[i].prob[j]);
-			if (dets[i].prob[j]) fprintf(fpd, "%s -1 -1 -10 %f %f %f %f -1 -1 -1 -1000 -1000 -1000 -10 %f\n", kitti_ids[j], xmin, ymin, xmax, ymax, dets[i].prob[j]);
+			if (dets[i].prob[j])
+			{
+				fprintf(fpd, "%s -1 -1 -10 %f %f %f %f -1 -1 -1 -1000 -1000 -1000 -10 %f\n", kitti_ids[j], xmin, ymin, xmax, ymax, dets[i].prob[j]);
+			}
 		}
 	}
 	fclose(fpd);

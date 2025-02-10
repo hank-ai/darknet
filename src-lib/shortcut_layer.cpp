@@ -21,16 +21,11 @@ Darknet::Layer make_shortcut_layer(int batch, int n, int *input_layers, int* inp
 	l.weights_normalization = weights_normalization;
 	l.learning_rate_scale = 1;  // not necessary
 
-	//l.w = w2;
-	//l.h = h2;
-	//l.c = c2;
 	l.w = l.out_w = w;
 	l.h = l.out_h = h;
 	l.c = l.out_c = c;
 	l.outputs = w*h*c;
 	l.inputs = l.outputs;
-
-	//if(w != w2 || h != h2 || c != c2) fprintf(stderr, " w = %d, w2 = %d, h = %d, h2 = %d, c = %d, c2 = %d \n", w, w2, h, h2, c, c2);
 
 	l.index = l.input_layers[0];
 
@@ -288,28 +283,10 @@ void update_shortcut_layer_gpu(Darknet::Layer & l, int batch, float learning_rat
 		reset_nan_and_inf(l.weight_updates_gpu, l.nweights);
 		fix_nan_and_inf(l.weights_gpu, l.nweights);
 
-		//constrain_weight_updates_ongpu(l.nweights, 1, l.weights_gpu, l.weight_updates_gpu);
 		constrain_ongpu(l.nweights, 1, l.weight_updates_gpu, 1);
 
-		/*
-		cuda_pull_array_async(l.weights_gpu, l.weights, l.nweights);
-		cuda_pull_array_async(l.weight_updates_gpu, l.weight_updates, l.nweights);
-		CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));
-		for (int i = 0; i < l.nweights; ++i) printf(" %f, ", l.weight_updates[i]);
-		printf(" l.nweights = %d - updates \n", l.nweights);
-		for (int i = 0; i < l.nweights; ++i) printf(" %f, ", l.weights[i]);
-		printf(" l.nweights = %d \n\n", l.nweights);
-		*/
-
-		//axpy_ongpu(l.nweights, -decay*batch, l.weights_gpu, 1, l.weight_updates_gpu, 1);
 		axpy_ongpu(l.nweights, learning_rate / batch, l.weight_updates_gpu, 1, l.weights_gpu, 1);
 		scal_ongpu(l.nweights, momentum, l.weight_updates_gpu, 1);
-
-		//fill_ongpu(l.nweights, 0, l.weight_updates_gpu, 1);
-
-		//if (l.clip) {
-		//    constrain_ongpu(l.nweights, l.clip, l.weights_gpu, 1);
-		//}
 	}
 }
 

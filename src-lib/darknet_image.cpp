@@ -3,6 +3,9 @@
 
 namespace
 {
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+
+
 	static inline float get_pixel(Darknet::Image m, int x, int y, int c)
 	{
 		TAT(TATPARMS);
@@ -336,37 +339,30 @@ void Darknet::draw_detections_v3(Darknet::Image & im, const Darknet::Detection *
 	for (i = 0; i < selected_detections_num; ++i)
 	{
 		const int best_class = selected_detections[i].best_class;
-		printf("%s: %.0f%%", names[best_class].c_str(), selected_detections[i].det.prob[best_class] * 100);
-		if (ext_output)
-		{
-			printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
-				round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2)*im.w),
-				round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2)*im.h),
-				round(selected_detections[i].det.bbox.w*im.w), round(selected_detections[i].det.bbox.h*im.h));
-		}
-		else
-		{
-			printf("\n");
-		}
-		int j;
-		for (j = 0; j < classes; ++j)
-		{
-			if (selected_detections[i].det.prob[j] > thresh && j != best_class)
-			{
-				printf("%s: %.0f%%", names[j].c_str(), selected_detections[i].det.prob[j] * 100);
+		*cfg_and_state.output
+			<< names[best_class]
+			<< "\tc=" << (selected_detections[i].det.prob[best_class] * 100.0f) << "%"
+			<< "\tx=" << (int)std::round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2.0f) * im.w)
+			<< "\ty=" << (int)std::round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2.0f) * im.h)
+			<< "\tw=" << (int)std::round(selected_detections[i].det.bbox.w * im.w)
+			<< "\th=" << (int)std::round(selected_detections[i].det.bbox.h * im.h)
+			<< std::endl;
 
-				if (ext_output)
-				{
-					printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n",
-						round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2)*im.w),
-						round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2)*im.h),
-						round(selected_detections[i].det.bbox.w*im.w), round(selected_detections[i].det.bbox.h*im.h));
-				}
-				else
-				{
-					printf("\n");
-				}
+		// now that the "best" has been printed, see if there are other classes to print
+		for (int j = 0; j < classes; ++j)
+		{
+			if (selected_detections[i].det.prob[j] < thresh or j == best_class)
+			{
+				continue;
 			}
+
+			*cfg_and_state.output
+				<< names[j] << ": " << (selected_detections[i].det.prob[j] * 100.0f) << "%"
+				<< "\tx="	<< (int)std::round((selected_detections[i].det.bbox.x - selected_detections[i].det.bbox.w / 2.0f) * im.w)
+				<< " y="	<< (int)std::round((selected_detections[i].det.bbox.y - selected_detections[i].det.bbox.h / 2.0f) * im.h)
+				<< " w="	<< (int)std::round(selected_detections[i].det.bbox.w * im.w)
+				<< " h="	<< (int)std::round(selected_detections[i].det.bbox.h * im.h)
+				<< std::endl;
 		}
 	}
 
@@ -392,7 +388,6 @@ void Darknet::draw_detections_v3(Darknet::Image & im, const Darknet::Detection *
 		rgb[1] = green;
 		rgb[2] = blue;
 		Darknet::Box b = selected_detections[i].det.bbox;
-		//printf("%f %f %f %f\n", b.x, b.y, b.w, b.h);
 
 		int left = (b.x - b.w / 2.)*im.w;
 		int right = (b.x + b.w / 2.)*im.w;

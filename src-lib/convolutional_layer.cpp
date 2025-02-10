@@ -620,7 +620,7 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 		forward_algo = CUDNN_CONVOLUTION_FWD_NO_WORKSPACE;
 		backward_algo = CUDNN_CONVOLUTION_BWD_DATA_NO_WORKSPACE;
 		backward_filter = CUDNN_CONVOLUTION_BWD_FILTER_NO_WORKSPACE;
-		printf(" CUDNN-slow ");
+		*cfg_and_state.output << " CUDNN-slow ";
 	}
 	if (cudnn_preference == cudnn_specify)
 	{
@@ -1230,8 +1230,9 @@ void resize_convolutional_layer(Darknet::Layer *l, int w, int h)
 	size_t free_byte;
 	size_t total_byte;
 	CHECK_CUDA(cudaMemGetInfo(&free_byte, &total_byte));
-	if (l->workspace_size > free_byte || l->workspace_size >= total_byte / 2) {
-		printf(" used slow CUDNN algo without Workspace! Need memory: %zu, available: %zu\n", l->workspace_size, (free_byte < total_byte/2) ? free_byte : total_byte/2);
+	if (l->workspace_size > free_byte || l->workspace_size >= total_byte / 2)
+	{
+		*cfg_and_state.output << " used slow CUDNN algo without Workspace! Need memory: " << l->workspace_size << ", available: " << ((free_byte < total_byte/2) ? free_byte : total_byte/2) << std::endl;
 		cudnn_convolutional_setup(l, cudnn_smallest, 0);
 		l->workspace_size = get_convolutional_workspace_size(*l);
 	}
@@ -1451,8 +1452,6 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 
 				if (l.c % 32 == 0)
 				{
-					//printf(" l.index = %d - new XNOR \n", l.index);
-
 					int ldb_align = l.lda_align;
 					size_t new_ldb = k + (ldb_align - k%ldb_align); // (k / 8 + 1) * 8;
 					//size_t t_intput_size = new_ldb * l.bit_align;// n;
@@ -1538,15 +1537,15 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 				return;
 
 			}
-			else {
-				//printf(" l.index = %d - FP32 \n", l.index);
+			else
+			{
 				float *im = state.input + (i*l.groups + j)*(l.c / l.groups)*l.h*l.w;
-				if (l.size == 1 && l.stride == 1 && l.dilation == 1) {
+				if (l.size == 1 && l.stride == 1 && l.dilation == 1)
+				{
 					b = im;
 				}
-				else {
-					//im2col_cpu(im, l.c / l.groups, l.h, l.w, l.size, l.stride, l.pad, b);
-
+				else
+				{
 					im2col_cpu_ext(im,   // input
 						l.c / l.groups,     // input channels
 						l.h, l.w,           // input size (h, w)
@@ -1696,26 +1695,6 @@ void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state
 			}
 		}
 	}
-
-#if 0
-	if(0)   // visualize ground truth
-	{
-		for (b = 0; b < l.batch; ++b)
-		{
-			image img = float_to_image(l.out_w, l.out_h, 1, &g[l.out_w*l.out_h*b]);
-			char buff[100];
-			sprintf(buff, "a_excitation_%d", b);
-			show_image_cv(img, buff);
-
-			image img2 = float_to_image(l.out_w, l.out_h, 1, &l.output[l.out_w*l.out_h*l.out_c*b]);
-			char buff2[100];
-			sprintf(buff2, "a_excitation_act_%d", b);
-			show_image_cv(img2, buff2);
-			cv::waitKey(5);
-		}
-		cv::waitKey(0);
-	}
-#endif
 
 	free(g);
 	free(a_avg);

@@ -218,12 +218,12 @@ static inline float clip_value(float val, const float max_val)
 {
 	TAT(TATPARMS);
 
-	if (val > max_val) {
-		//printf("\n val = %f > max_val = %f \n", val, max_val);
+	if (val > max_val)
+	{
 		val = max_val;
 	}
-	else if (val < -max_val) {
-		//printf("\n val = %f < -max_val = %f \n", val, -max_val);
+	else if (val < -max_val)
+	{
 		val = -max_val;
 	}
 	return val;
@@ -267,22 +267,16 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 					for (int n = 0; n < l.classes; ++n)
 					{
 						const float truth_prob = state.truth[b*l.classes + n];
-						//printf(" truth_prob = %f, ", truth_prob);
-						//if (truth_prob > max_truth)
 						if (truth_prob > truth_thresh)
 						{
-							//printf(" truth_prob = %f, max_truth = %f, n = %d; ", truth_prob, max_truth, n);
-							//max_truth = truth_prob;
 							l.labels[b] = n;
 						}
 					}
-					//printf(", l.labels[b] = %d ", l.labels[b]);
 				}
 			}
 		}
 
 	}
-	//printf("\n\n");
 
 	// set pointers to features
 	float **z = (float**)xcalloc(l.batch*l.n*l.h*l.w, sizeof(float*));
@@ -297,10 +291,6 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 				{
 					const int z_index = b*l.n*l.h*l.w + n*l.h*l.w + h*l.w + w;
 					if (l.labels[z_index] < 0) continue;
-
-					//const int input_index = b*l.inputs + n*l.embedding_size*l.h*l.w + h*l.w + w;
-					//float *ptr = state.input + input_index;
-					//z[z_index] = ptr;
 
 					z[z_index] = (float*)xcalloc(l.embedding_size, sizeof(float));
 					get_embedding(state.input, l.w, l.h, l.c, l.embedding_size, w, h, n, b, z[z_index]);
@@ -386,14 +376,6 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 										//printf(" contrast_p_size = %d, z_index = %d, z_index2 = %d \n", contrast_p_size, z_index, z_index2);
 										contrast_p = (contrastive_params*)xrealloc(contrast_p, contrast_p_size * sizeof(contrastive_params));
 									}
-
-#if 0
-									if (sim > 1.001 || sim < -1.001)
-									{
-										printf(" sim = %f, ", sim);
-										getchar();
-									}
-#endif
 								}
 							}
 						}
@@ -411,7 +393,6 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			if (max_sim_same[i] >= -1) same_sim++;
 			if (max_sim_diff[i] >= -1) diff_sim++;
 			++all_sims;
-			//printf(" max_sim_diff[i] = %f, max_sim_same[i] = %f \n", max_sim_diff[i], max_sim_same[i]);
 			if (max_sim_diff[i] < max_sim_same[i]) good_sims++;
 		}
 	}
@@ -422,39 +403,6 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	printf(" Contrast accuracy = %f %%, all = %d, good = %d, same = %d, diff = %d \n", *l.loss, all_sims, good_sims, same_sim, diff_sim);
 	free(max_sim_same);
 	free(max_sim_diff);
-
-
-	/*
-	// show near sim
-	float good_contrast = 0;
-	for (b = 0; b < l.batch; b += 2) {
-		float same = l.cos_sim[b*l.batch + b];
-		float aug = l.cos_sim[b*l.batch + b + 1];
-		float diff = l.cos_sim[b*l.batch + b + 2];
-		good_contrast += (aug > diff);
-		//printf(" l.labels[b] = %d, l.labels[b+1] = %d, l.labels[b+2] = %d, b = %d \n", l.labels[b], l.labels[b + 1], l.labels[b + 2], b);
-		//printf(" same = %f, aug = %f, diff = %f, (aug > diff) = %d \n", same, aug, diff, (aug > diff));
-	}
-	*l.loss = 100 * good_contrast / (l.batch / 2);
-	printf(" Contrast accuracy = %f %% \n", *l.loss);
-	*/
-
-	/*
-	// precalculate P_contrastive
-	for (b = 0; b < l.batch; ++b) {
-		int b2;
-		for (b2 = 0; b2 < l.batch; ++b2) {
-			if (b != b2) {
-				const float P = P_constrastive(b, b2, l.labels, l.batch, z, l.embedding_size, l.temperature, l.cos_sim);
-				l.p_constrastive[b*l.batch + b2] = P;
-				if (P > 1 || P < -1) {
-					printf(" p = %f, ", P); getchar();
-				}
-			}
-		}
-	}
-	*/
-
 
 	const size_t contr_size = contrast_p_index;
 
@@ -662,9 +610,6 @@ void forward_contrastive_layer_gpu(Darknet::Layer & l, Darknet::NetworkState sta
 		cuda_pull_array(state.truth, truth_cpu, num_truth);
 	}
 	Darknet::NetworkState cpu_state = state;
-//	cpu_state.net = state.net;
-//	cpu_state.index = state.index;
-//	cpu_state.train = state.train;
 	cpu_state.truth = truth_cpu;
 	cpu_state.input = in_cpu;
 

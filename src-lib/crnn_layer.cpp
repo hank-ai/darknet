@@ -1,6 +1,12 @@
 #include "darknet_internal.hpp"
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 static void increment_layer(Darknet::Layer *l, int steps)
 {
 	TAT(TATPARMS);
@@ -23,7 +29,8 @@ Darknet::Layer make_crnn_layer(int batch, int h, int w, int c, int hidden_filter
 {
 	TAT(TATPARMS);
 
-	fprintf(stderr, "CRNN Layer: %d x %d x %d image, %d filters\n", h,w,c,output_filters);
+	*cfg_and_state.output << "CRNN Layer: " << h << " x " << w << " x " << c << " image, " << output_filters << " filters" << std::endl;
+
 	batch = batch / steps;
 	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.train = train;

@@ -337,11 +337,9 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			int best_n = 0;
 			i = (truth.x * l.w);
 			j = (truth.y * l.h);
-			//printf("%d %f %d %f\n", i, truth.x*l.w, j, truth.y*l.h);
 			Darknet::Box truth_shift = truth;
 			truth_shift.x = 0;
 			truth_shift.y = 0;
-			//printf("index %d %d\n",i, j);
 			for(n = 0; n < l.n; ++n){
 				int index = size*(j*l.w*l.n + i*l.n + n) + b*l.outputs;
 				Darknet::Box pred = get_region_box(l.output, l.biases, n, index, i, j, l.w, l.h);
@@ -353,7 +351,6 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 						pred.h = l.biases[2*n+1]/l.h;
 					}
 				}
-				//printf("pred: (%f, %f) %f x %f\n", pred.x, pred.y, pred.w, pred.h);
 				pred.x = 0;
 				pred.y = 0;
 				float iou = box_iou(pred, truth_shift);
@@ -363,7 +360,6 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 					best_n = n;
 				}
 			}
-			//printf("%d %f (%f, %f) %f x %f\n", best_n, best_iou, truth.x, truth.y, truth.w, truth.h);
 
 			float iou = delta_region_box(truth, l.output, l.biases, best_n, best_index, i, j, l.w, l.h, l.delta, l.coord_scale);
 			if(iou > .5) recall += 1;

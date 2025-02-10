@@ -2,6 +2,12 @@
 #include "gemm.hpp"
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 size_t get_connected_workspace_size(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
@@ -148,7 +154,9 @@ Darknet::Layer make_connected_layer(int batch, int steps, int inputs, int output
 	l.workspace_size = get_connected_workspace_size(l);
 #endif  // CUDNN
 #endif  // DARKNET_GPU
-	fprintf(stderr, "connected                            %4d  ->  %4d\n", inputs, outputs);
+
+	*cfg_and_state.output << "connected                            " << inputs << "  ->  " << outputs << std::endl;
+
 	return l;
 }
 
@@ -270,13 +278,17 @@ void statistics_connected_layer(Darknet::Layer & l)
 
 	if (l.batch_normalize)
 	{
-		printf("Scales ");
+		*cfg_and_state.output << "Scales ";
 		print_statistics(l.scales, l.outputs);
 	}
-	printf("Biases ");
+
+	*cfg_and_state.output << "Biases ";
 	print_statistics(l.biases, l.outputs);
-	printf("Weights ");
+
+	*cfg_and_state.output << "Weights ";
 	print_statistics(l.weights, l.outputs);
+
+	return;
 }
 
 #ifdef DARKNET_GPU

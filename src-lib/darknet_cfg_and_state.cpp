@@ -200,6 +200,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 
 	for (int idx = 0; idx < v.size(); idx ++)
 	{
+std::cout << "idx=" << idx << std::endl;
 		errno = 0;
 		const std::string & original_arg = v.at(idx);
 		const std::string str = convert_to_lowercase_alphanum(original_arg);
@@ -305,6 +306,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 		{
 			// the next parm should be a numeric value
 			const int next_arg_idx = idx + 1;
+std::cout << "next_arg_idx=" << next_arg_idx << " v.size=" << v.size() << std::endl;
 			if (next_arg_idx < v.size())
 			{
 				if (args_and_parms.str.empty())
@@ -373,6 +375,14 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 		colour_is_enabled = false;
 	}
 
+	if (args.count("log") > 0)
+	{
+		std::cout << "fn=" << get("log").str << std::endl;
+		output = new std::ofstream("output.log", std::ofstream::out | std::ofstream::app | std::ofstream::binary);
+std::cout << "setting output to output.log" << std::endl;
+		colour_is_enabled = false;
+	}
+
 #ifdef WIN32
 	if (colour_is_enabled)
 	{
@@ -407,7 +417,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 		parse_skip_classes(net->details->classes_to_ignore, arg.str);
 	}
 
-#if 0 // for debug purposes, display all arguments
+#if 1 // for debug purposes, display all arguments
 	*output
 		<< "--------------------------------" << std::endl
 		<< "CMD=" << command << std::endl
@@ -430,6 +440,13 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 	}
 	*output << "--------------------------------" << std::endl;
 #endif
+
+	static bool need_to_show = true;
+	if (need_to_show)
+	{
+		need_to_show = false;
+		Darknet::show_version_info();
+	}
 
 	return *this;
 }
