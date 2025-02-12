@@ -8,6 +8,9 @@
 
 namespace
 {
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+
+
 	inline Darknet::Box get_gaussian_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const YOLO_POINT yolo_point)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
@@ -838,9 +841,20 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 	uc_loss /= l.batch;
 	iou_loss /= l.batch;
 
-	fprintf(stderr, "Region %d Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, .5R: %f, .75R: %f,  count: %d, class_loss = %.2f, iou_loss = %.2f, uc_loss = %.2f, total_loss = %.2f \n",
-		state.index, avg_iou/count, avg_cat/class_count, avg_obj/count, avg_anyobj/(l.w*l.h*l.n*l.batch), recall/count, recall75/count, count,
-		class_loss, iou_loss, uc_loss, loss);
+	*cfg_and_state.output
+		<< "Region "		<< state.index
+		<< ": avg IOU="		<< avg_iou/count
+		<< ", class="		<< avg_cat/class_count
+		<< ", obj="			<< avg_obj/count
+		<< ", no obj="		<< avg_anyobj/(l.w*l.h*l.n*l.batch)
+		<< ", recall 50%="	<< recall/count
+		<< ", recall 75%="	<< recall75/count
+		<< ", count="		<< count
+		<< ", class loss="	<< class_loss
+		<< ", IOU loss="	<< iou_loss
+		<< ", uc loss="		<< uc_loss
+		<< ", total loss="	<< loss
+		<< std::endl;
 }
 
 

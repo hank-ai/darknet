@@ -34,6 +34,12 @@
 #endif
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 cv::Mat load_rgb_mat_image(const char * const filename, int channels)
 {
 	TAT(TATPARMS);
@@ -187,22 +193,27 @@ void draw_detections_cv_v3(cv::Mat mat, Darknet::Detection * dets, int num, floa
 							sprintf(buff, " (id: %d)", dets[i].track_id);
 							strcat(labelstr, buff);
 						}
-						sprintf(buff, " (%2.0f%%)", dets[i].prob[j] * 100);
+						sprintf(buff, " (%2.0f%%)", dets[i].prob[j] * 100.0f);
 						strcat(labelstr, buff);
-						printf("%s: %.0f%% ", names[j], dets[i].prob[j] * 100);
-						if (dets[i].track_id) printf("(track = %d, sim = %f) ", dets[i].track_id, dets[i].sim);
+
+						*cfg_and_state.output << names[j] << ": " << (int)std::round(100.0f * dets[i].prob[j]) << "%";
+
+						if (dets[i].track_id)
+						{
+							*cfg_and_state.output << " (track=" << dets[i].track_id << ", sim=" << dets[i].sim << ")";
+						}
 					}
 					else
 					{
 						strcat(labelstr, ", ");
 						strcat(labelstr, names[j]);
-						printf(", %s: %.0f%% ", names[j], dets[i].prob[j] * 100);
+						*cfg_and_state.output << names[j] << ": " << (int)std::round(100.0f * dets[i].prob[j]) << "%";
 					}
 				}
 			}
 			if (class_id >= 0)
 			{
-				int width = std::max(1.0f, mat.rows * .002f);
+				int width = std::max(1.0f, mat.rows * 0.002f);
 
 				int offset = class_id * 123457 % classes;
 				float red	= Darknet::get_color(2, offset, classes);
@@ -210,26 +221,26 @@ void draw_detections_cv_v3(cv::Mat mat, Darknet::Detection * dets, int num, floa
 				float blue	= Darknet::get_color(0, offset, classes);
 
 				Darknet::Box b = dets[i].bbox;
-				if (std::isnan(b.w) || std::isinf(b.w)) b.w = 0.5;
-				if (std::isnan(b.h) || std::isinf(b.h)) b.h = 0.5;
-				if (std::isnan(b.x) || std::isinf(b.x)) b.x = 0.5;
-				if (std::isnan(b.y) || std::isinf(b.y)) b.y = 0.5;
-				b.w = (b.w < 1) ? b.w : 1;
-				b.h = (b.h < 1) ? b.h : 1;
-				b.x = (b.x < 1) ? b.x : 1;
-				b.y = (b.y < 1) ? b.y : 1;
+				if (std::isnan(b.w) || std::isinf(b.w)) b.w = 0.5f;
+				if (std::isnan(b.h) || std::isinf(b.h)) b.h = 0.5f;
+				if (std::isnan(b.x) || std::isinf(b.x)) b.x = 0.5f;
+				if (std::isnan(b.y) || std::isinf(b.y)) b.y = 0.5f;
+				b.w = (b.w < 1) ? b.w : 1.0f;
+				b.h = (b.h < 1) ? b.h : 1.0f;
+				b.x = (b.x < 1) ? b.x : 1.0f;
+				b.y = (b.y < 1) ? b.y : 1.0f;
 
-				int left = (b.x - b.w / 2.) * mat.cols;
-				int right = (b.x + b.w / 2.) * mat.cols;
-				int top = (b.y - b.h / 2.) * mat.rows;
-				int bot = (b.y + b.h / 2.) * mat.rows;
+				int left	= std::round((b.x - b.w / 2.0f) * mat.cols);
+				int right	= std::round((b.x + b.w / 2.0f) * mat.cols);
+				int top		= std::round((b.y - b.h / 2.0f) * mat.rows);
+				int bot		= std::round((b.y + b.h / 2.0f) * mat.rows);
 
-				if (left < 0) left = 0;
+				if (left < 0.0f) left = 0.0f;
 				if (right > mat.cols - 1) right = mat.cols - 1;
 				if (top < 0) top = 0;
 				if (bot > mat.rows - 1) bot = mat.rows - 1;
 
-				float const font_size = mat.rows / 1000.F;
+				float const font_size = mat.rows / 1000.0f;
 				cv::Size const text_size = cv::getTextSize(labelstr, cv::FONT_HERSHEY_COMPLEX_SMALL, font_size, 1, 0);
 				cv::Point pt1, pt2, pt_text, pt_text_bg1, pt_text_bg2;
 				pt1.x = left;
@@ -249,14 +260,13 @@ void draw_detections_cv_v3(cv::Mat mat, Darknet::Detection * dets, int num, floa
 				color.val[2] = blue * 256;
 
 				cv::rectangle(mat, pt1, pt2, color, width);
-				if (ext_output)
-				{
-					printf("\t(left_x: %4.0f   top_y: %4.0f   width: %4.0f   height: %4.0f)\n", (float)left, (float)top, b.w * mat.cols, b.h * mat.rows);
-				}
-				else
-				{
-					printf("\n");
-				}
+
+				*cfg_and_state.output
+					<< "\tx="	<< left
+					<< " y="	<< top
+					<< " w="	<< (right - left)
+					<< " h="	<< (bot - top)
+					<< std::endl;
 
 				cv::rectangle(mat, pt_text_bg1, pt_text_bg2, color, width);
 				cv::rectangle(mat, pt_text_bg1, pt_text_bg2, color, CV_FILLED);    // filled

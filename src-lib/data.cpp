@@ -960,12 +960,9 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 				Darknet::save_image(tmp_ai, buff);
 				if (show_imgs == 1)
 				{
-					//char buff_src[1000];
-					//sprintf(buff_src, "src_%d_%d_%s_%d", random_index, i, basecfg((char*)filename), random_gen());
 					Darknet::show_image(tmp_ai, buff);
 					cv::waitKey(0);
 				}
-				printf("\nYou use flag -show_imgs, so will be saved aug_...jpg images. Click on window and press ESC button \n");
 				Darknet::free_image(tmp_ai);
 			}
 

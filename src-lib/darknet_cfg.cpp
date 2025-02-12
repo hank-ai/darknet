@@ -719,7 +719,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 #ifdef DARKNET_GPU
 	if (cfg_and_state.is_verbose)
 	{
-		*cfg_and_state.output << "net.optimized_memory = " << net.optimized_memory << std::endl;
+		*cfg_and_state.output << "net.optimized_memory=" << net.optimized_memory << std::endl;
 	}
 	if (net.optimized_memory >= 2 && parms.train)
 	{

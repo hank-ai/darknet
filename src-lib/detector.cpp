@@ -62,7 +62,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 		fclose(valid_file);
 
 		cuda_set_device(gpus[0]);
-		printf("Prepare additional network for mAP calculation...\n");
+		*cfg_and_state.output << "Prepare additional network for mAP calculation..." << std::endl;
 		net_map = parse_network_cfg_custom(cfgfile, 1, 1);
 		net_map.benchmark_layers = benchmark_layers;
 
@@ -115,7 +115,13 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	}
 
 	int imgs = net.batch * net.subdivisions * ngpus;
-	printf("Learning Rate: %g, Momentum: %g, Decay: %g\n", net.learning_rate, net.momentum, net.decay);
+
+	*cfg_and_state.output
+		<< "Learning Rate: "	<< net.learning_rate
+		<< ", Momentum: "		<< net.momentum
+		<< ", Decay: "			<< net.decay
+		<< std::endl;
+
 	data train;
 	data buffer;
 
@@ -148,7 +154,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	char **paths = (char **)list_to_array(plist);
 
 	const int calc_map_for_each = fmax(100, train_images_num / (net.batch * net.subdivisions));  // calculate mAP for each epoch (used to be every 4 epochs)
-	printf("mAP calculations will be every %d iterations\n", calc_map_for_each);
+	*cfg_and_state.output << "mAP calculations will be every " << calc_map_for_each << " iterations" << std::endl;
 
 	// normally we save the weights every 10K, unless max batches is <= 10K in which case we save every 1K
 	int how_often_we_save_weights = (net.max_batches <= 10000 ? 1000 : 10000);
@@ -157,7 +163,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 		// ...or, you can customize how often Darknet outputs the .weights file with the command-line parm "--save-weights 5000"
 		how_often_we_save_weights = cfg_and_state.get_int("saveweights");
 	}
-	printf("weights will be saved every %d iterations\n", how_often_we_save_weights);
+	*cfg_and_state.output << "weights will be saved every " << how_often_we_save_weights << " iterations" << std::endl;
 
 	const int init_w = net.w;
 	const int init_h = net.h;
@@ -229,7 +235,14 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 			args.threads = net.subdivisions * ngpus;
 		}
 		args.mini_batch = net.batch / net.time_steps;
-		printf("\n Tracking! batch = %d, subdiv = %d, time_steps = %d, mini_batch = %d \n", net.batch, net.subdivisions, net.time_steps, args.mini_batch);
+		*cfg_and_state.output
+			<< std::endl
+			<< "Tracking!"
+			<< " batch=" << net.batch
+			<< ", subdiv=" << net.subdivisions
+			<< ", time_steps=" << net.time_steps
+			<< ", mini_batch=" << args.mini_batch
+			<< std::endl;
 	}
 
 	std::thread load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
@@ -257,7 +270,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 			{
 				rand_coef = l.random;
 			}
-			printf("Resizing, random_coef = %.2f \n", rand_coef);
+			*cfg_and_state.output << "Resizing, random_coef=" << rand_coef << std::endl;
 			float random_val = rand_scale(rand_coef);    // *x or /x
 			int dim_w = roundl(random_val*init_w / net.resize_step + 1) * net.resize_step;
 			int dim_h = roundl(random_val*init_h / net.resize_step + 1) * net.resize_step;
@@ -300,11 +313,22 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 				net.batch = dim_b;
 				imgs = net.batch * net.subdivisions * ngpus;
 				args.n = imgs;
-				printf("\n %d x %d  (batch = %d) \n", dim_w, dim_h, net.batch);
+				*cfg_and_state.output
+					<< std::endl
+					<< dim_w
+					<< " x "
+					<< dim_h
+					<< " (batch=" << net.batch << ")"
+					<< std::endl;
 			}
 			else
 			{
-				printf("\n %d x %d \n", dim_w, dim_h);
+				*cfg_and_state.output
+				<< std::endl
+				<< dim_w
+				<< " x "
+				<< dim_h
+				<< std::endl;
 			}
 
 			load_thread.join();
@@ -327,7 +351,10 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 		{
 			net.sequential_subdivisions = get_current_seq_subdivisions(net);
 			args.threads = net.sequential_subdivisions * ngpus;
-			printf(" sequential_subdivisions = %d, sequence = %d \n", net.sequential_subdivisions, get_sequence_value(net));
+			*cfg_and_state.output
+				<< "sequential_subdivisions=" << net.sequential_subdivisions
+				<< ", sequence=" << get_sequence_value(net)
+				<< std::endl;
 		}
 		load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
@@ -434,7 +461,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 		{
 			if (l.random)
 			{
-				printf("Resizing to initial size: %d x %d ", init_w, init_h);
+				*cfg_and_state.output << "Resizing to initial size: " << init_w << " x " << init_h << std::endl;
 				args.w = init_w;
 				args.h = init_h;
 				if (net.dynamic_minibatch)
@@ -450,7 +477,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 					net.batch = init_b;
 					imgs = init_b * net.subdivisions * ngpus;
 					args.n = imgs;
-					printf("\n %d x %d  (batch = %d) \n", init_w, init_h, init_b);
+					*cfg_and_state.output << init_w << " x " << init_h << " (batch=" << init_b << ")" << std::endl;
 				}
 				load_thread.join();
 				Darknet::free_data(train);
@@ -469,11 +496,11 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 
 			iter_map = iteration;
 			mean_average_precision = validate_detector_map(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);
-			printf("\n mean_average_precision (mAP@%0.2f) = %f \n", iou_thresh, mean_average_precision);
+			*cfg_and_state.output << "mean average precision (mAP@" << iou_thresh << ")=" << mean_average_precision << std::endl;
 			if (mean_average_precision >= best_map)
 			{
 				best_map = mean_average_precision;
-				printf("New best mAP!\n");
+				*cfg_and_state.output << "New best mAP, saving weights!" << std::endl;
 				char buff[256];
 				sprintf(buff, "%s/%s_best.weights", backup_directory, base);
 				save_weights(net, buff);
@@ -495,7 +522,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 				}
 			}
 			if (cur_con_acc >= 0) avg_contrastive_acc = avg_contrastive_acc*0.99 + cur_con_acc * 0.01;
-			printf("  avg_contrastive_acc = %f \n", avg_contrastive_acc);
+			*cfg_and_state.output << "average contrastive acc=" << avg_contrastive_acc << std::endl;
 		}
 
 		// this is where we draw the chart while training
@@ -526,7 +553,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 			{
 				sprintf(buff, "%s/%s_ema.weights", backup_directory, base);
 				save_weights_upto(net, buff, net.n, 1);
-				printf(" EMA weights are saved to the file: %s \n", buff);
+				*cfg_and_state.output << "EMA weights are saved to " << buff << std::endl;
 			}
 		}
 		Darknet::free_data(train);
@@ -543,7 +570,11 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	sprintf(buff, "%s/%s_final.weights", backup_directory, base);
 	save_weights(net, buff);
 
-	printf("If you want to re-start training, then use the flag \"-clear\" in the training command.\n");
+	*cfg_and_state.output																	<< std::endl
+		<< "Training iteration has reached max batch limit of " << net.max_batches << "."	<< std::endl
+		<< "If you want to restart training with these weights, either increase the limit,"	<< std::endl
+		<< "or use the \"-clear\" flag to reset the training images counter to zero."		<< std::endl
+		<< ""																				<< std::endl;
 
 	cv::destroyAllWindows();
 
@@ -793,7 +824,11 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, const cha
 	//set_batch_network(&net, 1);
 	fuse_conv_batchnorm(net);
 	calculate_binary_weights(&net);
-	fprintf(stderr, "Learning Rate: %g, Momentum: %g, Decay: %g\n", net.learning_rate, net.momentum, net.decay);
+	*cfg_and_state.output
+		<< "Learning Rate: "	<< net.learning_rate
+		<< ", Momentum: "		<< net.momentum
+		<< ", Decay: "			<< net.decay
+		<< std::endl;
 
 	Darknet::load_names(&net, option_find_str(options, "names", "unknown.names"));
 
@@ -843,7 +878,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, const cha
 	{
 		char buff2[1024];
 		if (!outfile) outfile = "kitti_results";
-		printf("%s\n", outfile);
+		*cfg_and_state.output << outfile << std::endl;
 		snprintf(buff, 1024, "%s/%s", prefix, outfile);
 		/* int mkd = */ make_directory(buff, 0777);
 		snprintf(buff2, 1024, "%s/%s/data", prefix, outfile);
@@ -904,7 +939,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, const cha
 	time_t start = time(0);
 	for (i = nthreads; i < m + nthreads; i += nthreads)
 	{
-		fprintf(stderr, "%d\n", i);
+		*cfg_and_state.output << i << std::endl;
 		for (t = 0; t < nthreads && i + t - nthreads < m; ++t)
 		{
 			thr[t].join();
@@ -1001,7 +1036,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, const cha
 	if (buf) free(buf);
 	if (buf_resized) free(buf_resized);
 
-	fprintf(stderr, "Total Detection Time: %f Seconds\n", (double)time(0) - start);
+	*cfg_and_state.output << "Total detection time: " << (time(0) - start) << " seconds" << std::endl;
 }
 
 void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
@@ -1076,7 +1111,13 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 			}
 		}
 
-		fprintf(stderr, "%5d %5d %5d\tRPs/Img: %.2f\tIOU: %.2f%%\tRecall:%.2f%%\n", i, correct, total, (float)proposals / (i + 1), avg_iou * 100 / total, 100.*correct / total);
+		*cfg_and_state.output
+			<< i << " " << correct << " " << total
+			<< "\tRPs/Img: "	<< (float)proposals / (i + 1.0f)
+			<< "\tIOU: "		<< 100.0f * avg_iou / total << "%"
+			<< "\tRecall: "		<< 100.0f * correct / total << "%"
+			<< std::endl;
+
 		free(truth);
 		free((void*)id);
 		Darknet::free_image(orig);
@@ -1176,7 +1217,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	{
 		nthreads = number_of_validation_images;
 	}
-	printf("using %d threads to load %d validation images for mAP%% calculations\n", nthreads, number_of_validation_images);
+	*cfg_and_state.output << "using " << nthreads << " threads to load " << number_of_validation_images << " validation images for mAP% calculations" << std::endl;
 
 	Darknet::Image* val = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
 	Darknet::Image* val_resized = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
@@ -1326,8 +1367,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 						for (int j = 0; j < num_labels; ++j)
 						{
 							Darknet::Box box = { truth[j].x, truth[j].y, truth[j].w, truth[j].h };
-							//printf(" IoU = %f, prob = %f, class_id = %d, truth[j].id = %d \n",
-							//    box_iou(dets[idx].bbox, box), prob, class_id, truth[j].id);
 							float current_iou = box_iou(dets[idx].bbox, box);
 							if (current_iou > iou_thresh && class_id == truth[j].id)
 							{
@@ -1444,7 +1483,8 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	{
 		pr[i] = (pr_t*)xcalloc(detections_count, sizeof(pr_t));
 	}
-	printf("\n detections_count = %d, unique_truth_count = %d  \n", detections_count, unique_truth_count);
+
+	*cfg_and_state.output << "detections_count=" << detections_count << ", unique_truth_count=" << unique_truth_count << std::endl;
 
 	int* detection_per_class_count = (int*)xcalloc(classes, sizeof(int));
 	for (int j = 0; j < detections_count; ++j)
@@ -1458,7 +1498,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	{
 		if (rank % 100 == 0)
 		{
-			printf(" rank = %d of ranks = %d \r", rank, detections_count);
+			*cfg_and_state.output << "\rrank=" << rank << " of ranks=" << detections_count << std::flush;
 		}
 
 		if (rank > 0)
@@ -1517,7 +1557,13 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			if (rank == (detections_count - 1) && detection_per_class_count[i] != (tp + fp))
 			{
 				// check for last rank
-				printf(" class_id: %d - detections = %d, tp+fp = %d, tp = %d, fp = %d \n", i, detection_per_class_count[i], tp+fp, tp, fp);
+				*cfg_and_state.output
+					<< "class_id="		<< i
+					<< ", detections="	<< detection_per_class_count[i]
+					<< ", tp+fp="		<< tp + fp
+					<< ", tp="			<< tp
+					<< ", fp="			<< fp
+					<< std::endl;
 			}
 		}
 	}
@@ -1627,22 +1673,33 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	const float cur_precision = (float)tp_for_thresh / ((float)tp_for_thresh + (float)fp_for_thresh);
 	const float cur_recall = (float)tp_for_thresh / ((float)tp_for_thresh + (float)(unique_truth_count - tp_for_thresh));
 	const float f1_score = 2.F * cur_precision * cur_recall / (cur_precision + cur_recall);
-	printf("\n for conf_thresh = %1.2f, precision = %1.2f, recall = %1.2f, F1-score = %1.2f \n", thresh_calc_avg_iou, cur_precision, cur_recall, f1_score);
 
-	printf(" for conf_thresh = %0.2f, TP = %d, FP = %d, FN = %d, average IoU = %2.2f %% \n", thresh_calc_avg_iou, tp_for_thresh, fp_for_thresh, unique_truth_count - tp_for_thresh, avg_iou * 100);
+	*cfg_and_state.output
+		<< std::endl
+		<< "for conf_thresh=" << thresh_calc_avg_iou
+		<< ", precision=" << cur_precision
+		<< ", recall=" << cur_recall
+		<< ", F1 score=" << f1_score
+		<< std::endl
+		<< "for conf_thresh="	<< thresh_calc_avg_iou
+		<< ", TP="				<< tp_for_thresh
+		<< ", FP="				<< fp_for_thresh
+		<< ", FN="				<< unique_truth_count - tp_for_thresh
+		<< ", average IoU="		<< avg_iou * 100.0f << "%"
+		<< std::endl
+		<< "IoU threshold="		<< iou_thresh * 100.0f << "%, ";
 
-	mean_average_precision = mean_average_precision / classes;
-	printf("\n IoU threshold = %2.0f %%, ", iou_thresh * 100);
 	if (map_points)
 	{
-		printf("used %d Recall-points \n", map_points);
+		*cfg_and_state.output << "used " << map_points << " recall points" << std::endl;
 	}
 	else
 	{
-		printf("used Area-Under-Curve for each unique Recall \n");
+		*cfg_and_state.output << "used area-under-curve for each unique recall" << std::endl;
 	}
 
-	printf(" mean average precision (mAP@%0.2f) = %f, or %2.2f %% \n", iou_thresh, mean_average_precision, mean_average_precision * 100);
+	mean_average_precision = mean_average_precision / classes;
+	*cfg_and_state.output << "mean average precision (mAP@" << iou_thresh << ")=" << mean_average_precision << ", or " << mean_average_precision * 100.0f << "%" << std::endl;
 
 	for (int i = 0; i < classes; ++i)
 	{
@@ -1665,11 +1722,13 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	free(tp_for_thresh_per_class);
 	free(fp_for_thresh_per_class);
 
-	fprintf(stderr, "Total Detection Time: %d Seconds\n", (int)(time(0) - start));
-	printf("\nSet -points flag:\n");
-	printf(" `-points 101` for MS COCO \n");
-	printf(" `-points 11` for PascalVOC 2007 (uncomment `difficult` in voc.data) \n");
-	printf(" `-points 0` (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset\n");
+	*cfg_and_state.output
+		<< "Total detection time: " << (int)(time(0) - start) << " seconds"				<< std::endl
+		<< "Set -points flag:"															<< std::endl
+		<< " '-points 101' for MSCOCO"													<< std::endl
+		<< " '-points 11' for PascalVOC 2007 (uncomment 'difficult' in voc.data)"		<< std::endl
+		<< " '-points 0' (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset"	<< std::endl;
+
 	if (reinforcement_fd != NULL)
 	{
 		fclose(reinforcement_fd);
@@ -1796,19 +1855,21 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 
 			rel_width_height_array[number_of_boxes * 2 - 2] = truth[j].w * width;
 			rel_width_height_array[number_of_boxes * 2 - 1] = truth[j].h * height;
-			printf("\r loaded \t image: %d \t box: %d", i + 1, number_of_boxes);
+			*cfg_and_state.output << "\rloaded image: " << i + 1 << " box: " << number_of_boxes << std::flush;
 		}
 		free(buff);
 		free(truth);
 	}
-	printf("\n all loaded. \n");
-	printf("\n calculating k-means++ ...");
+
+	*cfg_and_state.output
+		<< std::endl
+		<< "All loaded." << std::endl
+		<< "Calculating k-means++ ..." << std::endl;
 
 	matrix boxes_data;
 	model anchors_data;
 	boxes_data = make_matrix(number_of_boxes, 2);
 
-	printf("\n");
 	for (i = 0; i < number_of_boxes; ++i)
 	{
 		boxes_data.vals[i][0] = rel_width_height_array[i * 2];
@@ -1824,10 +1885,6 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 	/// @todo replace qsort() lowest priority
 	qsort((void*)anchors_data.centers.vals, num_of_clusters, 2 * sizeof(float), (__compar_fn_t)anchors_data_comparator);
 
-	//gen_anchors.py = 1.19, 1.99, 2.79, 4.60, 4.53, 8.92, 8.06, 5.29, 10.32, 10.66
-	//float orig_anch[] = { 1.19, 1.99, 2.79, 4.60, 4.53, 8.92, 8.06, 5.29, 10.32, 10.66 };
-
-	printf("\n");
 	float avg_iou = 0;
 	for (i = 0; i < number_of_boxes; ++i)
 	{
@@ -1857,14 +1914,12 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 
 		float anchor_w = anchors_data.centers.vals[cluster_idx][0]; //centers->data.fl[cluster_idx * 2];
 		float anchor_h = anchors_data.centers.vals[cluster_idx][1]; //centers->data.fl[cluster_idx * 2 + 1];
-		if (best_iou > 1 || best_iou < 0)
+		if (best_iou > 1.0f || best_iou < 0.0f)
 		{
-			printf(" Wrong label: i = %d, box_w = %f, box_h = %f, anchor_w = %f, anchor_h = %f, iou = %f \n", i, box_w, box_h, anchor_w, anchor_h, best_iou);
+			darknet_fatal_error(DARKNET_LOC, "wrong label: i=%d, box_w=%f, box_h=%f, anchor_w=%f, anchor_h=%f, iou=%f", i, box_w, box_h, anchor_w, anchor_h, best_iou);
 		}
-		else
-		{
-			avg_iou += best_iou;
-		}
+
+		avg_iou += best_iou;
 	}
 
 	char buff[1024];
@@ -1872,55 +1927,59 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 	if (fwc)
 	{
 		sprintf(buff, "counters_per_class = ");
-		printf("\n%s", buff);
+		*cfg_and_state.output << buff;
 		fwrite(buff, sizeof(char), strlen(buff), fwc);
 		for (i = 0; i < classes; ++i)
 		{
 			sprintf(buff, "%d", counter_per_class[i]);
-			printf("%s", buff);
+			*cfg_and_state.output << buff;
 			fwrite(buff, sizeof(char), strlen(buff), fwc);
 			if (i < classes - 1)
 			{
 				fwrite(", ", sizeof(char), 2, fwc);
-				printf(", ");
+				*cfg_and_state.output << ", ";
 			}
 		}
-		printf("\n");
+		*cfg_and_state.output << std::endl;
 		fclose(fwc);
 	}
 	else
 	{
-		printf(" Error: file counters_per_class.txt can't be open \n");
+		darknet_fatal_error(DARKNET_LOC, "Error: failed to open file counters_per_class.txt");
 	}
 
-	avg_iou = 100 * avg_iou / number_of_boxes;
-	printf("\n avg IoU = %2.2f %% \n", avg_iou);
+	avg_iou = 100.0f * avg_iou / number_of_boxes;
+	*cfg_and_state.output << "avg IoU=" << avg_iou << "%" << std::endl;
 
 	FILE* fw = fopen("anchors.txt", "wb");
 	if (fw)
 	{
-		printf("\nSaving anchors to the file: anchors.txt \n");
-		printf("anchors = ");
+		*cfg_and_state.output
+			<< "Saving anchors to the file: anchors.txt" << std::endl
+			<< "anchors=";
+
 		for (i = 0; i < num_of_clusters; ++i)
 		{
 			float anchor_w = anchors_data.centers.vals[i][0]; //centers->data.fl[i * 2];
 			float anchor_h = anchors_data.centers.vals[i][1]; //centers->data.fl[i * 2 + 1];
 			if (width > 32) sprintf(buff, "%3.0f,%3.0f", anchor_w, anchor_h);
 			else sprintf(buff, "%2.4f,%2.4f", anchor_w, anchor_h);
-			printf("%s", buff);
+
+			*cfg_and_state.output << buff;
+
 			fwrite(buff, sizeof(char), strlen(buff), fw);
 			if (i + 1 < num_of_clusters)
 			{
 				fwrite(", ", sizeof(char), 2, fw);
-				printf(", ");
+				*cfg_and_state.output << ", ";
 			}
 		}
-		printf("\n");
+		*cfg_and_state.output << std::endl;
 		fclose(fw);
 	}
 	else
 	{
-		printf(" Error: file anchors.txt can't be open \n");
+		darknet_fatal_error(DARKNET_LOC, "Error: failed to open anchors.txt");
 	}
 
 	if (show)

@@ -1100,7 +1100,9 @@ int Darknet::best_3d_shift(const Darknet::Image & a, const Darknet::Image & b, i
 			best_distance = d;
 			best = i;
 		}
-		printf("%d %f\n", i, d);
+
+		*cfg_and_state.output << i << " " << d << std::endl;
+
 		Darknet::free_image(c);
 	}
 
@@ -1129,12 +1131,10 @@ void Darknet::composite_3d(char *f1, char *f2, const char *out, int delta)
 	{
 		std::swap(a, b);
 		shift = -shift;
-		printf("swapped, %d\n", shift);
+		*cfg_and_state.output << "swapped, ";
 	}
-	else
-	{
-		printf("%d\n", shift);
-	}
+
+	*cfg_and_state.output << shift << std::endl;
 
 	Darknet::Image c = Darknet::crop_image(b, delta, shift, a.w, a.h);
 	for (int i = 0; i < c.w*c.h; ++i)
@@ -1689,7 +1689,7 @@ void Darknet::test_resize(char *filename)
 
 	Darknet::Image im = Darknet::load_image(filename, 0,0, 3);
 	float mag = mag_array(im.data, im.w*im.h*im.c);
-	printf("L2 Norm: %f\n", mag);
+	*cfg_and_state.output << "L2 Norm: " << mag << std::endl;
 	Darknet::Image gray = Darknet::grayscale_image(im);
 
 	Darknet::Image c1 = Darknet::copy_image(im);
@@ -1726,7 +1726,7 @@ void Darknet::test_resize(char *filename)
 
 		Darknet::distort_image(c, dhue, dsat, dexp);
 		Darknet::show_image(c, "rand");
-		printf("%f %f %f\n", dhue, dsat, dexp);
+		*cfg_and_state.output << dhue << " " << dsat << " " << dexp << std::endl;
 		Darknet::free_image(c);
 		cv::waitKey(0);
 	}

@@ -189,7 +189,7 @@ float get_current_rate(const Darknet::Network & net)
 			return rate;
 		}
 		default:
-			fprintf(stderr, "Policy is weird!\n");
+			*cfg_and_state.output << "Unknown policy (" << net.policy << ")" << std::endl;
 			return net.learning_rate;
 	}
 }
@@ -446,20 +446,20 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 		if (!is_ema_initialized(net))
 		{
 			ema_update(net, 0); // init EMA
-			printf(" EMA initialization \n");
+			*cfg_and_state.output << "EMA initialization" << std::endl;
 		}
 
 		if ((*net.cur_iteration) == ema_apply_point)
 		{
 			ema_apply(net); // apply EMA (BN rolling mean/var recalculation is required)
-			printf(" ema_apply() \n");
+			*cfg_and_state.output << "EMA apply" << std::endl;
 		}
 		else
 		{
 			if ((*net.cur_iteration) < ema_apply_point)// && (*net.cur_iteration) % ema_period == 0)
 			{
 				ema_update(net, net.ema_alpha); // update EMA
-				printf(" ema_update(), ema_alpha = %f \n", net.ema_alpha);
+				*cfg_and_state.output << "EMA update, alpha=" << net.ema_alpha << std::endl;
 			}
 		}
 	}
@@ -699,7 +699,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 		else
 		{
 			cudaError_t status = cudaGetLastError(); // reset CUDA-error
-			printf("CUDA error #%d (%s, %s)\n", status, cudaGetErrorName(status), cudaGetErrorString(status));
+			*cfg_and_state.output << "CUDA error #" << status << " (" << cudaGetErrorName(status) << ", " << cudaGetErrorString(status) << ")" << std::endl;
 			net->input_pinned_cpu = (float*)xcalloc(size, sizeof(float));
 			net->input_pinned_cpu_flag = 0;
 		}
@@ -721,7 +721,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 	{
 		darknet_fatal_error(DARKNET_LOC, "failed to allocate workspace (%d)", workspace_size);
 	}
-	printf("Workspace begins at %p\n", net->workspace);
+	*cfg_and_state.output << "Workspace begins at 0x" << (void*)net->workspace << std::endl;
 
 	return 0;
 }
@@ -1231,7 +1231,7 @@ void fill_network_boxes_batch(Darknet::Network * net, int w, int h, float thresh
 			}
 			else if (prev_classes != l.classes)
 			{
-				printf(" Error: Different [yolo] layers have different number of classes = %d and %d - check your cfg-file! \n", prev_classes, l.classes);
+				darknet_fatal_error(DARKNET_LOC, "Different [yolo] layers have different number of classes = %d and %d - check your cfg-file!", prev_classes, l.classes);
 			}
 		}
 		else if (l.type == Darknet::ELayerType::REGION)
@@ -1707,8 +1707,11 @@ void fuse_conv_batchnorm(Darknet::Network & net)
 			{
 				//cuda_pull_array(l.weights_gpu, l.weights, l.nweights);
 				int i;
-				for (i = 0; i < l->nweights; ++i) printf(" w = %f,", l->weights[i]);
-				printf(" l->nweights = %d, j = %d \n", l->nweights, j);
+				for (i = 0; i < l->nweights; ++i)
+				{
+					*cfg_and_state.output << "w=" << l->weights[i] << ", ";
+				}
+				*cfg_and_state.output << "l->nweights=" << l->nweights << " j=" << j << std::endl;
 			}
 
 			const int layer_step = l->nweights / (l->n + 1);    // 1 or l.c or (l.c * l.h * l.w)
@@ -2050,12 +2053,19 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold)
 				}
 			}
 
-			printf(" reject_similar_weights: i = %d, l.n = %d, w1 = %d, w2 = %d, sim = %f, thresh = %f \n",
-				i, l.n, max_sim_index, max_sim_index2, max_sim, sim_threshold);
+			*cfg_and_state.output
+				<< "reject_similar_weights:"
+				<< " i=" << i
+				<< ", l.n=" << l.n
+				<< ", w1=" << max_sim_index
+				<< ", w2=" << max_sim_index2
+				<< ", sim=" << max_sim
+				<< ", thresh=" << sim_threshold
+				<< std::endl;
 
 			if (max_sim > sim_threshold)
 			{
-				printf(" rejecting... \n");
+				*cfg_and_state.output << "rejecting..." << std::endl;
 				float scale = sqrt(2. / (l.size*l.size*l.c / l.groups));
 
 				for (int k = 0; k < filter_size; ++k)

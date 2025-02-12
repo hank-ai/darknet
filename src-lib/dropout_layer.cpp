@@ -1,5 +1,11 @@
 #include "darknet_internal.hpp"
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 Darknet::Layer make_dropout_layer(int batch, int inputs, float probability, int dropblock, float dropblock_size_rel, int dropblock_size_abs, int w, int h, int c)
 {
 	TAT(TATPARMS);
@@ -42,16 +48,16 @@ Darknet::Layer make_dropout_layer(int batch, int inputs, float probability, int 
 	{
 		if (l.dropblock_size_abs)
 		{
-			fprintf(stderr, "dropblock    p = %.3f   l.dropblock_size_abs = %d    %4d  ->   %4d\n", probability, l.dropblock_size_abs, inputs, inputs);
+			*cfg_and_state.output << "dropblock    p = " << probability << "   l.dropblock_size_abs = " << l.dropblock_size_abs << "    " << inputs << "  ->   " << inputs << std::endl;
 		}
 		else
 		{
-			fprintf(stderr, "dropblock    p = %.3f   l.dropblock_size_rel = %.2f    %4d  ->   %4d\n", probability, l.dropblock_size_rel, inputs, inputs);
+			*cfg_and_state.output << "dropblock    p = " << probability << "   l.dropblock_size_rel = " << l.dropblock_size_rel << "    " << inputs << "  ->   " << inputs << std::endl;
 		}
 	}
 	else
 	{
-		fprintf(stderr, "dropout    p = %.3f        %4d  ->   %4d\n", probability, inputs, inputs);
+		*cfg_and_state.output << "dropout    p = " << probability << "        " << inputs << "  ->   " << inputs << std::endl;
 	}
 
 	return l;

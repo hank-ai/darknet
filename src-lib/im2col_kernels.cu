@@ -1250,7 +1250,6 @@ void convolve_gpu(float *input, float *weights, float *output, int in_w, int in_
 
 	int array_size = in_w*in_h*n;    // width X height X filters
 	const int num_blocks = array_size / BLOCK + 1;
-	//printf("\n array_size = %d, num_blocks = %d, w = %d, h = %d, n = %d, c = %d, pad = %d \n", array_size, num_blocks, in_w, in_h, n, in_c, pad);
 
 	convolve_gpu_kernel <<<num_blocks, BLOCK, 0, get_cuda_stream() >>> (input, weights, output, in_w, in_h, in_c, n, size, pad);
 	CHECK_CUDA(cudaPeekAtLastError());
@@ -1343,7 +1342,6 @@ void convolve_bin_gpu(float *input, float *weights, float *output, int in_w, int
 
 	int array_size = in_w*in_h*n;    // width X height X filters
 	const int num_blocks = array_size / BLOCK + 1;
-	//printf("\n array_size = %d, num_blocks = %d, w = %d, h = %d, n = %d, c = %d, pad = %d \n", array_size, num_blocks, in_w, in_h, n, in_c, pad);
 
 	convolve_bin_gpu_kernel <<<num_blocks, BLOCK, 0, get_cuda_stream() >>> (input, weights, output, in_w, in_h, in_c, n, size, pad, new_lda, mean_arr_gpu);
 	CHECK_CUDA(cudaPeekAtLastError());

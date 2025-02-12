@@ -248,9 +248,6 @@ void transpose_bin(uint32_t *A, uint32_t *B, const int n, const int m, const int
 
 	/// @note This function is for CPU-only versions of Darknet.  See im2col_kernels.cu for GPU version.
 
-	//printf("\n n = %d (n mod 32 = %d), m = %d (m mod 32 = %d) \n", n, n % 32, m, m % 32);
-	//printf("\n lda = %d (lda mod 32 = %d), ldb = %d (ldb mod 32 = %d) \n", lda, lda % 32, ldb, ldb % 32);
-
 	#pragma omp parallel for
 	for (int i = 0; i < n; i += 32)
 	{
@@ -1861,8 +1858,6 @@ void gemm_nn_custom_bin_mean_transposed(int M, int N, int K, float ALPHA_UNUSED,
 
 				if (K - k < 64)  tmp_count = tmp_count - (64 - (K - k));    // remove extra bits
 				count += tmp_count;
-				//binary_int64_printf(c_bit64);
-				//printf(", count = %d \n\n", tmp_count);
 			}
 
 			C[i*ldc + j] = (2 * count - K) * mean_val;
@@ -1967,8 +1962,8 @@ void im2col_cpu_custom(float* data_im,
 		}
 
 	}
-	else {
-		//printf("\n Error: is no non-optimized version \n");
+	else
+	{
 		im2col_cpu(data_im, channels, height, width, ksize, stride, pad, data_col);
 	}
 }
@@ -2401,32 +2396,44 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 {
 	TAT(TATPARMS);
 
-	//printf("cpu: %d %d %d %d %d %f %d %d %f %d\n",TA, TB, M, N, K, ALPHA, lda, ldb, BETA, ldc);
-	if (BETA != 1){
-		int i, j;
-		for(i = 0; i < M; ++i){
-			for(j = 0; j < N; ++j){
+	if (BETA != 1)
+	{
+		for(int i = 0; i < M; ++i)
+		{
+			for(int j = 0; j < N; ++j)
+			{
 				C[i*ldc + j] *= BETA;
 			}
 		}
 	}
 
 	is_avx();   // initialize static variable
-	if (is_fma_avx2() && !TA && !TB) {
+	if (is_fma_avx2() && !TA && !TB)
+	{
 		gemm_nn_fast(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
 	}
-	else {
+	else
+	{
 		int t;
 		#pragma omp parallel for
-		for (t = 0; t < M; ++t) {
+		for (t = 0; t < M; ++t)
+		{
 			if (!TA && !TB)
+			{
 				gemm_nn(1, N, K, ALPHA, A + t*lda, lda, B, ldb, C + t*ldc, ldc);
+			}
 			else if (TA && !TB)
+			{
 				gemm_tn(1, N, K, ALPHA, A + t, lda, B, ldb, C + t*ldc, ldc);
+			}
 			else if (!TA && TB)
+			{
 				gemm_nt(1, N, K, ALPHA, A + t*lda, lda, B, ldb, C + t*ldc, ldc);
+			}
 			else
+			{
 				gemm_tt(1, N, K, ALPHA, A + t, lda, B, ldb, C + t*ldc, ldc);
+			}
 		}
 	}
 }
@@ -2496,7 +2503,17 @@ void time_gpu_random_matrix(int TA, int TB, int m, int k, int n)
 		gemm_gpu(TA,TB,m,n,k,1,a,lda,b,ldb,1,c,n);
 	}
 	end = clock();
-	printf("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %lf s\n",m,k,k,n, TA, TB, (float)(end-start)/CLOCKS_PER_SEC);
+
+	*cfg_and_state.output
+		<< "Matrix Multiplication"
+		<< " " << m << "x" << k
+		<< " * "
+		<< k << "x" << n
+		<< ", TA=" << TA
+		<< ", TB=" << TB
+		<< ": " << (float)(end-start)/CLOCKS_PER_SEC << " s"
+		<< std::endl;
+
 	free(a);
 	free(b);
 	free(c);
@@ -2530,7 +2547,18 @@ void time_ongpu(int TA, int TB, int m, int k, int n)
 	double gflop = flop/pow(10., 9);
 	end = clock();
 	double seconds = sec(end-start);
-	printf("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %lf s, %lf GFLOPS\n",m,k,k,n, TA, TB, seconds, gflop/seconds);
+
+	*cfg_and_state.output
+		<< "Matrix Multiplication"
+		<< " " << m << "x" << k
+		<< " * "
+		<< k << "x" << n
+		<< ", TA=" << TA
+		<< ", TB=" << TB
+		<< ": " << seconds << " s"
+		<< ", " << gflop/seconds << " GFLOPS"
+		<< std::endl;
+
 	cuda_free(a_cl);
 	cuda_free(b_cl);
 	cuda_free(c_cl);
@@ -2559,20 +2587,25 @@ void test_gpu_accuracy(int TA, int TB, int m, int k, int n)
 	memset(c, 0, m*n*sizeof(float));
 	memset(c_gpu, 0, m*n*sizeof(float));
 	int i;
-	//pm(m,k,b);
 	gemm_gpu(TA,TB,m,n,k,1,a,lda,b,ldb,1,c_gpu,n);
-	//printf("GPU\n");
-	//pm(m, n, c_gpu);
 
 	gemm_cpu(TA,TB,m,n,k,1,a,lda,b,ldb,1,c,n);
-	//printf("\n\nCPU\n");
-	//pm(m, n, c);
 	double sse = 0;
-	for(i = 0; i < m*n; ++i) {
-		//printf("%f %f\n", c[i], c_gpu[i]);
+	for(i = 0; i < m*n; ++i)
+	{
 		sse += pow(c[i]-c_gpu[i], 2);
 	}
-	printf("Matrix Multiplication %dx%d * %dx%d, TA=%d, TB=%d: %g SSE\n",m,k,k,n, TA, TB, sse/(m*n));
+
+	*cfg_and_state.output
+		<< "Matrix Multiplication"
+		<< " " << m << "x" << k
+		<< " * "
+		<< k << "x" << n
+		<< ", TA=" << TA
+		<< ", TB=" << TB
+		<< ": " << sse/(m*n) << " SSE"
+		<< std::endl;
+
 	free(a);
 	free(b);
 	free(c);
