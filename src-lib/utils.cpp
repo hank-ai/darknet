@@ -17,6 +17,12 @@
 #include <random>
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 void *xmalloc_location(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
 	TAT(TATPARMS);
@@ -228,21 +234,6 @@ char int_to_alphanum(int i)
 	return (i < 10) ? i + 48 : i + 87;
 }
 
-void pm(int M, int N, float *A)
-{
-	TAT(TATPARMS);
-
-	int i,j;
-	for(i =0 ; i < M; ++i){
-		printf("%d ", i+1);
-		for(j = 0; j < N; ++j){
-			printf("%2.4f, ", A[i*N+j]);
-		}
-		printf("\n");
-	}
-	printf("\n");
-}
-
 void find_replace(const char* str, char* orig, char* rep, char* output)
 {
 	TAT(TATPARMS);
@@ -325,7 +316,7 @@ void log_backtrace()
 
 	auto count = CaptureStackBackTrace(0, MAX_STACK_FRAMES, stack, nullptr);
 
-	fprintf(stderr, "backtrace (%d entries):\n", count);
+	*cfg_and_state.output << "backtrace (" << count << " entries):" << std::endl;
 
 	char buffer[sizeof(SYMBOL_INFO) + MAX_SYM_NAME * sizeof(TCHAR)];
 	SYMBOL_INFO * symbol = reinterpret_cast<SYMBOL_INFO*>(buffer);
@@ -335,7 +326,7 @@ void log_backtrace()
 	for (auto idx = 0; idx < count; idx ++)
 	{
 		SymFromAddr(process, DWORD64(stack[idx]), 0, symbol);
-		fprintf(stderr, "%d/%d: %s()\n", idx + 1, count, symbol->Name);
+		*cfg_and_state.output << (idx + 1) << "/" << count << ": " << symbol->Name << "()" << std::endl;
 	}
 	SymCleanup(process);
 	CloseHandle(process);
@@ -343,11 +334,11 @@ void log_backtrace()
 	int count = backtrace(stack, MAX_STACK_FRAMES);
 	char **symbols = backtrace_symbols(stack, count);
 
-	fprintf(stderr, "backtrace (%d entries):\n", count);
+	*cfg_and_state.output << "backtrace (" << count << " entries):" << std::endl;
 
 	for (int idx = 0; idx < count; idx ++)
 	{
-		fprintf(stderr, "%d/%d: %s\n", idx + 1, count, symbols[idx]);
+		*cfg_and_state.output << (idx + 1) << "/" << count << ": " << symbols[idx] << std::endl;
 	}
 
 	free(symbols);
@@ -382,34 +373,18 @@ namespace
 	{
 		cfg_and_state.must_immediately_exit = true;
 
+		char msg_buffer[1024];
+		va_list args;
+		va_start(args, msg);
+		vsnprintf(msg_buffer, sizeof(msg_buffer), msg, args);
+		va_end(args);
+
 		decltype(cfg_and_state.thread_names) all_thread_names;
 		if (true)
 		{
 			std::scoped_lock lock(cfg_and_state.thread_names_mutex);
 			all_thread_names = cfg_and_state.thread_names;
 		}
-
-		fprintf(stderr, "\n* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n");
-
-		if (saved_errno != 0)
-		{
-			char buffer[50];
-			sprintf(buffer, "* Errno %d", saved_errno);
-			errno = saved_errno;
-			perror(buffer);
-		}
-
-		fprintf(stderr, "* Error location: %s, %s(), line #%d\n", filename, funcname, line);
-		fprintf(stderr, "* Error message:  %s", Darknet::in_colour(Darknet::EColour::kBrightRed).c_str());
-		va_list args;
-		va_start(args, msg);
-		vfprintf(stderr, msg, args);
-		va_end(args);
-
-		/* 2024-05-21:  I ran into a problem on Ubuntu where everything printed using std::cout and std::cerr following the
-		 * call to vfprintf() was ignored, even with attempts to flush the streams.  Thus, all the std::cout calls after this
-		 * line have been converted back to fprintf() to avoid this issue and ensure we get the full error message.
-		 */
 
 		const auto tid_to_digits = [](const std::thread::id & t) -> uint64_t
 		{
@@ -418,42 +393,50 @@ namespace
 			return std::stoull(ss.str());
 		};
 
-		fprintf(stderr,
-				"%s\n" // the vfprintf() message is not newline-terminated so we need to take care of that before we print anything else
-				"* Thread #%lu: %s\n"
-				"* Version %s built on %s %s\n"
-				"* * * * * * * * * * * * * * * * * * * * * * * * * * * * *\n",
-				Darknet::in_colour(Darknet::EColour::kNormal).c_str(),
-				tid_to_digits(std::this_thread::get_id()),
-				cfg_and_state.get_thread_name().c_str(),
-				DARKNET_VERSION_STRING, __DATE__, __TIME__);
+		*cfg_and_state.output << std::endl << "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *" << std::endl;
+
+		if (saved_errno != 0)
+		{
+			*cfg_and_state.output
+				<< "* Errno " << saved_errno
+#ifndef WIN32
+				<< ": " << strerror(saved_errno)
+#endif
+				<< std::endl;
+
+			/* We can no longer call perror() since we want to control where the output is saved.
+			 *
+			errno = saved_errno;
+			perror(buffer);
+			 */
+		}
+
+		*cfg_and_state.output
+			<< "* Error location: " << filename << ", " << funcname << "(), line #" << line << std::endl
+			<< "* Error message:  " << Darknet::in_colour(Darknet::EColour::kBrightRed) << msg_buffer << Darknet::in_colour(Darknet::EColour::kNormal) << std::endl
+			<< "* Thread #" << tid_to_digits(std::this_thread::get_id()) << ": " << cfg_and_state.get_thread_name() << std::endl
+			<< "* Version " << "\"" << DARKNET_VERSION_KEYWORD << "\" " << DARKNET_VERSION_STRING << " built on " << __DATE__ << " " << __TIME__ << std::endl
+			<< "* * * * * * * * * * * * * * * * * * * * * * * * * * * * *" << std::endl << std::endl;
 
 		log_backtrace();
 
-		fprintf(stderr, "known threads:  %ld\n", all_thread_names.size());
+		*cfg_and_state.output << std::endl << "known threads:  " << all_thread_names.size() << std::endl;
 		size_t count = 0;
 		for (const auto & [tid, name] : all_thread_names)
 		{
 			count ++;
 
-			fprintf(stderr, "%lu/%lu: #%lu: %s\n",
-					count,
-					all_thread_names.size(),
-					tid_to_digits(tid),
-					name.c_str());
+			*cfg_and_state.output << count << "/" << all_thread_names.size() << ": #" << tid_to_digits(tid) << ": " << name << std::endl;
 
 			if (count > 15 and all_thread_names.size() >= 20)
 			{
-				fprintf(stderr, "...\n");
+				*cfg_and_state.output << "..." << std::endl;
 				break;
 			}
 		}
 	}
 
-	std::fflush(stdout);
-	std::fflush(stderr);
-
-	*cfg_and_state.output << std::flush;
+	*cfg_and_state.output << std::endl << std::flush;
 
 	if (is_locked)
 	{
@@ -470,17 +453,17 @@ const char * size_to_IEC_string(const size_t size)
 {
 	TAT(TATPARMS);
 
-	const float bytes = (double)size;
-	const float KiB = 1024;
-	const float MiB = 1024 * KiB;
-	const float GiB = 1024 * MiB;
+	const float bytes = static_cast<float>(size);
+	const float KiB = 1024.0f;
+	const float MiB = 1024.0f * KiB;
+	const float GiB = 1024.0f * MiB;
 
 	static char buffer[25]; /// @todo not thread safe
 
-	if (size < KiB)         sprintf(buffer, "%ld bytes", size);
-	else if (size < MiB)    sprintf(buffer, "%1.1f KiB", bytes / KiB);
-	else if (size < GiB)    sprintf(buffer, "%1.1f MiB", bytes / MiB);
-	else                    sprintf(buffer, "%1.1f GiB", bytes / GiB);
+	if		(size < 0.75f * KiB)	sprintf(buffer, "%ld bytes", size);
+	else if (size < 0.75f * MiB)	sprintf(buffer, "%1.1f KiB", bytes / KiB);
+	else if (size < 0.75f * GiB)	sprintf(buffer, "%1.1f MiB", bytes / MiB);
+	else							sprintf(buffer, "%1.1f GiB", bytes / GiB);
 
 	return buffer;
 }
@@ -506,6 +489,12 @@ void realloc_error(const size_t size, const char * const filename, const char * 
 void file_error(const char * const s, const char * const filename, const char * const funcname, const int line)
 {
 //	TAT(TATPARMS); ... don't bother, we're about to abort
+
+	if (s == nullptr or s[0] == '\0')
+	{
+		darknet_fatal_error(filename, funcname, line, "filename seems to be missing; cannot open the file \"<unknown>\"");
+	}
+
 	darknet_fatal_error(filename, funcname, line, "failed to open the file \"%s\"", s);
 }
 
@@ -882,7 +871,11 @@ void print_statistics(float *a, int n)
 
 	float m = mean_array(a, n);
 	float v = variance_array(a, n);
-	printf("MSE: %.6f, Mean: %.6f, Variance: %.6f\n", mse_array(a, n), m, v);
+	*cfg_and_state.output
+		<< "MSE: "			<< mse_array(a, n)
+		<< ", Mean: "		<< m
+		<< ", Variance: "	<< v
+		<< std::endl;
 }
 
 float variance_array(float *a, int n)

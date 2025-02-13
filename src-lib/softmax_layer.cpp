@@ -1,5 +1,12 @@
 #include "darknet_internal.hpp"
 
+
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 /// @todo what is this?
 #define SECRET_NUM -1234
 
@@ -24,7 +31,7 @@ Darknet::Layer make_softmax_layer(int batch, int inputs, int groups)
 	TAT(TATPARMS);
 
 	assert(inputs%groups == 0);
-	fprintf(stderr, "softmax                                        %4d\n",  inputs);
+	*cfg_and_state.output << "softmax                                        " << inputs << std::endl;
 	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.type = Darknet::ELayerType::SOFTMAX;
 	l.batch = batch;
@@ -206,11 +213,25 @@ Darknet::Layer make_contrastive_layer(int batch, int w, int h, int c, int classe
 	l.delta_gpu = cuda_make_array(l.delta, inputs*batch);
 
 	const int max_contr_size = (l.max_boxes*l.batch)*(l.max_boxes*l.batch) * sizeof(contrastive_params)/4;
-	printf(" max_contr_size = %d MB \n", max_contr_size / (1024*1024));
+	*cfg_and_state.output << "max_contr_size=" << size_to_IEC_string(max_contr_size) << std::endl;
 	l.contrast_p_gpu = (contrastive_params *)cuda_make_array(NULL, max_contr_size);
 #endif
-	printf("contrastive %4d x%4d x%4d x emb_size %4d x batch: %4d  classes = %4d, step = %4lu\n", w, h, l.n, l.embedding_size, batch, l.classes, step);
-	if(l.detection) printf("detection\n");
+
+	*cfg_and_state.output
+		<< "contrastive "	<< w
+		<< " x "			<< h
+		<< " x "			<< l.n
+		<< " x emb_size "	<< l.embedding_size
+		<< " x batch: "		<< batch
+		<< " classes="		<< l.classes
+		<< ", step="		<< step
+		<< std::endl;
+
+	if (l.detection)
+	{
+		*cfg_and_state.output << "detection" << std::endl;
+	}
+
 	return l;
 }
 
@@ -360,7 +381,6 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 									// calc good sim
 									if (l.labels[z_index] == l.labels[z_index2] && max_sim_same[z_index] < sim) max_sim_same[z_index] = sim;
 									if (l.labels[z_index] != l.labels[z_index2] && max_sim_diff[z_index] < sim) max_sim_diff[z_index] = sim;
-									//printf(" z_i = %d, z_i2 = %d, l = %d, l2 = %d, sim = %f \n", z_index, z_index2, l.labels[z_index], l.labels[z_index2], sim);
 
 									contrast_p[contrast_p_index].sim = sim;
 									contrast_p[contrast_p_index].exp_sim = exp_sim;
@@ -369,11 +389,9 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 									contrast_p[contrast_p_index].time_step_i = time_step_i;
 									contrast_p[contrast_p_index].time_step_j = time_step_j;
 									contrast_p_index++;
-									//printf(" contrast_p_index = %d, contrast_p_size = %d \n", contrast_p_index, contrast_p_size);
 									if ((contrast_p_index+1) >= contrast_p_size)
 									{
 										contrast_p_size = contrast_p_index + 1;
-										//printf(" contrast_p_size = %d, z_index = %d, z_index2 = %d \n", contrast_p_size, z_index, z_index2);
 										contrast_p = (contrastive_params*)xrealloc(contrast_p, contrast_p_size * sizeof(contrastive_params));
 									}
 								}
@@ -396,11 +414,24 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			if (max_sim_diff[i] < max_sim_same[i]) good_sims++;
 		}
 	}
-	if (all_sims > 0) {
-		*l.loss = 100 * good_sims / all_sims;
+	if (all_sims > 0)
+	{
+		*l.loss = 100.0f * good_sims / all_sims;
 	}
-	else *l.loss = -1;
-	printf(" Contrast accuracy = %f %%, all = %d, good = %d, same = %d, diff = %d \n", *l.loss, all_sims, good_sims, same_sim, diff_sim);
+	else
+	{
+		*l.loss = -1.0f;
+	}
+
+	*cfg_and_state.output
+		<< "Contrast"
+		<< " accuracy=" << *l.loss << "%"
+		<< ", all=" << all_sims
+		<< ", good=" << good_sims
+		<< ", same=" << same_sim
+		<< ", diff=" << diff_sim
+		<< std::endl;
+
 	free(max_sim_same);
 	free(max_sim_diff);
 
@@ -438,7 +469,10 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 					for (int w = 0; w < l.w; ++w)
 					{
 						const int z_index = b*l.n*l.h*l.w + n*l.h*l.w + h*l.w + w;
-						if (l.labels[z_index] < 0) continue;
+						if (l.labels[z_index] < 0)
+						{
+							continue;
+						}
 
 						for (int b2 = 0; b2 < l.batch; ++b2)
 						{
@@ -449,39 +483,48 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 									for (int w2 = 0; w2 < l.w; ++w2)
 									{
 										const int z_index2 = b2*l.n*l.h*l.w + n2*l.h*l.w + h2*l.w + w2;
-										if (l.labels[z_index2] < 0) continue;
-										if (z_index == z_index2) continue;
+										if (l.labels[z_index2] < 0)
+										{
+											continue;
+										}
+										if (z_index == z_index2)
+										{
+											continue;
+										}
 										if (l.detection)
-											if (l.class_ids[z_index] != l.class_ids[z_index2]) continue;
+										{
+											if (l.class_ids[z_index] != l.class_ids[z_index2])
+											{
+												continue;
+											}
+										}
 
 										const int time_step_i = b / mini_batch;
 										const int time_step_j = b2 / mini_batch;
-										if (time_step_i != time_step_j) continue;
-
-//										const size_t step = l.batch*l.n*l.h*l.w;
+										if (time_step_i != time_step_j)
+										{
+											continue;
+										}
 
 										float P = -10;
-										if (l.detection) {
+										if (l.detection)
+										{
 											P = P_constrastive_f(z_index, z_index2, l.labels, z, l.embedding_size, l.temperature, contrast_p, contr_size);
 										}
-										else {
+										else
+										{
 											P = P_constrastive(z_index, z_index2, l.labels, step, z, l.embedding_size, l.temperature, l.cos_sim, l.exp_cos_sim);
 											l.p_constrastive[z_index*step + z_index2] = P;
 										}
 
-										int q;
-										for (q = 0; q < contr_size; ++q)
-											if (contrast_p[q].i == z_index && contrast_p[q].j == z_index2) {
+										for (int q = 0; q < contr_size; ++q)
+										{
+											if (contrast_p[q].i == z_index && contrast_p[q].j == z_index2)
+											{
 												contrast_p[q].P = P;
 												break;
 											}
-
-										//if (q == contr_size) getchar();
-
-
-										//if (P > 1 || P < -1) {
-										//    printf(" p = %f, z_index = %d, z_index2 = %d ", P, z_index, z_index2); getchar();
-										//}
+										}
 									}
 								}
 							}
@@ -496,19 +539,25 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	// calc deltas
 	int bd = 0;
 	#pragma omp parallel for
-	for (bd = 0; bd < l.batch; ++bd) {
-		for (int nd = 0; nd < l.n; ++nd) {
-			for (int hd = 0; hd < l.h; ++hd) {
+	for (bd = 0; bd < l.batch; ++bd)
+	{
+		for (int nd = 0; nd < l.n; ++nd)
+		{
+			for (int hd = 0; hd < l.h; ++hd)
+			{
 				for (int wd = 0; wd < l.w; ++wd)
 				{
 					const int z_index = bd*l.n*l.h*l.w + nd*l.h*l.w + hd*l.w + wd;
-//					const size_t step = l.batch*l.n*l.h*l.w;
-					if (l.labels[z_index] < 0) continue;
+					if (l.labels[z_index] < 0)
+					{
+						continue;
+					}
 
 					const int delta_index = bd*l.embedding_size*l.n*l.h*l.w + nd*l.embedding_size*l.h*l.w + hd*l.w + wd;
 					const int wh = l.w*l.h;
 
-					if (l.detection) {
+					if (l.detection)
+					{
 						// detector
 
 						// positive
@@ -517,7 +566,8 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 						// negative
 						grad_contrastive_loss_negative_f(z_index, l.class_ids, l.labels, step, z, l.embedding_size, l.temperature, l.delta + delta_index, wh, contrast_p, contr_size, l.contrastive_neg_max);
 					}
-					else {
+					else
+					{
 						/// @todo does this still apply now that classifier code has been removed?
 						// classifier
 
@@ -527,7 +577,6 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 						// negative
 						grad_contrastive_loss_negative(z_index, l.labels, step, z, l.embedding_size, l.temperature, l.cos_sim, l.p_constrastive, l.delta + delta_index, wh);
 					}
-
 				}
 			}
 		}
@@ -535,16 +584,19 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 
 	scal_cpu(l.inputs * l.batch, l.cls_normalizer, l.delta, 1);
 
-	for (i = 0; i < l.inputs * l.batch; ++i) {
+	for (i = 0; i < l.inputs * l.batch; ++i)
+	{
 		l.delta[i] = clip_value(l.delta[i], l.max_delta);
 	}
 
 	*(l.cost) = pow(mag_array(l.delta, l.inputs * l.batch), 2);
-	if (state.net.adversarial) {
-		printf(" adversarial contrastive loss = %f \n\n", *(l.cost));
+	if (state.net.adversarial)
+	{
+		*cfg_and_state.output << "adversarial contrastive loss=" << *(l.cost) << std::endl << std::endl;
 	}
-	else {
-		printf(" contrastive loss = %f \n\n", *(l.cost));
+	else
+	{
+		*cfg_and_state.output << "contrastive loss=" << *(l.cost) << std::endl << std::endl;
 	}
 
 	for (int b = 0; b < l.batch; ++b)
@@ -557,7 +609,10 @@ void forward_contrastive_layer(Darknet::Layer & l, Darknet::NetworkState state)
 				{
 					const int z_index = b*l.n*l.h*l.w + n*l.h*l.w + h*l.w + w;
 					//if (l.labels[z_index] < 0) continue;
-					if (z[z_index]) free(z[z_index]);
+					if (z[z_index])
+					{
+						free(z[z_index]);
+					}
 				}
 			}
 		}

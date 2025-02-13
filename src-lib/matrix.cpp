@@ -1,5 +1,12 @@
 #include "darknet_internal.hpp"
 
+
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 void free_matrix(matrix & m)
 {
 	TAT_REVIEWED(TATPARMS, "2024-04-04");
@@ -195,10 +202,11 @@ model do_kmeans(matrix data, int k)
 	// range centers [min - max] using exp graph or Pyth example
 	if (k == 1) kmeans_maximization(data, assignments, centers);
 	int i;
-	for(i = 0; i < 1000 && !kmeans_expectation(data, assignments, centers); ++i) {
+	for(i = 0; i < 1000 && !kmeans_expectation(data, assignments, centers); ++i)
+	{
 		kmeans_maximization(data, assignments, centers);
 	}
-	printf("\n iterations = %d \n", i);
+	*cfg_and_state.output << std::endl << "iterations=" << i << std::endl;
 	model m;
 	m.assignments = assignments;
 	m.centers = centers;

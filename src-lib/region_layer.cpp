@@ -1,5 +1,13 @@
 #include "darknet_internal.hpp"
 
+
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
+/// @todo what is this?
 #define DOABS 1
 
 Darknet::Layer make_region_layer(int batch, int w, int h, int n, int classes, int coords, int max_boxes)
@@ -83,12 +91,14 @@ Darknet::Box get_region_box(float *x, float *biases, int n, int index, int i, in
 	Darknet::Box b;
 	b.x = (i + logistic_activate(x[index + 0])) / w;
 	b.y = (j + logistic_activate(x[index + 1])) / h;
+#ifndef DOABS
 	b.w = exp(x[index + 2]) * biases[2*n];
 	b.h = exp(x[index + 3]) * biases[2*n+1];
-	if(DOABS){
-		b.w = exp(x[index + 2]) * biases[2*n]   / w;
-		b.h = exp(x[index + 3]) * biases[2*n+1] / h;
-	}
+#else
+	b.w = exp(x[index + 2]) * biases[2*n]   / w;
+	b.h = exp(x[index + 3]) * biases[2*n+1] / h;
+#endif
+
 	return b;
 }
 
@@ -101,12 +111,13 @@ float delta_region_box(Darknet::Box truth, float *x, float *biases, int n, int i
 
 	float tx = (truth.x*w - i);
 	float ty = (truth.y*h - j);
+#ifndef DOABS
 	float tw = log(truth.w / biases[2*n]);
 	float th = log(truth.h / biases[2*n + 1]);
-	if(DOABS){
-		tw = log(truth.w*w / biases[2*n]);
-		th = log(truth.h*h / biases[2*n + 1]);
-	}
+#else
+	float tw = log(truth.w*w / biases[2*n]);
+	float th = log(truth.h*h / biases[2*n + 1]);
+#endif
 
 	delta[index + 0] = scale * (tx - logistic_activate(x[index + 0])) * logistic_gradient(logistic_activate(x[index + 0]));
 	delta[index + 1] = scale * (ty - logistic_activate(x[index + 1])) * logistic_gradient(logistic_activate(x[index + 1]));
@@ -312,12 +323,13 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 						Darknet::Box truth = {0};
 						truth.x = (i + .5)/l.w;
 						truth.y = (j + .5)/l.h;
+#ifndef DOABS
 						truth.w = l.biases[2*n];
 						truth.h = l.biases[2*n+1];
-						if(DOABS){
-							truth.w = l.biases[2*n]/l.w;
-							truth.h = l.biases[2*n+1]/l.h;
-						}
+#else
+						truth.w = l.biases[2*n]/l.w;
+						truth.h = l.biases[2*n+1]/l.h;
+#endif
 						delta_region_box(truth, l.output, l.biases, n, index, i, j, l.w, l.h, l.delta, .01);
 					}
 				}
@@ -343,13 +355,15 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			for(n = 0; n < l.n; ++n){
 				int index = size*(j*l.w*l.n + i*l.n + n) + b*l.outputs;
 				Darknet::Box pred = get_region_box(l.output, l.biases, n, index, i, j, l.w, l.h);
-				if(l.bias_match){
+				if(l.bias_match)
+				{
+#ifndef DOABS
 					pred.w = l.biases[2*n];
 					pred.h = l.biases[2*n+1];
-					if(DOABS){
-						pred.w = l.biases[2*n]/l.w;
-						pred.h = l.biases[2*n+1]/l.h;
-					}
+#else
+					pred.w = l.biases[2*n]/l.w;
+					pred.h = l.biases[2*n+1]/l.h;
+#endif
 				}
 				pred.x = 0;
 				pred.y = 0;
@@ -378,12 +392,20 @@ void forward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			++class_count;
 		}
 	}
-	//printf("\n");
+
 	#ifndef DARKNET_GPU
 	flatten(l.delta, l.w*l.h, size*l.n, l.batch, 0);
 	#endif
 	*(l.cost) = pow(mag_array(l.delta, l.outputs * l.batch), 2);
-	printf("Region Avg IOU: %f, Class: %f, Obj: %f, No Obj: %f, Avg Recall: %f,  count: %d\n", avg_iou/count, avg_cat/class_count, avg_obj/count, avg_anyobj/(l.w*l.h*l.n*l.batch), recall/count, count);
+
+	*cfg_and_state.output
+		<< "Region avg IoU: "	<< avg_iou/count
+		<< ", class: "			<< avg_cat/class_count
+		<< ", obj: "			<< avg_obj/count
+		<< ", no obj: "			<< avg_anyobj / (l.w * l.h * l.n * l.batch)
+		<< ", avg recall: "		<< recall/count
+		<< ", count: "			<< count
+		<< std::endl;
 }
 
 void backward_region_layer(Darknet::Layer & l, Darknet::NetworkState state)

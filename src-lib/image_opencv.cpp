@@ -488,7 +488,6 @@ void show_anchors(int number_of_boxes, int num_of_clusters, float *rel_width_hei
 		int green_id = (cluster_idx * (uint64_t)321 + 33) % 255;
 		int blue_id = (cluster_idx * (uint64_t)11 + 99) % 255;
 		cv::circle(img, pt, 1, CV_RGB(red_id, green_id, blue_id), CV_FILLED);
-		//if(pt.x > img_size || pt.y > img_size) printf("\n pt.x = %d, pt.y = %d \n", pt.x, pt.y);
 	}
 
 	for (int j = 0; j < num_of_clusters; ++j) {

@@ -1,6 +1,12 @@
 #include "darknet_internal.hpp"
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 static void increment_layer(Darknet::Layer *l, int steps)
 {
 	TAT(TATPARMS);
@@ -23,7 +29,7 @@ Darknet::Layer make_lstm_layer(int batch, int inputs, int outputs, int steps, in
 {
 	TAT(TATPARMS);
 
-	fprintf(stderr, "LSTM Layer: %d inputs, %d outputs\n", inputs, outputs);
+	*cfg_and_state.output << "LSTM Layer: " << inputs << " inputs, " << outputs << " outputs" << std::endl;
 	batch = batch / steps;
 	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.batch = batch;
@@ -35,49 +41,49 @@ Darknet::Layer make_lstm_layer(int batch, int inputs, int outputs, int steps, in
 	l.out_c = outputs;
 
 	l.uf = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
-	fprintf(stderr, "\t\t");
+	*cfg_and_state.output << "\t\t";
 	*(l.uf) = make_connected_layer(batch, steps, inputs, outputs, LINEAR, batch_normalize);
 	l.uf->batch = batch;
 	if (l.workspace_size < l.uf->workspace_size) l.workspace_size = l.uf->workspace_size;
 
 	l.ui = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
-	fprintf(stderr, "\t\t");
+	*cfg_and_state.output << "\t\t";
 	*(l.ui) = make_connected_layer(batch, steps, inputs, outputs, LINEAR, batch_normalize);
 	l.ui->batch = batch;
 	if (l.workspace_size < l.ui->workspace_size) l.workspace_size = l.ui->workspace_size;
 
 	l.ug = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
-	fprintf(stderr, "\t\t");
+	*cfg_and_state.output << "\t\t";
 	*(l.ug) = make_connected_layer(batch, steps, inputs, outputs, LINEAR, batch_normalize);
 	l.ug->batch = batch;
 	if (l.workspace_size < l.ug->workspace_size) l.workspace_size = l.ug->workspace_size;
 
 	l.uo = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
-	fprintf(stderr, "\t\t");
+	*cfg_and_state.output << "\t\t";
 	*(l.uo) = make_connected_layer(batch, steps, inputs, outputs, LINEAR, batch_normalize);
 	l.uo->batch = batch;
 	if (l.workspace_size < l.uo->workspace_size) l.workspace_size = l.uo->workspace_size;
 
 	l.wf = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
-	fprintf(stderr, "\t\t");
+	*cfg_and_state.output << "\t\t";
 	*(l.wf) = make_connected_layer(batch, steps, outputs, outputs, LINEAR, batch_normalize);
 	l.wf->batch = batch;
 	if (l.workspace_size < l.wf->workspace_size) l.workspace_size = l.wf->workspace_size;
 
 	l.wi = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
-	fprintf(stderr, "\t\t");
+	*cfg_and_state.output << "\t\t";
 	*(l.wi) = make_connected_layer(batch, steps, outputs, outputs, LINEAR, batch_normalize);
 	l.wi->batch = batch;
 	if (l.workspace_size < l.wi->workspace_size) l.workspace_size = l.wi->workspace_size;
 
 	l.wg = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
-	fprintf(stderr, "\t\t");
+	*cfg_and_state.output << "\t\t";
 	*(l.wg) = make_connected_layer(batch, steps, outputs, outputs, LINEAR, batch_normalize);
 	l.wg->batch = batch;
 	if (l.workspace_size < l.wg->workspace_size) l.workspace_size = l.wg->workspace_size;
 
 	l.wo = (Darknet::Layer*)xcalloc(1, sizeof(Darknet::Layer));
-	fprintf(stderr, "\t\t");
+	*cfg_and_state.output << "\t\t";
 	*(l.wo) = make_connected_layer(batch, steps, outputs, outputs, LINEAR, batch_normalize);
 	l.wo->batch = batch;
 	if (l.workspace_size < l.wo->workspace_size) l.workspace_size = l.wo->workspace_size;

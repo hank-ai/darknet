@@ -6,7 +6,6 @@
 #endif
 
 void flatten(float *x, int size, int layers, int batch, int forward);
-void pm(int M, int N, float *A);
 float *random_matrix(int rows, int cols);
 //void time_random_matrix(int TA, int TB, int m, int k, int n); unused?
 void reorg_cpu(float *x, int w, int h, int c, int batch, int stride, int forward, float *out);

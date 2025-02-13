@@ -718,7 +718,7 @@ void gemm_nn_bin_32bit_packed(int M, int N, int K, float ALPHA,
 	for (i = 0; i < M; ++i) {   // l.n
 		int j, s;
 		float mean_val = mean_arr[i];
-		//printf(" l.mean_arr[i] = %d \n ", l.mean_arr[i]);
+
 		for (s = 0; s < K; ++s) // l.size*l.size*l.c/32  or (l.size*l.size*l.c)
 		{
 			PUT_IN_REGISTER uint32_t A_PART = A[i*lda + s];
@@ -1255,8 +1255,8 @@ void im2col_cpu_custom(float* data_im,
 		}
 
 	}
-	else {
-		//printf("\n Error: is no non-optimized version \n");
+	else
+	{
 		im2col_cpu(data_im, channels, height, width, ksize, stride, pad, data_col);
 	}
 }
@@ -1765,7 +1765,7 @@ void gemm_nn_bin_32bit_packed(int M, int N, int K, float ALPHA,
 	for (i = 0; i < M; ++i) {   // l.n
 		int j, s;
 		float mean_val = mean_arr[i];
-		//printf(" l.mean_arr[i] = %d \n ", l.mean_arr[i]);
+
 		for (s = 0; s < K; ++s) // l.size*l.size*l.c/32  or (l.size*l.size*l.c)
 		{
 			//PUT_IN_REGISTER float A_PART = 1*a[i*k + s];

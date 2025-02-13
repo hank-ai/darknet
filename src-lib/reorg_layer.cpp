@@ -1,5 +1,12 @@
 #include "darknet_internal.hpp"
 
+
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 Darknet::Layer make_reorg_layer(int batch, int w, int h, int c, int stride, int reverse)
 {
 	TAT(TATPARMS);
@@ -21,7 +28,17 @@ Darknet::Layer make_reorg_layer(int batch, int w, int h, int c, int stride, int 
 		l.out_c = c*(stride*stride);
 	}
 	l.reverse = reverse;
-	fprintf(stderr, "reorg                    /%2d %4d x%4d x%4d -> %4d x%4d x%4d\n",  stride, w, h, c, l.out_w, l.out_h, l.out_c);
+
+	*cfg_and_state.output
+		<< "reorg                    /" << stride
+		<< " " << w
+		<< " x " << h
+		<< " x " << c
+		<< " -> " << l.out_w
+		<< " x " << l.out_h
+		<< " x " << l.out_c
+		<< std::endl;
+
 	l.outputs = l.out_h * l.out_w * l.out_c;
 	l.inputs = h*w*c;
 	int output_size = l.out_h * l.out_w * l.out_c * batch;

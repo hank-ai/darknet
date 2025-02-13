@@ -705,7 +705,6 @@ void process_batch(void* ptr)
 			const int truth_out_index = b * l.n * l.w * l.h + mask_n2 * l.w * l.h + j * l.w + i;
 			l.labels[truth_out_index] = track_id;
 			l.class_ids[truth_out_index] = class_id;
-			//printf(" track_id = %d, t = %d, b = %d, truth_in_index = %d, truth_out_index = %d \n", track_id, t, b, truth_in_index, truth_out_index);
 
 			// range is 0 <= 1
 			args->tot_iou += all_ious.iou;
@@ -729,9 +728,6 @@ void process_batch(void* ptr)
 
 			int class_index = yolo_entry_index(l, b, mask_n2 * l.w * l.h + j * l.w + i, 4 + 1);
 			delta_yolo_class(l.output, l.delta, class_index, class_id, l.classes, l.w * l.h, &avg_cat, l.focal_loss, l.label_smooth_eps, l.classes_multipliers, l.cls_normalizer);
-
-			//printf(" label: class_id = %d, truth.x = %f, truth.y = %f, truth.w = %f, truth.h = %f \n", class_id, truth.x, truth.y, truth.w, truth.h);
-			//printf(" mask_n2 = %d, l.output[obj_index] = %f, l.output[class_index + class_id] = %f \n\n", mask_n2, l.output[obj_index], l.output[class_index + class_id]);
 
 			++(args->count);
 			++(args->class_count);
@@ -918,7 +914,6 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	// Search for an equidistant point from the distant boundaries of the local minimum
 	int iteration_num = get_current_iteration(state.net);
 	const int start_point = state.net.max_batches * 3 / 4;
-	//printf(" equidistant_point ep = %d, it = %d \n", state.net.equidistant_point, iteration_num);
 
 	if ((state.net.badlabels_rejection_percentage && start_point < iteration_num) ||
 		(state.net.num_sigmas_reject_badlabels && start_point < iteration_num) ||
@@ -986,8 +981,17 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 					l.delta[i] = 0;
 				}
 			}
-			printf(" rolling_std = %f, rolling_max = %f, rolling_avg = %f \n", rolling_std, rolling_max, rolling_avg);
-			printf(" badlabels loss_threshold = %f, start_it = %d, progress = %f \n", badlabels_threshold, start_point, progress_badlabels *100);
+
+			*cfg_and_state.output
+				<< " rolling_std="		<< rolling_std
+				<< ", rolling_max="		<< rolling_max
+				<< ", rolling_avg="		<< rolling_avg
+				<< std::endl
+				<< "badlabels"
+				<< " loss_threshold="	<< badlabels_threshold
+				<< ", start_it="		<< start_point
+				<< ", progress="		<< progress_badlabels * 100.0f
+				<< std::endl;
 
 			ep_loss_threshold = min_val_cmp(final_badlebels_threshold, rolling_avg) * progress;
 		}
@@ -1000,7 +1004,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 				*state.net.badlabels_reject_threshold = *state.net.delta_rolling_max;
 			}
 
-			printf(" badlabels_reject_threshold = %f \n", *state.net.badlabels_reject_threshold);
+			*cfg_and_state.output << "badlabels_reject_threshold=" << *state.net.badlabels_reject_threshold << std::endl;
 
 			const float num_deltas_per_anchor = (l.classes + 4 + 1);
 			float counter_reject = 0;
@@ -1021,23 +1025,32 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			if (cur_percent > state.net.badlabels_rejection_percentage)
 			{
 				*state.net.badlabels_reject_threshold += 0.01;
-				printf(" increase!!! \n");
+				*cfg_and_state.output << "increase!!!" << std::endl;
 			}
 			else if (*state.net.badlabels_reject_threshold > 0.01)
 			{
 				*state.net.badlabels_reject_threshold -= 0.01;
-				printf(" decrease!!! \n");
+				*cfg_and_state.output << "decrease!!!" << std::endl;
 			}
 
-			printf(" badlabels_reject_threshold = %f, cur_percent = %f, badlabels_rejection_percentage = %f, delta_rolling_max = %f \n",
-				*state.net.badlabels_reject_threshold, cur_percent, state.net.badlabels_rejection_percentage, *state.net.delta_rolling_max);
+			*cfg_and_state.output
+				<< "badlabels_reject_threshold="		<< *state.net.badlabels_reject_threshold
+				<< ", cur_percent="						<< cur_percent
+				<< ", badlabels_rejection_percentage="	<< state.net.badlabels_rejection_percentage
+				<< ", delta_rolling_max="				<< *state.net.delta_rolling_max
+				<< std::endl;
 		}
-
 
 		// reject low loss to find equidistant point
 		if (state.net.equidistant_point && state.net.equidistant_point < iteration_num)
 		{
-			printf(" equidistant_point loss_threshold = %f, start_it = %d, progress = %3.1f %% \n", ep_loss_threshold, state.net.equidistant_point, progress * 100);
+			*cfg_and_state.output
+				<< "equidistant_point"
+				<< " loss_threshold="	<< ep_loss_threshold
+				<< ", start_it="		<< state.net.equidistant_point
+				<< ", progress="		<< progress * 100.0f << "%"
+				<< std::endl;
+
 			for (int i = 0; i < l.batch * l.outputs; ++i)
 			{
 				if (fabs(l.delta[i]) < ep_loss_threshold)
@@ -1292,8 +1305,6 @@ int get_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int ne
 {
 	TAT(TATPARMS);
 
-	//printf("\n l.batch = %d, l.w = %d, l.h = %d, l.n = %d \n", l.batch, l.w, l.h, l.n);
-
 	const float * predictions = l.output;
 
 	int count = 0;
@@ -1309,7 +1320,6 @@ int get_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int ne
 
 			if (objectness > thresh)
 			{
-				//printf("\n objectness = %f, thresh = %f, i = %d, n = %d \n", objectness, thresh, i, n);
 				int box_index = yolo_entry_index(l, 0, n*l.w*l.h + i, 0);
 				dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w*l.h, l.new_coords);
 				dets[count].objectness = objectness;
@@ -1399,7 +1409,6 @@ int get_yolo_detections_batch(const Darknet::Layer & l, int w, int h, int netw, 
 			//if(objectness <= thresh) continue;    // incorrect behavior for Nan values
 			if (objectness > thresh)
 			{
-				//printf("\n objectness = %f, thresh = %f, i = %d, n = %d \n", objectness, thresh, i, n);
 				int box_index = yolo_entry_index(l, batch, n*l.w*l.h + i, 0);
 				dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w*l.h, l.new_coords);
 				dets[count].objectness = objectness;

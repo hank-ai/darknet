@@ -1,10 +1,17 @@
 #include "darknet_internal.hpp"
 
+
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 Darknet::Layer make_scale_channels_layer(int batch, int index, int w, int h, int c, int w2, int h2, int c2, int scale_wh)
 {
 	TAT(TATPARMS);
 
-	fprintf(stderr,"scale Layer: %d\n", index);
+	*cfg_and_state.output << "scale Layer: " << index << std::endl;
 	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.type = Darknet::ELayerType::SCALE_CHANNELS;
 	l.batch = batch;

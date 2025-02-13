@@ -110,14 +110,14 @@ void save_shortcut_weights(Darknet::Layer & l, FILE *fp)
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		pull_shortcut_layer(l);
-		printf("\n pull_shortcut_layer \n");
+		*cfg_and_state.output << std::endl << "pull_shortcut_layer" << std::endl;
 	}
 #endif
 	for (int i = 0; i < l.nweights; ++i)
 	{
-		printf(" %f, ", l.weights[i]);
+		*cfg_and_state.output << " " << l.weights[i] << ", ";
 	}
-	printf(" l.nweights = %d \n\n", l.nweights);
+	*cfg_and_state.output << "l.nweights=" << l.nweights << std::endl << std::endl;
 
 	int num = l.nweights;
 	fwrite(l.weights, sizeof(float), num, fp);

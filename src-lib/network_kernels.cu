@@ -66,15 +66,19 @@ void forward_network_gpu(Darknet::Network & net, Darknet::NetworkState state)
 
 	if (net.benchmark_layers)
 	{
-		printf("\n\nSorted by time (forward):\n");
+		*cfg_and_state.output << std::endl << std::endl << "Sorted by time (forward):" << std::endl;
 
 		/// @todo replace qsort() low priority
 		qsort(sorted_avg_time_per_layer, net.n, sizeof(time_benchmark_layers), time_comparator);
 
 		for (int i = 0; i < net.n; ++i)
 		{
-			//printf("layer %d - type: %d - avg_time %lf ms \n", avg_time_per_layer[i].layer_id, avg_time_per_layer[i].layer_type, avg_time_per_layer[i].time);
-			printf("%d - fw-sort-layer %d - type: %d - avg_time %lf ms \n", i, sorted_avg_time_per_layer[i].layer_id, static_cast<int>(sorted_avg_time_per_layer[i].layer_type), sorted_avg_time_per_layer[i].time);
+			*cfg_and_state.output
+				<< i
+				<< " - fw-sort-layer " << sorted_avg_time_per_layer[i].layer_id
+				<< " - type: " << static_cast<int>(sorted_avg_time_per_layer[i].layer_type)
+				<< " - avg_time " << sorted_avg_time_per_layer[i].time << " ms"
+				<< std::endl;
 		}
 	}
 }
@@ -177,23 +181,31 @@ void backward_network_gpu(Darknet::Network & net, Darknet::NetworkState state)
 	if (net.adversarial)
 	{
 		int x_size = get_network_input_size(net) * net.batch;
-		printf(" x_size = %d, original_delta = %p, original_input = %p, net.learning_rate = %f \n",
-			x_size, original_delta, original_input, net.learning_rate);
+		*cfg_and_state.output
+			<< "x_size=" << x_size
+			<< ", original_delta=" << original_delta
+			<< ", original_input=" << original_input
+			<< ", net.learning_rate=" << net.learning_rate
+			<< std::endl;
 		axpy_ongpu(x_size, net.learning_rate, original_delta, 1, original_input, 1);
 		constrain_min_max_ongpu(x_size, 0, 1, original_input, 1);
 	}
 
 	if (net.benchmark_layers)
 	{
-		printf("\n\nSorted by time (backward):\n");
+		*cfg_and_state.output << std::endl << std::endl << "Sorted by time (backward):" << std::endl;
 
 		/// @todo replace qsort() unknown priority
 		qsort(sorted_avg_time_per_layer, net.n, sizeof(time_benchmark_layers), time_comparator);
 
 		for (i = 0; i < net.n; ++i)
 		{
-			//printf("layer %d - type: %d - avg_time %lf ms \n", avg_time_per_layer[i].layer_id, avg_time_per_layer[i].layer_type, avg_time_per_layer[i].time);
-			printf("%d - bw-sort-layer %d - type: %d - avg_time %lf ms \n", i, sorted_avg_time_per_layer[i].layer_id, static_cast<int>(sorted_avg_time_per_layer[i].layer_type), sorted_avg_time_per_layer[i].time);
+			*cfg_and_state.output
+				<< i
+				<< " - bw-sort-layer " << sorted_avg_time_per_layer[i].layer_id
+				<< " - type: " << static_cast<int>(sorted_avg_time_per_layer[i].layer_type)
+				<< " - avg_time " << sorted_avg_time_per_layer[i].time << " ms"
+				<< std::endl;
 		}
 	}
 }
@@ -312,7 +324,6 @@ float train_network_datum_gpu(Darknet::Network & net, float *x, float *y)
 		float scale = (get_current_iteration(net) / ((float)net.max_batches));
 		//scale = sin(scale * M_PI);
 		net.learning_rate = net.adversarial_lr * scale;
-//		layer l = net.layers[net.n - 1];
 		int y_size = get_network_output_size(net)*net.batch;
 		if (net.layers[net.n - 1].truths)
 		{
@@ -324,7 +335,7 @@ float train_network_datum_gpu(Darknet::Network & net, float *x, float *y)
 		float *old_input = (float *)xcalloc(img_size*net.batch, sizeof(float));
 		memcpy(old_input, x, img_size*net.batch * sizeof(float));
 
-		printf("\n adversarial training, adversarial_lr = %f \n", net.adversarial_lr * scale);
+		*cfg_and_state.output << std::endl << "adversarial training, adversarial_lr=" << net.adversarial_lr * scale << std::endl;
 
 		forward_backward_network_gpu(net, x, truth_cpu);
 
@@ -333,7 +344,6 @@ float train_network_datum_gpu(Darknet::Network & net, float *x, float *y)
 		{
 			if (b % 2 == 1 && net.contrastive)
 			{
-				//printf(" b = %d old img, ", b);
 				memcpy(x + img_size*b, old_input + img_size*b, img_size * sizeof(float));
 			}
 		}
@@ -354,9 +364,6 @@ float train_network_datum_gpu(Darknet::Network & net, float *x, float *y)
 	}
 	forward_backward_network_gpu(net, x, y);
 	float error = get_network_cost(net);
-	//if (((*net.seen) / net.batch) % net.subdivisions == 0) update_network_gpu(net);
-//	const int sequence = get_sequence_value(net);
-	//if (((*net.seen) / net.batch) % (net.subdivisions*sequence) == 0) update_network_gpu(net);
 
 	return error;
 }
@@ -551,7 +558,6 @@ void sync_layer(Darknet::Network * nets, int n, int j)
 {
 	TAT(TATPARMS);
 
-	//printf("Syncing layer %d\n", j);
 	Darknet::Network net = nets[0];
 	Darknet::Layer & base = net.layers[j];
 	cuda_set_device(net.gpu_index);
@@ -573,7 +579,6 @@ void sync_layer(Darknet::Network * nets, int n, int j)
 		Darknet::Layer & l = nets[i].layers[j];
 		distribute_weights(l, base);
 	}
-	//printf("Done syncing layer %d\n", j);
 }
 
 
@@ -729,7 +734,7 @@ float *network_predict_gpu(Darknet::Network & net, float *input)
 
 			cudaStream_t stream0 = switch_stream(0);
 			CHECK_CUDA(cudaDeviceSynchronize());
-			printf("Try to capture graph... \n");
+			*cfg_and_state.output << "Try to capture graph..." << std::endl;
 			//cudaGraph_t graph = (cudaGraph_t)net.cuda_graph;
 			CHECK_CUDA(cudaStreamBeginCapture(stream0, cudaStreamCaptureModeGlobal));
 		}
@@ -743,7 +748,7 @@ float *network_predict_gpu(Darknet::Network & net, float *input)
 			CHECK_CUDA(cudaStreamEndCapture(stream0, &graph));
 			CHECK_CUDA(cudaGraphInstantiate(&instance, graph, NULL, NULL, 0));
 			(*net.cuda_graph_ready) = 1;
-			printf(" graph is captured... \n");
+			*cfg_and_state.output << "Graph is captured..." << std::endl;
 			CHECK_CUDA(cudaDeviceSynchronize());
 		}
 
@@ -752,10 +757,8 @@ float *network_predict_gpu(Darknet::Network & net, float *input)
 	else
 	{
 		cudaStream_t stream0 = switch_stream(0);
-		//printf(" cudaGraphLaunch \n");
 		CHECK_CUDA( cudaGraphLaunch(instance, stream0) );
 		CHECK_CUDA( cudaStreamSynchronize(stream0) );
-		//printf(" ~cudaGraphLaunch \n");
 	}
 
 	float *out = get_network_output_gpu(net);

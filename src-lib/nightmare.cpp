@@ -1,6 +1,12 @@
 #include "darknet_internal.hpp"
 
 
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 // ./darknet nightmare cfg/extractor.recon.cfg ~/trained/yolo-coco.conv frame6.png -reconstruct -iters 500 -i 3 -lambda .1 -rate .01 -smooth 2
 //
 // Note that "-i 3" parameter in the above comment, which implies 4 GPUs.  Change that to zero if you only have 1 GPU.
@@ -224,7 +230,7 @@ void run_nightmare(int argc, char **argv)
 
 	if (argc < 4)
 	{
-		fprintf(stderr, "usage: %s %s [cfg] [weights] [image] [layer] [options! (optional)]\n", argv[0], argv[1]);
+		*cfg_and_state.output << "Usage: " << argv[0] << " " << argv[1] << " [cfg] [weights] [image] [layer] [options! (optional)]" << std::endl;
 		return;
 	}
 
@@ -294,7 +300,7 @@ void run_nightmare(int argc, char **argv)
 		Darknet::Image crop = Darknet::crop_image(out_im, zz, zz, out_im.w-2*zz, out_im.h-2*zz);
 		Darknet::Image f_im = Darknet::resize_image(crop, out_im.w, out_im.h);
 		Darknet::free_image(crop);
-		printf("%d features\n", out_im.w*out_im.h*out_im.c);
+		*cfg_and_state.output << (out_im.w * out_im.h * out_im.c) << " features" << std::endl;
 
 		/// @todo Is there a memory leak here because we don't free the original im?
 		im = Darknet::resize_image(im, im.w, im.h);
@@ -313,12 +319,11 @@ void run_nightmare(int argc, char **argv)
 
 	for (int e = 0; e < rounds; ++e)
 	{
-		fprintf(stderr, "Iteration: ");
-		fflush(stderr);
+		*cfg_and_state.output << "Iteration: ";
 		for (int n = 0; n < iters; ++n)
 		{
-			fprintf(stderr, "%d, ", n);
-			fflush(stderr);
+			*cfg_and_state.output << n << ", " << std::flush;
+
 			if (reconstruct)
 			{
 				reconstruct_picture(net, features, im, update, rate, momentum, lambda, smooth_size, 1);
@@ -331,7 +336,7 @@ void run_nightmare(int argc, char **argv)
 				optimize_picture(&net, im, layer, 1/pow(1.33333333, octave), rate, thresh, norm);
 			}
 		}
-		fprintf(stderr, "done\n");
+		*cfg_and_state.output << "done!" << std::endl;
 
 		if (0)
 		{
@@ -349,7 +354,7 @@ void run_nightmare(int argc, char **argv)
 		{
 			sprintf(buff, "%s_%s_%d_%06d", imbase, cfgbase, max_layer, e);
 		}
-		printf("%d %s\n", e, buff);
+		*cfg_and_state.output << e << " " << buff << std::endl;
 		Darknet::save_image(im, buff);
 
 		if (rotate)

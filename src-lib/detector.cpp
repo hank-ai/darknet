@@ -1623,7 +1623,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 						}
 					}
 				}
-				//printf("class_id = %d, point = %d, cur_prob = %.4f, cur_recall = %.4f, cur_precision = %.4f \n", i, point, cur_prob, cur_recall, cur_precision);
 
 				avg_precision += cur_precision;
 			}
@@ -1662,10 +1661,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 		// send the result of this class to the C++ side of things so we can include it the right chart
 		Darknet::update_accuracy_in_new_charts(i, avg_precision);
-
-		// float class_precision = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)fp_for_thresh_per_class[i]);
-		// float class_recall = (float)tp_for_thresh_per_class[i] / ((float)tp_for_thresh_per_class[i] + (float)(truth_classes_count[i] - tp_for_thresh_per_class[i]));
-		//printf("Precision = %1.2f, Recall = %1.2f, avg IOU = %2.2f%% \n\n", class_precision, class_recall, avg_iou_per_class[i]);
 
 		mean_average_precision += avg_precision;
 	}
@@ -1821,7 +1816,7 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 	int* counter_per_class = (int*)xcalloc(classes, sizeof(int));
 
 	int number_of_boxes = 0;
-	printf(" read labels from %d images \n", number_of_images);
+	*cfg_and_state.output << "read labels from " << number_of_images << " images" << std::endl;
 
 	int i, j;
 	for (i = 0; i < number_of_images; ++i)
@@ -1832,7 +1827,6 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 
 		int num_labels = 0;
 		box_label *truth = read_boxes(labelpath, &num_labels);
-		//printf(" new path: %s \n", labelpath);
 		char *buff = (char*)xcalloc(6144, sizeof(char));
 		for (j = 0; j < num_labels; ++j)
 		{
@@ -1874,7 +1868,6 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 	{
 		boxes_data.vals[i][0] = rel_width_height_array[i * 2];
 		boxes_data.vals[i][1] = rel_width_height_array[i * 2 + 1];
-		//if (w > 410 || h > 410) printf("i:%d,  w = %f, h = %f \n", i, w, h);
 	}
 
 	// Is used: distance(box, centroid) = 1 - IoU(box, centroid)
@@ -2210,7 +2203,7 @@ void run_detector(int argc, char **argv)
 	int ngpus = 0;
 	if (gpu_list)
 	{
-		printf("%s\n", gpu_list);
+		*cfg_and_state.output << gpu_list << std::endl;
 		int len = (int)strlen(gpu_list);
 		ngpus = 1;
 		int i;

@@ -1,6 +1,13 @@
 #include "option_list.hpp"
 #include "darknet_internal.hpp"
 
+
+namespace
+{
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+}
+
+
 list *read_data_cfg(const char *filename)
 {
 	TAT(TATPARMS);
@@ -168,12 +175,9 @@ void option_unused(list *l)
 			if (previous_kvp)
 			{
 				// attempt to give some context as to where the error is happening in the .cfg file
-				fprintf(stderr,
-						"\n"
-						"Last option was: %s=%s\n"
-						"Unused option is %s=%s\n",
-						previous_kvp->key, previous_kvp->val,
-						p->key, p->val);
+				*cfg_and_state.output														<< std::endl
+					<< "Last option was: " << previous_kvp->key	<< "=" << previous_kvp->val << std::endl
+					<< "Unused option is " << p->key			<< "=" << p->val			<< std::endl;
 			}
 			darknet_fatal_error(DARKNET_LOC, "invalid, unused, or unrecognized option: %s=%s", p->key, p->val);
 		}
@@ -205,8 +209,16 @@ const char *option_find_str(list *l, const char *key, const char *def)
 	TAT(TATPARMS);
 
 	const char *v = option_find(l, key);
-	if(v) return v;
-	if(def) fprintf(stderr, "%s: Using default '%s'\n", key, def);
+	if(v)
+	{
+		return v;
+	}
+
+	if (def)
+	{
+		*cfg_and_state.output << key << ": Using default \"" << def << "\"" << std::endl;
+	}
+
 	return def;
 }
 
@@ -215,7 +227,10 @@ const char *option_find_str_quiet(list *l, const char *key, const char *def)
 	TAT(TATPARMS);
 
 	const char *v = option_find(l, key);
-	if (v) return v;
+	if (v)
+	{
+		return v;
+	}
 	return def;
 }
 
@@ -224,8 +239,13 @@ int option_find_int(list *l, const char *key, int def)
 	TAT(TATPARMS);
 
 	const char *v = option_find(l, key);
-	if(v) return atoi(v);
-	fprintf(stderr, "%s: Using default '%d'\n", key, def);
+	if (v)
+	{
+		return atoi(v);
+	}
+
+	*cfg_and_state.output << key << ": Using default \"" << def << "\"" << std::endl;
+
 	return def;
 }
 
@@ -234,7 +254,11 @@ int option_find_int_quiet(list *l, const char *key, int def)
 	TAT(TATPARMS);
 
 	const char *v = option_find(l, key);
-	if(v) return atoi(v);
+	if (v)
+	{
+		return atoi(v);
+	}
+
 	return def;
 }
 
@@ -243,7 +267,11 @@ float option_find_float_quiet(list *l, const char *key, float def)
 	TAT(TATPARMS);
 
 	const char *v = option_find(l, key);
-	if(v) return atof(v);
+	if (v)
+	{
+		return atof(v);
+	}
+
 	return def;
 }
 
@@ -252,7 +280,12 @@ float option_find_float(list *l, const char *key, float def)
 	TAT(TATPARMS);
 
 	const char *v = option_find(l, key);
-	if(v) return atof(v);
-	fprintf(stderr, "%s: Using default '%lf'\n", key, def);
+	if(v)
+	{
+		return atof(v);
+	}
+
+	*cfg_and_state.output << key << ": Using default \"" << def << "\"" << std::endl;
+
 	return def;
 }
