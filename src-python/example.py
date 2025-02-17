@@ -7,7 +7,6 @@ It is NOT a final application!  You must modify this example to make it do what 
 
 import os
 import cv2
-#import random
 import darknet
 
 # For this example, we're going to use the MS COCO dataset trained using YOLOv4-tiny.
@@ -18,6 +17,14 @@ import darknet
 cfg_file = "../cfg/yolov4-tiny.cfg"
 names_file = "../cfg/coco.names"
 weights_file = "../yolov4-tiny.weights"
+log_file = "output.log"
+
+# Darknet can generate a lot of text output, especially on startup when it loads the neural network.  This output can
+# be sent to a file using set_output_stream().  Note this doesn't impact things that are printed by this Python script,
+# it only impacts what the Darknet/YOLO library itself attempts to log.
+if False:
+    # By default, redirection of the output stream is disabled.  Change the "if" to True to test.
+    darknet.set_output_stream(log_file.encode("ascii"))
 
 darknet.set_verbose(True)
 darknet.show_version_info()

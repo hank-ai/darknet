@@ -87,6 +87,9 @@ void darknet_add_skipped_class(DarknetNetworkPtr ptr, const int class_to_skip);
 /// This is the @p C equivalent to @ref Darknet::del_skipped_classes().
 void darknet_del_skipped_class(DarknetNetworkPtr ptr, const int class_to_include);
 
+/// This is the @p C equivalent to @ref Darknet::set_output_stream().
+void darknet_set_output_stream(const char * const filename);
+
 /// Bounding box used with normalized coordinates (between 0.0 and 1.0).
 typedef struct DarknetBox
 {

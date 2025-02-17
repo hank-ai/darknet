@@ -272,6 +272,20 @@ extern "C"
 
 		return;
 	}
+
+	void darknet_set_output_stream(const char * const filename)
+	{
+		TAT(TATPARMS);
+
+		std::filesystem::path path;
+		if (filename != nullptr and filename[0] != '\0')
+		{
+			path = filename;
+		}
+		Darknet::set_output_stream(path);
+
+		return;
+	}
 }
 
 

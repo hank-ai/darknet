@@ -461,3 +461,6 @@ add_skipped_class.argtypes = [c_void_p, c_int]
 
 del_skipped_class = lib.darknet_del_skipped_class
 del_skipped_class.argtypes = [c_void_p, c_int]
+
+set_output_stream = lib.darknet_set_output_stream
+set_output_stream.argtypes = [c_char_p]
