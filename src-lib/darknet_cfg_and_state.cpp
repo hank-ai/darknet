@@ -96,10 +96,11 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	std::srand(std::time(nullptr));
 	// ... also see the seeding that happens in get_rnd_engine()
 
+	/* Default is to use std::cout for console output.  Do *NOT* call set_output_stream() from here,
+	 * since it will cause infinite recursion when it attempts to call CfgAndState::get().
+	 */
 	output = &std::cout;
-
-	// prefer using 500 over 5e+02 when outputting floats
-	*output << std::fixed;
+	*output << std::fixed; // if this is changed, see set_output_stream()
 
 	must_immediately_exit	= false;
 	is_shown				= true;
@@ -173,14 +174,8 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(int argc, char **
 
 	argv.reserve(argc);
 
-	for (int idx = 0; idx < argc; idx ++)
+	for (int idx = 1; idx < argc; idx ++) // ignore argv[0]
 	{
-		if (idx == 0)
-		{
-			// ignore argv[0]
-			continue;
-		}
-
 		argv.push_back(argp[idx]);
 	}
 
@@ -200,7 +195,6 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 
 	for (int idx = 0; idx < v.size(); idx ++)
 	{
-std::cout << "idx=" << idx << std::endl;
 		errno = 0;
 		const std::string & original_arg = v.at(idx);
 		const std::string str = convert_to_lowercase_alphanum(original_arg);
@@ -306,7 +300,6 @@ std::cout << "idx=" << idx << std::endl;
 		{
 			// the next parm should be a numeric value
 			const int next_arg_idx = idx + 1;
-std::cout << "next_arg_idx=" << next_arg_idx << " v.size=" << v.size() << std::endl;
 			if (next_arg_idx < v.size())
 			{
 				if (args_and_parms.str.empty())
@@ -377,10 +370,7 @@ std::cout << "next_arg_idx=" << next_arg_idx << " v.size=" << v.size() << std::e
 
 	if (args.count("log") > 0)
 	{
-		std::cout << "fn=" << get("log").str << std::endl;
-		output = new std::ofstream("output.log", std::ofstream::out | std::ofstream::app | std::ofstream::binary);
-std::cout << "setting output to output.log" << std::endl;
-		colour_is_enabled = false;
+		set_output_stream("test.log");
 	}
 
 #ifdef WIN32
@@ -417,7 +407,7 @@ std::cout << "setting output to output.log" << std::endl;
 		parse_skip_classes(net->details->classes_to_ignore, arg.str);
 	}
 
-#if 1 // for debug purposes, display all arguments
+#if 0 // for debug purposes, display all arguments
 	*output
 		<< "--------------------------------" << std::endl
 		<< "CMD=" << command << std::endl

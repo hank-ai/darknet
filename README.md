@@ -522,10 +522,10 @@ Last updated 2025-01-21:
 * [X] fix Python API in V3
 	* [ ] better support for Python is needed (any Python developers want to help with this?)
 * [X] heatmaps
+* [X] remove all calls to printf() and std::cout and replace with std::ofstream to log to a file
 
 ## Short-term goals
 
-* [ ] swap out printf() for std::cout **(in progress)**
 * [ ] look into old zed camera support
 * [ ] better and more consistent command line parsing **(in progress)**
 

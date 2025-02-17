@@ -365,4 +365,3 @@ void Darknet::display_usage()
 
 	return;
 }
-

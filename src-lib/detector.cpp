@@ -14,9 +14,10 @@ typedef __compar_fn_t comparison_fn_t;
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
+
+	static const int coco_ids[] = {1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,27,28,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,67,70,72,73,74,75,76,77,78,79,80,81,82,84,85,86,87,88,89,90};
 }
 
-static int coco_ids[] = { 1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,27,28,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,67,70,72,73,74,75,76,77,78,79,80,81,82,84,85,86,87,88,89,90 };
 
 void train_detector(const char * datacfg, const char * cfgfile, const char * weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, const char * chart_path)
 {
@@ -258,7 +259,6 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	while (get_current_iteration(net) < net.max_batches and cfg_and_state.must_immediately_exit == false)
 	{
 		// we're starting a new iteration
-		*cfg_and_state.output << std::endl;
 		errno = 0;
 
 		// yolov3-tiny, yolov3-tiny-3l, yolov3, and yolov4 all use "random=1"
@@ -393,7 +393,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 
 		const int next_map_calc = fmax(net.burn_in, iter_map + calc_map_for_each);
 
-		if (calc_map)
+		if (calc_map and (cfg_and_state.is_verbose or (iteration % 10 == 0)))
 		{
 			*cfg_and_state.output << "-> next mAP calculation will be at iteration #" << next_map_calc << std::endl;
 			if (mean_average_precision > 0.0f)
@@ -570,11 +570,19 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	sprintf(buff, "%s/%s_final.weights", backup_directory, base);
 	save_weights(net, buff);
 
-	*cfg_and_state.output																	<< std::endl
-		<< "Training iteration has reached max batch limit of " << net.max_batches << "."	<< std::endl
-		<< "If you want to restart training with these weights, either increase the limit,"	<< std::endl
-		<< "or use the \"-clear\" flag to reset the training images counter to zero."		<< std::endl
-		<< ""																				<< std::endl;
+	*cfg_and_state.output															<< std::endl
+		<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
+		<< "Training iteration has reached max batch limit of "
+		<< Darknet::in_colour(Darknet::EColour::kBrightGreen, net.max_batches)
+		<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
+		<< ".  If you want"															<< std::endl
+		<< "to restart training with these weights, either increase the limit, or"	<< std::endl
+		<< "use the \""
+		<< Darknet::in_colour(Darknet::EColour::kYellow, "-clear")
+		<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
+		<< "\" flag to reset the training images counter to zero."					<< std::endl
+		<< Darknet::in_colour(Darknet::EColour::kNormal)
+		<< ""																		<< std::endl;
 
 	cv::destroyAllWindows();
 
@@ -1919,7 +1927,7 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 	FILE* fwc = fopen("counters_per_class.txt", "wb");
 	if (fwc)
 	{
-		sprintf(buff, "counters_per_class = ");
+		sprintf(buff, "counters_per_class=");
 		*cfg_and_state.output << buff;
 		fwrite(buff, sizeof(char), strlen(buff), fwc);
 		for (i = 0; i < classes; ++i)
@@ -1955,8 +1963,14 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 		{
 			float anchor_w = anchors_data.centers.vals[i][0]; //centers->data.fl[i * 2];
 			float anchor_h = anchors_data.centers.vals[i][1]; //centers->data.fl[i * 2 + 1];
-			if (width > 32) sprintf(buff, "%3.0f,%3.0f", anchor_w, anchor_h);
-			else sprintf(buff, "%2.4f,%2.4f", anchor_w, anchor_h);
+			if (width > 32)
+			{
+				sprintf(buff, "%d, %d", (int)anchor_w, (int)anchor_h);
+			}
+			else
+			{
+				sprintf(buff, "%2.4f,%2.4f", anchor_w, anchor_h);
+			}
 
 			*cfg_and_state.output << buff;
 

@@ -646,4 +646,15 @@ namespace Darknet
 	 * @see @ref Darknet::format_time_remaining()
 	 */
 	std::string format_duration_string(std::chrono::high_resolution_clock::duration duration, const int decimals = 3);
+
+	/** Set the file where the output logging will take place.  When set to @p "" (empty filename) then the Darknet/YOLO
+	 * output will be set to @p std::cout.  All Darknet/YOLO console output will be @em appended to the filename given in
+	 * this API; remember to delete the output file periodically so it doesn't keep growing forever.
+	 *
+	 * When using the Darknet/YOLO CLI, specify the @p "-log filename" parameter to set the output stream.  For example,
+	 * @p "darknet -log /tmp/darknet.log ..."
+	 *
+	 * When unspecified, Darknet/YOLO will default to @p std::cout for all console output.
+	 */
+	std::ostream * set_output_stream(const std::filesystem::path & filename);
 }

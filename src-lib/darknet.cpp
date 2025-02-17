@@ -1787,3 +1787,51 @@ std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::
 
 	return str;
 }
+
+
+std::ostream * Darknet::set_output_stream(const std::filesystem::path & filename)
+{
+	if (cfg_and_state.output != &std::cout)
+	{
+		delete cfg_and_state.output;
+		cfg_and_state.output = nullptr;
+	}
+
+	if (not filename.empty())
+	{
+		cfg_and_state.output = new std::ofstream(filename.string(), std::ofstream::out | std::ofstream::app);
+		if (not cfg_and_state.output->good())
+		{
+			delete cfg_and_state.output;
+			cfg_and_state.output = nullptr;
+		}
+		else
+		{
+			cfg_and_state.colour_is_enabled = false;
+
+			const std::time_t current_time = std::time(nullptr);
+			std::tm * tm = std::localtime(&current_time);
+			char buffer[100];
+			std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", tm);
+
+			*cfg_and_state.output
+				<< std::endl
+				<< "=========================" << std::endl
+				<< buffer << std::endl
+				<< "Darknet/YOLO " << DARKNET_VERSION_STRING << " output logging set to " << filename << std::endl
+				<< "=========================" << std::endl
+				<< std::endl;
+		}
+	}
+
+	// if something has gone wrong, or no filename was given, then default to std::cout so we don't lose any output
+	if (cfg_and_state.output == nullptr)
+	{
+		cfg_and_state.output = &std::cout;
+	}
+
+	// prefer using 500 over 5e+02 when outputting floats
+	*cfg_and_state.output << std::fixed; // if this is changed, see CfgAndState::reset()
+
+	return cfg_and_state.output;
+}
