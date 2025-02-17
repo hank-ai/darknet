@@ -187,6 +187,13 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 {
 	TAT(TATPARMS);
 
+#if 0
+	for (size_t i = 0; i < v.size(); i ++)
+	{
+		*output << "parse args: v[" << i << "]=" << v[i] << std::endl;
+	}
+#endif
+
 	const auto & all_known_args = Darknet::get_all_possible_arguments();
 
 	// WARNING:  it is perfectly valid for this pointer to be NULL if a network
@@ -298,13 +305,12 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 
 		if (args_and_parms.type == ArgsAndParms::EType::kParameter and args_and_parms.expect_parm)
 		{
-			// the next parm should be a numeric value
 			const int next_arg_idx = idx + 1;
 			if (next_arg_idx < v.size())
 			{
 				if (args_and_parms.str.empty())
 				{
-					// field must be numeric
+					// the next parm should be a numeric value
 					size_t pos = 0;
 					try
 					{
@@ -370,7 +376,8 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 
 	if (args.count("log") > 0)
 	{
-		set_output_stream("test.log");
+		const ArgsAndParms & log = get("log");
+		set_output_stream(log.str);
 	}
 
 #ifdef WIN32
@@ -431,12 +438,14 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 	*output << "--------------------------------" << std::endl;
 #endif
 
+#if 0
 	static bool need_to_show = true;
 	if (need_to_show)
 	{
 		need_to_show = false;
 		Darknet::show_version_info();
 	}
+#endif
 
 	return *this;
 }

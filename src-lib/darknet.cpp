@@ -1791,6 +1791,8 @@ std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::
 
 std::ostream * Darknet::set_output_stream(const std::filesystem::path & filename)
 {
+	TAT(TATPARMS);
+
 	if (cfg_and_state.output != &std::cout)
 	{
 		delete cfg_and_state.output;
@@ -1800,8 +1802,10 @@ std::ostream * Darknet::set_output_stream(const std::filesystem::path & filename
 	if (not filename.empty())
 	{
 		cfg_and_state.output = new std::ofstream(filename.string(), std::ofstream::out | std::ofstream::app);
+
 		if (not cfg_and_state.output->good())
 		{
+			std::cout << "Failed to open output log file " << filename << std::endl; // must be std::cout since we failed to setup a log stream
 			delete cfg_and_state.output;
 			cfg_and_state.output = nullptr;
 		}
@@ -1811,20 +1815,19 @@ std::ostream * Darknet::set_output_stream(const std::filesystem::path & filename
 
 			const std::time_t current_time = std::time(nullptr);
 			std::tm * tm = std::localtime(&current_time);
-			char buffer[100];
-			std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", tm);
+			char timestamp[100];
+			std::strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S %z", tm);
 
-			*cfg_and_state.output
-				<< std::endl
-				<< "=========================" << std::endl
-				<< buffer << std::endl
-				<< "Darknet/YOLO " << DARKNET_VERSION_STRING << " output logging set to " << filename << std::endl
-				<< "=========================" << std::endl
-				<< std::endl;
+			*cfg_and_state.output																		<< std::endl
+				<< "========================="															<< std::endl
+				<< timestamp																			<< std::endl
+				<< "Darknet/YOLO " << DARKNET_VERSION_STRING << " output logging set to " << filename	<< std::endl
+				<< "========================="															<< std::endl
+				<< ""																					<< std::endl;
 		}
 	}
 
-	// if something has gone wrong, or no filename was given, then default to std::cout so we don't lose any output
+	// if something has gone wrong, or no filename was given, then default to std::cout so the output pointer can always be de-referenced
 	if (cfg_and_state.output == nullptr)
 	{
 		cfg_and_state.output = &std::cout;

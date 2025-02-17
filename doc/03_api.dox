@@ -51,16 +51,18 @@ In July 2024, the old V2 @p C API had to be modified due to changes in the Darkn
 
 @section apiv3_cpp V3 C++ API
 
-The %Darknet V3 API is defined in files such as @p darknet.hpp and @p darknet_image.hpp.  It is meant to be simpler to use than the V2 API, and should be better documented.  This includes functions such as:
+The %Darknet V3+ API is defined in files such as @p darknet.hpp and @p darknet_image.hpp.  It is meant to be simpler to use than the V2 API, and should be better documented.  This includes functions such as:
 
 - @ref Darknet::parse_arguments()
 - @ref Darknet::load_neural_network()
 - @ref Darknet::set_detection_threshold()
+- @ref Darknet::set_output_stream()
 - @ref Darknet::predict()
 - @ref Darknet::annotate()
 - @ref Darknet::predict_and_annotate()
 
 Header files that define the public Darknet/YOLO C++ API include
+
 - @ref darknet.h
 - @ref darknet.hpp
 - @ref darknet_cfg.hpp
@@ -69,14 +71,14 @@ Header files that define the public Darknet/YOLO C++ API include
 
 Also see the documentation for the @ref Darknet namespace.
 
-The simplest way to understand the V3 API is to look at the source examples, such as @p src-examples/darknet_02_display_annotated_images.cpp.
+The simplest way to understand the V3+ API is to look at the source examples, such as @p src-examples/darknet_02_display_annotated_images.cpp.
 
 @section apiv3_c V3 C API
 
-The %Darknet V3 @p C API should be very similar to the @p C++ API.  The functions and structures are named almost the same way.  For example:
+The %Darknet V3+ @p C API should be very similar to the @p C++ API.  The functions and structures are named almost the same way.  For example:
 
-V3 C API												| V3 C++ API
---------------------------------------------------------|-----------
+V3+ C API												| V3+ C++ API
+--------------------------------------------------------|------------
 @ref darknet_set_detection_threshold()					| @ref Darknet::set_detection_threshold()
 @ref darknet_set_non_maximal_suppression_threshold()	| @ref Darknet::set_non_maximal_suppression_threshold()
 @ref darknet_network_dimensions()						| @ref Darknet::network_dimensions()

@@ -115,6 +115,9 @@ namespace Darknet
 			}
 	};
 
+	/// Meant to be used only for debug purposes.
+	std::ostream & operator<<(std::ostream & os, const Darknet::ArgsAndParms & rhs);
+
 	using SArgsAndParms = std::set<ArgsAndParms>;
 
 	/// The key is the argument name, the value is the details for that argument.

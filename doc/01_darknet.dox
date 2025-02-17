@@ -24,10 +24,10 @@ Browse <a target="_blank" href="https://hank.ai/darknet-welcomes-hank-ai-as-offi
 
 @section other Other Darknet/YOLO Projects
 
-- Both the original @p pjreddie and @p alexeyab %Darknet repos are no longer used.  Please update to <a target="_blank" href="https://github.com/hank-ai/darknet">the new Darknet/YOLO repo</a>.
+- Both the original @p pjreddie and @p alexeyab %Darknet repos are no longer supported.  Please update to <a target="_blank" href="https://github.com/hank-ai/darknet">the new Darknet/YOLO repo</a>.
 	- For additional details, see the FAQ:  <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid">https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid</a>.
 - <a target="_blank" href="https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-c-api">DarkHelp</a> is a professional, free, open-source CLI tool and C/C++/Python API to use Darknet/YOLO.
-- <a target="_blank" href="https://github.com/stephanecharette/DarkMark#what-is-darkmark">DarkMark</a> is a free open-source tool for managing Darknet/YOLO project, annotating images, videos, and PDFs, and generating Darknet/YOLO training projects.
+- <a target="_blank" href="https://github.com/stephanecharette/DarkMark#what-is-darkmark">DarkMark</a> is a free open-source tool for managing Darknet/YOLO project, annotating images, videos, and PDFs, and generating Darknet/YOLO training files.
 - <a target="_blank" href="https://www.youtube.com/c/StephaneCharette/videos">Stéphane's YouTube channel</a> with many Darknet/YOLO "How-To" videos.
 
 @section programming Programming With Darknet/YOLO
@@ -53,6 +53,7 @@ Things to look up include:
 - @ref Darknet::set_detection_threshold()
 - @ref Darknet::set_non_maximal_suppression_threshold()
 - @ref Darknet::set_rounded_corner_bounding_boxes()
+- @ref Darknet::set_output_stream()
 - @ref Darknet::predict()
 - @ref Darknet::annotate()
 - ...and many more.  See the @p C++ namespace @ref Darknet for details.
