@@ -164,6 +164,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("extoutput"			),
 		ArgsAndParms("savelabels"			),
 		ArgsAndParms("chart"				),
+		ArgsAndParms("gpus"                 , "", " "	, "The index of which GPUs to use.  --gpus 0"							    ),
 	};
 
 	return all;
