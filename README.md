@@ -10,6 +10,7 @@
 	* [WSL](#wsl)
 	* [Linux CMake Method](#linux-cmake-method)
 	* [Windows CMake Method](#windows-cmake-method)
+	* [Docker](#docker)
 * [Using Darknet](#using-darknet)
 	* [CLI](#cli)
 	* [Training](#training)
@@ -119,6 +120,7 @@ The various build methods available in the past (pre-2023) have been merged toge
 * [WSL](#wsl)
 * [Linux](#linux-cmake-method)
 * [Windows](#windows-cmake-method)
+* [Docker](#docker)
 
 **Beware if you are following old tutorials with more complicated build steps, or build steps that don't match what is in this readme.**  The new build steps as described below started in August 2023.
 
