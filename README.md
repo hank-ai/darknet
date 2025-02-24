@@ -340,7 +340,8 @@ You are now done!  Once the installation wizard has finished, Darknet will have 
 > If you don't have `C:/Program Files/darknet/bin/darknet.exe` then this means you _did not_ install it, you only built it!  Make sure you go through each panel of the NSIS installation wizard in the previous step.
 
 ## Docker
-To build darknet via Docker with GPU support, [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit) must be installed on your system, and the build process must be executed in `docker run`. 
+
+To build Darknet via Docker with GPU support, [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit) must be installed on your system, and the build process must be executed in `docker run`.
 
 Below is an example Dockerfile built with the following command:
 
