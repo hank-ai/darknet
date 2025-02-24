@@ -12,6 +12,7 @@
 	* [WSL](#wsl)
 	* [Linux CMake Method](#linux-cmake-method)
 	* [Windows CMake Method](#windows-cmake-method)
+	* [Docker](#docker)
 * [Using Darknet](#using-darknet)
 	* [CLI](#cli)
 	* [Training](#training)
@@ -135,6 +136,7 @@ The various build methods available in the past (pre-2023) have been merged toge
 * [WSL](#wsl)
 * [Linux](#linux-cmake-method)
 * [Windows](#windows-cmake-method)
+* [Docker](#docker)
 
 **Beware if you are following old tutorials with more complicated build steps, or build steps that don't match what is in this readme.**  The new build steps as described below started in August 2023.
 
@@ -336,6 +338,45 @@ Installing the NSIS installation package will:
 You are now done!  Once the installation wizard has finished, Darknet will have been installed into `C:\Program Files\Darknet\`.  Run this to test:  `C:\Program Files\Darknet\bin\darknet.exe version`.
 
 > If you don't have `C:/Program Files/darknet/bin/darknet.exe` then this means you _did not_ install it, you only built it!  Make sure you go through each panel of the NSIS installation wizard in the previous step.
+
+## Docker
+To build darknet via Docker with GPU support, [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit) must be installed on your system, and the build process must be executed in `docker run`. 
+
+Below is an example Dockerfile built with the following command:
+
+`docker build -t darknet-hankai . && docker run -it --gpus all darknet-hankai`
+
+```docker
+FROM nvidia/cuda:12.8.0-cudnn-devel-ubuntu24.04
+
+# Set environment variables
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PATH="/usr/local/cuda/bin:${PATH}"
+ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
+
+# Install dependencies
+RUN apt-get update
+RUN apt-get install -y build-essential git libopencv-dev wget file cmake
+
+# Set working directory for Darknet
+WORKDIR /workspace
+
+# Clone Darknet
+RUN git clone https://github.com/hank-ai/darknet.git
+
+# Defer building the Darknet package to runtime (GPU visible)
+CMD ["/bin/bash", "-c", "\
+    cd /workspace/darknet && \
+    # initialize cmake
+    mkdir build && cd build && cmake ..; \
+    # build darknet
+    make -j$(nproc) package && \
+    # package darknet
+    dpkg -i /workspace/darknet/build/darknet-*.deb && \
+    # run darknet version to verify build & enter terminal
+    darknet version && \
+    exec /bin/bash"]
+```
 
 # Using Darknet
 
