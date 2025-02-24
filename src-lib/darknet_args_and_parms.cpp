@@ -182,14 +182,16 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("iouthresh"			),
 		ArgsAndParms("hier"					),
 		ArgsAndParms("s"					),
-		ArgsAndParms("numofclusters"		, "", 6		, "The number of YOLO anchors in the configuration. --num_of_clusters 6"	),
-		ArgsAndParms("width"				, "", 416	, "The width of the network.  --width 416"									),
-		ArgsAndParms("height"				, "", 416	, "The height of the network.  --width 416"									),
-		ArgsAndParms("skipclasses"			, "", " "	, "Class indexes which Darknet should skip when returning results or annotating images.  --skip-classes=2,5-8"),
-		ArgsAndParms("log"					, "", " "	, "File to which Darknet/YOLO messages are logged.  Default is to use STDOUT."),
 		ArgsAndParms("extoutput"			),
 		ArgsAndParms("savelabels"			),
 		ArgsAndParms("chart"				),
+		ArgsAndParms("numofclusters"		, "", 6		, "The number of YOLO anchors in the configuration. --num_of_clusters 6"	),
+		ArgsAndParms("width"				, "", 416	, "The width of the network.  --width 416"									),
+		ArgsAndParms("height"				, "", 416	, "The height of the network.  --width 416"									),
+
+		// hack:  parameters that take a string need a default parameter of <space>; see CfgAndState::process_arguments()
+		ArgsAndParms("skipclasses"			, "", " "	, "Class indexes which Darknet should skip when returning results or annotating images.  --skip-classes=2,5-8"),
+		ArgsAndParms("log"					, "", " "	, "File to which Darknet/YOLO messages are logged.  Default is to use STDOUT."),
 		ArgsAndParms("gpus"					, "", " "	, "The index of the GPU to use. Multiple GPUs can be specified, such as -gpus 0,1"),
 	};
 
