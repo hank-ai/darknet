@@ -460,7 +460,7 @@ const char * size_to_IEC_string(const size_t size)
 
 	static char buffer[25]; /// @todo not thread safe
 
-	if		(size < 0.75f * KiB)	sprintf(buffer, "%ld bytes", size);
+	if		(size < 0.75f * KiB)	sprintf(buffer, "%ld bytes", static_cast<long>(size));
 	else if (size < 0.75f * MiB)	sprintf(buffer, "%1.1f KiB", bytes / KiB);
 	else if (size < 0.75f * GiB)	sprintf(buffer, "%1.1f MiB", bytes / MiB);
 	else							sprintf(buffer, "%1.1f GiB", bytes / GiB);
