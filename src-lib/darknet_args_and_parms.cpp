@@ -343,14 +343,13 @@ void Darknet::display_usage()
 		<< ""																						<< std::endl
 		<< "  Train a new network:"																	<< std::endl
 		<< YELLOW("    darknet detector train -map -dont_show cars.data cars.cfg")					<< std::endl
-		<< ""																						<< std::endl
 		<< "  Train a network without any initial weights:"											<< std::endl
 		<< YELLOW("    darknet detector train -map -dont_show cars.data cars.cfg") 					<< std::endl
-		<< ""																						<< std::endl
 		<< "  Train a network but resume where the previous training session was interrupted:"		<< std::endl
 		<< YELLOW("    darknet detector train -map -dont_show cars.data cars.cfg cars_last.weights")<< std::endl
-		<< ""																						<< std::endl
-		<< "  Train a network but start with the given pre-existing weights:"						<< std::endl
+		<< "  Train a network similar to previous line, but use the specified 2 GPUs:"				<< std::endl
+		<< YELLOW("    darknet detector train -map -dont_show cars.data cars.cfg cars_last.weights -gpus 0,1") << std::endl
+		<< "  Train a network but start with the given pre-existing weights, clearing the image count to restart at zero:" << std::endl
 		<< YELLOW("    darknet detector train -map -dont_show cars.data cars.cfg cars_best.weights -clear") << std::endl
 		<< ""																						<< std::endl
 		<< "  Check the mAP% results:"																<< std::endl
@@ -390,12 +389,19 @@ void Darknet::display_usage()
 		<< ""																						<< std::endl
 		<< "  Redirect console output to a file (this also turns off colour output):"				<< std::endl
 		<< YELLOW("    darknet -log /some/path/filename.log ...")									<< std::endl
+		<< "  Discard all console output from Darknet:"												<< std::endl
+		<< YELLOW("    darknet -log /dev/null ...") << " (Linux, Mac)"								<< std::endl
+		<< YELLOW("    darknet -log NUL: ...") << " (Windows)"										<< std::endl
 		<< ""																						<< std::endl
 		<< "  More verbose output (only applies to a select few commands, such as \"train\"):"		<< std::endl
 		<< YELLOW("    darknet -verbose ...")														<< std::endl
 		<< ""																						<< std::endl
 		<< "  Turn off colour output:"																<< std::endl
 		<< YELLOW("    darknet -nocolour ...") << " (or " << YELLOW("darknet -nocolor ...") << ")"	<< std::endl
+		<< ""																						<< std::endl
+		<< "  See the many Darknet-related tools installed:"										<< std::endl
+		<< YELLOW("    ls -lh /usr/bin/darknet*") << " (Linux, Mac)"								<< std::endl
+		<< YELLOW("    dir \"c:\\program files\\darknet\\bin\\*.exe\"") << " (Windows)"				<< std::endl
 		<< ""																						<< std::endl;
 
 	return;
