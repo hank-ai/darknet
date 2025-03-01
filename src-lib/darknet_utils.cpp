@@ -118,6 +118,12 @@ std::string Darknet::format_map_accuracy(const float & accuracy)
 
 	EColour colour = EColour::kNormal;
 
+	if (accuracy == -1.0f)
+	{
+		// during training, the special value -1.0 is used to indicate the mAP has not yet been calculated
+		return in_colour(colour, "none");
+	}
+
 	if (accuracy < 0.5f || std::isfinite(accuracy) == false)
 	{
 		colour = EColour::kBrightRed;

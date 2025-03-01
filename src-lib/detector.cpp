@@ -169,11 +169,11 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	const int init_w = net.w;
 	const int init_h = net.h;
 	const int init_b = net.batch;
-	int iter_save, iter_save_last, iter_map;
-	iter_save = get_current_iteration(net);
-	iter_save_last = get_current_iteration(net);
-	iter_map = get_current_iteration(net);
-	float mean_average_precision = -1;
+	int iter_save		= get_current_iteration(net);
+	int iter_save_last	= get_current_iteration(net);
+	int iter_map		= get_current_iteration(net);
+	int iter_best_map	= get_current_iteration(net);
+	float mean_average_precision = -1.0f;
 	float best_map = mean_average_precision;
 
 	load_args args = { 0 };
@@ -391,20 +391,12 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 
 		const int iteration = get_current_iteration(net);
 
-		const int next_map_calc = fmax(net.burn_in, iter_map + calc_map_for_each);
+//		const int next_map_calc = fmax(net.burn_in, iter_map + calc_map_for_each);
 
-		if (calc_map and (cfg_and_state.is_verbose or (iteration % 10 == 0)))
-		{
-			*cfg_and_state.output << "-> next mAP calculation will be at iteration #" << next_map_calc << std::endl;
-			if (mean_average_precision > 0.0f)
-			{
-				*cfg_and_state.output
-					<< "-> last accuracy mAP@" << std::setprecision(2) << iou_thresh
-					<< "="			<< Darknet::format_map_accuracy(mean_average_precision)
-					<< ", best="	<< Darknet::format_map_accuracy(best_map)
-					<< std::endl;
-			}
-		}
+//		if (calc_map and (cfg_and_state.is_verbose or (iteration % 10 == 0)))
+//		{
+//			*cfg_and_state.output << "-> next mAP calculation will be at iteration #" << next_map_calc << std::endl;
+//		}
 
 		const std::time_t now			= std::time(nullptr);
 		const float elapsed_seconds		= now - start_of_training;
@@ -444,11 +436,16 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 			*cfg_and_state.output << "Tensor cores are disabled until iteration #" << (3 * net.burn_in) << "." << std::endl;
 		}
 
+		const int next_map_calc = fmax(net.burn_in, iter_map + calc_map_for_each);
+
 		// 5989: loss=0.444, avg loss=0.329, rate=0.000026, 64.424 milliseconds, 383296 images, time remaining=7 seconds
 		*cfg_and_state.output
 			<< Darknet::in_colour(Darknet::EColour::kBrightWhite, iteration)
 			<< ": loss=" << Darknet::format_loss(loss)
 			<< ", avg loss=" << Darknet::format_loss(avg_loss)
+			<< ", last=" << Darknet::format_map_accuracy(mean_average_precision)
+			<< ", best=" << Darknet::format_map_accuracy(best_map)
+			<< ", next=" << next_map_calc
 			<< ", rate=" << std::setprecision(8) << get_current_rate(net) << std::setprecision(2)
 			<< ", " << Darknet::format_time(what_time_is_it_now() - time)
 			<< ", " << iteration * imgs
@@ -496,9 +493,9 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 
 			iter_map = iteration;
 			mean_average_precision = validate_detector_map(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);
-			*cfg_and_state.output << "mean average precision (mAP@" << iou_thresh << ")=" << mean_average_precision << std::endl;
 			if (mean_average_precision >= best_map)
 			{
+				iter_best_map = iteration;
 				best_map = mean_average_precision;
 				*cfg_and_state.output << "New best mAP, saving weights!" << std::endl;
 				char buff[256];
@@ -507,7 +504,6 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 			}
 
 			Darknet::update_accuracy_in_new_charts(-1, mean_average_precision);
-
 			// done doing mAP% calculation
 		}
 
@@ -569,6 +565,17 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	char buff[256];
 	sprintf(buff, "%s/%s_final.weights", backup_directory, base);
 	save_weights(net, buff);
+
+	if (mean_average_precision > 0.0f or best_map > 0.0f)
+	{
+		*cfg_and_state.output
+		<< std::endl
+		<< "Last accuracy mAP@" << std::setprecision(2) << iou_thresh
+		<< "="			<< Darknet::format_map_accuracy(mean_average_precision)
+		<< ", best="	<< Darknet::format_map_accuracy(best_map)
+		<< " at iteration #" << iter_best_map << "."
+		<< std::endl;
+	}
 
 	*cfg_and_state.output															<< std::endl
 		<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
@@ -1702,8 +1709,10 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	}
 
 	mean_average_precision = mean_average_precision / classes;
-	*cfg_and_state.output << "mean average precision (mAP@" << iou_thresh << ")=" << mean_average_precision << ", or " << mean_average_precision * 100.0f << "%" << std::endl;
-
+	*cfg_and_state.output
+		<< "mean average precision (mAP@" << std::setprecision(2) << iou_thresh << ")="
+		<< Darknet::format_map_accuracy(mean_average_precision)
+		<< std::endl;
 	for (int i = 0; i < classes; ++i)
 	{
 		free(pr[i]);
