@@ -18,7 +18,6 @@ int main(int argc, char * argv[])
 	try
 	{
 		Darknet::Parms parms = Darknet::parse_arguments(argc, argv);
-		Darknet::show_version_info();
 		Darknet::NetworkPtr net = Darknet::load_neural_network(parms);
 #if 0
 		Darknet::set_annotation_font(net, cv::LineTypes::LINE_4, cv::HersheyFonts::FONT_HERSHEY_PLAIN, 2, 2.00);

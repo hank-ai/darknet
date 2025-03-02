@@ -48,7 +48,6 @@ int main(int argc, char * argv[])
 	try
 	{
 		Darknet::Parms parms = Darknet::parse_arguments(argc, argv);
-		Darknet::show_version_info();
 		Darknet::set_default_keypoints_files(parms);
 		Darknet::NetworkPtr net = Darknet::load_neural_network(parms);
 		Darknet::Keypoints keypoints(net);

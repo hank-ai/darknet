@@ -401,6 +401,12 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 {
 	TAT(TATPARMS);
 
+	if (not v.empty())
+	{
+		// attempt to parse all the common parms -- note we don't yet have a network, so we need to pass in nullptr
+		cfg_and_state.process_arguments(v, nullptr);
+	}
+
 	Darknet::Parms parms;
 	parms.reserve(v.size());
 
@@ -507,11 +513,21 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 
 	find_neural_network_files(parms);
 
+	// Anything which was recognized and consumed needs to be marked as a parameter.
+	// For example, when processing "-log output.log" and "-thresh 0.4" we don't want those 2nd parms to be processed as input files.
+	for (const auto & [key, val] : cfg_and_state.args)
+	{
+		if (val.expect_parm)
+		{
+			parms[val.arg_index + 1].type = EParmType::kOther;
+		}
+	}
+
 	if (cfg_and_state.is_trace)
 	{
 		for (size_t idx = 0; idx < parms.size(); idx ++)
 		{
-			*cfg_and_state.output << "Parameter parsing: #" << idx << " [type " << (int)parms[idx].type << "] -> " << parms[idx].string;
+			*cfg_and_state.output << "Parameter parsing: #" << idx << " [type " << static_cast<int>(parms[idx].type) << ", " << parms[idx].type << "] -> " << parms[idx].string;
 			if (parms[idx].original != parms[idx].string)
 			{
 				*cfg_and_state.output << " (" << parms[idx].original << ")";
@@ -1158,12 +1174,8 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 	VStr v;
 	for (const auto & parm : parms)
 	{
-		if (parm.type == EParmType::kOther)
-		{
-			v.push_back(parm.string);
-		}
+		v.push_back(parm.string);
 	}
-
 	if (not v.empty())
 	{
 		cfg_and_state.process_arguments(v, ptr);
@@ -1696,6 +1708,23 @@ Darknet::SInt Darknet::del_skipped_class(Darknet::NetworkPtr ptr, const int clas
 }
 
 
+std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::EParmType & type)
+{
+	switch (type)
+	{
+		case EParmType::kUnknown:			return os << "unknown";
+		case EParmType::kCfgFilename:		return os << "config";
+		case EParmType::kNamesFilename:		return os << "names";
+		case EParmType::kWeightsFilename:	return os << "weights";
+		case EParmType::kDirectory:			return os << "directory";
+		case EParmType::kFilename:			return os << "filename";
+		case EParmType::kOther:				return os << "other";
+	}
+
+	return os << "?";
+}
+
+
 std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Prediction & pred)
 {
 	TAT(TATPARMS);
@@ -1827,6 +1856,8 @@ std::ostream * Darknet::set_output_stream(const std::filesystem::path & filename
 		{
 			cfg_and_state.colour_is_enabled = false;
 
+#if 0
+			// Koshee has asked that we don't print the version and timestamp in the log file.
 			const std::time_t current_time = std::time(nullptr);
 			std::tm * tm = std::localtime(&current_time);
 			char timestamp[100];
@@ -1838,6 +1869,9 @@ std::ostream * Darknet::set_output_stream(const std::filesystem::path & filename
 				<< "Darknet/YOLO " << DARKNET_VERSION_STRING << " output logging set to " << filename	<< std::endl
 				<< "========================="															<< std::endl
 				<< ""																					<< std::endl;
+#else
+			*cfg_and_state.output << std::endl;
+#endif
 		}
 	}
 

@@ -540,8 +540,6 @@ int main(int argc, char **argv)
 		cuda_debug_sync = find_arg(argc, argv, "-cuda_debug_sync");
 #endif
 
-		Darknet::show_version_info();
-
 		errno = 0;
 
 		/// @todo V3 look through these and see what we no longer need

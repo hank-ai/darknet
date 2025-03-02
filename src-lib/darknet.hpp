@@ -118,7 +118,9 @@ namespace Darknet
 	 */
 	using Parms = std::vector<Parm>;
 
-	/** Display a few lines of text with some version information.
+	/** Display a few lines of text with some version information, including CUDA and ROCm when used.
+	 * This is automatically called by the %Darknet API from places such as @ref Darknet::parse_arguments()
+	 * and @ref Darknet::CfgAndState::process_arguments().
 	 *
 	 * @since 2024-08-29
 	 */
@@ -578,6 +580,9 @@ namespace Darknet
 	 * @since 2024-10-07
 	 */
 	SInt del_skipped_class(Darknet::NetworkPtr ptr, const int class_to_include);
+
+	/// Mostly for debug purposes.  Convert @p type to text.  @since 2025-03-02
+	std::ostream & operator<<(std::ostream & os, const Darknet::EParmType & type);
 
 	/** Display some information about this specific prediction.
 	 *

@@ -187,17 +187,15 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 {
 	TAT(TATPARMS);
 
-#if 0
-	for (size_t i = 0; i < v.size(); i ++)
-	{
-		*output << "parse args: v[" << i << "]=" << v[i] << std::endl;
-	}
-#endif
-
+	args.clear();
 	const auto & all_known_args = Darknet::get_all_possible_arguments();
 
+	// ********************************************************************************
 	// WARNING:  it is perfectly valid for this pointer to be NULL if a network
 	// has not yet been loaded, so check before attempting to dereference it!
+	//
+	// For example, this is called with a NULL pointer from Darknet::parse_arguments().
+	// ********************************************************************************
 	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
 
 	for (int idx = 0; idx < v.size(); idx ++)
@@ -244,19 +242,21 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 		{
 			// this argument is unknown to Darknet (we even looked through the alternate spellings)
 
-#if 0 // too many rarely-used and poorly document parameters, go ahead and warn if something comes up, but don't throw
-			if (idx <= 1)
-			{
-				throw std::invalid_argument("unknown argument \"" + original_arg + "\" (argument #" + std::to_string(idx) + ")");
-			}
-			else
-#endif
+			// When this is first called by Darknet::parse_arguments() prior to parameter expansion, we need to skip the parms
+			// that are used to find and load the neural network.  For example, when attempting to run
+			//
+			//		darknet_03_display_videos LegoGears
+			//
+			// We don't want to warn about "LegoGears" which is eventually used to find the neural network.  When "net" is NULL
+			// the assumption is made that this is early in the loading process and unknown parms should be skipped.
+			if (net)
 			{
 				additional_arguments.push_back(original_arg);
 				display_warning_msg("skipped validating of argument #" + std::to_string(idx) + " \"" + original_arg + "\" (does not appear to be a valid parameter, file, or directory)");
 				*output << std::endl;
-				continue;
 			}
+
+			continue;
 		}
 
 		if (args.count(iter->name) > 0)
@@ -335,6 +335,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 				{
 					// this is a "text" argument
 					args_and_parms.str = v.at(next_arg_idx);
+					// consume the next argument
 					idx ++;
 				}
 			}
@@ -438,14 +439,12 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 	*output << "--------------------------------" << std::endl;
 #endif
 
-#if 0
-	static bool need_to_show = true;
-	if (need_to_show)
+	static bool need_to_show_version_info = true;
+	if (need_to_show_version_info)
 	{
-		need_to_show = false;
+		need_to_show_version_info = false;
 		Darknet::show_version_info();
 	}
-#endif
 
 	return *this;
 }
