@@ -143,7 +143,14 @@ int main(int argc, char * argv[])
 				Darknet::get_weights_filename(net).filename().string();
 
 		cv::Mat mat;
-		cap >> mat;
+		for (int i=0; mat.empty() and i < 5; i ++)
+		{
+			cap >> mat;
+		}
+		if (mat.empty())
+		{
+			throw std::runtime_error("failed to read a valid video frame from the camera");
+		}
 		cv::namedWindow("output", cv::WindowFlags::WINDOW_GUI_NORMAL);
 		cv::resizeWindow("output", mat.size());
 		cv::setWindowTitle("output", title);
