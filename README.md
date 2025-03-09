@@ -66,7 +66,7 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 * The next popular Darknet repo maintained by Alexey Bochkovskiy between 2017-2021 also did not have a version number.  We consider this version 1.x.
 * The Darknet repo sponsored by Hank.ai and maintained by Stéphane Charette starting in 2023 was the first one with a `version` command.  From 2023 until late 2024, it returned version 2.x "OAK".
 	* The goal was to try and break as little of the existing functionality while getting familiar with the codebase.
-	* Re-wrote the build steps so we have 1 unified way to build using CMake on both Windows and Linux.
+	* Re-wrote the build steps so we have 1 unified way to build using CMake on Windows, Linux, and Mac.
 	* Converted the codebase to use the C++ compiler.
 	* Enhanced chart.png while training.
 	* Bug fixes and performance-related optimizations, mostly related to cutting down the time it takes to train a network.
@@ -79,7 +79,8 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* New Darknet V3 C and C++ API:  https://darknetcv.ai/api/api.html
 	* New apps and sample code in `src-examples`:  https://darknetcv.ai/api/files.html
 * The most recent version was released in early 2025.  The `version` command now returns 4.x "SLATE".
-	* Added experimental support for AMD GPUs using ROCm and HIP.
+	* Added support for AMD GPUs using ROCm.
+	* All `printf()` and `std::cout` calls have all been replaced so Darknet/YOLO logging messages can easily be redirected.
 
 # Pre-trained Weights
 
@@ -130,7 +131,7 @@ DarkHelp coco.names yolov4-tiny.cfg yolov4-tiny.weights video1.avi
 
 The various build methods available in the past (pre-2023) have been merged together into a single unified solution.  Darknet requires C++17 or newer, OpenCV, and uses CMake to generate the necessary project files.
 
-**You do not need to know C++ to build, install, nor run Darknet/YOLO, the same way you don't need to be a mechanic to drive a car.**
+**You do not need to know C++ to build, install, nor run Darknet/YOLO, the same way you don't need to be a mechanic to learn to drive a car.**
 
 * [Google Colab](#google-colab)
 * [WSL](#wsl)
@@ -162,16 +163,10 @@ If you don't want to use Darknet/YOLO from within WSL, then skip ahead to the [W
 
 [![Darknet build tutorial for Linux](doc/linux_build_thumbnail.jpg)](https://www.youtube.com/watch?v=WTT1s8JjLFk)
 
-* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
-	* Darknet can run without it, but if you want to _train_ a custom network then either CUDA or CUDA+cuDNN is _required_.
-	* Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
-	* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#cudnn-package-manager-installation-overview> to download and install cuDNN.
-	* Once you install CUDA make sure you can run `nvcc` and `nvidia-smi`.  You may have to [modify your `PATH` variable](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#mandatory-actions).
-	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
-		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
-		* Remember to re-build Darknet.
+* Optional:  Darknet can run without access to a GPU, but if you want to _train_ a custom network or you need higher performance, then a modern NVIDIA GPU or AMD GPU is _strongly recommended_.
+	* Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
 
-These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different distribution.
+These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
 
 ```sh
 sudo apt-get install build-essential git libopencv-dev cmake
@@ -219,9 +214,8 @@ sudo dpkg -i darknet-2.0.1-Linux.deb
 
 Installing the `.deb` package will copy the following files:
 
-* `/usr/bin/darknet` is the usual Darknet executable.  Run `darknet version` from the CLI to confirm it is installed correctly.
-* `/usr/include/darknet.h` is the Darknet API for C, C++, and Python developers.
-* `/usr/include/darknet_version.h` contains version information for developers.
+* `/usr/bin/darknet*...` are the usual Darknet executables.  Run `darknet version` from the CLI to confirm it is installed correctly.
+* `/usr/include/darknet*...` are the Darknet API header files for C, C++, and Python developers.
 * `/usr/lib/libdarknet.so` is the library to link against for C, C++, and Python developers.
 * `/opt/darknet/cfg/...` is where all the `.cfg` templates are stored.
 
@@ -280,17 +274,8 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 >
 > Note there are many other optional modules you may want to add when building OpenCV.  Run `.\vcpkg.exe search opencv` to see the full list.
 
-* Optional:  If you have a modern NVIDIA GPU, you can install either CUDA or CUDA+cuDNN at this point.  If installed, Darknet will use your GPU to speed up image (and video) processing.
-	* Darknet can run without it, but if you want to _train_ a custom network then either CUDA or CUDA+cuDNN is _required_.
-	* Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
-	* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#download-windows> to download and install cuDNN.
-	* Once you install CUDA make sure you can run `nvcc.exe` and `nvidia-smi.exe`.  You may have to modify your `PATH` variable.
-	* Once you download cuDNN, unzip and copy the bin, include, and lib directories into `C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/[version]/`.  You may need to overwrite some files.
-	* If you install CUDA or CUDA+cuDNN at a later time, or you upgrade to a newer version of the NVIDIA software:
-		* You must delete the `CMakeCache.txt` file from your Darknet `build` directory to force CMake to re-find all of the necessary files.
-		* Remember to re-build Darknet.
-	* CUDA **must** be installed **after** Visual Studio.  If you re-install or upgrade Visual Studio, remember to re-install CUDA.
-	* It is a good idea to reboot Windows after installing CUDA or CUDA+cuDNN.
+* Optional:  Darknet can run without access to a GPU, but if you want to _train_ a custom network or you need higher performance, then a modern NVIDIA GPU or AMD GPU is _strongly recommended_.
+	* Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
 
 Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies.  Make sure you continue to use the **Developer Command Prompt** as described above when you run these commands:
 
@@ -302,17 +287,6 @@ mkdir build
 cd build
 cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=C:/src/vcpkg/scripts/buildsystems/vcpkg.cmake ..
 msbuild.exe /property:Platform=x64;Configuration=Release /target:Build -maxCpuCount -verbosity:normal -detailedSummary darknet.sln
-msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
-```
-
-**If you get an error** about some missing CUDA or cuDNN DLLs such as `cublas64_12.dll`, then manually copy the CUDA `.dll` files into the same output directory as `Darknet.exe`.  For example:
-```bat
-copy "C:\Program Files\NVIDIA GPU Computing Toolkit\CUDA\v12.2\bin\*.dll" src-cli\Release\
-```
-(That is an example!  Check to make sure what version you are running, and run the command that is appropriate for what you have installed.)
-
-Once the files have been copied, re-run the last `msbuild.exe` command to generate the NSIS installation package:
-```bat
 msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 ```
 
@@ -330,9 +304,9 @@ darknet-<INSERT-VERSION-YOU-BUILT-HERE>-win64.exe
 Installing the NSIS installation package will:
 
 * Create a directory called `Darknet`, such as `C:\Program Files\Darknet\`.
-* Install the CLI application, `darknet.exe` and other sample apps.
-* Install the required 3rd-party `.dll` files, such as those from OpenCV.
-* Install the neccesary Darknet `.dll`, `.lib` and `.h` files to use `darknet.dll` from another application.
+* Install the CLI applications, `darknet.exe` and other sample apps.
+* Install the required 3rd-party `.dll` files, such as those from OpenCV and Darknet.
+* Install the neccesary Darknet `.dll`, `.lib` and header files to use `darknet.dll` from another application.
 * Install the template `.cfg` files.
 
 You are now done!  Once the installation wizard has finished, Darknet will have been installed into `C:\Program Files\Darknet\`.  Run this to test:  `C:\Program Files\Darknet\bin\darknet.exe version`.
@@ -385,11 +359,12 @@ CMD ["/bin/bash", "-c", "\
 
 The following is not the full list of all commands supported by Darknet.
 
-> In addition to the Darknet CLI, also note [the DarkHelp project CLI](https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-cli) which provides an alternative CLI to Darknet/YOLO.  The DarkHelp CLI also has several advanced features that are not available directly in Darknet.  You can use both the Darknet CLI and the DarkHelp CLI together, they are not mutually exclusive.
+> In addition to the Darknet CLI, also note [the DarkHelp project CLI](https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-cli) which provides an additional CLI to Darknet/YOLO.  The DarkHelp CLI also has several advanced features that are not available directly in Darknet.  You can use both the Darknet CLI and the DarkHelp CLI together, they are not mutually exclusive.
 
 For most of the commands shown below, you'll need the `.weights` file with the corresponding `.names` and `.cfg` files.  You can either [train your own network](#training) (highly recommended!) or download a neural network that someone has already trained and made available for free on the internet.  Examples of pre-trained datasets include:
 * <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">LEGO Gears</a> (finding ojects in an image)
 * <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">Rolodex</a> (finding text in an image)
+* [People-R-People](#people-r-people-pre-trained-weights) (finding people in an image)
 * [MSCOCO](#mscoco-pre-trained-weights) (standard 80-class object detection)
 
 Commands to run include:
@@ -402,31 +377,31 @@ Commands to run include:
 
 * Predict using an image:
 	* V2:  `darknet detector test cars.data cars.cfg cars_best.weights image1.jpg`
-	* V3:  `darknet_02_display_annotated_images cars.cfg image1.jpg`
+	* V3+:  `darknet_02_display_annotated_images cars.cfg image1.jpg`
 	* DarkHelp:  `DarkHelp cars.cfg cars.cfg cars_best.weights image1.jpg`
 
 * Output coordinates:
 	* V2:  `darknet detector test animals.data animals.cfg animals_best.weights -ext_output dog.jpg`
-	* V3:  `darknet_01_inference_images animals dog.jpg`
+	* V3+:  `darknet_01_inference_images animals dog.jpg`
 	* DarkHelp:  `DarkHelp --json animals.cfg animals.names animals_best.weights dog.jpg`
 
 * Working with videos:
 	* V2:  `darknet detector demo animals.data animals.cfg animals_best.weights -ext_output test.mp4`
-	* V3:  `darknet_03_display_videos animals.cfg test.mp4`
+	* V3+:  `darknet_03_display_videos animals.cfg test.mp4`
 	* DarkHelp:  `DarkHelp animals.cfg animals.names animals_best.weights test.mp4`
 
 * Reading from a webcam:
 	* V2:  `darknet detector demo animals.data animals.cfg animals_best.weights -c 0`
-	* V3:  `darknet_08_display_webcam animals`
+	* V3+:  `darknet_08_display_webcam animals`
 
 * Save results to a video:
 	* V2:  `darknet detector demo animals.data animals.cfg animals_best.weights test.mp4 -out_filename res.avi`
-	* V3:  `darknet_05_process_videos_multithreaded animals.cfg animals.names animals_best.weights test.mp4`
+	* V3+:  `darknet_05_process_videos_multithreaded animals.cfg animals.names animals_best.weights test.mp4`
 	* DarkHelp:  `DarkHelp animals.cfg animals.names animals_best.weights test.mp4`
 
 * JSON:
 	* V2:  `darknet detector demo animals.data animals.cfg animals_best.weights test50.mp4 -json_port 8070 -mjpeg_port 8090 -ext_output`
-	* V3:  `darknet_06_images_to_json animals image1.jpg`
+	* V3+:  `darknet_06_images_to_json animals image1.jpg`
 	* DarkHelp:  `DarkHelp --json animals.names animals.cfg animals_best.weights image1.jpg`
 
 * Running on a specific GPU:
@@ -458,8 +433,8 @@ darknet detector calc_anchors animals.data -num_of_clusters 6 -width 320 -height
 	* `darknet detector -map -dont_show train animals.data animals.cfg` (also see [the training section](#training) below)
 
 * Display YOLO heatmaps:
-	* V3:  `darknet_02_display_annotated_images --heatmaps cars images/*.jpg`
-	* V3:  `darknet_03_display_videos --heatmaps cars videos/*.m4v`
+	* V3+:  `darknet_02_display_annotated_images --heatmaps cars images/*.jpg`
+	* V3+:  `darknet_03_display_videos --heatmaps cars videos/*.m4v`
 
 ## Training
 
@@ -495,13 +470,13 @@ backup = /home/username/nn/animals
 * Create a folder where you'll store your images and annotations.  For example, this could be `~/nn/animals/dataset`.  Each image will need a coresponding `.txt` file which describes the annotations for that image.  The format of the `.txt` annotation files is very specific.  You cannot create these files by hand since each annotation needs to contain the exact coordinates for the annotation.  See [DarkMark](https://github.com/stephanecharette/DarkMark) or other similar software to annotate your images.  The YOLO annotation format is described in the [Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#darknet_annotations).
 * Create the "train" and "valid" text files named in the `.data` file.  These two text files need to individually list all of the images which Darknet must use to train and for validation when calculating the mAP%.  Exactly one image per line.  The path and filenames may be relative or absolute.
 * Modify your `.cfg` file with a text editor.
-  * Make sure that `batch=64`.
-  * Note the subdivisions.  Depending on the network dimensions and the amount of memory available on your GPU, you may need to increase the subdivisions.  The best value to use is `1` so start with that.  See the [Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#cuda_out_of_memory) if `1` doesn't work for you.
-  * Note `max_batches=...`.  A good value to use when starting out is 2000 x the number of classes.  For this example, we have 4 animals, so 4 * 2000 = 8000.  Meaning we'll use `max_batches=8000`.
-  * Note `steps=...`.  This should be set to 80% and 90% of `max_batches`.  For this example we'd use `steps=6400,7200` since `max_batches` was set to 8000.
-  * Note `width=...` and `height=...`.  These are the network dimensions.  The Darknet/YOLO FAQ explains [how to calculate the best size to use](https://www.ccoderun.ca/programming/darknet_faq/#optimal_network_size).
-  * Search for all instances of the line `classes=...` and modify it with the number of classes in your `.names` file.  For this example, we'd use `classes=4`.
-  * Search for all instances of the line `filters=...` in the `[convolutional]` section **prior** to each `[yolo]` section.  The value to use is (number_of_classes + 5) * 3.  Meaning for this example, (4 + 5) * 3 = 27.  So we'd use `filters=27` on the appropriate lines.
+	* Make sure that `batch=64`.
+	* Note the subdivisions.  Depending on the network dimensions and the amount of memory available on your GPU, you may need to increase the subdivisions.  The best value to use is `1` so start with that.  See the [Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#cuda_out_of_memory) if `1` doesn't work for you.
+	* Note `max_batches=...`.  A good value to use when starting out is 2000 x the number of classes.  For this example, we have 4 animals, so 4 * 2000 = 8000.  Meaning we'll use `max_batches=8000`.
+	* Note `steps=...`.  This should be set to 80% and 90% of `max_batches`.  For this example we'd use `steps=6400,7200` since `max_batches` was set to 8000.
+	* Note `width=...` and `height=...`.  These are the network dimensions.  The Darknet/YOLO FAQ explains [how to calculate the best size to use](https://www.ccoderun.ca/programming/darknet_faq/#optimal_network_size).
+	* Search for all instances of the line `classes=...` and modify it with the number of classes in your `.names` file.  For this example, we'd use `classes=4`.
+	* Search for all instances of the line `filters=...` in the `[convolutional]` section **prior** to each `[yolo]` section.  The value to use is (number_of_classes + 5) * 3.  Meaning for this example, (4 + 5) * 3 = 27.  So we'd use `filters=27` on the appropriate lines.
 * Start training!  Run the following commands:
 ```sh
 cd ~/nn/animals/
@@ -526,7 +501,7 @@ darknet detector -map -dont_show --verbose train animals.data animals.cfg
 
 # Roadmap
 
-Last updated 2025-01-21:
+Last updated 2025-03-09:
 
 ## Completed
 
@@ -589,4 +564,3 @@ Last updated 2025-01-21:
 * [ ] rotated bounding boxes, or some sort of "angle" support
 * [ ] keypoints/skeletons
 * [ ] segmentation
-

@@ -242,13 +242,13 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 		{
 			// this argument is unknown to Darknet (we even looked through the alternate spellings)
 
-			// When this is first called by Darknet::parse_arguments() prior to parameter expansion, we need to skip the parms
-			// that are used to find and load the neural network.  For example, when attempting to run
+			// When this is first called by Darknet::parse_arguments() prior to parameter expansion, we need to skip
+			// the parms that are used to find and load the neural network.  For example, when attempting to run
 			//
 			//		darknet_03_display_videos LegoGears
 			//
-			// We don't want to warn about "LegoGears" which is eventually used to find the neural network.  When "net" is NULL
-			// the assumption is made that this is early in the loading process and unknown parms should be skipped.
+			// We don't want to warn about "LegoGears" which is eventually used to find the neural network.  When "net" is
+			// NULL the assumption is made that this is early in the loading process and unknown parms should be skipped.
 			if (net)
 			{
 				additional_arguments.push_back(original_arg);
