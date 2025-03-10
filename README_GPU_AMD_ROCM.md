@@ -6,6 +6,12 @@
 
 If you have a modern GPU made by AMD which is supported by ROCm and HIP, then Darknet can be built to take advantage of the GPU to process images and video frames.  This will make Darknet/YOLO run much faster.
 
+The Darknet build process does not yet support auto-detecting the AMD GPU.  You must set `CMAKE_HIP_ARCHITECTURES` correctly.  See `CM_dependencies.cmake` or set it on the command-line like this:
+
+```sh
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_HIP_ARCHITECTURES=gfx1101 ..
+```
+
 If you'd like to prevent the Darknet build process from attempting to detect AMD, ROCm, and HIP, you can define `DARKNET_TRY_ROCM=OFF` like this when running CMake:
 
 ```sh
@@ -22,6 +28,5 @@ The AMD ROCm and HIP software must be installed **prior** to running `cmake` for
 
 ## Windows
 
-TBD.
-
+* TBD.
 * https://rocm.docs.amd.com/projects/install-on-windows/en/latest/

@@ -252,7 +252,7 @@ At this point we need to modify the Visual Studio installation to include suppor
 >
 > Instead of running the `Developer Command Prompt`, you can use a normal command prompt or ssh into the device and manually run `"\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`.
 
-Lots of people make the same mistake and think they can skip the previous step.  **Please don't skip this step!**  Do not use a normal command prompt, nor PowerShell!  Re-read the steps above to see what kind of window you **must** be using.  Anytime you want to use Visual Studio from the command prompt to compile C++ code you must use the Visual Studio developer command prompt as described above.
+**Please don't skip this step!**  Re-read the "important" description in the previous sentence to see what kind of window you **must** be using.  Anytime you want to use Visual Studio from the command prompt to compile C++ code you must use the Visual Studio developer command prompt as described above.
 
 Once you have the **Developer Command Prompt** running as described above run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
 
