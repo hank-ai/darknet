@@ -8,6 +8,12 @@ If you have a modern GPU made by NVIDIA which is CUDA-capable, then Darknet can 
 
 The NVIDIA GPUs which are supported by CUDA and cuDNN include those from the Kepler, Maxwell, Pascal, Volta, Turing, Ampere, Ada Lovelace, Hopper, and Blackwell lines.  If uncertain about whether your GPU is supported with CUDA and cuDNN, please find your GPU [on this NVIDIA page](https://developer.nvidia.com/cuda-gpus).
 
+If you'd like to prevent the Darknet build process from attempting to detect NVIDIA and CUDA, you can define `DARKNET_TRY_CUDA=OFF` like this when running CMake:
+
+```sh
+cmake -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_CUDA=OFF ..
+```
+
 ## Linux
 
 The NVIDIA CUDA and cuDNN software must be installed **prior** to running `cmake` for Darknet/YOLO.  This is because as part of Darknet's CMake process, it will attempt to identify your GPU and the necessary CUDA and cuDNN files.
