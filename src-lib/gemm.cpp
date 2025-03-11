@@ -37,10 +37,11 @@ static inline uint32_t popcnt(uint32_t v)
 #define POPCNT(x) __popcnt(x)
 #define POPCNT64(x) __popcnt64(x)
 #else
-static inline int popcnt_64(uint64_t val64) {
-int tmp_count = __popcnt(val64);
-tmp_count += __popcnt(val64 >> 32);
-return tmp_count;
+static inline int popcnt_64(uint64_t val64)
+{
+	int tmp_count = __popcnt(val64);
+	tmp_count += __popcnt(val64 >> 32);
+	return tmp_count;
 }
 #define POPCNT(x) __popcnt(x)
 #define POPCNT64(x) popcnt_64(x)
@@ -64,34 +65,14 @@ return tmp_count;
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
-}
 
-
-#if 0 // unused
-void gemm_bin(int M, int N, int K, float ALPHA,
-		char  *A, int lda,
-		float *B, int ldb,
-		float *C, int ldc)
-{
-	TAT(TATPARMS);
-
-	int i,j,k;
-	for(i = 0; i < M; ++i){
-		for(k = 0; k < K; ++k){
-			char A_PART = A[i*lda+k];
-			if(A_PART){
-				for(j = 0; j < N; ++j){
-					C[i*ldc+j] += B[k*ldb+j];
-				}
-			} else {
-				for(j = 0; j < N; ++j){
-					C[i*ldc+j] -= B[k*ldb+j];
-				}
-			}
-		}
+	static inline uint64_t xnor_int64(uint64_t a, uint64_t b)
+	{
+		TAT(TATPARMS);
+		return ~(a^b);
 	}
 }
-#endif
+
 
 float *random_matrix(int rows, int cols)
 {
