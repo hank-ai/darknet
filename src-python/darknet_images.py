@@ -359,12 +359,9 @@ def batch_detection_example():
     random.seed(3)
 
     # Load the Darknet network, class names, and class colors from configuration files
-    network, class_names, class_colors = darknet.load_network(
-        args.config_file,
-        args.data_file,
-        args.weights,
-        batch_size=batch_size
-    )
+    network = darknet.load_net_custom(args.config_file.encode("ascii"), args.weights.encode("ascii"), 0, 1)
+    class_names = open(args.data_file).read().splitlines()
+    class_colors = darknet.class_colors(class_names)
 
     # List of image file names for batch detection
     image_names = ['data/horses.jpg', 'data/horses.jpg', 'data/eagle.jpg']
@@ -427,12 +424,9 @@ def main():
         darknet.set_gpu(0)
 
     # Load the Darknet network, class names, and class colors from configuration files
-    network, class_names, class_colors = darknet.load_network(
-        args.config_file,
-        args.data_file,
-        args.weights,
-        batch_size=args.batch_size
-    )
+    network = darknet.load_net_custom(args.config_file.encode("ascii"), args.weights.encode("ascii"), 0, 1)
+    class_names = open(args.data_file).read().splitlines()
+    class_colors = darknet.class_colors(class_names)
 
     # Perform object detection on images using the loaded network and settings
     perform_detection(args, network, class_names, class_colors)
