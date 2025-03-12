@@ -97,6 +97,8 @@ Darknet::ArgsAndParms::ArgsAndParms(const std::string & n1, const std::string & 
 
 std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::ArgsAndParms & rhs)
 {
+	TAT(TATPARMS);
+
 	os	<< "Args And Parms:"					<< std::endl
 		<< "-> NAME="	<< rhs.name				<< std::endl
 		<< "-> ALT="	<< rhs.name_alternate	<< std::endl

@@ -39,6 +39,8 @@ static inline uint32_t popcnt(uint32_t v)
 #else
 static inline int popcnt_64(uint64_t val64)
 {
+	TAT(TATPARMS);
+
 	int tmp_count = __popcnt(val64);
 	tmp_count += __popcnt(val64 >> 32);
 	return tmp_count;

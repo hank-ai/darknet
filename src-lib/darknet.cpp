@@ -1710,6 +1710,8 @@ Darknet::SInt Darknet::del_skipped_class(Darknet::NetworkPtr ptr, const int clas
 
 std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::EParmType & type)
 {
+	TAT(TATPARMS);
+
 	switch (type)
 	{
 		case EParmType::kUnknown:			return os << "unknown";
