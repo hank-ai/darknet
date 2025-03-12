@@ -53,10 +53,11 @@ products -- including commercial ones -- without a license or paying a fee.
 Darknet V3 ("Jazz") released in October 2024 can accurately run the LEGO dataset videos at up to **1000 FPS** when using
 a NVIDIA RTX 3090 GPU, meaning each video frame is read, resized, and processed by Darknet/YOLO in 1 millisecond or less.
 
-Please join the Darknet/YOLO Discord server if you need help or you want to discuss Darknet/YOLO:  https://discord.gg/zSq8rtW
+Please join the Darknet/YOLO Discord server if you need help or you want to discuss Darknet/YOLO and related tools:  https://discord.gg/zSq8rtW
 
 The CPU version of Darknet/YOLO can run on simple devices such as Raspberry Pi, cloud &amp; colab servers, desktops,
-laptops, and high-end training rigs.  The GPU version of Darknet/YOLO requires a CUDA-capable GPU from NVIDIA.
+laptops, and high-end training rigs.  The GPU version of Darknet/YOLO requires either a CUDA-capable GPU from NVIDIA,
+or a ROCm-capable GPU from AMD.
 
 Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building instructions](#building) below.
 
@@ -76,7 +77,7 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 		* You can always do a checkout of the previous `v2` branch if you need to run one of these commands.  Let us know so we can investigate adding back any missing commands.
 	* Many performance optimizations, both when training and during inference.
 	* Legacy C API was modified; applications that use the original Darknet API will need minor modifications:  https://darknetcv.ai/api/api.html
-	* New Darknet V3 C and C++ API:  https://darknetcv.ai/api/api.html
+	* New Darknet V3 C and C++ API to make it easier for developers to write applications that use Darknet/YOLO:  https://darknetcv.ai/api/api.html
 	* New apps and sample code in `src-examples`:  https://darknetcv.ai/api/files.html
 * The most recent version was released in early 2025.  The `version` command now returns 4.x "SLATE".
 	* Added support for AMD GPUs using ROCm.
@@ -501,7 +502,7 @@ darknet detector -map -dont_show --verbose train animals.data animals.cfg
 
 # Roadmap
 
-Last updated 2025-03-09:
+Last updated 2025-03-11:
 
 ## Completed
 
@@ -537,14 +538,16 @@ Last updated 2025-03-09:
 	* [ ] ~~original Jetson devices~~ (unlikely to fix since they are no longer supported by NVIDIA and do not have a C++17 compiler)
 	* [X] new Jetson Orin devices are working
 * [X] fix Python API in V3
-	* [ ] better support for Python is needed (any Python developers want to help with this?)
+	* [ ] better support for Python is needed **(any Python developers want to help with this?)**
 * [X] heatmaps
 * [X] remove all calls to printf() and std::cout and replace with std::ofstream to log to a file
+* [X] add support for AMD GPUs
 
 ## Short-term goals
 
 * [ ] look into old zed camera support
 * [ ] better and more consistent command line parsing **(in progress)**
+* [ ] add support for MIOpen
 
 ## Mid-term goals
 
@@ -560,7 +563,7 @@ Last updated 2025-03-09:
 
 * [ ] fix CUDA/CUDNN issues with all GPUs
 * [ ] re-write CUDA+cuDNN code
-* [ ] look into adding support for non-NVIDIA GPUs **(support for AMD GPU is in progress)**
+* [ ] look into adding support for additional hardware
 * [ ] rotated bounding boxes, or some sort of "angle" support
 * [ ] keypoints/skeletons
 * [ ] segmentation
