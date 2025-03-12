@@ -380,9 +380,11 @@ if __name__ == '__main__':
     # Set GPU, perform checks, load network as before
     darknet.set_gpu(args.gpu_index)
     check_arguments_errors(args)
-    network, class_names, class_colors = darknet.load_network(
-        args.config_file, args.data_file, args.weights, batch_size=1
-    )
+
+    network = darknet.load_net_custom(args.config_file.encode("ascii"), args.weights.encode("ascii"), 0, 1)
+    class_names = open(args.data_file).read().splitlines()
+    class_colors = darknet.class_colors(class_names)
+
     darknet_width = darknet.network_width(network)
     darknet_height = darknet.network_height(network)
     input_path = str2int(args.input)
