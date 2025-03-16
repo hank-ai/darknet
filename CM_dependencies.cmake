@@ -1,5 +1,6 @@
 # Darknet object detection framework
 
+SET (CMAKE_CUDA_COMPILER /usr/local/cuda/bin/nvcc)
 
 # =================
 # == NVIDIA CUDA ==
