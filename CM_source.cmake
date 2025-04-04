@@ -69,8 +69,12 @@ IF (UNIX)
 		# also see src-lib/CMakeLists.txt where -Ofast is set on some files
 		ADD_COMPILE_DEFINITIONS (NDEBUG)
 		ADD_COMPILE_OPTIONS (-O3)				# turn on optimizations
-		ADD_COMPILE_OPTIONS (-march=native)		# optimize for the architecture where g++ is running
 		ADD_COMPILE_OPTIONS (-mtune=native)		# optimize for the architecture where g++ is running
+
+		IF (ENABLE_SSE_AND_AVX)
+			# don't understand why this causes problems on older hardware without SSE and AVX (Darknet/YOLO issue #115)
+			ADD_COMPILE_OPTIONS (-march=native)		# optimize for the architecture where g++ is running
+		ENDIF ()
 
 		# this breaks the windows build, so even though it shouldn't be a
 		# linux-only optimization, we only set this for UNIX-type builds
