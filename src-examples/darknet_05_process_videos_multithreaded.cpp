@@ -189,7 +189,7 @@ void output_thread(cv::VideoWriter & out)
 
 		while (all_threads_must_exit == false)
 		{
-			if ( frames_waiting_for_output.empty())
+			if (frames_waiting_for_output.empty())
 			{
 				output_thread_starved ++;
 				std::this_thread::sleep_for(std::chrono::milliseconds(1));
