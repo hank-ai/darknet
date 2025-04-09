@@ -1,5 +1,5 @@
 /* Darknet/YOLO:  https://github.com/hank-ai/darknet
- * Copyright 2024 Stephane Charette
+ * Copyright 2024-2025 Stephane Charette
  */
 
 #pragma once

@@ -1,5 +1,5 @@
 /* Darknet/YOLO:  https://github.com/hank-ai/darknet
- * Copyright 2024 Stephane Charette
+ * Copyright 2024-2025 Stephane Charette
  */
 
 #include <fstream>
@@ -11,9 +11,6 @@ using JSON = nlohmann::json;
  * This application will call predict() on an image or images and store the results in a JSON file.
  *
  *     darknet_06_images_to_json LegoGears DSCN1580_frame_000034.jpg
- *
- * The output should be similar to this:
- *
  */
 
 

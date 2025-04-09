@@ -1,5 +1,5 @@
 /* Darknet/YOLO:  https://github.com/hank-ai/darknet
- * Copyright 2024 Stephane Charette
+ * Copyright 2024-2025 Stephane Charette
  */
 
 #pragma once
@@ -7,8 +7,8 @@
 /** @file
  * Include this file to get access to the Darknet/YOLO C API.
  *
- * @li The new (V3, July 2024) Darknet/YOLO @p C API is at the top of the file.
  * @li The original V2 Darknet/YOLO C API is at the bottom of this file (@ref DARKNET_INCLUDE_ORIGINAL_API).
+ * @li The new (V3, July 2024) Darknet/YOLO @p C API is at the top of the file.
  * @li The new (V3, July 2024) Darknet/YOLO @p C++ API is in @ref darknet.hpp.
  *
  * https://darknetcv.ai/api/api.html
