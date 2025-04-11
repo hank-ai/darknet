@@ -219,7 +219,7 @@ void save_connected_weights(Darknet::Layer & l, FILE *fp)
 	}
 }
 
-void save_weights_upto(const Darknet::Network & net, char *filename, int cutoff, int save_ema)
+void save_weights_upto(const Darknet::Network & net, const char *filename, int cutoff, int save_ema)
 {
 	TAT(TATPARMS);
 
@@ -298,7 +298,7 @@ void save_weights_upto(const Darknet::Network & net, char *filename, int cutoff,
 	fclose(fp);
 }
 
-void save_weights(const Darknet::Network & net, char *filename)
+void save_weights(const Darknet::Network & net, const char *filename)
 {
 	TAT(TATPARMS);
 

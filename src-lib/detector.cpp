@@ -19,7 +19,7 @@ namespace
 }
 
 
-void train_detector(const char * datacfg, const char * cfgfile, const char * weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int mjpeg_port, int show_imgs, int benchmark_layers, const char * chart_path)
+void train_detector_internal(const bool break_after_burn_in, std::string & multi_gpu_weights_fn, const char * datacfg, const char * cfgfile, const char * weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int show_imgs, int benchmark_layers, const char * chart_path)
 {
 	TAT(TATPARMS);
 
@@ -260,6 +260,14 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	{
 		// we're starting a new iteration
 		errno = 0;
+
+		if (break_after_burn_in and get_current_iteration(net) == net.burn_in)
+		{
+			Darknet::display_warning_msg("\nRe-start training with multiple GPUs now that we've reached burn-in at iteration #" + std::to_string(net.burn_in) + ".\n\n");
+			multi_gpu_weights_fn = backup_directory + std::string("/") + base + "_last.weights";
+			save_weights(net, multi_gpu_weights_fn.c_str());
+			break;
+		}
 
 		// yolov3-tiny, yolov3-tiny-3l, yolov3, and yolov4 all use "random=1"
 		// yolov4-tiny and yolov4-tiny-3l both use "random=0"
@@ -545,42 +553,44 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 
 	} // end of training loop
 
+	if (break_after_burn_in == false)
+	{
 #ifdef DARKNET_GPU
-	if (ngpus != 1)
-	{
-		sync_nets(nets, ngpus, 0);
-	}
+		if (ngpus != 1)
+		{
+			sync_nets(nets, ngpus, 0);
+		}
 #endif
-	char buff[256];
-	sprintf(buff, "%s/%s_final.weights", backup_directory, base);
-	save_weights(net, buff);
+		char buff[256];
+		sprintf(buff, "%s/%s_final.weights", backup_directory, base);
+		save_weights(net, buff);
 
-	if (mean_average_precision > 0.0f or best_map > 0.0f)
-	{
-		*cfg_and_state.output
-		<< std::endl
-		<< "Last accuracy mAP@" << std::setprecision(2) << iou_thresh
-		<< "="			<< Darknet::format_map_accuracy(mean_average_precision)
-		<< ", best="	<< Darknet::format_map_accuracy(best_map)
-		<< " at iteration #" << iter_best_map << "."
-		<< std::endl;
+		if (mean_average_precision > 0.0f or best_map > 0.0f)
+		{
+			*cfg_and_state.output
+				<< std::endl
+				<< "Last accuracy mAP@" << std::setprecision(2) << iou_thresh
+				<< "="			<< Darknet::format_map_accuracy(mean_average_precision)
+				<< ", best="	<< Darknet::format_map_accuracy(best_map)
+				<< " at iteration #" << iter_best_map << "."
+				<< std::endl;
+		}
+
+		*cfg_and_state.output															<< std::endl
+			<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
+			<< "Training iteration has reached max batch limit of "
+			<< Darknet::in_colour(Darknet::EColour::kBrightGreen, net.max_batches)
+			<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
+			<< ".  If you want"															<< std::endl
+			<< "to restart training with these weights, either increase the limit, or"	<< std::endl
+			<< "use the \""
+			<< Darknet::in_colour(Darknet::EColour::kYellow, "-clear")
+			<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
+			<< "\" flag to reset the training images counter to zero."					<< std::endl
+			<< Darknet::in_colour(Darknet::EColour::kNormal)							<< std::endl;
+
+		cv::destroyAllWindows();
 	}
-
-	*cfg_and_state.output															<< std::endl
-		<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
-		<< "Training iteration has reached max batch limit of "
-		<< Darknet::in_colour(Darknet::EColour::kBrightGreen, net.max_batches)
-		<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
-		<< ".  If you want"															<< std::endl
-		<< "to restart training with these weights, either increase the limit, or"	<< std::endl
-		<< "use the \""
-		<< Darknet::in_colour(Darknet::EColour::kYellow, "-clear")
-		<< Darknet::in_colour(Darknet::EColour::kBrightWhite)
-		<< "\" flag to reset the training images counter to zero."					<< std::endl
-		<< Darknet::in_colour(Darknet::EColour::kNormal)
-		<< ""																		<< std::endl;
-
-	cv::destroyAllWindows();
 
 	// free memory
 	load_thread.join();
@@ -601,13 +611,42 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 		free_network(nets[k]);
 	}
 	free(nets);
-	//free_network(net);
 
 	if (calc_map)
 	{
 		net_map.n = 0;
 		free_network(net_map);
 	}
+
+	return;
+}
+
+
+void train_detector(const char * datacfg, const char * cfgfile, const char * weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int show_imgs, int benchmark_layers, const char * chart_path)
+{
+	TAT(TATPARMS);
+
+	const char * weights_fn_ptr = nullptr;
+	std::string weights_fn_str;
+	if (weightfile != nullptr)
+	{
+		weights_fn_str = Darknet::trim(weightfile);
+		weights_fn_ptr = weights_fn_str.c_str();
+	}
+
+	// if we have multiple GPUs, then we may need to run on a single GPU for the burn-in period before we enable the rest of the GPUs
+	if (ngpus > 1 and weights_fn_str.empty())
+	{
+		Darknet::display_warning_msg("\nTraining GPUs modified from " + std::to_string(ngpus) + " down to 1 until burn-in.\n\n");
+
+		train_detector_internal(true, weights_fn_str, datacfg, cfgfile, weights_fn_ptr, gpus, 1, clear, dont_show, calc_map, thresh, iou_thresh, show_imgs, benchmark_layers, chart_path);
+		weights_fn_ptr = weights_fn_str.c_str();
+		clear = 0;
+	}
+
+	train_detector_internal(false, weights_fn_str, datacfg, cfgfile, weights_fn_ptr, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, show_imgs, benchmark_layers, chart_path);
+
+	return;
 }
 
 
@@ -2263,7 +2302,7 @@ void run_detector(int argc, char **argv)
 	if (not fn4.empty())	{ input_fn	= const_cast<char*>(fn4.c_str()); }
 
 	if		(cfg_and_state.function == "test"		) { test_detector(datacfg, cfg, weights, input_fn, thresh, hier_thresh, dont_show, ext_output, save_labels, outfile, letter_box, benchmark_layers); }
-	else if (cfg_and_state.function == "train"		) { train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, 0, show_imgs, benchmark_layers, chart_path); }
+	else if (cfg_and_state.function == "train"		) { train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, show_imgs, benchmark_layers, chart_path); }
 	else if (cfg_and_state.function == "valid"		) { validate_detector(datacfg, cfg, weights, outfile); }
 	else if (cfg_and_state.function == "recall"		) { validate_detector_recall(datacfg, cfg, weights); }
 	else if (cfg_and_state.function == "map"		) { validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL); }
