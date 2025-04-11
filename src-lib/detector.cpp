@@ -270,7 +270,6 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 			{
 				rand_coef = l.random;
 			}
-			*cfg_and_state.output << "Resizing, random_coef=" << rand_coef << std::endl;
 			float random_val = rand_scale(rand_coef);    // *x or /x
 			int dim_w = roundl(random_val*init_w / net.resize_step + 1) * net.resize_step;
 			int dim_h = roundl(random_val*init_h / net.resize_step + 1) * net.resize_step;
@@ -313,23 +312,13 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 				net.batch = dim_b;
 				imgs = net.batch * net.subdivisions * ngpus;
 				args.n = imgs;
-				*cfg_and_state.output
-					<< std::endl
-					<< dim_w
-					<< " x "
-					<< dim_h
-					<< " (batch=" << net.batch << ")"
-					<< std::endl;
 			}
-			else
-			{
-				*cfg_and_state.output
-				<< std::endl
-				<< dim_w
-				<< " x "
-				<< dim_h
+
+			*cfg_and_state.output
+				<< "Resizing, random_coef=" << rand_coef
+				<< ", batch=" << net.batch
+				<< ", " << dim_w << "x" << dim_h
 				<< std::endl;
-			}
 
 			load_thread.join();
 			train = buffer;

@@ -594,7 +594,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 
 #ifdef DARKNET_GPU
 	cuda_set_device(net->gpu_index);
-	if(cfg_and_state.gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		cuda_free(net->workspace);
 		if (net->input_gpu)
@@ -685,7 +685,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 		//if(l.type == AVGPOOL) break;
 	}
 
-	*cfg_and_state.output << "Allocating workspace:  " << size_to_IEC_string(workspace_size) << std::endl;
+	*cfg_and_state.output << "GPU #" << net->gpu_index << ": allocating workspace: " << size_to_IEC_string(workspace_size);
 #ifdef DARKNET_GPU
 	const int size = get_network_input_size(*net) * net->batch;
 	if (cfg_and_state.gpu_index >= 0)
@@ -699,7 +699,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 		else
 		{
 			cudaError_t status = cudaGetLastError(); // reset CUDA-error
-			*cfg_and_state.output << "CUDA error #" << status << " (" << cudaGetErrorName(status) << ", " << cudaGetErrorString(status) << ")" << std::endl;
+			*cfg_and_state.output << std::endl << "CUDA error #" << status << " (" << cudaGetErrorName(status) << ", " << cudaGetErrorString(status) << ")" << std::endl;
 			net->input_pinned_cpu = (float*)xcalloc(size, sizeof(float));
 			net->input_pinned_cpu_flag = 0;
 		}
@@ -719,9 +719,10 @@ int resize_network(Darknet::Network * net, int w, int h)
 #endif
 	if (net->workspace == NULL)
 	{
+		*cfg_and_state.output << std::endl;
 		darknet_fatal_error(DARKNET_LOC, "failed to allocate workspace (%d)", workspace_size);
 	}
-	*cfg_and_state.output << "Workspace begins at 0x" << (void*)net->workspace << std::endl;
+	*cfg_and_state.output << " begins at " << (void*)net->workspace << std::endl;
 
 	return 0;
 }
