@@ -662,9 +662,15 @@ float train_networks(Darknet::Network * nets, int n, data d, int interval)
 	*nets[0].seen = nets[0].batch * nets[0].subdivisions * get_current_iteration(nets[0]); // remove this line, when you will save to weights-file both: seen & cur_iteration
 	if (get_current_iteration(nets[0]) % interval == 0)
 	{
-		*cfg_and_state.output << "Syncing..." << std::flush;
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "Syncing..." << std::flush;
+		}
 		sync_nets(nets, n, interval);
-		*cfg_and_state.output << "done!" << std::endl;
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "done!" << std::endl;
+		}
 	}
 
 	//cudaDeviceSynchronize();
