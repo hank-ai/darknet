@@ -98,7 +98,13 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			*nets[k].seen = 0;
 			*nets[k].cur_iteration = 0;
 		}
+
+		/* 2025-04-12:  When training with multiple GPUs, this pushes the learning rate to the point where it destabilizes
+		 * the network.  Loss quickly goes to NaN.  Based on what was seen at University of Florida with the "cars" dataset
+		 * and the 4-GPU training rig, this line is getting commented out.
+		 *
 		nets[k].learning_rate *= ngpus;
+		 */
 
 		nets[k].details->class_names = net_map.details->class_names;
 	}
