@@ -256,6 +256,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 	int count = 0;
 
+	const auto first_iteration = get_current_iteration(net); // normally this is zero unless we're resuming training
 	const std::time_t start_of_training = std::time(nullptr);
 
 	// ***************************************
@@ -404,7 +405,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		const std::time_t now			= std::time(nullptr);
 		const float elapsed_seconds		= now - start_of_training;
 		const float current_iter		= get_current_iteration(net);
-		const float iters_per_second	= current_iter / elapsed_seconds;
+		const float iters_per_second	= (current_iter - first_iteration) / elapsed_seconds;
 		const float seconds_remaining	= (net.max_batches - current_iter) / iters_per_second;
 
 		// updating the console titlebar requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
