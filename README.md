@@ -484,12 +484,24 @@ cd ~/nn/animals/
 darknet detector -map -dont_show train animals.data animals.cfg
 ```
 
+* If you have multiple GPUs, then use the `-gpus ...` flag like this example with 4 GPUs:
+```sh
+cd ~/nn/animals/
+darknet detector -gpus 0,1,2,3 -map -dont_show train animals.data animals.cfg
+```
+
 Be patient.  The best weights will be saved as `animals_best.weights`.  And the progress of training can be observed by viewing the `chart.png` file.  See [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#training_command) for additional parameters you may want to use when training a new network.
 
-If you want to see more details during training, add the `--verbose` parameter.  For example:
-
+If you want to see more details during training, add the `-verbose` parameter.  For example:
 ```sh
-darknet detector -map -dont_show --verbose train animals.data animals.cfg
+cd ~/nn/animals/
+darknet detector -map -dont_show -verbose train animals.data animals.cfg
+```
+
+The `-log ...` flag can be used to send all of the console output to a file.  For example:
+```sh
+cd ~/nn/animals/
+darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.data animals.cfg
 ```
 
 # Other Tools and Links
@@ -502,7 +514,7 @@ darknet detector -map -dont_show --verbose train animals.data animals.cfg
 
 # Roadmap
 
-Last updated 2025-03-11:
+Last updated 2025-04-12:
 
 ## Completed
 
@@ -554,7 +566,7 @@ Last updated 2025-03-11:
 * [ ] remove all `char*` code and replace with `std::string`
 * [ ] don't hide warnings and clean up compiler warnings **(in progress)**
 * [ ] better use of `cv::Mat` instead of the custom `image` structure in C **(in progress)**
-* [ ] replace old `list` functionality with `std::vector` or `std::list`
+* [ ] replace old `list` functionality with `std::vector` or `std::list` **(in progress)**
 * [ ] fix support for 1-channel greyscale images
 * [ ] add support for N-channel images where N > 3 (e.g., images with an additional depth or thermal channel)
 * [ ] on-going code cleanup **(in progress)**
