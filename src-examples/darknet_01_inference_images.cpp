@@ -77,11 +77,15 @@ int main(int argc, char * argv[])
 					std::cout << "failed to save the output to " << output_filename << std::endl;
 				}
 
+				const auto duration = t8 - t1;
+				const int fps = std::round(1000000000.0f / std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count());
+
 				std::cout
 					<< "-> reading image from disk ........... " << Darknet::format_duration_string(t2 - t1) << " [" << output.cols << " x " << output.rows << " x " << output.channels() << "]" << std::endl
 					<< "-> using Darknet to predict .......... " << Darknet::format_duration_string(t4 - t3) << " [" << results.size() << " object" << (results.size() == 1 ? "" : "s") << "]" << std::endl
 					<< "-> using Darknet to annotate image ... " << Darknet::format_duration_string(t6 - t5) << std::endl
 					<< "-> save output image to disk ......... " << Darknet::format_duration_string(t8 - t7) << std::endl
+					<< "-> total time elapsed ................ " << Darknet::format_duration_string(duration) << " [" << fps << " FPS]" << std::endl
 					<< results << std::endl << std::endl;
 			}
 		}
