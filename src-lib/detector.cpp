@@ -1145,21 +1145,19 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 				++proposals;
 			}
 		}
-		for (j = 0; j < num_labels; ++j) {
-			++total;
-			Darknet::Box t = { truth[j].x, truth[j].y, truth[j].w, truth[j].h };
-			float best_iou = 0;
-			for (k = 0; k < nboxes; ++k) {
-				float iou = box_iou(dets[k].bbox, t);
-				if (dets[k].objectness > thresh && iou > best_iou) {
-					best_iou = iou;
-				}
-			}
-			avg_iou += best_iou;
-			if (best_iou > iou_thresh) {
-				++correct;
-			}
-		}
+		for(j = 0; j < num_labels; ++j) {
+		    box t = {truth[j].x, truth[j].y, truth[j].w, truth[j].h};
+    		// For each ground truth box, count every detection that meets the threshold.
+    		for(k = 0; k < nboxes; ++k) {
+        		float iou = box_iou(dets[k].bbox, t);
+        		if(dets[k].objectness > thresh && iou > iou_thresh){
+            		++correct;  // Count this detection as a true positive.
+        		}
+    		}
+    // Optionally, update any averaging metrics if needed:
+    // You might aggregate the IoU of all matching detections here.
+	}
+
 
 		*cfg_and_state.output
 			<< i << " " << correct << " " << total
