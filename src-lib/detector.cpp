@@ -213,13 +213,12 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	args.contrastive = net.contrastive;
 	args.contrastive_jit_flip = net.contrastive_jit_flip;
 	args.contrastive_color = net.contrastive_color;
-	if (dont_show && show_imgs) show_imgs = 2;
+	if (dont_show && show_imgs)
+	{
+		show_imgs = 2;
+	}
 	args.show_imgs = show_imgs;
-
-	//int num_threads = get_num_threads();
-	//if(num_threads > 2) args.threads = get_num_threads() - 2;
 	args.threads = 6 * ngpus;   // 3 for - Amazon EC2 Tesla V100: p3.2xlarge (8 logical cores) - p3.16xlarge
-	//args.threads = 12 * ngpus;    // Ryzen 7 2700X (16 logical cores)
 
 	// This is where we draw the initial blank chart.  That chart is then updated by update_train_loss_chart() at every iteration.
 	Darknet::initialize_new_charts(net);
@@ -393,18 +392,10 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		}
 		avg_loss = avg_loss * 0.9f + loss * 0.1f;
 
-		const int iteration = get_current_iteration(net);
-
-//		const int next_map_calc = fmax(net.burn_in, iter_map + calc_map_for_each);
-
-//		if (calc_map and (cfg_and_state.is_verbose or (iteration % 10 == 0)))
-//		{
-//			*cfg_and_state.output << "-> next mAP calculation will be at iteration #" << next_map_calc << std::endl;
-//		}
-
 		const std::time_t now			= std::time(nullptr);
 		const float elapsed_seconds		= now - start_of_training;
 		const float current_iter		= get_current_iteration(net);
+		const int iteration				= get_current_iteration(net);
 		const float iters_per_second	= (current_iter - first_iteration) / elapsed_seconds;
 		const float seconds_remaining	= (net.max_batches - current_iter) / iters_per_second;
 
@@ -1145,18 +1136,22 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 				++proposals;
 			}
 		}
-		for (j = 0; j < num_labels; ++j) {
+		for (j = 0; j < num_labels; ++j)
+		{
 			++total;
 			Darknet::Box t = { truth[j].x, truth[j].y, truth[j].w, truth[j].h };
 			float best_iou = 0;
-			for (k = 0; k < nboxes; ++k) {
+			for (k = 0; k < nboxes; ++k)
+			{
 				float iou = box_iou(dets[k].bbox, t);
-				if (dets[k].objectness > thresh && iou > best_iou) {
+				if (dets[k].objectness > thresh && iou > best_iou)
+				{
 					best_iou = iou;
 				}
 			}
 			avg_iou += best_iou;
-			if (best_iou > iou_thresh) {
+			if (best_iou > iou_thresh)
+			{
 				++correct;
 			}
 		}
@@ -1197,7 +1192,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	list *options = read_data_cfg(datacfg);
 	const char *valid_images = option_find_str(options, "valid", nullptr);
 	const char *difficult_valid_images = option_find_str(options, "difficult", NULL);
-//	char *name_list = option_find_str(options, "names", nullptr);
 	FILE* reinforcement_fd = NULL;
 
 	Darknet::Network net;
@@ -1562,7 +1556,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 		box_prob d = detections[rank];
 		pr[d.class_id][rank].prob = d.p;
-		// if (detected && isn't detected before)
+
 		if (d.truth_flag == 1)
 		{
 			if (truth_flags[d.unique_truth_index] == 0)
@@ -1812,9 +1806,15 @@ int anchors_comparator(const void *pa, const void *pb)
 
 	anchors_t a = *(const anchors_t *)pa;
 	anchors_t b = *(const anchors_t *)pb;
-	float diff = b.w*b.h - a.w*a.h;
-	if (diff < 0) return 1;
-	else if (diff > 0) return -1;
+	float diff = b.w * b.h - a.w * a.h;
+	if (diff < 0)
+	{
+		return 1;
+	}
+	else if (diff > 0)
+	{
+		return -1;
+	}
 	return 0;
 }
 
@@ -1825,8 +1825,14 @@ int anchors_data_comparator(const float **pa, const float **pb)
 	float *a = (float *)*pa;
 	float *b = (float *)*pb;
 	float diff = b[0] * b[1] - a[0] * a[1];
-	if (diff < 0) return 1;
-	else if (diff > 0) return -1;
+	if (diff < 0)
+	{
+		return 1;
+	}
+	else if (diff > 0)
+	{
+		return -1;
+	}
 	return 0;
 }
 
@@ -2054,7 +2060,10 @@ void test_detector(const char *datacfg, const char *cfgfile, const char *weightf
 	{
 		load_weights(&net, weightfile);
 	}
-	if (net.letter_box) letter_box = 1;
+	if (net.letter_box)
+	{
+		letter_box = 1;
+	}
 	net.benchmark_layers = benchmark_layers;
 	fuse_conv_batchnorm(net);
 	calculate_binary_weights(&net);
@@ -2213,7 +2222,8 @@ void test_detector(const char *datacfg, const char *cfgfile, const char *weightf
 		if (filename) break;
 	}
 
-	if (json_file) {
+	if (json_file)
+	{
 		const char *tmp = "\n]";
 		fwrite(tmp, sizeof(char), strlen(tmp), json_file);
 		fclose(json_file);
