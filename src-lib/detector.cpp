@@ -1022,16 +1022,20 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, const cha
 			{
 				print_cocos(fp, path, dets, nboxes, classes, w, h);
 			}
-			else if (imagenet) {
+			else if (imagenet)
+			{
 				print_imagenet_detections(fp, i + t - nthreads + 1, dets, nboxes, classes, w, h);
 			}
-			else if (bdd) {
+			else if (bdd)
+			{
 				print_bdd_detections(fp, path, dets, nboxes, classes, w, h);
 			}
-			else if (kitti) {
+			else if (kitti)
+			{
 				print_kitti_detections(fps, id, dets, nboxes, classes, w, h, outfile, prefix);
 			}
-			else {
+			else
+			{
 				print_detector_detections(fps, id, dets, nboxes, classes, w, h);
 			}
 

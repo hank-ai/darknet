@@ -686,6 +686,4 @@ namespace Darknet
 	std::string lowercase(const std::string & str);
 	std::string & lowercase(std::string & str);
 	/// @}
-
-
 }

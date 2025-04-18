@@ -85,7 +85,11 @@ int *read_map(const char *filename)
 	int *map = 0;
 	char *str;
 	FILE *file = fopen(filename, "r");
-	if(!file) file_error(filename, DARKNET_LOC);
+	if (!file)
+	{
+		file_error(filename, DARKNET_LOC);
+	}
+
 	while((str=fgetl(file)))
 	{
 		++n;
@@ -102,8 +106,8 @@ void sorta_shuffle(void *arr, size_t n, size_t size, size_t sections)
 {
 	TAT(TATPARMS);
 
-	size_t i;
-	for(i = 0; i < sections; ++i){
+	for (size_t i = 0; i < sections; ++i)
+	{
 		size_t start = n*i/sections;
 		size_t end = n*(i+1)/sections;
 		size_t num = end-start;
@@ -115,9 +119,9 @@ void shuffle(void *arr, size_t n, size_t size)
 {
 	TAT(TATPARMS);
 
-	size_t i;
 	void* swp = (void*)xcalloc(1, size);
-	for(i = 0; i < n-1; ++i){
+	for (size_t i = 0; i < n-1; ++i)
+	{
 		size_t j = i + random_gen()/(RAND_MAX / (n-i)+1);
 		memcpy(swp,            (char*)arr+(j*size), size);
 		memcpy((char*)arr+(j*size), (char*)arr+(i*size), size);
@@ -131,7 +135,10 @@ void del_arg(int argc, char **argv, int index)
 	TAT(TATPARMS);
 
 	int i;
-	for(i = index; i < argc-1; ++i) argv[i] = argv[i+1];
+	for(i = index; i < argc-1; ++i)
+	{
+		argv[i] = argv[i+1];
+	}
 	argv[i] = 0;
 }
 
@@ -139,10 +146,15 @@ int find_arg(int argc, char* argv[], const char * const arg)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for(i = 0; i < argc; ++i) {
-		if(!argv[i]) continue;
-		if(0==strcmp(argv[i], arg)) {
+	for (int i = 0; i < argc; ++i)
+	{
+		if (!argv[i])
+		{
+			continue;
+		}
+
+		if (0==strcmp(argv[i], arg))
+		{
 			del_arg(argc, argv, i);
 			return 1;
 		}
@@ -154,10 +166,15 @@ int find_int_arg(int argc, char **argv, const char * const arg, int def)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for(i = 0; i < argc-1; ++i){
-		if(!argv[i]) continue;
-		if(0==strcmp(argv[i], arg)){
+	for (int i = 0; i < argc-1; ++i)
+	{
+		if (!argv[i])
+		{
+			continue;
+		}
+
+		if (0==strcmp(argv[i], arg))
+		{
 			def = atoi(argv[i+1]);
 			del_arg(argc, argv, i);
 			del_arg(argc, argv, i);
@@ -171,10 +188,15 @@ float find_float_arg(int argc, char **argv, const char * const arg, float def)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for(i = 0; i < argc-1; ++i){
-		if(!argv[i]) continue;
-		if(0==strcmp(argv[i], arg)){
+	for (int i = 0; i < argc-1; ++i)
+	{
+		if (!argv[i])
+		{
+			continue;
+		}
+
+		if (0==strcmp(argv[i], arg))
+		{
 			def = atof(argv[i+1]);
 			del_arg(argc, argv, i);
 			del_arg(argc, argv, i);
@@ -188,10 +210,15 @@ const char * find_char_arg(int argc, char **argv, const char *arg, const char *d
 {
 	TAT(TATPARMS);
 
-	int i;
-	for(i = 0; i < argc-1; ++i){
-		if(!argv[i]) continue;
-		if(0==strcmp(argv[i], arg)){
+	for (int i = 0; i < argc-1; ++i)
+	{
+		if (!argv[i])
+		{
+			continue;
+		}
+
+		if (0==strcmp(argv[i], arg))
+		{
 			def = argv[i+1];
 			del_arg(argc, argv, i);
 			del_arg(argc, argv, i);
@@ -206,16 +233,42 @@ const char *basecfg(const char * cfgfile)
 {
 	TAT(TATPARMS);
 
+	/* This will return the base filename, no path and no extension.  For example:
+	 *
+	 * Input == /home/stephane/nn/LegoGears/LegoGears.cfg
+	 * Output == LegoGears
+	 *
+	 * This is also used with images.  For example:
+	 *
+	 * Input == /home/stephane/nn/LegoGears/darkmark_image_cache/zoom/00000260.jpg
+	 * Output == 00000260
+	 */
+
+	/// @todo 2025-04-18 replace all of this with @p std::filesystem::path::stem()?
+
 	char * c = const_cast<char*>(cfgfile);
 	char *next;
 	while((next = strchr(c, '/')))
 	{
 		c = next+1;
 	}
-	if(!next) while ((next = strchr(c, '\\'))) { c = next + 1; }
+
+	if (!next)
+	{
+		while ((next = strchr(c, '\\')))
+		{
+			c = next + 1;
+		}
+	}
+
 	c = copy_string(c);
 	next = strchr(c, '.');
-	if (next) *next = 0;
+
+	if (next)
+	{
+		*next = 0;
+	}
+
 	return c;
 }
 
@@ -242,7 +295,9 @@ void find_replace(const char* str, char* orig, char* rep, char* output)
 	char *p;
 
 	sprintf(buffer, "%s", str);
-	if (!(p = strstr(buffer, orig))) {  // Is 'orig' even in 'str'?
+	if (!(p = strstr(buffer, orig)))
+	{
+		// Is 'orig' even in 'str'?
 		sprintf(output, "%s", buffer);
 		free(buffer);
 		return;
@@ -282,15 +337,19 @@ void top_k(float *a, int n, int k, int *index)
 {
 	TAT(TATPARMS);
 
-	int i,j;
-	for(j = 0; j < k; ++j) index[j] = -1;
-	for(i = 0; i < n; ++i){
+	for (int j = 0; j < k; ++j)
+	{
+		index[j] = -1;
+	}
+
+	for (int i = 0; i < n; ++i)
+	{
 		int curr = i;
-		for(j = 0; j < k; ++j){
-			if((index[j] < 0) || a[curr] > a[index[j]]){
-				int swap = curr;
-				curr = index[j];
-				index[j] = swap;
+		for (int j = 0; j < k; ++j)
+		{
+			if((index[j] < 0) || a[curr] > a[index[j]])
+			{
+				std::swap(curr, index[j]);
 			}
 		}
 	}
@@ -506,8 +565,10 @@ list *split_str(char *s, char delim)
 	size_t len = strlen(s);
 	list *l = make_list();
 	list_insert(l, s);
-	for(i = 0; i < len; ++i){
-		if(s[i] == delim){
+	for(i = 0; i < len; ++i)
+	{
+		if(s[i] == delim)
+		{
 			s[i] = '\0';
 			list_insert(l, &(s[i+1]));
 		}
@@ -587,10 +648,17 @@ void strip_args(char *s)
 	size_t i;
 	size_t len = strlen(s);
 	size_t offset = 0;
-	for (i = 0; i < len; ++i) {
+	for (i = 0; i < len; ++i)
+	{
 		char c = s[i];
-		if (c == '\t' || c == '\n' || c == '\r' || c == 0x0d || c == 0x0a) ++offset;
-		else s[i - offset] = c;
+		if (c == '\t' || c == '\n' || c == '\r' || c == 0x0d || c == 0x0a)
+		{
+			++offset;
+		}
+		else
+		{
+			s[i - offset] = c;
+		}
 	}
 	s[len - offset] = '\0';
 }
@@ -602,10 +670,17 @@ void strip_char(char *s, char bad)
 	size_t i;
 	size_t len = strlen(s);
 	size_t offset = 0;
-	for(i = 0; i < len; ++i){
+	for(i = 0; i < len; ++i)
+	{
 		char c = s[i];
-		if(c==bad) ++offset;
-		else s[i-offset] = c;
+		if(c==bad)
+		{
+			++offset;
+		}
+		else
+		{
+			s[i-offset] = c;
+		}
 	}
 	s[len-offset] = '\0';
 }
@@ -686,7 +761,10 @@ int read_int(int fd)
 
 	int n = 0;
 	int next = read(fd, &n, sizeof(int));
-	if(next <= 0) return -1;
+	if (next <= 0)
+	{
+		return -1;
+	}
 	return n;
 }
 
@@ -695,7 +773,7 @@ void write_int(int fd, int n)
 	TAT(TATPARMS);
 
 	int next = write(fd, &n, sizeof(int));
-	if(next <= 0)
+	if (next <= 0)
 	{
 		darknet_fatal_error(DARKNET_LOC, "write failed");
 	}
@@ -706,9 +784,13 @@ int read_all_fail(int fd, char *buffer, size_t bytes)
 	TAT(TATPARMS);
 
 	size_t n = 0;
-	while(n < bytes){
+	while(n < bytes)
+	{
 		int next = read(fd, buffer + n, bytes-n);
-		if(next <= 0) return 1;
+		if (next <= 0)
+		{
+			return 1;
+		}
 		n += next;
 	}
 	return 0;
@@ -719,9 +801,13 @@ int write_all_fail(int fd, char *buffer, size_t bytes)
 	TAT(TATPARMS);
 
 	size_t n = 0;
-	while(n < bytes){
+	while(n < bytes)
+	{
 		size_t next = write(fd, buffer + n, bytes-n);
-		if(next <= 0) return 1;
+		if (next <= 0)
+		{
+			return 1;
+		}
 		n += next;
 	}
 	return 0;
@@ -732,9 +818,10 @@ void read_all(int fd, char *buffer, size_t bytes)
 	TAT(TATPARMS);
 
 	size_t n = 0;
-	while(n < bytes){
+	while(n < bytes)
+	{
 		int next = read(fd, buffer + n, bytes-n);
-		if(next <= 0)
+		if (next <= 0)
 		{
 			darknet_fatal_error(DARKNET_LOC, "read failed");
 		}
@@ -747,9 +834,10 @@ void write_all(int fd, char *buffer, size_t bytes)
 	TAT(TATPARMS);
 
 	size_t n = 0;
-	while(n < bytes){
+	while(n < bytes)
+	{
 		size_t next = write(fd, buffer + n, bytes-n);
-		if(next <= 0)
+		if (next <= 0)
 		{
 			darknet_fatal_error(DARKNET_LOC, "write failed");
 		}
@@ -776,68 +864,16 @@ char *copy_string(char *s)
 	return copy;
 }
 
-list *parse_csv_line(char *line)
-{
-	TAT(TATPARMS);
-
-	list *l = make_list();
-	char *c, *p;
-	int in = 0;
-	for(c = line, p = line; *c != '\0'; ++c){
-		if(*c == '"') in = !in;
-		else if(*c == ',' && !in){
-			*c = '\0';
-			list_insert(l, copy_string(p));
-			p = c+1;
-		}
-	}
-	list_insert(l, copy_string(p));
-	return l;
-}
-
-int count_fields(char *line)
-{
-	TAT(TATPARMS);
-
-	int count = 0;
-	int done = 0;
-	char *c;
-	for(c = line; !done; ++c){
-		done = (*c == '\0');
-		if(*c == ',' || done) ++count;
-	}
-	return count;
-}
-
-float *parse_fields(char *line, int n)
-{
-	TAT(TATPARMS);
-
-	float* field = (float*)xcalloc(n, sizeof(float));
-	char *c, *p, *end;
-	int count = 0;
-	int done = 0;
-	for(c = line, p = line; !done; ++c){
-		done = (*c == '\0');
-		if(*c == ',' || done){
-			*c = '\0';
-			field[count] = strtod(p, &end);
-			if(p == c) field[count] = nan("");
-			if(end != c && (end != c-1 || *end != '\r')) field[count] = nan(""); //DOS file formats!
-			p = c+1;
-			++count;
-		}
-	}
-	return field;
-}
-
 float sum_array(float *a, int n)
 {
 	TAT(TATPARMS);
 
-	int i;
 	float sum = 0;
-	for(i = 0; i < n; ++i) sum += a[i];
+	for (int i = 0; i < n; ++i)
+	{
+		sum += a[i];
+	}
+
 	return sum;
 }
 
@@ -852,15 +888,16 @@ void mean_arrays(float **a, int n, int els, float *avg)
 {
 	TAT(TATPARMS);
 
-	int i;
-	int j;
 	memset(avg, 0, els*sizeof(float));
-	for(j = 0; j < n; ++j){
-		for(i = 0; i < els; ++i){
+	for (int j = 0; j < n; ++j)
+	{
+		for (int i = 0; i < els; ++i)
+		{
 			avg[i] += a[j][i];
 		}
 	}
-	for(i = 0; i < els; ++i){
+	for (int i = 0; i < els; ++i)
+	{
 		avg[i] /= n;
 	}
 }
@@ -885,7 +922,10 @@ float variance_array(float *a, int n)
 	int i;
 	float sum = 0;
 	float mean = mean_array(a, n);
-	for(i = 0; i < n; ++i) sum += (a[i] - mean)*(a[i]-mean);
+	for(i = 0; i < n; ++i)
+	{
+		sum += (a[i] - mean)*(a[i]-mean);
+	}
 	float variance = sum/n;
 	return variance;
 }
@@ -894,9 +934,7 @@ float constrain(float min, float max, float a)
 {
 	TAT(TATPARMS);
 
-	if (a < min) return min;
-	if (a > max) return max;
-	return a;
+	return std::clamp(a, min, max);
 }
 
 float dist_array(float *a, float *b, int n, int sub)
@@ -905,7 +943,10 @@ float dist_array(float *a, float *b, int n, int sub)
 
 	int i;
 	float sum = 0;
-	for(i = 0; i < n; i += sub) sum += pow(a[i]-b[i], 2);
+	for (i = 0; i < n; i += sub)
+	{
+		sum += pow(a[i]-b[i], 2);
+	}
 	return sqrt(sum);
 }
 
@@ -915,7 +956,10 @@ float mse_array(float *a, int n)
 
 	int i;
 	float sum = 0;
-	for(i = 0; i < n; ++i) sum += a[i]*a[i];
+	for (i = 0; i < n; ++i)
+	{
+		sum += a[i]*a[i];
+	}
 	return sqrt(sum/n);
 }
 
@@ -923,10 +967,10 @@ void normalize_array(float *a, int n)
 {
 	TAT(TATPARMS);
 
-	int i;
 	float mu = mean_array(a,n);
 	float sigma = sqrt(variance_array(a,n));
-	for(i = 0; i < n; ++i){
+	for(int i = 0; i < n; ++i)
+	{
 		a[i] = (a[i] - mu)/sigma;
 	}
 	//mu = mean_array(a,n);
@@ -937,8 +981,8 @@ void translate_array(float *a, int n, float s)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for(i = 0; i < n; ++i){
+	for(int i = 0; i < n; ++i)
+	{
 		a[i] += s;
 	}
 }
@@ -947,9 +991,9 @@ float mag_array(float *a, int n)
 {
 	TAT(TATPARMS);
 
-	int i;
 	float sum = 0;
-	for(i = 0; i < n; ++i){
+	for(int i = 0; i < n; ++i)
+	{
 		sum += a[i]*a[i];
 	}
 	return sqrt(sum);
@@ -959,8 +1003,8 @@ void scale_array(float *a, int n, float s)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for(i = 0; i < n; ++i){
+	for(int i = 0; i < n; ++i)
+	{
 		a[i] *= s;
 	}
 }
@@ -969,11 +1013,17 @@ int max_index(float *a, int n)
 {
 	TAT(TATPARMS);
 
-	if(n <= 0) return -1;
-	int i, max_i = 0;
+	if (n <= 0)
+	{
+		return -1;
+	}
+
+	int max_i = 0;
 	float max = a[0];
-	for(i = 1; i < n; ++i){
-		if(a[i] > max){
+	for(int i = 1; i < n; ++i)
+	{
+		if (a[i] > max)
+		{
 			max = a[i];
 			max_i = i;
 		}
@@ -985,21 +1035,35 @@ int top_max_index(float *a, int n, int k)
 {
 	TAT(TATPARMS);
 
-	if (n <= 0) return -1;
+	if (n <= 0)
+	{
+		return -1;
+	}
+
 	float *values = (float*)xcalloc(k, sizeof(float));
 	int *indexes = (int*)xcalloc(k, sizeof(int));
-	int i, j;
-	for (i = 0; i < n; ++i) {
-		for (j = 0; j < k; ++j) {
-			if (a[i] > values[j]) {
+	for (int i = 0; i < n; ++i)
+	{
+		for (int j = 0; j < k; ++j)
+		{
+			if (a[i] > values[j])
+			{
 				values[j] = a[i];
 				indexes[j] = i;
 				break;
 			}
 		}
 	}
+
 	int count = 0;
-	for (j = 0; j < k; ++j) if (values[j] > 0) count++;
+	for (int j = 0; j < k; ++j)
+	{
+		if (values[j] > 0)
+		{
+			count++;
+		}
+	}
+
 	int get_index = rand_int(0, count-1);
 	int val = indexes[get_index];
 	free(indexes);
@@ -1012,8 +1076,7 @@ int int_index(int *a, int val, int n)
 {
 	TAT(TATPARMS);
 
-	int i;
-	for (i = 0; i < n; ++i)
+	for (int i = 0; i < n; ++i)
 	{
 		if (a[i] == val)
 		{
@@ -1046,7 +1109,7 @@ float rand_normal()
 	static int haveSpare = 0;
 	static double rand1, rand2;
 
-	if(haveSpare)
+	if (haveSpare)
 	{
 		haveSpare = 0;
 		return sqrt(rand1) * sin(rand2);
@@ -1055,7 +1118,10 @@ float rand_normal()
 	haveSpare = 1;
 
 	rand1 = random_gen() / ((double) RAND_MAX);
-	if(rand1 < 1e-100) rand1 = 1e-100;
+	if (rand1 < 1e-100)
+	{
+		rand1 = 1e-100;
+	}
 	rand1 = -2 * log(rand1);
 	rand2 = (random_gen() / ((double)RAND_MAX)) * 2.0 * M_PI;
 
@@ -1087,8 +1153,11 @@ float rand_scale(float s)
 	TAT(TATPARMS);
 
 	float scale = rand_uniform_strong(1, s);
-	if(random_gen()%2) return scale;
-	return 1./scale;
+	if (random_gen()%2)
+	{
+		return scale;
+	}
+	return 1.0f/scale;
 }
 
 namespace
@@ -1178,7 +1247,6 @@ unsigned long custom_hash(char *str)
 
 	unsigned long hash = 5381;
 	int c;
-
 	while ((c = (*str++)))
 	{
 		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
