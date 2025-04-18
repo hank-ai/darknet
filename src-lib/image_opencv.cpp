@@ -35,12 +35,11 @@ namespace
 }
 
 
-cv::Mat load_rgb_mat_image(const char * const filename, int channels)
+cv::Mat load_rgb_mat_image(const std::string & filename, int channels)
 {
 	TAT(TATPARMS);
 
-	if (filename == nullptr or
-		filename[0] == '\0')
+	if (filename.empty())
 	{
 		darknet_fatal_error(DARKNET_LOC, "cannot load an image without a filename");
 	}
@@ -57,13 +56,13 @@ cv::Mat load_rgb_mat_image(const char * const filename, int channels)
 	}
 	else if (channels != 0)
 	{
-		darknet_fatal_error(DARKNET_LOC, "OpenCV cannot load an image with %d channels: %s", channels, filename);
+		darknet_fatal_error(DARKNET_LOC, "OpenCV cannot load an image with %d channels: %s", channels, filename.c_str());
 	}
 
 	cv::Mat mat = cv::imread(filename, flag);
 	if (mat.empty())
 	{
-		darknet_fatal_error(DARKNET_LOC, "failed to load image file \"%s\"", filename);
+		darknet_fatal_error(DARKNET_LOC, "failed to load image file \"%s\"", filename.c_str());
 	}
 
 	if (mat.channels() == 3)

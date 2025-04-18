@@ -702,13 +702,9 @@ void Darknet::load_names(Darknet::NetworkPtr ptr, const std::filesystem::path & 
 	while (std::getline(ifs, line))
 	{
 		// strip whitespace at the end of line, which should help us ignore \n and \r\n problems between Windows and Linux
-		const size_t pos = line.find_last_not_of(" \t\r\n");
-		if (pos != std::string::npos)
-		{
-			line.erase(pos + 1);
-		}
+		Darknet::trim(line);
 
-		if (line.find_first_not_of(" \t\r\n") == std::string::npos)
+		if (line.empty())
 		{
 			Darknet::display_error_msg("The .names file appears to contain a blank line.\n");
 		}

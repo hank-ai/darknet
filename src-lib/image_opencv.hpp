@@ -8,7 +8,7 @@
  *
  * @see @ref Darknet::load_image()
  */
-cv::Mat load_rgb_mat_image(const char * const filename, int flag);
+cv::Mat load_rgb_mat_image(const std::string & filename, int flag);
 
 void show_image_cv(Darknet::Image p, const char *name);
 
