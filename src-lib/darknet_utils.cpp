@@ -287,11 +287,10 @@ std::string & Darknet::lowercase(std::string & str)
 {
 	TAT(TATPARMS);
 
-	std::transform(str.begin(), str.end(), str.begin(),
-		[](unsigned char c)
-		{
-			return std::tolower(c);
-		});
+	for (auto & c : str)
+	{
+		c = std::tolower(c);
+	}
 
 	return str;
 

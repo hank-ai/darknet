@@ -668,4 +668,24 @@ namespace Darknet
 	 * @since 2025-02-16
 	 */
 	std::ostream * set_output_stream(const std::filesystem::path & filename);
+
+	/** @{ Trim leading and trailing whitespace from the given string.  This function existed before, but was previously
+	 * internal to %Darknet.  It has since been moved to the public @ref Darknet namespace.
+	 *
+	 * @since 2025-04-18
+	 */
+	std::string trim(const std::string & str);
+	std::string & trim(std::string & str);
+	/// @}
+
+	/** @{ Simple conversion of the given ASCII string to lowercase.  This function existed before, but was previously
+	 * internal to %Darknet.  It has since been moved to the public @ref Darknet namespace.
+	 *
+	 * @since 2025-04-18
+	 */
+	std::string lowercase(const std::string & str);
+	std::string & lowercase(std::string & str);
+	/// @}
+
+
 }

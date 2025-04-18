@@ -14,23 +14,6 @@ using JSON = nlohmann::json;
  */
 
 
-std::string trim(std::string str)
-{
-	auto pos = str.find_last_not_of(" \t\r\n");
-	if (pos != std::string::npos)
-	{
-		str.erase(pos + 1);
-	}
-	pos = str.find_first_not_of(" \t\r\n");
-	if (pos != std::string::npos)
-	{
-		str.erase(0, pos);
-	}
-
-	return str;
-}
-
-
 int main(int argc, char * argv[])
 {
 	try
@@ -66,7 +49,7 @@ int main(int argc, char * argv[])
 				const size_t file_counter = json["file"].size();
 				json["file"][file_counter]["filename"	] = parm.string;
 				json["file"][file_counter]["count"		] = results.size();
-				json["file"][file_counter]["duration"	] = trim(Darknet::format_duration_string(t2 - t1));
+				json["file"][file_counter]["duration"	] = Darknet::trim(Darknet::format_duration_string(t2 - t1));
 
 				total_objects_detected += results.size();
 
@@ -112,7 +95,7 @@ int main(int argc, char * argv[])
 				<< "-> JSON results ....... " << std::filesystem::canonical(json_path).string()	<< std::endl
 				<< "-> images processed ... " << json["file"].size()							<< std::endl
 				<< "-> objects detected ... " << total_objects_detected							<< std::endl
-				<< "-> time elapsed ....... " << trim(Darknet::format_duration_string(end_time - start_time)) << std::endl;
+				<< "-> time elapsed ....... " << Darknet::trim(Darknet::format_duration_string(end_time - start_time)) << std::endl;
 		}
 
 		Darknet::free_neural_network(net);
