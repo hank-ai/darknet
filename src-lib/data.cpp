@@ -1025,7 +1025,8 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 
 	// This loop runs on a secondary thread.
 
-	cfg_and_state.set_thread_name("image loading loop #" + std::to_string(idx));
+	const std::string name = "image loading loop #" + std::to_string(idx);
+	cfg_and_state.set_thread_name(name);
 
 	const int number_of_threads	= args.threads;	// typically will be 6
 	const int number_of_images	= args.n;		// typically will be 64 (batch size)
@@ -1042,7 +1043,7 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 		// wait until the control thread tells us we can load the next set of images
 		if (data_loading_per_thread_flag[idx] == 0)
 		{
-			TAT_COMMENT("sleeping_" TATPARMS, "sleeping");
+			Darknet::TimingAndTracking tat2(name, false, "SLEEPING!");
 			std::this_thread::sleep_for(thread_wait_ms);
 			continue;
 		}
@@ -1073,7 +1074,8 @@ void Darknet::run_image_loading_control_thread(load_args args)
 	 *		std::thread t(Darknet::run_image_loading_control_thread, args);
 	 */
 
-	cfg_and_state.set_thread_name("image loading control thread");
+	const std::string name = "image loading control thread";
+	cfg_and_state.set_thread_name(name);
 
 	if (args.threads == 0)
 	{
@@ -1085,7 +1087,7 @@ void Darknet::run_image_loading_control_thread(load_args args)
 	data * out = args.d;
 	data * buffers = (data*)xcalloc(number_of_threads, sizeof(data));
 
-	// create the secondary threads
+	// create the secondary threads (this should only happen once)
 	if (data_loading_threads.empty())
 	{
 		*cfg_and_state.output << "Creating " << number_of_threads << " permanent CPU threads to load images and bounding boxes." << std::endl;
@@ -1122,7 +1124,7 @@ void Darknet::run_image_loading_control_thread(load_args args)
 				cfg_and_state.must_immediately_exit == false and
 				data_loading_per_thread_flag[idx] != 0) // the loading thread will reset this flag to zero once it is ready
 		{
-			TAT_COMMENT("sleeping_" TATPARMS, "sleeping");
+			Darknet::TimingAndTracking tat2(name, false, "SLEEPING!");
 			std::this_thread::sleep_for(thread_wait_ms);
 		}
 	}
