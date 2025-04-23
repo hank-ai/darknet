@@ -122,7 +122,8 @@ Darknet::Image get_opencv_label(const std::string & str, const int area)
 
 	cv::putText(mat, str, {2, text_size.height + 3}, font_face, font_scale, {0, 0, 0}, font_thickness, font_lines);
 
-	return Darknet::mat_to_image(mat);
+	/// @todo 2025-04-23:  should this be rgb or bgr?
+	return Darknet::rgb_mat_to_rgb_image(mat);
 }
 
 
@@ -804,6 +805,8 @@ Darknet::Image Darknet::mat_to_image(const cv::Mat & mat)
 	TAT(TATPARMS);
 
 	// This code assumes the mat object is already in RGB format, not OpenCV's default BGR!
+	//
+	// DO NOT CALL!  You should be using rgb_mat_to_rgb_image() instead.
 
 	const int w = mat.cols;
 	const int h = mat.rows;
@@ -826,6 +829,37 @@ Darknet::Image Darknet::mat_to_image(const cv::Mat & mat)
 }
 
 
+Darknet::Image Darknet::rgb_mat_to_rgb_image(const cv::Mat & mat)
+{
+	TAT(TATPARMS);
+
+	// This code assumes the mat object is in (non-standard) RGB format!
+
+	/// @todo COLOR this function assumes 3-channel images
+
+	// create 3 "views" into 1 large "single-channel" image, one each for B, G, and R
+	cv::Mat result(mat.rows * 3, mat.cols, CV_8UC1);
+	std::vector<cv::Mat> views =
+	{
+		result.rowRange(mat.rows * 0, mat.rows * 1),	// B
+		result.rowRange(mat.rows * 1, mat.rows * 2),	// G
+		result.rowRange(mat.rows * 2, mat.rows * 3),	// R
+	};
+	cv::split(mat, views);
+
+	// create an empty Darknet::Image where the float results will be stored by OpenCV once we convert to CV_32F
+	Darknet::Image img = make_image(mat.cols, mat.rows, mat.channels());
+
+	// note how the cv::Matf is using the Darknet::Image data buffer directly
+	cv::Mat1f tmp(img.h * 3, img.w, img.data);
+
+	// convert the results to floating point, and divide by 255 to normalize between 0.0 - 1.0
+	result.convertTo(tmp, CV_32F, 1.0/255.0);
+
+	return img;
+}
+
+
 Darknet::Image Darknet::bgr_mat_to_rgb_image(const cv::Mat & mat)
 {
 	TAT(TATPARMS);
@@ -834,8 +868,7 @@ Darknet::Image Darknet::bgr_mat_to_rgb_image(const cv::Mat & mat)
 
 	/// @todo COLOR this function assumes 3-channel images
 
-	// create 3 "views", one each for B, G, and R
-
+	// create 3 "views" into 1 large "single-channel" image, one each for B, G, and R
 	cv::Mat result(mat.rows * 3, mat.cols, CV_8UC1);
 	std::vector<cv::Mat> views =
 	{
@@ -1771,29 +1804,38 @@ Darknet::Image Darknet::load_image(const char * filename, int desired_width, int
 		if (channels == 1 and mat.channels() == 1)
 		{
 			// nothing to do, we already have a greyscale image
+			image = mat_to_image(mat);
 		}
 		else if (channels == 1 and mat.channels() == 3)
 		{
 			cv::cvtColor(mat, mat, cv::COLOR_BGR2GRAY);
+			image = mat_to_image(mat);
 		}
 		else if (channels == 1 and mat.channels() == 4)
 		{
 			cv::cvtColor(mat, mat, cv::COLOR_BGRA2GRAY);
+			image = mat_to_image(mat);
 		}
 		else if (channels == 3 and mat.channels() == 1)
 		{
 			cv::cvtColor(mat, mat, cv::COLOR_GRAY2RGB);
+			image = rgb_mat_to_rgb_image(mat);
 		}
 		else if (channels == 3 and mat.channels() == 3)
 		{
-			cv::cvtColor(mat, mat, cv::COLOR_BGR2RGB);
+			// shouldn't this case have been handled at the top of the parent if() clause?
+			image = bgr_mat_to_rgb_image(mat);
 		}
 		else if (channels == 3 and mat.channels() == 4)
 		{
 			cv::cvtColor(mat, mat, cv::COLOR_BGRA2RGB);
+			image = rgb_mat_to_rgb_image(mat);
 		}
-
-		image = mat_to_image(mat);
+		else
+		{
+			// what in the world do we have?
+			image = bgr_mat_to_rgb_image(mat);
+		}
 	}
 
 	if (desired_width > 0 and desired_height > 0)

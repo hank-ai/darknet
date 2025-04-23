@@ -105,12 +105,7 @@ void resize_thread()
 				cv::resize(frame.mat, tmp, network_dimensions, cv::INTER_NEAREST);
 			}
 
-			if (tmp.channels() == 3)
-			{
-				cv::cvtColor(tmp, tmp, cv::COLOR_BGR2RGB);
-			}
-
-			frame.img = Darknet::mat_to_image(tmp);
+			frame.img = Darknet::bgr_mat_to_rgb_image(tmp);
 
 			if (true)
 			{

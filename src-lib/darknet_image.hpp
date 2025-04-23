@@ -39,6 +39,13 @@ namespace Darknet
 	 * converted from @p BGR to @p RGB.  The result @ref Darknet::Image floats will be normalized between @p 0.0 and @p 1.0.
 	 * Remember to call @ref Darknet::free_image() when done.
 	 *
+	 * @note 2025-04-23:  This function should no longer be called.  Instead, use @ref rgb_mat_to_rgb_image() which is
+	 * faster.
+	 *
+	 * In tests loading and converting 500 sample images, @ref mat_to_image() would take ~650 milliseconds, while
+	 * @ref rgb_mat_to_rgb_image() took ~560 milliseconds.
+	 *
+	 * @see @ref Darknet::rgb_mat_to_rgb_image()
 	 * @see @ref Darknet::bgr_mat_to_rgb_image()
 	 * @see @ref Darknet::rgb_image_to_bgr_mat()
 	 * @see @ref Darknet::image_to_mat()
@@ -46,13 +53,30 @@ namespace Darknet
 	 */
 	Darknet::Image mat_to_image(const cv::Mat & mat);
 
+	/** Similar to the original %Darknet function @ref mat_to_image(), but this function uses very efficent OpenCV
+	 * techniques to convert the @p cv::Mat to @p Darknet::Image which makes it much faster.
+	 *
+	 * Remember to call @ref Darknet::free_image() when done.
+	 *
+	 * In tests loading and converting 500 sample images, @ref mat_to_image() would take ~650 milliseconds, while
+	 * @ref rgb_mat_to_rgb_image() took ~560 milliseconds.
+	 *
+	 * @see @ref Darknet::rgb_image_to_bgr_mat()
+	 * @see @ref Darknet::bgr_mat_to_rgb_image()
+	 *
+	 * @since 2025-04-23
+	 */
+	Darknet::Image rgb_mat_to_rgb_image(const cv::Mat & mat);
+
 	/** Similar to the original @ref mat_to_image(), but with 2 differences:
 	 * @li the input image is in the "natural" OpenCV BGR format (the output image is still in RGB format),
-	 * @li this function uses very efficent OpenCV techniques to convert the @p cv::Mat to @p Darknet::Image which makes it much faster.
+	 * @li this function uses very efficent OpenCV techniques to convert the @p cv::Mat to @p Darknet::Image which makes
+	 * it faster.
 	 *
 	 * Remember to call @ref Darknet::free_image() when done.
 	 *
 	 * @see @ref Darknet::rgb_image_to_bgr_mat()
+	 * @see @ref Darknet::rgb_mat_to_rgb_image()
 	 *
 	 * @since 2024-08-23
 	 */
@@ -68,7 +92,8 @@ namespace Darknet
 
 	/** Similar to the original @ref image_to_mat(), but with 2 differences:
 	 * @li the output image is in the "natural" OpenCV BGR format,
-	 * @li this function uses very efficient OpenCV techniques to convert the @p Darknet::Image to @p cv::Mat which makes it much faster.
+	 * @li this function uses very efficient OpenCV techniques to convert the @p Darknet::Image to @p cv::Mat which makes
+	 * it faster.
 	 *
 	 * @see @ref Darknet::bgr_mat_to_rgb_image()
 	 * @see @ref Darknet::image_to_mat()

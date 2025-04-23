@@ -1296,22 +1296,18 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, const cv::M
 	}
 
 	// OpenCV uses BGR, but Darknet requires RGB
-	cv::Mat rgb;
-	if (bgr.channels() == 3)
+	Darknet::Image img;
+	if (bgr.channels() == 4)
 	{
-		cv::cvtColor(bgr, rgb, cv::COLOR_BGR2RGB);
-	}
-	else if (bgr.channels() == 4)
-	{
+		cv::Mat rgb;
 		cv::cvtColor(bgr, rgb, cv::COLOR_BGRA2RGB);
+		img = rgb_mat_to_rgb_image(rgb);
 	}
 	else
 	{
-		// we have no idea what image format this might be
-		rgb = bgr;
+		// anything else we currently assume is 3-channel BGR
+		img = bgr_mat_to_rgb_image(bgr);
 	}
-
-	Darknet::Image img = mat_to_image(rgb);
 
 	return predict(ptr, img, original_image_size);
 }

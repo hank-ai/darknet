@@ -417,7 +417,7 @@ Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
 		}
 
 		// Mat -> image
-		out = Darknet::mat_to_image(sized);
+		out = Darknet::rgb_mat_to_rgb_image(sized);
 	}
 	catch (const std::exception & e)
 	{
