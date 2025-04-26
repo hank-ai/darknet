@@ -267,6 +267,11 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		// we're starting a new iteration
 		errno = 0;
 
+if (get_current_iteration(net) >= 250)
+{
+	break;
+}
+
 		if (break_after_burn_in and get_current_iteration(net) == net.burn_in)
 		{
 			Darknet::display_warning_msg("\nRe-start training with multiple GPUs now that we've reached burn-in at iteration #" + std::to_string(net.burn_in) + ".\n\n");
