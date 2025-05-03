@@ -2323,7 +2323,10 @@ void run_detector(int argc, char **argv)
 	if (not fn4.empty())	{ input_fn	= const_cast<char*>(fn4.c_str()); }
 
 	if		(cfg_and_state.function == "test"		) { test_detector(datacfg, cfg, weights, input_fn, thresh, hier_thresh, dont_show, ext_output, save_labels, outfile, letter_box, benchmark_layers); }
-	else if (cfg_and_state.function == "train"		) { train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, show_imgs, benchmark_layers, chart_path); }
+	else if (cfg_and_state.function == "train"		) {
+		if (!calc_map) darknet_fatal_error(DARKNET_LOC, "Error: The '-map' flag is required when using 'train'");
+		train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, show_imgs, benchmark_layers, chart_path);
+	}
 	else if (cfg_and_state.function == "valid"		) { validate_detector(datacfg, cfg, weights, outfile); }
 	else if (cfg_and_state.function == "recall"		) { validate_detector_recall(datacfg, cfg, weights); }
 	else if (cfg_and_state.function == "map"		) { validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL); }
