@@ -73,7 +73,6 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			free_layer_custom(net_map.layers[k], 1);
 		}
 	}
-	Darknet::load_names(&net_map, option_find_str(options, "names", "unknown.names"));
 
 	const char *base = basecfg(cfgfile);
 
@@ -106,10 +105,22 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		nets[k].learning_rate *= ngpus;
 		 */
 
-		nets[k].details->class_names = net_map.details->class_names;
+		if (k == 0)
+		{
+			Darknet::load_names(&nets[k], option_find_str(options, "names", "unknown.names"));
+		}
+		else
+		{
+			nets[k].details->class_names = nets[0].details->class_names;
+		}
 	}
 
 	Darknet::Network & net = nets[0];
+
+	if (calc_map)
+	{
+		net_map.details->class_names = net.details->class_names;
+	}
 
 	const int actual_batch_size = net.batch * net.subdivisions;
 	if (actual_batch_size == 1)
