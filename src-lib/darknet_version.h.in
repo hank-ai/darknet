@@ -45,7 +45,7 @@
  *	- v2 is named "Oak", conversion from old C codebase to C++, Stephane Charette, 2023.
  *	- v3 is named "Jazz", significant optimizations for both training and inference, Stephane Charette, 2024.
  *	- v4 is named "Slate", add support for AMD GPU via ROCm, Stephane Charette, 2025.
- *	- v5 is named "Moonlit", Stephane Charette, 2025
+ *	- v5 is named "Moonlit", more optimizations, Stephane Charette, 2025
  */
 #define DARKNET_VERSION_KEYWORD "Moonlit"
 
