@@ -264,10 +264,7 @@ std::string & Darknet::trim(std::string & str)
 
 	// trim leading whitespace characters
 	pos = str.find_first_not_of(" \t\r\n");
-	if (pos != std::string::npos)
-	{
-		str.erase(0, pos);
-	}
+	str.erase(0, pos);
 
 	return str;
 }

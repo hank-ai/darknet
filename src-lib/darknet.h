@@ -93,8 +93,8 @@ void darknet_set_output_stream(const char * const filename);
 /// Bounding box used with normalized coordinates (between 0.0 and 1.0).
 typedef struct DarknetBox
 {
-	float x;
-	float y;
+	float x; // center X
+	float y; // center Y
 	float w;
 	float h;
 } DarknetBox;

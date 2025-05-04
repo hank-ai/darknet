@@ -299,19 +299,17 @@ float box_iou(const Darknet::Box & a, const Darknet::Box & b)
 	 * function with the longest time.
 	 */
 
-#if 0
+#if 1
 	const float I = box_intersection(a, b);
 	if (I == 0.0f)
 	{
 		return 0.0f;
 	}
 
-	// if intersection is non-zero, then union will of course be non-zero, so no need to worry about divide-by-zero
 	const float U = box_union(a, b, I);
 
-	return I / U;
-
 #else
+
 	const auto ra = darknet_box_to_cv_rect(a);
 	const auto rb = darknet_box_to_cv_rect(b);
 	const float I = (ra & rb).area();
@@ -321,10 +319,30 @@ float box_iou(const Darknet::Box & a, const Darknet::Box & b)
 		return 0.0f;
 	}
 
-	const float U = (ra | rb).area();
-
-	return I / U;
+	const float U = ra.area() + rb.area() - I;
 #endif
+
+	// if intersection is non-zero, then union will of course be non-zero, so no need to worry about divide-by-zero
+	return I / U;
+
+}
+
+
+float Darknet::iou(const cv::Rect2f & lhs, const cv::Rect2f & rhs)
+{
+	TAT_REVIEWED(TATPARMS, "2025-05-04");
+
+	float intersection_over_union = 0.0f;
+
+	const float intersection = (lhs & rhs).area();
+
+	// if the intersection is zero, then don't bother with the rest, we know the answer will be zero
+	if (intersection > 0.0f)
+	{
+		intersection_over_union = intersection / (lhs.area() + rhs.area() - intersection);
+	}
+
+	return intersection_over_union;
 }
 
 
@@ -332,39 +350,41 @@ float Darknet::iou(const cv::Rect & lhs, const cv::Rect & rhs)
 {
 	TAT_REVIEWED(TATPARMS, "2024-09-07");
 
-#if 0
-	// see: https://stackoverflow.com/questions/9324339/how-much-do-two-rectangles-overlap/9325084
-	const auto tl1 = lhs.tl();	// blue_triangle
-	const auto tl2 = rhs.tl();	// orange_triangle
-	const auto br1 = lhs.br();	// blue_circle
-	const auto br2 = rhs.br();	// orange_circle
+	float intersection_over_union = 0.0f;
 
-	const float intersection = std::max(0, std::min(br2.x, br1.x) - std::max(tl2.x, tl1.x)) * std::max(0, std::min(br2.y, br1.y) - std::max(tl2.y, tl1.y));
+#if 1
+	// see: https://stackoverflow.com/questions/9324339/how-much-do-two-rectangles-overlap/9325084
+
+	const auto & tl1 = lhs.tl();	// blue_triangle
+	const auto & tl2 = rhs.tl();	// orange_triangle
+	const auto & br1 = lhs.br();	// blue_circle
+	const auto & br2 = rhs.br();	// orange_circle
+
+	const float intersection =
+			std::max(0, std::min(br1.x, br2.x) - std::max(tl1.x, tl2.x)) *
+			std::max(0, std::min(br1.y, br2.y) - std::max(tl1.y, tl2.y));
 
 	// if the intersection is zero, then don't bother with the rest, we know the answer will be zero
-	float intersection_over_union = 0.0f;
 	if (intersection > 0.0f)
 	{
-		const float a1 = lhs.area();
-		const float a2 = rhs.area();
-		intersection_over_union = intersection / (a1 + std::min(a2, intersection) - intersection);
+		intersection_over_union = intersection / (lhs.area() + rhs.area() - intersection);
 	}
 
-	return intersection_over_union;
 #else
-	float result = 0.0f;
+
+	// 2025-05-04:  This next implementation produces the exact same results, but tests show that it is slightly slower.
 
 	const float r_intersection = (lhs & rhs).area();
 	if (r_intersection > 0.0f)
 	{
 		// if intersection is non-zero, then union will also be non-zero,
 		// so no need to worry about divide-by-zero
-		const float r_union = (lhs | rhs).area();
-		result = r_intersection / r_union;
+		const float r_union = lhs.area() + rhs.area() - r_intersection;
+		intersection_over_union = r_intersection / r_union;
 	}
-
-	return result;
 #endif
+
+	return intersection_over_union;
 }
 
 

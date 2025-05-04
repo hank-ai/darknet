@@ -34,3 +34,22 @@ INCLUDE (CM_misc.cmake)
 INCLUDE (CM_dependencies.cmake)
 INCLUDE (CM_source.cmake)
 INCLUDE (CM_package.cmake)
+
+# If you have Google Test installed, then you can enable the unit tests.
+# On Ubuntu for example, you'd run the following commands:
+#
+#		sudo apt-get install googletest
+#		cd /usr/src/googletest/
+#		sudo mkdir build
+#		cd build
+#		sudo cmake ..
+#		sudo make
+#		sudo cp lib/*.a /usr/lib
+#
+# Once you successfully built Darknet, run "make test", "ctest", or "darknet_tests".
+#
+FIND_LIBRARY (GTEST gtest)
+IF (GTEST)
+	ENABLE_TESTING ()
+	ADD_SUBDIRECTORY (src-test)
+ENDIF ()
