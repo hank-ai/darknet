@@ -5,6 +5,19 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
 
+	static inline cv::Rect2f darknet_box_to_cv_rect(const Darknet::Box & b)
+	{
+		TAT_REVIEWED(TATPARMS, "2025-04-26 inlined");
+
+		const float w = b.w;
+		const float h = b.h;
+		const float x = b.x - (b.w / 2.0f);
+		const float y = b.y - (b.h / 2.0f);
+
+		return cv::Rect2f(x, y, w, h);
+	}
+
+
 	static inline dbox derivative(const Darknet::Box & a, const Darknet::Box & b)
 	{
 		TAT_REVIEWED(TATPARMS, "2024-03-19 inlined");
@@ -280,8 +293,13 @@ float box_iou_kind(const Darknet::Box & a, const Darknet::Box & b, const IOU_LOS
 float box_iou(const Darknet::Box & a, const Darknet::Box & b)
 {
 	TAT_REVIEWED(TATPARMS, "2024-03-19");
-	// this function is used in many places
 
+	/* This function is used in many places.  It is the function at the very top of the list when looking at the TAT
+	 * results while training.  Speed is quick, but the total amount of times it gets called is the reason it is the
+	 * function with the longest time.
+	 */
+
+#if 0
 	const float I = box_intersection(a, b);
 	if (I == 0.0f)
 	{
@@ -292,6 +310,21 @@ float box_iou(const Darknet::Box & a, const Darknet::Box & b)
 	const float U = box_union(a, b, I);
 
 	return I / U;
+
+#else
+	const auto ra = darknet_box_to_cv_rect(a);
+	const auto rb = darknet_box_to_cv_rect(b);
+	const float I = (ra & rb).area();
+
+	if (I == 0.0f)
+	{
+		return 0.0f;
+	}
+
+	const float U = (ra | rb).area();
+
+	return I / U;
+#endif
 }
 
 

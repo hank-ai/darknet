@@ -338,9 +338,9 @@ namespace
 
 	static inline int yolo_entry_index(const Darknet::Layer & l, const int batch, const int location, const int entry)
 	{
-		// similar function exists in region_layer.cpp, but the math is slightly different
-
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+
+		// similar function exists in region_layer.cpp, but the math is slightly different
 
 		const int n		= location / (l.w * l.h);
 		const int loc	= location % (l.w * l.h);
