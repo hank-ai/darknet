@@ -293,7 +293,7 @@ void Darknet::show_version_info()
 {
 	TAT(TATPARMS);
 
-	*cfg_and_state.output << "Darknet V4 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING);
+	*cfg_and_state.output << "Darknet V5 \"" << DARKNET_VERSION_KEYWORD << "\" " << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_VERSION_STRING);
 	if (DARKNET_BRANCH_NAME != std::string("master"))
 	{
 		*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_BRANCH_NAME) << "]";
