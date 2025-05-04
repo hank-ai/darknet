@@ -332,6 +332,7 @@ float Darknet::iou(const cv::Rect & lhs, const cv::Rect & rhs)
 {
 	TAT_REVIEWED(TATPARMS, "2024-09-07");
 
+#if 0
 	// see: https://stackoverflow.com/questions/9324339/how-much-do-two-rectangles-overlap/9325084
 	const auto tl1 = lhs.tl();	// blue_triangle
 	const auto tl2 = rhs.tl();	// orange_triangle
@@ -340,7 +341,7 @@ float Darknet::iou(const cv::Rect & lhs, const cv::Rect & rhs)
 
 	const float intersection = std::max(0, std::min(br2.x, br1.x) - std::max(tl2.x, tl1.x)) * std::max(0, std::min(br2.y, br1.y) - std::max(tl2.y, tl1.y));
 
-	// if the interesction is zero, then don't bother with the rest, we know the answer will be zero
+	// if the intersection is zero, then don't bother with the rest, we know the answer will be zero
 	float intersection_over_union = 0.0f;
 	if (intersection > 0.0f)
 	{
@@ -350,6 +351,20 @@ float Darknet::iou(const cv::Rect & lhs, const cv::Rect & rhs)
 	}
 
 	return intersection_over_union;
+#else
+	float result = 0.0f;
+
+	const float r_intersection = (lhs & rhs).area();
+	if (r_intersection > 0.0f)
+	{
+		// if intersection is non-zero, then union will also be non-zero,
+		// so no need to worry about divide-by-zero
+		const float r_union = (lhs | rhs).area();
+		result = r_intersection / r_union;
+	}
+
+	return result;
+#endif
 }
 
 
