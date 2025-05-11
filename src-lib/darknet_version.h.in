@@ -13,6 +13,11 @@
  * Your changes will be overwritten by the build process when the file is re-generated.
  */
 
+/** Skip the version macros when using tools like Java jextract.  Under normal use, this is not defined and can be
+ * ignored.  Use @ref darknet_version_short() or @ref darknet_version_string() functions instead.
+ */
+#ifndef DARKNET_SKIP_VERSION_MACROS
+
 
 /** @{
  * The @p DARKNET_WEIGHTS_VERSION_* macros identify the version numbers embedded in the header of .weights files.
@@ -51,3 +56,5 @@
 
 /// Name of the git branch.  This is normally @p "master".
 #define DARKNET_BRANCH_NAME "${DARKNET_BRANCH_NAME}"
+
+#endif
