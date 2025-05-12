@@ -43,6 +43,7 @@ YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection sys
 * Paper **[YOLOv4](https://arxiv.org/abs/2004.10934)**
 * Paper **[YOLOv3](https://arxiv.org/abs/1804.02767)**
 
+<details open><summary>General Information</summary>
 # General Information
 
 The Darknet/YOLO framework continues to be both **faster** and **more accurate** than other frameworks and versions of YOLO.
@@ -60,7 +61,9 @@ laptops, and high-end training rigs.  The GPU version of Darknet/YOLO requires e
 or a ROCm-capable GPU from AMD.
 
 Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building instructions](#building) below.
+</details>
 
+<details><summary>Darknet Version</summary>
 ## Darknet Version
 
 * The original Darknet tool written by Joseph Redmon in 2013-2017 did not have a version number.  We consider this version 0.x.
@@ -79,10 +82,14 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* Legacy C API was modified; applications that use the original Darknet API will need minor modifications:  https://darknetcv.ai/api/api.html
 	* New Darknet V3 C and C++ API to make it easier for developers to write applications that use Darknet/YOLO:  https://darknetcv.ai/api/api.html
 	* New apps and sample code in `src-examples`:  https://darknetcv.ai/api/files.html
-* The most recent version was released in early 2025.  The `version` command now returns 4.x "SLATE".
+* The next release was in early 2025.  The `version` command now returns 4.x "SLATE".
 	* Added support for AMD GPUs using ROCm.
 	* All `printf()` and `std::cout` calls have all been replaced so Darknet/YOLO logging messages can easily be redirected.
+* Currently in development for Q2 or Q3 2025 is 5.x "Moonlit".
+	* More performance optimizations.
+</details>
 
+<details><summary>Pre-trained Weights</summary>
 # Pre-trained Weights
 
 People are generally expected to [train their own network](#training).  But pre-trained weights are also popular.  These are weights which someone else has trained and made available for free on the internet.  This is sometimes convenient when first installing Darknet/YOLO, since the software can be quickly tested without having to train a new neural network.
@@ -127,12 +134,14 @@ darknet_03_display_videos coco.names yolov4-tiny.cfg yolov4-tiny.weights video1.
 DarkHelp coco.names yolov4-tiny.cfg yolov4-tiny.weights image1.jpg
 DarkHelp coco.names yolov4-tiny.cfg yolov4-tiny.weights video1.avi
 ```
+</details>
 
 # Building
 
 The various build methods available in the past (pre-2023) have been merged together into a single unified solution.  Darknet requires C++17 or newer, OpenCV, and uses CMake to generate the necessary project files.
 
-**You do not need to know C++ to build, install, nor run Darknet/YOLO, the same way you don't need to be a mechanic to learn to drive a car.**
+> [!NOTE]
+> You do not need to know C++ to build, install, nor run Darknet/YOLO, the same way you don't need to be a mechanic to learn to drive a car.
 
 * [Google Colab](#google-colab)
 * [WSL](#wsl)
@@ -140,16 +149,20 @@ The various build methods available in the past (pre-2023) have been merged toge
 * [Windows](#windows-cmake-method)
 * [Docker](#docker)
 
-**Beware if you are following old tutorials with more complicated build steps, or build steps that don't match what is in this readme.**  The new build steps as described below started in August 2023.
+> [!CAUTION]
+> Beware if you are following old tutorials with more complicated build steps, or build steps that don't match what is in this readme.  The new build steps as described below started in August 2023.
 
 Software developers are encouraged to visit https://darknetcv.ai/ to get information on the internals of the Darknet/YOLO object detection framework.
 
+<details><summary>Google Colab</summary>
 ## Google Colab
 
 The Google Colab instructions are the same as the [Linux](#linux-cmake-method) instructions.  Several Jupyter notebooks are available showing how to do certain tasks, such as training a new network.
 
 See the notebooks in the `colab` subdirectory, and/or follow [the Linux instructions](#linux_cmake-method) below.
+</details>
 
+<details><summary>WSL</summary>
 ## WSL
 
 If you have a modern version of Windows and a decent computer, then the use of WSL (Windows Subsystem for Linux) and Ubuntu 24.04 LTS is **highly recommended**.
@@ -159,13 +172,16 @@ WSL is a feature in Windows which allows people to run Linux-based applications 
 [Once WSL is installed](https://learn.microsoft.com/windows/wsl/install), run `sudo apt-get update` at least once from your Ubuntu command prompt to get the updated list of packages, and then follow the usual [Linux instructions](#linux-cmake-method).
 
 If you don't want to use Darknet/YOLO from within WSL, then skip ahead to the [Windows instructions](#windows-cmake-method).
+</details>
 
+<details><summary>Linux CMake Method</summary>
 ## Linux CMake Method
 
 [![Darknet build tutorial for Linux](doc/linux_build_thumbnail.jpg)](https://www.youtube.com/watch?v=WTT1s8JjLFk)
 
-* Optional:  Darknet can run without access to a GPU, but if you want to _train_ a custom network or you need higher performance, then a modern NVIDIA GPU or AMD GPU is _strongly recommended_.
-	* Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
+> [!IMPORTANT]
+> Darknet can run without access to a GPU, but if you want to _train_ a custom network or you need higher performance, then a modern NVIDIA GPU or AMD GPU is _strongly recommended_.
+> * Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
 
 These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
 
@@ -182,26 +198,24 @@ make -j4 package
 sudo dpkg -i darknet-<INSERT-VERSION-YOU-BUILT-HERE>.deb
 ```
 
-**If you are using an older version of CMake** then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu can be done with the following commands:
-
+> [!WARNING]
+> **If you are using an older version of CMake** then you'll need to upgrade CMake before you can run the `cmake` command above.  Upgrading CMake on Ubuntu can be done with the following commands:
 ```sh
 sudo apt-get purge cmake
 sudo snap install cmake --classic
 ```
 
-**If using `bash` as your command shell** you'll want to re-start your shell at this point.  If using `fish`, it should immediately pick up the new path.
+> [!WARNING]
+> **If using `bash` as your command shell** you'll want to re-start your shell at this point.  If using `fish`, it should immediately pick up the new path.
 
-> Advanced users:
->
+> [!TIP]
+> Advanced users:<br>
 > If you want to build a RPM installation file instead of a DEB file, see the relevant lines in `CM_package.cmake`.  Prior to running `make -j4 package` you'll need to edit these two lines:
-
 ```cmake
 SET (CPACK_GENERATOR "DEB")
 # SET (CPACK_GENERATOR "RPM")
 ```
-
 > For distros such as Centos and OpenSUSE, you'll need to switch those two lines in `CM_package.cmake` to be:
-
 ```cmake
 # SET (CPACK_GENERATOR "DEB")
 SET (CPACK_GENERATOR "RPM")
@@ -213,7 +227,7 @@ SET (CPACK_GENERATOR "RPM")
 sudo dpkg -i darknet-2.0.1-Linux.deb
 ```
 
-Installing the `.deb` package will copy the following files:
+Installing the `.deb` (or `.rpm`) package will install the following files:
 
 * `/usr/bin/darknet*...` are the usual Darknet executables.  Run `darknet version` from the CLI to confirm it is installed correctly.
 * `/usr/include/darknet*...` are the Darknet API header files for C, C++, and Python developers.
@@ -222,13 +236,17 @@ Installing the `.deb` package will copy the following files:
 
 You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run this to test:  `darknet version`.
 
+> [!CAUTION]
 > **If you don't have `/usr/bin/darknet`** then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file as described above.
+</details>
 
+<details><summary>Windows CMake Method</summary>
 ## Windows CMake Method
 
+> [!IMPORTANT]
 > Before building Darknet/YOLO for Windows please see the note about using [WSL](#wsl).  (Spoiler ... Darknet/YOLO works great in WSL!)
 
-- These instructions assume a brand new installation of Windows 11 22H2.
+- These instructions assume (but does not require) a brand new installation of Windows 11 22H2.
 - These instructions are for a native Windows installation, not using WSL.  If you'd rather use WSL, see [above](#wsl).
 
 Open a normal `cmd.exe` command prompt window and run the following commands:
@@ -247,15 +265,16 @@ At this point we need to modify the Visual Studio installation to include suppor
 * select `Desktop Development With C++`
 * click on `Modify` in the bottom-right corner, and then click on `Yes`
 
-**IMPORTANT:** Once everything is downloaded and installed, click on the "Windows Start" menu again and select `Developer Command Prompt for VS 2022`.  **Do not** use PowerShell for these steps, you will run into problems!
+> [!IMPORTANT]
+> Once everything is downloaded and installed, click on the "Windows Start" menu again and select `Developer Command Prompt for VS 2022`.  **Do not** use PowerShell for these steps, you will run into problems!
 
-> Advanced users:
->
+> [!TIP]
 > Instead of running the `Developer Command Prompt`, you can use a normal command prompt or ssh into the device and manually run `"\Program Files\Microsoft Visual Studio\2022\Community\Common7\Tools\VsDevCmd.bat"`.
 
-**Please don't skip this step!**  Re-read the "important" description in the previous sentence to see what kind of window you **must** be using.  Anytime you want to use Visual Studio from the command prompt to compile C++ code you must use the Visual Studio developer command prompt as described above.
+> [!WARNING]
+> **Please don't skip this step!**  Re-read the "important" description above to see what kind of window you **must** be using.  Anytime you want to use Visual Studio from the command prompt to compile C++ code you must use the Visual Studio developer command prompt as described above.
 
-Once you have the **Developer Command Prompt** running as described above run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
+Once you have the **Developer Command Prompt**, run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
 
 ```bat
 cd c:\
@@ -271,12 +290,12 @@ bootstrap-vcpkg.bat
 
 Be patient at this last step as it can take a long time to run.  It needs to download and build many things.
 
-> Advanced users:
->
+> [!TIP]
 > Note there are many other optional modules you may want to add when building OpenCV.  Run `.\vcpkg.exe search opencv` to see the full list.
 
-* Optional:  Darknet can run without access to a GPU, but if you want to _train_ a custom network or you need higher performance, then a modern NVIDIA GPU or AMD GPU is _strongly recommended_.
-	* Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
+> [!IMPORTANT]
+> Darknet can run without access to a GPU, but if you want to _train_ a custom network or you need higher performance, then a modern NVIDIA GPU or AMD GPU is _strongly recommended_.
+> * Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
 
 Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies.  Make sure you continue to use the **Developer Command Prompt** as described above when you run these commands:
 
@@ -291,9 +310,8 @@ msbuild.exe /property:Platform=x64;Configuration=Release /target:Build -maxCpuCo
 msbuild.exe /property:Platform=x64;Configuration=Release PACKAGE.vcxproj
 ```
 
-> Advanced users:
->
-> Note that the output of the `cmake` command is a normal Visual Studio solution file, `Darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio.
+> [!TIP]
+> Note that the output of the `cmake` command is a normal Visual Studio solution file, `darknet.sln`.  If you are a software developer who regularly uses the Visual Studio GUI instead of `msbuild.exe` to build projects, you can ignore the command-line and load the Darknet project in Visual Studio.
 
 You should now have this file you can run:  `C:\src\Darknet\build\src-cli\Release\darknet.exe`.  Run this to test:  `C:\src\Darknet\build\src-cli\Release\darknet.exe --version`.
 
@@ -310,10 +328,16 @@ Installing the NSIS installation package will:
 * Install the neccesary Darknet `.dll`, `.lib` and header files to use `darknet.dll` from another application.
 * Install the template `.cfg` files.
 
-You are now done!  Once the installation wizard has finished, Darknet will have been installed into `C:\Program Files\Darknet\`.  Run this to test:  `C:\Program Files\Darknet\bin\darknet.exe version`.
+> [!TIP]
+> Make sure to update your `PATH` to include `C:/Program Files/Darknet/bin` (or wherever you chose to install it).  Once you update `PATH` you'll need to restart your command prompt.
 
-> If you don't have `C:/Program Files/darknet/bin/darknet.exe` then this means you _did not_ install it, you only built it!  Make sure you go through each panel of the NSIS installation wizard in the previous step.
+You are now done!  Once the installation wizard has finished and `PATH` has been updated, run this command to test:  `darknet.exe version`.
 
+> [!CAUTION]
+> **If you don't have `C:/Program Files/darknet/bin/darknet.exe`** then this means you _did not_ install it, you only built it!  Make sure you go through each panel of the NSIS installation wizard in the previous step.
+</details>
+
+<details><summary>Docker</summary>
 ## Docker
 
 To build Darknet via Docker with GPU support, [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit) must be installed on your system, and the build process must be executed in `docker run`.
@@ -353,20 +377,24 @@ CMD ["/bin/bash", "-c", "\
     darknet version && \
     exec /bin/bash"]
 ```
+</details>
 
 # Using Darknet
 
+<details><summary>CLI</summary>
 ## CLI
 
 The following is not the full list of all commands supported by Darknet.
 
-> In addition to the Darknet CLI, also note [the DarkHelp project CLI](https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-cli) which provides an additional CLI to Darknet/YOLO.  The DarkHelp CLI also has several advanced features that are not available directly in Darknet.  You can use both the Darknet CLI and the DarkHelp CLI together, they are not mutually exclusive.
+> [!IMPORTANT]
+> In addition to the Darknet CLI, also note [the DarkHelp project CLI](https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-cli) which provides an _additional_ CLI to Darknet/YOLO.  The DarkHelp CLI also has several advanced features that are not available directly in Darknet.  You can use both the Darknet CLI and the DarkHelp CLI together, they are not mutually exclusive.
 
-For most of the commands shown below, you'll need the `.weights` file with the corresponding `.names` and `.cfg` files.  You can either [train your own network](#training) (highly recommended!) or download a neural network that someone has already trained and made available for free on the internet.  Examples of pre-trained datasets include:
-* <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">LEGO Gears</a> (finding ojects in an image)
-* <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">Rolodex</a> (finding text in an image)
-* [People-R-People](#people-r-people-pre-trained-weights) (finding people in an image)
-* [MSCOCO](#mscoco-pre-trained-weights) (standard 80-class object detection)
+> [!TIP]
+> For most of the commands shown below, you'll need the `.weights` file with the corresponding `.names` and `.cfg` files.  You can either [train your own network](#training) (highly recommended!) or download a neural network that someone has already trained and made available for free on the internet.  Examples of pre-trained datasets include:
+> * <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">LEGO Gears</a> (finding ojects in an image)
+> * <a target="_blank" href="https://www.ccoderun.ca/programming/yolo_faq/#datasets">Rolodex</a> (finding text in an image)
+> * [People-R-People](#people-r-people-pre-trained-weights) (finding people in an image)
+> * [MSCOCO](#mscoco-pre-trained-weights) (standard 80-class object detection)
 
 Commands to run include:
 
@@ -436,7 +464,9 @@ darknet detector calc_anchors animals.data -num_of_clusters 6 -width 320 -height
 * Display YOLO heatmaps:
 	* V3+:  `darknet_02_display_annotated_images --heatmaps cars images/*.jpg`
 	* V3+:  `darknet_03_display_videos --heatmaps cars videos/*.m4v`
+</details>
 
+<details><summary>Training</summary>
 ## Training
 
 Quick links to relevant sections of the Darknet/YOLO FAQ:
@@ -444,7 +474,8 @@ Quick links to relevant sections of the Darknet/YOLO FAQ:
 * [Which configuration file should I use?](https://www.ccoderun.ca/programming/yolo_faq/#configuration_template)
 * [What command should I use when training my own network?](https://www.ccoderun.ca/programming/yolo_faq/#training_command)
 
-The simplest way to annotate and train is with the use of [DarkMark](https://github.com/stephanecharette/DarkMark) to create all of the necessary Darknet files.  This is definitely the recommended way to train a new neural network.
+> [!TIP]
+> The simplest way to annotate and train is with the use of [DarkMark](https://github.com/stephanecharette/DarkMark) to create all of the necessary Darknet files.  This is definitely the recommended way to train a new neural network.
 
 If you'd rather manually setup the various files to train a custom network:
 
@@ -503,7 +534,9 @@ The `-log ...` flag can be used to send all of the console output to a file.  Fo
 cd ~/nn/animals/
 darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.data animals.cfg
 ```
+</details>
 
+<details><summary>Other Tools and Links</summary>
 # Other Tools and Links
 
 * To manage your Darknet/YOLO projects, annotate images, verify your annotations, and generate the necessary files to train with Darknet, [see DarkMark](https://github.com/stephanecharette/DarkMark).
@@ -511,10 +544,12 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 * See if [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/) can help answer your questions.
 * See the many tutorial and example videos on [Stéphane's YouTube channel](https://www.youtube.com/c/StephaneCharette/videos)
 * If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/zSq8rtW).
+</details>
 
+<details><summary>Roadmap</summary>
 # Roadmap
 
-Last updated 2025-04-12:
+Last updated 2025-05-11:
 
 ## Completed
 
@@ -557,6 +592,7 @@ Last updated 2025-04-12:
 
 ## Short-term goals
 
+* [ ] Java bindings **(in progress)**
 * [ ] look into old zed camera support
 * [ ] better and more consistent command line parsing **(in progress)**
 * [ ] add support for MIOpen
@@ -579,3 +615,4 @@ Last updated 2025-04-12:
 * [ ] rotated bounding boxes, or some sort of "angle" support
 * [ ] keypoints/skeletons
 * [ ] segmentation
+</details>

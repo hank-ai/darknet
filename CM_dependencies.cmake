@@ -52,7 +52,7 @@ IF (DARKNET_TRY_CUDA)
 		MESSAGE (WARNING "Support for NVIDIA CUDA not found.")
 	ENDIF ()
 ELSE ()
-	MESSAGE (WARNING "Support for NVIDIA CUDA is diabled.")
+	MESSAGE (WARNING "Support for NVIDIA CUDA is disabled.")
 ENDIF ()
 
 
