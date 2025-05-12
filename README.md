@@ -43,8 +43,8 @@ YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection sys
 * Paper **[YOLOv4](https://arxiv.org/abs/2004.10934)**
 * Paper **[YOLOv3](https://arxiv.org/abs/1804.02767)**
 
-<details open><summary>General Information</summary>
 # General Information
+<details open><summary>General Information</summary>
 
 The Darknet/YOLO framework continues to be both **faster** and **more accurate** than other frameworks and versions of YOLO.
 
@@ -63,8 +63,8 @@ or a ROCm-capable GPU from AMD.
 Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building instructions](#building) below.
 </details>
 
-<details><summary>Darknet Version</summary>
 ## Darknet Version
+<details><summary>Darknet Version</summary>
 
 * The original Darknet tool written by Joseph Redmon in 2013-2017 did not have a version number.  We consider this version 0.x.
 * The next popular Darknet repo maintained by Alexey Bochkovskiy between 2017-2021 also did not have a version number.  We consider this version 1.x.
@@ -89,8 +89,8 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* More performance optimizations.
 </details>
 
-<details><summary>Pre-trained Weights</summary>
 # Pre-trained Weights
+<details><summary>Pre-trained Weights</summary>
 
 People are generally expected to [train their own network](#training).  But pre-trained weights are also popular.  These are weights which someone else has trained and made available for free on the internet.  This is sometimes convenient when first installing Darknet/YOLO, since the software can be quickly tested without having to train a new neural network.
 
@@ -154,16 +154,16 @@ The various build methods available in the past (pre-2023) have been merged toge
 
 Software developers are encouraged to visit https://darknetcv.ai/ to get information on the internals of the Darknet/YOLO object detection framework.
 
-<details><summary>Google Colab</summary>
 ## Google Colab
+<details><summary>Google Colab</summary>
 
 The Google Colab instructions are the same as the [Linux](#linux-cmake-method) instructions.  Several Jupyter notebooks are available showing how to do certain tasks, such as training a new network.
 
 See the notebooks in the `colab` subdirectory, and/or follow [the Linux instructions](#linux_cmake-method) below.
 </details>
 
-<details><summary>WSL</summary>
 ## WSL
+<details><summary>WSL</summary>
 
 If you have a modern version of Windows and a decent computer, then the use of WSL (Windows Subsystem for Linux) and Ubuntu 24.04 LTS is **highly recommended**.
 
@@ -174,8 +174,8 @@ WSL is a feature in Windows which allows people to run Linux-based applications 
 If you don't want to use Darknet/YOLO from within WSL, then skip ahead to the [Windows instructions](#windows-cmake-method).
 </details>
 
-<details><summary>Linux CMake Method</summary>
 ## Linux CMake Method
+<details><summary>Linux CMake Method</summary>
 
 [![Darknet build tutorial for Linux](doc/linux_build_thumbnail.jpg)](https://www.youtube.com/watch?v=WTT1s8JjLFk)
 
@@ -240,8 +240,8 @@ You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run t
 > **If you don't have `/usr/bin/darknet`** then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file as described above.
 </details>
 
-<details><summary>Windows CMake Method</summary>
 ## Windows CMake Method
+<details><summary>Windows CMake Method</summary>
 
 > [!IMPORTANT]
 > Before building Darknet/YOLO for Windows please see the note about using [WSL](#wsl).  (Spoiler ... Darknet/YOLO works great in WSL!)
@@ -337,8 +337,8 @@ You are now done!  Once the installation wizard has finished and `PATH` has been
 > **If you don't have `C:/Program Files/darknet/bin/darknet.exe`** then this means you _did not_ install it, you only built it!  Make sure you go through each panel of the NSIS installation wizard in the previous step.
 </details>
 
-<details><summary>Docker</summary>
 ## Docker
+<details><summary>Docker</summary>
 
 To build Darknet via Docker with GPU support, [nvidia-container-toolkit](https://github.com/NVIDIA/nvidia-container-toolkit) must be installed on your system, and the build process must be executed in `docker run`.
 
@@ -381,8 +381,8 @@ CMD ["/bin/bash", "-c", "\
 
 # Using Darknet
 
-<details><summary>CLI</summary>
 ## CLI
+<details><summary>CLI</summary>
 
 The following is not the full list of all commands supported by Darknet.
 
@@ -466,8 +466,8 @@ darknet detector calc_anchors animals.data -num_of_clusters 6 -width 320 -height
 	* V3+:  `darknet_03_display_videos --heatmaps cars videos/*.m4v`
 </details>
 
-<details><summary>Training</summary>
 ## Training
+<details><summary>Training</summary>
 
 Quick links to relevant sections of the Darknet/YOLO FAQ:
 * [How should I setup my files and directories?](https://www.ccoderun.ca/programming/yolo_faq/#directory_setup)
@@ -536,8 +536,8 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 ```
 </details>
 
-<details><summary>Other Tools and Links</summary>
 # Other Tools and Links
+<details><summary>Other Tools and Links</summary>
 
 * To manage your Darknet/YOLO projects, annotate images, verify your annotations, and generate the necessary files to train with Darknet, [see DarkMark](https://github.com/stephanecharette/DarkMark).
 * For a robust alternative CLI to Darknet, to use image tiling, for object tracking in your videos, or for a robust C++ API that can easily be used in commercial applications, [see DarkHelp](https://github.com/stephanecharette/DarkHelp).
@@ -546,8 +546,8 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 * If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/zSq8rtW).
 </details>
 
-<details><summary>Roadmap</summary>
 # Roadmap
+<details><summary>Roadmap</summary>
 
 Last updated 2025-05-11:
 
