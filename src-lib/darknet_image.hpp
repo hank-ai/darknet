@@ -130,12 +130,6 @@ namespace Darknet
 	/// Similar to @ref Darknet::draw_box_bw(), but the line thickness can be specified using @p w.
 	void draw_box_width_bw(Darknet::Image & a, int x1, int y1, int x2, int y2, int w, float brightness);
 
-	/** Create a single-channel image for ...?
-	 *
-	 * @note Function currently seems to be unused.
-	 */
-	Darknet::Image image_distance(Darknet::Image & a, Darknet::Image & b);
-
 	/// Scale the RGB values in an image by the given amount.
 	void scale_image(Darknet::Image & m, const float s);
 
@@ -170,23 +164,11 @@ namespace Darknet
 
 	Darknet::Image resize_image(const Darknet::Image & im, int w, int h);
 
-	/// @note Function currently seems to be unused.
-	Darknet::Image resize_min(const Darknet::Image & im, int min);
-
-	/// @note Function currently seems to be unused.
-	Darknet::Image resize_max(const Darknet::Image & im, int max);
-
 	void make_image_red(Darknet::Image & im);
 
 	void constrain_image(Darknet::Image & im);
 
 	void normalize_image(Darknet::Image & p);
-
-	/// @note Function currently seems to be unused.
-	void normalize_image2(Darknet::Image & p);
-
-	/// @note Function currently seems to be unused.
-	void quantize_image(Darknet::Image & im);
 
 	/// The resulting image takes ownership of @p original_delta_cpu.
 	Darknet::Image make_attention_image(int img_size, float *original_delta_cpu, float *original_input_cpu, int w, int h, int c, float alpha);
@@ -199,9 +181,6 @@ namespace Darknet
 	void embed_image(const Darknet::Image & source, Darknet::Image & dest, int dx, int dy);
 
 	Darknet::Image collapse_image_layers(const Darknet::Image & source, int border);
-
-	/// @note Function currently seems to be unused.
-	void copy_image_inplace(const Darknet::Image & src, Darknet::Image & dst);
 
 	Darknet::Image copy_image(const Darknet::Image & p);
 

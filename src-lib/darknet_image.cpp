@@ -492,28 +492,6 @@ void Darknet::flip_image(Darknet::Image & a)
 }
 
 
-Darknet::Image Darknet::image_distance(Darknet::Image & a, Darknet::Image & b)
-{
-	TAT(TATPARMS);
-
-	Darknet::Image dist = make_image(a.w, a.h, 1);
-
-	for (int i = 0; i < a.c; ++i)
-	{
-		for (int j = 0; j < a.h * a.w; ++j)
-		{
-			dist.data[j] += std::pow(a.data[i * a.h * a.w+j]-b.data[i * a.h * a.w + j], 2);
-		}
-	}
-
-	for (int j = 0; j < a.h * a.w; ++j)
-	{
-		dist.data[j] = std::sqrt(dist.data[j]);
-	}
-
-	return dist;
-}
-
 void Darknet::embed_image(const Darknet::Image & source, Darknet::Image & dest, int dx, int dy)
 {
 	TAT(TATPARMS);
@@ -592,57 +570,6 @@ void Darknet::normalize_image(Darknet::Image & p)
 	}
 
 	return;
-}
-
-
-void Darknet::normalize_image2(Darknet::Image & p)
-{
-	TAT(TATPARMS);
-
-	float * min = (float*)xcalloc(p.c, sizeof(float));
-	float * max = (float*)xcalloc(p.c, sizeof(float));
-
-	for (int i = 0; i < p.c; ++i)
-	{
-		min[i] = max[i] = p.data[i * p.h * p.w];
-	}
-
-	for (int j = 0; j < p.c; ++j)
-	{
-		for (int i = 0; i < p.h*p.w; ++i)
-		{
-			float v = p.data[i+j*p.h*p.w];
-			if(v < min[j]) min[j] = v;
-			if(v > max[j]) max[j] = v;
-		}
-	}
-
-	for (int i = 0; i < p.c; ++i)
-	{
-		if(max[i] - min[i] < .000000001){
-			min[i] = 0.0f;
-			max[i] = 1.0f;
-		}
-	}
-
-	for (int j = 0; j < p.c; ++j)
-	{
-		for (int i = 0; i < p.w*p.h; ++i)
-		{
-			p.data[i+j*p.h*p.w] = (p.data[i+j*p.h*p.w] - min[j])/(max[j]-min[j]);
-		}
-	}
-
-	free(min);
-	free(max);
-}
-
-
-void Darknet::copy_image_inplace(const Darknet::Image & src, Darknet::Image & dst)
-{
-	TAT(TATPARMS);
-
-	memcpy(dst.data, src.data, src.h*src.w*src.c * sizeof(float));
 }
 
 
@@ -1242,61 +1169,6 @@ Darknet::Image Darknet::letterbox_image(const Darknet::Image & im, int w, int h)
 }
 
 
-Darknet::Image Darknet::resize_max(const Darknet::Image & im, int max)
-{
-	TAT(TATPARMS);
-
-	int w = im.w;
-	int h = im.h;
-	if(w > h)
-	{
-		h = (h * max) / w;
-		w = max;
-	}
-	else
-	{
-		w = (w * max) / h;
-		h = max;
-	}
-	if (w == im.w && h == im.h)
-	{
-		return Darknet::copy_image(im);
-	}
-
-	Darknet::Image resized = Darknet::resize_image(im, w, h);
-
-	return resized;
-}
-
-
-Darknet::Image Darknet::resize_min(const Darknet::Image & im, int min)
-{
-	TAT(TATPARMS);
-
-	int w = im.w;
-	int h = im.h;
-
-	if(w < h)
-	{
-		h = (h * min) / w;
-		w = min;
-	}
-	else
-	{
-		w = (w * min) / h;
-		h = min;
-	}
-	if (w == im.w && h == im.h)
-	{
-		return copy_image(im);
-	}
-
-	Darknet::Image resized = Darknet::resize_image(im, w, h);
-
-	return resized;
-}
-
-
 Darknet::Image Darknet::random_crop_image(const Darknet::Image & im, const int w, const int h)
 {
 	TAT(TATPARMS);
@@ -1566,19 +1438,6 @@ float Darknet::bilinear_interpolate(const Darknet::Image & im, float x, float y,
 }
 
 
-void Darknet::quantize_image(Darknet::Image & im)
-{
-	TAT(TATPARMS);
-
-	for (int i = 0; i < im.c * im.w * im.h; ++i)
-	{
-		im.data[i] = (int)(im.data[i] * 255) / 255. + (0.5 / 255);
-	}
-
-	return;
-}
-
-
 void Darknet::make_image_red(Darknet::Image & im)
 {
 	TAT(TATPARMS);
@@ -1661,51 +1520,53 @@ Darknet::Image Darknet::resize_image(const Darknet::Image & im, int w, int h)
 	const float w_scale = (im.w - 1.0f) / (w - 1.0f);
 	const float h_scale = (im.h - 1.0f) / (h - 1.0f);
 
-	for (int k = 0; k < im.c; ++k)
+	#pragma omp parallel for
+	for (int channel = 0; channel < im.c; ++channel)
 	{
-		for (int r = 0; r < im.h; ++r)
+		for (int height = 0; height < im.h; ++height)
 		{
 			for (int c = 0; c < w; ++c)
 			{
 				float val = 0;
-				if (c == w-1 || im.w == 1)
+				if (c == w - 1 || im.w == 1)
 				{
-					val = get_pixel(im, im.w-1, r, k);
+					val = get_pixel(im, im.w - 1, height, channel);
 				}
 				else
 				{
-					float sx = c*w_scale;
+					float sx = c * w_scale;
 					int ix = (int) sx;
 					float dx = sx - ix;
-					val = (1 - dx) * get_pixel(im, ix, r, k) + dx * get_pixel(im, ix+1, r, k);
+					val = (1 - dx) * get_pixel(im, ix, height, channel) + dx * get_pixel(im, ix+1, height, channel);
 				}
-				set_pixel(part, c, r, k, val);
+				set_pixel(part, c, height, channel, val);
 			}
 		}
 	}
 
-	for (int k = 0; k < im.c; ++k)
+	#pragma omp parallel for
+	for (int channel = 0; channel < im.c; ++channel)
 	{
-		for (int r = 0; r < h; ++r)
+		for (int height = 0; height < h; ++height)
 		{
-			float sy = r*h_scale;
+			float sy = height * h_scale;
 			int iy = (int) sy;
 			float dy = sy - iy;
 			for (int c = 0; c < w; ++c)
 			{
-				float val = (1-dy) * get_pixel(part, c, iy, k);
-				set_pixel(resized, c, r, k, val);
+				float val = (1 - dy) * get_pixel(part, c, iy, channel);
+				set_pixel(resized, c, height, channel, val);
 			}
 
-			if (r == h-1 || im.h == 1)
+			if (height == h - 1 || im.h == 1)
 			{
 				continue;
 			}
 
 			for (int c = 0; c < w; ++c)
 			{
-				float val = dy * get_pixel(part, c, iy+1, k);
-				add_pixel(resized, c, r, k, val);
+				float val = dy * get_pixel(part, c, iy + 1, channel);
+				add_pixel(resized, c, height, channel, val);
 			}
 		}
 	}
