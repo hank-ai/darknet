@@ -349,48 +349,6 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 }
 
 
-void fill_hierarchy(float *truth, int k, Darknet::Tree *hierarchy)
-{
-	TAT(TATPARMS);
-
-	int j;
-	for (j = 0; j < k; ++j)
-	{
-		if(truth[j])
-		{
-			int parent = hierarchy->parent[j];
-			while(parent >= 0)
-			{
-				truth[parent] = 1;
-				parent = hierarchy->parent[parent];
-			}
-		}
-	}
-	int i;
-	int count = 0;
-	for (j = 0; j < hierarchy->groups; ++j)
-	{
-		int mask = 1;
-		for (i = 0; i < hierarchy->group_size[j]; ++i)
-		{
-			if (truth[count + i])
-			{
-				mask = 0;
-				break;
-			}
-		}
-		if (mask)
-		{
-			for (i = 0; i < hierarchy->group_size[j]; ++i)
-			{
-				truth[count + i] = SECRET_NUM;
-			}
-		}
-		count += hierarchy->group_size[j];
-	}
-}
-
-
 void Darknet::free_data(data & d)
 {
 	TAT_REVIEWED(TATPARMS, "2024-04-04");

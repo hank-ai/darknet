@@ -84,6 +84,7 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* All `printf()` and `std::cout` calls have all been replaced so Darknet/YOLO logging messages can easily be redirected.
 * Currently in development for Q2 or Q3 2025 is 5.x "Moonlit".
 	* More performance optimizations.
+	* JAVA language bindings.
 
 # Pre-trained Weights
 
