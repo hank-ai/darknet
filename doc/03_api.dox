@@ -47,7 +47,7 @@ In July 2024, the old V2 @p C API had to be modified due to changes in the Darkn
 	- The function @ref network_predict() which took a @p network object should be replaced by @ref network_predict_ptr(), and the first parameter is no longer a full @p network structure but a pointer to the neural network (@ref DarknetNetworkPtr).
 	- The function @ref free_network() which took a @p network object should be replaced by @ref free_network_ptr(), and the first parameter is a pointer to the network (@ref DarknetNetworkPtr).
 
-@note If you previously used other %Darknet functions which are no longer exposed, please <a target="_blank" href="https://discord.gg/zSq8rtW">come chat with us on the Darknet/YOLO discord</a> so we can determine exactly what is needed by users of the Darknet/YOLO API.
+@note If you previously used other %Darknet functions which are no longer exposed, please <a target="_blank" href="https://discord.gg/CPZJPSYZU2">come chat with us on the Darknet/YOLO discord</a> so we can determine exactly what is needed by users of the Darknet/YOLO API.
 
 @section apiv3_cpp V3 C++ API
 

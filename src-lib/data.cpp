@@ -981,7 +981,9 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 {
 	TAT_REVIEWED(TATPARMS, "2024-04-11");
 
-	// This loop runs on a secondary thread.
+	/* This loop runs on a secondary thread.  There are several of these threads started when the training starts,
+	 * and they stay active throughout the training process, until stop_image_loading_threads() is eventually called.
+	 */
 
 	const std::string name = "image loading loop #" + std::to_string(idx);
 	cfg_and_state.set_thread_name(name);
@@ -1006,7 +1008,7 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 			continue;
 		}
 
-		// if we get here, then the control thread has told us to load the next image
+		// if we get here, then the control thread has told us to load the next images
 
 		args_swap_mutex.lock();
 		load_args args_local = args_swap[idx];
