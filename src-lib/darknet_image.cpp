@@ -1647,6 +1647,20 @@ Darknet::Image Darknet::load_image(const char * filename, int desired_width, int
 		darknet_fatal_error(DARKNET_LOC, "failed to load image file \"%s\"", filename);
 	}
 
+#if 1 // see the comment block at the bottom of this function
+
+	// faster to use OpenCV to resize the image than using Darknet, so do it now if we know the size we need
+	if (desired_width > 0 and desired_height > 0 and (desired_width != mat.cols or desired_height != mat.rows))
+	{
+		/* Normally we'd use INTER_AREA to shrink an image and INTER_CUBIC or INTER_LINEAR to grow and image.  But we want to
+		 * try and retain as much of the original "Darknet resize" look-and-feel as possible.  Of all the OpenCV resize
+		 * interpolation flags, the one that looks most similar to the original resize is INTER_LINEAR_EXACT.
+		 */
+
+		cv::resize(mat, mat, cv::Size(desired_width, desired_height), 0.0, 0.0, cv::InterpolationFlags::INTER_LINEAR_EXACT);
+	}
+#endif
+
 	if (mat.channels() == 3 and (channels == 0 or channels == 3))
 	{
 		// use the new faster conversion code when dealing with 3-channel image (which is the norm)
@@ -1699,12 +1713,18 @@ Darknet::Image Darknet::load_image(const char * filename, int desired_width, int
 		}
 	}
 
+#if 0
+	/** @todo V5:  OpenCV is faster at resizing than the Darknet resize function, so we now use Darknet to resize.  But
+	 * the image quality is different, and I worry this may cause problems with people getting unexpected results.  Keep
+	 * this old code here for a while in case we need to revert back to the old resize method.
+	 */
 	if (desired_width > 0 and desired_height > 0)
 	{
 		Darknet::Image resized = Darknet::resize_image(image, desired_width, desired_height);
 		Darknet::free_image(image);
 		image = resized;
 	}
+#endif
 
 	return image;
 }

@@ -126,6 +126,31 @@ TEST(Image, LoadTiming)
 }
 
 
+TEST(Image, LoadAndResizeTiming)
+{
+	const size_t count = 100;
+
+	std::chrono::high_resolution_clock::duration duration = std::chrono::milliseconds(0);
+	for (size_t idx = 0; idx < count; idx ++)
+	{
+		const auto t1 = std::chrono::high_resolution_clock::now();
+		Darknet::Image img = Darknet::load_image(IMG_FN, IMG_W / 3, IMG_H / 3, IMG_C);
+		const auto t2 = std::chrono::high_resolution_clock::now();
+
+		ASSERT_EQ(img.c, IMG_C		);
+		ASSERT_EQ(img.w, IMG_W / 3	);
+		ASSERT_EQ(img.h, IMG_H / 3	);
+
+		Darknet::free_image(img);
+
+		duration += (t2 - t1);
+	}
+
+	auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration).count();
+	std::cout << "Loading and resizing using Darknet::load_image() " << count << " times took " << milliseconds << " milliseconds" << std::endl;
+}
+
+
 TEST(Image, Resize)
 {
 	Darknet::Image i1 = Darknet::load_image(IMG_FN);
