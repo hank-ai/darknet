@@ -36,17 +36,6 @@ namespace Darknet
 	std::string in_colour(const EColour colour, const std::string & msg);
 	std::string in_colour(const EColour colour);
 
-	/** The time used by Darknet is a double, generated from @ref what_time_is_it_now().  It is the number of seconds since
-	 * @p epoch with milliseconds and microseconds as decimals.  This function will format one of these @p double using the
-	 * most intelligent unit necessary.
-	 */
-	std::string format_time(const double & seconds_remaining);
-
-	/** Format the time remaining using simple-to-read text.  The time must be in @em seconds.
-	 * @see @ref Darknet::format_duration_string()
-	 */
-	std::string format_time_remaining(const float & seconds_remaining);
-
 	/// Format the loss combined with ANSI colours.
 	std::string format_loss(const double & loss);
 

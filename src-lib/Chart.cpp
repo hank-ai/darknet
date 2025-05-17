@@ -25,7 +25,8 @@ Chart::Chart()
 	max_map_value = 0.0f;
 	map_colour = CV_RGB(200, 0, 0);
 
-	started_timestamp = std::time(nullptr);
+	started_timestamp = std::chrono::high_resolution_clock::now();
+
 	last_update_timestamp = 0;
 	last_save_timestamp = 0;
 
@@ -59,7 +60,7 @@ Chart::Chart(const std::string & name, const size_t max_batch, const float max_l
 	}
 
 	initialize();
-	update_bottom_text(-1.0);
+	update_bottom_text("unknown");
 	save_to_disk();
 
 	return;
@@ -297,7 +298,7 @@ Chart & Chart::update_accuracy(const int current_iteration, const float accuracy
 }
 
 
-Chart & Chart::update_bottom_text(const float seconds_remaining)
+Chart & Chart::update_bottom_text(const std::string & time_remaining)
 {
 	TAT(TATPARMS);
 
@@ -345,13 +346,27 @@ Chart & Chart::update_bottom_text(const float seconds_remaining)
 	p1.y += 15;
 	cv::putText(mat, ss.str(), p1, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, cv::LINE_AA);
 
+	// grey ITERATION #...
+	const int current_iteration = static_cast<int>(std::max(previous_loss_iteration, previous_map_iteration));
+	std::string txt = "iteration #"
+	+ std::to_string(current_iteration)
+	+ " of "
+	+ std::to_string(static_cast<int>(max_batches))
+	+ " ("
+	+ std::to_string(static_cast<int>(std::round(100.0f * current_iteration / max_batches)))
+	+ "%)";
+	p1 = cv::Point(mat.cols - 250, mat.rows - 20);
+	p2 = cv::Point(mat.cols, p1.y + 20);
+	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // clear out previous text
+	text_size = cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, 1, nullptr);
+	cv::putText(mat, txt, cv::Point(mat.cols - text_size.width - 5, mat.rows - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
+
 	// grey TIME REMAINING=...
-	const std::time_t current_time = std::time(nullptr);
-	std::string txt = "time remaining=" + Darknet::format_time_remaining(seconds_remaining);
-	if (seconds_remaining <= 5.0f)
+	txt = "time remaining=" + time_remaining;
+	if (max_batches - current_iteration < 10)
 	{
 		// instead of the time remaining, show the amount of time that has elapsed
-		txt = "time elapsed=" + Darknet::format_time_remaining(current_time - started_timestamp);
+		txt = "time elapsed=" + Darknet::format_duration_string(std::chrono::high_resolution_clock::now() - started_timestamp, 1);
 	}
 	p1 = cv::Point(mat.cols - 250, grid_size.height + 20);
 	p2 = cv::Point(mat.cols, p1.y + 20);
@@ -359,22 +374,8 @@ Chart & Chart::update_bottom_text(const float seconds_remaining)
 	text_size = cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, 1, nullptr);
 	cv::putText(mat, txt, cv::Point(mat.cols - text_size.width - 5, p1.y + 15), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
 
-	// grey ITERATION #...
-	const int current_iteration = static_cast<int>(std::max(previous_loss_iteration, previous_map_iteration));
-	txt = "iteration #"
-		+ std::to_string(current_iteration)
-		+ " of "
-		+ std::to_string(static_cast<int>(max_batches))
-		+ " ("
-		+ std::to_string(static_cast<int>(std::round(100.0f * current_iteration / max_batches)))
-		+ "%)";
-	p1 = cv::Point(mat.cols - 250, mat.rows - 20);
-	p2 = cv::Point(mat.cols, p1.y + 20);
-	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // clear out previous text
-	text_size = cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, 1, nullptr);
-	cv::putText(mat, txt, cv::Point(mat.cols - text_size.width - 5, mat.rows - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
-
 	// draw the timestamp in the lower left
+	const std::time_t current_time = std::time(nullptr);
 	std::tm * tm = std::localtime(&current_time);
 	char buffer[100];
 	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", tm);
@@ -387,7 +388,7 @@ Chart & Chart::update_bottom_text(const float seconds_remaining)
 }
 
 
-Chart & Chart::update_save_and_display(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show)
+Chart & Chart::update_save_and_display(const int current_iteration, const float loss, const std::string & time_remaining, const bool dont_show)
 {
 	TAT(TATPARMS);
 
@@ -411,7 +412,7 @@ Chart & Chart::update_save_and_display(const int current_iteration, const float 
 
 	if (need_to_update)
 	{
-		update_bottom_text(seconds_remaining);
+		update_bottom_text(time_remaining);
 		last_update_timestamp = current_time;
 	}
 

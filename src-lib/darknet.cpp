@@ -1769,61 +1769,96 @@ std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::
 {
 	TAT(TATPARMS);
 
-	if (duration < std::chrono::high_resolution_clock::duration::zero())
-	{
-		duration = std::chrono::abs(duration);
-	}
-
+	bool attempt_trim_decimals = false;
 	const float nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
 
 	// it is difficult to compare things when we have nanoseconds, microseconds, and milliseconds,
 	// so if we have enough decimals to work with, prefer using milliseconds when possible
 
 	std::stringstream ss;
-	if (duration == std::chrono::high_resolution_clock::duration::zero())
+	if (duration <= std::chrono::high_resolution_clock::duration::zero())
 	{
-		ss << "now";
+		ss << "unknown";
 	}
 	else if (decimals < 3 and duration <= std::chrono::microseconds(1))
 	{
+		/// @todo V5: why did we introduce this special case?
 		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << nanoseconds << " nanoseconds";
 	}
 	else if (decimals < 3 and duration <= std::chrono::microseconds(100))
 	{
+		/// @todo V5: why did we introduce this special case?
 		const float microseconds = nanoseconds / 1000.0f;
 		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << microseconds << " microseconds";
 	}
-	else if (duration <= std::chrono::seconds(1))
+	else if (duration == std::chrono::milliseconds(1))
+	{
+		// this is ***EXACTLY*** 1 millisecond, so use singular not plural
+		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << 1.0f << " millisecond"; // singular, not plural
+	}
+	else if (duration < std::chrono::seconds(1))
 	{
 		const float milliseconds = nanoseconds / 1000000.0f;
 		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << milliseconds << " milliseconds";
+	}
+	else if (duration >= std::chrono::seconds(1) and duration < (std::chrono::seconds(1) + std::chrono::microseconds(500)))
+	{
+		// this is ***EXACTLY*** 1 second, or it would get rounded to "1 seconds", so use the singular "second"
+		ss << "1 second"; // singular, not plural
+		attempt_trim_decimals = true; // to prevent padding the "1"
 	}
 	else if (duration <= std::chrono::minutes(2))
 	{
 		const float seconds = nanoseconds / 1000000000.0f;
 		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << seconds << " seconds";
+		attempt_trim_decimals = true;
 	}
 	else if (duration <= std::chrono::hours(2))
 	{
 		const float minutes = nanoseconds / (60.0f * 1000000000.0f);
 		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << minutes << " minutes";
+		attempt_trim_decimals = true;
 	}
 	else if (duration <= std::chrono::hours(48))
 	{
 		const float hours = nanoseconds / (60.0f * 60.0f * 1000000000.0f);
 		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << hours << " hours";
+		attempt_trim_decimals = true;
 	}
-	else
+	else if (duration <= std::chrono::hours(24 * 7))
 	{
 		const float days = nanoseconds / (24.0f * 60.0f * 60.0f * 1000000000.0f);
 		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << days << " days";
+		attempt_trim_decimals = true;
+	}
+	else
+	{
+		const float weeks = nanoseconds / (7.0f * 24.0f * 60.0f * 60.0f * 1000000000.0f);
+		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << weeks << " weeks";
+		attempt_trim_decimals = true;
 	}
 
 	std::string str = ss.str();
-	const auto pos = str.find('.');
-	if (pos < 3)
+
+	if (attempt_trim_decimals)
 	{
-		str = std::string(3 - pos, ' ') + str;
+		// for "large" units of time (hours, days, etc) then trim the trailing ".000" so numbers like "2.000 hours" show up as "2 hours"
+
+		const std::string needle = "." + std::string(decimals, '0') + " ";
+		auto pos = str.find(needle);
+		if (pos != std::string::npos)
+		{
+			str.erase(pos, needle.size() - 1);
+		}
+	}
+	else
+	{
+		// insert some blank spaces at the front of the string to pad the number so things line up in columns
+		auto pos = str.find('.');
+		if (pos < 3)
+		{
+			str = std::string(3 - pos, ' ') + str;
+		}
 	}
 
 	return str;

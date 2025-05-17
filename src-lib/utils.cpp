@@ -59,22 +59,6 @@ void *xrealloc_location(void *ptr, const size_t size, const char * const filenam
 	return ptr;
 }
 
-double what_time_is_it_now()
-{
-	TAT(TATPARMS);
-
-	struct timeval time;
-	if (gettimeofday(&time, NULL)) {
-		return 0;
-	}
-
-	/* tv_usec is in microseconds, so 1/1000000 seconds.
-	* We're converting the time into a double.
-	*/
-
-	return (double)time.tv_sec + (double)time.tv_usec * 0.000001;
-}
-
 int *read_map(const char *filename)
 {
 	TAT_COMMENT(TATPARMS, "realloc nightmare");

@@ -8,77 +8,6 @@ namespace
 }
 
 
-std::string Darknet::format_time(const double & seconds_remaing)
-{
-	TAT(TATPARMS);
-
-	std::stringstream ss;
-	ss << std::fixed << std::setprecision(3);
-
-	if (seconds_remaing >= 0.5)
-	{
-		ss << seconds_remaing << " seconds";
-	}
-	else if (seconds_remaing >= 0.005)
-	{
-		ss << (seconds_remaing * 1000.0) << " milliseconds";
-	}
-	else
-	{
-		ss << (seconds_remaing * 1000000.0) << " microseconds";
-	}
-
-	return ss.str();
-}
-
-
-std::string Darknet::format_time_remaining(const float & seconds_remaining)
-{
-	TAT(TATPARMS);
-
-	const float seconds	= 1.0;
-	const float minutes	= 60.0 * seconds;
-	const float hours	= 60.0 * minutes;
-	const float days	= 24.0 * hours;
-	const float weeks	= 7.0 * days;
-
-	std::stringstream ss;
-	ss << std::fixed << std::setprecision(1);
-
-	if (seconds_remaining < 0.0f or seconds_remaining >= 4.0f * weeks)
-	{
-		ss << "unknown";
-	}
-	else if (seconds_remaining >= 2.0f * weeks)
-	{
-		ss << (seconds_remaining / weeks) << " weeks";
-	}
-	else if (seconds_remaining >= 2.0f * days)
-	{
-		ss << (seconds_remaining / days) << " days";
-	}
-	else if (seconds_remaining >= 2.0f * hours)
-	{
-		ss << (seconds_remaining / hours) << " hours";
-	}
-	else if (seconds_remaining >= 2.0f * minutes)
-	{
-		ss << (seconds_remaining / minutes) << " minutes";
-	}
-	else
-	{
-		const int secs = std::round(seconds_remaining);
-		ss << secs << " second";
-		if (secs != 1)
-		{
-			ss << "s";
-		}
-	}
-
-	return ss.str();
-}
-
-
 std::string Darknet::format_loss(const double & loss)
 {
 	TAT(TATPARMS);
@@ -314,17 +243,17 @@ void Darknet::initialize_new_charts(const Darknet::Network & net)
 }
 
 
-void Darknet::update_loss_in_new_charts(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show)
+void Darknet::update_loss_in_new_charts(const int current_iteration, const float loss, const std::string & time_remaining, const bool dont_show)
 {
 	TAT(TATPARMS);
 
 	if (training_chart.empty() == false)
 	{
-		training_chart.update_save_and_display(current_iteration, loss, seconds_remaining, dont_show);
+		training_chart.update_save_and_display(current_iteration, loss, time_remaining, dont_show);
 
 		for (auto & chart : more_charts)
 		{
-			chart.update_save_and_display(current_iteration, loss, seconds_remaining, true);
+			chart.update_save_and_display(current_iteration, loss, time_remaining, true);
 		}
 	}
 

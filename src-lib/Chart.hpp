@@ -37,7 +37,7 @@ class Chart final
 		Chart & initialize();
 		Chart & save_to_disk();
 
-		Chart & update_save_and_display(const int current_iteration, const float loss, const float seconds_remaining, const bool dont_show);
+		Chart & update_save_and_display(const int current_iteration, const float loss, const std::string & time_remaining, const bool dont_show);
 
 		Chart & update_loss(const int current_iteration, const float loss);
 
@@ -45,7 +45,7 @@ class Chart final
 
 		Chart & update_accuracy(const int current_iteration, const float accuracy);
 
-		Chart & update_bottom_text(const float seconds_remaining);
+		Chart & update_bottom_text(const std::string & time_remaining);
 
 		/** This is the full image of the chart.  It is created by @ref initialize() and kept up-to-date by
 		 * @ref update_loss() and @ref update_accuracy() at the end of each iteration.
@@ -82,7 +82,8 @@ class Chart final
 		float max_map_value;
 		cv::Scalar map_colour;
 
-		std::time_t started_timestamp;
+		std::chrono::high_resolution_clock::time_point started_timestamp;
+
 		std::time_t last_update_timestamp;
 		std::time_t last_save_timestamp;
 };

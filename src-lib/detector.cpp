@@ -267,7 +267,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	int count = 0;
 
 	const auto first_iteration = get_current_iteration(net); // normally this is zero unless we're resuming training
-	const std::time_t start_of_training = std::time(nullptr);
+	const auto start_of_training = std::chrono::high_resolution_clock::now();
 
 	// ***************************************
 	// THIS is the start of the training loop!
@@ -277,6 +277,8 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	{
 		// we're starting a new iteration
 		errno = 0;
+
+		const std::chrono::high_resolution_clock::time_point iteration_start_time = std::chrono::high_resolution_clock::now();
 
 		if (break_after_burn_in and get_current_iteration(net) == net.burn_in)
 		{
@@ -358,7 +360,8 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			net = nets[0];
 		} // random=1
 
-		double time = what_time_is_it_now();
+		const auto image_load_start_time = std::chrono::high_resolution_clock::now();
+
 		load_thread.join();
 		train = buffer;
 		if (net.track)
@@ -372,17 +375,17 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		}
 		load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
-		const double load_time = (what_time_is_it_now() - time);
+		const auto image_load_duration = std::chrono::high_resolution_clock::now() - image_load_start_time;
+
 		if (cfg_and_state.is_verbose)
 		{
-			*cfg_and_state.output << "loaded " << args.n << " images in " << Darknet::format_time(load_time) << std::endl;
+			*cfg_and_state.output << "loaded " << args.n << " images in " << Darknet::trim(Darknet::format_duration_string(image_load_duration)) << std::endl;
 		}
-		if (load_time > 0.1 && avg_loss > 0.0f)
+		if (image_load_duration > std::chrono::milliseconds(100) and avg_loss > 0.0f)
 		{
 			Darknet::display_warning_msg("Performance bottleneck detected.  Slow CPU or hard drive?  Loading images from a network share?\n");
 		}
 
-		time = what_time_is_it_now();
 		float loss = 0.0f;
 #ifdef DARKNET_GPU
 		if (ngpus == 1)
@@ -403,12 +406,14 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		}
 		avg_loss = avg_loss * 0.9f + loss * 0.1f;
 
-		const std::time_t now			= std::time(nullptr);
-		const float elapsed_seconds		= now - start_of_training;
-		const float current_iter		= get_current_iteration(net);
+		const auto iteration_end_time	= std::chrono::high_resolution_clock::now();
+		const auto iteration_duration	= iteration_end_time - iteration_start_time;
+		const float elapsed_seconds		= std::chrono::duration_cast<std::chrono::seconds>(iteration_end_time - start_of_training).count();
 		const int iteration				= get_current_iteration(net);
+		const float current_iter		= iteration;
 		const float iters_per_second	= (current_iter - first_iteration) / elapsed_seconds;
 		const float seconds_remaining	= (net.max_batches - current_iter) / iters_per_second;
+		const auto time_remaining		= Darknet::format_duration_string(std::chrono::seconds(static_cast<long>(seconds_remaining)), 1);
 
 		// updating the console titlebar requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
 		if (cfg_and_state.colour_is_enabled)
@@ -421,7 +426,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 					<< ": loss=" << std::setprecision(1) << loss
 					<< " map=" << std::setprecision(2) << mean_average_precision
 					<< " best=" << std::setprecision(2) << best_map
-					<< " time=" << Darknet::format_time_remaining(seconds_remaining)
+					<< " time=" << time_remaining
 					<< "\007";
 			}
 			else
@@ -430,7 +435,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 					<< "\033]2;"
 					<< iteration << "/" << net.max_batches
 					<< ": loss=" << std::setprecision(1) << loss
-					<< " time=" << Darknet::format_time_remaining(seconds_remaining)
+					<< " time=" << time_remaining
 					<< "\007";
 			}
 		}
@@ -453,10 +458,9 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			<< ", best=" << Darknet::format_map_accuracy(best_map)
 			<< ", next=" << next_map_calc
 			<< ", rate=" << std::setprecision(8) << get_current_rate(net) << std::setprecision(2)
-			<< ", " << Darknet::format_time(what_time_is_it_now() - time)
+			<< ", " << Darknet::format_duration_string(iteration_duration)
 			<< ", " << iteration * imgs
-			<< " images, time remaining="
-			<< Darknet::format_time_remaining(seconds_remaining)
+			<< " images, time remaining=" << time_remaining
 			<< std::endl;
 
 		// This is where we decide if we have to do the mAP% calculations.
@@ -528,7 +532,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		}
 
 		// this is where we draw the chart while training
-		Darknet::update_loss_in_new_charts(iteration, avg_loss, seconds_remaining, dont_show);
+		Darknet::update_loss_in_new_charts(iteration, avg_loss, time_remaining, dont_show);
 
 		if (iteration >= iter_save + how_often_we_save_weights || (iteration % how_often_we_save_weights) == 0)
 		{
