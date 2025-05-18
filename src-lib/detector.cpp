@@ -262,12 +262,12 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			<< std::endl;
 	}
 
-	std::thread load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
-
-	int count = 0;
-
+	auto now = std::chrono::high_resolution_clock::now();
 	const auto first_iteration = get_current_iteration(net); // normally this is zero unless we're resuming training
-	const auto start_of_training = std::chrono::high_resolution_clock::now();
+	const auto start_of_training = now;
+	auto image_load_start_time	= now; // start the new image loading for the next iteration
+	std::thread load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
+	int count = 0;
 
 	// ***************************************
 	// THIS is the start of the training loop!
@@ -347,10 +347,11 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 				<< ", " << dim_w << "x" << dim_h
 				<< std::endl;
 
+			// discard what we had started loading, and re-start loading
 			load_thread.join();
 			train = buffer;
 			Darknet::free_data(train);
-
+			image_load_start_time = std::chrono::high_resolution_clock::now();
 			load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 			for (int k = 0; k < ngpus; ++k)
@@ -360,10 +361,9 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			net = nets[0];
 		} // random=1
 
-		const auto image_load_start_time = std::chrono::high_resolution_clock::now();
-
 		load_thread.join();
 		train = buffer;
+
 		if (net.track)
 		{
 			net.sequential_subdivisions = get_current_seq_subdivisions(net);
@@ -373,9 +373,11 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 				<< ", sequence=" << get_sequence_value(net)
 				<< std::endl;
 		}
-		load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
-		const auto image_load_duration = std::chrono::high_resolution_clock::now() - image_load_start_time;
+		now = std::chrono::high_resolution_clock::now();
+		const auto image_load_duration = now - image_load_start_time; // duration of the iteration that just finished
+		image_load_start_time = now; // start the new image loading for the next iteration
+		load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 		if (cfg_and_state.is_verbose)
 		{
@@ -383,7 +385,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		}
 		if (image_load_duration > std::chrono::milliseconds(100) and avg_loss > 0.0f)
 		{
-			Darknet::display_warning_msg("Performance bottleneck detected.  Slow CPU or hard drive?  Loading images from a network share?\n");
+			Darknet::display_warning_msg("Performance bottleneck:  loading " + std::to_string(args.n) + " images took " + Darknet::trim(Darknet::format_duration_string(image_load_duration)) + ".  Slow CPU or hard drive?  Loading images from a network share?\n");
 		}
 
 		float loss = 0.0f;
@@ -486,9 +488,12 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 					args.n = imgs;
 					*cfg_and_state.output << init_w << " x " << init_h << " (batch=" << init_b << ")" << std::endl;
 				}
+
+				// discard the next set of images we began loading and re-start the loading process
 				load_thread.join();
 				Darknet::free_data(train);
 				train = buffer;
+				image_load_start_time = std::chrono::high_resolution_clock::now();
 				load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 				for (int k = 0; k < ngpus; ++k)
@@ -670,7 +675,8 @@ static void print_cocos(FILE *fp, char *image_path, Darknet::Detection * dets, i
 	int i, j;
 	const char *p = basecfg(image_path);
 	int image_id = atoi(p);
-	for (i = 0; i < num_boxes; ++i) {
+	for (i = 0; i < num_boxes; ++i)
+	{
 		float xmin = dets[i].bbox.x - dets[i].bbox.w / 2.;
 		float xmax = dets[i].bbox.x + dets[i].bbox.w / 2.;
 		float ymin = dets[i].bbox.y - dets[i].bbox.h / 2.;
