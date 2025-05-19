@@ -6,7 +6,6 @@
 #include "darkunistd.hpp"
 
 #ifdef WIN32
-#include "gettimeofday.h"
 #include <dbghelp.h>
 #pragma comment(lib, "DbgHelp.lib")
 #else
