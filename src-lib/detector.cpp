@@ -278,6 +278,13 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		// we're starting a new iteration
 		errno = 0;
 
+#if 0 // useful when debugging to abort the training session
+		if (get_current_iteration(net) >= 200)
+		{
+			break;
+		}
+#endif
+
 		const std::chrono::high_resolution_clock::time_point iteration_start_time = std::chrono::high_resolution_clock::now();
 
 		if (break_after_burn_in and get_current_iteration(net) == net.burn_in)

@@ -1032,6 +1032,8 @@ void Darknet::run_image_loading_control_thread(load_args args)
 	/* NOTE:  This is normally started on a new thread!  For example, you might see this:
 	 *
 	 *		std::thread t(Darknet::run_image_loading_control_thread, args);
+	 *
+	 * There is a new one of these threads started to run this function at *every* iteration!
 	 */
 
 	const std::string name = "image loading control thread";
