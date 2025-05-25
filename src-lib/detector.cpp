@@ -390,7 +390,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		{
 			*cfg_and_state.output << "loaded " << args.n << " images in " << Darknet::trim(Darknet::format_duration_string(image_load_duration)) << std::endl;
 		}
-		if (image_load_duration > std::chrono::milliseconds(100) and avg_loss > 0.0f)
+		if (image_load_duration > std::chrono::milliseconds(250) and avg_loss > 0.0f)
 		{
 			Darknet::display_warning_msg("Performance bottleneck:  loading " + std::to_string(args.n) + " images took " + Darknet::trim(Darknet::format_duration_string(image_load_duration)) + ".  Slow CPU or hard drive?  Loading images from a network share?\n");
 		}
