@@ -15,6 +15,12 @@ The NVIDIA GPUs which are supported by CUDA and cuDNN include those from the Kep
 cmake -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_CUDA=OFF ..
 ```
 
+To disable both AMD and NVIDIA, you'd run:
+
+```sh
+cmake -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_ROCM=OFF -DDARKNET_TRY_CUDA=OFF ..
+```
+
 ## Linux
 
 The NVIDIA CUDA and cuDNN software must be installed **prior** to running `cmake` for Darknet/YOLO.  This is because as part of Darknet's CMake process, it will attempt to identify your GPU and the necessary CUDA and cuDNN files.
