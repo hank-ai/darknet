@@ -15,8 +15,15 @@ cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_HIP_ARCHITECTURES=gfx1101 ..
 If you'd like to prevent the Darknet build process from attempting to detect AMD, ROCm, and HIP, you can define `DARKNET_TRY_ROCM=OFF` like this when running CMake:
 
 ```sh
-cmake -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_CUDA=OFF ..
+cmake -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_ROCM=OFF ..
 ```
+
+To disable both AMD and NVIDIA, you'd run:
+
+```sh
+cmake -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_ROCM=OFF -DDARKNET_TRY_CUDA=OFF ..
+```
+
 
 ## Linux
 
