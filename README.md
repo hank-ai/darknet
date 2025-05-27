@@ -526,11 +526,16 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 * For a robust alternative CLI to Darknet, to use image tiling, for object tracking in your videos, or for a robust C++ API that can easily be used in commercial applications, [see DarkHelp](https://github.com/stephanecharette/DarkHelp).
 * See if [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/) can help answer your questions.
 * See the many tutorial and example videos on [Stéphane's YouTube channel](https://www.youtube.com/c/StephaneCharette/videos)
+* [C++ bindings for Darknet/YOLO](https://darknetcv.ai/api/api.html#apiv3_cpp) (in the Darknet/YOLO repo)
+* [C bindings for Darknet/YOLO](https://darknetcv.ai/api/api.html#apiv3_c) (in the Darknet/YOLO repo)
+* [Python bindings for Darknet/YOLO](src-python/) (in the Darknet/YOLO repo)
+* [Java bindings for Darknet/YOLO](https://github.com/stephanecharette/DarknetJava)
+* [Delphi bindings for Darknet/YOLO](https://github.com/hansvas/Darknet4Delphi)
 * If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/zSq8rtW).
 
 # Roadmap
 
-Last updated 2025-05-11:
+Last updated 2025-05-26:
 
 ## Completed
 
