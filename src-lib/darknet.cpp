@@ -1150,6 +1150,11 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 		Darknet::load_names(ptr, names_filename);
 	}
 
+	if (cfg_and_state.is_trace)
+	{
+		*cfg_and_state.output << "-> network loaded: cfg=" << cfg_filename.string() << " ptr=" << (void*)ptr << std::endl;
+	}
+
 	return ptr;
 }
 
@@ -1228,6 +1233,11 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 void Darknet::free_neural_network(Darknet::NetworkPtr & ptr)
 {
 	TAT(TATPARMS);
+
+	if (cfg_and_state.is_trace)
+	{
+		*cfg_and_state.output << "-> freeing network ptr=" << reinterpret_cast<void*>(ptr) << std::endl;
+	}
 
 	if (ptr)
 	{
