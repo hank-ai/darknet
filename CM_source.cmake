@@ -38,6 +38,7 @@ IF (WIN32)
 #	ADD_COMPILE_OPTIONS (/Zc:strictStrings-)
 	ADD_COMPILE_DEFINITIONS (NOMINMAX)
 	ADD_COMPILE_DEFINITIONS (_CRT_SECURE_NO_WARNINGS)	# don't complain about localtime()
+	#ADD_COMPILE_DEFINITIONS($<$<CXX_COMPILER_ID:MSVC>:/MP>)
 
 	# With old compilers (or Windows only?) it used to be necessary to define this prior to #including cmath.
 	# Not sure if (or why?) this still seems to be required with Visual Studio.

@@ -245,7 +245,38 @@ ENDIF ()
 # == Timing ==
 # ============
 CMAKE_DEPENDENT_OPTION (ENABLE_TIMING_AND_TRACKING "Enable Darknet timing and tracking debugging" OFF "" OFF)
+CMAKE_DEPENDENT_OPTION (ENABLE_TIMING_AND_TRACKING_USE_CTRACK "Enable Darknet timing and tracking debugging using ctrack" OFF "" OFF)
 IF (ENABLE_TIMING_AND_TRACKING)
-	MESSAGE (WARNING "Darknet timing and tracking debug code is *ENABLED*!")
-	ADD_COMPILE_DEFINITIONS(DARKNET_TIMING_AND_TRACKING_ENABLED)
+	IF (ENABLE_TIMING_AND_TRACKING_USE_CTRACK)
+		MESSAGE (STATUS "Darknet timing and tracking debug code is *ENABLED*! Using ctrack.")
+		ADD_COMPILE_DEFINITIONS(DARKNET_TIMING_AND_TRACKING_ENABLED)
+		ADD_COMPILE_DEFINITIONS(DARKNET_TIMING_AND_TRACKING_USE_CTRACK)
+	ELSE ()
+		MESSAGE (STATUS "Darknet timing and tracking debug code is *ENABLED*! Using original timing code.")
+		ADD_COMPILE_DEFINITIONS(DARKNET_TIMING_AND_TRACKING_ENABLED)
+	ENDIF ()
 ENDIF ()
+
+
+# ==========
+# == TBB ==
+# ==========
+IF (ENABLE_TIMING_AND_TRACKING_USE_CTRACK)
+	IF(NOT MSVC AND NOT DISABLE_PAR)
+		FIND_PACKAGE(TBB QUIET)
+		IF(TBB_FOUND)
+			MESSAGE(STATUS "TBB found. Enabling parallel execution for ctrack.")
+			SET(DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} TBB::tbb)
+		ELSE()
+			MESSAGE(WARNING "TBB not found but ctrack is enabled. Disabling parallel execution.")
+			SET(DISABLE_PAR ON)
+		ENDIF()
+	ELSEIF(DISABLE_PAR)
+		MESSAGE(STATUS "DISABLE_PAR set. Disabling parallel execution for ctrack.")
+	ENDIF()
+
+	# Set ctrack compile definition if parallel execution is disabled
+	IF(DISABLE_PAR)
+		ADD_COMPILE_DEFINITIONS(CTRACK_DISABLE_EXECUTION_POLICY)
+	ENDIF()
+ENDIF()

@@ -96,6 +96,6 @@ int main(int argc, char * argv[])
 	{
 		std::cout << "Exception: " << e.what() << std::endl;
 	}
-
+	darknet_print_timings_and_tracking();
 	return 0;
 }

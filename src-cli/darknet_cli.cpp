@@ -596,6 +596,6 @@ int main(int argc, char **argv)
 		*cfg_and_state.output << std::endl << "Exception: " << Darknet::in_colour(Darknet::EColour::kBrightRed, e.what()) << std::endl;
 		darknet_fatal_error(DARKNET_LOC, e.what());
 	}
-
+	darknet_print_timings_and_tracking();
 	return 0;
 }

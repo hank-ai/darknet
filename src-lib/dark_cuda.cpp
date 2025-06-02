@@ -11,12 +11,10 @@ int cuda_debug_sync = 0;
 #error "If you set CUDNN_HALF=1 then you must set CUDNN=1"
 #endif
 
-
 namespace
 {
-	static auto & cfg_and_state = Darknet::CfgAndState::get();
+	static auto &cfg_and_state = Darknet::CfgAndState::get();
 }
-
 
 void cuda_set_device(int n)
 {
@@ -32,7 +30,8 @@ void cuda_set_device(int n)
 
 int cuda_get_device()
 {
-	TAT(TATPARMS);
+	TAT_SKIP(TATPARMS, "2024-05-02");
+	// this function is used a lot and has < 1% performance impact we track the parent function instead
 
 	int n = 0;
 	cudaError_t status = cudaGetDevice(&n);
@@ -54,9 +53,10 @@ void *cuda_get_context()
 	return (void *)pctx;
 }
 
-void check_cuda_error(cudaError_t status, const char * const filename, const char * const funcname, const int line)
+void check_cuda_error(cudaError_t status, const char *const filename, const char *const funcname, const int line)
 {
-	TAT_REVIEWED(TATPARMS, "2024-05-02");
+	TAT_SKIP(TATPARMS, "2024-05-02");
+	// this function is used a lot and has < 2% performance impact we track the parent function instead
 
 	if (status != cudaSuccess)
 	{
@@ -70,9 +70,10 @@ void check_cuda_error(cudaError_t status, const char * const filename, const cha
 	}
 }
 
-void check_cuda_error_extended(cudaError_t status, const char * const filename, const char * const funcname, const int line)
+void check_cuda_error_extended(cudaError_t status, const char *const filename, const char *const funcname, const int line)
 {
-	TAT_REVIEWED(TATPARMS, "2024-05-02");
+	TAT_SKIP(TATPARMS, "2024-05-02");
+	// this function is used a lot and has < 0.3% performance impact we track the parent function instead
 
 	if (status != cudaSuccess)
 	{
@@ -117,12 +118,13 @@ dim3 cuda_gridsize(size_t n)
 	return d;
 }
 
-static cudaStream_t streamsArray[16];    // cudaStreamSynchronize( get_cuda_stream() );
-static int streamInit[16] = { 0 };
+static cudaStream_t streamsArray[16]; // cudaStreamSynchronize( get_cuda_stream() );
+static int streamInit[16] = {0};
 
 cudaStream_t get_cuda_stream()
 {
-	TAT(TATPARMS);
+	TAT_SKIP(TATPARMS, "2024-05-02");
+	// this function is used a lot and has < 1% performance impact we track the parent function instead
 
 	int i = cuda_get_device();
 	if (!streamInit[i])
@@ -142,7 +144,7 @@ cudaStream_t get_cuda_stream()
 				<< std::endl
 				<< "cudaStreamCreate() error: " << status << std::endl
 				<< "CUDA error: " << cudaGetErrorString(status) << std::endl;
-			status = cudaStreamCreateWithFlags(&streamsArray[i], cudaStreamNonBlocking);    // cudaStreamDefault
+			status = cudaStreamCreateWithFlags(&streamsArray[i], cudaStreamNonBlocking); // cudaStreamDefault
 			CHECK_CUDA(status);
 		}
 		streamInit[i] = 1;
@@ -151,7 +153,7 @@ cudaStream_t get_cuda_stream()
 }
 
 #ifdef CUDNN
-static int cudnnInit[16] = { 0 };
+static int cudnnInit[16] = {0};
 static cudnnHandle_t cudnnHandle[16];
 
 cudnnHandle_t cudnn_handle()
@@ -159,7 +161,7 @@ cudnnHandle_t cudnn_handle()
 	TAT(TATPARMS);
 
 	int i = cuda_get_device();
-	if(!cudnnInit[i])
+	if (!cudnnInit[i])
 	{
 		cudnnCreate(&cudnnHandle[i]);
 		cudnnInit[i] = 1;
@@ -174,15 +176,15 @@ cudnnHandle_t cudnn_handle()
 	return cudnnHandle[i];
 }
 
-
-void cudnn_check_error(cudnnStatus_t status, const char * const filename, const char * const function, const int line)
+void cudnn_check_error(cudnnStatus_t status, const char *const filename, const char *const function, const int line)
 {
 	TAT(TATPARMS);
 
 #if defined(DEBUG) || defined(CUDA_DEBUG)
 	cudaDeviceSynchronize();
 #endif
-	if (cuda_debug_sync) {
+	if (cuda_debug_sync)
+	{
 		cudaDeviceSynchronize();
 	}
 	cudnnStatus_t status2 = CUDNN_STATUS_SUCCESS;
@@ -200,13 +202,14 @@ void cudnn_check_error(cudnnStatus_t status, const char * const filename, const 
 	}
 }
 
-void cudnn_check_error_extended(cudnnStatus_t status, const char * const filename, const char * const function, const int line)
+void cudnn_check_error_extended(cudnnStatus_t status, const char *const filename, const char *const function, const int line)
 {
 	TAT(TATPARMS);
 
 	if (status != CUDNN_STATUS_SUCCESS)
 	{
-		*cfg_and_state.output << std::endl << "cuDNN status error in " << filename << ", " << function << "(), line #" << line << std::endl;
+		*cfg_and_state.output << std::endl
+							  << "cuDNN status error in " << filename << ", " << function << "(), line #" << line << std::endl;
 		cudnn_check_error(status, filename, function, line);
 	}
 #if defined(DEBUG) || defined(CUDA_DEBUG)
@@ -217,7 +220,8 @@ void cudnn_check_error_extended(cudnnStatus_t status, const char * const filenam
 		cudaError_t cuda_status = cudaDeviceSynchronize();
 		if (cuda_status != (cudaError_t)CUDA_SUCCESS)
 		{
-			*cfg_and_state.output << std::endl << "cudaDeviceSynchronize() error in " << filename << ", " << function << "(), line #" << line << std::endl;
+			*cfg_and_state.output << std::endl
+								  << "cudaDeviceSynchronize() error in " << filename << ", " << function << "(), line #" << line << std::endl;
 		}
 	}
 	cudnn_check_error(status, filename, function, line);
@@ -226,7 +230,6 @@ void cudnn_check_error_extended(cudnnStatus_t status, const char * const filenam
 static cudnnHandle_t switchCudnnHandle[16];
 static int switchCudnnInit[16];
 #endif
-
 
 void cublas_check_error(cublasStatus_t status)
 {
@@ -245,13 +248,14 @@ void cublas_check_error(cublasStatus_t status)
 	}
 }
 
-void cublas_check_error_extended(cublasStatus_t status, const char * const filename, const char * const function, const int line)
+void cublas_check_error_extended(cublasStatus_t status, const char *const filename, const char *const function, const int line)
 {
 	TAT(TATPARMS);
 
 	if (status != CUBLAS_STATUS_SUCCESS)
 	{
-		*cfg_and_state.output << std::endl << "cuBLAS status error in " << filename << ", " << function << "(), line #" << line << std::endl;
+		*cfg_and_state.output << std::endl
+							  << "cuBLAS status error in " << filename << ", " << function << "(), line #" << line << std::endl;
 	}
 #if defined(DEBUG) || defined(CUDA_DEBUG)
 	cuda_debug_sync = 1;
@@ -261,13 +265,14 @@ void cublas_check_error_extended(cublasStatus_t status, const char * const filen
 		cudaError_t cuda_status = cudaDeviceSynchronize();
 		if (cuda_status != (cudaError_t)CUDA_SUCCESS)
 		{
-			*cfg_and_state.output << std::endl << "cudaDeviceSynchronize() error in " << filename << ", " << function << "(), line #" << line << std::endl;
+			*cfg_and_state.output << std::endl
+								  << "cudaDeviceSynchronize() error in " << filename << ", " << function << "(), line #" << line << std::endl;
 		}
 	}
 	cublas_check_error(status);
 }
 
-static int blasInit[16] = { 0 };
+static int blasInit[16] = {0};
 static cublasHandle_t blasHandle[16];
 
 cublasHandle_t blas_handle()
@@ -285,9 +290,8 @@ cublasHandle_t blas_handle()
 	return blasHandle[i];
 }
 
-
 static cudaStream_t switchStreamsArray[16];
-static int switchStreamInit[16] = { 0 };
+static int switchStreamInit[16] = {0};
 
 cudaStream_t switch_stream(int i)
 {
@@ -306,8 +310,9 @@ cudaStream_t switch_stream(int i)
 	streamInit[dev_id] = switchStreamInit[i];
 
 #ifdef CUDNN
-	if (!switchCudnnInit[i]) {
-		CHECK_CUDNN( cudnnCreate(&switchCudnnHandle[i]) );
+	if (!switchCudnnInit[i])
+	{
+		CHECK_CUDNN(cudnnCreate(&switchCudnnHandle[i]));
 		switchCudnnInit[i] = 1;
 		CHECK_CUDNN(cudnnSetStream(switchCudnnHandle[i], switchStreamsArray[i]));
 		*cfg_and_state.output << "Create cuDNN handle #" << i << std::endl;
@@ -337,22 +342,23 @@ void wait_stream(int i)
 		darknet_fatal_error(DARKNET_LOC, "CUDA max_events exceeded");
 	}
 
-	CHECK_CUDA( cudaEventCreateWithFlags(&switchEventsArray[event_counter], cudaEventDisableTiming) );
+	CHECK_CUDA(cudaEventCreateWithFlags(&switchEventsArray[event_counter], cudaEventDisableTiming));
 
-	CHECK_CUDA( cudaEventRecord(switchEventsArray[event_counter], switchStreamsArray[i]) );
-	CHECK_CUDA( cudaStreamWaitEvent(streamsArray[dev_id], switchEventsArray[event_counter], cudaEventWaitDefault) );
+	CHECK_CUDA(cudaEventRecord(switchEventsArray[event_counter], switchStreamsArray[i]));
+	CHECK_CUDA(cudaStreamWaitEvent(streamsArray[dev_id], switchEventsArray[event_counter], cudaEventWaitDefault));
 
 	event_counter++;
 }
 
-void reset_wait_stream_events() {
+void reset_wait_stream_events()
+{
 	int i;
-	for (i = 0; i < event_counter; ++i) {
+	for (i = 0; i < event_counter; ++i)
+	{
 		CHECK_CUDA(cudaEventDestroy(switchEventsArray[i]));
 	}
 	event_counter = 0;
 }
-
 
 namespace
 {
@@ -360,20 +366,21 @@ namespace
 	static size_t pinned_num_of_blocks = 0;
 	static size_t pinned_index = 0;
 	static size_t pinned_block_id = 0;
-	static const size_t pinned_block_size = (size_t)1024 * 1024 * 1024 * 1;   // 1 GB block size
+	static const size_t pinned_block_size = (size_t)1024 * 1024 * 1024 * 1; // 1 GB block size
 
 	static std::mutex mutex_pinned;
 }
-
 
 // free CPU-pinned memory
 void free_pinned_memory()
 {
 	TAT(TATPARMS);
 
-	if (pinned_ptr) {
+	if (pinned_ptr)
+	{
 		int k;
-		for (k = 0; k < pinned_num_of_blocks; ++k) {
+		for (k = 0; k < pinned_num_of_blocks; ++k)
+		{
 			cuda_free_host(pinned_ptr[k]);
 		}
 		free(pinned_ptr);
@@ -395,16 +402,16 @@ void pre_allocate_pinned_memory(const size_t size)
 	if (!pinned_ptr)
 	{
 		pinned_ptr = (float **)calloc(num_of_blocks, sizeof(float *));
-		if(!pinned_ptr)
+		if (!pinned_ptr)
 		{
 			darknet_fatal_error(DARKNET_LOC, "calloc failed with num_of_blocks=%d", num_of_blocks);
 		}
 
 		*cfg_and_state.output
 			<< "pre_allocate:"
-			<< " size="				<< size_to_IEC_string(size)
-			<< ", num_of_blocks="	<< num_of_blocks
-			<< ", block_size="		<< size_to_IEC_string(pinned_block_size)
+			<< " size=" << size_to_IEC_string(size)
+			<< ", num_of_blocks=" << num_of_blocks
+			<< ", block_size=" << size_to_IEC_string(pinned_block_size)
 			<< std::endl;
 
 		for (int k = 0; k < num_of_blocks; ++k)
@@ -434,11 +441,11 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 	std::scoped_lock lock(mutex_pinned);
 
 	float *x_cpu = NULL;
-	const size_t memory_step = 512;// 4096;
-	const size_t size = sizeof(float)*n;
+	const size_t memory_step = 512; // 4096;
+	const size_t size = sizeof(float) * n;
 	const size_t allocation_size = ((size / memory_step) + 1) * memory_step;
 
-	if (pinned_ptr && pinned_block_id < pinned_num_of_blocks && (allocation_size < pinned_block_size/2))
+	if (pinned_ptr && pinned_block_id < pinned_num_of_blocks && (allocation_size < pinned_block_size / 2))
 	{
 		if ((allocation_size + pinned_index) > pinned_block_size)
 		{
@@ -454,7 +461,7 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 		}
 	}
 
-	if(!x_cpu)
+	if (!x_cpu)
 	{
 		if (allocation_size > pinned_block_size / 2)
 		{
@@ -497,7 +504,7 @@ float *cuda_make_array_pinned(float *x, size_t n)
 	TAT(TATPARMS);
 
 	float *x_gpu;
-	size_t size = sizeof(float)*n;
+	size_t size = sizeof(float) * n;
 	cudaError_t status = cudaHostAlloc((void **)&x_gpu, size, cudaHostRegisterMapped);
 	if (status != cudaSuccess)
 	{
@@ -523,7 +530,7 @@ float *cuda_make_array(float *x, size_t n)
 
 	const size_t size = n * sizeof(float);
 
-	float * x_gpu = NULL;
+	float *x_gpu = NULL;
 	cudaError_t status = cudaMalloc((void **)&x_gpu, size);
 	if (status != cudaSuccess || !x_gpu)
 	{
@@ -533,7 +540,7 @@ float *cuda_make_array(float *x, size_t n)
 
 	if (x)
 	{
-//        status = cudaMemcpy(x_gpu, x, size, cudaMemcpyHostToDevice);
+		//        status = cudaMemcpy(x_gpu, x, size, cudaMemcpyHostToDevice);
 		status = cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyDefault, get_cuda_stream());
 		CHECK_CUDA(status);
 	}
@@ -546,7 +553,7 @@ void **cuda_make_array_pointers(void **x, size_t n)
 	TAT(TATPARMS);
 
 	void **x_gpu = nullptr;
-	size_t size = sizeof(void*) * n;
+	size_t size = sizeof(void *) * n;
 	cudaError_t status = cudaMalloc((void **)&x_gpu, size);
 	if (status != cudaSuccess)
 	{
@@ -572,7 +579,8 @@ void cuda_random(float *x_gpu, size_t n)
 	static curandGenerator_t gen[16];
 	static int init[16] = {0};
 	int i = cuda_get_device();
-	if(!init[i]){
+	if (!init[i])
+	{
 		curandCreateGenerator(&gen[i], CURAND_RNG_PSEUDO_DEFAULT);
 		curandSetPseudoRandomGeneratorSeed(gen[i], time(0));
 		init[i] = 1;
@@ -585,12 +593,12 @@ float cuda_compare(float *x_gpu, float *x, size_t n, char *s)
 {
 	TAT(TATPARMS);
 
-	float* tmp = (float*)xcalloc(n, sizeof(float));
+	float *tmp = (float *)xcalloc(n, sizeof(float));
 	cuda_pull_array(x_gpu, tmp, n);
 	axpy_cpu(n, -1, x, 1, tmp, 1);
 	float err = dot_cpu(n, tmp, 1, tmp, 1);
 
-	*cfg_and_state.output << "Error " << s << ": " << sqrt(err/n) << std::endl;
+	*cfg_and_state.output << "Error " << s << ": " << sqrt(err / n) << std::endl;
 
 	free(tmp);
 	return err;
@@ -601,10 +609,10 @@ int *cuda_make_int_array(size_t n)
 	TAT(TATPARMS);
 
 	int *x_gpu;
-	size_t size = sizeof(int)*n;
+	size_t size = sizeof(int) * n;
 	cudaError_t status = cudaMalloc((void **)&x_gpu, size);
 
-	if(status != cudaSuccess)
+	if (status != cudaSuccess)
 	{
 		*cfg_and_state.output << "Try increasing subdivisions=... in your cfg file." << std::endl;
 	}
@@ -619,11 +627,12 @@ int *cuda_make_int_array_new_api(int *x, size_t n)
 	TAT(TATPARMS);
 
 	int *x_gpu;
-	size_t size = sizeof(int)*n;
+	size_t size = sizeof(int) * n;
 	cudaError_t status = cudaMalloc((void **)&x_gpu, size);
 	CHECK_CUDA(status);
-	if (x) {
-		//status = cudaMemcpy(x_gpu, x, size, cudaMemcpyHostToDevice);
+	if (x)
+	{
+		// status = cudaMemcpy(x_gpu, x, size, cudaMemcpyHostToDevice);
 		status = cudaMemcpyAsync(x_gpu, x, size, cudaMemcpyHostToDevice, get_cuda_stream());
 		CHECK_CUDA(status);
 	}
@@ -663,7 +672,7 @@ void cuda_pull_array(float *x_gpu, float *x, size_t n)
 {
 	TAT(TATPARMS);
 
-	size_t size = sizeof(float)*n;
+	size_t size = sizeof(float) * n;
 	cudaError_t status = cudaMemcpyAsync(x, x_gpu, size, cudaMemcpyDeviceToHost, get_cuda_stream());
 	CHECK_CUDA(status);
 	CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));
@@ -673,10 +682,10 @@ void cuda_pull_array_async(float *x_gpu, float *x, size_t n)
 {
 	TAT(TATPARMS);
 
-	size_t size = sizeof(float)*n;
+	size_t size = sizeof(float) * n;
 	cudaError_t status = cudaMemcpyAsync(x, x_gpu, size, cudaMemcpyDefault, get_cuda_stream());
 	check_cuda_error(status, DARKNET_LOC);
-	//cudaStreamSynchronize(get_cuda_stream());
+	// cudaStreamSynchronize(get_cuda_stream());
 }
 
 int get_number_of_blocks(int array_size, int block_size)
@@ -694,8 +703,9 @@ int get_gpu_compute_capability(int i, char *device_name)
 	cudaDeviceProp prop;
 	cudaError_t status = cudaGetDeviceProperties(&prop, i);
 	CHECK_CUDA(status);
-	if (device_name) strcpy(device_name, prop.name);
-	int cc = prop.major * 100 + prop.minor * 10;    // __CUDA_ARCH__ format
+	if (device_name)
+		strcpy(device_name, prop.name);
+	int cc = prop.major * 100 + prop.minor * 10; // __CUDA_ARCH__ format
 	return cc;
 }
 
@@ -703,18 +713,18 @@ void show_cuda_cudnn_info()
 {
 	TAT(TATPARMS);
 
-	int device_count			= 0;
-	int cuda_runtime_version	= 0;
-	int cuda_driver_version		= 0;
+	int device_count = 0;
+	int cuda_runtime_version = 0;
+	int cuda_driver_version = 0;
 
-	CHECK_CUDA(cudaGetDeviceCount	(&device_count			));
-	CHECK_CUDA(cudaRuntimeGetVersion(&cuda_runtime_version	));
-	CHECK_CUDA(cudaDriverGetVersion	(&cuda_driver_version	));
+	CHECK_CUDA(cudaGetDeviceCount(&device_count));
+	CHECK_CUDA(cudaRuntimeGetVersion(&cuda_runtime_version));
+	CHECK_CUDA(cudaDriverGetVersion(&cuda_driver_version));
 
-	int cuda_runtime_major	= cuda_runtime_version / 1000;
-	int cuda_runtime_minor	= (cuda_runtime_version - cuda_runtime_major * 1000) / 10;
-	int cuda_driver_major	= cuda_driver_version / 1000;
-	int cuda_driver_minor	= (cuda_driver_version - cuda_driver_major * 1000) / 10;
+	int cuda_runtime_major = cuda_runtime_version / 1000;
+	int cuda_runtime_minor = (cuda_runtime_version - cuda_runtime_major * 1000) / 10;
+	int cuda_driver_major = cuda_driver_version / 1000;
+	int cuda_driver_minor = (cuda_driver_version - cuda_driver_major * 1000) / 10;
 
 	*cfg_and_state.output
 		<< "CUDA runtime version " << cuda_runtime_version
@@ -766,7 +776,7 @@ void show_cuda_cudnn_info()
 	}
 	else
 	{
-		for (int idx = 0; idx < device_count; idx ++)
+		for (int idx = 0; idx < device_count; idx++)
 		{
 			cudaDeviceProp prop;
 			CHECK_CUDA(cudaGetDeviceProperties(&prop, idx));

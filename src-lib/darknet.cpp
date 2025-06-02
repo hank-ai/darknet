@@ -1,6 +1,5 @@
 #include "darknet_internal.hpp"
 
-
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -16,13 +15,13 @@ std::string get_windows_version()
 	HMODULE module = LoadLibrary("winbrand.dll");
 	if (module)
 	{
-		wchar_t * (WINAPI * BrandingFormatString)(const wchar_t *);
-		(FARPROC&)BrandingFormatString = GetProcAddress(module, "BrandingFormatString");
+		wchar_t *(WINAPI * BrandingFormatString)(const wchar_t *);
+		(FARPROC &)BrandingFormatString = GetProcAddress(module, "BrandingFormatString");
 
 		if (BrandingFormatString)
 		{
 			// this should return a wide string like "Windows 11 Home"
-			wchar_t * name = BrandingFormatString(L"%WINDOWS_LONG%");
+			wchar_t *name = BrandingFormatString(L"%WINDOWS_LONG%");
 
 			char buffer[200] = "";
 			std::wcstombs(buffer, name, sizeof(buffer));
@@ -38,23 +37,22 @@ std::string get_windows_version()
 }
 #endif
 
-
 namespace
 {
-	static auto & cfg_and_state = Darknet::CfgAndState::get();
+	static auto &cfg_and_state = Darknet::CfgAndState::get();
 
 	// remember that OpenCV colours are BGR, not RGB
 	static const auto white = cv::Scalar(255, 255, 255);
-	static const auto black	= cv::Scalar(0, 0, 0);
+	static const auto black = cv::Scalar(0, 0, 0);
 
 	// shamlessly stolen from DarkHelp
-	static inline void fix_out_of_bound_normalized_rect(float & cx, float & cy, float & w, float & h)
+	static inline void fix_out_of_bound_normalized_rect(float &cx, float &cy, float &w, float &h)
 	{
 		TAT(TATPARMS);
 
 		// coordinates are all normalized!
 
-		if (cx - w / 2.0f < 0.0f or	// too far left
+		if (cx - w / 2.0f < 0.0f or // too far left
 			cx + w / 2.0f > 1.0f)	// too far right
 		{
 			// calculate a new X and width to use for this prediction
@@ -66,7 +64,7 @@ namespace
 			w = new_w;
 		}
 
-		if (cy - h / 2.0f < 0.0f or	// too far above
+		if (cy - h / 2.0f < 0.0f or // too far above
 			cy + h / 2.0f > 1.0f)	// too far below
 		{
 			// calculate a new Y and height to use for this prediction
@@ -81,7 +79,7 @@ namespace
 		return;
 	}
 
-	static inline void draw_rounded_rectangle(cv::Mat & mat, const cv::Rect & r, const float roundness, const cv::Scalar & colour, const cv::LineTypes line_type)
+	static inline void draw_rounded_rectangle(cv::Mat &mat, const cv::Rect &r, const float roundness, const cv::Scalar &colour, const cv::LineTypes line_type)
 	{
 		TAT(TATPARMS);
 
@@ -121,19 +119,26 @@ namespace
 			cv::line(mat, cv::Point(br.x - hoffset, br.y), cv::Point(bl.x + hoffset, bl.y), colour, 1, line_type);
 			cv::line(mat, cv::Point(bl.x, bl.y - voffset), cv::Point(tl.x, tl.y + voffset), colour, 1, line_type);
 
-			cv::ellipse(mat, tl + cv::Point(+hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 180.0	, 270.0	, colour, 1, line_type);
-			cv::ellipse(mat, tr + cv::Point(-hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 270.0	, 360.0	, colour, 1, line_type);
-			cv::ellipse(mat, br + cv::Point(-hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 0.0	, 90.0	, colour, 1, line_type);
-			cv::ellipse(mat, bl + cv::Point(+hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 90.0	, 180.0	, colour, 1, line_type);
+			cv::ellipse(mat, tl + cv::Point(+hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 180.0, 270.0, colour, 1, line_type);
+			cv::ellipse(mat, tr + cv::Point(-hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 270.0, 360.0, colour, 1, line_type);
+			cv::ellipse(mat, br + cv::Point(-hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 0.0, 90.0, colour, 1, line_type);
+			cv::ellipse(mat, bl + cv::Point(+hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 90.0, 180.0, colour, 1, line_type);
 		}
 
 		return;
 	}
 }
 
-
 extern "C"
 {
+
+	void darknet_print_timings_and_tracking()
+	{
+#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
+		darknet_ctrack_print_results();
+#endif
+	}
+
 	void darknet_show_version_info()
 	{
 		TAT(TATPARMS);
@@ -141,20 +146,17 @@ extern "C"
 		return;
 	}
 
-
-	const char * darknet_version_string()
+	const char *darknet_version_string()
 	{
 		TAT(TATPARMS);
 		return DARKNET_VERSION_STRING;
 	}
 
-
-	const char * darknet_version_short()
+	const char *darknet_version_short()
 	{
 		TAT(TATPARMS);
 		return DARKNET_VERSION_SHORT;
 	}
-
 
 	void darknet_set_verbose(const bool flag)
 	{
@@ -163,14 +165,12 @@ extern "C"
 		return;
 	}
 
-
 	void darknet_set_trace(const bool flag)
 	{
 		TAT(TATPARMS);
 		Darknet::set_trace(flag);
 		return;
 	}
-
 
 	void darknet_set_gpu_index(int idx)
 	{
@@ -179,14 +179,12 @@ extern "C"
 		return;
 	}
 
-
 	void darknet_set_detection_threshold(DarknetNetworkPtr ptr, float threshold)
 	{
 		TAT(TATPARMS);
 		Darknet::set_detection_threshold(ptr, threshold);
 		return;
 	}
-
 
 	void darknet_set_non_maximal_suppression_threshold(DarknetNetworkPtr ptr, float threshold)
 	{
@@ -202,7 +200,7 @@ extern "C"
 		return;
 	}
 
-	void darknet_network_dimensions(DarknetNetworkPtr ptr, int * w, int * h, int * c)
+	void darknet_network_dimensions(DarknetNetworkPtr ptr, int *w, int *h, int *c)
 	{
 		TAT(TATPARMS);
 
@@ -211,14 +209,17 @@ extern "C"
 		int channels = 0;
 		Darknet::network_dimensions(ptr, width, height, channels);
 
-		if (w) *w = width;
-		if (h) *h = height;
-		if (c) *c = channels;
+		if (w)
+			*w = width;
+		if (h)
+			*h = height;
+		if (c)
+			*c = channels;
 
 		return;
 	}
 
-	DarknetNetworkPtr darknet_load_neural_network(const char * const cfg_filename, const char * const names_filename, const char * const weights_filename)
+	DarknetNetworkPtr darknet_load_neural_network(const char *const cfg_filename, const char *const names_filename, const char *const weights_filename)
 	{
 		TAT(TATPARMS);
 
@@ -226,14 +227,17 @@ extern "C"
 		std::filesystem::path names;
 		std::filesystem::path weights;
 
-		if (cfg_filename)		cfg		= cfg_filename;
-		if (names_filename)		names	= names_filename;
-		if (weights_filename)	weights	= weights_filename;
+		if (cfg_filename)
+			cfg = cfg_filename;
+		if (names_filename)
+			names = names_filename;
+		if (weights_filename)
+			weights = weights_filename;
 
 		return Darknet::load_neural_network(cfg, names, weights);
 	}
 
-	void darknet_free_neural_network(DarknetNetworkPtr * ptr)
+	void darknet_free_neural_network(DarknetNetworkPtr *ptr)
 	{
 		TAT(TATPARMS);
 
@@ -273,7 +277,7 @@ extern "C"
 		return;
 	}
 
-	void darknet_set_output_stream(const char * const filename)
+	void darknet_set_output_stream(const char *const filename)
 	{
 		TAT(TATPARMS);
 
@@ -288,7 +292,6 @@ extern "C"
 	}
 }
 
-
 void Darknet::show_version_info()
 {
 	TAT(TATPARMS);
@@ -298,28 +301,28 @@ void Darknet::show_version_info()
 	{
 		*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_BRANCH_NAME) << "]";
 	}
-	#ifndef NDEBUG
+#ifndef NDEBUG
 	*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightRed, "DEBUG BUILD!");
-	#endif
-	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
+#endif
+#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
 	*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightBlue, "TIMING BUILD!");
-	#endif
+#endif
 	*cfg_and_state.output << std::endl;
 
-	#if DARKNET_GPU_ROCM
-		Darknet::show_rocm_info();
-	#elif defined(DARKNET_GPU_CUDA)
-		show_cuda_cudnn_info();
-	#else
-		Darknet::display_warning_msg("Darknet is compiled to use the CPU.");
-		*cfg_and_state.output << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
-	#endif
+#if DARKNET_GPU_ROCM
+	Darknet::show_rocm_info();
+#elif defined(DARKNET_GPU_CUDA)
+	show_cuda_cudnn_info();
+#else
+	Darknet::display_warning_msg("Darknet is compiled to use the CPU.");
+	*cfg_and_state.output << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
+#endif
 
 	*cfg_and_state.output << "OpenCV " << Darknet::in_colour(Darknet::EColour::kBrightWhite, "v" CV_VERSION);
 
-	#ifdef WIN32
+#ifdef WIN32
 	*cfg_and_state.output << ", " << get_windows_version();
-	#else
+#else
 	const std::string lsb_release = "/etc/lsb-release";
 	if (std::filesystem::exists(lsb_release))
 	{
@@ -342,8 +345,10 @@ void Darknet::show_version_info()
 				const std::string key = line.substr(0, pos);
 				const std::string val = line.substr(pos + 1);
 
-				if (key == "DISTRIB_ID")		id = val;
-				if (key == "DISTRIB_RELEASE")	release = val;
+				if (key == "DISTRIB_ID")
+					id = val;
+				if (key == "DISTRIB_RELEASE")
+					release = val;
 			}
 
 			if (not id.empty())
@@ -369,13 +374,12 @@ void Darknet::show_version_info()
 		}
 	}
 
-	#endif
+#endif
 
 	*cfg_and_state.output << std::endl;
 }
 
-
-Darknet::Parms Darknet::parse_arguments(int argc, char * argv[])
+Darknet::Parms Darknet::parse_arguments(int argc, char *argv[])
 {
 	TAT(TATPARMS);
 
@@ -385,19 +389,18 @@ Darknet::Parms Darknet::parse_arguments(int argc, char * argv[])
 	auto parms = parse_arguments(v);
 
 	// fix up the indexes, since we started with argv[1] and not argv[0]
-	for (auto & parm : parms)
+	for (auto &parm : parms)
 	{
 		if (parm.idx >= 0)
 		{
-			parm.idx ++;
+			parm.idx++;
 		}
 	}
 
 	return parms;
 }
 
-
-Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
+Darknet::Parms Darknet::parse_arguments(const Darknet::VStr &v)
 {
 	TAT(TATPARMS);
 
@@ -410,20 +413,20 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 	Darknet::Parms parms;
 	parms.reserve(v.size());
 
-	for (int idx = 0; idx < v.size(); idx ++)
+	for (int idx = 0; idx < v.size(); idx++)
 	{
 		Darknet::Parm parm;
-		parm.idx		= idx;
-		parm.type		= EParmType::kOther;
-		parm.original	= v[idx];
-		parm.string		= v[idx];
+		parm.idx = idx;
+		parm.type = EParmType::kOther;
+		parm.original = v[idx];
+		parm.string = v[idx];
 
 		parms.push_back(parm);
 	}
 
 	// before we start looking at the parms, we need to expand wildcards (globbing)
 	// (mostly for Windows, on Linux this is normally handled by the shell)
-	for (int idx = 0; idx < parms.size(); idx ++)
+	for (int idx = 0; idx < parms.size(); idx++)
 	{
 		auto parm = parms[idx]; // not by reference since we may resize the vector below
 
@@ -456,7 +459,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 
 		// convert the filename to a regular expression
 		std::string txt;
-		for (const char & c : path.filename().string())
+		for (const char &c : path.filename().string())
 		{
 			if (c == '.')
 			{
@@ -483,7 +486,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 
 		const std::regex rx(txt);
 		VStr filenames_which_matched;
-		for (const auto & entry : std::filesystem::directory_iterator(parent))
+		for (const auto &entry : std::filesystem::directory_iterator(parent))
 		{
 			std::string fn = Darknet::lowercase(entry.path().filename().string());
 
@@ -499,7 +502,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 			// so remove this parameter, and insert the filenames instead
 			std::sort(filenames_which_matched.begin(), filenames_which_matched.end());
 
-			for (const auto & fn : filenames_which_matched)
+			for (const auto &fn : filenames_which_matched)
 			{
 				Darknet::Parm p = parm;
 				p.string = fn;
@@ -507,7 +510,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 			}
 
 			parms.erase(parms.begin() + idx);
-			idx --;
+			idx--;
 		}
 	}
 
@@ -515,7 +518,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 
 	// Anything which was recognized and consumed needs to be marked as a parameter.
 	// For example, when processing "-log output.log" and "-thresh 0.4" we don't want those 2nd parms to be processed as input files.
-	for (const auto & [key, val] : cfg_and_state.args)
+	for (const auto &[key, val] : cfg_and_state.args)
 	{
 		if (val.expect_parm)
 		{
@@ -525,7 +528,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 
 	if (cfg_and_state.is_trace)
 	{
-		for (size_t idx = 0; idx < parms.size(); idx ++)
+		for (size_t idx = 0; idx < parms.size(); idx++)
 		{
 			*cfg_and_state.output << "Parameter parsing: #" << idx << " [type " << static_cast<int>(parms[idx].type) << ", " << parms[idx].type << "] -> " << parms[idx].string;
 			if (parms[idx].original != parms[idx].string)
@@ -539,13 +542,12 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 	return parms;
 }
 
-
-bool Darknet::find_neural_network_files(Darknet::Parms & parms)
+bool Darknet::find_neural_network_files(Darknet::Parms &parms)
 {
 	TAT(TATPARMS);
 
 	// 1st step:  see if we can identify the 3 files we need to load the network
-	for (auto & parm : parms)
+	for (auto &parm : parms)
 	{
 		std::filesystem::path path(parm.string);
 		if (not std::filesystem::exists(path))
@@ -597,18 +599,21 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 	}
 
 	// 2nd step:  if we have the .cfg then see if we can guess what the .names and .weights file might be called
-	int cfg_idx		= -1;
-	int names_idx	= -1;
-	int weights_idx	= -1;
+	int cfg_idx = -1;
+	int names_idx = -1;
+	int weights_idx = -1;
 
 	// find the *first* parameter of each type
-	for (int idx = 0; idx < parms.size(); idx ++)
+	for (int idx = 0; idx < parms.size(); idx++)
 	{
-		auto & parm = parms[idx];
+		auto &parm = parms[idx];
 
-		if (parm.type == EParmType::kCfgFilename		and cfg_idx		== -1) cfg_idx		= idx;
-		if (parm.type == EParmType::kNamesFilename		and names_idx	== -1) names_idx	= idx;
-		if (parm.type == EParmType::kWeightsFilename	and weights_idx	== -1) weights_idx	= idx;
+		if (parm.type == EParmType::kCfgFilename and cfg_idx == -1)
+			cfg_idx = idx;
+		if (parm.type == EParmType::kNamesFilename and names_idx == -1)
+			names_idx = idx;
+		if (parm.type == EParmType::kWeightsFilename and weights_idx == -1)
+			weights_idx = idx;
 	}
 
 	if (cfg_idx >= 0)
@@ -667,9 +672,9 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 		// 4-byte values * 3 = 12 bytes total
 		const uint32_t expected_header[] = {DARKNET_WEIGHTS_VERSION_MAJOR, DARKNET_WEIGHTS_VERSION_MINOR, DARKNET_WEIGHTS_VERSION_PATCH};
 
-		for (int idx = 0; idx < parms.size(); idx ++)
+		for (int idx = 0; idx < parms.size(); idx++)
 		{
-			Parm & parm = parms[idx];
+			Parm &parm = parms[idx];
 			if (parm.type != EParmType::kFilename)
 			{
 				continue;
@@ -687,14 +692,14 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 
 				size_t header_bytes_matched = 0;
 				std::ifstream ifs(filename, std::ifstream::binary | std::ifstream::in);
-				for (size_t i = 0; ifs.good() and i < 3; i ++)
+				for (size_t i = 0; ifs.good() and i < 3; i++)
 				{
 					uint32_t tmp = 0;
-					ifs.read(reinterpret_cast<char*>(&tmp), sizeof(tmp));
+					ifs.read(reinterpret_cast<char *>(&tmp), sizeof(tmp));
 
 					if (tmp == expected_header[i])
 					{
-						header_bytes_matched ++;
+						header_bytes_matched++;
 					}
 				}
 
@@ -711,12 +716,12 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 
 	// 4th step:  see if we were given the *stem* of the filenames we need
 	// in which case we need to glob files and match a certain pattern
-	if (cfg_idx		== -1 and
-		names_idx	== -1 and
-		weights_idx	== -1)
+	if (cfg_idx == -1 and
+		names_idx == -1 and
+		weights_idx == -1)
 	{
 		// one at a time, try each argument to see if we can find a file that starts with the same text
-		for (int idx = 0; idx < parms.size(); idx ++)
+		for (int idx = 0; idx < parms.size(); idx++)
 		{
 			auto parm = parms[idx]; // not by reference!  we'll be modifying the vector
 
@@ -747,7 +752,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 
 			std::string backup_weights;
 
-			for (const auto & filename : matching_files)
+			for (const auto &filename : matching_files)
 			{
 				const auto extension = std::filesystem::path(filename).extension().string();
 				if (extension == ".cfg" and cfg_idx == -1)
@@ -798,13 +803,12 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 		}
 	}
 
-	return (cfg_idx		!= -1 and
-			names_idx	!= -1 and
-			weights_idx	!= -1);
+	return (cfg_idx != -1 and
+			names_idx != -1 and
+			weights_idx != -1);
 }
 
-
-Darknet::Parms & Darknet::set_default_neural_network(Darknet::Parms & parms, const std::string & hint1, const std::string & hint2, const std::string & hint3)
+Darknet::Parms &Darknet::set_default_neural_network(Darknet::Parms &parms, const std::string &hint1, const std::string &hint2, const std::string &hint3)
 {
 	TAT(TATPARMS);
 
@@ -812,15 +816,15 @@ Darknet::Parms & Darknet::set_default_neural_network(Darknet::Parms & parms, con
 	{
 		Parms hints;
 
-		for (const std::string & hint : {hint1, hint2, hint3})
+		for (const std::string &hint : {hint1, hint2, hint3})
 		{
 			if (not hint.empty())
 			{
 				Parm p;
-				p.idx		= -1;
-				p.type		= EParmType::kOther;
-				p.original	= hint;
-				p.string	= hint;
+				p.idx = -1;
+				p.type = EParmType::kOther;
+				p.original = hint;
+				p.string = hint;
 				hints.push_back(p);
 			}
 		}
@@ -832,14 +836,13 @@ Darknet::Parms & Darknet::set_default_neural_network(Darknet::Parms & parms, con
 	return parms;
 }
 
-
-std::filesystem::path Darknet::get_config_filename(const Darknet::Parms & parms)
+std::filesystem::path Darknet::get_config_filename(const Darknet::Parms &parms)
 {
 	TAT(TATPARMS);
 
 	std::filesystem::path path;
 
-	for (const auto & parm : parms)
+	for (const auto &parm : parms)
 	{
 		if (parm.type == EParmType::kCfgFilename)
 		{
@@ -851,14 +854,13 @@ std::filesystem::path Darknet::get_config_filename(const Darknet::Parms & parms)
 	return path;
 }
 
-
-std::filesystem::path Darknet::get_names_filename(const Darknet::Parms & parms)
+std::filesystem::path Darknet::get_names_filename(const Darknet::Parms &parms)
 {
 	TAT(TATPARMS);
 
 	std::filesystem::path path;
 
-	for (const auto & parm : parms)
+	for (const auto &parm : parms)
 	{
 		if (parm.type == EParmType::kNamesFilename)
 		{
@@ -870,14 +872,13 @@ std::filesystem::path Darknet::get_names_filename(const Darknet::Parms & parms)
 	return path;
 }
 
-
-std::filesystem::path Darknet::get_weights_filename(const Darknet::Parms & parms)
+std::filesystem::path Darknet::get_weights_filename(const Darknet::Parms &parms)
 {
 	TAT(TATPARMS);
 
 	std::filesystem::path path;
 
-	for (const auto & parm : parms)
+	for (const auto &parm : parms)
 	{
 		if (parm.type == EParmType::kWeightsFilename)
 		{
@@ -888,7 +889,6 @@ std::filesystem::path Darknet::get_weights_filename(const Darknet::Parms & parms
 
 	return path;
 }
-
 
 void Darknet::set_verbose(const bool flag)
 {
@@ -905,7 +905,6 @@ void Darknet::set_verbose(const bool flag)
 	return;
 }
 
-
 void Darknet::set_trace(const bool flag)
 {
 	TAT(TATPARMS);
@@ -921,27 +920,25 @@ void Darknet::set_trace(const bool flag)
 	return;
 }
 
-
 void Darknet::set_gpu_index(int idx)
 {
 	TAT(TATPARMS);
 
-	#ifdef DARKNET_GPU
+#ifdef DARKNET_GPU
 	cfg_and_state.gpu_index = idx;
-	#else
+#else
 	// don't allow the GPU index to be set when Darknet was not compiled with CUDA support
 	cfg_and_state.gpu_index = -1;
-	#endif
+#endif
 
 	return;
 }
-
 
 void Darknet::set_detection_threshold(Darknet::NetworkPtr ptr, float threshold)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -962,12 +959,11 @@ void Darknet::set_detection_threshold(Darknet::NetworkPtr ptr, float threshold)
 	throw std::invalid_argument("detection threshold must be between 0.0 and 1.0");
 }
 
-
 void Darknet::set_non_maximal_suppression_threshold(Darknet::NetworkPtr ptr, float threshold)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -986,12 +982,11 @@ void Darknet::set_non_maximal_suppression_threshold(Darknet::NetworkPtr ptr, flo
 	throw std::invalid_argument("nms threshold must be between 0.0 and 1.0");
 }
 
-
 void Darknet::fix_out_of_bound_values(Darknet::NetworkPtr ptr, const bool toggle)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -1002,31 +997,29 @@ void Darknet::fix_out_of_bound_values(Darknet::NetworkPtr ptr, const bool toggle
 	return;
 }
 
-
 void Darknet::set_annotation_font(Darknet::NetworkPtr ptr, const cv::LineTypes line_type, const cv::HersheyFonts font_face, const int font_thickness, const double font_scale)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
 	}
 
-	net->details->cv_line_type		= line_type;
-	net->details->cv_font_face		= font_face;
-	net->details->cv_font_thickness	= font_thickness;
-	net->details->cv_font_scale		= font_scale;
+	net->details->cv_line_type = line_type;
+	net->details->cv_font_face = font_face;
+	net->details->cv_font_thickness = font_thickness;
+	net->details->cv_font_scale = font_scale;
 
 	return;
 }
-
 
 void Darknet::set_annotation_line_type(Darknet::NetworkPtr ptr, const cv::LineTypes line_type)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -1037,12 +1030,11 @@ void Darknet::set_annotation_line_type(Darknet::NetworkPtr ptr, const cv::LineTy
 	return;
 }
 
-
 void Darknet::set_rounded_corner_bounding_boxes(Darknet::NetworkPtr ptr, const bool toggle, const float roundness)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -1054,12 +1046,11 @@ void Darknet::set_rounded_corner_bounding_boxes(Darknet::NetworkPtr ptr, const b
 	return;
 }
 
-
 void Darknet::set_annotation_draw_bb(Darknet::NetworkPtr ptr, const bool toggle)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -1070,12 +1061,11 @@ void Darknet::set_annotation_draw_bb(Darknet::NetworkPtr ptr, const bool toggle)
 	return;
 }
 
-
 void Darknet::set_annotation_draw_label(Darknet::NetworkPtr ptr, const bool toggle)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("pointer to neural network cannot be NULL");
@@ -1086,8 +1076,7 @@ void Darknet::set_annotation_draw_label(Darknet::NetworkPtr ptr, const bool togg
 	return;
 }
 
-
-Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & cfg_filename, const std::filesystem::path & names_filename, const std::filesystem::path & weights_filename)
+Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path &cfg_filename, const std::filesystem::path &names_filename, const std::filesystem::path &weights_filename)
 {
 	TAT(TATPARMS);
 
@@ -1118,7 +1107,7 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 	}
 
 	static bool initialized = false;
-	#ifdef DARKNET_GPU
+#ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index < 0)
 	{
 		// no idea what GPU to use, so attempt to use the first one
@@ -1134,7 +1123,7 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 		display_warning_msg("failed to set the GPU device to #" + std::to_string(cfg_and_state.gpu_index) + "\n");
 		cfg_and_state.gpu_index = -1;
 	}
-	#endif
+#endif
 
 	if (not initialized)
 	{
@@ -1153,8 +1142,7 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 	return ptr;
 }
 
-
-Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
+Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms &parms)
 {
 	TAT(TATPARMS);
 
@@ -1162,17 +1150,20 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 	std::filesystem::path names;
 	std::filesystem::path weights;
 
-	for (const auto & parm : parms)
+	for (const auto &parm : parms)
 	{
-		if (parm.type == EParmType::kCfgFilename		and cfg		.empty())	cfg		= parm.string;
-		if (parm.type == EParmType::kNamesFilename		and names	.empty())	names	= parm.string;
-		if (parm.type == EParmType::kWeightsFilename	and weights	.empty())	weights	= parm.string;
+		if (parm.type == EParmType::kCfgFilename and cfg.empty())
+			cfg = parm.string;
+		if (parm.type == EParmType::kNamesFilename and names.empty())
+			names = parm.string;
+		if (parm.type == EParmType::kWeightsFilename and weights.empty())
+			weights = parm.string;
 	}
 
 	auto ptr = load_neural_network(cfg, names, weights);
 
 	VStr v;
-	for (const auto & parm : parms)
+	for (const auto &parm : parms)
 	{
 		v.push_back(parm.string);
 	}
@@ -1182,11 +1173,11 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 	}
 
 	v.clear();
-	for (const auto & parm : parms)
+	for (const auto &parm : parms)
 	{
 		if (parm.type == EParmType::kDirectory)
 		{
-			for (const auto & entry : std::filesystem::directory_iterator(parm.string))
+			for (const auto &entry : std::filesystem::directory_iterator(parm.string))
 			{
 				const auto ext = Darknet::lowercase(entry.path().extension().string());
 				if (ext == ".jpg" or ext == ".png")
@@ -1210,7 +1201,7 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 		}
 
 		// insert all the image filenames into "parms"
-		for (const auto & fn : v)
+		for (const auto &fn : v)
 		{
 			Parm parm;
 			parm.idx = -1;
@@ -1224,14 +1215,13 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 	return ptr;
 }
 
-
-void Darknet::free_neural_network(Darknet::NetworkPtr & ptr)
+void Darknet::free_neural_network(Darknet::NetworkPtr &ptr)
 {
 	TAT(TATPARMS);
 
 	if (ptr)
 	{
-		Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+		Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 		free_network_ptr(net);
 		ptr = nullptr;
 	}
@@ -1239,8 +1229,7 @@ void Darknet::free_neural_network(Darknet::NetworkPtr & ptr)
 	return;
 }
 
-
-void Darknet::network_dimensions(Darknet::NetworkPtr & ptr, int & w, int & h, int & c)
+void Darknet::network_dimensions(Darknet::NetworkPtr &ptr, int &w, int &h, int &c)
 {
 	TAT(TATPARMS);
 
@@ -1248,7 +1237,7 @@ void Darknet::network_dimensions(Darknet::NetworkPtr & ptr, int & w, int & h, in
 	h = -1;
 	c = -1;
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot determine dimensions without a network pointer");
@@ -1261,12 +1250,11 @@ void Darknet::network_dimensions(Darknet::NetworkPtr & ptr, int & w, int & h, in
 	return;
 }
 
-
-Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, const cv::Mat & mat)
+Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, const cv::Mat &mat)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot predict without a network pointer");
@@ -1312,12 +1300,11 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, const cv::M
 	return predict(ptr, img, original_image_size);
 }
 
-
-Darknet::Predictions Darknet::predict(Darknet::NetworkPtr ptr, Darknet::Image & img, cv::Size original_image_size)
+Darknet::Predictions Darknet::predict(Darknet::NetworkPtr ptr, Darknet::Image &img, cv::Size original_image_size)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot predict without a network pointer");
@@ -1325,8 +1312,10 @@ Darknet::Predictions Darknet::predict(Darknet::NetworkPtr ptr, Darknet::Image & 
 
 	// If we don't know the original image size, then use the current image size.
 	// Note the bounding box results will be wrong if the image has been resized!
-	if (original_image_size.width	< 1) original_image_size.width	= img.w;
-	if (original_image_size.height	< 1) original_image_size.height	= img.h;
+	if (original_image_size.width < 1)
+		original_image_size.width = img.w;
+	if (original_image_size.height < 1)
+		original_image_size.height = img.h;
 
 	network_predict(*net, img.data); /// todo pass net by ref or pointer, not copy constructor!
 	Darknet::free_image(img);
@@ -1337,16 +1326,16 @@ Darknet::Predictions Darknet::predict(Darknet::NetworkPtr ptr, Darknet::Image & 
 
 	if (net->details->non_maximal_suppression_threshold)
 	{
-		auto & layer = net->layers[net->n - 1];
+		auto &layer = net->layers[net->n - 1];
 		do_nms_sort(darknet_results, nboxes, layer.classes, net->details->non_maximal_suppression_threshold);
 	}
 
 	Predictions predictions;
 	predictions.reserve(nboxes); // this is likely too many (depends on the detection threshold) but gets us in the ballpark
 
-	for (int detection_idx = 0; detection_idx < nboxes; detection_idx ++)
+	for (int detection_idx = 0; detection_idx < nboxes; detection_idx++)
 	{
-		auto & det = darknet_results[detection_idx];
+		auto &det = darknet_results[detection_idx];
 
 		/* The "det" object has an array called det.prob[].  That array is large enough for 1 entry per class in the network.
 		 * Each entry will be set to 0.0f, except for the ones that correspond to the class that was detected.  Note that it
@@ -1356,7 +1345,7 @@ Darknet::Predictions Darknet::predict(Darknet::NetworkPtr ptr, Darknet::Image & 
 		Prediction pred;
 		pred.best_class = -1;
 
-		for (int class_idx = 0; class_idx < det.classes; class_idx ++)
+		for (int class_idx = 0; class_idx < det.classes; class_idx++)
 		{
 			const auto probability = det.prob[class_idx];
 			if (probability >= net->details->detection_threshold)
@@ -1387,14 +1376,14 @@ Darknet::Predictions Darknet::predict(Darknet::NetworkPtr ptr, Darknet::Image & 
 			fix_out_of_bound_normalized_rect(det.bbox.x, det.bbox.y, det.bbox.w, det.bbox.h);
 		}
 
-		const int w = std::round(det.bbox.w * original_image_size.width				);
-		const int h = std::round(det.bbox.h * original_image_size.height			);
-		const int x = std::round(det.bbox.x * original_image_size.width	- w / 2.0f	);
-		const int y = std::round(det.bbox.y * original_image_size.height- h / 2.0f	);
+		const int w = std::round(det.bbox.w * original_image_size.width);
+		const int h = std::round(det.bbox.h * original_image_size.height);
+		const int x = std::round(det.bbox.x * original_image_size.width - w / 2.0f);
+		const int y = std::round(det.bbox.y * original_image_size.height - h / 2.0f);
 
-		pred.rect				= cv::Rect(cv::Point(x, y), cv::Size(w, h));
-		pred.normalized_point	= cv::Point2f(det.bbox.x, det.bbox.y);
-		pred.normalized_size	= cv::Size2f(det.bbox.w, det.bbox.h);
+		pred.rect = cv::Rect(cv::Point(x, y), cv::Size(w, h));
+		pred.normalized_point = cv::Point2f(det.bbox.x, det.bbox.y);
+		pred.normalized_size = cv::Size2f(det.bbox.w, det.bbox.h);
 
 		predictions.push_back(pred);
 	}
@@ -1404,8 +1393,7 @@ Darknet::Predictions Darknet::predict(Darknet::NetworkPtr ptr, Darknet::Image & 
 	return predictions;
 }
 
-
-Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, const std::filesystem::path & image_filename)
+Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, const std::filesystem::path &image_filename)
 {
 	TAT(TATPARMS);
 
@@ -1419,12 +1407,11 @@ Darknet::Predictions Darknet::predict(const Darknet::NetworkPtr ptr, const std::
 	return predict(ptr, mat);
 }
 
-
-cv::Mat Darknet::annotate(const Darknet::NetworkPtr ptr, const Darknet::Predictions & predictions, cv::Mat mat)
+cv::Mat Darknet::annotate(const Darknet::NetworkPtr ptr, const Darknet::Predictions &predictions, cv::Mat mat)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot annotate without a network pointer");
@@ -1435,7 +1422,7 @@ cv::Mat Darknet::annotate(const Darknet::NetworkPtr ptr, const Darknet::Predicti
 		throw std::invalid_argument("cannot annotate empty image");
 	}
 
-	for (const auto & pred : predictions)
+	for (const auto &pred : predictions)
 	{
 		if (net->details->annotate_draw_bb)
 		{
@@ -1456,12 +1443,12 @@ cv::Mat Darknet::annotate(const Darknet::NetworkPtr ptr, const Darknet::Predicti
 			std::string text = net->details->class_names.at(pred.best_class) + " ";
 			text += std::to_string(static_cast<int>(std::round(100.0f * pred.prob.at(pred.best_class)))) + "%";
 
-			int				font_baseline	= 0;
-			const cv::Size	size			= cv::getTextSize(text, net->details->cv_font_face, net->details->cv_font_scale, net->details->cv_font_thickness, &font_baseline);
-			cv::Rect		label			= pred.rect;
-			label.y							= label.y - size.height - font_baseline;
-			label.height					= size.height + font_baseline;
-			label.width						= size.width + 2;
+			int font_baseline = 0;
+			const cv::Size size = cv::getTextSize(text, net->details->cv_font_face, net->details->cv_font_scale, net->details->cv_font_thickness, &font_baseline);
+			cv::Rect label = pred.rect;
+			label.y = label.y - size.height - font_baseline;
+			label.height = size.height + font_baseline;
+			label.width = size.width + 2;
 
 			// draw a rectangle above that to use as a label
 			cv::rectangle(mat, label, net->details->class_colours.at(pred.best_class), cv::FILLED, net->details->cv_line_type);
@@ -1476,7 +1463,6 @@ cv::Mat Darknet::annotate(const Darknet::NetworkPtr ptr, const Darknet::Predicti
 	return mat;
 }
 
-
 Darknet::Predictions Darknet::predict_and_annotate(const Darknet::NetworkPtr ptr, cv::Mat mat)
 {
 	TAT(TATPARMS);
@@ -1488,12 +1474,11 @@ Darknet::Predictions Darknet::predict_and_annotate(const Darknet::NetworkPtr ptr
 	return predictions;
 }
 
-
-const Darknet::VStr & Darknet::get_class_names(const Darknet::NetworkPtr ptr)
+const Darknet::VStr &Darknet::get_class_names(const Darknet::NetworkPtr ptr)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot get the class names without a network pointer");
@@ -1507,12 +1492,11 @@ const Darknet::VStr & Darknet::get_class_names(const Darknet::NetworkPtr ptr)
 	return net->details->class_names;
 }
 
-
-const Darknet::VScalars & Darknet::get_class_colours(const Darknet::NetworkPtr ptr)
+const Darknet::VScalars &Darknet::get_class_colours(const Darknet::NetworkPtr ptr)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot get the class colours without a network pointer");
@@ -1526,12 +1510,11 @@ const Darknet::VScalars & Darknet::get_class_colours(const Darknet::NetworkPtr p
 	return net->details->class_colours;
 }
 
-
-const Darknet::VScalars & Darknet::set_class_colours(Darknet::NetworkPtr ptr, const Darknet::VScalars & user_colours)
+const Darknet::VScalars &Darknet::set_class_colours(Darknet::NetworkPtr ptr, const Darknet::VScalars &user_colours)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot set the class colours without a network pointer");
@@ -1546,8 +1529,8 @@ const Darknet::VScalars & Darknet::set_class_colours(Darknet::NetworkPtr ptr, co
 	// few.  Meanwhile, if they gave us too-few then we'll take what we can and continue to use the default colours for the
 	// remainder of the clases.
 
-	auto & class_colours = net->details->class_colours;
-	for (size_t idx = 0; idx < std::min(user_colours.size(), class_colours.size()); idx ++)
+	auto &class_colours = net->details->class_colours;
+	for (size_t idx = 0; idx < std::min(user_colours.size(), class_colours.size()); idx++)
 	{
 		class_colours[idx] = user_colours[idx];
 	}
@@ -1555,12 +1538,11 @@ const Darknet::VScalars & Darknet::set_class_colours(Darknet::NetworkPtr ptr, co
 	return net->details->class_colours;
 }
 
-
 std::filesystem::path Darknet::get_config_filename(const Darknet::NetworkPtr ptr)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot get the configuration filename without a network pointer");
@@ -1569,12 +1551,11 @@ std::filesystem::path Darknet::get_config_filename(const Darknet::NetworkPtr ptr
 	return net->details->cfg_path;
 }
 
-
 std::filesystem::path Darknet::get_names_filename(const Darknet::NetworkPtr ptr)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot get the names filename without a network pointer");
@@ -1583,12 +1564,11 @@ std::filesystem::path Darknet::get_names_filename(const Darknet::NetworkPtr ptr)
 	return net->details->names_path;
 }
 
-
 std::filesystem::path Darknet::get_weights_filename(const Darknet::NetworkPtr ptr)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot get the weights filename without a network pointer");
@@ -1597,16 +1577,15 @@ std::filesystem::path Darknet::get_weights_filename(const Darknet::NetworkPtr pt
 	return net->details->weights_path;
 }
 
-
-cv::Mat Darknet::resize_keeping_aspect_ratio(cv::Mat & mat, cv::Size desired_size, const cv::InterpolationFlags method)
+cv::Mat Darknet::resize_keeping_aspect_ratio(cv::Mat &mat, cv::Size desired_size, const cv::InterpolationFlags method)
 {
 	TAT(TATPARMS);
 
-	const float width		= mat.cols;
-	const float height		= mat.rows;
-	const float horizontal	= width		/ desired_size.width;
-	const float vertical	= height	/ desired_size.height;
-	const float factor		= std::max(horizontal, vertical);
+	const float width = mat.cols;
+	const float height = mat.rows;
+	const float horizontal = width / desired_size.width;
+	const float vertical = height / desired_size.height;
+	const float factor = std::max(horizontal, vertical);
 
 	const cv::Size new_size(std::round(width / factor), std::round(height / factor));
 
@@ -1615,12 +1594,11 @@ cv::Mat Darknet::resize_keeping_aspect_ratio(cv::Mat & mat, cv::Size desired_siz
 	return mat;
 }
 
-
 Darknet::SInt Darknet::skipped_classes(const Darknet::NetworkPtr ptr)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot get the skipped classes without a network pointer");
@@ -1629,19 +1607,18 @@ Darknet::SInt Darknet::skipped_classes(const Darknet::NetworkPtr ptr)
 	return net->details->classes_to_ignore;
 }
 
-
-Darknet::SInt Darknet::skipped_classes(Darknet::NetworkPtr ptr, const Darknet::SInt & classes_to_skip)
+Darknet::SInt Darknet::skipped_classes(Darknet::NetworkPtr ptr, const Darknet::SInt &classes_to_skip)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot set the skipped classes without a network pointer");
 	}
 
 	net->details->classes_to_ignore.clear();
-	for (const int & idx : classes_to_skip)
+	for (const int &idx : classes_to_skip)
 	{
 		if (idx >= 0 and idx < net->details->class_names.size())
 		{
@@ -1652,12 +1629,11 @@ Darknet::SInt Darknet::skipped_classes(Darknet::NetworkPtr ptr, const Darknet::S
 	return net->details->classes_to_ignore;
 }
 
-
 Darknet::SInt Darknet::clear_skipped_classes(Darknet::NetworkPtr ptr)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot clear the skipped classes without a network pointer");
@@ -1668,12 +1644,11 @@ Darknet::SInt Darknet::clear_skipped_classes(Darknet::NetworkPtr ptr)
 	return net->details->classes_to_ignore;
 }
 
-
 Darknet::SInt Darknet::add_skipped_class(Darknet::NetworkPtr ptr, const int class_to_skip)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot add to the skipped classes without a network pointer");
@@ -1687,12 +1662,11 @@ Darknet::SInt Darknet::add_skipped_class(Darknet::NetworkPtr ptr, const int clas
 	return net->details->classes_to_ignore;
 }
 
-
 Darknet::SInt Darknet::del_skipped_class(Darknet::NetworkPtr ptr, const int class_to_include)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot remove from the skipped classes without a network pointer");
@@ -1703,42 +1677,47 @@ Darknet::SInt Darknet::del_skipped_class(Darknet::NetworkPtr ptr, const int clas
 	return net->details->classes_to_ignore;
 }
 
-
-std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::EParmType & type)
+std::ostream &Darknet::operator<<(std::ostream &os, const Darknet::EParmType &type)
 {
 	TAT(TATPARMS);
 
 	switch (type)
 	{
-		case EParmType::kUnknown:			return os << "unknown";
-		case EParmType::kCfgFilename:		return os << "config";
-		case EParmType::kNamesFilename:		return os << "names";
-		case EParmType::kWeightsFilename:	return os << "weights";
-		case EParmType::kDirectory:			return os << "directory";
-		case EParmType::kFilename:			return os << "filename";
-		case EParmType::kOther:				return os << "other";
+	case EParmType::kUnknown:
+		return os << "unknown";
+	case EParmType::kCfgFilename:
+		return os << "config";
+	case EParmType::kNamesFilename:
+		return os << "names";
+	case EParmType::kWeightsFilename:
+		return os << "weights";
+	case EParmType::kDirectory:
+		return os << "directory";
+	case EParmType::kFilename:
+		return os << "filename";
+	case EParmType::kOther:
+		return os << "other";
 	}
 
 	return os << "?";
 }
 
-
-std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Prediction & pred)
+std::ostream &Darknet::operator<<(std::ostream &os, const Darknet::Prediction &pred)
 {
 	TAT(TATPARMS);
 
-	os	<< "#" << pred.best_class
-		<< " prob=" << pred.prob.at(pred.best_class)
-		<< " x=" << pred.rect.x
-		<< " y=" << pred.rect.y
-		<< " w=" << pred.rect.width
-		<< " h=" << pred.rect.height
-		<< " entries=" << pred.prob.size();
+	os << "#" << pred.best_class
+	   << " prob=" << pred.prob.at(pred.best_class)
+	   << " x=" << pred.rect.x
+	   << " y=" << pred.rect.y
+	   << " w=" << pred.rect.width
+	   << " h=" << pred.rect.height
+	   << " entries=" << pred.prob.size();
 
 	if (pred.prob.size() > 1)
 	{
 		os << " [";
-		for (auto & [key, val] : pred.prob)
+		for (auto &[key, val] : pred.prob)
 		{
 			os << " " << key << "=" << val;
 		}
@@ -1748,22 +1727,21 @@ std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Prediction 
 	return os;
 }
 
-
-std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Predictions & preds)
+std::ostream &Darknet::operator<<(std::ostream &os, const Darknet::Predictions &preds)
 {
 	TAT(TATPARMS);
 
 	os << "prediction results: " << preds.size();
 
-	for (size_t idx = 0; idx < preds.size(); idx ++)
+	for (size_t idx = 0; idx < preds.size(); idx++)
 	{
-		os << std::endl << "-> " << (idx + 1) << "/" << preds.size() << ": ";
+		os << std::endl
+		   << "-> " << (idx + 1) << "/" << preds.size() << ": ";
 		operator<<(os, preds.at(idx));
 	}
 
 	return os;
 }
-
 
 std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::duration duration, const int decimals)
 {
@@ -1804,7 +1782,7 @@ std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::
 	else if (duration >= std::chrono::seconds(1) and duration < (std::chrono::seconds(1) + std::chrono::microseconds(500)))
 	{
 		// this is ***EXACTLY*** 1 second, or it would get rounded to "1 seconds", so use the singular "second"
-		ss << "1 second"; // singular, not plural
+		ss << "1 second";			  // singular, not plural
 		attempt_trim_decimals = true; // to prevent padding the "1"
 	}
 	else if (duration <= std::chrono::minutes(2))
@@ -1864,8 +1842,7 @@ std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::
 	return str;
 }
 
-
-std::ostream * Darknet::set_output_stream(const std::filesystem::path & filename)
+std::ostream *Darknet::set_output_stream(const std::filesystem::path &filename)
 {
 	TAT(TATPARMS);
 

@@ -42,6 +42,8 @@ extern "C"
 /// An opaque pointer to a @ref Darknet::Network object, without needing to expose the internals of the network structure.
 typedef void* DarknetNetworkPtr;
 
+void darknet_print_timings_and_tracking();
+
 /// This is the @p C equivalent to @ref Darknet::show_version_info().
 void darknet_show_version_info();
 
