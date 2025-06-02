@@ -1,6 +1,7 @@
 #include "darknet_internal.hpp"
 #include "option_list.hpp"
 #include "data.hpp"
+#include "image_loading_queue.hpp"
 
 
 #ifndef __COMPAR_FN_T
@@ -141,7 +142,8 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		<< std::endl;
 
 	data train;
-	data buffer;
+	// buffer is no longer needed - the thread pool manages its own buffers
+	// data buffer;
 
 	Darknet::Layer l = net.layers[net.n - 1];
 	for (int k = 0; k < net.n; ++k)
@@ -208,7 +210,8 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	args.truth_size = l.truth_size;
 	net.num_boxes = args.num_boxes;
 	net.train_images_num = train_images_num;
-	args.d = &buffer;
+	// args.d is now allocated per-thread in the thread pool
+	args.d = nullptr;
 	args.type = DETECTION_DATA; // this is the only place in the code where this type is used
 	args.threads = 64;    // 16 or 64 -- see several lines below where this is set to 6 * GPUs
 
@@ -262,11 +265,17 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			<< std::endl;
 	}
 
+	// Initialize the image loading thread pool once at the start of training
+	Darknet::initialize_image_loading_thread_pool(args.threads);
+	auto& thread_pool = Darknet::get_image_loading_thread_pool();
+
 	auto now = std::chrono::high_resolution_clock::now();
 	const auto first_iteration = get_current_iteration(net); // normally this is zero unless we're resuming training
 	const auto start_of_training = now;
 	auto image_load_start_time	= now; // start the new image loading for the next iteration
-	std::thread load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
+	
+	// Submit the first batch loading task
+	thread_pool.submit_batch(args);
 	int count = 0;
 
 	// ***************************************
@@ -348,11 +357,12 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 				<< std::endl;
 
 			// discard what we had started loading, and re-start loading
-			load_thread.join();
-			train = buffer;
+			// Clear any pending tasks and results
+			// Note: This might lose some already-loaded data, but it's necessary for dynamic resizing
+			train = thread_pool.get_loaded_batch();
 			Darknet::free_data(train);
 			image_load_start_time = std::chrono::high_resolution_clock::now();
-			load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
+			thread_pool.submit_batch(args);
 
 			for (int k = 0; k < ngpus; ++k)
 			{
@@ -361,8 +371,8 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			net = nets[0];
 		} // random=1
 
-		load_thread.join();
-		train = buffer;
+		// Get the loaded batch from the thread pool
+		train = thread_pool.get_loaded_batch();
 
 		if (net.track)
 		{
@@ -377,7 +387,8 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		now = std::chrono::high_resolution_clock::now();
 		const auto image_load_duration = now - image_load_start_time; // duration of the iteration that just finished
 		image_load_start_time = now; // start the new image loading for the next iteration
-		load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
+		// Submit the next batch to the thread pool
+		thread_pool.submit_batch(args);
 
 		if (cfg_and_state.is_verbose)
 		{
@@ -490,11 +501,14 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 				}
 
 				// discard the next set of images we began loading and re-start the loading process
-				load_thread.join();
-				Darknet::free_data(train);
-				train = buffer;
+				// Get any pending batch and discard it
+				if (thread_pool.has_results())
+				{
+					train = thread_pool.get_loaded_batch();
+					Darknet::free_data(train);
+				}
 				image_load_start_time = std::chrono::high_resolution_clock::now();
-				load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
+				thread_pool.submit_batch(args);
 
 				for (int k = 0; k < ngpus; ++k)
 				{
@@ -611,10 +625,15 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	}
 
 	// free memory
-	load_thread.join();
-	Darknet::free_data(buffer);
+	// Get any final loaded batch that might be pending
+	if (thread_pool.has_results())
+	{
+		train = thread_pool.get_loaded_batch();
+		Darknet::free_data(train);
+	}
 
-	Darknet::stop_image_loading_threads();
+	// Shutdown the thread pool
+	Darknet::shutdown_image_loading_thread_pool();
 
 	free((void*)base);
 	free(paths);
