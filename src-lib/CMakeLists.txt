@@ -29,9 +29,14 @@ IF (DARKNET_USE_CUDA OR DARKNET_USE_ROCM)
 	IF (DARKNET_USE_ROCM)
 		SET_SOURCE_FILES_PROPERTIES (${CUDASRC} PROPERTIES LANGUAGE HIP)
 	ENDIF ()
-    SET_SOURCE_FILES_PROPERTIES (${CUDASRC} PROPERTIES
-        COMPILE_DEFINITIONS "CTRACK_DISABLE_EXECUTION_POLICY"
-    )
+
+	# CTrack in .cu files can cause this problem:
+	#		error: identifier "__builtin_ia32_ldtilecfg" is undefined
+	#		error: identifier "__builtin_ia32_sttilecfg" is undefined
+	# DeepVision says:
+	#		ctrack when paralell result calculation is enabled (way faster to calculate the stats) uses
+	#		std standard lib std::execution::par_unseq  but nvcc has incomplate standard lib support
+	SET_SOURCE_FILES_PROPERTIES (${CUDASRC} PROPERTIES COMPILE_DEFINITIONS "CTRACK_DISABLE_EXECUTION_POLICY")
 ENDIF ()
 
 IF (WIN32)
