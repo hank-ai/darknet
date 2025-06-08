@@ -18,7 +18,7 @@ namespace
 	}
 
 
-	static inline dbox derivative(const Darknet::Box &a, const Darknet::Box & b)
+	static inline dbox derivative(const Darknet::Box & a, const Darknet::Box & b)
 	{
 		TAT_REVIEWED(TATPARMS, "2024-03-19 inlined");
 		// this function is only used in this file
@@ -196,8 +196,8 @@ namespace
 		TAT(TATPARMS);
 		// this is only called from 1 place
 
-		sortable_bbox a = *(sortable_bbox *)pa;
-		sortable_bbox b = *(sortable_bbox *)pb;
+		sortable_bbox a = *(sortable_bbox*)pa;
+		sortable_bbox b = *(sortable_bbox*)pb;
 
 		float diff = a.probs[a.index][b.class_id] - b.probs[b.index][b.class_id];
 
@@ -215,7 +215,7 @@ namespace
 	}
 
 
-	static inline void sort_box_detections(Darknet::Detection *dets, const int total)
+	static inline void sort_box_detections(Darknet::Detection * dets, const int total)
 	{
 		TAT(TATPARMS);
 
@@ -225,7 +225,7 @@ namespace
 			// sort from low to high.  We reverse the sort order by comparing RHS to LHS instead of LHS to RHS.
 
 			std::sort(dets, dets + total,
-					[](const Darknet::Detection &lhs, const Darknet::Detection &rhs) -> bool
+					[](const Darknet::Detection & lhs, const Darknet::Detection & rhs) -> bool
 					{
 						if (rhs.sort_class < 0)
 						{
@@ -856,7 +856,7 @@ void do_nms_sort_v2(Darknet::Box *boxes, float **probs, int total, int classes, 
 	// 2024-04-25:  I think this one is no longer called.
 
 	int i, j, k;
-	sortable_bbox *s = (sortable_bbox *)xcalloc(total, sizeof(sortable_bbox));
+	sortable_bbox * s = (sortable_bbox*)xcalloc(total, sizeof(sortable_bbox));
 
 	for (i = 0; i < total; ++i)
 	{
@@ -1039,7 +1039,7 @@ void do_nms(Darknet::Box * boxes, float **probs, int total, int classes, float t
 
 // https://github.com/Zzh-tju/DIoU-darknet
 // https://arxiv.org/abs/1911.08287
-void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1)
+void diounms_sort(detection * dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1)
 {
 	TAT(TATPARMS);
 	// this is a "C" call

@@ -246,7 +246,7 @@ ENDIF ()
 # ============
 CMAKE_DEPENDENT_OPTION (ENABLE_TIMING_AND_TRACKING "Enable Darknet timing and tracking debugging" OFF "" OFF)
 IF (ENABLE_TIMING_AND_TRACKING)
-	MESSAGE (STATUS "Darknet timing and tracking debug code is *ENABLED*!")
+	MESSAGE (WARNING "Darknet timing and tracking debug code is *ENABLED*!")
 	ADD_COMPILE_DEFINITIONS(DARKNET_TIMING_AND_TRACKING_ENABLED)
 
 	IF (NOT MSVC AND NOT DISABLE_PAR)

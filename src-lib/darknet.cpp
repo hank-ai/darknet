@@ -17,7 +17,7 @@ std::string get_windows_version()
 	if (module)
 	{
 		wchar_t * (WINAPI * BrandingFormatString)(const wchar_t *);
-		(FARPROC &)BrandingFormatString = GetProcAddress(module, "BrandingFormatString");
+		(FARPROC&)BrandingFormatString = GetProcAddress(module, "BrandingFormatString");
 
 		if (BrandingFormatString)
 		{
@@ -82,7 +82,7 @@ namespace
 	}
 
 
-	static inline void draw_rounded_rectangle(cv::Mat &mat, const cv::Rect &r, const float roundness, const cv::Scalar &colour, const cv::LineTypes line_type)
+	static inline void draw_rounded_rectangle(cv::Mat & mat, const cv::Rect & r, const float roundness, const cv::Scalar & colour, const cv::LineTypes line_type)
 	{
 		TAT(TATPARMS);
 
@@ -230,7 +230,7 @@ extern "C"
 	}
 
 
-	DarknetNetworkPtr darknet_load_neural_network(const char *const cfg_filename, const char *const names_filename, const char *const weights_filename)
+	DarknetNetworkPtr darknet_load_neural_network(const char * const cfg_filename, const char * const names_filename, const char * const weights_filename)
 	{
 		TAT(TATPARMS);
 
@@ -246,7 +246,7 @@ extern "C"
 	}
 
 
-	void darknet_free_neural_network(DarknetNetworkPtr *ptr)
+	void darknet_free_neural_network(DarknetNetworkPtr * ptr)
 	{
 		TAT(TATPARMS);
 
@@ -290,7 +290,7 @@ extern "C"
 	}
 
 
-	void darknet_set_output_stream(const char *const filename)
+	void darknet_set_output_stream(const char * const filename)
 	{
 		TAT(TATPARMS);
 
@@ -316,10 +316,10 @@ void Darknet::show_version_info()
 		*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_BRANCH_NAME) << "]";
 	}
 	#ifndef NDEBUG
-		*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightRed, "DEBUG BUILD!");
+	*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightRed, "DEBUG BUILD!");
 	#endif
 	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
-		*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightBlue, "TIMING BUILD!");
+	*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightBlue, "TIMING BUILD!");
 	#endif
 	*cfg_and_state.output << std::endl;
 
@@ -427,7 +427,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 	Darknet::Parms parms;
 	parms.reserve(v.size());
 
-	for (int idx = 0; idx < v.size(); idx++)
+	for (int idx = 0; idx < v.size(); idx ++)
 	{
 		Darknet::Parm parm;
 		parm.idx		= idx;
@@ -542,7 +542,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 
 	if (cfg_and_state.is_trace)
 	{
-		for (size_t idx = 0; idx < parms.size(); idx++)
+		for (size_t idx = 0; idx < parms.size(); idx ++)
 		{
 			*cfg_and_state.output << "Parameter parsing: #" << idx << " [type " << static_cast<int>(parms[idx].type) << ", " << parms[idx].type << "] -> " << parms[idx].string;
 			if (parms[idx].original != parms[idx].string)
@@ -619,13 +619,13 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 	int weights_idx	= -1;
 
 	// find the *first* parameter of each type
-	for (int idx = 0; idx < parms.size(); idx++)
+	for (int idx = 0; idx < parms.size(); idx ++)
 	{
 		auto & parm = parms[idx];
 
-		if (parm.type == EParmType::kCfgFilename		and cfg_idx == -1)		cfg_idx		= idx;
-		if (parm.type == EParmType::kNamesFilename		and names_idx == -1)	names_idx	= idx;
-		if (parm.type == EParmType::kWeightsFilename	and weights_idx == -1)	weights_idx	= idx;
+		if (parm.type == EParmType::kCfgFilename		and cfg_idx		== -1) cfg_idx		= idx;
+		if (parm.type == EParmType::kNamesFilename		and names_idx	== -1) names_idx	= idx;
+		if (parm.type == EParmType::kWeightsFilename	and weights_idx	== -1) weights_idx	= idx;
 	}
 
 	if (cfg_idx >= 0)
@@ -821,7 +821,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 }
 
 
-Darknet::Parms &Darknet::set_default_neural_network(Darknet::Parms & parms, const std::string & hint1, const std::string & hint2, const std::string & hint3)
+Darknet::Parms & Darknet::set_default_neural_network(Darknet::Parms & parms, const std::string & hint1, const std::string & hint2, const std::string & hint3)
 {
 	TAT(TATPARMS);
 
@@ -1181,9 +1181,9 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 
 	for (const auto & parm : parms)
 	{
-		if (parm.type == EParmType::kCfgFilename		and cfg.empty())		cfg		= parm.string;
-		if (parm.type == EParmType::kNamesFilename		and names.empty())		names	= parm.string;
-		if (parm.type == EParmType::kWeightsFilename	and weights.empty())	weights	= parm.string;
+		if (parm.type == EParmType::kCfgFilename		and cfg		.empty()) cfg		= parm.string;
+		if (parm.type == EParmType::kNamesFilename		and names	.empty()) names		= parm.string;
+		if (parm.type == EParmType::kWeightsFilename	and weights	.empty()) weights	= parm.string;
 	}
 
 	auto ptr = load_neural_network(cfg, names, weights);
@@ -1544,7 +1544,7 @@ const Darknet::VScalars & Darknet::get_class_colours(const Darknet::NetworkPtr p
 }
 
 
-const Darknet::VScalars & Darknet::set_class_colours(Darknet::NetworkPtr ptr, const Darknet::VScalars &user_colours)
+const Darknet::VScalars & Darknet::set_class_colours(Darknet::NetworkPtr ptr, const Darknet::VScalars & user_colours)
 {
 	TAT(TATPARMS);
 
@@ -1772,7 +1772,7 @@ std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Predictions
 
 	os << "prediction results: " << preds.size();
 
-	for (size_t idx = 0; idx < preds.size(); idx++)
+	for (size_t idx = 0; idx < preds.size(); idx ++)
 	{
 		os << std::endl << "-> " << (idx + 1) << "/" << preds.size() << ": ";
 		operator<<(os, preds.at(idx));

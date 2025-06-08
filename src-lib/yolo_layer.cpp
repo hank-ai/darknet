@@ -43,7 +43,7 @@ namespace
 	}
 
 
-	static inline void fix_nan_inf(float &val)
+	static inline void fix_nan_inf(float & val)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -56,7 +56,7 @@ namespace
 	}
 
 
-	static inline void clip_value(float &val, const float max_val)
+	static inline void clip_value(float & val, const float max_val)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -74,7 +74,7 @@ namespace
 
 
 	/// loss function:  delta for box
-	static inline ious delta_yolo_box(const Darknet::Box &truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float *delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
+	static inline ious delta_yolo_box(const Darknet::Box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -458,7 +458,7 @@ Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int * 
 }
 
 
-void resize_yolo_layer(Darknet::Layer *l, int w, int h)
+void resize_yolo_layer(Darknet::Layer * l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -509,7 +509,7 @@ void resize_yolo_layer(Darknet::Layer *l, int w, int h)
 }
 
 
-void process_batch(void *ptr)
+void process_batch(void * ptr)
 {
 	TAT_COMMENT(TATPARMS, "complicated");
 
@@ -820,7 +820,7 @@ void process_batch(void *ptr)
 }
 
 
-void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
+void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -888,7 +888,7 @@ void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
 
 	struct train_yolo_args *yolo_args = (train_yolo_args *)xcalloc(l.batch, sizeof(struct train_yolo_args));
 
-	for (int b = 0; b < l.batch; b++)
+	for (int b = 0; b < l.batch; b ++)
 	{
 		yolo_args[b].l = &l;
 		yolo_args[b].state = state;
@@ -903,7 +903,7 @@ void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
 		threads.emplace_back(process_batch, &(yolo_args[b]));
 	}
 
-	for (int b = 0; b < l.batch; b++)
+	for (int b = 0; b < l.batch; b ++)
 	{
 		threads[b].join();
 
@@ -1153,7 +1153,7 @@ void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
 }
 
 
-void backward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
+void backward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1527,7 +1527,7 @@ void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 }
 
 
-void backward_yolo_layer_gpu(Darknet::Layer &l, Darknet::NetworkState state)
+void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -1542,7 +1542,7 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 {
 	TAT(TATPARMS);
 
-	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot generate heatmaps without a network pointer");
@@ -1550,7 +1550,7 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 
 	MMats m;
 	m[-1] = cv::Mat(net->h, net->w, CV_32FC1, {0, 0, 0});
-	for (size_t idx = 0; idx < net->details->class_names.size(); idx++)
+	for (size_t idx = 0; idx < net->details->class_names.size(); idx ++)
 	{
 		if (net->details->classes_to_ignore.count(idx) == 0)
 		{
@@ -1559,7 +1559,7 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 	}
 
 	// look through all the layers to find the YOLO ones
-	for (int layer_index = 0; layer_index < net->n; layer_index++)
+	for (int layer_index = 0; layer_index < net->n; layer_index ++)
 	{
 		const Darknet::Layer &l = net->layers[layer_index];
 		if (l.type != Darknet::ELayerType::YOLO)
@@ -1572,12 +1572,12 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 
 		for (int n = 0; n < l.n; ++n) // anchors?
 		{
-			for (int idx = 0; idx < l.w * l.h; idx++) // loop through all entries in the YOLO output buffer
+			for (int idx = 0; idx < l.w * l.h; idx ++) // loop through all entries in the YOLO output buffer
 			{
 				const size_t objectness_index = yolo_entry_index(l, 0, n * l.w * l.h + idx, 4);
 				const float &objectness = l.output[objectness_index];
 
-				for (int class_index = 0; class_index < l.classes; class_index++)
+				for (int class_index = 0; class_index < l.classes; class_index ++)
 				{
 					if (m.count(class_index) == 0)
 					{
