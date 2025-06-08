@@ -17,6 +17,7 @@
 #include <map>
 #include <algorithm>
 #include <set>
+#include <unordered_set>
 #include <numeric>
 #ifndef CTRACK_DISABLE_EXECUTION_POLICY
 #include <execution>
@@ -29,8 +30,8 @@
 #include <cmath>
 
 #define CTRACK_VERSION_MAJOR 1
-#define CTRACK_VERSION_MINOR 0
-#define CTRACK_VERSION_PATCH 2
+#define CTRACK_VERSION_MINOR 1
+#define CTRACK_VERSION_PATCH 0
 
 // Helper macro to convert a numeric value to a string
 #define STRINGIFY(x) #x
@@ -104,6 +105,30 @@ namespace ctrack
 		}
 
 		template <typename T, typename Field>
+		auto get_distinct_field_values(const std::vector<const T *> &vec, Field T::*field)
+		{
+			std::set<std::remove_reference_t<decltype(std::declval<T>().*field)>> distinct_values;
+
+			std::transform(vec.begin(), vec.end(),
+						   std::inserter(distinct_values, distinct_values.end()),
+						   [field](const T *item)
+						   { return item->*field; });
+			return distinct_values;
+		}
+
+		template <typename T, typename Field>
+		auto get_distinct_field_values(const std::vector<T *> &vec, Field T::*field)
+		{
+			std::set<std::remove_reference_t<decltype(std::declval<T>().*field)>> distinct_values;
+
+			std::transform(vec.begin(), vec.end(),
+						   std::inserter(distinct_values, distinct_values.end()),
+						   [field](const T *item)
+						   { return item->*field; });
+			return distinct_values;
+		}
+
+		template <typename T, typename Field>
 		auto get_distinct_field_values(const std::vector<T> &vec, Field T::*field)
 		{
 			std::set<std::remove_reference_t<decltype(std::declval<T>().*field)>> distinct_values;
@@ -118,7 +143,13 @@ namespace ctrack
 		template <typename T, typename Field>
 		size_t count_distinct_field_values(const std::vector<T> &vec, Field T::*field)
 		{
-			return get_distinct_field_values(vec, field).size();
+			std::unordered_set<std::remove_reference_t<decltype(std::declval<T>().*field)>> distinct_values;
+			distinct_values.reserve(vec.size() / 10); // Heuristic pre-allocation
+			for (const auto *item : vec)
+			{
+				distinct_values.insert(item->*field);
+			}
+			return distinct_values.size();
 		}
 
 		template <typename StructType, typename MemberType>
@@ -423,7 +454,7 @@ namespace ctrack
 			int thread_id;
 			std::string_view filename;
 			std::string_view function;
-			unsigned int event_id;
+			unsigned int event_id; // This ID is 1-based and unique per thread
 			Event(const std::chrono::high_resolution_clock::time_point &start_time, const std::chrono::high_resolution_clock::time_point &end_time, const std::string_view filename, const int line, const std::string_view function, const int thread_id, const unsigned int event_id)
 				: start_time(start_time), end_time(end_time), line(line), thread_id(thread_id), filename(filename), function(function), event_id(event_id)
 			{
@@ -457,21 +488,12 @@ namespace ctrack
 			return uniqueId;
 		}
 
-		inline std::vector<Simple_Event> create_simple_events(const std::vector<Event> &events)
+		// Helper to unpack the combined event ID back into its components.
+		inline std::pair<unsigned int, unsigned int> unpack_unique_event_id(int_fast64_t unique_id)
 		{
-			std::vector<Simple_Event> simple_events{};
-			simple_events.resize(events.size());
-			std::transform(
-				OPT_EXEC_POLICY
-					events.begin(),
-				events.end(),
-				simple_events.begin(),
-				[](const Event &event)
-				{
-					Simple_Event simple_event(event.start_time, event.end_time, std::chrono::duration_cast<std::chrono::nanoseconds>(event.end_time - event.start_time).count(), get_unique_event_id(event.thread_id, event.event_id));
-					return simple_event;
-				});
-			return simple_events;
+			unsigned int thread_id = static_cast<unsigned int>(unique_id >> 32);
+			unsigned int event_id = static_cast<unsigned int>(unique_id & 0xFFFFFFFF);
+			return {thread_id, event_id};
 		}
 
 		inline std::vector<Simple_Event> create_simple_events(const std::vector<const Event *> &events)
@@ -521,24 +543,29 @@ namespace ctrack
 			return result;
 		}
 
+		typedef std::vector<Event> t_events;
+
 		inline std::vector<Simple_Event> load_child_events_simple(const std::vector<Simple_Event> &parent_events_simple,
-																  const std::unordered_map<int_fast64_t, Event> &events_map, const std::unordered_map<int_fast64_t, std::vector<int_fast64_t>> &child_graph)
+																  const std::deque<t_events> &all_events_storage,
+																  const std::unordered_map<int_fast64_t, std::vector<int_fast64_t>> &child_graph)
 		{
 			std::vector<const Event *> child_events{};
-			// Reserve approximate capacity to reduce reallocations
-			child_events.reserve(parent_events_simple.size() * 2);
+			child_events.reserve(parent_events_simple.size()); // Pre-allocate a reasonable guess
 
-			// std::set< int_fast64_t> parent_ids = get_distinct_field_values(parent_events_simple, &Simple_Event::unique_id);
 			for (const auto &simple_parent_event : parent_events_simple)
 			{
 				auto it = child_graph.find(simple_parent_event.unique_id);
 				if (it != child_graph.end())
 				{
-					const auto &parent_event = events_map.at(simple_parent_event.unique_id);
-
 					for (auto &child_id : it->second)
 					{
-						const auto &child_event = events_map.at(child_id);
+						// Unpack the ID and access the event directly from storage.
+						auto [parent_thread_id, parent_event_id] = unpack_unique_event_id(simple_parent_event.unique_id);
+						auto [child_thread_id, child_event_id] = unpack_unique_event_id(child_id);
+
+						// event_id is 1-based, vector is 0-based.
+						const auto &parent_event = all_events_storage[parent_thread_id][parent_event_id - 1];
+						const auto &child_event = all_events_storage[child_thread_id][child_event_id - 1];
 
 						if (child_event.filename == parent_event.filename &&
 							child_event.function == parent_event.function &&
@@ -556,7 +583,9 @@ namespace ctrack
 		class EventGroup
 		{
 		public:
-			void calculateStats(unsigned int non_center_percent, const std::unordered_map<int_fast64_t, Event> &events_map, const std::unordered_map<int_fast64_t, std::vector<int_fast64_t>> &child_graph)
+			void calculateStats(unsigned int non_center_percent,
+								const std::deque<t_events> &all_events_storage,
+								const std::unordered_map<int_fast64_t, std::vector<int_fast64_t>> &child_graph)
 			{
 				if (all_events.size() == 0)
 					return;
@@ -566,7 +595,7 @@ namespace ctrack
 				all_cnt = static_cast<unsigned int>(all_events_simple.size());
 				const double factor = (1.0 / static_cast<double>(all_cnt));
 
-				auto all_child_events_simple = load_child_events_simple(all_events_simple, events_map, child_graph);
+				auto all_child_events_simple = load_child_events_simple(all_events_simple, all_events_storage, child_graph);
 
 				all_time_acc = sum_field(all_events_simple, &Simple_Event::duration);
 
@@ -577,7 +606,7 @@ namespace ctrack
 				all_st = calculate_std_dev_field(all_events_simple, &Simple_Event::duration, all_mean); // std::sqrt(all_variance);
 				all_cv = all_st / all_mean;
 
-				all_thread_cnt = static_cast<unsigned int>(count_distinct_field_values(all_events, &Event::thread_id));
+				all_thread_cnt = static_cast<unsigned int>(get_distinct_field_values(all_events, &Event::thread_id).size());
 				unsigned int amount_non_center = all_cnt * non_center_percent / 100;
 
 				fastest_range = non_center_percent;
@@ -586,7 +615,7 @@ namespace ctrack
 				std::vector<Simple_Event> fastest_events_simple, slowest_events_simple, center_events_simple;
 				fastest_events_simple.reserve(amount_non_center);
 				slowest_events_simple.reserve(amount_non_center);
-				if (all_cnt > 2)
+				if (all_cnt > 2 * amount_non_center) // ensure no underflow
 					center_events_simple.reserve(all_cnt - 2 * amount_non_center);
 
 				for (unsigned int i = 0; i < all_events_simple.size(); i++)
@@ -604,35 +633,37 @@ namespace ctrack
 						center_events_simple.push_back(all_events_simple[i]);
 					}
 				}
-				if (amount_non_center > 0)
+				if (!fastest_events_simple.empty())
 				{
-					// fastest
-					fastest_min = fastest_events_simple[0].duration;
-					fastest_mean = sum_field(fastest_events_simple, &Simple_Event::duration) / static_cast<double>(amount_non_center);
-
-					// slowest
-					slowest_max = slowest_events_simple[slowest_events_simple.size() - 1].duration;
-					slowest_mean = sum_field(slowest_events_simple, &Simple_Event::duration) / static_cast<double>(amount_non_center);
+					fastest_min = fastest_events_simple.front().duration;
+					fastest_mean = sum_field(fastest_events_simple, &Simple_Event::duration) / static_cast<double>(fastest_events_simple.size());
+				}
+				if (!slowest_events_simple.empty())
+				{
+					slowest_max = slowest_events_simple.back().duration;
+					slowest_mean = sum_field(slowest_events_simple, &Simple_Event::duration) / static_cast<double>(slowest_events_simple.size());
 				}
 
-				// center
-				center_min = center_events_simple[0].duration;
-				center_max = center_events_simple[center_events_simple.size() - 1].duration;
-				center_mean = sum_field(center_events_simple, &Simple_Event::duration) / static_cast<double>(center_events_simple.size());
-				if (center_events_simple.size() % 2 == 1)
-					center_med = center_events_simple[center_events_simple.size() / 2].duration;
-				else
-					center_med = (center_events_simple[center_events_simple.size() / 2].duration + center_events_simple[center_events_simple.size() / 2 - 1].duration) / 2;
+				if (!center_events_simple.empty())
+				{
+					center_min = center_events_simple.front().duration;
+					center_max = center_events_simple.back().duration;
+					center_mean = sum_field(center_events_simple, &Simple_Event::duration) / static_cast<double>(center_events_simple.size());
+					if (center_events_simple.size() % 2 == 1)
+						center_med = center_events_simple[center_events_simple.size() / 2].duration;
+					else
+						center_med = (center_events_simple[center_events_simple.size() / 2].duration + center_events_simple[center_events_simple.size() / 2 - 1].duration) / 2;
 
-				auto center_child_events_simple = load_child_events_simple(center_events_simple, events_map, child_graph);
+					auto center_child_events_simple = load_child_events_simple(center_events_simple, all_events_storage, child_graph);
 
-				std::sort(OPT_EXEC_POLICY center_events_simple.begin(), center_events_simple.end(), cmp_simple_event_by_start_time_asc);
-				center_grouped = sorted_create_grouped_simple_events(center_events_simple);
-				center_time_active = sum_field(center_grouped, &Simple_Event::duration);
+					std::sort(OPT_EXEC_POLICY center_events_simple.begin(), center_events_simple.end(), cmp_simple_event_by_start_time_asc);
+					center_grouped = sorted_create_grouped_simple_events(center_events_simple);
+					center_time_active = sum_field(center_grouped, &Simple_Event::duration);
 
-				std::sort(OPT_EXEC_POLICY center_child_events_simple.begin(), center_child_events_simple.end(), cmp_simple_event_by_start_time_asc);
-				auto center_child_events_grouped = sorted_create_grouped_simple_events(center_child_events_simple);
-				center_time_active_exclusive = center_time_active - sum_field(center_child_events_grouped, &Simple_Event::duration);
+					std::sort(OPT_EXEC_POLICY center_child_events_simple.begin(), center_child_events_simple.end(), cmp_simple_event_by_start_time_asc);
+					auto center_child_events_grouped = sorted_create_grouped_simple_events(center_child_events_simple);
+					center_time_active_exclusive = center_time_active - sum_field(center_child_events_grouped, &Simple_Event::duration);
+				}
 
 				std::sort(OPT_EXEC_POLICY all_events_simple.begin(), all_events_simple.end(), cmp_simple_event_by_start_time_asc);
 				all_grouped = sorted_create_grouped_simple_events(all_events_simple);
@@ -644,30 +675,24 @@ namespace ctrack
 			}
 
 			// all_group
-
 			double all_cv = 0.0;
 			double all_st = 0.0;
-
 			unsigned int all_cnt = 0;
 			uint_fast64_t all_time_acc = 0;
 			uint_fast64_t all_time_active = 0;
 			uint_fast64_t all_time_active_exclusive = 0;
 			unsigned int all_thread_cnt = 0;
 			std::vector<Simple_Event> all_grouped = {};
-			std::vector<Event> all_events = {};
-
+			std::vector<const Event *> all_events = {};
 			// fastest_group
 			unsigned int fastest_range = 0;
 			uint_fast64_t fastest_min = 0;
 			double fastest_mean = 0.0;
-
 			// slowest group
 			unsigned int slowest_range = 0;
 			uint_fast64_t slowest_max = 0;
 			double slowest_mean = 0.0;
-
 			// center group
-
 			uint_fast64_t center_min = 0;
 			uint_fast64_t center_max = 0;
 			uint_fast64_t center_med = 0;
@@ -675,16 +700,12 @@ namespace ctrack
 			uint_fast64_t center_time_active = 0;
 			uint_fast64_t center_time_active_exclusive = 0;
 			std::vector<Simple_Event> center_grouped = {};
-
-			std::string filename = {};
-			std::string function_name = {};
+			std::string_view filename = {};
+			std::string_view function_name = {};
 			int line = 0;
-
-		private:
 		};
 
-		typedef std::vector<Event> t_events;
-		typedef std::map<unsigned int, std::vector<unsigned int>> sub_events;
+		typedef std::vector<std::vector<unsigned int>> sub_events;
 
 		struct store
 		{
@@ -697,23 +718,43 @@ namespace ctrack
 			inline static std::deque<t_events> a_events{};
 			inline static std::deque<sub_events> a_sub_events{};
 
-			inline static std::deque<unsigned int> a_current_event_id{}, a_current_event_cnt{}, a_string_id{};
-
+			inline static std::deque<unsigned int> a_current_event_id{}, a_current_event_cnt{};
 			inline static std::deque<int> a_thread_ids{};
 		};
 
 		inline thread_local t_events *event_ptr = nullptr;
 		inline thread_local sub_events *sub_events_ptr = nullptr;
-
 		inline thread_local unsigned int *current_event_id = nullptr;
 		inline thread_local unsigned int *current_event_cnt = nullptr;
-		inline thread_local unsigned int *string_id = nullptr;
-
 		inline thread_local int *thread_id = nullptr;
 
-		typedef std::map<int, EventGroup> line_result;
-		typedef std::map<std::string_view, line_result> function_result;
-		typedef std::map<std::string_view, function_result> filename_result;
+		struct EventKey
+		{
+			std::string_view filename;
+			std::string_view function;
+			int line;
+
+			bool operator==(const EventKey &other) const
+			{
+				return line == other.line && filename == other.filename && function == other.function;
+			}
+		};
+
+		// A hash function for EventKey so it can be used in `std::unordered_map`.
+		struct EventKeyHash
+		{
+			std::size_t operator()(const EventKey &k) const
+			{
+				// A simple hash combination.
+				std::size_t h1 = std::hash<std::string_view>{}(k.filename);
+				std::size_t h2 = std::hash<std::string_view>{}(k.function);
+				std::size_t h3 = std::hash<int>{}(k.line);
+				// Combine hashes
+				return h1 ^ (h2 << 1) ^ (h3 << 2);
+			}
+		};
+
+		typedef std::unordered_map<EventKey, EventGroup, EventKeyHash> event_group_map;
 
 		struct ctrack_result_settings
 		{
@@ -754,7 +795,7 @@ namespace ctrack
 									 use_color, alternate_colors);
 				for (auto &entry : sorted_events)
 				{
-					table.addRow({BeautifulTable::stable_shortenPath(entry->filename), entry->function_name, BeautifulTable::table_string(entry->line),
+					table.addRow({BeautifulTable::stable_shortenPath(std::string(entry->filename)), std::string(entry->function_name), BeautifulTable::table_string(entry->line),
 								  BeautifulTable::table_string(entry->all_cnt),
 								  BeautifulTable::table_percentage(entry->center_time_active_exclusive, time_total),
 								  BeautifulTable::table_percentage(entry->all_time_active_exclusive, time_total),
@@ -764,7 +805,6 @@ namespace ctrack
 
 				table.print(stream);
 			}
-
 			template <typename StreamType>
 			void get_detail_table(StreamType &stream, bool use_color = false, bool reverse_vector = false)
 			{
@@ -777,7 +817,7 @@ namespace ctrack
 					auto &entry = sorted_events[i];
 
 					BeautifulTable info({"filename", "function", "line", "time acc", "sd", "cv", "calls", "threads"}, use_color, default_colors);
-					info.addRow({BeautifulTable::stable_shortenPath(entry->filename), entry->function_name, BeautifulTable::table_string(entry->line),
+					info.addRow({BeautifulTable::stable_shortenPath(std::string(entry->filename)), std::string(entry->function_name), BeautifulTable::table_string(entry->line),
 								 BeautifulTable::table_time(entry->all_time_acc),
 								 BeautifulTable::table_time(sorted_events[i]->all_st), BeautifulTable::table_string(sorted_events[i]->all_cv),
 								 BeautifulTable::table_string(sorted_events[i]->all_cnt), BeautifulTable::table_string(sorted_events[i]->all_thread_cnt)});
@@ -802,24 +842,19 @@ namespace ctrack
 			void calculate_stats()
 			{
 				std::vector<Simple_Event> grouped_events{};
-				for (auto &[filename, filename_entry] : f_res)
+
+				for (auto &[key, event_group] : m_event_groups)
 				{
-					ctracked_files++;
-					for (auto &[function, function_entry] : filename_entry)
-					{
-						ctracked_functions++;
-						for (auto &[line, line_entry] : function_entry)
-						{
-							ctracked_uses++;
-							line_entry.filename = filename;
-							line_entry.function_name = function;
-							line_entry.line = line;
-							line_entry.calculateStats(settings.non_center_percent, a_events, child_graph);
-							sorted_events.push_back(&line_entry);
-							grouped_events.insert(grouped_events.end(), line_entry.all_grouped.begin(), line_entry.all_grouped.end());
-						}
-					}
+					ctracked_uses++;
+					event_group.filename = key.filename;
+					event_group.function_name = key.function;
+					event_group.line = key.line;
+					event_group.calculateStats(settings.non_center_percent, m_events_storage, child_graph);
+					sorted_events.push_back(&event_group);
+					grouped_events.insert(grouped_events.end(), event_group.all_grouped.begin(), event_group.all_grouped.end());
 				}
+				ctracked_files = get_distinct_field_values(sorted_events, &EventGroup::filename).size();
+				ctracked_functions = get_distinct_field_values(sorted_events, &EventGroup::function_name).size();
 
 				std::sort(OPT_EXEC_POLICY grouped_events.begin(), grouped_events.end(), cmp_simple_event_by_start_time_asc);
 				auto all_grouped = sorted_create_grouped_simple_events(grouped_events);
@@ -829,7 +864,7 @@ namespace ctrack
 
 				int fastest_events = static_cast<int>(sorted_events.size() * settings.percent_exclude_fastest_active_exclusive / 100);
 				// remove fastest keep in mind fastest elements are at the back
-				if (fastest_events > 0)
+				if (fastest_events > 0 && static_cast<size_t>(fastest_events) < sorted_events.size())
 					sorted_events.erase(sorted_events.end() - fastest_events, sorted_events.end());
 
 				uint_fast64_t min_time_active_exclusive = static_cast<uint_fast64_t>(time_total * settings.min_percent_active_exclusive / 100);
@@ -840,32 +875,43 @@ namespace ctrack
 										sorted_events.end());
 			}
 
-			void reserve_a_events(size_t size)
+			void move_events_from_store(std::deque<t_events> &events)
 			{
-				a_events.reserve(size);
+				m_events_storage = std::move(events);
 			}
 
-			inline void add_event(const std::string_view &filename, const std::string_view function, const int line, const Event &e)
+			void populate_groups()
 			{
-				f_res[filename][function][line].all_events.push_back(e);
-				a_events.insert({get_unique_event_id(e.thread_id, e.event_id), e});
+				for (const auto &event_vec : m_events_storage)
+				{
+					for (const auto &event : event_vec)
+					{
+						EventKey key{event.filename, event.function, event.line};
+						m_event_groups[key].all_events.push_back(&event);
+					}
+				}
 			}
 
 			void add_sub_events(const sub_events &s_events, const unsigned int thread_id_)
 			{
 
-				for (auto const &[key, val] : s_events)
+				for (unsigned int parent_idx = 0; parent_idx < s_events.size(); ++parent_idx)
 				{
-					int_fast64_t parent_id = get_unique_event_id(thread_id_, key);
-					for (const auto &child : val)
+					if (s_events[parent_idx].empty())
+						continue;
+
+					// event_id is 1-based, so parent_idx+1 is the parent's event_id
+					int_fast64_t parent_id = get_unique_event_id(thread_id_, parent_idx + 1);
+					auto &children = child_graph[parent_id];
+					children.reserve(s_events[parent_idx].size());
+					for (const auto &child_event_id : s_events[parent_idx])
 					{
-						child_graph[parent_id].push_back(get_unique_event_id(thread_id_, child));
+						children.push_back(get_unique_event_id(thread_id_, child_event_id));
 					}
 				}
 			}
 
-			std::unordered_map<int_fast64_t, Event> a_events{};
-			filename_result f_res{};
+			event_group_map m_event_groups{};
 
 			std::unordered_map<int_fast64_t, std::vector<int_fast64_t>> child_graph{};
 			ctrack_result_settings settings;
@@ -879,6 +925,9 @@ namespace ctrack
 
 			std::vector<EventGroup *> sorted_events{};
 			std::string center_intervall_str;
+
+		private:
+			std::deque<t_events> m_events_storage;
 		};
 
 		inline int fetch_event_t_id()
@@ -890,7 +939,7 @@ namespace ctrack
 				if (thread_id == nullptr)
 				{
 					store::a_thread_ids.emplace_back(++store::thread_cnt);
-					thread_id = &store::a_thread_ids[store::a_thread_ids.size() - 1];
+					thread_id = &store::a_thread_ids.back();
 				}
 				else
 				{
@@ -901,14 +950,12 @@ namespace ctrack
 				store::a_sub_events.emplace_back(sub_events{});
 				store::a_current_event_id.emplace_back(0);
 				store::a_current_event_cnt.emplace_back(0);
-				store::a_string_id.emplace_back(0);
 
 				event_ptr = &store::a_events[*thread_id];
 				sub_events_ptr = &store::a_sub_events[*thread_id];
 
 				current_event_id = &store::a_current_event_id[*thread_id];
 				current_event_cnt = &store::a_current_event_cnt[*thread_id];
-				string_id = &store::a_string_id[*thread_id];
 
 				event_ptr->reserve(100);
 			}
@@ -918,22 +965,7 @@ namespace ctrack
 		class EventHandler
 		{
 		public:
-			// Constructor without start_time parameter - captures time after bookkeeping
-			EventHandler(int line, const char *filename, const char *function) : line(line)
-			{
-				previous_store_clear_cnt = store::store_clear_cnt;
-				this->filename = filename;
-				this->function = function;
-				while (store::write_events_locked)
-				{
-				}
-
-				register_event();
-				this->start_time = std::chrono::high_resolution_clock::now();
-			}
-
-			// Constructor with explicit start_time parameter - for compatibility
-			EventHandler(int line, const char *filename, const char *function, std::chrono::high_resolution_clock::time_point start_time) : line(line)
+			EventHandler(int line = __builtin_LINE(), const char *filename = __builtin_FILE(), const char *function = __builtin_FUNCTION(), std::chrono::high_resolution_clock::time_point start_time = std::chrono::high_resolution_clock::now()) : line(line)
 			{
 				previous_store_clear_cnt = store::store_clear_cnt;
 				this->filename = filename;
@@ -957,17 +989,22 @@ namespace ctrack
 					register_event();
 				}
 
-				if (event_ptr->capacity() - event_ptr->size() < 1)
-					event_ptr->reserve(event_ptr->capacity() * 4);
+				if (event_ptr->capacity() == event_ptr->size())
+					event_ptr->reserve(event_ptr->capacity() * 1.8);
 
 				event_ptr->emplace_back(Event{start_time, end_time, filename, line, function, t_id, event_id});
 
 				*current_event_id = previous_event_id;
+
 				if (previous_event_id > 0)
 				{
-					if ((*sub_events_ptr)[previous_event_id].capacity() - (*sub_events_ptr)[previous_event_id].size() < 1)
-						(*sub_events_ptr)[previous_event_id].reserve((*sub_events_ptr)[previous_event_id].capacity() * 4);
-					(*sub_events_ptr)[previous_event_id].push_back(event_id);
+
+					size_t parent_index = previous_event_id - 1;
+					if (sub_events_ptr->size() <= parent_index)
+					{
+						sub_events_ptr->resize(parent_index + 1);
+					}
+					(*sub_events_ptr)[parent_index].push_back(event_id);
 				}
 			}
 
@@ -976,15 +1013,14 @@ namespace ctrack
 			{
 				t_id = fetch_event_t_id();
 				previous_event_id = *current_event_id;
+				// event_id is 1-based.
 				event_id = ++(*current_event_cnt);
 				*current_event_id = event_id;
 			}
 			std::chrono::high_resolution_clock::time_point start_time;
 			int line;
 			unsigned int previous_store_clear_cnt;
-
 			std::string_view filename, function;
-
 			int t_id;
 			unsigned int event_id;
 			unsigned int previous_event_id;
@@ -997,9 +1033,6 @@ namespace ctrack
 
 			store::a_current_event_cnt.clear();
 			store::a_current_event_cnt.shrink_to_fit();
-
-			store::a_string_id.clear();
-			store::a_string_id.shrink_to_fit();
 
 			store::a_events.clear();
 			store::a_events.shrink_to_fit();
@@ -1021,27 +1054,19 @@ namespace ctrack
 			auto end = std::chrono::high_resolution_clock::now();
 			ctrack_result res{settings, store::track_start_time, end};
 
-			// copy data
 			{
 				store::write_events_locked = true;
 				std::this_thread::sleep_for(std::chrono::milliseconds(100));
 				std::scoped_lock lock(store::event_mutex);
 
-				auto all_events_cnt = countAllEvents(store::a_events);
-				res.reserve_a_events(all_events_cnt);
+				res.move_events_from_store(store::a_events);
+
+				res.populate_groups();
 
 				for (int thread_id_ = 0; thread_id_ <= store::thread_cnt; thread_id_++)
 				{
-					auto &t_events_entry = store::a_events[thread_id_];
 					auto &t_sub_events = store::a_sub_events[thread_id_];
 					res.add_sub_events(t_sub_events, thread_id_);
-
-					for (const auto &c_event : t_events_entry)
-					{
-						res.add_event(c_event.filename, c_event.function, c_event.line, c_event);
-					}
-					t_events_entry.clear();
-					t_events_entry.shrink_to_fit();
 				}
 				clear_a_store();
 				store::write_events_locked = false;
