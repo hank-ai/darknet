@@ -1003,7 +1003,7 @@ void Darknet::image_loading_loop(const int idx, load_args args)
 		// wait until the control thread tells us we can load the next set of images
 		if (data_loading_per_thread_flag[idx] == 0)
 		{
-			//Darknet::TimingAndTracking tat2(name, false, "SLEEPING!");
+//			Darknet::TimingAndTracking tat2(name, false, "SLEEPING!");
 
 			std::this_thread::sleep_for(thread_wait_ms);
 			continue;
@@ -1085,7 +1085,7 @@ void Darknet::run_image_loading_control_thread(load_args args)
 				cfg_and_state.must_immediately_exit == false and
 				data_loading_per_thread_flag[idx] != 0) // the loading thread will reset this flag to zero once it is ready
 		{
-			//Darknet::TimingAndTracking tat2(name, false, "SLEEPING!");
+//			Darknet::TimingAndTracking tat2(name, false, "SLEEPING!");
 			std::this_thread::sleep_for(thread_wait_ms);
 		}
 	}
