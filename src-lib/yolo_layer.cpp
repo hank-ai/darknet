@@ -2,11 +2,12 @@
 
 namespace
 {
-	static auto &cfg_and_state = Darknet::CfgAndState::get();
+	static auto & cfg_and_state = Darknet::CfgAndState::get();
+
 
 	struct train_yolo_args
 	{
-		const Darknet::Layer *l;
+		const Darknet::Layer * l;
 		Darknet::NetworkState state;
 		int b;
 
@@ -17,7 +18,8 @@ namespace
 		int class_count;
 	};
 
-	static inline Darknet::Box get_yolo_box(const float *x, const float *biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
+
+	static inline Darknet::Box get_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
 	{
 		TAT_SKIP(TATPARMS, "2024-05-14 inlined");
 		// this function is used a lot and  has < 2% performance impact we track the parent function instead
@@ -40,7 +42,8 @@ namespace
 		return b;
 	}
 
-	static inline void fix_nan_inf(float &val)
+
+	static inline void fix_nan_inf(float & val)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -52,7 +55,8 @@ namespace
 		return;
 	}
 
-	static inline void clip_value(float &val, const float max_val)
+
+	static inline void clip_value(float & val, const float max_val)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -68,8 +72,9 @@ namespace
 		return;
 	}
 
+
 	/// loss function:  delta for box
-	static inline ious delta_yolo_box(const Darknet::Box &truth, const float *x, const float *biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float *delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int *rewritten_bbox, const int new_coords)
+	static inline ious delta_yolo_box(const Darknet::Box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -199,7 +204,8 @@ namespace
 		return all_ious;
 	}
 
-	static inline void averages_yolo_deltas(const int class_index, const int box_index, const int stride, const int classes, float *delta)
+
+	static inline void averages_yolo_deltas(const int class_index, const int box_index, const int stride, const int classes, float * delta)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -221,8 +227,9 @@ namespace
 		}
 	}
 
+
 	/// loss function:  delta for class
-	static inline void delta_yolo_class(const float *output, float *delta, const int index, const int class_id, const int classes, const int stride, float *avg_cat, const int focal_loss, const float label_smooth_eps, const float *classes_multipliers, const float cls_normalizer)
+	static inline void delta_yolo_class(const float * output, float * delta, const int index, const int class_id, const int classes, const int stride, float * avg_cat, const int focal_loss, const float label_smooth_eps, const float * classes_multipliers, const float cls_normalizer)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
@@ -310,7 +317,8 @@ namespace
 		}
 	}
 
-	static inline int compare_yolo_class(const float *output, const int classes, const int class_index, const int stride, const float objectness, const int class_id, const float conf_thresh)
+
+	static inline int compare_yolo_class(const float * output, const int classes, const int class_index, const int stride, const float objectness, const int class_id, const float conf_thresh)
 	{
 		TAT_SKIP(TATPARMS, "2024-05-14 inlined");
 		// this function is used a lot and  has < 2% performance impact we track the parent function instead
@@ -327,21 +335,23 @@ namespace
 		return 0;
 	}
 
-	static inline int yolo_entry_index(const Darknet::Layer &l, const int batch, const int location, const int entry)
+
+	static inline int yolo_entry_index(const Darknet::Layer & l, const int batch, const int location, const int entry)
 	{
 		TAT_SKIP(TATPARMS, "2024-05-14 inlined");
 		// this function is used in several places but has < 2% performance impact we track the parent function instead
 		// similar function exists in region_layer.cpp, but the math is slightly different
 
-		const int n = location / (l.w * l.h);
-		const int loc = location % (l.w * l.h);
+		const int n		= location / (l.w * l.h);
+		const int loc	= location % (l.w * l.h);
 
 		return batch * l.outputs + n * l.w * l.h * (4 + l.classes + 1) + entry * l.w * l.h + loc;
 	}
 
 } // anonymous namespace
 
-Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)
+
+Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int * mask, int classes, int max_boxes)
 {
 	TAT(TATPARMS);
 
@@ -358,8 +368,8 @@ Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *m
 	l.out_h = l.h;
 	l.out_c = l.c;
 	l.classes = classes;
-	l.cost = (float *)xcalloc(1, sizeof(float));
-	l.biases = (float *)xcalloc(total * 2, sizeof(float));
+	l.cost = (float*)xcalloc(1, sizeof(float));
+	l.biases = (float*)xcalloc(total * 2, sizeof(float));
 
 	/* PR #51:
 	 * When the model is loaded in darknet, I'm working on allowing Python to access the model's information.
@@ -377,34 +387,34 @@ Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *m
 	}
 	else
 	{
-		l.mask = (int *)xcalloc(n, sizeof(int));
+		l.mask = (int*)xcalloc(n, sizeof(int));
 
 		for (int i = 0; i < n; ++i)
 		{
 			l.mask[i] = i;
 		}
 	}
-	l.bias_updates = (float *)xcalloc(n * 2, sizeof(float));
+	l.bias_updates = (float*)xcalloc(n * 2, sizeof(float));
 	l.outputs = h * w * n * (classes + 4 + 1);
 	l.inputs = l.outputs;
 	l.max_boxes = max_boxes;
 	l.truth_size = 4 + 2;
 	l.truths = l.max_boxes * l.truth_size; // 90*(4 + 1);
-	l.labels = (int *)xcalloc(batch * l.w * l.h * l.n, sizeof(int));
+	l.labels = (int*)xcalloc(batch * l.w * l.h * l.n, sizeof(int));
 
 	for (int i = 0; i < batch * l.w * l.h * l.n; ++i)
 	{
 		l.labels[i] = -1;
 	}
-	l.class_ids = (int *)xcalloc(batch * l.w * l.h * l.n, sizeof(int));
+	l.class_ids = (int*)xcalloc(batch * l.w * l.h * l.n, sizeof(int));
 
 	for (int i = 0; i < batch * l.w * l.h * l.n; ++i)
 	{
 		l.class_ids[i] = -1;
 	}
 
-	l.delta = (float *)xcalloc(batch * l.outputs, sizeof(float));
-	l.output = (float *)xcalloc(batch * l.outputs, sizeof(float));
+	l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
+	l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
 
 	for (int i = 0; i < total * 2; ++i)
 	{
@@ -429,7 +439,7 @@ Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *m
 	else
 	{
 		std::ignore = cudaGetLastError(); // reset CUDA-error
-		l.output = (float *)xcalloc(batch * l.outputs, sizeof(float));
+		l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	}
 
 	free(l.delta);
@@ -440,14 +450,15 @@ Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *m
 	else
 	{
 		std::ignore = cudaGetLastError(); // reset CUDA-error
-		l.delta = (float *)xcalloc(batch * l.outputs, sizeof(float));
+		l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	}
 #endif
 
 	return l;
 }
 
-void resize_yolo_layer(Darknet::Layer *l, int w, int h)
+
+void resize_yolo_layer(Darknet::Layer * l, int w, int h)
 {
 	TAT(TATPARMS);
 
@@ -457,17 +468,12 @@ void resize_yolo_layer(Darknet::Layer *l, int w, int h)
 	l->outputs = h * w * l->n * (l->classes + 4 + 1);
 	l->inputs = l->outputs;
 
-	if (l->embedding_output)
-		l->embedding_output = (float *)xrealloc(l->output, l->batch * l->embedding_size * l->n * l->h * l->w * sizeof(float));
-	if (l->labels)
-		l->labels = (int *)xrealloc(l->labels, l->batch * l->n * l->h * l->w * sizeof(int));
-	if (l->class_ids)
-		l->class_ids = (int *)xrealloc(l->class_ids, l->batch * l->n * l->h * l->w * sizeof(int));
+	if (l->embedding_output)	l->embedding_output = (float*)xrealloc(l->output, l->batch * l->embedding_size * l->n * l->h * l->w * sizeof(float));
+	if (l->labels)				l->labels = (int*)xrealloc(l->labels, l->batch * l->n * l->h * l->w * sizeof(int));
+	if (l->class_ids)			l->class_ids = (int*)xrealloc(l->class_ids, l->batch * l->n * l->h * l->w * sizeof(int));
 
-	if (!l->output_pinned)
-		l->output = (float *)xrealloc(l->output, l->batch * l->outputs * sizeof(float));
-	if (!l->delta_pinned)
-		l->delta = (float *)xrealloc(l->delta, l->batch * l->outputs * sizeof(float));
+	if (!l->output_pinned)		l->output = (float*)xrealloc(l->output, l->batch * l->outputs * sizeof(float));
+	if (!l->delta_pinned)		l->delta = (float*)xrealloc(l->delta, l->batch * l->outputs * sizeof(float));
 
 #ifdef DARKNET_GPU
 	if (l->output_pinned)
@@ -476,7 +482,7 @@ void resize_yolo_layer(Darknet::Layer *l, int w, int h)
 		if (cudaSuccess != cudaHostAlloc((void **)&l->output, l->batch * l->outputs * sizeof(float), cudaHostRegisterMapped))
 		{
 			std::ignore = cudaGetLastError(); // reset CUDA-error
-			l->output = (float *)xcalloc(l->batch * l->outputs, sizeof(float));
+			l->output = (float*)xcalloc(l->batch * l->outputs, sizeof(float));
 			l->output_pinned = 0;
 		}
 	}
@@ -487,7 +493,7 @@ void resize_yolo_layer(Darknet::Layer *l, int w, int h)
 		if (cudaSuccess != cudaHostAlloc((void **)&l->delta, l->batch * l->outputs * sizeof(float), cudaHostRegisterMapped))
 		{
 			std::ignore = cudaGetLastError(); // reset CUDA-error
-			l->delta = (float *)xcalloc(l->batch * l->outputs, sizeof(float));
+			l->delta = (float*)xcalloc(l->batch * l->outputs, sizeof(float));
 			l->delta_pinned = 0;
 		}
 	}
@@ -496,18 +502,19 @@ void resize_yolo_layer(Darknet::Layer *l, int w, int h)
 	cuda_free(l->output_gpu);
 	cuda_free(l->output_avg_gpu);
 
-	l->delta_gpu = cuda_make_array(l->delta, l->batch * l->outputs);
-	l->output_gpu = cuda_make_array(l->output, l->batch * l->outputs);
-	l->output_avg_gpu = cuda_make_array(l->output, l->batch * l->outputs);
+	l->delta_gpu		= cuda_make_array(l->delta, l->batch * l->outputs);
+	l->output_gpu		= cuda_make_array(l->output, l->batch * l->outputs);
+	l->output_avg_gpu	= cuda_make_array(l->output, l->batch * l->outputs);
 #endif
 }
 
-void process_batch(void *ptr)
+
+void process_batch(void * ptr)
 {
 	TAT_COMMENT(TATPARMS, "complicated");
 
-	train_yolo_args *args = (train_yolo_args *)ptr;
-	const Darknet::Layer &l = *args->l;
+	train_yolo_args *args = (train_yolo_args*)ptr;
+	const Darknet::Layer & l = *args->l;
 	Darknet::NetworkState state = args->state;
 	int b = args->b;
 
@@ -812,7 +819,8 @@ void process_batch(void *ptr)
 	return;
 }
 
-void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
+
+void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
@@ -880,7 +888,7 @@ void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
 
 	struct train_yolo_args *yolo_args = (train_yolo_args *)xcalloc(l.batch, sizeof(struct train_yolo_args));
 
-	for (int b = 0; b < l.batch; b++)
+	for (int b = 0; b < l.batch; b ++)
 	{
 		yolo_args[b].l = &l;
 		yolo_args[b].state = state;
@@ -895,7 +903,7 @@ void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
 		threads.emplace_back(process_batch, &(yolo_args[b]));
 	}
 
-	for (int b = 0; b < l.batch; b++)
+	for (int b = 0; b < l.batch; b ++)
 	{
 		threads[b].join();
 
@@ -980,14 +988,14 @@ void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
 			}
 
 			*cfg_and_state.output
-				<< " rolling_std=" << rolling_std
-				<< ", rolling_max=" << rolling_max
-				<< ", rolling_avg=" << rolling_avg
+				<< " rolling_std="		<< rolling_std
+				<< ", rolling_max="		<< rolling_max
+				<< ", rolling_avg="		<< rolling_avg
 				<< std::endl
 				<< "badlabels"
-				<< " loss_threshold=" << badlabels_threshold
-				<< ", start_it=" << start_point
-				<< ", progress=" << progress_badlabels * 100.0f
+				<< " loss_threshold="	<< badlabels_threshold
+				<< ", start_it="		<< start_point
+				<< ", progress="		<< progress_badlabels * 100.0f
 				<< std::endl;
 
 			ep_loss_threshold = min_val_cmp(final_badlebels_threshold, rolling_avg) * progress;
@@ -1031,10 +1039,10 @@ void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
 			}
 
 			*cfg_and_state.output
-				<< "badlabels_reject_threshold=" << *state.net.badlabels_reject_threshold
-				<< ", cur_percent=" << cur_percent
-				<< ", badlabels_rejection_percentage=" << state.net.badlabels_rejection_percentage
-				<< ", delta_rolling_max=" << *state.net.delta_rolling_max
+				<< "badlabels_reject_threshold="		<< *state.net.badlabels_reject_threshold
+				<< ", cur_percent="						<< cur_percent
+				<< ", badlabels_rejection_percentage="	<< state.net.badlabels_rejection_percentage
+				<< ", delta_rolling_max="				<< *state.net.delta_rolling_max
 				<< std::endl;
 		}
 
@@ -1043,9 +1051,9 @@ void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
 		{
 			*cfg_and_state.output
 				<< "equidistant_point"
-				<< " loss_threshold=" << ep_loss_threshold
-				<< ", start_it=" << state.net.equidistant_point
-				<< ", progress=" << progress * 100.0f << "%"
+				<< " loss_threshold="	<< ep_loss_threshold
+				<< ", start_it="		<< state.net.equidistant_point
+				<< ", progress="		<< progress * 100.0f << "%"
 				<< std::endl;
 
 			for (int i = 0; i < l.batch * l.outputs; ++i)
@@ -1068,7 +1076,7 @@ void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
 	}
 
 	int stride = l.w * l.h;
-	float *no_iou_loss_delta = (float *)calloc(l.batch * l.outputs, sizeof(float));
+	float *no_iou_loss_delta = (float*)calloc(l.batch * l.outputs, sizeof(float));
 	memcpy(no_iou_loss_delta, l.delta, l.batch * l.outputs * sizeof(float));
 
 	for (int b = 0; b < l.batch; ++b)
@@ -1125,40 +1133,39 @@ void forward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
 	// show detailed output
 	if (cfg_and_state.is_verbose)
 	{
-		*cfg_and_state.output << "v3 " << (l.iou_loss == MSE ? "mse" : l.iou_loss == GIOU ? "giou"
-																						  : "iou")
-							  << " loss, "
-								 "Normalizer: "
-								 "(iou: "
-							  << std::setprecision(2) << l.iou_normalizer << ", obj: " << std::setprecision(2) << l.obj_normalizer << ", cls: " << std::setprecision(2) << l.cls_normalizer << ") "
-																																															   "Region "
-							  << state.index << " "
-												"Avg (IOU: "
-							  << std::setprecision(6) << tot_iou / count << "), "
-																			"count: "
-							  << count << ", "
-										  "class_loss: "
-							  << std::setprecision(6) << classification_loss << ", "
-																				"iou_loss: "
-							  << std::setprecision(6) << iou_loss << ", "
-																	 "total_loss: "
-							  << std::setprecision(6) << loss
-							  << std::setprecision(2) << std::endl;
+		*cfg_and_state.output <<
+				"v3 " << (	l.iou_loss == MSE	?	"mse" :
+							l.iou_loss == GIOU	?	"giou" :
+													"iou") << " loss, "
+				"Normalizer: "
+				"(iou: "			<< std::setprecision(2) << l.iou_normalizer <<
+				", obj: "			<< std::setprecision(2) << l.obj_normalizer <<
+				", cls: "			<< std::setprecision(2) << l.cls_normalizer <<
+				") Region "			<< state.index <<
+				" Avg (IOU: "		<< std::setprecision(6) << tot_iou / count <<
+				"), count: "		<< count <<
+				", class_loss: "	<< std::setprecision(6) << classification_loss <<
+				", iou_loss: "		<< std::setprecision(6) << iou_loss <<
+				", total_loss: "	<< std::setprecision(6) << loss
+									<< std::setprecision(2)
+									<< std::endl;
 	}
 }
 
-void backward_yolo_layer(Darknet::Layer &l, Darknet::NetworkState state)
+
+void backward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
 	axpy_cpu(l.batch * l.inputs, 1, l.delta, 1, state.delta, 1);
 }
 
+
 // Converts output of the network to detection boxes
 // w,h: image width,height
 // netw,neth: network width,height
 // relative: 1 (all callers seems to pass TRUE)
-void correct_yolo_boxes(Darknet::Detection *dets, int n, int w, int h, int netw, int neth, int relative, int letter)
+void correct_yolo_boxes(Darknet::Detection * dets, int n, int w, int h, int netw, int neth, int relative, int letter)
 {
 	TAT(TATPARMS);
 
@@ -1221,7 +1228,8 @@ void correct_yolo_boxes(Darknet::Detection *dets, int n, int w, int h, int netw,
 	}
 }
 
-int yolo_num_detections(const Darknet::Layer &l, float thresh)
+
+int yolo_num_detections(const Darknet::Layer & l, float thresh)
 {
 	TAT(TATPARMS);
 
@@ -1244,7 +1252,8 @@ int yolo_num_detections(const Darknet::Layer &l, float thresh)
 	return count;
 }
 
-int yolo_num_detections_v3(Darknet::Network *net, const int index, const float thresh, Darknet::Output_Object_Cache &cache)
+
+int yolo_num_detections_v3(Darknet::Network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache)
 {
 	TAT(TATPARMS);
 
@@ -1253,7 +1262,7 @@ int yolo_num_detections_v3(Darknet::Network *net, const int index, const float t
 
 	int count = 0;
 
-	const Darknet::Layer &l = net->layers[index];
+	const Darknet::Layer & l = net->layers[index];
 
 	for (int n = 0; n < l.n; ++n)
 	{
@@ -1278,7 +1287,8 @@ int yolo_num_detections_v3(Darknet::Network *net, const int index, const float t
 	return count;
 }
 
-int yolo_num_detections_batch(const Darknet::Layer &l, float thresh, int batch)
+
+int yolo_num_detections_batch(const Darknet::Layer & l, float thresh, int batch)
 {
 	TAT(TATPARMS);
 
@@ -1298,11 +1308,12 @@ int yolo_num_detections_batch(const Darknet::Layer &l, float thresh, int batch)
 	return count;
 }
 
-int get_yolo_detections(const Darknet::Layer &l, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection *dets, int letter)
+
+int get_yolo_detections(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int * map, int relative, Darknet::Detection * dets, int letter)
 {
 	TAT(TATPARMS);
 
-	const float *predictions = l.output;
+	const float * predictions = l.output;
 
 	int count = 0;
 	for (int i = 0; i < l.w * l.h; ++i)
@@ -1342,7 +1353,8 @@ int get_yolo_detections(const Darknet::Layer &l, int w, int h, int netw, int net
 	return count;
 }
 
-int get_yolo_detections_v3(Darknet::Network *net, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection *dets, int letter, Darknet::Output_Object_Cache &cache)
+
+int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int neth, float thresh, int * map, int relative, Darknet::Detection * dets, int letter, Darknet::Output_Object_Cache & cache)
 {
 	TAT(TATPARMS);
 
@@ -1350,11 +1362,11 @@ int get_yolo_detections_v3(Darknet::Network *net, int w, int h, int netw, int ne
 
 	for (const auto &oo : cache)
 	{
-		const auto &i = oo.i;
-		const auto &n = oo.n;
-		const auto &obj_index = oo.obj_index;
+		const auto & i = oo.i;
+		const auto & n = oo.n;
+		const auto & obj_index = oo.obj_index;
 
-		const Darknet::Layer &l = net->layers[oo.layer_index];
+		const Darknet::Layer & l = net->layers[oo.layer_index];
 		const float *predictions = l.output;
 
 		const int row = i / l.w;
@@ -1363,9 +1375,9 @@ int get_yolo_detections_v3(Darknet::Network *net, int w, int h, int netw, int ne
 
 		const int box_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 0);
 
-		dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w * l.h, l.new_coords);
-		dets[count].objectness = objectness;
-		dets[count].classes = l.classes;
+		dets[count].bbox		= get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w * l.h, l.new_coords);
+		dets[count].objectness	= objectness;
+		dets[count].classes		= l.classes;
 
 		if (l.embedding_output)
 		{
@@ -1387,19 +1399,19 @@ int get_yolo_detections_v3(Darknet::Network *net, int w, int h, int netw, int ne
 	return count;
 }
 
-int get_yolo_detections_batch(const Darknet::Layer &l, int w, int h, int netw, int neth, float thresh, int *map, int relative, Darknet::Detection *dets, int letter, int batch)
+
+int get_yolo_detections_batch(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int * map, int relative, Darknet::Detection * dets, int letter, int batch)
 {
 	TAT(TATPARMS);
 
-	int i, j, n;
-	float *predictions = l.output;
+	float * predictions = l.output;
 	// if (l.batch == 2) avg_flipped_yolo(l);
 	int count = 0;
-	for (i = 0; i < l.w * l.h; ++i)
+	for (int i = 0; i < l.w * l.h; ++i)
 	{
 		int row = i / l.w;
 		int col = i % l.w;
-		for (n = 0; n < l.n; ++n)
+		for (int n = 0; n < l.n; ++n)
 		{
 			int obj_index = yolo_entry_index(l, batch, n * l.w * l.h + i, 4);
 			float objectness = predictions[obj_index];
@@ -1415,7 +1427,7 @@ int get_yolo_detections_batch(const Darknet::Layer &l, int w, int h, int netw, i
 					get_embedding(l.embedding_output, l.w, l.h, l.n * l.embedding_size, l.embedding_size, col, row, n, batch, dets[count].embeddings);
 				}
 
-				for (j = 0; j < l.classes; ++j)
+				for (int j = 0; j < l.classes; ++j)
 				{
 					int class_index = yolo_entry_index(l, batch, n * l.w * l.h + i, 4 + 1 + j);
 					float prob = objectness * predictions[class_index];
@@ -1426,18 +1438,21 @@ int get_yolo_detections_batch(const Darknet::Layer &l, int w, int h, int netw, i
 		}
 	}
 	correct_yolo_boxes(dets, count, w, h, netw, neth, relative, letter);
+
 	return count;
 }
 
+
 #ifdef DARKNET_GPU
 
-void forward_yolo_layer_gpu(Darknet::Layer &l, Darknet::NetworkState state)
+
+void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
 	if (l.embedding_output)
 	{
-		Darknet::Layer &le = state.net.layers[l.embedding_layer_id];
+		Darknet::Layer & le = state.net.layers[l.embedding_layer_id];
 		cuda_pull_array_async(le.output_gpu, l.embedding_output, le.batch * le.outputs);
 	}
 
@@ -1483,21 +1498,21 @@ void forward_yolo_layer_gpu(Darknet::Layer &l, Darknet::NetworkState state)
 		return;
 	}
 
-	float *in_cpu = (float *)xcalloc(l.batch * l.inputs, sizeof(float));
+	float * in_cpu = (float*)xcalloc(l.batch * l.inputs, sizeof(float));
 	cuda_pull_array(l.output_gpu, l.output, l.batch * l.outputs);
 	memcpy(in_cpu, l.output, l.batch * l.outputs * sizeof(float));
-	float *truth_cpu = nullptr;
+	float * truth_cpu = nullptr;
 
 	if (state.truth)
 	{
 		int num_truth = l.batch * l.truths;
-		truth_cpu = (float *)xcalloc(num_truth, sizeof(float));
+		truth_cpu = (float*)xcalloc(num_truth, sizeof(float));
 		cuda_pull_array(state.truth, truth_cpu, num_truth);
 	}
 	Darknet::NetworkState cpu_state = state;
-	//	cpu_state.net = state.net;
-	//	cpu_state.index = state.index;
-	//	cpu_state.train = state.train;
+//	cpu_state.net = state.net;
+//	cpu_state.index = state.index;
+//	cpu_state.train = state.train;
 	cpu_state.truth = truth_cpu;
 	cpu_state.input = in_cpu;
 	forward_yolo_layer(l, cpu_state);
@@ -1511,19 +1526,23 @@ void forward_yolo_layer_gpu(Darknet::Layer &l, Darknet::NetworkState state)
 	}
 }
 
-void backward_yolo_layer_gpu(Darknet::Layer &l, Darknet::NetworkState state)
+
+void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
 	axpy_ongpu(l.batch * l.inputs, state.net.loss_scale * l.delta_normalizer, l.delta_gpu, 1, state.delta, 1);
 }
+
+
 #endif
+
 
 Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const float threshold)
 {
 	TAT(TATPARMS);
 
-	Darknet::Network *net = reinterpret_cast<Darknet::Network *>(ptr);
+	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 	if (net == nullptr)
 	{
 		throw std::invalid_argument("cannot generate heatmaps without a network pointer");
@@ -1531,7 +1550,7 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 
 	MMats m;
 	m[-1] = cv::Mat(net->h, net->w, CV_32FC1, {0, 0, 0});
-	for (size_t idx = 0; idx < net->details->class_names.size(); idx++)
+	for (size_t idx = 0; idx < net->details->class_names.size(); idx ++)
 	{
 		if (net->details->classes_to_ignore.count(idx) == 0)
 		{
@@ -1540,7 +1559,7 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 	}
 
 	// look through all the layers to find the YOLO ones
-	for (int layer_index = 0; layer_index < net->n; layer_index++)
+	for (int layer_index = 0; layer_index < net->n; layer_index ++)
 	{
 		const Darknet::Layer &l = net->layers[layer_index];
 		if (l.type != Darknet::ELayerType::YOLO)
@@ -1549,16 +1568,16 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 			continue;
 		}
 
-		//		Darknet::dump(l);
+//		Darknet::dump(l);
 
 		for (int n = 0; n < l.n; ++n) // anchors?
 		{
-			for (int idx = 0; idx < l.w * l.h; idx++) // loop through all entries in the YOLO output buffer
+			for (int idx = 0; idx < l.w * l.h; idx ++) // loop through all entries in the YOLO output buffer
 			{
 				const size_t objectness_index = yolo_entry_index(l, 0, n * l.w * l.h + idx, 4);
 				const float &objectness = l.output[objectness_index];
 
-				for (int class_index = 0; class_index < l.classes; class_index++)
+				for (int class_index = 0; class_index < l.classes; class_index ++)
 				{
 					if (m.count(class_index) == 0)
 					{
@@ -1582,7 +1601,7 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 					const int col = idx % l.w;
 					const auto bbox = get_yolo_box(l.output, l.biases, l.mask[n], box_index, col, row, l.w, l.h, net->w, net->h, l.w * l.h, l.new_coords);
 
-#if 0
+					#if 0
 					*cfg_and_state.output
 						<< "layer=" << layer_index
 						<< " anchor=" << n
@@ -1598,21 +1617,17 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 						<< " w=" << bbox.w
 						<< " h=" << bbox.h
 						<< std::endl;
-#endif
+					#endif
 
 					const int w = std::round(net->w * bbox.w);
 					const int h = std::round(net->h * bbox.h);
 					const int x = std::round(net->w * (bbox.x - bbox.w / 2.0f));
 					const int y = std::round(net->h * (bbox.y - bbox.h / 2.0f));
 					cv::Rect r(x, y, w, h);
-					if (r.x < 0)
-						r.x = 0;
-					if (r.y < 0)
-						r.y = 0;
-					if (r.x + r.width >= net->w)
-						r.width = net->w - r.x - 1;
-					if (r.y + r.height >= net->h)
-						r.height = net->h - r.y - 1;
+					if (r.x < 0)					r.x = 0;
+					if (r.y < 0)					r.y = 0;
+					if (r.x + r.width >= net->w)	r.width = net->w - r.x - 1;
+					if (r.y + r.height >= net->h)	r.height = net->h - r.y - 1;
 
 					// create a mask with rounded corners
 					// https://stackoverflow.com/a/78814207/13022
@@ -1639,10 +1654,10 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 					cv::line(mask, cv::Point(bl.x, bl.y - voffset), cv::Point(tl.x, tl.y + voffset), colour, linethickness, linetype);
 
 					// draw each of the corners
-					cv::ellipse(mask, tl + cv::Point(+hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 180.0, 270.0, colour, linethickness, linetype);
-					cv::ellipse(mask, tr + cv::Point(-hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 270.0, 360.0, colour, linethickness, linetype);
-					cv::ellipse(mask, br + cv::Point(-hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 0.0, 90.0, colour, linethickness, linetype);
-					cv::ellipse(mask, bl + cv::Point(+hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 90.0, 180.0, colour, linethickness, linetype);
+					cv::ellipse(mask, tl + cv::Point(+hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 180.0, 270.0	, colour, linethickness, linetype);
+					cv::ellipse(mask, tr + cv::Point(-hoffset, +voffset), cv::Size(hoffset, voffset), 0.0, 270.0, 360.0	, colour, linethickness, linetype);
+					cv::ellipse(mask, br + cv::Point(-hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 0.0	, 90.0	, colour, linethickness, linetype);
+					cv::ellipse(mask, bl + cv::Point(+hoffset, -voffset), cv::Size(hoffset, voffset), 0.0, 90.0	, 180.0	, colour, linethickness, linetype);
 
 					cv::floodFill(mask, cv::Point(r.x + r.width / 2, r.y + r.height / 2), colour);
 
