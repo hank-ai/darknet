@@ -116,7 +116,8 @@ namespace ctrack
 			return distinct_values;
 		}
 
-		template <typename T, typename Field>
+		template <typename T, typename Field,
+				  typename = std::enable_if_t<!std::is_const_v<T>>>
 		auto get_distinct_field_values(const std::vector<T *> &vec, Field T::*field)
 		{
 			std::set<std::remove_reference_t<decltype(std::declval<T>().*field)>> distinct_values;
