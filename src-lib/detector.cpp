@@ -262,10 +262,8 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			<< std::endl;
 	}
 
-	auto now = std::chrono::high_resolution_clock::now();
 	const auto first_iteration = get_current_iteration(net); // normally this is zero unless we're resuming training
-	const auto start_of_training = now;
-	auto image_load_start_time	= now; // start the new image loading for the next iteration
+	const auto start_of_training = std::chrono::high_resolution_clock::now();
 	std::thread load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 	int count = 0;
 
@@ -358,7 +356,6 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			load_thread.join();
 			train = buffer;
 			Darknet::free_data(train);
-			image_load_start_time = std::chrono::high_resolution_clock::now();
 			load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 			for (int k = 0; k < ngpus; ++k)
@@ -381,20 +378,9 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 				<< std::endl;
 		}
 
-		now = std::chrono::high_resolution_clock::now();
-		const auto image_load_duration = now - image_load_start_time; // duration of the iteration that just finished
-		image_load_start_time = now; // start the new image loading for the next iteration
 		load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
-		if (cfg_and_state.is_verbose)
-		{
-			*cfg_and_state.output << "loaded " << args.n << " images in " << Darknet::trim(Darknet::format_duration_string(image_load_duration)) << std::endl;
-		}
-		if (image_load_duration > std::chrono::milliseconds(250) and avg_loss > 0.0f)
-		{
-			Darknet::display_warning_msg("Performance bottleneck:  loading " + std::to_string(args.n) + " images took " + Darknet::trim(Darknet::format_duration_string(image_load_duration)) + ".  Slow CPU or hard drive?  Loading images from a network share?\n");
-		}
-
+		const auto train_start_time = std::chrono::high_resolution_clock::now();
 		float loss = 0.0f;
 #ifdef DARKNET_GPU
 		if (ngpus == 1)
@@ -407,8 +393,9 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			loss = train_networks(nets, ngpus, train, 4);
 		}
 #else
-		loss = train_network(net, train);
+		loss = train_network(net, train); // CPU-only
 #endif
+
 		if (avg_loss < 0.0f || avg_loss != avg_loss)
 		{
 			avg_loss = loss;    // if(-inf or nan)
@@ -417,12 +404,20 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 		const auto iteration_end_time	= std::chrono::high_resolution_clock::now();
 		const auto iteration_duration	= iteration_end_time - iteration_start_time;
+		const auto train_end_time		= iteration_end_time;
+		const auto train_duration		= train_end_time - train_start_time;
 		const float elapsed_seconds		= std::chrono::duration_cast<std::chrono::seconds>(iteration_end_time - start_of_training).count();
 		const int iteration				= get_current_iteration(net);
 		const float current_iter		= iteration;
 		const float iters_per_second	= (current_iter - first_iteration) / elapsed_seconds;
 		const float seconds_remaining	= (net.max_batches - current_iter) / iters_per_second;
-		const auto time_remaining		= Darknet::format_duration_string(std::chrono::seconds(static_cast<long>(seconds_remaining)), 1);
+		const auto time_remaining		= Darknet::format_duration_string(std::chrono::seconds(static_cast<long>(seconds_remaining)), 1, Darknet::EFormatDuration::kTrim);
+		const auto time_to_load_images	= std::chrono::nanoseconds(train.nanoseconds_to_load);
+
+		if (time_to_load_images >= train_duration and avg_loss > 0.0f)
+		{
+			Darknet::display_warning_msg("Performance bottleneck:  loading " + std::to_string(args.n) + " images took longer than it takes to train.  Slow CPU or hard drive?  Loading images from a network share?\n");
+		}
 
 		// updating the console titlebar requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
 		if (cfg_and_state.colour_is_enabled)
@@ -467,9 +462,11 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			<< ", best=" << Darknet::format_map_accuracy(best_map)
 			<< ", next=" << next_map_calc
 			<< ", rate=" << std::setprecision(8) << get_current_rate(net) << std::setprecision(2)
-			<< ", " << Darknet::format_duration_string(iteration_duration)
-			<< ", " << iteration * imgs
-			<< " images, time remaining=" << time_remaining
+			<< ", load=" << Darknet::format_duration_string(time_to_load_images, 1)
+			<< ", train=" << Darknet::format_duration_string(train_duration, 1)
+//			<< ", iter=" << Darknet::format_duration_string(iteration_duration, 1)
+			<< ", " << iteration * imgs << " images"
+			<< ", time remaining=" << time_remaining
 			<< std::endl;
 
 		// This is where we decide if we have to do the mAP% calculations.
@@ -500,7 +497,6 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 				load_thread.join();
 				Darknet::free_data(train);
 				train = buffer;
-				image_load_start_time = std::chrono::high_resolution_clock::now();
 				load_thread = std::thread(Darknet::run_image_loading_control_thread, args);
 
 				for (int k = 0; k < ngpus; ++k)

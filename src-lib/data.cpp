@@ -1039,6 +1039,8 @@ void Darknet::run_image_loading_control_thread(load_args args)
 	const std::string name = "image loading control thread";
 	cfg_and_state.set_thread_name(name);
 
+	const auto timestamp1 = std::chrono::high_resolution_clock::now();
+
 	if (args.threads == 0)
 	{
 		args.threads = 1;
@@ -1101,6 +1103,9 @@ void Darknet::run_image_loading_control_thread(load_args args)
 		Darknet::free_data(buffers[idx]);
 	}
 	free(buffers);
+
+	const auto timestamp2 = std::chrono::high_resolution_clock::now();
+	out->nanoseconds_to_load = std::chrono::duration_cast<std::chrono::nanoseconds>(timestamp2 - timestamp1).count();
 
 	cfg_and_state.del_thread_name();
 
