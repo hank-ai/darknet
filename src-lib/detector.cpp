@@ -462,7 +462,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			<< ", best=" << Darknet::format_map_accuracy(best_map)
 			<< ", next=" << next_map_calc
 			<< ", rate=" << std::setprecision(8) << get_current_rate(net) << std::setprecision(2)
-			<< ", load=" << Darknet::format_duration_string(time_to_load_images, 1)
+			<< ", load " << args.n << "=" << Darknet::format_duration_string(time_to_load_images, 1)
 			<< ", train=" << Darknet::format_duration_string(train_duration, 1)
 //			<< ", iter=" << Darknet::format_duration_string(iteration_duration, 1)
 			<< ", " << iteration * imgs << " images"
