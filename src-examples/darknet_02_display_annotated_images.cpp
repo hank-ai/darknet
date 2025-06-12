@@ -74,10 +74,10 @@ int main(int argc, char * argv[])
 			cv::imshow("output", mat);
 
 			std::cout
-				<< "-> reading image from disk ........... " << Darknet::format_duration_string(t2 - t1) << " [" << mat.cols << " x " << mat.rows << " x " << mat.channels() << "]" << std::endl
-				<< "-> resizing image to match network ... " << Darknet::format_duration_string(t3 - t2) << " [" << network_w << " x " << network_h << " x " << network_c << "]" << std::endl
-				<< "-> using Darknet to predict .......... " << Darknet::format_duration_string(t5 - t4) << " [" << results.size() << " object" << (results.size() == 1 ? "" : "s") << "]" << std::endl
-				<< "-> using Darknet to annotate image ... " << Darknet::format_duration_string(t6 - t5) << std::endl;
+				<< "-> reading image from disk ........... " << Darknet::format_duration_string(t2 - t1, 3, Darknet::EFormatDuration::kPad) << " [" << mat.cols << " x " << mat.rows << " x " << mat.channels() << "]" << std::endl
+				<< "-> resizing image to match network ... " << Darknet::format_duration_string(t3 - t2, 3, Darknet::EFormatDuration::kPad) << " [" << network_w << " x " << network_h << " x " << network_c << "]" << std::endl
+				<< "-> using Darknet to predict .......... " << Darknet::format_duration_string(t5 - t4, 3, Darknet::EFormatDuration::kPad) << " [" << results.size() << " object" << (results.size() == 1 ? "" : "s") << "]" << std::endl
+				<< "-> using Darknet to annotate image ... " << Darknet::format_duration_string(t6 - t5, 3, Darknet::EFormatDuration::kPad) << std::endl;
 
 			if (Darknet::CfgAndState::get().is_set("heatmaps"))
 			{
@@ -97,12 +97,12 @@ int main(int argc, char * argv[])
 				duration += (t9 - t7);
 
 				std::cout
-					<< "-> create Darknet/YOLO heatmaps ...... " << Darknet::format_duration_string(t8 - t7) << " [" << maps.size() << "X]" << std::endl
-					<< "-> visualize heatmaps ................ " << Darknet::format_duration_string(t9 - t8) << std::endl;
+					<< "-> create Darknet/YOLO heatmaps ...... " << Darknet::format_duration_string(t8 - t7, 3, Darknet::EFormatDuration::kPad) << " [" << maps.size() << "X]" << std::endl
+					<< "-> visualize heatmaps ................ " << Darknet::format_duration_string(t9 - t8, 3, Darknet::EFormatDuration::kPad) << std::endl;
 			}
 
 			const int fps = std::round(1000000000.0f / std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count());
-			std::cout << "-> total time elapsed ................ " << Darknet::format_duration_string(duration) << " [" << fps << " FPS]" << std::endl << std::endl;
+			std::cout << "-> total time elapsed ................ " << Darknet::format_duration_string(duration, 3, Darknet::EFormatDuration::kPad) << " [" << fps << " FPS]" << std::endl << std::endl;
 
 			const char c = cv::waitKey(-1);
 			if (c == 27) // ESC

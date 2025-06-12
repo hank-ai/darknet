@@ -228,7 +228,8 @@ typedef struct matrix
 } matrix;
 
 // data.h
-typedef struct data {
+typedef struct data
+{
 	int w;
 	int h;
 	matrix X; // Note uppercase.  Why?  I have no idea.
@@ -236,6 +237,7 @@ typedef struct data {
 	int shallow;
 	int *num_boxes;
 	Darknet::Box **boxes;
+	uint64_t nanoseconds_to_load;	///< record how much time it took to load all images
 } data;
 
 

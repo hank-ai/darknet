@@ -1150,6 +1150,11 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 		Darknet::load_names(ptr, names_filename);
 	}
 
+	if (cfg_and_state.is_trace)
+	{
+		*cfg_and_state.output << "-> network loaded: cfg=" << cfg_filename.string() << " ptr=" << (void*)ptr << std::endl;
+	}
+
 	return ptr;
 }
 
@@ -1228,6 +1233,11 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 void Darknet::free_neural_network(Darknet::NetworkPtr & ptr)
 {
 	TAT(TATPARMS);
+
+	if (cfg_and_state.is_trace)
+	{
+		*cfg_and_state.output << "-> freeing network ptr=" << reinterpret_cast<void*>(ptr) << std::endl;
+	}
 
 	if (ptr)
 	{
@@ -1765,17 +1775,18 @@ std::ostream & Darknet::operator<<(std::ostream & os, const Darknet::Predictions
 }
 
 
-std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::duration duration, const int decimals)
+std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::duration duration, const int decimals, const uint32_t flags)
 {
 	TAT(TATPARMS);
 
-	bool attempt_trim_decimals = false;
 	const float nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count();
 
 	// it is difficult to compare things when we have nanoseconds, microseconds, and milliseconds,
 	// so if we have enough decimals to work with, prefer using milliseconds when possible
 
 	std::stringstream ss;
+	ss << std::fixed << std::setprecision(decimals) << std::setfill('0');
+
 	if (duration <= std::chrono::high_resolution_clock::duration::zero())
 	{
 		ss << "unknown";
@@ -1783,81 +1794,76 @@ std::string Darknet::format_duration_string(std::chrono::high_resolution_clock::
 	else if (decimals < 3 and duration <= std::chrono::microseconds(1))
 	{
 		/// @todo V5: why did we introduce this special case?
-		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << nanoseconds << " nanoseconds";
+		ss << nanoseconds << " nanoseconds";
 	}
 	else if (decimals < 3 and duration <= std::chrono::microseconds(100))
 	{
 		/// @todo V5: why did we introduce this special case?
 		const float microseconds = nanoseconds / 1000.0f;
-		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << microseconds << " microseconds";
+		ss << microseconds << " microseconds";
 	}
 	else if (duration == std::chrono::milliseconds(1))
 	{
 		// this is ***EXACTLY*** 1 millisecond, so use singular not plural
-		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << 1.0f << " millisecond"; // singular, not plural
+		ss << 1.0f << " millisecond"; // singular, not plural
 	}
 	else if (duration < std::chrono::seconds(1))
 	{
 		const float milliseconds = nanoseconds / 1000000.0f;
-		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << milliseconds << " milliseconds";
+		ss << milliseconds << " milliseconds";
 	}
 	else if (duration >= std::chrono::seconds(1) and duration < (std::chrono::seconds(1) + std::chrono::microseconds(500)))
 	{
 		// this is ***EXACTLY*** 1 second, or it would get rounded to "1 seconds", so use the singular "second"
-		ss << "1 second"; // singular, not plural
-		attempt_trim_decimals = true; // to prevent padding the "1"
+		ss << 1.0f << " second"; // singular, not plural
 	}
 	else if (duration <= std::chrono::minutes(2))
 	{
 		const float seconds = nanoseconds / 1000000000.0f;
-		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << seconds << " seconds";
-		attempt_trim_decimals = true;
+		ss << seconds << " seconds";
 	}
 	else if (duration <= std::chrono::hours(2))
 	{
 		const float minutes = nanoseconds / (60.0f * 1000000000.0f);
-		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << minutes << " minutes";
-		attempt_trim_decimals = true;
+		ss << minutes << " minutes";
 	}
 	else if (duration <= std::chrono::hours(48))
 	{
 		const float hours = nanoseconds / (60.0f * 60.0f * 1000000000.0f);
-		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << hours << " hours";
-		attempt_trim_decimals = true;
+		ss << hours << " hours";
 	}
 	else if (duration <= std::chrono::hours(24 * 7))
 	{
 		const float days = nanoseconds / (24.0f * 60.0f * 60.0f * 1000000000.0f);
-		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << days << " days";
-		attempt_trim_decimals = true;
+		ss << days << " days";
 	}
 	else
 	{
 		const float weeks = nanoseconds / (7.0f * 24.0f * 60.0f * 60.0f * 1000000000.0f);
-		ss << std::fixed << std::setprecision(decimals) << std::setfill('0') << weeks << " weeks";
-		attempt_trim_decimals = true;
+		ss << weeks << " weeks";
 	}
 
 	std::string str = ss.str();
 
-	if (attempt_trim_decimals)
-	{
-		// for "large" units of time (hours, days, etc) then trim the trailing ".000" so numbers like "2.000 hours" show up as "2 hours"
-
-		const std::string needle = "." + std::string(decimals, '0') + " ";
-		auto pos = str.find(needle);
-		if (pos != std::string::npos)
-		{
-			str.erase(pos, needle.size() - 1);
-		}
-	}
-	else
+	if (flags & EFormatDuration::kPad)
 	{
 		// insert some blank spaces at the front of the string to pad the number so things line up in columns
 		auto pos = str.find('.');
 		if (pos < 3)
 		{
 			str = std::string(3 - pos, ' ') + str;
+		}
+	}
+
+	if (flags & EFormatDuration::kTrim)
+	{
+		// trim the trailing ".000" so numbers like "2.000 hours" show up as "2 hours"
+
+		const std::string needle = "." + std::string(decimals, '0') + " ";
+		auto pos = str.find(needle);
+		if (pos != std::string::npos)
+		{
+			str.erase(pos, needle.size() - 1);
 		}
 	}
 
