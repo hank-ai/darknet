@@ -81,11 +81,11 @@ int main(int argc, char * argv[])
 				const int fps = std::round(1000000000.0f / std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count());
 
 				std::cout
-					<< "-> reading image from disk ........... " << Darknet::format_duration_string(t2 - t1) << " [" << output.cols << " x " << output.rows << " x " << output.channels() << "]" << std::endl
-					<< "-> using Darknet to predict .......... " << Darknet::format_duration_string(t4 - t3) << " [" << results.size() << " object" << (results.size() == 1 ? "" : "s") << "]" << std::endl
-					<< "-> using Darknet to annotate image ... " << Darknet::format_duration_string(t6 - t5) << std::endl
-					<< "-> save output image to disk ......... " << Darknet::format_duration_string(t8 - t7) << std::endl
-					<< "-> total time elapsed ................ " << Darknet::format_duration_string(duration) << " [" << fps << " FPS]" << std::endl
+					<< "-> reading image from disk ........... " << Darknet::format_duration_string(t2 - t1, 3, Darknet::EFormatDuration::kPad) << " [" << output.cols << " x " << output.rows << " x " << output.channels() << "]" << std::endl
+					<< "-> using Darknet to predict .......... " << Darknet::format_duration_string(t4 - t3, 3, Darknet::EFormatDuration::kPad) << " [" << results.size() << " object" << (results.size() == 1 ? "" : "s") << "]" << std::endl
+					<< "-> using Darknet to annotate image ... " << Darknet::format_duration_string(t6 - t5, 3, Darknet::EFormatDuration::kPad) << std::endl
+					<< "-> save output image to disk ......... " << Darknet::format_duration_string(t8 - t7, 3, Darknet::EFormatDuration::kPad) << std::endl
+					<< "-> total time elapsed ................ " << Darknet::format_duration_string(duration, 3, Darknet::EFormatDuration::kPad) << " [" << fps << " FPS]" << std::endl
 					<< results << std::endl << std::endl;
 			}
 		}

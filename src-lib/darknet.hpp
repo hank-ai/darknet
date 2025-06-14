@@ -655,12 +655,20 @@ namespace Darknet
 	 */
 	cv::Mat visualize_heatmap(const cv::Mat & heatmap, const cv::ColormapTypes colourmap = cv::ColormapTypes::COLORMAP_JET);
 
+	/// Format options used by @ref Darknet::format_duration_string().  Flags may be combined together.  @since 2025-06-09
+	enum EFormatDuration
+	{
+		kNone	= 0x00,
+		kPad	= 0x01,	///< numeric (non-decimal) portion is padded to 3 characters, useful when values are printed in a table or a column
+		kTrim	= 0x02,	///< trim trailing @p "0" decimals with @em exact valuess, so @p "3.000" is shown as @p "3" but @p "3.100" remains unchanged.
+	};
+
 	/** Format the C++ duration as an easy-to-read text string, such as @p "3.432 milliseconds" or @p "4.250 hours".
 	 * @see @ref Darknet::format_time_remaining()
 	 *
 	 * @since 2024-12-22
 	 */
-	std::string format_duration_string(std::chrono::high_resolution_clock::duration duration, const int decimals = 3);
+	std::string format_duration_string(std::chrono::high_resolution_clock::duration duration, const int decimals = 3, const uint32_t flags = EFormatDuration::kNone);
 
 	/** Set the file where the output logging will take place.  When set to @p "" (empty filename) then the Darknet/YOLO
 	 * output will be set to @p std::cout.  All Darknet/YOLO console output will be @em appended to the filename given in
