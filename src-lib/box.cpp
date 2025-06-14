@@ -11,8 +11,8 @@ namespace
 
 		const float w = b.w;
 		const float h = b.h;
-		const float x = b.x - (b.w / 2.0f);
-		const float y = b.y - (b.h / 2.0f);
+		const float x = b.x - (b.w * 0.5f);
+		const float y = b.y - (b.h * 0.5f);
 
 		return cv::Rect2f(x, y, w, h);
 	}
@@ -300,14 +300,37 @@ float box_iou(const Darknet::Box & a, const Darknet::Box & b)
 	 */
 
 #if 1
-	const float I = box_intersection(a, b);
-	if (I == 0.0f)
-	{
-		return 0.0f;
-	}
+	const float a_half_w = a.w * 0.5f;
+	const float a_half_h = a.h * 0.5f;
+	const float b_half_w = b.w * 0.5f;
+	const float b_half_h = b.h * 0.5f;
 
-	const float U = box_union(a, b, I);
+	const float a_left = a.x - a_half_w;
+	const float a_right = a.x + a_half_w;
+	const float a_top = a.y - a_half_h;
+	const float a_bottom = a.y + a_half_h;
 
+	const float b_left = b.x - b_half_w;
+	const float b_right = b.x + b_half_w;
+	const float b_top = b.y - b_half_h;
+	const float b_bottom = b.y + b_half_h;
+
+	// Use fmax/fmin for branchless min/max
+	const float inter_left = fmaxf(a_left, b_left);
+	const float inter_right = fminf(a_right, b_right);
+	const float inter_top = fmaxf(a_top, b_top);
+	const float inter_bottom = fminf(a_bottom, b_bottom);
+
+	const float inter_w = fmaxf(0.0f, inter_right - inter_left);
+	const float inter_h = fmaxf(0.0f, inter_bottom - inter_top);
+
+	const float intersection = inter_w * inter_h;
+	const float area_a = a.w * a.h;
+	const float area_b = b.w * b.h;
+	const float union_area = area_a + area_b - intersection;
+
+	// Avoid division by zero
+	return (union_area > 0.0f) ? (intersection / union_area) : 0.0f;
 #else
 
 	const auto ra = darknet_box_to_cv_rect(a);
@@ -320,10 +343,11 @@ float box_iou(const Darknet::Box & a, const Darknet::Box & b)
 	}
 
 	const float U = ra.area() + rb.area() - I;
-#endif
 
 	// if intersection is non-zero, then union will of course be non-zero, so no need to worry about divide-by-zero
 	return I / U;
+#endif
+
 
 }
 

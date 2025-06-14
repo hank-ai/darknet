@@ -63,6 +63,20 @@ static inline int popcnt_64(uint64_t val64)
 #define PUT_IN_REGISTER register
 #endif
 
+#ifdef USE_OPENBLAS
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4244)  // conversion from 'int' to 'float', possible loss of data
+#endif
+
+extern "C" {
+#include <cblas.h>
+}
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+#endif
 
 namespace
 {
@@ -2370,7 +2384,27 @@ void gemm_tt(int M, int N, int K, float ALPHA,
 	}
 }
 
+#ifdef USE_OPENBLAS
+void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
+	float* A, int lda,
+	float* B, int ldb,
+	float BETA,
+	float* C, int ldc)
+{
+	TAT(TATPARMS);
 
+	cblas_sgemm(CblasRowMajor,
+		TA ? CblasTrans : CblasNoTrans,
+		TB ? CblasTrans : CblasNoTrans,
+		M, N, K,
+		ALPHA,
+		A, lda,
+		B, ldb,
+		BETA,
+		C, ldc);
+}
+
+#else
 void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 		float *A, int lda,
 		float *B, int ldb,
@@ -2420,6 +2454,7 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 		}
 	}
 }
+#endif
 
 #ifdef DARKNET_GPU
 
