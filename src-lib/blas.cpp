@@ -1,5 +1,19 @@
 #include "darknet_internal.hpp"
 
+#ifdef USE_OPENBLAS
+#ifdef _MSC_VER
+#pragma warning(push)
+#pragma warning(disable: 4244)  // conversion from 'int' to 'float', possible loss of data
+#endif
+
+extern "C" {
+#include <cblas.h>
+}
+
+#ifdef _MSC_VER
+#pragma warning(pop)
+#endif
+#endif
 
 void reorg_cpu(float *x, int out_w, int out_h, int out_c, int batch, int stride, int forward, float *out)
 {
@@ -81,8 +95,7 @@ static float relu(float src)
 {
 	TAT(TATPARMS);
 
-	if (src > 0) return src;
-	return 0;
+	return std::max(0.0f, src);
 }
 
 void shortcut_multilayer_cpu(int size, int src_outputs, int batch, int n, int *outputs_of_layers, float **layers_output, float *out, float *in, float *weights, int nweights, WEIGHTS_NORMALIZATION_T weights_normalization)
@@ -342,6 +355,36 @@ void pow_cpu(int N, float ALPHA, float *X, int INCX, float *Y, int INCY)
 	for(i = 0; i < N; ++i) Y[i*INCY] = pow(X[i*INCX], ALPHA);
 }
 
+#ifdef USE_OPENBLAS
+void axpy_cpu(int N, float ALPHA, float* X, int INCX, float* Y, int INCY)
+{
+	TAT(TATPARMS);
+
+	cblas_saxpy(N, ALPHA, X, INCX, Y, INCY);
+}
+
+void scal_cpu(int N, float ALPHA, float* X, int INCX)
+{
+	TAT(TATPARMS);
+
+	cblas_sscal(N, ALPHA, X, INCX);
+}
+
+void copy_cpu(int N, float* X, int INCX, float* Y, int INCY)
+{
+	TAT(TATPARMS);
+
+	cblas_scopy(N, X, INCX, Y, INCY);
+}
+
+float dot_cpu(int N, float* X, int INCX, float* Y, int INCY)
+{
+	TAT(TATPARMS);
+
+	return cblas_sdot(N, X, INCX, Y, INCY);
+}
+
+#else //USE_OPENBLAS
 void axpy_cpu(int N, float ALPHA, float *X, int INCX, float *Y, int INCY)
 {
 	TAT(TATPARMS);
@@ -358,9 +401,28 @@ void scal_cpu(int N, float ALPHA, float *X, int INCX)
 	for(i = 0; i < N; ++i) X[i*INCX] *= ALPHA;
 }
 
-void scal_add_cpu(int N, float ALPHA, float BETA, float *X, int INCX)
+float dot_cpu(int N, float* X, int INCX, float* Y, int INCY)
 {
 	TAT(TATPARMS);
+
+	int i;
+	float dot = 0;
+	for (i = 0; i < N; ++i) dot += X[i * INCX] * Y[i * INCY];
+	return dot;
+}
+
+void copy_cpu(int N, float* X, int INCX, float* Y, int INCY)
+{
+	TAT(TATPARMS);
+
+	int i;
+	for (i = 0; i < N; ++i) Y[i * INCY] = X[i * INCX];
+}
+#endif //USE_OPENBLAS
+
+void scal_add_cpu(int N, float ALPHA, float BETA, float *X, int INCX)
+{
+	TAT(TATPARMS);	
 
 	int i;
 	for (i = 0; i < N; ++i) X[i*INCX] = X[i*INCX] * ALPHA + BETA;
@@ -411,14 +473,6 @@ void inter_cpu(int NX, float *X, int NY, float *Y, int B, float *OUT)
 			OUT[index++] = Y[j*NY + i];
 		}
 	}
-}
-
-void copy_cpu(int N, float *X, int INCX, float *Y, int INCY)
-{
-	TAT(TATPARMS);
-
-	int i;
-	for(i = 0; i < N; ++i) Y[i*INCY] = X[i*INCX];
 }
 
 void mult_add_into_cpu(int N, float *X, float *Y, float *Z)
@@ -498,15 +552,6 @@ void l2_cpu(int n, float *pred, float *truth, float *delta, float *error)
 	}
 }
 
-float dot_cpu(int N, float *X, int INCX, float *Y, int INCY)
-{
-	TAT(TATPARMS);
-
-	int i;
-	float dot = 0;
-	for(i = 0; i < N; ++i) dot += X[i*INCX] * Y[i*INCY];
-	return dot;
-}
 
 void softmax(float *input, int n, float temp, float *output, int stride)
 {

@@ -200,6 +200,96 @@ MESSAGE (STATUS "Found OpenCV ${OpenCV_VERSION}")
 INCLUDE_DIRECTORIES (${OpenCV_INCLUDE_DIRS})
 SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${OpenCV_LIBS})
 
+# ============
+# == OpenBLAS ==
+# ============
+option(USE_OPENBLAS "Use OpenBLAS for linear algebra operations" ON)
+option(AUTO_DOWNLOAD_OPENBLAS "Automatically download OpenBLAS binary" ON)
+
+if(USE_OPENBLAS AND AUTO_DOWNLOAD_OPENBLAS AND WIN32)
+    set(OPENBLAS_VERSION "0.3.29")
+    set(OPENBLAS_URL "https://github.com/OpenMathLib/OpenBLAS/releases/download/v${OPENBLAS_VERSION}/OpenBLAS-${OPENBLAS_VERSION}_x64.zip")
+    set(OPENBLAS_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/3rdparty")
+    # 
+    set(OPENBLAS_ROOT "${OPENBLAS_DOWNLOAD_DIR}/OpenBLAS-${OPENBLAS_VERSION}_x64")
+    
+    # check if downloaded or not
+    if(NOT EXISTS "${OPENBLAS_ROOT}/lib/libopenblas.lib")
+        message(STATUS "Downloading OpenBLAS ${OPENBLAS_VERSION}...")
+        
+        # 
+        file(MAKE_DIRECTORY ${OPENBLAS_DOWNLOAD_DIR})
+        file(MAKE_DIRECTORY ${OPENBLAS_ROOT})
+        
+        # 
+        set(OPENBLAS_ZIP "${OPENBLAS_DOWNLOAD_DIR}/OpenBLAS-${OPENBLAS_VERSION}_x64.zip")
+        file(DOWNLOAD 
+            ${OPENBLAS_URL} 
+            ${OPENBLAS_ZIP}
+            SHOW_PROGRESS
+            STATUS DOWNLOAD_STATUS
+            TIMEOUT 300
+        )
+        
+        # check
+        list(GET DOWNLOAD_STATUS 0 STATUS_CODE)
+        if(NOT STATUS_CODE EQUAL 0)
+            message(FATAL_ERROR "Failed to download OpenBLAS")
+        endif()
+        
+        # unzip
+        message(STATUS "Extracting OpenBLAS to ${OPENBLAS_ROOT}...")
+        execute_process(
+            COMMAND ${CMAKE_COMMAND} -E tar xzf ${OPENBLAS_ZIP}
+            WORKING_DIRECTORY ${OPENBLAS_ROOT}  # important!
+            RESULT_VARIABLE EXTRACT_RESULT
+        )
+        
+        if(NOT EXTRACT_RESULT EQUAL 0)
+            message(FATAL_ERROR "Failed to extract OpenBLAS")
+        endif()
+        
+        # delete downloaded zip file
+        file(REMOVE ${OPENBLAS_ZIP})
+        
+        message(STATUS "OpenBLAS downloaded and extracted successfully")
+        
+        # 
+        file(GLOB OPENBLAS_CONTENTS "${OPENBLAS_ROOT}/*")
+        message(STATUS "OpenBLAS contents: ${OPENBLAS_CONTENTS}")
+    else()
+        message(STATUS "OpenBLAS already exists at ${OPENBLAS_ROOT}")
+    endif()
+    
+    # OpenBLAS
+    find_library(OPENBLAS_LIB
+        NAMES libopenblas
+        PATHS "${OPENBLAS_ROOT}/lib"
+        NO_DEFAULT_PATH
+    )
+    
+    if(OPENBLAS_LIB)
+        set(BLAS_LIBRARIES ${OPENBLAS_LIB})
+        set(BLAS_INCLUDE_DIRS "${OPENBLAS_ROOT}/include/")
+		INCLUDE_DIRECTORIES (${BLAS_INCLUDE_DIRS})
+        SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${OPENBLAS_LIB})
+        message(STATUS "OpenBLAS configured: ${OPENBLAS_LIB}")
+		message(STATUS "OpenBLAS configured: ${BLAS_INCLUDE_DIRS}")
+		ADD_COMPILE_DEFINITIONS (USE_OPENBLAS)
+		
+		set(OPENBLAS_DLL "${OPENBLAS_ROOT}/bin/libopenblas.dll")
+        if(EXISTS ${OPENBLAS_DLL})
+		# auto copy script here if you can.
+
+        endif()
+    else()
+        message(FATAL_ERROR "OpenBLAS library not found after download")
+    endif()
+    
+elseif(USE_OPENBLAS)
+    # Non WIndows 
+    find_package(BLAS REQUIRED)
+endif()
 
 # ============
 # == OpenMP ==
@@ -217,7 +307,7 @@ ELSE ()
 	IF (COMPILER_IS_GNU_OR_CLANG)
 	SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 	SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
-	ELSE ()
+	ELSE () # MSVC 
 		SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /openmp:experimental")
 		SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp:experimental")
 	ENDIF()
