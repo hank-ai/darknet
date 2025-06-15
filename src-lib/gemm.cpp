@@ -193,10 +193,10 @@ void transpose_32x32_bits_reversed_diagonale(uint32_t *A, uint32_t *B, int m, in
 
 	unsigned A_tmp[32];
 	int i;
-	#pragma unroll
+	//#pragma unroll
 	for (i = 0; i < 32; ++i) A_tmp[i] = A[i * m];
 	transpose32_optimized(A_tmp);
-	#pragma unroll
+	//#pragma unroll
 	for (i = 0; i < 32; ++i) B[i*n] = A_tmp[i];
 }
 
@@ -689,7 +689,7 @@ void gemm_nn_fast(int M, int N, int K, float ALPHA,
 			}
 		}
 	}
-
+#pragma omp parallel for
 	for (i = (M / TILE_M)*TILE_M; i < M; ++i) {
 		int j, k;
 		for (k = 0; k < K; ++k) {
@@ -1483,7 +1483,43 @@ void im2col_cpu_custom_bin(float* data_im,
 	}
 }
 
+#if 1
+void activate_array_cpu_custom(float* x, const int n, const ACTIVATION a)
+{
+	TAT(TATPARMS);
 
+	if (a == LINEAR) return;
+
+	if (a == LEAKY)
+	{
+		constexpr float leaky_slope = 0.1f;
+
+#ifdef _MSC_VER
+		// MSVC simd only
+#pragma omp simd
+		for (int i = 0; i < n; ++i)
+		{
+			x[i] = std::max(x[i], leaky_slope * x[i]);
+		}
+#else
+		// GCCd
+#pragma omp parallel for simd schedule(static)
+		for (int i = 0; i < n; ++i)
+		{
+			x[i] = std::max(x[i], leaky_slope * x[i]);
+		}
+#endif
+	}
+	else
+	{
+#pragma omp parallel for schedule(static)
+		for (int i = 0; i < n; ++i)
+		{
+			x[i] = activate(x[i], a);
+		}
+	}
+}
+#else
 void activate_array_cpu_custom(float *x, const int n, const ACTIVATION a)
 {
 	TAT(TATPARMS);
@@ -1520,7 +1556,7 @@ void activate_array_cpu_custom(float *x, const int n, const ACTIVATION a)
 		}
 	}
 }
-
+#endif
 void float_to_bit(float *src, unsigned char *dst, size_t size)
 {
 	TAT(TATPARMS);
@@ -1603,7 +1639,7 @@ void transpose_block_SSE4x4(float *A, float *B, const int n, const int m,
 	}
 }
 
-
+#if 0
 void forward_maxpool_layer_avx(float *src, float *dst, int *indexes, int size, int w, int h, int out_w, int out_h, int c,
 	int pad, int stride, int batch)
 {
@@ -1698,6 +1734,203 @@ void forward_maxpool_layer_avx(float *src, float *dst, int *indexes, int size, i
 		}
 	}
 }
+#else
+void forward_maxpool_layer_avx(float* src, float* dst, int* indexes, int size, int w, int h, int out_w, int out_h, int c,
+	int pad, int stride, int batch)
+{
+	TAT(TATPARMS);
+	const int w_offset = -pad / 2;
+	const int h_offset = -pad / 2;
+
+	// 最も一般的なケース: 2x2, stride=2, pad=0
+	if (size == 2 && stride == 2 && pad == 0) {
+		const int total_work = batch * c;
+
+#pragma omp parallel for schedule(static)
+		for (int work_idx = 0; work_idx < total_work; ++work_idx) {
+			const int b = work_idx / c;
+			const int k = work_idx % c;
+			const int channel_offset = h * (k + b * c);
+
+			for (int i = 0; i < out_h; ++i) {
+				const int src_h = i * 2;
+				const int out_row_base = out_w * (i + out_h * (k + c * b));
+				const int src_row_base = w * (src_h + channel_offset);
+
+				// 4ピクセルずつアンロール処理
+				int j = 0;
+				for (; j + 3 < out_w; j += 4) {
+					// ピクセル 0
+					{
+						const int src_idx = j * 2 + src_row_base;
+						const float v0 = src[src_idx];
+						const float v1 = src[src_idx + 1];
+						const float v2 = src[src_idx + w];
+						const float v3 = src[src_idx + w + 1];
+
+						float max = v0;
+						int max_i = src_idx;
+						if (v1 > max) { max = v1; max_i = src_idx + 1; }
+						if (v2 > max) { max = v2; max_i = src_idx + w; }
+						if (v3 > max) { max = v3; max_i = src_idx + w + 1; }
+
+						dst[j + out_row_base] = max;
+						if (indexes) indexes[j + out_row_base] = max_i;
+					}
+
+					// ピクセル 1
+					{
+						const int src_idx = (j + 1) * 2 + src_row_base;
+						const float v0 = src[src_idx];
+						const float v1 = src[src_idx + 1];
+						const float v2 = src[src_idx + w];
+						const float v3 = src[src_idx + w + 1];
+
+						float max = v0;
+						int max_i = src_idx;
+						if (v1 > max) { max = v1; max_i = src_idx + 1; }
+						if (v2 > max) { max = v2; max_i = src_idx + w; }
+						if (v3 > max) { max = v3; max_i = src_idx + w + 1; }
+
+						dst[j + 1 + out_row_base] = max;
+						if (indexes) indexes[j + 1 + out_row_base] = max_i;
+					}
+
+					// ピクセル 2
+					{
+						const int src_idx = (j + 2) * 2 + src_row_base;
+						const float v0 = src[src_idx];
+						const float v1 = src[src_idx + 1];
+						const float v2 = src[src_idx + w];
+						const float v3 = src[src_idx + w + 1];
+
+						float max = v0;
+						int max_i = src_idx;
+						if (v1 > max) { max = v1; max_i = src_idx + 1; }
+						if (v2 > max) { max = v2; max_i = src_idx + w; }
+						if (v3 > max) { max = v3; max_i = src_idx + w + 1; }
+
+						dst[j + 2 + out_row_base] = max;
+						if (indexes) indexes[j + 2 + out_row_base] = max_i;
+					}
+
+					// ピクセル 3
+					{
+						const int src_idx = (j + 3) * 2 + src_row_base;
+						const float v0 = src[src_idx];
+						const float v1 = src[src_idx + 1];
+						const float v2 = src[src_idx + w];
+						const float v3 = src[src_idx + w + 1];
+
+						float max = v0;
+						int max_i = src_idx;
+						if (v1 > max) { max = v1; max_i = src_idx + 1; }
+						if (v2 > max) { max = v2; max_i = src_idx + w; }
+						if (v3 > max) { max = v3; max_i = src_idx + w + 1; }
+
+						dst[j + 3 + out_row_base] = max;
+						if (indexes) indexes[j + 3 + out_row_base] = max_i;
+					}
+				}
+
+				// 残りの要素
+				for (; j < out_w; ++j) {
+					const int src_idx = j * 2 + src_row_base;
+					const float v0 = src[src_idx];
+					const float v1 = src[src_idx + 1];
+					const float v2 = src[src_idx + w];
+					const float v3 = src[src_idx + w + 1];
+
+					float max = v0;
+					int max_i = src_idx;
+					if (v1 > max) { max = v1; max_i = src_idx + 1; }
+					if (v2 > max) { max = v2; max_i = src_idx + w; }
+					if (v3 > max) { max = v3; max_i = src_idx + w + 1; }
+
+					dst[j + out_row_base] = max;
+					if (indexes) indexes[j + out_row_base] = max_i;
+				}
+			}
+		}
+		return;
+	}
+
+	// パディングなしで境界チェック不要な場合
+	if (pad == 0 && (h_offset + (out_h - 1) * stride + size) <= h &&
+		(w_offset + (out_w - 1) * stride + size) <= w) {
+		const int total_work = batch * c;
+
+#pragma omp parallel for schedule(dynamic, 8)
+		for (int work_idx = 0; work_idx < total_work; ++work_idx) {
+			const int b = work_idx / c;
+			const int k = work_idx % c;
+			const int channel_offset = h * (k + b * c);
+
+			for (int i = 0; i < out_h; ++i) {
+				const int base_h = h_offset + i * stride;
+				for (int j = 0; j < out_w; ++j) {
+					const int out_index = j + out_w * (i + out_h * (k + c * b));
+					const int base_w = w_offset + j * stride;
+					float max = -FLT_MAX;
+					int max_i = -1;
+
+					// 境界チェックなしの高速処理
+					for (int n = 0; n < size; ++n) {
+						const int cur_h = base_h + n;
+						const int row_base = w * (cur_h + channel_offset);
+						for (int m = 0; m < size; ++m) {
+							const int index = base_w + m + row_base;
+							const float val = src[index];
+							if (val > max) {
+								max = val;
+								max_i = index;
+							}
+						}
+					}
+
+					dst[out_index] = max;
+					if (indexes) indexes[out_index] = max_i;
+				}
+			}
+		}
+		return;
+	}
+
+	// 一般的なケース（境界チェックあり）
+	const int total_work = batch * c;
+
+#pragma omp parallel for schedule(dynamic, 4)
+	for (int work_idx = 0; work_idx < total_work; ++work_idx) {
+		const int b = work_idx / c;
+		const int k = work_idx % c;
+
+		for (int i = 0; i < out_h; ++i) {
+			for (int j = 0; j < out_w; ++j) {
+				const int out_index = j + out_w * (i + out_h * (k + c * b));
+				float max = -FLT_MAX;
+				int max_i = -1;
+
+				for (int n = 0; n < size; ++n) {
+					for (int m = 0; m < size; ++m) {
+						const int cur_h = h_offset + i * stride + n;
+						const int cur_w = w_offset + j * stride + m;
+						const int index = cur_w + w * (cur_h + h * (k + b * c));
+						const int valid = (cur_h >= 0 && cur_h < h &&
+							cur_w >= 0 && cur_w < w);
+
+						const float val = (valid != 0) ? src[index] : -FLT_MAX;
+						max_i = (val > max) ? index : max_i;
+						max = (val > max) ? val : max;
+					}
+				}
+
+				dst[out_index] = max;
+				if (indexes) indexes[out_index] = max_i;
+			}
+		}
+	}
+}
+#endif
 
 #else   // AVX
 

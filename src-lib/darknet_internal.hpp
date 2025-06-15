@@ -12,6 +12,16 @@
 #define _CRTDBG_MAP_ALLOC
 #endif
 
+#ifdef USE_MIMALLOC
+#ifdef _MSC_VER
+// MSVC specific
+#include <mimalloc-override.h>
+#else
+// GCC/Linux specific
+#include <mimalloc-override.h>
+#endif
+#endif
+
 // C headers
 #include <cassert>
 #include <cfloat>

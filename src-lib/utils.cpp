@@ -1111,6 +1111,87 @@ float rand_normal()
 	return sqrt(rand1) * cos(rand2);
 }
 
+#if 1
+static inline float rand_uniform_fast(float min, float max)
+{
+	// スレッドローカルな軽量乱数ジェネレータ（xorshift128+）
+	thread_local static struct {
+		// 静的カウンターを使用（アドレスの代わり）
+		static uint64_t get_seed() {
+			static uint64_t counter = 0;
+			return ++counter;
+		}
+
+		// 初期化済みフラグと状態配列
+		bool initialized = false;
+		uint64_t state[2];
+
+		// 初期化関数
+		void init() {
+			if (!initialized) {
+				// シードの生成（アドレス値を使わない安全な方法）
+				uint64_t seed1 = static_cast<uint64_t>(time(nullptr));
+				uint64_t seed2 = get_seed();
+
+				// シードを設定
+				state[0] = seed1 ^ 0x5555555555555555ULL;
+				state[1] = seed2 ^ 0xAAAAAAAAAAAAAAAAULL;
+
+				// 初期状態を少し混ぜる
+				for (int i = 0; i < 10; i++) {
+					next();
+				}
+
+				initialized = true;
+			}
+		}
+
+		// 超高速なxorshift128+実装
+		inline uint64_t next() {
+			uint64_t s0 = state[0];
+			uint64_t s1 = state[1];
+			state[0] = s1;
+			s1 ^= s1 << 23;
+			state[1] = s1 ^ s0 ^ (s1 >> 18) ^ (s0 >> 5);
+			return state[1] + s0;
+		}
+
+		// [0,1)の範囲に正規化
+		inline float nextFloat() {
+			// 初回呼び出し時に初期化
+			if (!initialized) {
+				init();
+			}
+
+			// 浮動小数点変換方法1：シンプルな方法
+			return static_cast<float>(static_cast<double>(next()) /
+				static_cast<double>(UINT64_MAX));
+
+			/* 浮動小数点変換方法2：ビット操作（コンパイラによっては問題が出るため使用を検討）
+			const uint32_t x = static_cast<uint32_t>(next());
+			return static_cast<float>(x) / static_cast<float>(UINT32_MAX);
+			*/
+		}
+	} rng;
+
+	// [min,max]の範囲にスケーリング
+	return min + rng.nextFloat() * (max - min);
+}
+
+// 元の関数シグネチャとの互換性維持
+float rand_uniform(float min, float max)
+{
+	TAT(TATPARMS);
+	// min/maxスワップを維持
+	if (max < min) {
+		float temp = min;
+		min = max;
+		max = temp;
+	}
+
+	return rand_uniform_fast(min, max);
+}
+#else
 float rand_uniform(float min, float max)
 {
 	TAT(TATPARMS);
@@ -1130,6 +1211,7 @@ float rand_uniform(float min, float max)
 #endif
 	//return (random_float() * (max - min)) + min;
 }
+#endif // 0
 
 float rand_scale(float s)
 {

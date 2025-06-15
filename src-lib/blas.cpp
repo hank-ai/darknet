@@ -419,7 +419,17 @@ void copy_cpu(int N, float* X, int INCX, float* Y, int INCY)
 	for (i = 0; i < N; ++i) Y[i * INCY] = X[i * INCX];
 }
 #endif //USE_OPENBLAS
+#if 1
+void scal_add_cpu(int N, float ALPHA, float BETA, float* X, int INCX)
+{
+	TAT(TATPARMS);
 
+#pragma omp parallel for if(N > 1000 && INCX == 1)
+	for (int i = 0; i < N; ++i) {
+		X[i * INCX] = X[i * INCX] * ALPHA + BETA;
+	}
+}
+#else
 void scal_add_cpu(int N, float ALPHA, float BETA, float *X, int INCX)
 {
 	TAT(TATPARMS);	
@@ -427,7 +437,32 @@ void scal_add_cpu(int N, float ALPHA, float BETA, float *X, int INCX)
 	int i;
 	for (i = 0; i < N; ++i) X[i*INCX] = X[i*INCX] * ALPHA + BETA;
 }
+#endif
 
+#if 1
+void fill_cpu(int N, float ALPHA, float* X, int INCX)
+{
+	TAT(TATPARMS);
+
+	if (INCX == 1 && ALPHA == 0) {
+		memset(X, 0, N * sizeof(float));
+	}
+	else if (INCX == 1) {
+		// 連続アクセスは並列化効果が高い
+#pragma omp parallel for
+		for (int i = 0; i < N; ++i) {
+			X[i] = ALPHA;
+		}
+	}
+	else {
+		// ストライドアクセス
+#pragma omp parallel for if(N > 1000)
+		for (int i = 0; i < N; ++i) {
+			X[i * INCX] = ALPHA;
+		}
+	}
+}
+#else
 void fill_cpu(int N, float ALPHA, float *X, int INCX)
 {
 	TAT(TATPARMS);
@@ -440,7 +475,7 @@ void fill_cpu(int N, float ALPHA, float *X, int INCX)
 		for (i = 0; i < N; ++i) X[i*INCX] = ALPHA;
 	}
 }
-
+#endif
 void deinter_cpu(int NX, float *X, int NY, float *Y, int B, float *OUT)
 {
 	TAT(TATPARMS);

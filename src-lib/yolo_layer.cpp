@@ -338,7 +338,7 @@ namespace
 
 	static inline int yolo_entry_index(const Darknet::Layer & l, const int batch, const int location, const int entry)
 	{
-		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+		//TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
 		// similar function exists in region_layer.cpp, but the math is slightly different
 
@@ -822,6 +822,36 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	memcpy(l.output, state.input, l.outputs * l.batch * sizeof(float));
 
 #ifndef DARKNET_GPU
+#if 1
+	const int total_work = l.batch * l.n;
+
+#pragma omp parallel
+	{
+#pragma omp for schedule(dynamic, 2)
+		for (int work_idx = 0; work_idx < total_work; ++work_idx)
+		{
+			const int b = work_idx / l.n;
+			const int n = work_idx % l.n;
+
+			int bbox_index = yolo_entry_index(l, b, n * l.w * l.h, 0);
+
+			if (!l.new_coords)
+			{
+				activate_array(l.output + bbox_index, 2 * l.w * l.h, LOGISTIC);
+				int obj_index = yolo_entry_index(l, b, n * l.w * l.h, 4);
+				activate_array(l.output + obj_index, (1 + l.classes) * l.w * l.h, LOGISTIC);
+			}
+			else
+				{
+				// to use the new coordinates, we need to activate the output
+				//activate_array(l.output + bbox_index, 4 * l.w * l.h, LOGISTIC);    // x,y,w,h
+			}
+
+			// 
+			scal_add_cpu(2 * l.w * l.h, l.scale_x_y, -0.5 * (l.scale_x_y - 1), l.output + bbox_index, 1);
+		}
+	}
+#else
 	for (int b = 0; b < l.batch; ++b)
 	{
 		for (int n = 0; n < l.n; ++n)
@@ -840,6 +870,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			scal_add_cpu(2 * l.w*l.h, l.scale_x_y, -0.5*(l.scale_x_y - 1), l.output + bbox_index, 1);    // scale x,y
 		}
 	}
+#endif
 #endif
 
 	// delta is zeroed
@@ -1244,7 +1275,66 @@ int yolo_num_detections(const Darknet::Layer & l, float thresh)
 	return count;
 }
 
+#if 1
+int yolo_num_detections_v3(
+	Darknet::Network* net,
+	const int index,
+	const float thresh,
+	Darknet::Output_Object_Cache& cache)
+{
+	TAT(TATPARMS);
+	int count = 0;
+	const Darknet::Layer& l = net->layers[index];
+	const int stride = l.w * l.h;
 
+#pragma omp parallel reduction(+:count)
+	{
+		// バッチサイズを大きくしてcritical sectionを減らす
+		constexpr int BATCH_SIZE = 256;
+		std::vector<Darknet::Output_Object> batch;
+		batch.reserve(BATCH_SIZE);
+
+#pragma omp for schedule(dynamic, 8)  // 元の動的スケジューリングを維持
+		for (int n = 0; n < l.n; ++n) {
+			const int n_stride = n * stride;
+
+			for (int i = 0; i < stride; ++i) {
+				// 重要：yolo_entry_indexを正確に呼び出す
+				const int obj_index = yolo_entry_index(l, 0, n_stride + i, 4);
+
+				if (l.output[obj_index] > thresh) {
+					++count;
+					batch.emplace_back();
+					auto& back = batch.back();
+					back.layer_index = index;
+					back.n = n;
+					back.i = i;
+					back.obj_index = obj_index;
+
+					// バッチが満杯になったら転送
+					if (batch.size() >= BATCH_SIZE) {
+#pragma omp critical
+						{
+							cache.insert(cache.end(), batch.begin(), batch.end());
+						}
+						batch.clear();
+					}
+				}
+			}
+		}
+
+		// 残りのバッチを転送
+		if (!batch.empty()) {
+#pragma omp critical
+			{
+				cache.insert(cache.end(), batch.begin(), batch.end());
+			}
+		}
+	}
+
+	return count;
+}
+#else
 int yolo_num_detections_v3(Darknet::Network * net, const int index, const float thresh, Darknet::Output_Object_Cache & cache)
 {
 	TAT(TATPARMS);
@@ -1278,7 +1368,7 @@ int yolo_num_detections_v3(Darknet::Network * net, const int index, const float 
 
 	return count;
 }
-
+#endif // yolo_num_detections_v3
 
 int yolo_num_detections_batch(const Darknet::Layer & l, float thresh, int batch)
 {

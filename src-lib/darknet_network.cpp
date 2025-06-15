@@ -227,7 +227,39 @@ Darknet::Network make_network(int n)
 	return net;
 }
 
+#if 1
+void forward_network(Darknet::Network& net, Darknet::NetworkState state)
+{
+	TAT(TATPARMS);
+	state.workspace = net.workspace;
 
+	if (state.train)
+	{
+		//training
+		for (int i = 0; i < net.n; ++i)
+		{
+			state.index = i;
+			Darknet::Layer& l = net.layers[i];
+			if (l.delta && l.train)
+			{
+				scal_cpu(l.outputs * l.batch, 0, l.delta, 1);
+			}
+			l.forward(l, state);
+			state.input = l.output;
+		}
+	}
+	else
+	{
+		for (int i = 0; i < net.n; ++i)
+		{
+			state.index = i;
+			Darknet::Layer& l = net.layers[i];
+			l.forward(l, state);
+			state.input = l.output;
+		}
+	}
+}
+#else
 void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
@@ -246,7 +278,7 @@ void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 		state.input = l.output;
 	}
 }
-
+#endif
 
 void update_network(Darknet::Network & net)
 {

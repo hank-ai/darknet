@@ -786,7 +786,45 @@ Darknet::Image Darknet::rgb_mat_to_rgb_image(const cv::Mat & mat)
 	return img;
 }
 
+#if 1
+Darknet::Image Darknet::bgr_mat_to_rgb_image(const cv::Mat& mat)
+{
+	TAT(TATPARMS);
+	CV_Assert(mat.channels() == 3 && mat.depth() == CV_8U);
 
+	Darknet::Image img = make_image(mat.cols, mat.rows, 3);
+	const int pixels = img.w * img.h;
+
+	// 除算を乗算に変更（constexprで定数として扱う）
+	constexpr float scale = 1.0f / 255.0f;
+
+	// 連続メモリの場合の最適化
+	if (mat.isContinuous()) {
+		const uchar* src = mat.data;
+#pragma omp parallel for schedule(static)
+		for (int i = 0; i < pixels; ++i) {
+			const uchar* bgr = src + i * 3;
+			img.data[i] = bgr[2] * scale;              // R
+			img.data[pixels + i] = bgr[1] * scale;     // G
+			img.data[2 * pixels + i] = bgr[0] * scale; // B
+		}
+	}
+	else {
+		// 非連続の場合は元の実装を使用（scaleを適用）
+		cv::Mat planes[3] = {
+			cv::Mat(img.h, img.w, CV_32FC1, img.data),
+			cv::Mat(img.h, img.w, CV_32FC1, img.data + pixels),
+			cv::Mat(img.h, img.w, CV_32FC1, img.data + 2 * pixels)
+		};
+		cv::Mat bgr[3];
+		cv::split(mat, bgr);
+		bgr[2].convertTo(planes[0], CV_32FC1, scale);  // 1.0/255.0 → scale
+		bgr[1].convertTo(planes[1], CV_32FC1, scale);
+		bgr[0].convertTo(planes[2], CV_32FC1, scale);
+	}
+	return img;
+}
+#else
 Darknet::Image Darknet::bgr_mat_to_rgb_image(const cv::Mat & mat)
 {
 	TAT(TATPARMS);
@@ -817,7 +855,7 @@ Darknet::Image Darknet::bgr_mat_to_rgb_image(const cv::Mat & mat)
 
 	return img;
 }
-
+#endif // #if 1
 
 cv::Mat Darknet::image_to_mat(const Darknet::Image & img)
 {

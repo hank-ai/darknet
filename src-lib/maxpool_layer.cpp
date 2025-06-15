@@ -255,7 +255,7 @@ void resize_maxpool_layer(Darknet::Layer *l, int w, int h)
 void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
-
+#if 0
 	if (l.maxpool_depth)
 	{
 		int b, i, j, k, g;
@@ -285,7 +285,37 @@ void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		}
 		return;
 	}
+#else
+	if (l.maxpool_depth) {
+		int b, i, j, k, g;
 
+		// バッチレベルでの並列化（通常バッチサイズ > スレッド数なので効率的）
+#pragma omp parallel for private(i, j, k, g)
+		for (b = 0; b < l.batch; ++b) {
+			for (i = 0; i < l.h; ++i) {
+				for (j = 0; j < l.w; ++j) {
+					for (g = 0; g < l.out_c; ++g) {
+						int out_index = j + l.w * (i + l.h * (g + l.out_c * b));
+						float max = -FLT_MAX;
+						int max_i = -1;
+
+						// 内側ループは自動ベクトル化を期待
+						for (k = g; k < l.c; k += l.out_c) {
+							int in_index = j + l.w * (i + l.h * (k + l.c * b));
+							float val = state.input[in_index];
+							max_i = (val > max) ? in_index : max_i;
+							max = (val > max) ? val : max;
+						}
+
+						l.output[out_index] = max;
+						if (l.indexes) l.indexes[out_index] = max_i;
+					}
+				}
+			}
+		}
+		return;
+	}
+#endif
 
 	if (!state.train && l.stride_x == l.stride_y)
 	{
