@@ -247,7 +247,7 @@ int main(int argc, char * argv[])
 		std::cout
 			<< "-> recent error counter ..... " << error_counter													<< std::endl
 			<< "-> total frames captured .... " << frame_counter													<< std::endl
-			<< "-> total length of video .... " << video_length_in_milliseconds << " milliseconds"					<< std::endl
+			<< "-> total length of video .... " << Darknet::format_duration_string(video_duration)					<< std::endl
 			<< "-> average frame rate ....... " << average_fps << " FPS"											<< std::endl
 			<< "-> total objects founds ..... " << total_objects_found												<< std::endl
 			<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter			<< std::endl;

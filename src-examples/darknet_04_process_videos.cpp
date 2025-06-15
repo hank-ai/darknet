@@ -52,9 +52,14 @@ int main(int argc, char * argv[])
 					continue;
 				}
 
+				cv::Mat mat;
+				cap >> mat;
+				cap.set(cv::CAP_PROP_POS_FRAMES, 0.0);
+
 				const std::string output_filename		= std::filesystem::path(parm.string).stem().string() + "_output.m4v";
-				const size_t video_width				= cap.get(cv::CAP_PROP_FRAME_WIDTH);
-				const size_t video_height				= cap.get(cv::CAP_PROP_FRAME_HEIGHT);
+				const size_t video_width				= mat.cols;
+				const size_t video_height				= mat.rows;
+				const size_t video_channels				= mat.channels();
 				const size_t video_frames_count			= cap.get(cv::CAP_PROP_FRAME_COUNT);
 				const double fps						= cap.get(cv::CAP_PROP_FPS);
 				const size_t fps_rounded				= std::round(fps);
@@ -62,11 +67,11 @@ int main(int argc, char * argv[])
 				const size_t video_length_milliseconds	= std::round(nanoseconds_per_frame / 1000000.0 * video_frames_count);
 
 				std::cout
-					<< "-> neural network size ...... " << network_width << " x " << network_height << " x " << network_channels << std::endl
-					<< "-> input video dimensions ... " << video_width << " x " << video_height			<< std::endl
+					<< "-> neural network size ...... " << network_width	<< " x " << network_height	<< " x " << network_channels	<< std::endl
+					<< "-> input video dimensions ... " << video_width		<< " x " << video_height	<< " x " << video_channels		<< std::endl
 					<< "-> input video frame count .. " << video_frames_count							<< std::endl
 					<< "-> input video frame rate ... " << fps << " FPS"								<< std::endl
-					<< "-> input video length ....... " << video_length_milliseconds << " milliseconds"	<< std::endl
+					<< "-> input video length ....... " << Darknet::format_duration_string(std::chrono::milliseconds(video_length_milliseconds)) << std::endl
 					<< "-> output filename .......... " << output_filename								<< std::endl;
 
 				cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), fps, cv::Size(video_width, video_height));
@@ -82,7 +87,6 @@ int main(int argc, char * argv[])
 
 				while (true)
 				{
-					cv::Mat mat;
 					cap >> mat;
 					if (mat.empty())
 					{
@@ -98,9 +102,9 @@ int main(int argc, char * argv[])
 					{
 						const int percentage = std::round(100.0f * frame_counter / video_frames_count);
 						std::cout
-						<< "-> frame #" << frame_counter << "/" << video_frames_count
-						<< " (" << percentage << "%)\r"
-						<< std::flush;
+							<< "-> frame #" << frame_counter << "/" << video_frames_count
+							<< " (" << percentage << "%)\r"
+							<< std::flush;
 					}
 				}
 
@@ -111,7 +115,7 @@ int main(int argc, char * argv[])
 
 				std::cout
 					<< "-> total frames processed ... " << frame_counter											<< std::endl
-					<< "-> time to process video .... " << processing_time_in_milliseconds << " milliseconds"		<< std::endl
+					<< "-> time to process video .... " << Darknet::format_duration_string(processing_duration)		<< std::endl
 					<< "-> processed frame rate ..... " << final_fps << " FPS"										<< std::endl
 					<< "-> total objects founds ..... " << total_objects_found										<< std::endl
 					<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter	<< std::endl;

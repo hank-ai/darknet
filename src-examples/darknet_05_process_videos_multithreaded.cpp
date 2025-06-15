@@ -264,9 +264,14 @@ int main(int argc, char * argv[])
 				continue;
 			}
 
+			cv::Mat mat;
+			cap >> mat;
+			cap.set(cv::CAP_PROP_POS_FRAMES, 0.0);
+
 			const std::string output_filename		= std::filesystem::path(parm.string).stem().string() + "_output.m4v";
-			const size_t video_width				= cap.get(cv::CAP_PROP_FRAME_WIDTH);
-			const size_t video_height				= cap.get(cv::CAP_PROP_FRAME_HEIGHT);
+			const size_t video_width				= mat.cols;
+			const size_t video_height				= mat.rows;
+			const size_t video_channels				= mat.channels();
 			const size_t video_frames_count			= cap.get(cv::CAP_PROP_FRAME_COUNT);
 			const double fps						= cap.get(cv::CAP_PROP_FPS);
 			const size_t fps_rounded				= std::round(fps);
@@ -317,11 +322,11 @@ int main(int argc, char * argv[])
 			std::cout
 				<< "-> total number of CPUs ..... " << std::thread::hardware_concurrency()			<< std::endl
 				<< "-> threads for this video ... " << threads.size() + 1 /* this thread */			<< std::endl
-				<< "-> neural network size ...... " << network_width << " x " << network_height << " x " << network_channels << std::endl
-				<< "-> input video dimensions ... " << video_width << " x " << video_height			<< std::endl
+				<< "-> neural network size ...... " << network_width	<< " x " << network_height	<< " x " << network_channels	<< std::endl
+				<< "-> input video dimensions ... " << video_width		<< " x " << video_height	<< " x " << video_channels		<< std::endl
 				<< "-> input video frame count .. " << video_frames_count							<< std::endl
 				<< "-> input video frame rate ... " << fps << " FPS"								<< std::endl
-				<< "-> input video length ....... " << video_length_milliseconds << " milliseconds"	<< std::endl
+				<< "-> input video length ....... " << Darknet::format_duration_string(std::chrono::milliseconds(video_length_milliseconds)) << std::endl
 				<< "-> output filename .......... " << output_filename								<< std::endl;
 
 			const auto timestamp_when_video_started = std::chrono::high_resolution_clock::now();
@@ -386,7 +391,7 @@ int main(int argc, char * argv[])
 
 			std::cout
 				<< "-> total frames processed ... " << frame_counter											<< std::endl
-				<< "-> time to process video .... " << processing_time_in_milliseconds << " milliseconds"		<< std::endl
+				<< "-> time to process video .... " << Darknet::format_duration_string(processing_duration)		<< std::endl
 				<< "-> processed frame rate ..... " << final_fps << " FPS"										<< std::endl
 				<< "-> total objects founds ..... " << total_objects_found										<< std::endl
 				<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter	<< std::endl
@@ -397,11 +402,11 @@ int main(int argc, char * argv[])
 				<< "-> predict thread starved ... " << predict_thread_starved									<< std::endl
 				<< "-> output thread starved .... " << output_thread_starved									<< std::endl
 				<< "-> waiting for threads ...... " << waiting_for_threads										<< std::endl
-				<< "-> time spent reading ....... " << std::chrono::duration_cast<std::chrono::milliseconds>(reader_work_duration).count() << " milliseconds" << std::endl
-				<< "-> time spent resizing ...... " << std::chrono::duration_cast<std::chrono::milliseconds>(resize_work_duration).count() << " milliseconds" << std::endl
-				<< "-> time spent predicting .... " << std::chrono::duration_cast<std::chrono::milliseconds>(predict_work_duration).count() << " milliseconds" << std::endl
-				<< "-> time spent output video .. " << std::chrono::duration_cast<std::chrono::milliseconds>(output_work_duration).count() << " milliseconds" << std::endl
-				<< "-> time waiting for threads . " << std::chrono::duration_cast<std::chrono::milliseconds>(wait_threads_duration).count() << " milliseconds" << std::endl
+				<< "-> time spent reading ....... " << Darknet::format_duration_string(reader_work_duration)	<< std::endl
+				<< "-> time spent resizing ...... " << Darknet::format_duration_string(resize_work_duration)	<< std::endl
+				<< "-> time spent predicting .... " << Darknet::format_duration_string(predict_work_duration)	<< std::endl
+				<< "-> time spent output video .. " << Darknet::format_duration_string(output_work_duration)	<< std::endl
+				<< "-> time waiting for threads . " << Darknet::format_duration_string(wait_threads_duration)	<< std::endl
 #endif
 				;
 

@@ -51,8 +51,13 @@ int main(int argc, char * argv[])
 				continue;
 			}
 
-			const size_t video_width				= cap.get(cv::CAP_PROP_FRAME_WIDTH);
-			const size_t video_height				= cap.get(cv::CAP_PROP_FRAME_HEIGHT);
+			cv::Mat mat;
+			cap >> mat;
+			cap.set(cv::CAP_PROP_POS_FRAMES, 0.0);
+
+			const size_t video_width				= mat.cols;
+			const size_t video_height				= mat.rows;
+			const size_t video_channels				= mat.channels();
 			const size_t video_frames_count			= cap.get(cv::CAP_PROP_FRAME_COUNT);
 			const double fps						= cap.get(cv::CAP_PROP_FPS);
 			const size_t fps_rounded				= std::round(fps);
@@ -61,12 +66,12 @@ int main(int argc, char * argv[])
 			const auto frame_duration				= std::chrono::nanoseconds(nanoseconds_per_frame);
 
 			std::cout
-				<< "-> neural network size ...... " << network_width << " x " << network_height << " x " << network_channels << std::endl
-				<< "-> frame dimensions ......... " << video_width << " x " << video_height		<< std::endl
+				<< "-> neural network size ...... " << network_width	<< " x " << network_height	<< " x " << network_channels	<< std::endl
+				<< "-> video dimensions ......... " << video_width		<< " x " << video_height	<< " x " << video_channels		<< std::endl
 				<< "-> frame count .............. " << video_frames_count						<< std::endl
 				<< "-> frame rate ............... " << fps << " FPS"							<< std::endl
 				<< "-> each frame lasts ......... " << nanoseconds_per_frame << " nanoseconds"	<< std::endl
-				<< "-> estimated video length ... " << video_length_milliseconds << " milliseconds" << std::endl;
+				<< "-> estimated video length ... " << Darknet::format_duration_string(std::chrono::milliseconds(video_length_milliseconds)) << std::endl;
 
 			if (show_heatmaps)
 			{
@@ -81,17 +86,17 @@ int main(int argc, char * argv[])
 			}
 
 			const std::string title = "Darknet/YOLO - " + std::filesystem::path(parm.string).filename().string();
-			cv::Mat mat(video_height, video_width, CV_8UC3, {0, 0, 0});
+			mat = cv::Mat(video_height, video_width, CV_8UC3, {0, 0, 0});
 			cv::namedWindow("output", cv::WindowFlags::WINDOW_GUI_NORMAL);
 			cv::setWindowTitle("output", title);
 			cv::resizeWindow("output", mat.size());
 			cv::imshow("output", mat);
 			cv::waitKey(5);
 
-			size_t frame_counter				= 0;
-			size_t fell_behind					= 0;
-			size_t total_objects_found			= 0;
-			double total_sleep_in_milliseconds	= 0.0;
+			size_t frame_counter		= 0;
+			size_t fell_behind			= 0;
+			size_t total_objects_found	= 0;
+			auto total_sleep_duration	= std::chrono::high_resolution_clock::duration();
 
 			const auto timestamp_when_video_started = std::chrono::high_resolution_clock::now();
 			auto timestamp_next_frame = timestamp_when_video_started + frame_duration;
@@ -133,7 +138,7 @@ int main(int argc, char * argv[])
 				const int milliseconds		= std::chrono::duration_cast<std::chrono::milliseconds>(time_remaining).count();
 				if (milliseconds >= 0)
 				{
-					total_sleep_in_milliseconds	+= milliseconds;
+					total_sleep_duration += time_remaining;
 				}
 				else if (frame_counter > 1) // not unusual for the very first frame to fall behind
 				{
@@ -158,11 +163,14 @@ int main(int argc, char * argv[])
 			const auto video_duration = timestamp_when_video_ended - timestamp_when_video_started;
 			const size_t video_length_in_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(video_duration).count();
 			const double final_fps = 1000.0 * frame_counter / video_length_in_milliseconds;
+			const double total_sleep_nanoseconds = std::chrono::duration_cast<std::chrono::nanoseconds>(total_sleep_duration).count();
+			const size_t average_sleep_nanoseconds = std::round(total_sleep_nanoseconds / frame_counter);
 
 			std::cout
 				<< "-> number of frames shown ... " << frame_counter													<< std::endl
-				<< "-> average sleep per frame .. " << total_sleep_in_milliseconds / frame_counter << " milliseconds"	<< std::endl
-				<< "-> total length of video .... " << video_length_in_milliseconds << " milliseconds"					<< std::endl
+				<< "-> total sleep time ......... " << Darknet::format_duration_string(total_sleep_duration)			<< std::endl
+				<< "-> average sleep per frame .. " << Darknet::format_duration_string(std::chrono::nanoseconds(average_sleep_nanoseconds)) << std::endl
+				<< "-> video display time ....... " << Darknet::format_duration_string(video_duration)					<< std::endl
 				<< "-> processed frame rate ..... " << final_fps << " FPS"												<< std::endl;
 			if (fell_behind)
 			{

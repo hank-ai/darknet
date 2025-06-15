@@ -175,7 +175,7 @@ int main(int argc, char * argv[])
 			std::cout
 				<< "-> number of frames shown ... " << frame_counter													<< std::endl
 				<< "-> average sleep per frame .. " << total_sleep_in_milliseconds / frame_counter << " milliseconds"	<< std::endl
-				<< "-> total length of video .... " << video_length_in_milliseconds << " milliseconds"					<< std::endl
+				<< "-> total length of video .... " << Darknet::format_duration_string(video_duration)					<< std::endl
 				<< "-> processed frame rate ..... " << final_fps << " FPS"												<< std::endl;
 			if (fell_behind)
 			{
