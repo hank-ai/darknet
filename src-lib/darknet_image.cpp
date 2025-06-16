@@ -795,14 +795,14 @@ Darknet::Image Darknet::bgr_mat_to_rgb_image(const cv::Mat& mat)
 	Darknet::Image img = make_image(mat.cols, mat.rows, 3);
 	const int pixels = img.w * img.h;
 
-	// 除算を乗算に変更（constexprで定数として扱う）
 	constexpr float scale = 1.0f / 255.0f;
 
-	// 連続メモリの場合の最適化
-	if (mat.isContinuous()) {
+	if (mat.isContinuous())
+	{
 		const uchar* src = mat.data;
 #pragma omp parallel for schedule(static)
-		for (int i = 0; i < pixels; ++i) {
+		for (int i = 0; i < pixels; ++i)
+		{
 			const uchar* bgr = src + i * 3;
 			img.data[i] = bgr[2] * scale;              // R
 			img.data[pixels + i] = bgr[1] * scale;     // G
@@ -810,8 +810,9 @@ Darknet::Image Darknet::bgr_mat_to_rgb_image(const cv::Mat& mat)
 		}
 	}
 	else {
-		// 非連続の場合は元の実装を使用（scaleを適用）
-		cv::Mat planes[3] = {
+		// 
+		cv::Mat planes[3] =
+		{
 			cv::Mat(img.h, img.w, CV_32FC1, img.data),
 			cv::Mat(img.h, img.w, CV_32FC1, img.data + pixels),
 			cv::Mat(img.h, img.w, CV_32FC1, img.data + 2 * pixels)

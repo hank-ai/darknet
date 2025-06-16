@@ -827,7 +827,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 
 #pragma omp parallel
 	{
-#pragma omp for schedule(dynamic, 2)
+#pragma omp for schedule(dynamic, 8)
 		for (int work_idx = 0; work_idx < total_work; ++work_idx)
 		{
 			const int b = work_idx / l.n;
@@ -846,8 +846,6 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 				// to use the new coordinates, we need to activate the output
 				//activate_array(l.output + bbox_index, 4 * l.w * l.h, LOGISTIC);    // x,y,w,h
 			}
-
-			// 
 			scal_add_cpu(2 * l.w * l.h, l.scale_x_y, -0.5 * (l.scale_x_y - 1), l.output + bbox_index, 1);
 		}
 	}
@@ -873,12 +871,12 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 #endif
 #endif
 
-	// delta is zeroed
-	memset(l.delta, 0, l.outputs * l.batch * sizeof(float));
 	if (!state.train)
 	{
 		return;
 	}
+	// delta is zeroed
+	memset(l.delta, 0, l.outputs * l.batch * sizeof(float));
 
 	for (int i = 0; i < l.batch * l.w*l.h*l.n; ++i)
 	{
@@ -1276,11 +1274,7 @@ int yolo_num_detections(const Darknet::Layer & l, float thresh)
 }
 
 #if 1
-int yolo_num_detections_v3(
-	Darknet::Network* net,
-	const int index,
-	const float thresh,
-	Darknet::Output_Object_Cache& cache)
+int yolo_num_detections_v3(Darknet::Network* net, const int index, const float thresh, Darknet::Output_Object_Cache& cache)
 {
 	TAT(TATPARMS);
 	int count = 0;
@@ -1290,7 +1284,7 @@ int yolo_num_detections_v3(
 #pragma omp parallel reduction(+:count)
 	{
 		// バッチサイズを大きくしてcritical sectionを減らす
-		constexpr int BATCH_SIZE = 256;
+		constexpr int BATCH_SIZE = 512;
 		std::vector<Darknet::Output_Object> batch;
 		batch.reserve(BATCH_SIZE);
 
