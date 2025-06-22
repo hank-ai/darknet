@@ -5,6 +5,20 @@
 #include "tree.hpp"
 #endif
 
+
+#ifdef DARKNET_USE_OPENBLAS
+#include <cblas.h>
+#define axpy_cpu	cblas_saxpy
+#define scal_cpu	cblas_sscal
+#define copy_cpu	cblas_scopy
+#define dot_cpu		cblas_sdot
+#else
+void axpy_cpu(int N, float ALPHA, float *X, int INCX, float *Y, int INCY);
+void scal_cpu(int N, float ALPHA, float *X, int INCX);
+void copy_cpu(int N, float *X, int INCX, float *Y, int INCY);
+float dot_cpu(int N, float *X, int INCX, float *Y, int INCY);
+#endif
+
 void flatten(float *x, int size, int layers, int batch, int forward);
 float *random_matrix(int rows, int cols);
 //void time_random_matrix(int TA, int TB, int m, int k, int n); unused?
@@ -18,12 +32,8 @@ void constrain_min_max_ongpu(int N, float MIN, float MAX, float * X, int INCX);
 void pow_cpu(int N, float ALPHA, float *X, int INCX, float *Y, int INCY);
 void mul_cpu(int N, float *X, int INCX, float *Y, int INCY);
 
-void axpy_cpu(int N, float ALPHA, float *X, int INCX, float *Y, int INCY);
-void copy_cpu(int N, float *X, int INCX, float *Y, int INCY);
-void scal_cpu(int N, float ALPHA, float *X, int INCX);
 void scal_add_cpu(int N, float ALPHA, float BETA, float *X, int INCX);
 void fill_cpu(int N, float ALPHA, float * X, int INCX);
-float dot_cpu(int N, float *X, int INCX, float *Y, int INCY);
 int test_gpu_blas();
 void shortcut_cpu(int batch, int w1, int h1, int c1, float *add, int w2, int h2, int c2, float *out);
 void shortcut_multilayer_cpu(int size, int src_outputs, int batch, int n, int *outputs_of_layers, float **layers_output, float *out, float *in, float *weights, int nweights, WEIGHTS_NORMALIZATION_T weights_normalization);
@@ -52,7 +62,6 @@ void softmax_x_ent_cpu(int n, float *pred, float *truth, float *delta, float *er
 void constrain_cpu(int size, float ALPHA, float *X);
 void fix_nan_and_inf_cpu(float *input, size_t size);
 
-
 int check_sim(size_t i, size_t j, contrastive_params *contrast_p, int contrast_p_size);
 float find_sim(size_t i, size_t j, contrastive_params *contrast_p, int contrast_p_size);
 float find_P_constrastive(size_t i, size_t j, contrastive_params *contrast_p, int contrast_p_size);
@@ -67,7 +76,6 @@ float cosine_similarity(float *A, float *B, unsigned int feature_size);
 float P_constrastive(size_t i, size_t l, int *labels, size_t num_of_samples, float **z, unsigned int feature_size, float temperature, float *cos_sim, float *exp_cos_sim);
 void grad_contrastive_loss_positive(size_t i, int *labels, size_t num_of_samples, float **z, unsigned int feature_size, float temperature, float *cos_sim, float *p_constrastive, float *delta, int wh);
 void grad_contrastive_loss_negative(size_t i, int *labels, size_t num_of_samples, float **z, unsigned int feature_size, float temperature, float *cos_sim, float *p_constrastive, float *delta, int wh);
-
 
 #ifdef DARKNET_GPU
 

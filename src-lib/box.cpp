@@ -11,8 +11,8 @@ namespace
 
 		const float w = b.w;
 		const float h = b.h;
-		const float x = b.x - (b.w / 2.0f);
-		const float y = b.y - (b.h / 2.0f);
+		const float x = b.x - (b.w * 0.5f);
+		const float y = b.y - (b.h * 0.5f);
 
 		return cv::Rect2f(x, y, w, h);
 	}

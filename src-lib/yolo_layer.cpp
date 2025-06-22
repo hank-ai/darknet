@@ -842,12 +842,13 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 #endif
 
-	// delta is zeroed
-	memset(l.delta, 0, l.outputs * l.batch * sizeof(float));
 	if (!state.train)
 	{
 		return;
 	}
+
+	// delta is zeroed
+	memset(l.delta, 0, l.outputs * l.batch * sizeof(float));
 
 	for (int i = 0; i < l.batch * l.w*l.h*l.n; ++i)
 	{
@@ -1256,6 +1257,7 @@ int yolo_num_detections_v3(Darknet::Network * net, const int index, const float 
 
 	const Darknet::Layer & l = net->layers[index];
 
+	#pragma omp for schedule(dynamic, 8)
 	for (int n = 0; n < l.n; ++n)
 	{
 		for (int i = 0; i < l.w * l.h; ++i)

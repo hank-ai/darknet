@@ -176,10 +176,16 @@ If you don't want to use Darknet/YOLO from within WSL, then skip ahead to the [W
 > Darknet can run without access to a GPU, but if you want to _train_ a custom network or you need higher performance, then a modern NVIDIA GPU or AMD GPU is _strongly recommended_.
 > * Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
 
+> [!TIP]
+> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  This only makes a difference on CPU-only builds:
+```sh
+sudo apt-get install libopenblas64-openmp-dev
+```
+
 These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
 
 ```sh
-sudo apt-get install build-essential git libopencv-dev cmake
+sudo apt-get install build-essential git libopenblas64-openmp-dev libopencv-dev cmake
 mkdir ~/src
 cd ~/src
 git clone https://github.com/hank-ai/darknet
@@ -265,7 +271,7 @@ At this point we need to modify the Visual Studio installation to include suppor
 > [!WARNING]
 > **Please don't skip this step!**  Re-read the "important" description above to see what kind of window you **must** be using.  Anytime you want to use Visual Studio from the command prompt to compile C++ code you must use the Visual Studio developer command prompt as described above.
 
-Once you have the **Developer Command Prompt**, run the following commands to install Microsoft VCPKG, which will then be used to build OpenCV:
+Once you have the **Developer Command Prompt**, run the following commands to install Microsoft VCPKG, which will then be used to build OpenBlas and OpenCV:
 
 ```bat
 cd c:\
@@ -287,6 +293,12 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 > [!IMPORTANT]
 > Darknet can run without access to a GPU, but if you want to _train_ a custom network or you need higher performance, then a modern NVIDIA GPU or AMD GPU is _strongly recommended_.
 > * Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
+
+> [!TIP]
+> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  This only makes a difference on CPU-only builds:
+```sh
+.\vcpkg.exe install openblas:x64-windows
+```
 
 Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies.  Make sure you continue to use the **Developer Command Prompt** as described above when you run these commands:
 
@@ -345,7 +357,7 @@ ENV LD_LIBRARY_PATH="/usr/local/cuda/lib64:${LD_LIBRARY_PATH}"
 
 # Install dependencies
 RUN apt-get update
-RUN apt-get install -y build-essential git libopencv-dev wget file cmake
+RUN apt-get install -y build-essential git libopenblas64-openmp-dev libopencv-dev wget file cmake
 
 # Set working directory for Darknet
 WORKDIR /workspace

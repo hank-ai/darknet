@@ -178,12 +178,18 @@ void transpose_32x32_bits_reversed_diagonale(uint32_t *A, uint32_t *B, int m, in
 	/// @note This function is for CPU-only versions of Darknet.  See im2col_kernels.cu for GPU version.
 
 	unsigned A_tmp[32];
-	int i;
-	#pragma unroll
-	for (i = 0; i < 32; ++i) A_tmp[i] = A[i * m];
+
+//	#pragma unroll
+	for (int i = 0; i < 32; ++i)
+	{
+		A_tmp[i] = A[i * m];
+	}
 	transpose32_optimized(A_tmp);
-	#pragma unroll
-	for (i = 0; i < 32; ++i) B[i*n] = A_tmp[i];
+//	#pragma unroll
+	for (int i = 0; i < 32; ++i)
+	{
+		B[i*n] = A_tmp[i];
+	}
 }
 
 
@@ -558,17 +564,12 @@ void gemm_nn_fast(int M, int N, int K, float ALPHA,
 {
 	TAT(TATPARMS);
 
-	int i;
-
 	#pragma omp parallel for
-	for (i = 0; i < (M / TILE_M)*TILE_M; i += TILE_M)
+	for (int i = 0; i < (M / TILE_M)*TILE_M; i += TILE_M)
 	{
-		int j, k;
-		int i_d, k_d;
-
-		for (k = 0; k < (K / TILE_K)*TILE_K; k += TILE_K)
+		for (int k = 0; k < (K / TILE_K)*TILE_K; k += TILE_K)
 		{
-			for (j = 0; j < (N / TILE_N)*TILE_N; j += TILE_N)
+			for (int j = 0; j < (N / TILE_N)*TILE_N; j += TILE_N)
 			{
 				// L1 - 6 bits tag [11:6] - cache size 32 KB, conflict for each 4 KB
 				// L2 - 9 bits tag [14:6] - cache size 256 KB, conflict for each 32 KB
@@ -593,7 +594,7 @@ void gemm_nn_fast(int M, int N, int K, float ALPHA,
 				c256_7 = _mm256_loadu_ps(&C[(3 + i)*ldc + (8 + j)]);
 
 
-				for (k_d = 0; k_d < (TILE_K); ++k_d)
+				for (int k_d = 0; k_d < (TILE_K); ++k_d)
 				{
 					a256_0 = _mm256_set1_ps(ALPHA*A[(0 + i)*lda + (k_d + k)]);
 					a256_1 = _mm256_set1_ps(ALPHA*A[(1 + i)*lda + (k_d + k)]);
@@ -652,10 +653,11 @@ void gemm_nn_fast(int M, int N, int K, float ALPHA,
 				_mm256_storeu_ps(&C[(3 + i)*ldc + (8 + j)], c256_7);
 			}
 
-			for (j = (N / TILE_N)*TILE_N; j < N; ++j) {
-				for (i_d = i; i_d < (i + TILE_M); ++i_d)
+			for (int j = (N / TILE_N)*TILE_N; j < N; ++j)
+			{
+				for (int i_d = i; i_d < (i + TILE_M); ++i_d)
 				{
-					for (k_d = k; k_d < (k + TILE_K); ++k_d)
+					for (int k_d = k; k_d < (k + TILE_K); ++k_d)
 					{
 						PUT_IN_REGISTER float A_PART = ALPHA*A[i_d*lda + k_d];
 						C[i_d*ldc + j] += A_PART*B[k_d*ldb + j];
@@ -664,29 +666,32 @@ void gemm_nn_fast(int M, int N, int K, float ALPHA,
 			}
 		}
 
-		for (k = (K / TILE_K)*TILE_K; k < K; ++k)
+		for (int k = (K / TILE_K)*TILE_K; k < K; ++k)
 		{
-			for (i_d = i; i_d < (i + TILE_M); ++i_d)
+			for (int i_d = i; i_d < (i + TILE_M); ++i_d)
 			{
 				PUT_IN_REGISTER float A_PART = ALPHA*A[i_d*lda + k];
-				for (j = 0; j < N; ++j) {
+				for (int j = 0; j < N; ++j)
+				{
 					C[i_d*ldc + j] += A_PART*B[k*ldb + j];
 				}
 			}
 		}
 	}
 
-	for (i = (M / TILE_M)*TILE_M; i < M; ++i) {
-		int j, k;
-		for (k = 0; k < K; ++k) {
+	#pragma omp parallel for
+	for (int i = (M / TILE_M)*TILE_M; i < M; ++i)
+	{
+		for (int k = 0; k < K; ++k)
+		{
 			PUT_IN_REGISTER float A_PART = ALPHA*A[i*lda + k];
-			for (j = 0; j < N; ++j) {
+			for (int j = 0; j < N; ++j)
+			{
 				C[i*ldc + j] += A_PART*B[k*ldb + j];
 			}
 		}
 	}
 }
-
 
 
 void gemm_nn_bin_32bit_packed(int M, int N, int K, float ALPHA,
@@ -1474,16 +1479,20 @@ void activate_array_cpu_custom(float *x, const int n, const ACTIVATION a)
 {
 	TAT(TATPARMS);
 
-	int i = 0;
 	if (a == LINEAR)
-	{}
-	else if (a == LEAKY)
 	{
-		if (is_fma_avx2()) {
+		return;
+	}
+
+	if (a == LEAKY)
+	{
+		if (is_fma_avx2())
+		{
 			__m256i all256_sing1 = _mm256_set_epi32(0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000);
 			__m256 all256_01 = _mm256_set1_ps(0.1F);
 
-			for (i = 0; i < n - 8; i += 8) {
+			for (int i = 0; i < n - 8; i += 8)
+			{
 				//x[i] = (x[i]>0) ? x[i] : .1*x[i];
 
 				__m256 src256 = _mm256_loadu_ps(&x[i]);
@@ -1496,12 +1505,17 @@ void activate_array_cpu_custom(float *x, const int n, const ACTIVATION a)
 			}
 		}
 
-		for (; i < n; ++i) {
-			x[i] = (x[i]>0) ? x[i] : .1*x[i];
+		#pragma omp parallel for simd schedule(static)
+		for (int i = 0; i < n; ++i)
+		{
+			x[i] = std::max(x[i], 0.1f * x[i]);
 		}
 	}
-	else {
-		for (i = 0; i < n; ++i) {
+	else
+	{
+		#pragma omp parallel for schedule(static)
+		for (int i = 0; i < n; ++i)
+		{
 			x[i] = activate(x[i], a);
 		}
 	}
@@ -2379,6 +2393,16 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 {
 	TAT(TATPARMS);
 
+	#ifdef DARKNET_USE_OPENBLAS
+	cblas_sgemm(CblasRowMajor,
+			TA ? CblasTrans : CblasNoTrans,
+			TB ? CblasTrans : CblasNoTrans,
+			M, N, K, ALPHA,
+			A, lda,
+			B, ldb,
+			BETA,
+			C, ldc);
+	#else
 	if (BETA != 1)
 	{
 		for(int i = 0; i < M; ++i)
@@ -2419,6 +2443,7 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 			}
 		}
 	}
+	#endif
 }
 
 #ifdef DARKNET_GPU

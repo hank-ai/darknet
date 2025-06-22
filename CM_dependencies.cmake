@@ -143,6 +143,7 @@ ENDIF ()
 # == CPU-only ==
 # ==============
 IF (NOT DARKNET_USE_CUDA AND NOT DARKNET_USE_ROCM)
+	SET (DARKNET_DETECTED_CPU_ONLY TRUE)
 	MESSAGE (WARNING "Neither NVIDIA CUDA nor AMD ROCm detected.  Darknet will be CPU-only.")
 ENDIF ()
 
@@ -192,6 +193,25 @@ MESSAGE (STATUS "Found Threads ${Threads_VERSION}")
 SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} Threads::Threads)
 
 
+# ============================================================
+# == OpenBLAS (Basic Linear Algebra Subprograms)			==
+# == This is only used when Darknet is built for CPU-only.	==
+# ============================================================
+IF (DARKNET_DETECTED_CPU_ONLY)
+	FIND_PACKAGE (OpenBLAS64 CONFIG QUIET)
+	IF (OpenBLAS64_FOUND)
+		MESSAGE (STATUS "Found OpenBLAS ${OpenBLAS_VERSION}")
+		INCLUDE_DIRECTORIES (${OpenBLAS_INCLUDE_DIRS})
+		SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${OpenBLAS_LIBRARIES})
+		ADD_COMPILE_DEFINITIONS (DARKNET_USE_OPENBLAS)
+	ELSE ()
+		MESSAGE (WARNING "OpenBLAS not found. Building Darknet without support for OpenBLAS.")
+	ENDIF ()
+ELSE ()
+	MESSAGE (STATUS "Skipping OpenBLAS since we have a GPU.")
+ENDIF ()
+
+
 # ============
 # == OpenCV ==
 # ============
@@ -215,8 +235,8 @@ ELSE ()
 	ADD_COMPILE_DEFINITIONS (DARKNET_OPENMP)
 	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 	IF (COMPILER_IS_GNU_OR_CLANG)
-	SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-	SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+		SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
+		SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 	ELSE ()
 		SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /openmp:experimental")
 		SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp:experimental")

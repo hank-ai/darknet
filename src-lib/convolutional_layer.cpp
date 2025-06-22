@@ -1256,13 +1256,19 @@ void add_bias(float *output, float *biases, int batch, int n, int size)
 {
 	TAT(TATPARMS);
 
+	#pragma omp parallel for collapse(2) schedule(static)
 	for (int b = 0; b < batch; ++b)
 	{
 		for (int i = 0; i < n; ++i)
 		{
+			const float & bias = biases[i];
+			float * __restrict out_ptr = output + (b * n + i) * size;
+
+			#pragma omp simd
 			for (int j = 0; j < size; ++j)
 			{
-				output[(b * n + i) * size + j] += biases[i];
+				out_ptr[j] += bias;
+//				output[(b * n + i) * size + j] += biases[i];
 			}
 		}
 	}

@@ -315,6 +315,10 @@ void Darknet::show_version_info()
 		*cfg_and_state.output << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
 	#endif
 
+	#ifdef DARKNET_USE_OPENBLAS
+	*cfg_and_state.output << Darknet::trim(OPENBLAS_VERSION) << ", ";
+	#endif
+
 	*cfg_and_state.output << "OpenCV " << Darknet::in_colour(Darknet::EColour::kBrightWhite, "v" CV_VERSION);
 
 	#ifdef WIN32
