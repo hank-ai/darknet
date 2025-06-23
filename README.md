@@ -179,7 +179,7 @@ If you don't want to use Darknet/YOLO from within WSL, then skip ahead to the [W
 > [!TIP]
 > If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  This only makes a difference on CPU-only builds:
 ```sh
-sudo apt-get install libopenblas64-openmp-dev
+sudo apt-get install libopenblas64-0-openmp libopenblas64-openmp-dev
 ```
 
 These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
