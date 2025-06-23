@@ -1505,7 +1505,7 @@ void activate_array_cpu_custom(float *x, const int n, const ACTIVATION a)
 			}
 		}
 
-		#pragma omp parallel for simd schedule(static)
+		#pragma omp parallel for schedule(static)
 		for (int i = 0; i < n; ++i)
 		{
 			x[i] = std::max(x[i], 0.1f * x[i]);
