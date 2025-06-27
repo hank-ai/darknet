@@ -517,7 +517,10 @@ int recalculate_workspace_size(Darknet::Network * net)
 
 #ifdef DARKNET_GPU
 	cuda_set_device(net->gpu_index);
-	if (cfg_and_state.gpu_index >= 0) cuda_free(net->workspace);
+	if (cfg_and_state.gpu_index >= 0)
+	{
+		cuda_free(net->workspace);
+	}
 #endif
 
 	size_t workspace_size = 0;

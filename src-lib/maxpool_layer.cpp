@@ -6,6 +6,7 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 }
 
+
 Darknet::Image get_maxpool_image(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
@@ -16,6 +17,7 @@ Darknet::Image get_maxpool_image(Darknet::Layer & l)
 	return Darknet::float_to_image(w,h,c,l.output);
 }
 
+
 Darknet::Image get_maxpool_delta(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
@@ -23,8 +25,10 @@ Darknet::Image get_maxpool_delta(Darknet::Layer & l)
 	int h = l.out_h;
 	int w = l.out_w;
 	int c = l.c;
-	return Darknet::float_to_image(w,h,c,l.delta);
+
+	return Darknet::float_to_image(w, h, c, l.delta);
 }
+
 
 void create_maxpool_cudnn_tensors(Darknet::Layer *l)
 {
@@ -36,6 +40,7 @@ void create_maxpool_cudnn_tensors(Darknet::Layer *l)
 	CHECK_CUDNN(cudnnCreateTensorDescriptor(&l->dstTensorDesc));
 #endif // CUDNN
 }
+
 
 void cudnn_maxpool_setup(Darknet::Layer *l)
 {
@@ -79,6 +84,7 @@ void cudnn_local_avgpool_setup(Darknet::Layer *l)
 	CHECK_CUDNN(cudnnSetTensor4dDescriptor(l->dstTensorDesc, CUDNN_TENSOR_NCHW, CUDNN_DATA_FLOAT, l->batch, l->out_c, l->out_h, l->out_w));
 #endif // CUDNN
 }
+
 
 Darknet::Layer make_maxpool_layer(int batch, int h, int w, int c, int size, int stride_x, int stride_y, int padding, int maxpool_depth, int out_channels, int antialiasing, int avgpool, int train)
 {
@@ -132,37 +138,55 @@ Darknet::Layer make_maxpool_layer(int batch, int h, int w, int c, int size, int 
 	l.stride_y = stride_y;
 	int output_size = l.out_h * l.out_w * l.out_c * batch;
 
-	if (train) {
-		if (!avgpool) l.indexes = (int*)xcalloc(output_size, sizeof(int));
+	if (train)
+	{
+		if (!avgpool)
+		{
+			l.indexes = (int*)xcalloc(output_size, sizeof(int));
+		}
 		l.delta = (float*)xcalloc(output_size, sizeof(float));
 	}
 	l.output = (float*)xcalloc(output_size, sizeof(float));
-	if (avgpool) {
+	if (avgpool)
+	{
 		l.forward = forward_local_avgpool_layer;
 		l.backward = backward_local_avgpool_layer;
 	}
-	else {
+	else
+	{
 		l.forward = forward_maxpool_layer;
 		l.backward = backward_maxpool_layer;
 	}
 #ifdef DARKNET_GPU
-	if (avgpool) {
+	if (avgpool)
+	{
 		l.forward_gpu = forward_local_avgpool_layer_gpu;
 		l.backward_gpu = backward_local_avgpool_layer_gpu;
 	}
-	else {
+	else
+	{
 		l.forward_gpu = forward_maxpool_layer_gpu;
 		l.backward_gpu = backward_maxpool_layer_gpu;
 	}
 
-	if (train) {
-		if (!avgpool) l.indexes_gpu = cuda_make_int_array(output_size);
+	if (train)
+	{
+		if (!avgpool)
+		{
+			l.indexes_gpu = cuda_make_int_array(output_size);
+		}
 		l.delta_gpu = cuda_make_array(l.delta, output_size);
 	}
 	l.output_gpu  = cuda_make_array(l.output, output_size);
 	create_maxpool_cudnn_tensors(&l);
-	if (avgpool) cudnn_local_avgpool_setup(&l);
-	else cudnn_maxpool_setup(&l);
+	if (avgpool)
+	{
+		cudnn_local_avgpool_setup(&l);
+	}
+	else
+	{
+		cudnn_maxpool_setup(&l);
+	}
 
 #endif  // DARKNET_GPU
 	l.bflops = (l.size * l.size * l.c * l.out_h * l.out_w) / 1000000000.0f;
@@ -172,23 +196,27 @@ Darknet::Layer make_maxpool_layer(int batch, int h, int w, int c, int size, int 
 		l.input_layer = (Darknet::Layer*)calloc(1, sizeof(Darknet::Layer));
 		int blur_size = 3;
 		int blur_pad = blur_size / 2;
-		if (l.antialiasing == 2) {
+		if (l.antialiasing == 2)
+		{
 			blur_size = 2;
 			blur_pad = 0;
 		}
 		*(l.input_layer) = make_convolutional_layer(batch, 1, l.out_h, l.out_w, l.out_c, l.out_c, l.out_c, blur_size, blur_stride_x, blur_stride_y, 1, blur_pad, LINEAR, 0, 0, 0, 0, 0, 1, 0, NULL, 0, 0, train);
 		const int blur_nweights = l.out_c * blur_size * blur_size;  // (n / n) * n * blur_size * blur_size;
-		int i;
-		if (blur_size == 2) {
-			for (i = 0; i < blur_nweights; i += (blur_size*blur_size)) {
+		if (blur_size == 2)
+		{
+			for (int i = 0; i < blur_nweights; i += (blur_size*blur_size))
+			{
 				l.input_layer->weights[i + 0] = 1 / 4.f;
 				l.input_layer->weights[i + 1] = 1 / 4.f;
 				l.input_layer->weights[i + 2] = 1 / 4.f;
 				l.input_layer->weights[i + 3] = 1 / 4.f;
 			}
 		}
-		else {
-			for (i = 0; i < blur_nweights; i += (blur_size*blur_size)) {
+		else
+		{
+			for (int i = 0; i < blur_nweights; i += (blur_size*blur_size))
+			{
 				l.input_layer->weights[i + 0] = 1 / 16.f;
 				l.input_layer->weights[i + 1] = 2 / 16.f;
 				l.input_layer->weights[i + 2] = 1 / 16.f;
@@ -202,11 +230,17 @@ Darknet::Layer make_maxpool_layer(int batch, int h, int w, int c, int size, int 
 				l.input_layer->weights[i + 8] = 1 / 16.f;
 			}
 		}
-		for (i = 0; i < l.out_c; ++i) l.input_layer->biases[i] = 0;
+		for (int i = 0; i < l.out_c; ++i)
+		{
+			l.input_layer->biases[i] = 0;
+		}
 #ifdef DARKNET_GPU
 		if (cfg_and_state.gpu_index >= 0)
 		{
-			if (l.antialiasing) l.input_antialiasing_gpu = cuda_make_array(NULL, l.batch*l.outputs);
+			if (l.antialiasing)
+			{
+				l.input_antialiasing_gpu = cuda_make_array(NULL, l.batch*l.outputs);
+			}
 			push_convolutional_layer(*(l.input_layer));
 		}
 #endif  // DARKNET_GPU
@@ -214,6 +248,7 @@ Darknet::Layer make_maxpool_layer(int batch, int h, int w, int c, int size, int 
 
 	return l;
 }
+
 
 void resize_maxpool_layer(Darknet::Layer *l, int w, int h)
 {
@@ -228,8 +263,12 @@ void resize_maxpool_layer(Darknet::Layer *l, int w, int h)
 	l->outputs = l->out_w * l->out_h * l->out_c;
 	int output_size = l->outputs * l->batch;
 
-	if (l->train) {
-		if (!l->avgpool) l->indexes = (int*)xrealloc(l->indexes, output_size * sizeof(int));
+	if (l->train)
+	{
+		if (!l->avgpool)
+		{
+			l->indexes = (int*)xrealloc(l->indexes, output_size * sizeof(int));
+		}
 		l->delta = (float*)xrealloc(l->delta, output_size * sizeof(float));
 	}
 	l->output = (float*)xrealloc(l->output, output_size * sizeof(float));
@@ -238,8 +277,10 @@ void resize_maxpool_layer(Darknet::Layer *l, int w, int h)
 	CHECK_CUDA(cudaFree(l->output_gpu));
 	l->output_gpu  = cuda_make_array(l->output, output_size);
 
-	if (l->train) {
-		if (!l->avgpool) {
+	if (l->train)
+	{
+		if (!l->avgpool)
+		{
 			CHECK_CUDA(cudaFree((float *)l->indexes_gpu));
 			l->indexes_gpu = cuda_make_int_array(output_size);
 		}
@@ -247,10 +288,17 @@ void resize_maxpool_layer(Darknet::Layer *l, int w, int h)
 		l->delta_gpu = cuda_make_array(l->delta, output_size);
 	}
 
-	if(l->avgpool) cudnn_local_avgpool_setup(l);
-	else cudnn_maxpool_setup(l);
+	if(l->avgpool)
+	{
+		cudnn_local_avgpool_setup(l);
+	}
+	else
+	{
+		cudnn_maxpool_setup(l);
+	}
 #endif
 }
+
 
 void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
@@ -258,18 +306,20 @@ void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 
 	if (l.maxpool_depth)
 	{
-		int b, i, j, k, g;
-		for (b = 0; b < l.batch; ++b) {
+		for (int b = 0; b < l.batch; ++b)
+		{
 			#pragma omp parallel for
-			for (i = 0; i < l.h; ++i) {
-				for (j = 0; j < l.w; ++j) {
-					for (g = 0; g < l.out_c; ++g)
+			for (int i = 0; i < l.h; ++i)
+			{
+				for (int j = 0; j < l.w; ++j)
+				{
+					for (int g = 0; g < l.out_c; ++g)
 					{
 						int out_index = j + l.w*(i + l.h*(g + l.out_c*b));
 						float max = -FLT_MAX;
 						int max_i = -1;
 
-						for (k = g; k < l.c; k += l.out_c)
+						for (int k = g; k < l.c; k += l.out_c)
 						{
 							int in_index = j + l.w*(i + l.h*(k + l.c*b));
 							float val = state.input[in_index];
@@ -278,7 +328,10 @@ void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 							max = (val > max) ? val : max;
 						}
 						l.output[out_index] = max;
-						if (l.indexes) l.indexes[out_index] = max_i;
+						if (l.indexes)
+						{
+							l.indexes[out_index] = max_i;
+						}
 					}
 				}
 			}
@@ -293,8 +346,6 @@ void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 	else
 	{
-
-		int b, i, j, k, m, n;
 		int w_offset = -l.pad / 2;
 		int h_offset = -l.pad / 2;
 
@@ -302,27 +353,35 @@ void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		int w = l.out_w;
 		int c = l.c;
 
-		for (b = 0; b < l.batch; ++b) {
-			for (k = 0; k < c; ++k) {
-				for (i = 0; i < h; ++i) {
-					for (j = 0; j < w; ++j) {
+		for (int b = 0; b < l.batch; ++b)
+		{
+			for (int k = 0; k < c; ++k)
+			{
+				for (int i = 0; i < h; ++i)
+				{
+					for (int j = 0; j < w; ++j)
+					{
 						int out_index = j + w*(i + h*(k + c*b));
 						float max = -FLT_MAX;
 						int max_i = -1;
-						for (n = 0; n < l.size; ++n) {
-							for (m = 0; m < l.size; ++m) {
+						for (int n = 0; n < l.size; ++n)
+						{
+							for (int m = 0; m < l.size; ++m)
+							{
 								int cur_h = h_offset + i*l.stride_y + n;
 								int cur_w = w_offset + j*l.stride_x + m;
 								int index = cur_w + l.w*(cur_h + l.h*(k + b*l.c));
-								int valid = (cur_h >= 0 && cur_h < l.h &&
-									cur_w >= 0 && cur_w < l.w);
+								int valid = (cur_h >= 0 && cur_h < l.h && cur_w >= 0 && cur_w < l.w);
 								float val = (valid != 0) ? state.input[index] : -FLT_MAX;
 								max_i = (val > max) ? index : max_i;
 								max = (val > max) ? val : max;
 							}
 						}
 						l.output[out_index] = max;
-						if (l.indexes) l.indexes[out_index] = max_i;
+						if (l.indexes)
+						{
+							l.indexes[out_index] = max_i;
+						}
 					}
 				}
 			}
@@ -346,12 +405,12 @@ void backward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	int i;
 	int h = l.out_h;
 	int w = l.out_w;
 	int c = l.out_c;
 	#pragma omp parallel for
-	for(i = 0; i < h*w*c*l.batch; ++i){
+	for (int i = 0; i < h*w*c*l.batch; ++i)
+	{
 		int index = l.indexes[i];
 		state.delta[index] += l.delta[i];
 	}
@@ -370,21 +429,27 @@ void forward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state
 	int w = l.out_w;
 	int c = l.c;
 
-	for (b = 0; b < l.batch; ++b) {
-		for (k = 0; k < c; ++k) {
-			for (i = 0; i < h; ++i) {
-				for (j = 0; j < w; ++j) {
+	for (b = 0; b < l.batch; ++b)
+	{
+		for (k = 0; k < c; ++k)
+		{
+			for (i = 0; i < h; ++i)
+			{
+				for (j = 0; j < w; ++j)
+				{
 					int out_index = j + w*(i + h*(k + c*b));
 					float avg = 0;
 					int counter = 0;
-					for (n = 0; n < l.size; ++n) {
-						for (m = 0; m < l.size; ++m) {
+					for (n = 0; n < l.size; ++n)
+					{
+						for (m = 0; m < l.size; ++m)
+						{
 							int cur_h = h_offset + i*l.stride_y + n;
 							int cur_w = w_offset + j*l.stride_x + m;
 							int index = cur_w + l.w*(cur_h + l.h*(k + b*l.c));
-							int valid = (cur_h >= 0 && cur_h < l.h &&
-								cur_w >= 0 && cur_w < l.w);
-							if (valid) {
+							int valid = (cur_h >= 0 && cur_h < l.h && cur_w >= 0 && cur_w < l.w);
+							if (valid)
+							{
 								counter++;
 								avg += state.input[index];
 							}
@@ -398,6 +463,7 @@ void forward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state
 	}
 }
 
+
 void backward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
@@ -410,23 +476,30 @@ void backward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState stat
 	int w = l.out_w;
 	int c = l.c;
 
-	for (b = 0; b < l.batch; ++b) {
-		for (k = 0; k < c; ++k) {
-			for (i = 0; i < h; ++i) {
-				for (j = 0; j < w; ++j) {
+	for (b = 0; b < l.batch; ++b)
+	{
+		for (k = 0; k < c; ++k)
+		{
+			for (i = 0; i < h; ++i)
+			{
+				for (j = 0; j < w; ++j)
+				{
 					int out_index = j + w*(i + h*(k + c*b));
-					for (n = 0; n < l.size; ++n) {
-						for (m = 0; m < l.size; ++m) {
+					for (n = 0; n < l.size; ++n)
+					{
+						for (m = 0; m < l.size; ++m)
+						{
 							int cur_h = h_offset + i*l.stride_y + n;
 							int cur_w = w_offset + j*l.stride_x + m;
 							int index = cur_w + l.w*(cur_h + l.h*(k + b*l.c));
-							int valid = (cur_h >= 0 && cur_h < l.h &&
-								cur_w >= 0 && cur_w < l.w);
+							int valid = (cur_h >= 0 && cur_h < l.h && cur_w >= 0 && cur_w < l.w);
 
-							if (valid) state.delta[index] += l.delta[out_index] / (l.size*l.size);
+							if (valid)
+							{
+								state.delta[index] += l.delta[out_index] / (l.size*l.size);
+							}
 						}
 					}
-
 				}
 			}
 		}

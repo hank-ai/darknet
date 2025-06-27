@@ -184,11 +184,13 @@ void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState s
 
 	if (l.train == 0) state.train = 0;
 
-	if (l.stream >= 0) {
+	if (l.stream >= 0)
+	{
 		switch_stream(l.stream);
 	}
 
-	if (l.wait_stream_id >= 0) {
+	if (l.wait_stream_id >= 0)
+	{
 		wait_stream(l.wait_stream_id);
 	}
 
@@ -400,17 +402,22 @@ void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState s
 	int m = l.n / l.groups;
 	int k = l.size*l.size*l.c / l.groups;
 	int n = l.out_w*l.out_h;
-	for(i = 0; i < l.batch; ++i){
-		for (j = 0; j < l.groups; ++j) {
+
+	for(i = 0; i < l.batch; ++i)
+	{
+		for (j = 0; j < l.groups; ++j)
+		{
 			//float *im = state.input + i*l.c*l.h*l.w;
 			float *im = state.input + (i*l.groups + j)*l.c / l.groups*l.h*l.w;
 			float *a = l.weights_gpu + j*l.nweights / l.groups;
 			float *b = state.workspace;
 			float *c = l.output_gpu + (i*l.groups + j)*n*m;
-			if (l.size == 1 && l.stride == 1 && l.dilation == 1) {
+			if (l.size == 1 && l.stride == 1 && l.dilation == 1)
+			{
 				b = im;
 			}
-			else {
+			else
+			{
 				//im2col_ongpu(im, l.c / l.groups, l.h, l.w, l.size, l.stride, l.pad, state.workspace);
 
 				im2col_gpu_ext(im,          // input
@@ -428,10 +435,12 @@ void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState s
 		}
 	}
 
-	if (l.batch_normalize) {
+	if (l.batch_normalize)
+	{
 		forward_batchnorm_layer_gpu(l, state);
 	}
-	else {
+	else
+	{
 		add_bias_gpu(l.output_gpu, l.biases_gpu, l.batch, l.n, l.out_w*l.out_h);
 	}
 #endif
@@ -450,13 +459,18 @@ void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState s
 	if(l.binary || l.xnor) swap_binary(&l);
 	//cudaDeviceSynchronize();    // for correct profiling of performance
 
-	if (state.net.try_fix_nan) {
+	if (state.net.try_fix_nan)
+	{
 		fix_nan_and_inf(l.output_gpu, l.outputs*l.batch);
 	}
 
-	if(l.assisted_excitation && state.train) assisted_excitation_forward_gpu(l, state);
+	if (l.assisted_excitation && state.train)
+	{
+		assisted_excitation_forward_gpu(l, state);
+	}
 
-	if (l.antialiasing) {
+	if (l.antialiasing)
+	{
 		Darknet::NetworkState s = { 0 };
 		s.train = state.train;
 		s.workspace = state.workspace;
@@ -468,10 +482,12 @@ void forward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState s
 		simple_copy_ongpu(l.input_layer->outputs*l.input_layer->batch, l.input_layer->output_gpu, l.output_gpu);
 	}
 
-	if (l.coordconv) {
+	if (l.coordconv)
+	{
 		coord_conv_gpu(l.output_gpu, l.outputs*l.batch, l.out_w, l.out_h, l.out_c, l.batch, 0);
 	}
 }
+
 
 void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
@@ -529,7 +545,8 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 		const size_t input16_size = l.batch*l.c*l.w*l.h;
 		const size_t delta16_size = l.batch*l.n*l.out_w*l.out_h;
 
-		if (*state.net.max_input16_size < input16_size) {
+		if (*state.net.max_input16_size < input16_size)
+		{
 			*state.net.max_input16_size = input16_size;
 			if (*state.net.input16_gpu) cuda_free(*state.net.input16_gpu);
 			assert(*state.net.max_input16_size > 0);
@@ -537,7 +554,8 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 		}
 		float *input16 = *state.net.input16_gpu;
 
-		if (*state.net.max_output16_size < delta16_size) {
+		if (*state.net.max_output16_size < delta16_size)
+		{
 			*state.net.max_output16_size = delta16_size;
 			if (*state.net.output16_gpu) cuda_free(*state.net.output16_gpu);
 			assert(*state.net.max_output16_size > 0);
@@ -587,7 +605,8 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 		cuda_convert_f32_to_f16(l.weight_updates_gpu, l.nweights, l.weight_updates_gpu16);
 
 		float one = 1.0f;
-		if (!state.net.adversarial && !l.train_only_bn) {
+		if (!state.net.adversarial && !l.train_only_bn)
+		{
 			CHECK_CUDNN(cudnnConvolutionBackwardFilter(cudnn_handle(),
 				&one,
 				l.srcTensorDesc16,
@@ -605,7 +624,8 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 			cuda_convert_f16_to_f32(l.weight_updates_gpu16, l.nweights, l.weight_updates_gpu);
 		}
 
-		if (state.delta) {
+		if (state.delta)
+		{
 			if (l.binary || l.xnor) swap_binary(&l);
 
 			// http://docs.nvidia.com/deeplearning/sdk/cudnn-developer-guide/index.html#cudnnConvolutionBackwardData
@@ -632,15 +652,16 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 			if (l.xnor) gradient_array_ongpu(original_input, l.batch*l.c*l.h*l.w, HARDTAN, state.delta);
 		}
 	}
-	else {
+	else
+	{
 		//#else    // CUDNN_HALF
 
 		if(l.batch_normalize){
 			backward_batchnorm_layer_gpu(l, state);
 		}
 
-		if (!state.net.adversarial && !l.train_only_bn) {
-
+		if (!state.net.adversarial && !l.train_only_bn)
+		{
 			float *old_input = state.input;
 
 			// calculate conv weight updates
@@ -663,7 +684,8 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 			state.input = old_input;
 		}
 
-		if (state.delta) {
+		if (state.delta)
+		{
 			if (l.binary || l.xnor) swap_binary(&l);
 
 			float *old_weights = l.weights_gpu;
@@ -695,7 +717,8 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 //#endif    // CUDNN_HALF
 
 #else    // CUDNN
-	if (l.batch_normalize) {
+	if (l.batch_normalize)
+	{
 		backward_batchnorm_layer_gpu(l, state);
 	}
 
@@ -704,15 +727,18 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 	int k = l.out_w*l.out_h;
 
 	int i, j;
-	for(i = 0; i < l.batch; ++i){
-		for (j = 0; j < l.groups; ++j) {
+	for(i = 0; i < l.batch; ++i)
+	{
+		for (j = 0; j < l.groups; ++j)
+		{
 			float * a = l.delta_gpu + (i*l.groups + j)*m*k;
 			float * b = state.workspace;
 			float * c = l.weight_updates_gpu + j*l.nweights / l.groups;
 
 			float *im = state.input + (i*l.groups + j)*l.c / l.groups*l.h*l.w;
 
-			if (!state.net.adversarial && !l.train_only_bn) {
+			if (!state.net.adversarial && !l.train_only_bn)
+			{
 				//im2col_ongpu(im, l.c / l.groups, l.h, l.w, l.size, l.stride, l.pad, state.workspace);
 				im2col_gpu_ext(im,          // input
 					l.c / l.groups,         // input channels
@@ -726,7 +752,8 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 				gemm_ongpu(0, 1, m, n, k, 1, a, k, b, k, 1, c, n);
 			}
 
-			if (state.delta) {
+			if (state.delta)
+			{
 				if (l.binary || l.xnor) swap_binary(&l);
 				float * a = l.weights_gpu + j*l.nweights / l.groups;
 				float * b = l.delta_gpu + (i*l.groups + j)*m*k;
@@ -734,7 +761,6 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 
 				//gemm_ongpu(1, 0, n, k, m, 1, a, n, b + i*k*m, k, 0, c, k);
 				gemm_ongpu(1, 0, n, k, m, 1, a, n, b, k, 0, c, k);
-
 
 				float *delta = state.delta + (i*l.groups + j)*l.c / l.groups*l.h*l.w;
 
@@ -749,16 +775,22 @@ void backward_convolutional_layer_gpu(Darknet::Layer & l, Darknet::NetworkState 
 					l.dilation, l.dilation, // dilation size (h, w)
 					delta);                 // output (delta)
 
-				if (l.binary || l.xnor) {
+				if (l.binary || l.xnor)
+				{
 					swap_binary(&l);
 				}
-				if (l.xnor) gradient_array_ongpu(original_input + i*l.c*l.h*l.w, l.c*l.h*l.w, HARDTAN, state.delta + i*l.c*l.h*l.w);
+				if (l.xnor)
+				{
+					gradient_array_ongpu(original_input + i*l.c*l.h*l.w, l.c*l.h*l.w, HARDTAN, state.delta + i*l.c*l.h*l.w);
+				}
 			}
 		}
 	}
 #endif
-	if (state.net.try_fix_nan) {
-		if (state.delta) {
+	if (state.net.try_fix_nan)
+	{
+		if (state.delta)
+		{
 			reset_nan_and_inf(state.delta, l.inputs * l.batch);
 		}
 		int size = l.nweights;

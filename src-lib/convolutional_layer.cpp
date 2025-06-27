@@ -721,13 +721,20 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 	l.type = Darknet::ELayerType::CONVOLUTIONAL;
 	l.train = train;
 
-	if (xnor) groups = 1;   // disable groups for XNOR-net
-	if (groups < 1) groups = 1;
+	if (xnor)
+	{
+		groups = 1;   // disable groups for XNOR-net
+	}
+	if (groups < 1)
+	{
+		groups = 1;
+	}
 
 	const int blur_stride_x = stride_x;
 	const int blur_stride_y = stride_y;
 	l.antialiasing = antialiasing;
-	if (antialiasing) {
+	if (antialiasing)
+	{
 		stride_x = stride_y = l.stride = l.stride_x = l.stride_y = 1; // use stride=1 in host-layer
 	}
 
@@ -1165,23 +1172,30 @@ void resize_convolutional_layer(Darknet::Layer *l, int w, int h)
 
 
 	l->output = (float*)xrealloc(l->output, total_batch * l->outputs * sizeof(float));
-	if (l->train) {
+	if (l->train)
+	{
 		l->delta = (float*)xrealloc(l->delta, total_batch * l->outputs * sizeof(float));
 
-		if (l->batch_normalize) {
+		if (l->batch_normalize)
+		{
 			l->x = (float*)xrealloc(l->x, total_batch * l->outputs * sizeof(float));
 			l->x_norm = (float*)xrealloc(l->x_norm, total_batch * l->outputs * sizeof(float));
 		}
 	}
 
-	if (l->xnor) {
+#if 0
+	if (l->xnor)
+	{
 		//l->binary_input = realloc(l->inputs*l->batch, sizeof(float));
 	}
+#endif
 
 	if (l->activation == SWISH || l->activation == MISH || l->activation == HARD_MISH) l->activation_input = (float*)realloc(l->activation_input, total_batch*l->outputs * sizeof(float));
 #ifdef DARKNET_GPU
-	if (old_w < w || old_h < h || l->dynamic_minibatch) {
-		if (l->train) {
+	if (old_w < w || old_h < h || l->dynamic_minibatch)
+	{
+		if (l->train)
+		{
 			cuda_free(l->delta_gpu);
 			l->delta_gpu = cuda_make_array(l->delta, total_batch*l->outputs);
 		}
@@ -1189,7 +1203,8 @@ void resize_convolutional_layer(Darknet::Layer *l, int w, int h)
 		cuda_free(l->output_gpu);
 		l->output_gpu = cuda_make_array(l->output, total_batch*l->outputs);
 
-		if (l->batch_normalize) {
+		if (l->batch_normalize)
+		{
 			cuda_free(l->x_gpu);
 			l->x_gpu = cuda_make_array(l->output, total_batch*l->outputs);
 
@@ -1199,12 +1214,14 @@ void resize_convolutional_layer(Darknet::Layer *l, int w, int h)
 #endif  // CUDNN
 		}
 
-		if (l->xnor) {
+		if (l->xnor)
+		{
 			cuda_free(l->binary_input_gpu);
 			l->binary_input_gpu = cuda_make_array(0, l->inputs*l->batch);
 		}
 
-		if (l->activation == SWISH || l->activation == MISH || l->activation == HARD_MISH) {
+		if (l->activation == SWISH || l->activation == MISH || l->activation == HARD_MISH)
+		{
 			cuda_free(l->activation_input_gpu);
 			l->activation_input_gpu = cuda_make_array(l->activation_input, total_batch*l->outputs);
 		}
@@ -1419,18 +1436,20 @@ void binary_align_weights(Darknet::Layer *l)
 	free(align_weights);
 }
 
+
 void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
 	int out_h = convolutional_out_height(l);
 	int out_w = convolutional_out_width(l);
-	int i, j;
 
 	fill_cpu(l.outputs*l.batch, 0, l.output, 1);
 
-	if (l.xnor && (!l.align_bit_weights || state.train)) {
-		if (!l.align_bit_weights || state.train) {
+	if (l.xnor && (!l.align_bit_weights || state.train))
+	{
+		if (!l.align_bit_weights || state.train)
+		{
 			binarize_weights(l.weights, l.n, l.nweights, l.binary_weights);
 		}
 		swap_binary(&l);
@@ -1442,9 +1461,9 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 	int k = l.size*l.size*l.c / l.groups;
 	int n = out_h*out_w;
 
-	for(i = 0; i < l.batch; ++i)
+	for (int i = 0; i < l.batch; ++i)
 	{
-		for (j = 0; j < l.groups; ++j)
+		for (int j = 0; j < l.groups; ++j)
 		{
 			float *a = l.weights +j*l.nweights / l.groups;
 			float *b = state.workspace;
@@ -1487,7 +1506,6 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 
 					// // then exit from if()
 
-
 					im2col_cpu_custom((float *)l.bin_re_packed_input, new_c, l.h, l.w, l.size, l.stride, l.pad, state.workspace);
 					//im2col_cpu((float *)bin_re_packed_input, new_c, l.h, l.w, l.size, l.stride, l.pad, b);
 
@@ -1501,7 +1519,7 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 					//    b, n,
 					//    c, n, l.mean_arr);
 
-	// // then exit from if()
+					// // then exit from if()
 
 					transpose_uint32((uint32_t *)state.workspace, (uint32_t*)l.t_bit_input, new_k, n, n, new_ldb);
 
@@ -1515,7 +1533,6 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 					//    c, n, l.mean_arr);
 
 					//free(t_bit_input);
-
 				}
 				else
 				{
@@ -1541,7 +1558,6 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 				else if (l.activation == NORM_CHAN_SOFTMAX_MAXVAL) activate_array_normalize_channels_softmax(l.output, l.outputs*l.batch, l.batch, l.out_c, l.out_w*l.out_h, l.output, 1);
 				else activate_array_cpu_custom(l.output, m*n*l.batch, l.activation);
 				return;
-
 			}
 			else
 			{
@@ -1560,7 +1576,6 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 						l.stride_y, l.stride_x, // stride (h, w)
 						l.dilation, l.dilation, // dilation (h, w)
 						b);                 // output
-
 				}
 
 				gemm(0, 0, m, n, k, 1, a, k, b, n, 1, c, n);
@@ -1569,10 +1584,12 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 		}
 	}
 
-	if(l.batch_normalize){
+	if (l.batch_normalize)
+	{
 		forward_batchnorm_layer(l, state);
 	}
-	else {
+	else
+	{
 		add_bias(l.output, l.biases, l.batch, l.n, out_h*out_w);
 	}
 
@@ -1585,7 +1602,10 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 	else if (l.activation == NORM_CHAN_SOFTMAX_MAXVAL) activate_array_normalize_channels_softmax(l.output, l.outputs*l.batch, l.batch, l.out_c, l.out_w*l.out_h, l.output, 1);
 	else activate_array_cpu_custom(l.output, l.outputs*l.batch, l.activation);
 
-	if(l.binary || l.xnor) swap_binary(&l);
+	if (l.binary || l.xnor)
+	{
+		swap_binary(&l);
+	}
 
 	//visualize_convolutional_layer(l, "conv_visual", NULL);
 	//cv::waitKey(0);
@@ -1607,6 +1627,7 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 		memcpy(l.output, l.input_layer->output, l.input_layer->outputs * l.input_layer->batch * sizeof(float));
 	}
 }
+
 
 void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state)
 {
@@ -1632,13 +1653,10 @@ void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state
 	float *a_avg = (float *)xcalloc(l.out_w * l.out_h * l.batch, sizeof(float));
 	float *g = (float *)xcalloc(l.out_w * l.out_h * l.batch, sizeof(float));
 
-	int b;
-	int w, h, c;
-
 	l.max_boxes = state.net.num_boxes;
 	l.truths = l.max_boxes*(4 + 1);
 
-	for (b = 0; b < l.batch; ++b)
+	for (int b = 0; b < l.batch; ++b)
 	{
 		// calculate G
 		for (int t = 0; t < state.net.num_boxes; ++t)
@@ -1654,9 +1672,9 @@ void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state
 			int top = floor((truth.y - truth.h / 2) * l.out_h);
 			int bottom = ceil((truth.y + truth.h / 2) * l.out_h);
 
-			for (w = left; w <= right; w++)
+			for (int w = left; w <= right; w++)
 			{
-				for (h = top; h < bottom; h++)
+				for (int h = top; h < bottom; h++)
 				{
 					g[w + l.out_w * h + l.out_w*l.out_h*b] = 1;
 				}
@@ -1664,14 +1682,14 @@ void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state
 		}
 	}
 
-	for (b = 0; b < l.batch; ++b)
+	for (int b = 0; b < l.batch; ++b)
 	{
 		// calculate average A
-		for (w = 0; w < l.out_w; w++)
+		for (int w = 0; w < l.out_w; w++)
 		{
-			for (h = 0; h < l.out_h; h++)
+			for (int h = 0; h < l.out_h; h++)
 			{
-				for (c = 0; c < l.out_c; c++)
+				for (int c = 0; c < l.out_c; c++)
 				{
 					a_avg[w + l.out_w*(h + l.out_h*b)] += l.output[w + l.out_w*(h + l.out_h*(c + l.out_c*b))];
 				}
@@ -1681,13 +1699,13 @@ void assisted_excitation_forward(Darknet::Layer & l, Darknet::NetworkState state
 	}
 
 	// change activation
-	for (b = 0; b < l.batch; ++b)
+	for (int b = 0; b < l.batch; ++b)
 	{
-		for (w = 0; w < l.out_w; w++)
+		for (int w = 0; w < l.out_w; w++)
 		{
-			for (h = 0; h < l.out_h; h++)
+			for (int h = 0; h < l.out_h; h++)
 			{
-				for (c = 0; c < l.out_c; c++)
+				for (int c = 0; c < l.out_c; c++)
 				{
 					// a = a + alpha(t) + e(c,i,j) = a + alpha(t) + g(i,j) * avg_a(i,j) / channels
 					l.output[w + l.out_w*(h + l.out_h*(c + l.out_c*b))] +=
@@ -1711,7 +1729,6 @@ void backward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState stat
 {
 	TAT(TATPARMS);
 
-	int i, j;
 	int m = l.n / l.groups;
 	int n = l.size*l.size*l.c / l.groups;
 	int k = l.out_w*l.out_h;
@@ -1723,15 +1740,19 @@ void backward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState stat
 	else if (l.activation == NORM_CHAN) gradient_array_normalize_channels(l.output, l.outputs*l.batch, l.batch, l.out_c, l.out_w*l.out_h, l.delta);
 	else gradient_array(l.output, l.outputs*l.batch, l.activation, l.delta);
 
-	if (l.batch_normalize) {
+	if (l.batch_normalize)
+	{
 		backward_batchnorm_layer(l, state);
 	}
-	else {
+	else
+	{
 		backward_bias(l.bias_updates, l.delta, l.batch, l.n, k);
 	}
 
-	for (i = 0; i < l.batch; ++i) {
-		for (j = 0; j < l.groups; ++j) {
+	for (int i = 0; i < l.batch; ++i)
+	{
+		for (int j = 0; j < l.groups; ++j)
+		{
 			float *a = l.delta + (i*l.groups + j)*m*k;
 			float *b = state.workspace;
 			float *c = l.weight_updates + j*l.nweights / l.groups;
@@ -1751,7 +1772,8 @@ void backward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState stat
 
 			gemm(0, 1, m, n, k, 1, a, k, b, k, 1, c, n);
 
-			if (state.delta) {
+			if (state.delta)
+			{
 				a = l.weights + j*l.nweights / l.groups;
 				b = l.delta + (i*l.groups + j)*m*k;
 				c = state.workspace;
@@ -1774,6 +1796,7 @@ void backward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState stat
 		}
 	}
 }
+
 
 void update_convolutional_layer(Darknet::Layer & l, int batch, float learning_rate_init, float momentum, float decay)
 {
@@ -1837,6 +1860,7 @@ void rescale_weights(Darknet::Layer & l, float scale, float trans)
 		}
 	}
 }
+
 
 Darknet::Image *visualize_convolutional_layer(const Darknet::Layer & l, const char * window, Darknet::Image * prev_weights)
 {

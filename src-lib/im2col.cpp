@@ -22,28 +22,27 @@ float im2col_get_pixel(float *im, int height, int width, int channels, int row, 
 
 //From Berkeley Vision's Caffe!
 //https://github.com/BVLC/caffe/blob/master/LICENSE
-void im2col_cpu(float* data_im,
-	int channels,  int height,  int width,
-	int ksize,  int stride, int pad, float* data_col)
+void im2col_cpu(float* data_im, int channels,  int height,  int width, int ksize,  int stride, int pad, float* data_col)
 {
 	TAT(TATPARMS);
 
-	int c,h,w;
 	int height_col = (height + 2*pad - ksize) / stride + 1;
 	int width_col = (width + 2*pad - ksize) / stride + 1;
 
 	int channels_col = channels * ksize * ksize;
-	for (c = 0; c < channels_col; ++c) {
+	for (int c = 0; c < channels_col; ++c)
+	{
 		int w_offset = c % ksize;
 		int h_offset = (c / ksize) % ksize;
 		int c_im = c / ksize / ksize;
-		for (h = 0; h < height_col; ++h) {
-			for (w = 0; w < width_col; ++w) {
+		for (int h = 0; h < height_col; ++h)
+		{
+			for (int w = 0; w < width_col; ++w)
+			{
 				int im_row = h_offset + h * stride;
 				int im_col = w_offset + w * stride;
 				int col_index = (c * height_col + h) * width_col + w;
-				data_col[col_index] = im2col_get_pixel(data_im, height, width, channels,
-						im_row, im_col, c_im, pad);
+				data_col[col_index] = im2col_get_pixel(data_im, height, width, channels, im_row, im_col, c_im, pad);
 			}
 		}
 	}
@@ -59,8 +58,10 @@ void im2col_cpu(float* data_im,
 inline static bool is_a_ge_zero_and_a_lt_b(int a, int b)
 {
 	TAT(TATPARMS);
+
 	return static_cast<unsigned>(a) < static_cast<unsigned>(b);
 }
+
 
 // https://github.com/BVLC/caffe/blob/master/src/caffe/util/im2col.cpp
 void im2col_cpu_ext(
@@ -76,22 +77,20 @@ void im2col_cpu_ext(
 	TAT(TATPARMS);
 
 	const int output_h = (height + 2 * pad_h - (dilation_h * (kernel_h - 1) + 1)) / stride_h + 1;
-	const int output_w = (width + 2 * pad_w - (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
+	const int output_w = (width  + 2 * pad_w - (dilation_w * (kernel_w - 1) + 1)) / stride_w + 1;
 	const int channel_size = height * width;
 
-#pragma omp parallel for schedule(dynamic, 1)
+	#pragma omp parallel for schedule(dynamic, 1)
 	for (int channel = 0; channel < channels; ++channel)
 	{
-		const float* data_im_ptr = data_im + channel * channel_size;
+		const float * data_im_ptr = data_im + channel * channel_size;
 
 		for (int kernel_row = 0; kernel_row < kernel_h; ++kernel_row)
 		{
 			for (int kernel_col = 0; kernel_col < kernel_w; ++kernel_col)
 			{
 				int input_row = -pad_h + kernel_row * dilation_h;
-				float* data_col_ptr = data_col +
-					((channel * kernel_h + kernel_row) * kernel_w + kernel_col) *
-					output_h * output_w;
+				float * data_col_ptr = data_col + ((channel * kernel_h + kernel_row) * kernel_w + kernel_col) * output_h * output_w;
 
 				for (int output_rows = 0; output_rows < output_h; ++output_rows)
 				{
@@ -101,14 +100,15 @@ void im2col_cpu_ext(
 						memset(data_col_ptr, 0, output_w * sizeof(float));
 						data_col_ptr += output_w;
 					}
-					else {
+					else
+					{
 						// stride=1, dilation=1 optimization
 						if (stride_w == 1 && dilation_w == 1)
 						{
 							int input_col = -pad_w + kernel_col * dilation_w;
 							int output_col = 0;
 
-							// left 
+							// left
 							int left_pad = 0;
 							if (input_col < 0)
 							{
@@ -117,7 +117,7 @@ void im2col_cpu_ext(
 								input_col = 0;
 							}
 
-							// right 
+							// right
 							int copy_width = output_w - output_col;
 							if (input_col + copy_width > width)
 							{
@@ -133,17 +133,14 @@ void im2col_cpu_ext(
 							// center copy
 							if (copy_width > 0)
 							{
-								memcpy(data_col_ptr + output_col,
-									data_im_ptr + input_row * width + input_col,
-									copy_width * sizeof(float));
+								memcpy(data_col_ptr + output_col, data_im_ptr + input_row * width + input_col, copy_width * sizeof(float));
 							}
 
 							// right padding
 							int right_pad_start = output_col + copy_width;
 							if (right_pad_start < output_w)
 							{
-								memset(data_col_ptr + right_pad_start, 0,
-									(output_w - right_pad_start) * sizeof(float));
+								memset(data_col_ptr + right_pad_start, 0, (output_w - right_pad_start) * sizeof(float));
 							}
 
 							data_col_ptr += output_w;
@@ -153,12 +150,11 @@ void im2col_cpu_ext(
 							// usual case（stride > 1 or dilation > 1）
 							int input_col = -pad_w + kernel_col * dilation_w;
 
-#pragma omp simd
+							#pragma omp simd
 							for (int output_col = 0; output_col < output_w; ++output_col)
 							{
 								int col_idx = input_col + output_col * stride_w;
-								data_col_ptr[output_col] = is_a_ge_zero_and_a_lt_b(col_idx, width) ?
-									data_im_ptr[input_row * width + col_idx] : 0;
+								data_col_ptr[output_col] = is_a_ge_zero_and_a_lt_b(col_idx, width) ? data_im_ptr[input_row * width + col_idx] : 0;
 							}
 							data_col_ptr += output_w;
 						}

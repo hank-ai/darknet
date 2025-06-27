@@ -2414,7 +2414,7 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 		}
 	}
 
-	is_avx();   // initialize static variable
+	is_avx();	// initialize static variable
 	if (is_fma_avx2() && !TA && !TB)
 	{
 		gemm_nn_fast(M, N, K, ALPHA, A, lda, B, ldb, C, ldc);
