@@ -30,6 +30,7 @@ cmake -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_ROCM=OFF -DDARKNET_TRY_CUDA=OFF .
 
 The AMD ROCm and HIP software must be installed **prior** to running `cmake` for Darknet/YOLO.  This is because as part of Darknet's CMake process, it will attempt to identify your GPU and the necessary ROCm and HIP files.
 
+* It is recommended that you disable "secure boot" in your BIOS to ensure you don't run into problems loading the Linux video drivers.
 * If you install ROCm and HIP after having already built Darknet/YOLO, you'll need to delete your `src/darknet/build/CMakeCache.txt` file to force CMake to re-detect ROCm, HIP, your GPU, and the necessary files.
 * Visit <https://rocm.docs.amd.com/projects/install-on-linux/en/latest/install/quick-start.html> to download and install ROCm and HIP.
 

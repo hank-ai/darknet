@@ -28,6 +28,7 @@ The NVIDIA CUDA and cuDNN software must be installed **prior** to running `cmake
 > [!IMPORTANT]
 > If you install CUDA and cuDNN after having already built Darknet/YOLO, you'll need to delete your `src/darknet/build/CMakeCache.txt` file to force CMake to re-detect CUDA, cuDNN, your GPU, and the necessary files.
 
+* It is recommended that you disable "secure boot" in your BIOS to ensure you don't run into problems loading the Linux video drivers.
 * Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
 * Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#cudnn-package-manager-installation-overview> to download and install cuDNN.
 
