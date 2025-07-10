@@ -125,6 +125,15 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	weights_filename		.clear();
 	additional_arguments	.clear();
 
+	#ifdef DARKNET_USE_OPENBLAS
+	// "If your application is already multi-threaded, it will conflict with OpenBLAS
+	// multi-threading. Thus, you must set OpenBLAS to use single thread as following."
+	//
+	// 2025-07-10
+	// Source:  http://www.openmathlib.org/OpenBLAS/docs/faq/#how-can-i-use-openblas-in-multi-threaded-applications
+	openblas_set_num_threads(1);
+	#endif
+
 	return *this;
 }
 

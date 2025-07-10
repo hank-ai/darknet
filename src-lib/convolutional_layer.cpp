@@ -1578,7 +1578,7 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 						b);                 // output
 				}
 
-				gemm(0, 0, m, n, k, 1, a, k, b, n, 1, c, n);
+				gemm_cpu(0, 0, m, n, k, 1, a, k, b, n, 1, c, n);
 				// bit-count to float
 			}
 		}
@@ -1770,7 +1770,7 @@ void backward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState stat
 				l.dilation, l.dilation, // dilation (h, w)
 				b);                 // output
 
-			gemm(0, 1, m, n, k, 1, a, k, b, k, 1, c, n);
+			gemm_cpu(0, 1, m, n, k, 1, a, k, b, k, 1, c, n);
 
 			if (state.delta)
 			{
@@ -1778,7 +1778,7 @@ void backward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState stat
 				b = l.delta + (i*l.groups + j)*m*k;
 				c = state.workspace;
 
-				gemm(1, 0, n, k, m, 1, a, n, b, k, 0, c, k);
+				gemm_cpu(1, 0, n, k, m, 1, a, n, b, k, 0, c, k);
 
 				//col2im_cpu(state.workspace, l.c / l.groups, l.h, l.w, l.size, l.stride,
 				//     l.pad, state.delta + (i*l.groups + j)*l.c / l.groups*l.h*l.w);

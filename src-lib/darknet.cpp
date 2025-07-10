@@ -313,13 +313,15 @@ void Darknet::show_version_info()
 	#else
 		Darknet::display_warning_msg("Darknet is compiled to use the CPU.");
 		*cfg_and_state.output << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;
+
+		#ifdef DARKNET_USE_OPENBLAS
+			*cfg_and_state.output << Darknet::trim(OPENBLAS_VERSION) << ", ";
+		#else
+			*cfg_and_state.output << "OpenBLAS is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << ", ";
+		#endif
 	#endif
 
-	#ifdef DARKNET_USE_OPENBLAS
-	*cfg_and_state.output << Darknet::trim(OPENBLAS_VERSION) << ", ";
-	#endif
-
-	*cfg_and_state.output << "OpenCV " << Darknet::in_colour(Darknet::EColour::kBrightWhite, "v" CV_VERSION);
+	*cfg_and_state.output << "OpenCV " << Darknet::in_colour(Darknet::EColour::kBrightWhite, CV_VERSION);
 
 	#ifdef WIN32
 	*cfg_and_state.output << ", " << get_windows_version();

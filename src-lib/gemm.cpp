@@ -15,9 +15,6 @@
 #include "im2col.hpp"
 #include "Timing.hpp"
 
-#ifdef DARKNET_OPENMP
-#include <omp.h>
-#endif
 
 #if defined(_MSC_VER)
 #if defined(_M_ARM) || defined(_M_ARM64)
@@ -87,18 +84,6 @@ float *random_matrix(int rows, int cols)
 		m[i] = (float)rand() / (float)RAND_MAX;
 	}
 	return m;
-}
-
-
-void gemm(int TA, int TB, int M, int N, int K, float ALPHA,
-		float *A, int lda,
-		float *B, int ldb,
-		float BETA,
-		float *C, int ldc)
-{
-	TAT(TATPARMS);
-
-	gemm_cpu( TA,  TB,  M, N, K, ALPHA,A,lda, B, ldb,BETA,C,ldc);
 }
 
 
@@ -2385,6 +2370,8 @@ void gemm_tt(int M, int N, int K, float ALPHA,
 }
 
 
+#ifndef DARKNET_USE_OPENBLAS
+// This only exists when OpenBLAS is not available.
 void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 		float *A, int lda,
 		float *B, int ldb,
@@ -2393,16 +2380,6 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 {
 	TAT(TATPARMS);
 
-	#ifdef DARKNET_USE_OPENBLAS
-	cblas_sgemm(CblasRowMajor,
-			TA ? CblasTrans : CblasNoTrans,
-			TB ? CblasTrans : CblasNoTrans,
-			M, N, K, ALPHA,
-			A, lda,
-			B, ldb,
-			BETA,
-			C, ldc);
-	#else
 	if (BETA != 1)
 	{
 		for(int i = 0; i < M; ++i)
@@ -2421,9 +2398,8 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 	}
 	else
 	{
-		int t;
 		#pragma omp parallel for
-		for (t = 0; t < M; ++t)
+		for (int t = 0; t < M; ++t)
 		{
 			if (!TA && !TB)
 			{
@@ -2443,12 +2419,10 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 			}
 		}
 	}
-	#endif
 }
+#endif
 
 #ifdef DARKNET_GPU
-
-#include <cmath>
 
 void gemm_ongpu(int TA, int TB, int M, int N, int K, float ALPHA,
 		float *A_gpu, int lda,
@@ -2485,11 +2459,6 @@ void gemm_gpu(int TA, int TB, int M, int N, int K, float ALPHA,
 	cuda_free(B_gpu);
 	cuda_free(C_gpu);
 }
-
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <time.h>
 
 void time_gpu_random_matrix(int TA, int TB, int m, int k, int n)
 {

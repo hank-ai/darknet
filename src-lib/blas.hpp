@@ -1,44 +1,64 @@
 #pragma once
 
+
 #ifdef DARKNET_GPU
 #include "dark_cuda.hpp"
 #include "tree.hpp"
 #endif
 
 
+/** @file
+ * BLAS: "Basic Linear Algebra Subprograms"
+ */
+
+
 #ifdef DARKNET_USE_OPENBLAS
-#include <cblas.h>
-#define axpy_cpu	cblas_saxpy
-#define scal_cpu	cblas_sscal
-#define copy_cpu	cblas_scopy
-#define dot_cpu		cblas_sdot
+	#include <cblas.h>
+
+	/// SAXPY constant times a vector plus a vector.  Uses unrolled loops for increments equal to one.
+	#define axpy_cpu	cblas_saxpy
+
+	/// Scales a vector by a constant. Uses unrolled loops for increment equal to 1.
+	#define scal_cpu	cblas_sscal
+
+	/// SCOPY copies a vector, x, to a vector, y.  Uses unrolled loops for increments equal to 1.
+	#define copy_cpu	cblas_scopy
+
+	/// SDOT forms the dot product of two vectors.  Uses unrolled loops for increments equal to one.
+	#define dot_cpu		cblas_sdot
+
 #else
-void axpy_cpu(int N, float ALPHA, float *X, int INCX, float *Y, int INCY);
-void scal_cpu(int N, float ALPHA, float *X, int INCX);
-void copy_cpu(int N, float *X, int INCX, float *Y, int INCY);
-float dot_cpu(int N, float *X, int INCX, float *Y, int INCY);
+
+	/// SAXPY constant times a vector plus a vector.  Uses unrolled loops for increments equal to one.
+	void axpy_cpu(int N, float ALPHA, float *X, int INCX, float *Y, int INCY);
+
+	/// Scales a vector by a constant. Uses unrolled loops for increment equal to 1.
+	void scal_cpu(int N, float ALPHA, float *X, int INCX);
+
+	/// SCOPY copies a vector, x, to a vector, y.  Uses unrolled loops for increments equal to 1.
+	void copy_cpu(int N, float *X, int INCX, float *Y, int INCY);
+
+	/// SDOT forms the dot product of two vectors.  Uses unrolled loops for increments equal to one.
+	float dot_cpu(int N, float *X, int INCX, float *Y, int INCY);
+
 #endif
+
+void mul_cpu(int N, float *X, int INCX, float *Y, int INCY);
 
 void flatten(float *x, int size, int layers, int batch, int forward);
 float *random_matrix(int rows, int cols);
-//void time_random_matrix(int TA, int TB, int m, int k, int n); unused?
 void reorg_cpu(float *x, int w, int h, int c, int batch, int stride, int forward, float *out);
 
 void test_blas();
 
-void const_cpu(int N, float ALPHA, float *X, int INCX);
 void constrain_ongpu(int N, float ALPHA, float * X, int INCX);
 void constrain_min_max_ongpu(int N, float MIN, float MAX, float * X, int INCX);
-void pow_cpu(int N, float ALPHA, float *X, int INCX, float *Y, int INCY);
-void mul_cpu(int N, float *X, int INCX, float *Y, int INCY);
 
 void scal_add_cpu(int N, float ALPHA, float BETA, float *X, int INCX);
 void fill_cpu(int N, float ALPHA, float * X, int INCX);
 int test_gpu_blas();
-void shortcut_cpu(int batch, int w1, int h1, int c1, float *add, int w2, int h2, int c2, float *out);
 void shortcut_multilayer_cpu(int size, int src_outputs, int batch, int n, int *outputs_of_layers, float **layers_output, float *out, float *in, float *weights, int nweights, WEIGHTS_NORMALIZATION_T weights_normalization);
-void backward_shortcut_multilayer_cpu(int size, int src_outputs, int batch, int n, int *outputs_of_layers,
-    float **layers_delta, float *delta_out, float *delta_in, float *weights, float *weight_updates, int nweights, float *in, float **layers_output, WEIGHTS_NORMALIZATION_T weights_normalization);
+void backward_shortcut_multilayer_cpu(int size, int src_outputs, int batch, int n, int *outputs_of_layers, float **layers_delta, float *delta_out, float *delta_in, float *weights, float *weight_updates, int nweights, float *in, float **layers_output, WEIGHTS_NORMALIZATION_T weights_normalization);
 
 void mean_cpu(float *x, int batch, int filters, int spatial, float *mean);
 void variance_cpu(float *x, float *mean, int batch, int filters, int spatial, float *variance);
@@ -48,7 +68,7 @@ void add_bias(float *output, float *biases, int batch, int n, int size);
 void scale_bias(float *output, float *scales, int batch, int n, int size);
 void backward_scale_cpu(float *x_norm, float *delta, int batch, int n, int size, float *scale_updates);
 void mean_delta_cpu(float *delta, float *variance, int batch, int filters, int spatial, float *mean_delta);
-void  variance_delta_cpu(float *x, float *delta, float *mean, float *variance, int batch, int filters, int spatial, float *variance_delta);
+void variance_delta_cpu(float *x, float *delta, float *mean, float *variance, int batch, int filters, int spatial, float *variance_delta);
 void normalize_delta_cpu(float *x, float *mean, float *variance, float *mean_delta, float *variance_delta, int batch, int filters, int spatial, float *delta);
 
 void smooth_l1_cpu(int n, float *pred, float *truth, float *delta, float *error);
@@ -108,14 +128,12 @@ void fast_variance_delta_gpu(float *x, float *delta, float *mean, float *varianc
 
 void fast_mean_gpu(float *x, int batch, int filters, int spatial, float *mean);
 void fast_variance_gpu(float *x, float *mean, int batch, int filters, int spatial, float *variance);
-void fast_v_cbn_gpu(const float *x, float *mean, int batch, int filters, int spatial, int minibatch_index, int max_minibatch_index, float *m_avg, float *v_avg, float *variance,
-    const float alpha, float *rolling_mean_gpu, float *rolling_variance_gpu, int inverse_variance, float epsilon);
+void fast_v_cbn_gpu(const float *x, float *mean, int batch, int filters, int spatial, int minibatch_index, int max_minibatch_index, float *m_avg, float *v_avg, float *variance, const float alpha, float *rolling_mean_gpu, float *rolling_variance_gpu, int inverse_variance, float epsilon);
 void inverse_variance_ongpu(int size, float *src, float *dst, float epsilon);
 void normalize_scale_bias_gpu(float *x, float *mean, float *variance, float *scales, float *biases, int batch, int filters, int spatial, int inverse_variance, float epsilon);
 void shortcut_gpu(int batch, int w1, int h1, int c1, float *add, int w2, int h2, int c2, float *out);
 void shortcut_multilayer_gpu(int src_outputs, int batch, int n, int *outputs_of_layers_gpu, float **layers_output_gpu, float *out, float *in, float *weights_gpu, int nweights, WEIGHTS_NORMALIZATION_T weights_normalization);
-void backward_shortcut_multilayer_gpu(int src_outputs, int batch, int n, int *outputs_of_layers_gpu, float **layers_delta_gpu, float *delta_out, float *delta_in,
-    float *weights, float *weight_updates, int nweights, float *in, float **layers_output, WEIGHTS_NORMALIZATION_T weights_normalization);
+void backward_shortcut_multilayer_gpu(int src_outputs, int batch, int n, int *outputs_of_layers_gpu, float **layers_delta_gpu, float *delta_out, float *delta_in, float *weights, float *weight_updates, int nweights, float *in, float **layers_output, WEIGHTS_NORMALIZATION_T weights_normalization);
 void input_shortcut_gpu(float *in, int batch, int w1, int h1, int c1, float *add, int w2, int h2, int c2, float *out);
 void backward_scale_gpu(float *x_norm, float *delta, int batch, int n, int size, float *scale_updates);
 void mean_array_gpu(float *src, int size, float alpha, float *avg);
@@ -152,14 +170,10 @@ void sum_of_mults(float *a1, float *a2, float *b1, float *b2, size_t size, float
 void activate_and_mult(float *a1, float *a2, size_t size, ACTIVATION a, float *dst);
 
 void scale_channels_gpu(float *in_w_h_c, int size, int channel_size, int batch_size, int scale_wh, float *scales_c, float *out);
-void backward_scale_channels_gpu(float *in_w_h_c_delta, int size, int channel_size, int batch_size, int scale_wh,
-    float *in_scales_c, float *out_from_delta,
-    float *in_from_output, float *out_state_delta);
+void backward_scale_channels_gpu(float *in_w_h_c_delta, int size, int channel_size, int batch_size, int scale_wh, float *in_scales_c, float *out_from_delta, float *in_from_output, float *out_state_delta);
 
 
-void backward_sam_gpu(float *in_w_h_c_delta, int size, int channel_size,
-    float *in_scales_c, float *out_from_delta,
-    float *in_from_output, float *out_state_delta);
+void backward_sam_gpu(float *in_w_h_c_delta, int size, int channel_size, float *in_scales_c, float *out_from_delta, float *in_from_output, float *out_state_delta);
 
 void sam_gpu(float *in_w_h_c, int size, int channel_size, float *scales_c, float *out);
 

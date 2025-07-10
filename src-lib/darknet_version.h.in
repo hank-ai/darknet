@@ -47,7 +47,7 @@
  *
  *	- v0 is the original Joseph Redmon repo, 2013-2018.  (Did not have a "version" command.)
  *	- v1 is the popular fork maintained by Alexey Bochkovskiy (aka AlexeyAB), 2016-2021.  (Did not have a "version" command.)
- *	- v2 is named "Oak", conversion from old C codebase to C++, Stephane Charette, 2023.
+ *	- v2 is named "Oak", begin conversion from old C codebase to C++, Stephane Charette, 2023.
  *	- v3 is named "Jazz", significant optimizations for both training and inference, Stephane Charette, 2024.
  *	- v4 is named "Slate", add support for AMD GPU via ROCm, Stephane Charette, 2025.
  *	- v5 is named "Moonlit", more optimizations, Stephane Charette, 2025
