@@ -1471,12 +1471,14 @@ void activate_array_cpu_custom(float *x, const int n, const ACTIVATION a)
 
 	if (a == LEAKY)
 	{
+		int i = 0;
+
 		if (is_fma_avx2())
 		{
 			__m256i all256_sing1 = _mm256_set_epi32(0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000, 0x80000000);
 			__m256 all256_01 = _mm256_set1_ps(0.1F);
 
-			for (int i = 0; i < n - 8; i += 8)
+			for (i = 0; i < n - 8; i += 8)
 			{
 				//x[i] = (x[i]>0) ? x[i] : .1*x[i];
 
@@ -1490,8 +1492,7 @@ void activate_array_cpu_custom(float *x, const int n, const ACTIVATION a)
 			}
 		}
 
-		#pragma omp parallel for schedule(static)
-		for (int i = 0; i < n; ++i)
+		for (; i < n; ++i)
 		{
 			x[i] = std::max(x[i], 0.1f * x[i]);
 		}
