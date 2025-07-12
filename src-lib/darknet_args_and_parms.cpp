@@ -378,6 +378,9 @@ void Darknet::display_usage()
 		<< "  The previous V3+ commands will generate an output video.  The equivalent V2-style command is:" << std::endl
 		<< YELLOW("    darknet detector demo cars.data cars.cfg cars_best.weights video1.mp4 -out_filename output.mp4") << std::endl
 		<< ""																						<< std::endl
+		<< "  Generate YOLO-format .txt annotation files from predictions:"							<< std::endl
+		<< YELLOW("    darknet_11_images_to_yolo cars images/*.jpg")								<< std::endl
+		<< ""																						<< std::endl
 		<< "  Display the weights from different layers in a neural network:"						<< std::endl
 		<< YELLOW("    darknet visualize --verbose cars.cfg cars_best.weights")						<< std::endl
 		<< ""																						<< std::endl
@@ -388,6 +391,12 @@ void Darknet::display_usage()
 		<< "  Randomize (versus alphabetically sorting) the set of images or videos:"				<< std::endl
 		<< YELLOW("    darknet_02_display_annotated_images --random cars images/*.jpg")				<< std::endl
 		<< YELLOW("    darknet_03_display_videos --random cars videos/*.m4v")						<< std::endl
+		<< ""																						<< std::endl
+		<< "  Darknet V3+ will attempt to load .cfg, .names, and .weights files which are a partial match." << std::endl
+		<< "  Meaning you can load a neural network with names such as \"cars.cfg\" and \"cars_best.weights\":" << std::endl
+		<< YELLOW("    darknet_02_display_annotated_images cars *.jpg")								<< std::endl
+		<< "  But you can also be explicit with the neural network filenames to load:"				<< std::endl
+		<< YELLOW("    darknet_02_display_annotated_images ../cars.cfg ../lab.names testing/Mike.weights *.jpg") << std::endl
 		<< ""																						<< std::endl
 		<< "  Redirect console output to a file (this also turns off colour output):"				<< std::endl
 		<< YELLOW("    darknet -log /some/path/filename.log ...")									<< std::endl
