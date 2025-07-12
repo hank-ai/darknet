@@ -155,7 +155,7 @@ Darknet::TimingRecords::~TimingRecords()
 		const std::string reviewed			= (reviewed_per_function.at(name) ? "yes" : "");
 		const std::string comment			= comment_per_function.at(name);
 
-		if (total_milliseconds < 10.0f)
+		if (total_milliseconds < 10.0f and calls < 1000)
 		{
 			skipped ++;
 			continue;
