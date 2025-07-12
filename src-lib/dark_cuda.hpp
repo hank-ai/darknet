@@ -16,10 +16,25 @@ extern int cuda_debug_sync;
 
 #include "darknet_gpu.hpp"
 
+/// Use @ref CHECK_CUDA() instead.
 void check_cuda_error(cudaError_t status, const char * const filename, const char * const funcname, const int line);
+
+/// Use @ref CHECK_CUDA() instead.
 void check_cuda_error_extended(cudaError_t status, const char * const filename, const char * const funcname, const int line);
+
+/// Macro to quickly check if a CUDA error has taken place.  Only calls the CUDA error function if a problem is detected.
+#define CHECK_CUDA(X)														\
+{																			\
+	const auto STATUS = X;													\
+	if (STATUS != cudaSuccess)												\
+	{																		\
+		check_cuda_error_extended(STATUS, __FILE__, __func__, __LINE__ );	\
+	}																		\
+}
+
+/// Use @ref CHECK_CUBLAS() instead.
 void cublas_check_error_extended(cublasStatus_t status, const char * const filename, const char * const funcname, const int line);
-#define CHECK_CUDA(X) check_cuda_error_extended(X, __FILE__, __func__, __LINE__ );
+
 #define CHECK_CUBLAS(X) cublas_check_error_extended(X, __FILE__, __func__, __LINE__ );
 
 cublasHandle_t blas_handle();
