@@ -595,7 +595,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 		darknet_fatal_error(DARKNET_LOC, "letterbox and mosaic cannot be combined");
 	}
 
-	if (rand_uint() % 2 == 0)
+	if (rand_bool())
 	{
 		use_mixup = 0;
 	}
@@ -690,17 +690,17 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			if (!augmentation_calculated || !track)
 			{
 				augmentation_calculated = 1;
-				resize_r1 = random_float();
-				resize_r2 = random_float();
+				resize_r1 = rand_float();
+				resize_r2 = rand_float();
 
 				if (!contrastive || contrastive_jit_flip || i % 2 == 0)
 				{
-					r1 = random_float();
-					r2 = random_float();
-					r3 = random_float();
-					r4 = random_float();
+					r1 = rand_float();
+					r2 = rand_float();
+					r3 = rand_float();
+					r4 = rand_float();
 
-					flip = use_flip ? rand_uint() % 2 : 0;
+					flip = use_flip ? rand_bool() : 0;
 				}
 
 				if (!contrastive || contrastive_color || i % 2 == 0)
@@ -727,7 +727,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 					}
 				}
 
-				if (use_gaussian_noise && rand_int(0, 1) == 1)
+				if (use_gaussian_noise && rand_bool())
 				{
 					gaussian_noise = use_gaussian_noise;
 				}
@@ -780,7 +780,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			}
 
 			// move each 2nd image to the corner - so that most of it was visible
-			if (use_mixup == 3 && rand_uint() % 2 == 0)
+			if (use_mixup == 3 && rand_bool())
 			{
 				if (flip)
 				{

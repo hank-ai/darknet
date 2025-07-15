@@ -803,7 +803,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 	{
 		for (int i = 0; i < l.nweights; ++i)
 		{
-			l.weights[i] = scale*rand_uniform(-1.0f, 1.0f);
+			l.weights[i] = scale * rand_uniform(-1.0f, 1.0f);
 		}
 	}
 	int out_h = convolutional_out_height(l);

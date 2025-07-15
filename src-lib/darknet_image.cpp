@@ -883,7 +883,7 @@ Darknet::Image Darknet::make_random_image(int w, int h, int c)
 	out.data = (float*)xcalloc(h * w * c, sizeof(float));
 	for(int i = 0; i < w*h*c; ++i)
 	{
-		out.data[i] = (rand_normal() * .25) + .5;
+		out.data[i] = (rand_normal() * 0.25f) + 0.5f;
 	}
 	return out;
 }

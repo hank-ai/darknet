@@ -317,7 +317,7 @@ float train_network_datum_gpu(Darknet::Network & net, float *x, float *y)
 	TAT(TATPARMS);
 
 	*net.seen += net.batch;
-	if (net.adversarial_lr && rand_int(0, 1) == 1 && get_current_iteration(net) > net.burn_in)
+	if (net.adversarial_lr && rand_bool() && get_current_iteration(net) > net.burn_in)
 	{
 		net.adversarial = 1;
 		float lr_old = net.learning_rate;

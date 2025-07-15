@@ -2,7 +2,7 @@
 #include "darknet_utils.hpp"
 
 
-const size_t ITERATIONS = 500;
+const size_t ITERATIONS = 1000;
 
 
 TEST(Random, rand_normal)
@@ -16,7 +16,7 @@ TEST(Random, rand_normal)
 	for (size_t i = 0; i < ITERATIONS; i++)
 	{
 		const float f = rand_normal();
-		std::cout << "rand_normal() i=" << i << " f=" << f << std::endl;
+//		std::cout << "rand_normal() i=" << i << " f=" << f << std::endl;
 
 		ASSERT_GE(f, min);
 		ASSERT_LT(f, max);
@@ -50,7 +50,7 @@ TEST(Random, rand_uniform)
 	for (size_t i = 0; i < ITERATIONS; i++)
 	{
 		const float f = rand_uniform(min, max);
-		std::cout << "rand_uniform() i=" << i << " f=" << f << std::endl;
+//		std::cout << "rand_uniform() i=" << i << " f=" << f << std::endl;
 
 		ASSERT_GE(f, min);
 		ASSERT_LT(f, max);
@@ -73,7 +73,7 @@ TEST(Random, rand_uniform)
 }
 
 
-TEST(Random, random_float)
+TEST(Random, rand_float)
 {
 	const float min = 0.0f;
 	const float max = 1.0f;
@@ -83,8 +83,8 @@ TEST(Random, random_float)
 
 	for (size_t i = 0; i < ITERATIONS; i++)
 	{
-		const float f = random_float();
-		std::cout << "random_float() i=" << i << " f=" << f << std::endl;
+		const float f = rand_float();
+//		std::cout << "rand_float() i=" << i << " f=" << f << std::endl;
 
 		ASSERT_GE(f, min);
 		ASSERT_LT(f, max);
@@ -102,18 +102,42 @@ TEST(Random, random_float)
 	const float maximum_range	= max - min;
 	const float allowed_range	= 0.95f * maximum_range; // within 95% of the maximum possible range
 	const float actual_range	= hi - lo;
-	std::cout << "random_float() lo=" << lo << " hi=" << hi << " maximum=" << maximum_range << " allowed=" << allowed_range << " actual=" << actual_range << std::endl;
+	std::cout << "rand_float() lo=" << lo << " hi=" << hi << " maximum=" << maximum_range << " allowed=" << allowed_range << " actual=" << actual_range << std::endl;
 	ASSERT_GT(actual_range, allowed_range);
 }
 
 
 TEST(Random, rand_scale)
 {
+	const float min = 0.5f;
+	const float max = 2.0f;
+
+	float lo = max;
+	float hi = min;
+
 	for (size_t i = 0; i < ITERATIONS; i++)
 	{
-		const float f = rand_scale(1.0f);
-		std::cout << "rand_scale() i=" << i << " f=" << f << std::endl;
+		const float f = rand_scale(0.5f);
+//		std::cout << "rand_scale() i=" << i << " f=" << f << std::endl;
+
+		ASSERT_GE(f, min);
+		ASSERT_LT(f, max);
+		ASSERT_FALSE(std::isinf(f));
+		ASSERT_FALSE(std::isnan(f));
+		ASSERT_TRUE(std::isnormal(f));
+		ASSERT_TRUE(f == f);
+
+		if (f < lo)	lo = f;
+		if (f > hi) hi = f;
 	}
+
+	// see if the generated floats cover the full range of values between "min" and "max"
+	// (if this fails...did you decrease the number of iterations to something so low that we're not getting enough samples?)
+	const float maximum_range	= max - min;
+	const float allowed_range	= 0.95f * maximum_range; // within 95% of the maximum possible range
+	const float actual_range	= hi - lo;
+	std::cout << "rand_scale() lo=" << lo << " hi=" << hi << " maximum=" << maximum_range << " allowed=" << allowed_range << " actual=" << actual_range << std::endl;
+	ASSERT_GT(actual_range, allowed_range);
 }
 
 
@@ -121,8 +145,9 @@ TEST(Random, rand_precalc_random)
 {
 	for (size_t i = 0; i < ITERATIONS; i++)
 	{
-		const float f = rand_precalc_random(0.0f, 1.0f, 5.0f);
-		std::cout << "rand_precalc_random() i=" << i << " f=" << f << std::endl;
+		const float f = rand_precalc_random(0.5f, 1.75f, 3.0f);
+//		std::cout << "rand_precalc_random() i=" << i << " f=" << f << std::endl;
+		ASSERT_FLOAT_EQ(f, 4.25f);
 	}
 }
 
@@ -138,7 +163,7 @@ TEST(Random, rand_int)
 	for (size_t i = 0; i < ITERATIONS; i++)
 	{
 		const int r = rand_int(min, max);
-		std::cout << "rand_int() i=" << i << " r=" << r << std::endl;
+//		std::cout << "rand_int() i=" << i << " r=" << r << std::endl;
 
 		ASSERT_GE(r, min);
 		ASSERT_LE(r, max);
@@ -171,7 +196,7 @@ TEST(Random, rand_uint)
 	for (size_t i = 0; i < ITERATIONS; i++)
 	{
 		const unsigned int r = rand_uint(min, max);
-		std::cout << "rand_uint() i=" << i << " r=" << r << std::endl;
+//		std::cout << "rand_uint() i=" << i << " r=" << r << std::endl;
 
 		ASSERT_GE(r, min);
 		ASSERT_LE(r, max);

@@ -1057,7 +1057,7 @@ int top_max_index(float *a, int n, int k)
 		}
 	}
 
-	int get_index = rand_int(0, count-1);
+	int get_index = rand_int(0, count - 1);
 	int val = indexes[get_index];
 	free(indexes);
 	free(values);
@@ -1102,11 +1102,13 @@ float rand_scale(float s)
 	TAT(TATPARMS);
 
 	float scale = rand_uniform(1.0f, s);
-	if (rand_uint()%2)
+
+	if (rand_bool())
 	{
-		return scale;
+		scale = 1.0f / scale;
 	}
-	return 1.0f / scale;
+
+	return scale;
 }
 
 
@@ -1150,7 +1152,8 @@ float rand_precalc_random(float min, float max, float random_part)
 	{
 		std::swap(min, max);
 	}
-	return (random_part * (max - min)) + min;
+
+	return random_part * (max - min) + min;
 }
 
 

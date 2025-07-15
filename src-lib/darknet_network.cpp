@@ -2074,7 +2074,7 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold)
 
 				for (int k = 0; k < filter_size; ++k)
 				{
-					l.weights[max_sim_index*filter_size + k] = scale*rand_uniform(-1.0f, 1.0f);
+					l.weights[max_sim_index*filter_size + k] = scale * rand_uniform(-1.0f, 1.0f);
 				}
 				if (l.biases) l.biases[max_sim_index] = 0.0f;
 				if (l.scales) l.scales[max_sim_index] = 1.0f;

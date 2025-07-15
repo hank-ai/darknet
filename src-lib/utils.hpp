@@ -93,10 +93,16 @@ static inline float rand_normal()
 	return rand_uniform(-5.0f, 5.0f);
 }
 
-static inline float random_float()
+static inline float rand_float()
 {
 	TAT(TATPARMS);
 	return rand_uniform(0.0f, 1.0f);
+}
+
+static inline bool rand_bool()
+{
+	TAT(TATPARMS);
+	return rand_int(0, 1) ? false : true;
 }
 
 int int_index(int *a, int val, int n);
