@@ -170,7 +170,7 @@ float get_current_rate(const Darknet::Network & net)
 			//if (batch_num < net.burn_in) return net.learning_rate * pow((float)batch_num / net.burn_in, net.power);
 			//return net.learning_rate * pow(1 - (float)batch_num / net.max_batches, net.power);
 		case RANDOM:
-			return net.learning_rate * pow(rand_uniform(0,1), net.power);
+			return net.learning_rate * pow(rand_uniform(0.0f, 1.0f), net.power);
 		case SIG:
 			return net.learning_rate * (1./(1.+exp(net.gamma*(batch_num - net.step))));
 		case SGDR:
@@ -2074,7 +2074,7 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold)
 
 				for (int k = 0; k < filter_size; ++k)
 				{
-					l.weights[max_sim_index*filter_size + k] = scale*rand_uniform(-1, 1);
+					l.weights[max_sim_index*filter_size + k] = scale*rand_uniform(-1.0f, 1.0f);
 				}
 				if (l.biases) l.biases[max_sim_index] = 0.0f;
 				if (l.scales) l.scales[max_sim_index] = 1.0f;

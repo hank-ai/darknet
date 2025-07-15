@@ -91,7 +91,7 @@ void forward_dropout_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	int i;
 	if (!state.train) return;
 	for(i = 0; i < l.batch * l.inputs; ++i){
-		float r = rand_uniform(0, 1);
+		float r = rand_uniform(0.0f, 1.0f);
 		l.rand[i] = r;
 		if(r < l.probability) state.input[i] = 0;
 		else state.input[i] *= l.scale;

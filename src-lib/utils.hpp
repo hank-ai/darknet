@@ -56,12 +56,6 @@ int top_max_index(float *a, int n, int k);
 float constrain(float min, float max, float a);
 
 float mse_array(float *a, int n);
-float rand_normal();
-float rand_uniform(float min, float max);
-float rand_scale(float s);
-
-/// @todo Isn't this the same thing as @ref random_gen()?
-int rand_int(int min, int max);
 
 float sum_array(float *a, int n);
 float mean_array(float *a, int n);
@@ -76,12 +70,33 @@ int find_arg(int argc, char* argv[], const char * const arg);
 const char * find_char_arg(int argc, char **argv, const char *arg, const char *def);
 void print_statistics(float *a, int n);
 
+/** In V5 this was modified to use @p std::uniform_real_distribution to return proper C++ pseudo random float values.
+ * The @p "min" is inclusive, and @p "max" is exclusive, so @p rand_uniform(0.0f, 5.0f) will return @p 0.0f but never
+ * @p 5.0f.  The @p "min" and @p "max" values will automatically be swapped if necessary.  This will never return
+ * @p NaN or infinite values.
+ */
+float rand_uniform(float min, float max);
+
+float rand_scale(float s);
+
 /// The @p "min" and @p "max" values are inclusive.  For example, @p random_gen(1, 6) can return 6 possible values.
 unsigned int random_gen(unsigned int min=0, unsigned int max=std::numeric_limits<unsigned int>::max());
 
-float random_float();
-float rand_uniform_strong(float min, float max);
+/// @todo Isn't this the same thing as @ref random_gen()?
+int rand_int(int min, int max);
+
 float rand_precalc_random(float min, float max, float random_part);
+
+static inline float rand_normal()
+{
+	return rand_uniform(-5.0f, 5.0f);
+}
+
+static inline float random_float()
+{
+	return rand_uniform(0.0f, 1.0f);
+}
+
 int int_index(int *a, int val, int n);
 int make_directory(char *path, int mode);
 unsigned long custom_hash(char *str);

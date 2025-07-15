@@ -163,7 +163,7 @@ TEST(IoUCVRect2f, Range)
 	v.reserve(number_of_rectangles);
 	while (v.size() < number_of_rectangles)
 	{
-		cv::Rect2f r(rand_uniform_strong(0.0f, 1.0f), rand_uniform_strong(0.0f, 1.0f), rand_uniform_strong(0.0f, 1.0f), rand_uniform_strong(0.0f, 1.0f));
+		cv::Rect2f r(rand_uniform(0.0f, 1.0f), rand_uniform(0.0f, 1.0f), rand_uniform(0.0f, 1.0f), rand_uniform(0.0f, 1.0f));
 		if (r.br().x <= 1.0f and r.br().y <= 1.0f)
 		{
 			v.push_back(r);

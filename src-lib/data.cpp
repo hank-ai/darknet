@@ -705,7 +705,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
 				if (!contrastive || contrastive_color || i % 2 == 0)
 				{
-					dhue = rand_uniform_strong(-hue, hue);
+					dhue = rand_uniform(-hue, hue);
 					dsat = rand_scale(saturation);
 					dexp = rand_scale(exposure);
 				}

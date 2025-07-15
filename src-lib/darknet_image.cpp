@@ -1409,7 +1409,7 @@ void Darknet::random_distort_image(Darknet::Image & im, float hue, float saturat
 
 	/// @todo COLOR - HSV no beuno
 
-	float dhue = rand_uniform_strong(-hue, hue);
+	float dhue = rand_uniform(-hue, hue);
 	float dsat = rand_scale(saturation);
 	float dexp = rand_scale(exposure);
 	Darknet::distort_image(im, dhue, dsat, dexp);

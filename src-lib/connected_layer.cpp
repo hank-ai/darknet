@@ -92,8 +92,9 @@ Darknet::Layer make_connected_layer(int batch, int steps, int inputs, int output
 
 	//float scale = 1./sqrt(inputs);
 	float scale = sqrt(2.f/inputs);
-	for(i = 0; i < outputs*inputs; ++i){
-		l.weights[i] = scale*rand_uniform(-1, 1);
+	for(i = 0; i < outputs*inputs; ++i)
+	{
+		l.weights[i] = scale*rand_uniform(-1.0f, 1.0f);
 	}
 
 	for(i = 0; i < outputs; ++i){
