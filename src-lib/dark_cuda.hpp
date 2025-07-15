@@ -78,9 +78,19 @@ void reset_wait_stream_events();
 cudnnHandle_t cudnn_handle();
 enum {cudnn_fastest, cudnn_smallest, cudnn_specify};
 
+/// Use @ref CHECK_CUDNN() instead.
 void cudnn_check_error_extended(cudnnStatus_t status, const char * const filename, const char * const function, const int line);
-#define CHECK_CUDNN(X) cudnn_check_error_extended(X, __FILE__, __func__, __LINE__);
-#endif
 
+/// Macro to quickly check if a CUDNN error has taken place.  Only calls the CUDNN error function if a problem is detected.
+#define CHECK_CUDNN(X)														\
+{																			\
+	const auto STATUS = X;													\
+	if (STATUS != CUDNN_STATUS_SUCCESS)										\
+	{																		\
+		cudnn_check_error_extended(STATUS, __FILE__, __func__, __LINE__ );	\
+	}																		\
+}
+
+#endif
 
 #endif // DARKNET_GPU

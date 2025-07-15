@@ -675,7 +675,7 @@ void cuda_pull_array_async(float *x_gpu, float *x, size_t n)
 
 	size_t size = sizeof(float)*n;
 	cudaError_t status = cudaMemcpyAsync(x, x_gpu, size, cudaMemcpyDefault, get_cuda_stream());
-	check_cuda_error(status, DARKNET_LOC);
+	CHECK_CUDA(status);
 	//cudaStreamSynchronize(get_cuda_stream());
 }
 
