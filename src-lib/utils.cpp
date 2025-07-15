@@ -115,7 +115,7 @@ void shuffle(void *arr, size_t n, size_t size)
 	void* swp = (void*)xcalloc(1, size);
 	for (size_t i = 0; i < n-1; ++i)
 	{
-		size_t j = i + random_gen()/(RAND_MAX / (n-i)+1);
+		size_t j = i + rand_uint()/(RAND_MAX / (n-i)+1);
 		memcpy(swp,            (char*)arr+(j*size), size);
 		memcpy((char*)arr+(j*size), (char*)arr+(i*size), size);
 		memcpy((char*)arr+(i*size), swp,          size);
@@ -1080,20 +1080,6 @@ int int_index(int *a, int val, int n)
 	return -1;
 }
 
-int rand_int(int min, int max)
-{
-	TAT(TATPARMS);
-
-	if (max < min)
-	{
-		std::swap(min, max);
-	}
-
-	int r = random_gen(min, max);
-
-	return r;
-}
-
 
 float rand_uniform(float min, float max)
 {
@@ -1116,7 +1102,7 @@ float rand_scale(float s)
 	TAT(TATPARMS);
 
 	float scale = rand_uniform(1.0f, s);
-	if (random_gen()%2)
+	if (rand_uint()%2)
 	{
 		return scale;
 	}
@@ -1124,12 +1110,33 @@ float rand_scale(float s)
 }
 
 
-unsigned int random_gen(unsigned int min, unsigned int max)
+unsigned int rand_uint(unsigned int min, unsigned int max)
 {
 	TAT(TATPARMS);
 
+	if (max < min)
+	{
+		std::swap(min, max);
+	}
+
 	// This is inclusive.  It is possible to get back "min", "max", and every integer value in between.
 	std::uniform_int_distribution<unsigned int> distribution(min, max);
+
+	return distribution(get_rnd_engine());
+}
+
+
+int rand_int(int min, int max)
+{
+	TAT(TATPARMS);
+
+	if (max < min)
+	{
+		std::swap(min, max);
+	}
+
+	// This is inclusive.  It is possible to get back "min", "max", and every integer value in between.
+	std::uniform_int_distribution<int> distribution(min, max);
 
 	return distribution(get_rnd_engine());
 }

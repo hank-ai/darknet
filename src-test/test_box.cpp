@@ -67,7 +67,7 @@ TEST(IoUCVRect, Range)
 	v.reserve(number_of_rectangles);
 	while (v.size() < number_of_rectangles)
 	{
-		cv::Rect r(random_gen(0, 2000), random_gen(0, 2000), random_gen(1, 2000), random_gen(1, 2000));
+		cv::Rect r(rand_int(0, 2000), rand_int(0, 2000), rand_int(1, 2000), rand_int(1, 2000));
 		v.push_back(r);
 	}
 

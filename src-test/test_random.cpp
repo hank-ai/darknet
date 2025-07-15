@@ -129,19 +129,65 @@ TEST(Random, rand_precalc_random)
 
 TEST(Random, rand_int)
 {
+	const int min = -50.0f;
+	const int max = 50.0f;
+
+	int lo = max;
+	int hi = min;
+
 	for (size_t i = 0; i < ITERATIONS; i++)
 	{
-		const int r = rand_int(0, 100);
+		const int r = rand_int(min, max);
 		std::cout << "rand_int() i=" << i << " r=" << r << std::endl;
+
+		ASSERT_GE(r, min);
+		ASSERT_LE(r, max);
+		ASSERT_FALSE(std::isinf(r));
+		ASSERT_FALSE(std::isnan(r));
+		ASSERT_TRUE(r == r);
+
+		if (r < lo)	lo = r;
+		if (r > hi) hi = r;
 	}
+
+	// see if the generated floats cover the full range of values between "min" and "max"
+	// (if this fails...did you decrease the number of iterations to something so low that we're not getting enough samples?)
+	const int maximum_range	= max - min;
+	const int allowed_range	= 0.95f * maximum_range; // within 95% of the maximum possible range
+	const int actual_range	= hi - lo;
+	std::cout << "rand_int() lo=" << lo << " hi=" << hi << " maximum=" << maximum_range << " allowed=" << allowed_range << " actual=" << actual_range << std::endl;
+	ASSERT_GT(actual_range, allowed_range);
 }
 
 
-TEST(Random, random_gen)
+TEST(Random, rand_uint)
 {
+	const unsigned int min = 0.0f;
+	const unsigned int max = 100.0f;
+
+	unsigned int lo = max;
+	unsigned int hi = min;
+
 	for (size_t i = 0; i < ITERATIONS; i++)
 	{
-		const int r = random_gen(0, 100);
-		std::cout << "random_gen() i=" << i << " r=" << r << std::endl;
+		const unsigned int r = rand_uint(min, max);
+		std::cout << "rand_uint() i=" << i << " r=" << r << std::endl;
+
+		ASSERT_GE(r, min);
+		ASSERT_LE(r, max);
+		ASSERT_FALSE(std::isinf(r));
+		ASSERT_FALSE(std::isnan(r));
+		ASSERT_TRUE(r == r);
+
+		if (r < lo)	lo = r;
+		if (r > hi) hi = r;
 	}
+
+	// see if the generated floats cover the full range of values between "min" and "max"
+	// (if this fails...did you decrease the number of iterations to something so low that we're not getting enough samples?)
+	const int maximum_range	= max - min;
+	const int allowed_range	= 0.95f * maximum_range; // within 95% of the maximum possible range
+	const int actual_range	= hi - lo;
+	std::cout << "rand_uint() lo=" << lo << " hi=" << hi << " maximum=" << maximum_range << " allowed=" << allowed_range << " actual=" << actual_range << std::endl;
+	ASSERT_GT(actual_range, allowed_range);
 }

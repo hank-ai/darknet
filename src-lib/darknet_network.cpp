@@ -497,7 +497,7 @@ float train_network_batch(Darknet::Network net, data d, int n)
 	{
 		for (int j = 0; j < batch; ++j)
 		{
-			int index = random_gen(0, d.X.rows - 1);
+			int index = rand_uint(0, d.X.rows - 1);
 			state.input = d.X.vals[index];
 			state.truth = d.y.vals[index];
 			forward_network(net, state);

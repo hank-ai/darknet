@@ -103,7 +103,7 @@ char **get_sequential_paths(char **paths, int n, int m, int mini_batch, int augm
 		}
 		else
 		{
-			start_time_indexes[i] = random_gen(0, m - 1);
+			start_time_indexes[i] = rand_uint(0, m - 1);
 		}
 	}
 
@@ -132,7 +132,7 @@ char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 	// "n" is the total number of filenames to be returned at once
 	for (int i = 0; i < n; ++i)
 	{
-		int index = random_gen(0, m - 1);
+		int index = rand_uint(0, m - 1);
 		if (contrastive && (i % 2 == 1))
 		{
 			index = old_index;
@@ -204,7 +204,7 @@ void randomize_boxes(box_label *b, int n)
 	int i;
 	for(i = 0; i < n; ++i)
 	{
-		const auto index = random_gen(0, n - 1);
+		const auto index = rand_uint(0, n - 1);
 		std::swap(b[i], b[index]);
 	}
 }
@@ -595,7 +595,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 		darknet_fatal_error(DARKNET_LOC, "letterbox and mosaic cannot be combined");
 	}
 
-	if (random_gen() % 2 == 0)
+	if (rand_uint() % 2 == 0)
 	{
 		use_mixup = 0;
 	}
@@ -700,7 +700,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 					r3 = random_float();
 					r4 = random_float();
 
-					flip = use_flip ? random_gen() % 2 : 0;
+					flip = use_flip ? rand_uint() % 2 : 0;
 				}
 
 				if (!contrastive || contrastive_color || i % 2 == 0)
@@ -780,7 +780,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			}
 
 			// move each 2nd image to the corner - so that most of it was visible
-			if (use_mixup == 3 && random_gen() % 2 == 0)
+			if (use_mixup == 3 && rand_uint() % 2 == 0)
 			{
 				if (flip)
 				{
@@ -898,11 +898,11 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 
 			if (show_imgs && i_mixup == use_mixup)   // delete i_mixup
 			{
-				const int random_index = random_gen();
+				const int random_index = rand_uint();
 
 				Darknet::Image tmp_ai = Darknet::copy_image(ai);
 				char buff[1000];
-				sprintf(buff, "aug_%d_%d_%d", random_index, i, random_gen());
+				sprintf(buff, "aug_%d_%d_%d", random_index, i, rand_uint());
 				int t;
 				for (t = 0; t < boxes; ++t)
 				{

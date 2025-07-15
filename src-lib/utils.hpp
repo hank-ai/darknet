@@ -79,21 +79,23 @@ float rand_uniform(float min, float max);
 
 float rand_scale(float s);
 
-/// The @p "min" and @p "max" values are inclusive.  For example, @p random_gen(1, 6) can return 6 possible values.
-unsigned int random_gen(unsigned int min=0, unsigned int max=std::numeric_limits<unsigned int>::max());
+/// The @p "min" and @p "max" values are inclusive.  For example, @p rand_uint(1, 6) can return 6 possible values.
+unsigned int rand_uint(unsigned int min=0, unsigned int max=std::numeric_limits<unsigned int>::max());
 
-/// @todo Isn't this the same thing as @ref random_gen()?
-int rand_int(int min, int max);
+/// The @p "min" and @p "max" values are inclusive.  For example, @p rand_int(1, 6) can return 6 possible values.
+int rand_int(int min=0, int max=std::numeric_limits<int>::max());
 
 float rand_precalc_random(float min, float max, float random_part);
 
 static inline float rand_normal()
 {
+	TAT(TATPARMS);
 	return rand_uniform(-5.0f, 5.0f);
 }
 
 static inline float random_float()
 {
+	TAT(TATPARMS);
 	return rand_uniform(0.0f, 1.0f);
 }
 
