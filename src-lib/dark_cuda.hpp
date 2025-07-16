@@ -28,7 +28,7 @@ void check_cuda_error_extended(cudaError_t status, const char * const filename, 
 	const auto STATUS = X;													\
 	if (STATUS != cudaSuccess)												\
 	{																		\
-		check_cuda_error_extended(STATUS, __FILE__, __func__, __LINE__ );	\
+		check_cuda_error_extended(STATUS, __FILE__, __func__, __LINE__);	\
 	}																		\
 }
 
@@ -87,7 +87,7 @@ void cudnn_check_error_extended(cudnnStatus_t status, const char * const filenam
 	const auto STATUS = X;													\
 	if (STATUS != CUDNN_STATUS_SUCCESS)										\
 	{																		\
-		cudnn_check_error_extended(STATUS, __FILE__, __func__, __LINE__ );	\
+		cudnn_check_error_extended(STATUS, __FILE__, __func__, __LINE__);	\
 	}																		\
 }
 

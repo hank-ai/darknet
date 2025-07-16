@@ -28,34 +28,34 @@ namespace
 			size_t most = 0;
 			size_t s = 0;
 			CHECK_CUDNN(cudnnGetConvolutionForwardWorkspaceSize(cudnn_handle(),
-																l.srcTensorDesc,
-													   l.weightDesc,
-													   l.convDesc,
-													   l.dstTensorDesc,
-													   l.fw_algo,
-													   &s));
+					l.srcTensorDesc,
+					l.weightDesc,
+					l.convDesc,
+					l.dstTensorDesc,
+					l.fw_algo,
+					&s));
 			if (s > most)
 			{
 				most = s;
 			}
 			CHECK_CUDNN(cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnn_handle(),
-																	   l.srcTensorDesc,
-															  l.ddstTensorDesc,
-															  l.convDesc,
-															  l.dweightDesc,
-															  l.bf_algo,
-															  &s));
+					l.srcTensorDesc,
+					l.ddstTensorDesc,
+					l.convDesc,
+					l.dweightDesc,
+					l.bf_algo,
+					&s));
 			if (s > most && l.train)
 			{
 				most = s;
 			}
 			CHECK_CUDNN(cudnnGetConvolutionBackwardDataWorkspaceSize(cudnn_handle(),
-																	 l.weightDesc,
-															l.ddstTensorDesc,
-															l.convDesc,
-															l.dsrcTensorDesc,
-															l.bd_algo,
-															&s));
+					l.weightDesc,
+					l.ddstTensorDesc,
+					l.convDesc,
+					l.dsrcTensorDesc,
+					l.bd_algo,
+					&s));
 			if (s > most && l.train)
 			{
 				most = s;
@@ -89,34 +89,34 @@ namespace
 			size_t most = 0;
 			size_t s = 0;
 			CHECK_CUDNN(cudnnGetConvolutionForwardWorkspaceSize(cudnn_handle(),
-																l.srcTensorDesc16,
-													   l.weightDesc16,
-													   l.convDesc,
-													   l.dstTensorDesc16,
-													   l.fw_algo16,
-													   &s));
+					l.srcTensorDesc16,
+					l.weightDesc16,
+					l.convDesc,
+					l.dstTensorDesc16,
+					l.fw_algo16,
+					&s));
 			if (s > most)
 			{
 				most = s;
 			}
 			CHECK_CUDNN(cudnnGetConvolutionBackwardFilterWorkspaceSize(cudnn_handle(),
-																	   l.srcTensorDesc16,
-															  l.ddstTensorDesc16,
-															  l.convDesc,
-															  l.dweightDesc16,
-															  l.bf_algo16,
-															  &s));
+					l.srcTensorDesc16,
+					l.ddstTensorDesc16,
+					l.convDesc,
+					l.dweightDesc16,
+					l.bf_algo16,
+					&s));
 			if (s > most && l.train)
 			{
 				most = s;
 			}
 			CHECK_CUDNN(cudnnGetConvolutionBackwardDataWorkspaceSize(cudnn_handle(),
-																	 l.weightDesc16,
-															l.ddstTensorDesc16,
-															l.convDesc,
-															l.dsrcTensorDesc16,
-															l.bd_algo16,
-															&s));
+					l.weightDesc16,
+					l.ddstTensorDesc16,
+					l.convDesc,
+					l.dsrcTensorDesc16,
+					l.bd_algo16,
+					&s));
 			if (s > most && l.train)
 			{
 				most = s;
@@ -334,7 +334,7 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 
 	cudnnDataType_t data_type = CUDNN_DATA_FLOAT;
 
-#if(CUDNN_MAJOR >= 7)
+#if (CUDNN_MAJOR >= 7)
 	// Tensor Core uses CUDNN_TENSOR_OP_MATH instead of CUDNN_DEFAULT_MATH
 	// For *_ALGO_WINOGRAD_NONFUSED can be used CUDNN_DATA_FLOAT
 	// otherwise Input, Filter and Output descriptors (xDesc, yDesc, wDesc, dxDesc, dyDesc and dwDesc as applicable) have dataType = CUDNN_DATA_HALF
@@ -348,10 +348,10 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 	if (l->stride_y < 1) l->stride_y = 1;
 	CHECK_CUDNN(cudnnSetConvolutionGroupCount(l->convDesc, l->groups));
 	CHECK_CUDNN(cudnnSetConvolutionMathType(l->convDesc, CUDNN_TENSOR_OP_MATH));
-#if((CUDNN_MAJOR*10 + CUDNN_MINOR) >= 72)   // cuDNN >= 7.2
+#if ((CUDNN_MAJOR*10 + CUDNN_MINOR) >= 72)   // cuDNN >= 7.2
 	//CHECK_CUDNN(cudnnSetConvolutionMathType(l->convDesc, CUDNN_TENSOR_OP_MATH_ALLOW_CONVERSION)); // reduces the speed of regular and group convolution
 #endif
-#else   //if(CUDNN_MAJOR >= 7)
+#else   //if (CUDNN_MAJOR >= 7)
 	if (l->groups > 1)
 	{
 		darknet_fatal_error(DARKNET_LOC, "CUDNN < 7 doesn't support groups, please upgrade!");
@@ -660,12 +660,12 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 
 	//if (data_type == CUDNN_DATA_HALF)
 	{
-		// HALF-16 if(data_type == CUDNN_DATA_HALF)
+		// HALF-16 if (data_type == CUDNN_DATA_HALF)
 		l->fw_algo16 = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
 		l->bd_algo16 = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
 		l->bf_algo16 = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
 
-		// FLOAT-32 if(data_type == CUDNN_DATA_FLOAT)
+		// FLOAT-32 if (data_type == CUDNN_DATA_FLOAT)
 		//l->fw_algo16 = CUDNN_CONVOLUTION_FWD_ALGO_WINOGRAD_NONFUSED;
 		//l->bd_algo16 = CUDNN_CONVOLUTION_BWD_DATA_ALGO_WINOGRAD_NONFUSED;
 		//l->bf_algo16 = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_WINOGRAD_NONFUSED;
@@ -716,7 +716,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 {
 	TAT(TATPARMS);
 
-	int total_batch = batch*steps;
+	int total_batch = batch * steps;
 	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.type = Darknet::ELayerType::CONVOLUTIONAL;
 	l.train = train;
@@ -796,15 +796,12 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 	{
 		for (int i = 0; i < l.nweights; ++i)
 		{
-			l.weights[i] = 1;
+			l.weights[i] = 1.0f;
 		}
 	}
 	else
 	{
-		for (int i = 0; i < l.nweights; ++i)
-		{
-			l.weights[i] = scale * rand_uniform(-1.0f, 1.0f);
-		}
+		rand_uniform_many(l.weights, l.nweights, -1.0f, 1.0f, scale);
 	}
 	int out_h = convolutional_out_height(l);
 	int out_w = convolutional_out_width(l);
@@ -855,7 +852,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 		l.t_bit_input = (char*)xcalloc(t_bit_input_size, sizeof(char));
 	}
 
-	if(batch_normalize)
+	if (batch_normalize)
 	{
 		if (l.share_layer)
 		{
@@ -873,7 +870,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 			l.scales = (float*)xcalloc(n, sizeof(float));
 			for (int i = 0; i < n; ++i)
 			{
-				l.scales[i] = 1;
+				l.scales[i] = 1.0f;
 			}
 			if (train)
 			{
@@ -903,7 +900,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 	if (l.activation == SWISH || l.activation == MISH || l.activation == HARD_MISH) l.activation_input = (float*)calloc(total_batch*l.outputs, sizeof(float));
 #endif  // not DARKNET_GPU
 
-	if(adam)
+	if (adam)
 	{
 		l.adam = 1;
 		l.m = (float*)xcalloc(l.nweights, sizeof(float));
@@ -985,7 +982,7 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 			l.binary_input_gpu = cuda_make_array(0, l.inputs*l.batch);
 		}
 
-		if(batch_normalize)
+		if (batch_normalize)
 		{
 			if (l.share_layer)
 			{
@@ -1065,32 +1062,32 @@ Darknet::Layer make_convolutional_layer(int batch, int steps, int h, int w, int 
 		{
 			for (int i = 0; i < blur_nweights; i += (blur_size*blur_size))
 			{
-				l.input_layer->weights[i + 0] = 1 / 4.f;
-				l.input_layer->weights[i + 1] = 1 / 4.f;
-				l.input_layer->weights[i + 2] = 1 / 4.f;
-				l.input_layer->weights[i + 3] = 1 / 4.f;
+				l.input_layer->weights[i + 0] = 1 / 4.0f;
+				l.input_layer->weights[i + 1] = 1 / 4.0f;
+				l.input_layer->weights[i + 2] = 1 / 4.0f;
+				l.input_layer->weights[i + 3] = 1 / 4.0f;
 			}
 		}
 		else
 		{
 			for (int i = 0; i < blur_nweights; i += (blur_size*blur_size))
 			{
-				l.input_layer->weights[i + 0] = 1 / 16.f;
-				l.input_layer->weights[i + 1] = 2 / 16.f;
-				l.input_layer->weights[i + 2] = 1 / 16.f;
+				l.input_layer->weights[i + 0] = 1 / 16.0f;
+				l.input_layer->weights[i + 1] = 2 / 16.0f;
+				l.input_layer->weights[i + 2] = 1 / 16.0f;
 
-				l.input_layer->weights[i + 3] = 2 / 16.f;
-				l.input_layer->weights[i + 4] = 4 / 16.f;
-				l.input_layer->weights[i + 5] = 2 / 16.f;
+				l.input_layer->weights[i + 3] = 2 / 16.0f;
+				l.input_layer->weights[i + 4] = 4 / 16.0f;
+				l.input_layer->weights[i + 5] = 2 / 16.0f;
 
-				l.input_layer->weights[i + 6] = 1 / 16.f;
-				l.input_layer->weights[i + 7] = 2 / 16.f;
-				l.input_layer->weights[i + 8] = 1 / 16.f;
+				l.input_layer->weights[i + 6] = 1 / 16.0f;
+				l.input_layer->weights[i + 7] = 2 / 16.0f;
+				l.input_layer->weights[i + 8] = 1 / 16.0f;
 			}
 		}
 		for (int i = 0; i < n; ++i)
 		{
-			l.input_layer->biases[i] = 0;
+			l.input_layer->biases[i] = 0.0f;
 		}
 #ifdef DARKNET_GPU
 		if (cfg_and_state.gpu_index >= 0)
@@ -1365,7 +1362,7 @@ void binary_align_weights(Darknet::Layer *l)
 	}
 
 	if (l->c % 32 == 0)
-	//if(gpu_old_index < 0 && l->stride == 1 && l->pad == 1 && l->c % 32 == 0)
+	//if (gpu_old_index < 0 && l->stride == 1 && l->pad == 1 && l->c % 32 == 0)
 	//if (l->stride == 1 && l->pad == 1 && l->c % 32 == 0)
 	{
 		int fil, chan;
@@ -1504,7 +1501,7 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 					//convolution_repacked((uint32_t *)bin_re_packed_input, (uint32_t *)l.align_bit_weights, l.output,
 					//    l.w, l.h, l.c, l.n, l.size, l.pad, l.new_lda, l.mean_arr);
 
-					// // then exit from if()
+					// // then exit from if ()
 
 					im2col_cpu_custom((float *)l.bin_re_packed_input, new_c, l.h, l.w, l.size, l.stride, l.pad, state.workspace);
 					//im2col_cpu((float *)bin_re_packed_input, new_c, l.h, l.w, l.size, l.stride, l.pad, b);
@@ -1519,7 +1516,7 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 					//    b, n,
 					//    c, n, l.mean_arr);
 
-					// // then exit from if()
+					// // then exit from if ()
 
 					transpose_uint32((uint32_t *)state.workspace, (uint32_t*)l.t_bit_input, new_k, n, n, new_ldb);
 

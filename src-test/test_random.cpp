@@ -73,6 +73,48 @@ TEST(Random, rand_uniform)
 }
 
 
+TEST(Random, rand_uniform_many)
+{
+	float array[ITERATIONS];
+	for (size_t i = 0; i < ITERATIONS; i++)
+	{
+		array[i] = -1.0f;
+	}
+
+	const float min = 0.0f;
+	const float max = 100.0f;
+
+	float lo = max;
+	float hi = min;
+
+	rand_uniform_many(array, ITERATIONS, min, max);
+	for (size_t i = 0; i < ITERATIONS; i++)
+	{
+		const float & f = array[i];
+
+		ASSERT_GE(f, min);
+		ASSERT_LT(f, max);
+		ASSERT_FALSE(std::isinf(f));
+		ASSERT_FALSE(std::isnan(f));
+		ASSERT_TRUE(std::isnormal(f));
+		ASSERT_TRUE(f == f);
+
+		if (f < lo)	lo = f;
+		if (f > hi) hi = f;
+	}
+
+	// see if the generated floats cover the full range of values between "min" and "max"
+	// (if this fails...did you decrease the number of iterations to something so low that we're not getting enough samples?)
+	const float maximum_range	= max - min;
+	const float allowed_range	= 0.95f * maximum_range; // within 95% of the maximum possible range
+	const float actual_range	= hi - lo;
+	std::cout << "rand_uniform_many() lo=" << lo << " hi=" << hi << " maximum=" << maximum_range << " allowed=" << allowed_range << " actual=" << actual_range << std::endl;
+	ASSERT_GT(actual_range, allowed_range);
+
+	return;
+}
+
+
 TEST(Random, rand_float)
 {
 	const float min = 0.0f;

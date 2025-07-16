@@ -2072,6 +2072,7 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold)
 				*cfg_and_state.output << "rejecting..." << std::endl;
 				float scale = sqrt(2. / (l.size*l.size*l.c / l.groups));
 
+				/// @todo V5: would be nice if we could call rand_uniform_many() instead
 				for (int k = 0; k < filter_size; ++k)
 				{
 					l.weights[max_sim_index*filter_size + k] = scale * rand_uniform(-1.0f, 1.0f);

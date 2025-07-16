@@ -91,20 +91,20 @@ Darknet::Layer make_connected_layer(int batch, int steps, int inputs, int output
 	l.update = update_connected_layer;
 
 	//float scale = 1./sqrt(inputs);
-	float scale = sqrt(2.f/inputs);
-	for(i = 0; i < outputs*inputs; ++i)
-	{
-		l.weights[i] = scale*rand_uniform(-1.0f, 1.0f);
-	}
+	float scale = sqrt(2.0f/inputs);
+	rand_uniform_many(l.weights, outputs * inputs, -1.0f, 1.0f, scale);
 
-	for(i = 0; i < outputs; ++i){
+	for (i = 0; i < outputs; ++i)
+	{
 		l.biases[i] = 0;
 	}
 
-	if(batch_normalize){
+	if (batch_normalize)
+	{
 		l.scales = (float*)xcalloc(outputs, sizeof(float));
 		l.scale_updates = (float*)xcalloc(outputs, sizeof(float));
-		for(i = 0; i < outputs; ++i){
+		for (i = 0; i < outputs; ++i)
+		{
 			l.scales[i] = 1;
 		}
 

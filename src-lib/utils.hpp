@@ -77,6 +77,12 @@ void print_statistics(float *a, int n);
  */
 float rand_uniform(float min, float max);
 
+/** Somewhat similar to @ref rand_uniform(), but will initialize many values at once instead of having to repeatedly
+ * call @ref rand_uniform().  Especially useful when initializing a large number of weights on startup.
+ *  @since 2025-07-16
+ */
+void rand_uniform_many(float * x, const size_t n, float min, float max, const float scale = 1.0f);
+
 float rand_scale(float s);
 
 /// The @p "min" and @p "max" values are inclusive.  For example, @p rand_uint(1, 6) can return 6 possible values.

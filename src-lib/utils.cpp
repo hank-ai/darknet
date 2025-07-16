@@ -1097,6 +1097,34 @@ float rand_uniform(float min, float max)
 }
 
 
+void rand_uniform_many(float * x, const size_t n, float min, float max, const float scale)
+{
+	TAT(TATPARMS);
+
+	if (n < 1)
+	{
+		return;
+	}
+
+	if (max < min)
+	{
+		std::swap(min, max);
+	}
+
+	// The lower bound is included, the upper bound is not.  It is possible to get back "min", but never "max", and every float value in between.
+	std::uniform_real_distribution<float> distribution(min, max);
+
+	auto & engine = get_rnd_engine();
+
+	for (size_t i = 0; i < n; i ++)
+	{
+		x[i] = scale * distribution(engine);
+	}
+
+	return;
+}
+
+
 float rand_scale(float s)
 {
 	TAT(TATPARMS);

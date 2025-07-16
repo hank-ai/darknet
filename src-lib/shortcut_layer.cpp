@@ -51,7 +51,7 @@ Darknet::Layer make_shortcut_layer(int batch, int n, int *input_layers, int* inp
 		//float scale = sqrt(2. / l.nweights);
 		for (int i = 0; i < l.nweights; ++i)
 		{
-			l.weights[i] = 1;// +0.01*rand_uniform(-1, 1);// scale*rand_uniform(-1, 1);   // rand_normal();
+			l.weights[i] = 1.0f;// +0.01*rand_uniform(-1, 1);// scale*rand_uniform(-1, 1);   // rand_normal();
 		}
 
 		if (train)

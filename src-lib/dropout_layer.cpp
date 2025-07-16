@@ -93,6 +93,7 @@ void forward_dropout_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		return;
 	}
 
+	/// @todo V5: look into using similar technique to rand_uniform_many() instead
 	for (int i = 0; i < l.batch * l.inputs; ++i)
 	{
 		float r = rand_uniform(0.0f, 1.0f);

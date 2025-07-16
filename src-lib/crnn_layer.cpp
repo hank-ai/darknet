@@ -146,10 +146,7 @@ void free_state_crnn(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
-	for (int i = 0; i < l.outputs * l.batch; ++i)
-	{
-		l.self_layer->output[i] = rand_uniform(-1, 1);
-	}
+	rand_uniform_many(l.self_layer->output, l.outputs * l.batch, -1.0f, 1.0f);
 
 #ifdef DARKNET_GPU
 	cuda_push_array(l.self_layer->output_gpu, l.self_layer->output, l.outputs * l.batch);
