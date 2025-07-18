@@ -1639,6 +1639,8 @@ Darknet::Image Darknet::load_image(const char * filename, int desired_width, int
 {
 	TAT(TATPARMS);
 
+//	std::cout << "load_image(" << filename << ")" << std::endl;
+
 	Darknet::Image image;
 
 	cv::Mat mat = cv::imread(filename);

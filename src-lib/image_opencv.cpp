@@ -39,6 +39,8 @@ cv::Mat load_rgb_mat_image(const std::string & filename, int channels)
 {
 	TAT(TATPARMS);
 
+//	std::cout << "load_rgb_mat_image(" << filename << ")" << std::endl;
+
 	if (filename.empty())
 	{
 		darknet_fatal_error(DARKNET_LOC, "cannot load an image without a filename");
@@ -60,6 +62,7 @@ cv::Mat load_rgb_mat_image(const std::string & filename, int channels)
 	}
 
 	cv::Mat mat = cv::imread(filename, flag);
+
 	if (mat.empty())
 	{
 		darknet_fatal_error(DARKNET_LOC, "failed to load image file \"%s\"", filename.c_str());

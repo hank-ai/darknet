@@ -4,8 +4,7 @@
 
 
 /** Load the given image using OpenCV.  Automatically converts the image from the usual OpenCV BGR format to RGB for
- * use in Darknet.
- *
+ * use in Darknet.  This is the function that is used to load images when training.
  * @see @ref Darknet::load_image()
  */
 cv::Mat load_rgb_mat_image(const std::string & filename, int flag);
