@@ -47,7 +47,7 @@ IF (DARKNET_TRY_CUDA)
 			SET (DARKNET_CUDA_ARCHITECTURES "native")
 		ENDIF ()
 		SET (DARKNET_USE_CUDA ON)
-		SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} CUDA::cudart CUDA::cuda_driver CUDA::cublas CUDA::curand)
+		LIST (APPEND DARKNET_LINK_LIBS CUDA::cudart CUDA::cuda_driver CUDA::cublas CUDA::curand)
 	ELSE ()
 		MESSAGE (WARNING "Support for NVIDIA CUDA not found.")
 	ENDIF ()
@@ -74,7 +74,7 @@ IF (DARKNET_USE_CUDA)
 		MESSAGE (STATUS "Found cuDNN library: " ${cudnn})
 		ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
 		ADD_COMPILE_DEFINITIONS (CUDNN_HALF)
-		SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${cudnn})
+		LIST (APPEND DARKNET_LINK_LIBS ${cudnn})
 		MESSAGE (STATUS "Found cuDNN include: " ${cudnn_include})
 		INCLUDE_DIRECTORIES (${cudnn_include})
 	ELSE ()
@@ -125,7 +125,7 @@ IF (DARKNET_TRY_ROCM)
 			SET (CMAKE_HIP_ARCHITECTURES "gfx1101")
 		ENDIF ()
 
-		SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} hip::host hip::device roc::hipblas roc::rocrand hip::hiprand amd_smi)
+		LIST (APPEND DARKNET_LINK_LIBS hip::host hip::device roc::hipblas roc::rocrand hip::hiprand amd_smi)
 
 #		MESSAGE (STATUS "Enabling hipDNN")
 #		ADD_COMPILE_DEFINITIONS (CUDNN) # TODO this needs to be renamed
@@ -190,7 +190,7 @@ MESSAGE (STATUS "Compiler:  GNU/Clang=${CMAKE_COMPILER_IS_GNUCC} GNU/Clang/MSVC=
 # =============
 FIND_PACKAGE (Threads REQUIRED)
 MESSAGE (STATUS "Found Threads ${Threads_VERSION}")
-SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} Threads::Threads)
+LIST (APPEND DARKNET_LINK_LIBS Threads::Threads)
 
 
 # ============================================================
@@ -198,11 +198,12 @@ SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} Threads::Threads)
 # == This is only used when Darknet is built for CPU-only.	==
 # ============================================================
 IF (DARKNET_DETECTED_CPU_ONLY)
-	FIND_PACKAGE (OpenBLAS64 CONFIG QUIET)
+	# APPLE devices need a hint to find brew installation
+	FIND_PACKAGE (OpenBLAS64 CONFIG QUIET HINTS "/opt/homebrew/opt/openblas/lib/cmake/openblas")
 	IF (OpenBLAS64_FOUND)
 		MESSAGE (STATUS "Found OpenBLAS ${OpenBLAS_VERSION}")
 		INCLUDE_DIRECTORIES (${OpenBLAS_INCLUDE_DIRS})
-		SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${OpenBLAS_LIBRARIES})
+		LIST (APPEND DARKNET_LINK_LIBS ${OpenBLAS_LIBRARIES})
 		ADD_COMPILE_DEFINITIONS (DARKNET_USE_OPENBLAS)
 	ELSE ()
 		MESSAGE (WARNING "OpenBLAS not found. Building Darknet for CPU-only without support for OpenBLAS.")
@@ -218,7 +219,7 @@ ENDIF ()
 FIND_PACKAGE (OpenCV CONFIG REQUIRED)
 MESSAGE (STATUS "Found OpenCV ${OpenCV_VERSION}")
 INCLUDE_DIRECTORIES (${OpenCV_INCLUDE_DIRS})
-SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} ${OpenCV_LIBS})
+LIST (APPEND DARKNET_LINK_LIBS ${OpenCV_LIBS})
 
 
 # ============
@@ -233,13 +234,13 @@ ELSEIF (DARKNET_USE_ROCM)
 ELSE ()
 	MESSAGE (STATUS "Found OpenMP ${OpenMP_VERSION}")
 	ADD_COMPILE_DEFINITIONS (DARKNET_OPENMP)
-	SET (DARKNET_LINK_LIBS ${DARKNET_LINK_LIBS} OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
+	LIST (APPEND DARKNET_LINK_LIBS OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
 	IF (COMPILER_IS_GNU_OR_CLANG)
-		SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
-		SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+		LIST (APPEND CMAKE_C_FLAGS ${OpenMP_C_FLAGS})
+		LIST (APPEND CMAKE_CXX_FLAGS ${OpenMP_CXX_FLAGS})
 	ELSE ()
-		SET (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /openmp:experimental")
-		SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /openmp:experimental")
+		LIST (APPEND CMAKE_C_FLAGS /openmp:experimental)
+		LIST (APPEND CMAKE_CXX_FLAGS /openmp:experimental)
 	ENDIF()
 ENDIF ()
 
@@ -261,7 +262,7 @@ ELSE ()
 		ADD_COMPILE_OPTIONS(-msse4.2)
 		ADD_COMPILE_OPTIONS(-msse4a)
 	ELSE ()
-		SET (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /arch:AVX2")
+		LIST (APPEND CMAKE_CXX_FLAGS /arch:AVX2)
 	ENDIF()
 ENDIF ()
 
