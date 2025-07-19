@@ -16,22 +16,29 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
 	static const int coco_ids[] = {1,2,3,4,5,6,7,8,9,10,11,13,14,15,16,17,18,19,20,21,22,23,24,25,27,28,31,32,33,34,35,36,37,38,39,40,41,42,43,44,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65,67,70,72,73,74,75,76,77,78,79,80,81,82,84,85,86,87,88,89,90};
+
+	static std::atomic<size_t> prime_image_counter = 0;
+	static std::atomic<bool> prime_loading_threads_must_exit = false;
 }
 
 
-std::atomic<size_t> prime_image_counter = 0;
 void prime_training_images_cache_thread(Darknet::VStr v)
 {
 	TAT(TATPARMS);
 
-	// this runs on a secondary thread
+	// this runs on a secondary thread started by prime_training_images_cache()
 
 	for (const auto & fn : v)
 	{
+		if (prime_loading_threads_must_exit)
+		{
+			break;
+		}
+
 		cv::Mat mat;
 		try
 		{
-			prime_image_counter ++;
+			prime_image_counter ++; // increment the counter *prior* to loading the image in case imread() throws an exception
 			mat = cv::imread(fn);
 		}
 		catch (...)
@@ -39,9 +46,9 @@ void prime_training_images_cache_thread(Darknet::VStr v)
 			// do nothing, we'll display a warning
 		}
 
-		if (mat.empty())
+		if (mat.empty() or mat.cols < 32 or mat.rows < 32)
 		{
-			Darknet::display_warning_msg("failed to load image: " + fn);
+			Darknet::display_warning_msg("unexpected error while loading image: " + fn + "\n");
 		}
 	}
 
@@ -55,8 +62,9 @@ void prime_training_images_cache(list * image_filenames)
 
 	if (image_filenames != nullptr and image_filenames->size > 0 and prime_image_counter == 0)
 	{
-		// load (and immediately discard) all the images so the operating system's cache is primed
+		// quickly load (and immediately discard) all the images so the operating system's cache is primed
 
+		prime_loading_threads_must_exit = false;
 		const size_t n = std::max(2U, std::thread::hardware_concurrency());
 		const int to_load = std::ceil(image_filenames->size / static_cast<float>(n));
 
@@ -83,6 +91,7 @@ void prime_training_images_cache(list * image_filenames)
 		}
 
 		auto t2 = t1;
+		const auto time_limit = t1 + std::chrono::seconds(60);
 		size_t recent = 0;
 		while (recent < image_filenames->size)
 		{
@@ -92,9 +101,17 @@ void prime_training_images_cache(list * image_filenames)
 			t2 = std::chrono::high_resolution_clock::now();
 
 			std::cout << "\r-> loading image " << recent << "/" << image_filenames->size << " (" << percentage << "%) in " << Darknet::format_duration_string(t2 - t1) << "         " << std::flush;
+
+			if (t2 > time_limit)
+			{
+				std::cout << std::endl << "-> time limit reached";
+				break;
+			}
 		}
 
-		std::cout << std::endl << "-> done loading " << recent << " images in " << Darknet::format_duration_string(t2 - t1) << "." << std::endl;
+		prime_loading_threads_must_exit = true;
+		std::cout << std::endl << "-> loaded " << recent << " images in " << Darknet::format_duration_string(t2 - t1) << std::endl;
+
 		for (auto & t : threads)
 		{
 			t.join();
