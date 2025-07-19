@@ -22,6 +22,8 @@ namespace
 std::atomic<size_t> prime_image_counter = 0;
 void prime_training_images_cache_thread(Darknet::VStr v)
 {
+	TAT(TATPARMS);
+
 	// this runs on a secondary thread
 
 	for (const auto & fn : v)
@@ -49,6 +51,8 @@ void prime_training_images_cache_thread(Darknet::VStr v)
 
 void prime_training_images_cache(list * image_filenames)
 {
+	TAT(TATPARMS);
+
 	if (image_filenames != nullptr and image_filenames->size > 0 and prime_image_counter == 0)
 	{
 		// load (and immediately discard) all the images so the operating system's cache is primed
