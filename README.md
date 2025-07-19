@@ -185,7 +185,7 @@ sudo apt-get install libopenblas64-0 libopenblas64-0-openmp libopenblas64-openmp
 These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
 
 ```sh
-sudo apt-get install build-essential git libopenblas64-openmp-dev libopencv-dev cmake
+sudo apt-get install build-essential git libopencv-dev cmake
 mkdir ~/src
 cd ~/src
 git clone https://github.com/hank-ai/darknet
