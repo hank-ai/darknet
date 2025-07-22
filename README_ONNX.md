@@ -5,7 +5,7 @@
 
 # ONNX
 
-The ONNX export tool is optional in the Darknet/YOLO codebase.  To build and use this tool, you need to install the Google Protocol Buffer compiler.
+The ONNX export tool is optional in the Darknet/YOLO codebase.  To build and use this tool, you also need to install support for the Google Protocol Buffers.
 
 On Ubuntu Linux, this is done using:
 
@@ -15,12 +15,12 @@ On Windows, this is done using:
 
     .\vcpkg.exe install protobuf:x64-windows
 
-> [!CAUTION]
+> [!WARNING]
 > Need confirmation that the Windows command is correct.
 
-Once this additional dependency has been installed, you must rebuild Darknet/YOLO.
+Once this additional dependency has been installed, please continue with the usual Darknet/YOLO build steps as described in the [README.md](README.md#Building).
 
-As of July 2025, this ONNX export tool has only been tested with the following *stock* configuration files:
+As of July 2025, the Darknet/YOLO ONNX export tool has only been tested with the following *stock* configuration files:
 
 - YOLOv4-tiny.cfg
 - YOLOv4-tiny-3l.cfg
