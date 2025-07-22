@@ -15,7 +15,8 @@ On Windows, this is done using:
 
     .\vcpkg.exe install protobuf:x64-windows
 
-> [!CAUTION] Need confirmation that the Windows command is correct.
+> [!CAUTION]
+> Need confirmation that the Windows command is correct.
 
 Once this additional dependency has been installed, you must rebuild Darknet/YOLO.
 
@@ -26,7 +27,7 @@ As of July 2025, this ONNX export tool has only been tested with the following *
 - YOLOv4.cfg
 
 > [!TIP]
-> Software developers wanting more information on the ONNX process should see [src-onnx/onnx.pb.txt](the instructions on using `onnx.proto`).
+> Software developers wanting more information on the ONNX process should see [the instructions on using `onnx.proto`](src-onnx/onnx.pb.txt).
 
 
 
