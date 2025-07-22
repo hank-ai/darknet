@@ -130,3 +130,7 @@ ADD_SUBDIRECTORY (cfg)
 ADD_SUBDIRECTORY (src-lib)
 ADD_SUBDIRECTORY (src-cli)
 ADD_SUBDIRECTORY (src-examples)
+
+IF (Protobuf_FOUND)
+	ADD_SUBDIRECTORY (src-onnx)
+ENDIF ()

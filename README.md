@@ -182,6 +182,9 @@ If you don't want to use Darknet/YOLO from within WSL, then skip ahead to the [W
 sudo apt-get install libopenblas64-0 libopenblas64-0-openmp libopenblas64-openmp-dev
 ```
 
+> [!TIP]
+> If you need to export your Darknet/YOLO `.weights` to ONNX format, see [README_ONNX.md](the additional dependency you may need to install).
+
 These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
 
 ```sh
@@ -299,6 +302,9 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 ```sh
 .\vcpkg.exe install openblas:x64-windows
 ```
+
+> [!TIP]
+> If you need to export your Darknet/YOLO `.weights` to ONNX format, see [README_ONNX.md](the additional dependency you may need to install).
 
 Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies.  Make sure you continue to use the **Developer Command Prompt** as described above when you run these commands:
 

@@ -10,7 +10,7 @@ IF (DARKNET_TRY_CUDA)
 	IF (CMAKE_CUDA_COMPILER)
 		MESSAGE (STATUS "CUDA detected. Darknet will use NVIDIA GPUs.  CUDA compiler is ${CMAKE_CUDA_COMPILER}.")
 		ENABLE_LANGUAGE (CUDA)
-		FIND_PACKAGE(CUDAToolkit)
+		FIND_PACKAGE(CUDAToolkit REQUIRED)
 		INCLUDE_DIRECTORIES (${CUDAToolkit_INCLUDE_DIRS})
 		ADD_COMPILE_DEFINITIONS (DARKNET_GPU_CUDA)
 		ADD_COMPILE_DEFINITIONS (DARKNET_GPU)
@@ -177,7 +177,7 @@ ENDIF ()
 # == GCC/Clang/MSCV ==
 # ====================
 IF (COMPILER_IS_GNU_OR_CLANG OR "${CMAKE_CXX_COMPILER_ID}" MATCHES "MSVC")
-    SET (COMPILER_IS_GNU_OR_CLANG_OR_MSVC TRUE)
+	SET (COMPILER_IS_GNU_OR_CLANG_OR_MSVC TRUE)
 ELSE ()
 	SET (COMPILER_IS_GNU_OR_CLANG_OR_MSVC FALSE)
 ENDIF ()
@@ -200,7 +200,7 @@ LIST (APPEND DARKNET_LINK_LIBS Threads::Threads)
 IF (DARKNET_DETECTED_CPU_ONLY)
 	# APPLE devices need a hint to find the brew installation.  On top of which, on some distrios (and again APPLE)
 	# the package is called OpenBLAS, while on other distros it is called OpenBLAS64.  We need to search for both.
-	FIND_PACKAGE (OpenBLAS NAMES OpenBLAS64 OpenBLAS CONFIG QUIET HINTS "/opt/homebrew/opt/openblas/lib/cmake/openblas")
+	FIND_PACKAGE (OpenBLAS NAMES OpenBLAS64 OpenBLAS QUIET HINTS "/opt/homebrew/opt/openblas/lib/cmake/openblas")
 	IF (OpenBLAS_FOUND)
 		MESSAGE (STATUS "Found OpenBLAS ${OpenBLAS_VERSION}")
 		INCLUDE_DIRECTORIES (${OpenBLAS_INCLUDE_DIRS})
@@ -217,7 +217,7 @@ ENDIF ()
 # ============
 # == OpenCV ==
 # ============
-FIND_PACKAGE (OpenCV CONFIG REQUIRED)
+FIND_PACKAGE (OpenCV REQUIRED)
 MESSAGE (STATUS "Found OpenCV ${OpenCV_VERSION}")
 INCLUDE_DIRECTORIES (${OpenCV_INCLUDE_DIRS})
 LIST (APPEND DARKNET_LINK_LIBS ${OpenCV_LIBS})
@@ -274,4 +274,17 @@ CMAKE_DEPENDENT_OPTION (ENABLE_TIMING_AND_TRACKING "Enable Darknet timing and tr
 IF (ENABLE_TIMING_AND_TRACKING)
 	MESSAGE (WARNING "Darknet timing and tracking debug code is *ENABLED*!")
 	ADD_COMPILE_DEFINITIONS(DARKNET_TIMING_AND_TRACKING_ENABLED)
+ENDIF ()
+
+
+# ===================================
+# == Protocol Buffer (ONNX export) ==
+# ===================================
+FIND_PACKAGE (Protobuf QUIET)
+IF (Protobuf_FOUND)
+	MESSAGE (STATUS "Found protocol buffer (needed for ONNX export) ${Protobuf_VERSION}")
+	INCLUDE_DIRECTORIES (${Protobuf_INCLUDE_DIRS})
+	ADD_COMPILE_DEFINITIONS(DARKNET_HAS_PROTOBUF)
+ELSE ()
+	MESSAGE (WARNING "Protocol buffer not found.  Skipping support for ONNX export.")
 ENDIF ()

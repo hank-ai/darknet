@@ -1,0 +1,36 @@
+# Notice
+
+> [!CAUTION]
+> **This is not the primary "readme" file!**  Please start with [README.md](README.md#Building).  This file contains an optional subset of the instructions which is specific to ONNX export.
+
+# ONNX
+
+The ONNX export tool is optional in the Darknet/YOLO codebase.  To build and use this tool, you need to install the Google Protocol Buffer compiler.
+
+On Ubuntu Linux, this is done using:
+
+    sudo apt-get install libprotobuf-dev
+
+On Windows, this is done using:
+
+    .\vcpkg.exe install protobuf:x64-windows
+
+> [!CAUTION] Need confirmation that the Windows command is correct.
+
+Once this additional dependency has been installed, you must rebuild Darknet/YOLO.
+
+As of July 2025, this ONNX export tool has only been tested with the following *stock* configuration files:
+
+- YOLOv4-tiny.cfg
+- YOLOv4-tiny-3l.cfg
+- YOLOv4.cfg
+
+> [!TIP]
+> Software developers wanting more information on the ONNX process should see [src-onnx/onnx.pb.txt](the instructions on using `onnx.proto`).
+
+
+
+
+
+protoc --decode=onnx.ModelProto onnx.proto < output/LegoGears_best.onnx
+
