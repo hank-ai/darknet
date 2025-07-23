@@ -1,6 +1,5 @@
 #include "darknet_internal.hpp"
 
-
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -323,9 +322,9 @@ void Darknet::show_version_info()
 
 	#if DARKNET_HAS_PROTOBUF
 		// 3021012 = "3.21.12"
-		const int pb_major = (PROTOBUF_VERSION / 1000000) % 1000;	// 3
-		const int pb_minor = (PROTOBUF_VERSION / 1000	) % 1000;	// 21
-		const int pb_patch = (PROTOBUF_VERSION / 1		) % 1000;	// 12
+		const int pb_major = (GOOGLE_PROTOBUF_VERSION / 1000000	) % 1000;	// 3
+		const int pb_minor = (GOOGLE_PROTOBUF_VERSION / 1000	) % 1000;	// 21
+		const int pb_patch = (GOOGLE_PROTOBUF_VERSION / 1		) % 1000;	// 12
 		const std::string pb_ver =
 			std::to_string(pb_major) + "." +
 			std::to_string(pb_minor) + "." +

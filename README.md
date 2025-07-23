@@ -553,7 +553,7 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 
 # Roadmap
 
-Last updated 2025-05-26:
+Last updated 2025-07-22:
 
 ## Completed
 
@@ -615,6 +615,7 @@ Last updated 2025-05-26:
 
 * [ ] fix CUDA/CUDNN issues with all GPUs
 * [ ] re-write CUDA+cuDNN code
+* [ ] onnx export **(in progress)**
 * [ ] look into adding support for additional hardware
 * [ ] rotated bounding boxes, or some sort of "angle" support
 * [ ] keypoints/skeletons

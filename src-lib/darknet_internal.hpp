@@ -41,7 +41,7 @@
 #endif
 
 #if DARKNET_HAS_PROTOBUF
-#include <google/protobuf/port_def.inc>
+#include "onnx.proto3.pb.h"
 #endif
 
 /** If you're using some old software that expects the original @p C API in the %Darknet library,

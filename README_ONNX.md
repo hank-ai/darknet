@@ -27,11 +27,8 @@ As of July 2025, the Darknet/YOLO ONNX export tool has only been tested with the
 - YOLOv4.cfg
 
 > [!TIP]
-> Software developers wanting more information on the ONNX process should see [the instructions on using `onnx.proto`](src-onnx/onnx.pb.txt).
-
-
+> Software developers wanting more information on the ONNX process should see [the instructions on using `onnx.proto3`](src-onnx/onnx.proto3.pb.txt).
 
 
 
 protoc --decode=onnx.ModelProto onnx.proto < output/LegoGears_best.onnx
-
