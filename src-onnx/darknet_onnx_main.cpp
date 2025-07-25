@@ -2,6 +2,14 @@
 #include "darknet_onnx.hpp"
 
 
+// Example command to dump the content of a .onnx file:
+//
+//			protoc --decode=onnx.ModelProto onnx.proto3 < LegoGears.onnx
+//
+// ...where the onnx.proto3 file is the one downloaded from the ONNX project.
+// (See onnx.proto3.pb.txt for details.)
+
+
 int main(int argc, char * argv[])
 {
 	int rc = 1;
@@ -22,6 +30,7 @@ int main(int argc, char * argv[])
 		Darknet::ONNXExport onnx_export(cfg_fn, weights_fn, onnx_fn);
 		onnx_export.load_network();
 		onnx_export.initialize_model();
+		onnx_export.build_model();
 		onnx_export.display_summary();
 		onnx_export.save_output_file();
 

@@ -1,6 +1,23 @@
 #include "darknet_onnx.hpp"
 
 
+namespace
+{
+	static std::string format_name(const size_t idx, const std::string & name)
+	{
+		std::stringstream ss;
+		ss << std::setfill('0') << std::setw(3) << (idx) << "_" << name;
+		return ss.str();
+	}
+
+
+	static std::string format_name(const size_t idx, const Darknet::ELayerType & type)
+	{
+		return format_name(idx, Darknet::to_string(type));
+	}
+}
+
+
 void Darknet::ONNXExport::log_handler(google::protobuf::LogLevel level, const char * filename, int line, const std::string & message)
 {
 	std::cout << "Protocol buffer error detected:"
@@ -23,7 +40,8 @@ void Darknet::ONNXExport::log_handler(google::protobuf::LogLevel level, const ch
 Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, const std::filesystem::path & weights_filename, const std::filesystem::path & onnx_filename) :
 	cfg_fn(cfg_filename),
 	weights_fn(weights_filename),
-	onnx_fn(onnx_filename)
+	onnx_fn(onnx_filename),
+	graph(nullptr)
 {
 	std::cout														<< std::endl
 		<< "Darknet/YOLO ONNX Export Tool"							<< std::endl
@@ -95,7 +113,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		<< "-> producer version ..... " << model.producer_version()				<< std::endl
 		<< "-> doc string ........... " << model.doc_string()					<< std::endl
 		<< "-> has graph ............ " << (model.has_graph() ? "yes" : "no")	<< std::endl
-//		<< "-> number of nodes ...... " << graph->node_size()					<< std::endl
+		<< "-> graph input size ..... " << graph->input_size()					<< std::endl
+		<< "-> graph output size .... " << graph->output_size()					<< std::endl
+		<< "-> graph node size ...... " << graph->node_size()					<< std::endl
 		<< "-> ir version ........... " << model.ir_version()					<< std::endl
 		<< "-> domain ............... " << model.domain()						<< std::endl
 		<< "-> model version ........ " << model.model_version()				<< std::endl
@@ -137,13 +157,129 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	auto opset = model.add_opset_import();
 	opset->set_version(9);
 
+	graph = new onnx::GraphProto();
+	graph->set_name(weights_fn.stem().string());
+	model.set_allocated_graph(graph);
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::set_doc_string(onnx::ValueInfoProto * proto, const size_t line_number)
+{
+	if (proto and line_number > 0)
+	{
+		proto->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(line_number));
+	}
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx::ValueInfoProto * proto, const std::string & name, const int v1, const int v2, const int v3, const int v4, const size_t line_number)
+{
+	/* For example:
+	 *
+		input {
+			name: "000_net"
+			type {
+				tensor_type {
+					elem_type: 1				# what does this mean?
+					shape {
+						dim { dim_value: 1 }	# number
+						dim { dim_value: 3 }	# channels
+						dim { dim_value: 160 }	# height
+						dim { dim_value: 224 }	# width
+				}
+			}
+		}
+	}
+	*/
+
+	proto->set_name(name);
+	set_doc_string(proto, line_number);
+
+	auto type = new onnx::TypeProto();
+	proto->set_allocated_type(type);
+
+	auto tensor_type = new onnx::TypeProto_Tensor();
+	type->set_allocated_tensor_type(tensor_type);
+	tensor_type->set_elem_type(1); /// @todo V5: what does "1" mean here?
+
+	auto shape = new onnx::TensorShapeProto();
+	tensor_type->set_allocated_shape(shape);
+
+	// n
+	auto dim = shape->add_dim();
+	dim->set_dim_value(v1);
+
+	// other values are optional in some situations
+
+	if (v2 >= 0)
+	{
+		// c
+		dim = shape->add_dim();
+		dim->set_dim_value(v2);
+
+		if (v3 >= 0)
+		{
+			// h
+			dim = shape->add_dim();
+			dim->set_dim_value(v3);
+
+			if (v4 >= 0)
+			{
+				// w
+				dim = shape->add_dim();
+				dim->set_dim_value(v4);
+			}
+		}
+	}
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_000_net()
+{
+	auto input = graph->add_input();
+
+	populate_input_output_dimensions(input, format_name(0, "net"), 1, cfg.net.c, cfg.net.h, cfg.net.w, cfg.network_section.line_number);
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_output()
+{
+	// look for all the YOLO output layers
+
+	for (int idx = 0; idx < cfg.net.n; idx ++)
+	{
+		const auto & l = cfg.net.layers[idx];
+		if (l.type == Darknet::ELayerType::YOLO)
+		{
+			auto output = graph->add_output();
+			populate_input_output_dimensions(output, format_name(idx, l.type), 1, l.c, l.h, l.w, cfg.sections[idx].line_number);
+		}
+	}
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::build_model()
+{
+	populate_graph_input_000_net();
+	populate_graph_output();
+
+//	node = graph->add_node();
+
 	return *this;
 }
 
 
 #if 0
-		auto graph = new onnx::GraphProto();
-		graph->set_name(weights_fn.stem().string());
 
 		// https://github.com/onnx/onnx/blob/main/docs/Operators.md
 		const std::map<Darknet::ELayerType, std::string> op =
@@ -184,7 +320,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 			input->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number));
 
 //			auto shape = new onnx::TensorShapeProto();
-//			shape->
 
 //			auto type = new onnx::TypeProto()
 //			type->set_allocated_shape(shape);
@@ -192,7 +327,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 //			input->set_allocated_type(type);
 		}
 
-		model.set_allocated_graph(graph);
 #endif
 
 
