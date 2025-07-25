@@ -465,7 +465,9 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 
 	if (cfg_and_state.is_verbose)
 	{
-		*cfg_and_state.output << "Loading weights from \"" << filename << "\"" << std::endl;
+		*cfg_and_state.output << "Loading weights from \"" << filename << "\""
+			<< " (" << size_to_IEC_string(std::filesystem::file_size(filename)) << ")"
+			<< std::endl;
 	}
 
 #ifdef DARKNET_GPU

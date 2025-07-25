@@ -1032,7 +1032,9 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			if (idx == 0)
 			{
 				*cfg_and_state.output
-					<< "configuration filename=" << filename << std::endl
+					<< "loading network \"" << filename.string() << "\""
+					<< " (" << size_to_IEC_string(std::filesystem::file_size(filename)) << ")"
+					<< std::endl
 					<< "  # line    layer     filters   sz/rte/other    input              output       bflops" << std::endl;
 													// "size, stride, dilation, route, anchors, more...
 			}
