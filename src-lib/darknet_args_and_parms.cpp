@@ -163,7 +163,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("map"			, ArgsAndParms::EType::kParameter	, "Regularly calculate mAP% score while training."),
 
 		ArgsAndParms("camera"	, "c"			, 0		, "The camera (webcam) index, where numbering is typically sequential and begins with zero."),
-		ArgsAndParms("thresh"	, "threshold"	, 0.24f	),
+		ArgsAndParms("thresh"	, "threshold"	, 0.24f	, "The detection threshold.  Objects with confidence value below this are dropped."),
 
 		ArgsAndParms("saveweights", "", 0, "How often the .weights are saved during training.  For example, this could be set to \"500\" to save the weights every 500 iteration."),
 
@@ -406,6 +406,13 @@ void Darknet::display_usage()
 		<< ""																						<< std::endl
 		<< "  More verbose output (only applies to a select few commands, such as \"train\"):"		<< std::endl
 		<< YELLOW("    darknet -verbose ...")														<< std::endl
+		<< "  And even more verbose debug output can be enabled using \"trace\":"					<< std::endl
+		<< YELLOW("    darknet -trace ...")															<< std::endl
+		<< "  Enabling \"trace\" automatically enables \"verbose\" as well."						<< std::endl
+		<< ""																						<< std::endl
+		<< "  Minimum detection thresholds can be specified:"										<< std::endl
+		<< YELLOW("    darknet_05_process_videos_multithreaded -threshold 0.38 ...")				<< std::endl
+		<< YELLOW("    darknet_06_images_to_json -threshold 0.75 ...")								<< std::endl
 		<< ""																						<< std::endl
 		<< "  Turn off colour output:"																<< std::endl
 		<< YELLOW("    darknet -nocolour ...") << " (or " << YELLOW("darknet -nocolor ...") << ")"	<< std::endl

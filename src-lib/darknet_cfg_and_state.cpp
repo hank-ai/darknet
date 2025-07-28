@@ -424,29 +424,31 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 		parse_skip_classes(net->details->classes_to_ignore, arg.str);
 	}
 
-#if 0 // for debug purposes, display all arguments
-	*output
-		<< "--------------------------------" << std::endl
-		<< "CMD=" << command << std::endl
-		<< "FUN=" << function << std::endl
-		<< "ARG=" << args.size() << std::endl;
-	for (const auto & [key, val] : args)
+	// for debug purposes, display all arguments
+	if (args.count("trace") > 0)
 	{
 		*output
-			<< "IDX=" << val.arg_index
-			<< " NUM=" << val.value
-			<< " EXPECT=" << val.expect_parm
-			<< " KEY=" << key
-			<< " VAL=" << val.name
-			<< " STR=" << val.str;
-		if (val.name_alternate.empty() == false)
+			<< "--------------------------------" << std::endl
+			<< "CMD=" << command << std::endl
+			<< "FUN=" << function << std::endl
+			<< "ARG=" << args.size() << std::endl;
+		for (const auto & [key, val] : args)
 		{
-			*output << " ALT=" << val.name_alternate;
+			*output
+				<< "IDX=" << val.arg_index
+				<< " NUM=" << val.value
+				<< " EXPECT=" << val.expect_parm
+				<< " KEY=" << key
+				<< " VAL=" << val.name
+				<< " STR=" << val.str;
+			if (val.name_alternate.empty() == false)
+			{
+				*output << " ALT=" << val.name_alternate;
+			}
+			*output << std::endl;
 		}
-		*output << std::endl;
+		*output << "--------------------------------" << std::endl;
 	}
-	*output << "--------------------------------" << std::endl;
-#endif
 
 	static bool need_to_show_version_info = true;
 	if (need_to_show_version_info)
@@ -470,6 +472,16 @@ bool Darknet::CfgAndState::is_set(const std::string & arg, const bool default_va
 		return true;
 	}
 
+	// if we get here we haven't yet found a match, so look through all the "alternate" names as well
+
+	for (const auto & [key, val] : args)
+	{
+		if (val.name_alternate == name)
+		{
+			return true;
+		}
+	}
+
 	return default_value;
 }
 
@@ -485,6 +497,16 @@ const Darknet::ArgsAndParms & Darknet::CfgAndState::get(const std::string & arg)
 		return args.at(name);
 	}
 
+	// if we get here we don't have a perfect match, so go ahead and check the alternate names
+
+	for (const auto & [key, val] : args)
+	{
+		if (val.name_alternate == name)
+		{
+			return val;
+		}
+	}
+
 	// if we get here, this argument wasn't specified on the CLI so get the default value from the known list of arguments
 
 	const auto & all_known_args = Darknet::get_all_possible_arguments();
@@ -494,8 +516,16 @@ const Darknet::ArgsAndParms & Darknet::CfgAndState::get(const std::string & arg)
 		return *iter;
 	}
 
-	// if we get here, we have no idea what this argument might be
+	// now check the defaults to see if we have a matching alternate name
+	for (const auto & known_arg : all_known_args)
+	{
+		if (known_arg.name_alternate == name)
+		{
+			return known_arg;
+		}
+	}
 
+	// if we get here, we have no idea what this argument might be
 	throw std::invalid_argument("cannot find argument \"" + arg + "\"");
 }
 
@@ -511,6 +541,16 @@ float Darknet::CfgAndState::get(const std::string & arg, const float f) const
 		return args.at(name).value;
 	}
 
+	// maybe this is an "alternate name"?
+
+	for (const auto & [key, val] : args)
+	{
+		if (val.name_alternate == name)
+		{
+			return val.value;
+		}
+	}
+
 	// arg was not found, so see if we have a "known" default we can return
 
 	const auto & all_known_args = Darknet::get_all_possible_arguments();
@@ -518,6 +558,15 @@ float Darknet::CfgAndState::get(const std::string & arg, const float f) const
 	if (iter != all_known_args.end())
 	{
 		return iter->value;
+	}
+
+	// and what about a matching alternate name?
+	for (const auto & known_arg : all_known_args)
+	{
+		if (known_arg.name_alternate == name)
+		{
+			return known_arg.value;
+		}
 	}
 
 	// no clue what this might be so use the default value that was passed in
@@ -541,12 +590,22 @@ float Darknet::CfgAndState::get_float(const std::string & arg) const
 
 	const std::string name = convert_to_lowercase_alphanum(arg);
 
-	if (args.count(name) == 0)
+	if (args.count(name) == 1)
 	{
-		darknet_fatal_error(DARKNET_LOC, "failed to find a parameter named \"%s\"", arg.c_str());
+		return args.at(name).value;
 	}
 
-	return args.at(name).value;
+	// also check the alternate names
+
+	for (const auto & [key, val] : args)
+	{
+		if (val.name_alternate == name)
+		{
+			return val.value;
+		}
+	}
+
+	darknet_fatal_error(DARKNET_LOC, "failed to find a parameter named \"%s\"", arg.c_str());
 }
 
 
