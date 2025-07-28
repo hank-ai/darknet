@@ -947,6 +947,11 @@ void Darknet::set_detection_threshold(Darknet::NetworkPtr ptr, float threshold)
 {
 	TAT(TATPARMS);
 
+	if (cfg_and_state.is_trace)
+	{
+		*cfg_and_state.output << "-> attempting to set detection threshold to " << threshold << std::endl;
+	}
+
 	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 	if (net == nullptr)
 	{
@@ -1151,14 +1156,22 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 
 	NetworkPtr ptr = load_network_custom(cfg_filename.string().c_str(), weights_filename.string().c_str(), 0, 1);
 
+	if (cfg_and_state.is_trace)
+	{
+		*cfg_and_state.output << "-> network loaded: cfg=" << cfg_filename.string() << " ptr=" << (void*)ptr << std::endl;
+	}
+
 	if (not names_filename.empty())
 	{
 		Darknet::load_names(ptr, names_filename);
 	}
 
-	if (cfg_and_state.is_trace)
+	// detection threshold is often modified by the user on the CLI, so apply that change now that the network has been loaded
+	//
+	// (probably lots of other flags we need to apply, but start with the threshold)
+	if (cfg_and_state.is_set("threshold"))
 	{
-		*cfg_and_state.output << "-> network loaded: cfg=" << cfg_filename.string() << " ptr=" << (void*)ptr << std::endl;
+		set_detection_threshold(ptr, cfg_and_state.get_float("threshold"));
 	}
 
 	return ptr;
