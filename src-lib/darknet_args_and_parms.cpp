@@ -187,12 +187,12 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("extoutput"			),
 		ArgsAndParms("savelabels"			),
 		ArgsAndParms("chart"				),
-		ArgsAndParms("numofclusters"		, "", 6		, "The number of YOLO anchors in the configuration. --num_of_clusters 6"	),
-		ArgsAndParms("width"				, "", 416	, "The width of the network.  --width 416"									),
-		ArgsAndParms("height"				, "", 416	, "The height of the network.  --width 416"									),
+		ArgsAndParms("numofclusters"		, "", 6		, "The number of YOLO anchors in the configuration. -num_of_clusters 6"	),
+		ArgsAndParms("width"				, "", 416	, "The width of the network.  -width 416"									),
+		ArgsAndParms("height"				, "", 416	, "The height of the network.  -width 416"									),
 
 		// hack:  parameters that take a string need a default parameter of <space>; see CfgAndState::process_arguments()
-		ArgsAndParms("skipclasses"			, "", " "	, "Class indexes which Darknet should skip when returning results or annotating images.  --skip-classes=2,5-8"),
+		ArgsAndParms("skipclasses"			, "", " "	, "Class indexes which Darknet should skip when returning results or annotating images.  -skip-classes=2,5-8"),
 		ArgsAndParms("log"					, "", " "	, "File to which Darknet/YOLO messages are logged.  Default is to use STDOUT."),
 		ArgsAndParms("gpus"					, "", " "	, "The index of the GPU to use. Multiple GPUs can be specified, such as -gpus 0,1"),
 	};
@@ -317,6 +317,30 @@ void Darknet::display_usage()
 		}
 	}
 
+	*cfg_and_state.output << std::endl << "Several options have built-in default values:" << std::endl;
+
+	for (const auto & item : all)
+	{
+		if (item.type == ArgsAndParms::EType::kParameter and item.value != 0)
+		{
+			const int i = static_cast<int>(item.value);
+			if (i == item.value)
+			{
+				*cfg_and_state.output
+					<< "  "		<< Darknet::format_in_colour(item.name	, Darknet::EColour::kBrightWhite, -15)
+					<< " -> "	<< Darknet::format_in_colour(i			, Darknet::EColour::kBrightWhite, 1)
+					<< std::endl;
+			}
+			else
+			{
+				*cfg_and_state.output
+					<< "  "		<< Darknet::format_in_colour(item.name	, Darknet::EColour::kBrightWhite, -15)
+					<< " -> "	<< Darknet::format_in_colour(item.value	, Darknet::EColour::kBrightWhite, 1)
+					<< std::endl;
+			}
+		}
+	}
+
 	const auto YELLOW = [](const std::string & msg) -> std::string
 	{
 		return Darknet::in_colour(Darknet::EColour::kYellow, msg);
@@ -382,15 +406,15 @@ void Darknet::display_usage()
 		<< YELLOW("    darknet_11_images_to_yolo cars images/*.jpg")								<< std::endl
 		<< ""																						<< std::endl
 		<< "  Display the weights from different layers in a neural network:"						<< std::endl
-		<< YELLOW("    darknet visualize --verbose cars.cfg cars_best.weights")						<< std::endl
+		<< YELLOW("    darknet visualize -verbose cars.cfg cars_best.weights")						<< std::endl
 		<< ""																						<< std::endl
 		<< "  Display the YOLO heatmaps alongside images and videos:"								<< std::endl
-		<< YELLOW("    darknet_02_display_annotated_images --heatmaps cars images/*.jpg")			<< std::endl
-		<< YELLOW("    darknet_03_display_videos --heatmaps cars videos/*.m4v")						<< std::endl
+		<< YELLOW("    darknet_02_display_annotated_images -heatmaps cars images/*.jpg")			<< std::endl
+		<< YELLOW("    darknet_03_display_videos -heatmaps cars videos/*.m4v")						<< std::endl
 		<< ""																						<< std::endl
 		<< "  Randomize (versus alphabetically sorting) the set of images or videos:"				<< std::endl
-		<< YELLOW("    darknet_02_display_annotated_images --random cars images/*.jpg")				<< std::endl
-		<< YELLOW("    darknet_03_display_videos --random cars videos/*.m4v")						<< std::endl
+		<< YELLOW("    darknet_02_display_annotated_images -random cars images/*.jpg")				<< std::endl
+		<< YELLOW("    darknet_03_display_videos -random cars videos/*.m4v")						<< std::endl
 		<< ""																						<< std::endl
 		<< "  Darknet V3+ will attempt to load .cfg, .names, and .weights files which are a partial match." << std::endl
 		<< "  Meaning you can load a neural network with names such as \"cars.cfg\" and \"cars_best.weights\":" << std::endl
@@ -406,11 +430,11 @@ void Darknet::display_usage()
 		<< ""																						<< std::endl
 		<< "  More verbose output (only applies to a select few commands, such as \"train\"):"		<< std::endl
 		<< YELLOW("    darknet -verbose ...")														<< std::endl
-		<< "  And even more verbose debug output can be enabled using \"trace\":"					<< std::endl
+		<< "  More verbose debug output can be enabled using \"trace\":"							<< std::endl
 		<< YELLOW("    darknet -trace ...")															<< std::endl
 		<< "  Enabling \"trace\" automatically enables \"verbose\" as well."						<< std::endl
 		<< ""																						<< std::endl
-		<< "  Minimum detection thresholds can be specified:"										<< std::endl
+		<< "  Minimum detection thresholds can be specified with most Darknet/YOLO tools:"			<< std::endl
 		<< YELLOW("    darknet_05_process_videos_multithreaded -threshold 0.38 ...")				<< std::endl
 		<< YELLOW("    darknet_06_images_to_json -threshold 0.75 ...")								<< std::endl
 		<< ""																						<< std::endl
