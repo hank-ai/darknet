@@ -549,6 +549,7 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 * [Python bindings for Darknet/YOLO](src-python/) (in the Darknet/YOLO repo)
 * [Java bindings for Darknet/YOLO](https://github.com/stephanecharette/DarknetJava)
 * [Delphi bindings for Darknet/YOLO](https://github.com/hansvas/Darknet4Delphi)
+* [Darknet2Any](https://github.com/jredmondson/darknet2any/)
 * If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/zSq8rtW).
 
 # Roadmap

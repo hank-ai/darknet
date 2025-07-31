@@ -790,23 +790,28 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 		auto & section = sections.at(idx);
 
+		if (cfg_and_state.is_trace)
+		{
+			*cfg_and_state.output << "[" << Darknet::to_string(section.type) << "] #" << section.line_number << " START OF LAYER #" << idx << std::endl;
+		}
+
 		switch (section.type)
 		{
-			case ELayerType::CONVOLUTIONAL:		{	l = parse_convolutional_section(idx);								break;	}
-			case ELayerType::MAXPOOL:			{	l = parse_maxpool_section(idx);										break;	}
-			case ELayerType::UPSAMPLE:			{	l = parse_upsample_section(idx);									break;	}
-			case ELayerType::CONNECTED:			{	l = parse_connected_section(idx);									break;	}
-			case ELayerType::CRNN:				{	l = parse_crnn_section(idx);										break;	}
-			case ELayerType::RNN:				{	l = parse_rnn_section(idx);											break;	}
-			case ELayerType::LOCAL_AVGPOOL:		{	l = parse_local_avgpool_section(idx);								break;	}
-			case ELayerType::LSTM:				{	l = parse_lstm_section(idx);										break;	}
-			case ELayerType::REORG:				{	l = parse_reorg_section(idx);										break;	}
-			case ELayerType::AVGPOOL:			{	l = parse_avgpool_section(idx);										break;	}
-			case ELayerType::YOLO:				{	l = parse_yolo_section(idx);				l.keep_delta_gpu = 1;	break;	}
-			case ELayerType::COST:				{	l = parse_cost_section(idx);				l.keep_delta_gpu = 1;	break;	}
-			case ELayerType::REGION:			{	l = parse_region_section(idx);				l.keep_delta_gpu = 1;	break;	}
-			case ELayerType::GAUSSIAN_YOLO:		{	l = parse_gaussian_yolo_section(idx);		l.keep_delta_gpu = 1;	break;	}
-			case ELayerType::CONTRASTIVE:		{	l = parse_contrastive_section(idx);			l.keep_delta_gpu = 1;	break;	}
+			case ELayerType::CONVOLUTIONAL:	{l = parse_convolutional_section(idx);							break;}
+			case ELayerType::MAXPOOL:		{l = parse_maxpool_section(idx);								break;}
+			case ELayerType::UPSAMPLE:		{l = parse_upsample_section(idx);								break;}
+			case ELayerType::CONNECTED:		{l = parse_connected_section(idx);								break;}
+			case ELayerType::CRNN:			{l = parse_crnn_section(idx);									break;}
+			case ELayerType::RNN:			{l = parse_rnn_section(idx);									break;}
+			case ELayerType::LOCAL_AVGPOOL:	{l = parse_local_avgpool_section(idx);							break;}
+			case ELayerType::LSTM:			{l = parse_lstm_section(idx);									break;}
+			case ELayerType::REORG:			{l = parse_reorg_section(idx);									break;}
+			case ELayerType::AVGPOOL:		{l = parse_avgpool_section(idx);								break;}
+			case ELayerType::YOLO:			{l = parse_yolo_section(idx);			l.keep_delta_gpu = 1;	break;}
+			case ELayerType::COST:			{l = parse_cost_section(idx);			l.keep_delta_gpu = 1;	break;}
+			case ELayerType::REGION:		{l = parse_region_section(idx);			l.keep_delta_gpu = 1;	break;}
+			case ELayerType::GAUSSIAN_YOLO:	{l = parse_gaussian_yolo_section(idx);	l.keep_delta_gpu = 1;	break;}
+			case ELayerType::CONTRASTIVE:	{l = parse_contrastive_section(idx);	l.keep_delta_gpu = 1;	break;}
 			case ELayerType::ROUTE:
 			{
 				l = parse_route_section(idx);

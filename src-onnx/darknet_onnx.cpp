@@ -5,6 +5,7 @@ namespace
 {
 	static std::string format_name(const size_t idx, const std::string & name)
 	{
+		TAT(TATPARMS);
 		std::stringstream ss;
 		ss << std::setfill('0') << std::setw(3) << (idx) << "_" << name;
 		return ss.str();
@@ -13,6 +14,7 @@ namespace
 
 	static std::string format_name(const size_t idx, const Darknet::ELayerType & type)
 	{
+		TAT(TATPARMS);
 		return format_name(idx, Darknet::to_string(type));
 	}
 }
@@ -20,6 +22,7 @@ namespace
 
 void Darknet::ONNXExport::log_handler(google::protobuf::LogLevel level, const char * filename, int line, const std::string & message)
 {
+	TAT(TATPARMS);
 	std::cout << "Protocol buffer error detected:"
 		<< " level="	<< level
 		<< " fn="		<< filename
@@ -43,6 +46,7 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 	onnx_fn(onnx_filename),
 	graph(nullptr)
 {
+	TAT(TATPARMS);
 	std::cout														<< std::endl
 		<< "Darknet/YOLO ONNX Export Tool"							<< std::endl
 		<< "-> configuration ........ " << cfg_fn		.string()	<< std::endl
@@ -75,6 +79,8 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 
 Darknet::ONNXExport::~ONNXExport()
 {
+	TAT(TATPARMS);
+
 	google::protobuf::ShutdownProtobufLibrary();
 
 	free_network(cfg.net);
@@ -85,6 +91,8 @@ Darknet::ONNXExport::~ONNXExport()
 
 Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 {
+	TAT(TATPARMS);
+
 	// force the verbose logging to get the colour output when the network is parsed
 	Darknet::set_verbose(true);
 
@@ -102,6 +110,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 
 Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 {
+	TAT(TATPARMS);
+
 	std::cout
 		<< "-> type name ............ " << model.GetTypeName()					<< std::endl
 		<< "-> opset import size .... " << model.opset_import_size()			<< std::endl
@@ -127,6 +137,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 
 Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 {
+	TAT(TATPARMS);
+
 	// IR = Intermediate Representation, related to versioning
 	// https://github.com/onnx/onnx/blob/main/docs/IR.md
 	// https://github.com/onnx/onnx/blob/main/docs/Versioning.md
@@ -152,10 +164,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	std::time_t tt = std::time(nullptr);
 	char buffer[50];
 	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", std::localtime(&tt));
-	model.set_doc_string("ONNX output generated from Darknet/YOLO neural network files " + cfg_fn.filename().string() + " and " + weights_fn.filename().string() + " on " + buffer + ".");
+	model.set_doc_string("ONNX generated from Darknet/YOLO neural network files " + cfg_fn.filename().string() + " and " + weights_fn.filename().string() + " on " + buffer + ".");
 
 	auto opset = model.add_opset_import();
-	opset->set_version(9);
+	opset->set_version(9); // beware of v10 or higher since op "Upsample" was deprecated
 
 	graph = new onnx::GraphProto();
 	graph->set_name(weights_fn.stem().string());
@@ -167,6 +179,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 
 Darknet::ONNXExport & Darknet::ONNXExport::set_doc_string(onnx::ValueInfoProto * proto, const size_t line_number)
 {
+	TAT(TATPARMS);
+
 	if (proto and line_number > 0)
 	{
 		proto->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(line_number));
@@ -178,6 +192,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::set_doc_string(onnx::ValueInfoProto *
 
 Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx::ValueInfoProto * proto, const std::string & name, const int v1, const int v2, const int v3, const int v4, const size_t line_number)
 {
+	TAT(TATPARMS);
+
 	/* For example:
 	 *
 		input {
@@ -213,7 +229,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx
 	auto dim = shape->add_dim();
 	dim->set_dim_value(v1);
 
-	// other values are optional in some situations
+	// other values are optional
 
 	if (v2 >= 0)
 	{
@@ -242,6 +258,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx
 
 Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_000_net()
 {
+	TAT(TATPARMS);
+
 	auto input = graph->add_input();
 
 	populate_input_output_dimensions(input, format_name(0, "net"), 1, cfg.net.c, cfg.net.h, cfg.net.w, cfg.network_section.line_number);
@@ -250,8 +268,18 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_000_net()
 }
 
 
+Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input()
+{
+	TAT(TATPARMS);
+
+	return *this;
+}
+
+
 Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_output()
 {
+	TAT(TATPARMS);
+
 	// look for all the YOLO output layers
 
 	for (int idx = 0; idx < cfg.net.n; idx ++)
@@ -268,70 +296,95 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_output()
 }
 
 
-Darknet::ONNXExport & Darknet::ONNXExport::build_model()
+Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 {
-	populate_graph_input_000_net();
-	populate_graph_output();
+	// https://github.com/onnx/onnx/blob/main/docs/Operators.md
+	const std::map<Darknet::ELayerType, std::string> op =
+	{
+		{Darknet::ELayerType::CONVOLUTIONAL	, "Conv"	},
+		{Darknet::ELayerType::ROUTE			, "Split"	},	// or "Concat"?
+		{Darknet::ELayerType::MAXPOOL		, "MaxPool"	},
+		{Darknet::ELayerType::UPSAMPLE		, "Upsample"},	// beware, this was deprecated starting with onnx operator set version 10
+		{Darknet::ELayerType::YOLO			, "unknown"	},
+	};
 
-//	node = graph->add_node();
+	for (size_t index = 0; index < cfg.sections.size(); index ++)
+	{
+		const auto & section = cfg.sections[index];
+
+		auto node = graph->add_node();
+		node->set_name(format_name(index, section.type));
+
+		if (op.count(section.type) != 1)
+		{
+			throw std::invalid_argument("layer type " + Darknet::to_string(section.type) + " does not have a known operator");
+		}
+
+		node->set_op_type(op.at(section.type));
+
+		for (const auto & [key, line] : section.lines)
+		{
+			auto attrib = node->add_attribute();
+			attrib->set_name(line.key);
+			attrib->set_doc_string("#test");
+			attrib->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(line.line_number) + ": " + line.line);
+
+			if (line.f)
+			{
+				// is this a float or an int?
+				const int i = line.f.value();
+				const float f = line.f.value();
+				if (i == f and line.val.find(".") == std::string::npos)
+				{
+					// must be an int
+					attrib->set_i(i);
+					attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_INT);
+				}
+				else
+				{
+					// must be a float
+					attrib->set_f(f);
+					attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT);
+				}
+			}
+			else
+			{
+				// must be a string
+				attrib->set_s(line.val);
+				attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_STRING);
+			}
+		}
+
+//		auto input = graph->add_input();
+//		input->set_name(ss.str());
+//		input->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number));
+//		auto shape = new onnx::TensorShapeProto();
+//		auto type = new onnx::TypeProto()
+//		type->set_allocated_shape(shape);
+//		input->set_allocated_type(type);
+	}
 
 	return *this;
 }
 
 
-#if 0
+Darknet::ONNXExport & Darknet::ONNXExport::build_model()
+{
+	TAT(TATPARMS);
 
-		// https://github.com/onnx/onnx/blob/main/docs/Operators.md
-		const std::map<Darknet::ELayerType, std::string> op =
-		{
-			{Darknet::ELayerType::CONVOLUTIONAL	, "Conv"	},
-			{Darknet::ELayerType::ROUTE			, "Split"	},	// or "Concat"?
-			{Darknet::ELayerType::MAXPOOL		, "MaxPool"	},
-			{Darknet::ELayerType::UPSAMPLE		, "Upsample"},	// beware, this was deprecated starting with onnx operator set version 10
-		};
+	populate_graph_input_000_net();
+	populate_graph_input();
+	populate_graph_output();
+	populate_graph_nodes();
 
-		const std::set<Darknet::ELayerType> types_to_skip =
-		{
-			Darknet::ELayerType::YOLO,
-		};
-
-		for (size_t index = 0; index < cfg.sections.size(); index ++)
-		{
-			const auto & section = cfg.sections[index];
-//			std::cout << "INDEX=" << (index + 1) << " LINE #" << section.debug() << std::endl;
-			if (types_to_skip.count(section.type))
-			{
-				continue;
-			}
-
-			auto node = graph->add_node();
-			std::stringstream ss;
-			ss << std::setfill('0') << std::setw(3) << (index + 1) << "_" << section.name;
-			node->set_name(ss.str());
-
-			if (op.count(section.type) != 1)
-			{
-				throw std::invalid_argument("section type \"" + section.name + "\" is not yet supported by this tool");
-			}
-			node->set_op_type(op.at(section.type));
-
-			auto input = graph->add_input();
-			input->set_name(ss.str());
-			input->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number));
-
-//			auto shape = new onnx::TensorShapeProto();
-
-//			auto type = new onnx::TypeProto()
-//			type->set_allocated_shape(shape);
-
-//			input->set_allocated_type(type);
-		}
-
-#endif
+	return *this;
+}
 
 
 Darknet::ONNXExport & Darknet::ONNXExport::save_output_file()
 {
+	TAT(TATPARMS);
+
 	std::ofstream ofs(onnx_fn, std::ios::binary);
 	const bool success = model.SerializeToOstream(&ofs);
 	if (not success)
