@@ -315,9 +315,9 @@ void push_connected_layer(Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
-	cuda_push_array(l.weights_gpu, l.weights, l.inputs*l.outputs);
+	cuda_push_array(l.weights_gpu, l.weights, l.inputs * l.outputs);
 	cuda_push_array(l.biases_gpu, l.biases, l.outputs);
-	cuda_push_array(l.weight_updates_gpu, l.weight_updates, l.inputs*l.outputs);
+	cuda_push_array(l.weight_updates_gpu, l.weight_updates, l.inputs * l.outputs);
 	cuda_push_array(l.bias_updates_gpu, l.bias_updates, l.outputs);
 	if (l.batch_normalize)
 	{
