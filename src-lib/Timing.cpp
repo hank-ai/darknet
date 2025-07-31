@@ -155,14 +155,14 @@ Darknet::TimingRecords::~TimingRecords()
 		const std::string reviewed			= (reviewed_per_function.at(name) ? "yes" : "");
 		const std::string comment			= comment_per_function.at(name);
 
-		if (total_milliseconds < 10.0f and calls < 1000)
+		if (total_milliseconds < 10.0f and calls < 10)
 		{
 			skipped ++;
 			continue;
 		}
 
-		auto display_name = name.substr(0, 100);
-		if (name.size() > 100)
+		auto display_name = name.substr(0, 80);
+		if (name.size() > 80)
 		{
 			display_name += "...";
 		}
