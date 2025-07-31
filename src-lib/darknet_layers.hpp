@@ -185,7 +185,7 @@ namespace Darknet
 		int receptive_w_scale;
 		int receptive_h_scale;
 
-		char  * cweights;
+		char  * cweights; ///< @todo V5: possibly unused?
 		int   * indexes;
 		int   * input_layers;
 		int   * input_sizes;
@@ -200,18 +200,18 @@ namespace Darknet
 		float * cost;
 		int *labels;
 		int *class_ids;
-		int contrastive_neg_max;
+		int contrastive_neg_max; ///< @todo V5: possibly unused?
 		float *cos_sim;
 		float *exp_cos_sim;
 		float *p_constrastive;
 		contrastive_params *contrast_p_gpu;
 		float * state;
 		float * prev_state;
-		float * forgot_state;
-		float * forgot_delta;
-		float * state_delta;
-		float * combine_cpu;
-		float * combine_delta_cpu;
+		float * forgot_state; ///< @todo V5: unused?
+		float * forgot_delta; ///< @todo V5: unused?
+		float * state_delta; ///< @todo V5: possibly unused?
+		float * combine_cpu_unused; ///< @todo V5: unused?
+		float * combine_delta_cpu_unused; ///< @todo V5: unused?
 
 		float *concat;
 		float *concat_delta;
@@ -311,7 +311,7 @@ namespace Darknet
 		float *g_cpu;
 		float *o_cpu;
 		float *c_cpu;
-		float *stored_c_cpu;
+		float *stored_c_cpu; ///< @todo V5: unused?
 		float *dc_cpu;
 
 		float *binary_input;
@@ -322,49 +322,48 @@ namespace Darknet
 		Layer *self_layer;
 		Layer *output_layer;
 
-		Layer *reset_layer;
-		Layer *update_layer;
-		Layer *state_layer;
+		Layer *reset_layer_unused; ///< @todo V5: unused?
+		Layer *update_layer_unused; ///< @todo V5: unused?
+		Layer *state_layer_unused; ///< @todo V5: unused?
 
-		Layer *input_gate_layer;
-		Layer *state_gate_layer;
-		Layer *input_save_layer;
-		Layer *state_save_layer;
-		Layer *input_state_layer;
-		Layer *state_state_layer;
+		Layer *input_gate_layer_unused; ///< @todo V5: unused?
+		Layer *state_gate_layer_unused; ///< @todo V5: unused?
+		Layer *input_save_layer_unused; ///< @todo V5: unused?
+		Layer *state_save_layer_unused; ///< @todo V5: unused?
+		Layer *input_state_layer_unused; ///< @todo V5: unused?
+		Layer *state_state_layer_unused; ///< @todo V5: unused?
 
-		Layer *input_z_layer;
-		Layer *state_z_layer;
+		Layer *input_z_layer_unused; ///< @todo V5: unused?
+		Layer *state_z_layer_unused; ///< @todo V5: unused?
 
-		Layer *input_r_layer;
-		Layer *state_r_layer;
+		Layer *input_r_layer_unused; ///< @todo V5: unused?
+		Layer *state_r_layer_unused; ///< @todo V5: unused?
 
-		Layer *input_h_layer;
-		Layer *state_h_layer;
+		Layer *input_h_layer_unused; ///< @todo V5: unused?
+		Layer *state_h_layer_unused; ///< @todo V5: unused?
 
-		Layer *wz;
-		Layer *uz;
-		Layer *wr;
-		Layer *ur;
-		Layer *wh;
-		Layer *uh;
-		Layer *uo;
-		Layer *wo;
-		Layer *vo;
-		Layer *uf;
-		Layer *wf;
-		Layer *vf;
-		Layer *ui;
-		Layer *wi;
-		Layer *vi;
-		Layer *ug;
-		Layer *wg;
+		Layer *wz_unused; ///< @todo V5: unused?
+		Layer *uz_unused; ///< @todo V5: unused?
+		Layer *wr_unused; ///< @todo V5: unused?
+		Layer *ur_unused; ///< @todo V5: unused?
+		Layer *wh_unused; ///< @todo V5: unused?
+		Layer *uh_unused; ///< @todo V5: unused?
+		Layer *uo; ///< used in lstm
+		Layer *wo; ///< used in lstm
+		Layer *vo_unused; ///< @todo V5: unused?
+		Layer *uf; ///< used in lstm
+		Layer *wf; ///< used in lstm
+		Layer *vf_unused; ///< @todo V5: unused?
+		Layer *ui; ///< used in lstm
+		Layer *wi; ///< used in lstm
+		Layer *vi_unused; ///< @todo V5: unused?
+		Layer *ug; ///< used in lstm
+		Layer *wg; ///< used in lstm
 
 		Darknet::Tree *softmax_tree;
 
 		size_t workspace_size;
 
-		//#ifdef DARKNET_GPU
 		int *indexes_gpu;
 
 		int stream;
@@ -382,51 +381,51 @@ namespace Darknet
 		float *temp3_gpu;
 
 		float *dh_gpu;
-		float *hh_gpu;
+		float *hh_gpu; ///< @todo V5: possibly unused?
 		float *prev_cell_gpu;
 		float *prev_state_gpu;
-		float *last_prev_state_gpu;
-		float *last_prev_cell_gpu;
+		float *last_prev_state_gpu; ///< @todo V5: unused?
+		float *last_prev_cell_gpu; ///< @todo V5: unused?
 		float *cell_gpu;
 		float *f_gpu;
 		float *i_gpu;
 		float *g_gpu;
 		float *o_gpu;
 		float *c_gpu;
-		float *stored_c_gpu;
+		float *stored_c_gpu; ///< @todo V5: possibly unused?
 		float *dc_gpu;
 
 		// adam
 		float *m_gpu;
 		float *v_gpu;
-		float *bias_m_gpu;
-		float *scale_m_gpu;
-		float *bias_v_gpu;
-		float *scale_v_gpu;
+		float *bias_m_gpu; ///< @todo V5: possibly unused?
+		float *scale_m_gpu; ///< @todo V5: possibly unused?
+		float *bias_v_gpu; ///< @todo V5: possibly unused?
+		float *scale_v_gpu; ///< @todo V5: possibly unused?
 
-		float * combine_gpu;
-		float * combine_delta_gpu;
+		float * combine_gpu; ///< @todo V5: unused?
+		float * combine_delta_gpu; ///< @todo V5: unused?
 
-		float * forgot_state_gpu;
-		float * forgot_delta_gpu;
+		float * forgot_state_gpu; ///< @todo V5: possibly unused?
+		float * forgot_delta_gpu; ///< @todo V5: possibly unused?
 		float * state_gpu;
-		float * state_delta_gpu;
-		float * gate_gpu;
-		float * gate_delta_gpu;
-		float * save_gpu;
-		float * save_delta_gpu;
-		float * concat_gpu;
-		float * concat_delta_gpu;
+		float * state_delta_gpu; ///< @todo V5: possibly unused?
+		float * gate_gpu; ///< @todo V5: possibly unused?
+		float * gate_delta_gpu; ///< @todo V5: possibly unused?
+		float * save_gpu; ///< @todo V5: possibly unused?
+		float * save_delta_gpu; ///< @todo V5: unused?
+		float * concat_gpu; ///< @todo V5: unused?
+		float * concat_delta_gpu;  ///< @todo V5: unused?
 
 		float *binary_input_gpu;
 		float *binary_weights_gpu;
-		float *bin_conv_shortcut_in_gpu;
-		float *bin_conv_shortcut_out_gpu;
+		float *bin_conv_shortcut_in_gpu; ///< @todo V5: possibly unused?
+		float *bin_conv_shortcut_out_gpu; ///< @todo V5: possibly unused?
 
 		float * mean_gpu;
 		float * variance_gpu;
-		float * m_cbn_avg_gpu;
-		float * v_cbn_avg_gpu;
+		float * m_cbn_avg_gpu; ///< @todo V5: possibly unused?
+		float * v_cbn_avg_gpu; ///< @todo V5: possibly unused?
 
 		float * rolling_mean_gpu;
 		float * rolling_variance_gpu;
@@ -473,7 +472,7 @@ namespace Darknet
 		int *input_sizes_gpu;
 		float **layers_output_gpu;
 		float **layers_delta_gpu;
-		#ifdef CUDNN
+#ifdef CUDNN
 		cudnnTensorDescriptor_t srcTensorDesc, dstTensorDesc;
 		cudnnTensorDescriptor_t srcTensorDesc16, dstTensorDesc16;
 		cudnnTensorDescriptor_t dsrcTensorDesc, ddstTensorDesc;
@@ -486,7 +485,8 @@ namespace Darknet
 		cudnnConvolutionBwdDataAlgo_t bd_algo, bd_algo16;
 		cudnnConvolutionBwdFilterAlgo_t bf_algo, bf_algo16;
 		cudnnPoolingDescriptor_t poolingDesc;
-		#else   // CUDNN
+#else
+		// pad the structure so it has the same size regardless of CPU, CUDA, CUDNN, etc.
 		void* srcTensorDesc, *dstTensorDesc;
 		void* srcTensorDesc16, *dstTensorDesc16;
 		void* dsrcTensorDesc, *ddstTensorDesc;
@@ -499,8 +499,7 @@ namespace Darknet
 		UNUSED_ENUM_TYPE bd_algo, bd_algo16;
 		UNUSED_ENUM_TYPE bf_algo, bf_algo16;
 		void* poolingDesc;
-		#endif  // CUDNN
-		//#endif  // DARKNET_GPU
+#endif  // CUDNN
 	};
 }
 
