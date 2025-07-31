@@ -143,8 +143,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	// https://github.com/onnx/onnx/blob/main/docs/IR.md
 	// https://github.com/onnx/onnx/blob/main/docs/Versioning.md
 	// 2019_9_19 aka "6" is the last version prior to introducing training
-	model.set_ir_version(onnx::Version::IR_VERSION_2019_9_19);
-//	model.set_ir_version(onnx::Version::IR_VERSION_2025_05_12);
+	model.set_ir_version(onnx::Version::IR_VERSION_2019_9_19); // == 6
+//	model.set_ir_version(onnx::Version::IR_VERSION_2025_05_12); // == 11
 
 	// The name of the framework or tool used to generate this model.
 	model.set_producer_name("Darknet/YOLO ONNX Export Tool");
@@ -310,7 +310,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 
 	for (size_t index = 0; index < cfg.sections.size(); index ++)
 	{
-		const auto & section = cfg.sections[index];
+		auto & section = cfg.sections[index];
 
 		auto node = graph->add_node();
 		node->set_name(format_name(index, section.type));
@@ -326,14 +326,13 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 		{
 			auto attrib = node->add_attribute();
 			attrib->set_name(line.key);
-			attrib->set_doc_string("#test");
 			attrib->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(line.line_number) + ": " + line.line);
 
 			if (line.f)
 			{
 				// is this a float or an int?
-				const int i = line.f.value();
-				const float f = line.f.value();
+				const int	i = line.f.value();
+				const float	f = line.f.value();
 				if (i == f and line.val.find(".") == std::string::npos)
 				{
 					// must be an int
@@ -349,9 +348,40 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 			}
 			else
 			{
-				// must be a string
-				attrib->set_s(line.val);
-				attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_STRING);
+				// check to see if we have a float array or int array, such as:
+				//
+				//		layers=-6,-1
+				// or:
+				//		scales=0.5, 0.4, 0.3, 0.2, 0.1
+
+				if (line.val.length() > 0 and line.val.find_first_not_of(" -.,0123456789") == std::string::npos)
+				{
+					// array of ints, or array of floats?
+					if (line.val.find(".") == std::string::npos)
+					{
+						// no decimal point, must be an array of INT
+						for (const auto & i : section.find_int_array(key))
+						{
+							attrib->add_ints(i);
+						}
+						attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_INTS);
+					}
+					else
+					{
+						// we have at least 1 decimal point, must be an array of FLOAT
+						for (const auto & f : section.find_float_array(key))
+						{
+							attrib->add_floats(f);
+						}
+						attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_FLOATS);
+					}
+				}
+				else
+				{
+					// must be a plain old string
+					attrib->set_s(line.val);
+					attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_STRING);
+				}
 			}
 		}
 

@@ -9,6 +9,8 @@ namespace
 	{
 		TAT(TATPARMS);
 
+		// BN == "batch normalization"
+
 		int train_only_bn = 0;
 
 		for (auto idx = net.n - 1; idx >= 0; --idx)
