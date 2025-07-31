@@ -1,29 +1,33 @@
 #include "darknet_internal.hpp"
 
+/** @file
+ * Long short-term memory.
+ */
+
 
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
-}
 
+	static inline void increment_layer(Darknet::Layer *l, int steps)
+	{
+		TAT(TATPARMS);
 
-static void increment_layer(Darknet::Layer *l, int steps)
-{
-	TAT(TATPARMS);
-
-	int num = l->outputs*l->batch*steps;
-	l->output += num;
-	l->delta += num;
-	l->x += num;
-	l->x_norm += num;
+		int num = l->outputs*l->batch*steps;
+		l->output += num;
+		l->delta += num;
+		l->x += num;
+		l->x_norm += num;
 
 #ifdef DARKNET_GPU
-	l->output_gpu += num;
-	l->delta_gpu += num;
-	l->x_gpu += num;
-	l->x_norm_gpu += num;
+		l->output_gpu += num;
+		l->delta_gpu += num;
+		l->x_gpu += num;
+		l->x_norm_gpu += num;
 #endif
+	}
 }
+
 
 Darknet::Layer make_lstm_layer(int batch, int inputs, int outputs, int steps, int batch_normalize)
 {

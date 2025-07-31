@@ -1,9 +1,10 @@
 #pragma once
 
-#include "darknet_internal.hpp"
+/** @file
+ * Long short-term memory.
+ */
 
-/// @todo what is this?
-#define USET
+#include "darknet_internal.hpp"
 
 Darknet::Layer make_lstm_layer(int batch, int inputs, int outputs, int steps, int batch_normalize);
 
