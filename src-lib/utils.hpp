@@ -113,7 +113,8 @@ static inline bool rand_bool()
 
 int int_index(int *a, int val, int n);
 int make_directory(char *path, int mode);
-unsigned long custom_hash(char *str);
+
+unsigned long custom_hash(const std::string & str);
 
 #define max_val_cmp(a,b) (((a) > (b)) ? (a) : (b))
 #define min_val_cmp(a,b) (((a) < (b)) ? (a) : (b))

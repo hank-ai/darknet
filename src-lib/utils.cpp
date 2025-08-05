@@ -1101,6 +1101,11 @@ void rand_uniform_many(float * x, const size_t n, float min, float max, const fl
 {
 	TAT(TATPARMS);
 
+	if (x == nullptr)
+	{
+		darknet_fatal_error(DARKNET_LOC, std::string("invalid initialization of " + std::to_string(n) + " random floats to a NULL pointer").c_str());
+	}
+
 	if (n < 1)
 	{
 		return;
@@ -1196,13 +1201,14 @@ int make_directory(char *path, int mode)
 #endif
 }
 
-unsigned long custom_hash(char *str)
+
+unsigned long custom_hash(const std::string & str)
 {
 	TAT(TATPARMS);
 
 	unsigned long hash = 5381;
-	int c;
-	while ((c = (*str++)))
+
+	for (int c : str)
 	{
 		hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
 	}
