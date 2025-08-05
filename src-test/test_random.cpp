@@ -258,3 +258,35 @@ TEST(Random, rand_uint)
 	std::cout << "rand_uint() lo=" << lo << " hi=" << hi << " maximum=" << maximum_range << " allowed=" << allowed_range << " actual=" << actual_range << std::endl;
 	ASSERT_GT(actual_range, allowed_range);
 }
+
+
+TEST(Random, custom_hash)
+{
+	std::set<unsigned long> hashes;
+	std::map<std::string, unsigned long> strings =
+	{
+		{"Darknet/YOLO"	, 0},	{"Darknet YOLO"	, 0},	{"darknet/yolo"	, 0},	{"darknet yolo"	, 0},
+		{"Hello, world!", 0},	{"hello, world!", 0},	{""				, 0},	{" "			, 0},
+		{"0"			, 0},	{"01"			, 0},	{"012"			, 0},	{"0123"			, 0},
+		{"01234"		, 0},	{"012345"		, 0},	{"0123456"		, 0},	{"01234567"		, 0},
+		{"012345678"	, 0},	{"0123456789"	, 0},	{"9876543210"	, 0},	{"0.jpg"		, 0},
+		{"0.txt"		, 0},	{"1.jpg"		, 0},	{"1.txt"		, 0},	{"a.jpg"		, 0},
+		{"a.txt"		, 0},	{"b.jpg"		, 0},	{"b.txt"		, 0},	{"testing"		, 0},
+		{"z testing"	, 0},	{"zz testing"	, 0},	{"zzz testing"	, 0},	{"zzzz testing"	, 0},
+		{"zzzztesting"	, 0},	{"zzztesting"	, 0},	{"zztesting"	, 0},	{"ztesting"		, 0},
+		{"testing"		, 0},	{"gnitset"		, 0},	{"\t"			, 0},	{"\r"			, 0},
+		{"\n"			, 0},
+	};
+
+	for (auto & [key, val] : strings)
+	{
+		const auto hash = custom_hash(key.c_str());
+		std::cout << "key=" << key << " hash=" << hash << std::endl;
+		ASSERT_EQ(0, hashes.count(hash));
+		hashes.insert(hash);
+		strings[key] = hash;
+	}
+
+	// we should have exactly the same number of hashes as strings
+	ASSERT_EQ(hashes.size(), strings.size());
+}
