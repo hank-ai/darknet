@@ -19,11 +19,14 @@ __device__ float hardtan_activate_kernel(float x)
 	if (x > 1) return 1;
 	return x;
 }
+
+__device__ float device_max(const float a, const float b) { return (a > b) ? a : b; } // cannot use constexpr std::max() in __device__
+__device__ float device_min(const float a, const float b) { return (a < b) ? a : b; } // cannot use constexpr std::min() in __device__
 __device__ float linear_activate_kernel(float x){return x;}
 __device__ float logistic_activate_kernel(float x){return 1.f/(1.f + expf(-x));}
 __device__ float loggy_activate_kernel(float x){return 2.f/(1.f + expf(-x)) - 1;}
 __device__ float relu_activate_kernel(float x){return x*(x>0);}
-__device__ float relu6_activate_kernel(float x) { return min_val_cmp(max_val_cmp(x, 0), 6); }
+__device__ float relu6_activate_kernel(float x) { return device_min(device_max(x, 0.0f), 6.0f); }
 __device__ float elu_activate_kernel(float x){return (x >= 0)*x + (x < 0)*(expf(x)-1);}
 __device__ float selu_activate_kernel(float x) { return (x >= 0)*1.0507f*x + (x < 0)*1.0507f*1.6732f*(expf(x) - 1); }
 __device__ float relie_activate_kernel(float x){return (x>0) ? x : .01f*x;}

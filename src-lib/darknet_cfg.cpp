@@ -883,9 +883,9 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 		// calculate receptive field
 		if (parms.show_receptive_field)
 		{
-			int dilation = max_val_cmp(1, l.dilation);
-			int stride = max_val_cmp(1, l.stride);
-			int size = max_val_cmp(1, l.size);
+			int dilation = std::max(1, l.dilation);
+			int stride = std::max(1, l.stride);
+			int size = std::max(1, l.size);
 
 			if (l.type == Darknet::ELayerType::UPSAMPLE or
 				l.type == Darknet::ELayerType::REORG)
@@ -903,16 +903,16 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 					for (int k = 0; k < l.n; ++k)
 					{
 						Darknet::Layer & route_l = net.layers[l.input_layers[k]];
-						parms.receptive_w = max_val_cmp(parms.receptive_w, route_l.receptive_w);
-						parms.receptive_h = max_val_cmp(parms.receptive_h, route_l.receptive_h);
-						parms.receptive_w_scale = max_val_cmp(parms.receptive_w_scale, route_l.receptive_w_scale);
-						parms.receptive_h_scale = max_val_cmp(parms.receptive_h_scale, route_l.receptive_h_scale);
+						parms.receptive_w = std::max(parms.receptive_w, route_l.receptive_w);
+						parms.receptive_h = std::max(parms.receptive_h, route_l.receptive_h);
+						parms.receptive_w_scale = std::max(parms.receptive_w_scale, route_l.receptive_w_scale);
+						parms.receptive_h_scale = std::max(parms.receptive_h_scale, route_l.receptive_h_scale);
 					}
 				}
 				else
 				{
 					int increase_receptive = size + (dilation - 1) * 2 - 1;// stride;
-					increase_receptive = max_val_cmp(0, increase_receptive);
+					increase_receptive = std::max(0, increase_receptive);
 
 					parms.receptive_w += increase_receptive * parms.receptive_w_scale;
 					parms.receptive_h += increase_receptive * parms.receptive_h_scale;
@@ -2263,7 +2263,7 @@ Darknet::Layer Darknet::CfgFile::parse_dropout_section(const size_t section_idx)
 	if (dropblock_size_abs > parms.w || dropblock_size_abs > parms.h)
 	{
 		*cfg_and_state.output << "[dropout] - dropblock_size_abs=" << dropblock_size_abs << " that is bigger than layer size " << parms.w << " x " << parms.h << std::endl;
-		dropblock_size_abs = min_val_cmp(parms.w, parms.h);
+		dropblock_size_abs = std::min(parms.w, parms.h);
 	}
 	if (dropblock && !dropblock_size_rel && !dropblock_size_abs)
 	{
