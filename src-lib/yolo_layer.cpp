@@ -974,7 +974,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 
 			float final_badlebels_threshold = rolling_avg + rolling_std * state.net.num_sigmas_reject_badlabels;
 			float badlabels_threshold = rolling_max - progress_badlabels * fabs(rolling_max - final_badlebels_threshold);
-			badlabels_threshold = max_val_cmp(final_badlebels_threshold, badlabels_threshold);
+			badlabels_threshold = std::max(final_badlebels_threshold, badlabels_threshold);
 			for (int i = 0; i < l.batch * l.outputs; ++i)
 			{
 				if (fabs(l.delta[i]) > badlabels_threshold)
@@ -994,7 +994,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 				<< ", progress="		<< progress_badlabels * 100.0f
 				<< std::endl;
 
-			ep_loss_threshold = min_val_cmp(final_badlebels_threshold, rolling_avg) * progress;
+			ep_loss_threshold = std::min(final_badlebels_threshold, rolling_avg) * progress;
 		}
 
 		// reject some percent of the highest deltas to filter bad labels

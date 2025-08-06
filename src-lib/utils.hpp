@@ -116,5 +116,3 @@ int make_directory(char *path, int mode);
 
 unsigned long custom_hash(const std::string & str);
 
-#define max_val_cmp(a,b) (((a) > (b)) ? (a) : (b))
-#define min_val_cmp(a,b) (((a) < (b)) ? (a) : (b))

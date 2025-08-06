@@ -140,13 +140,10 @@ void forward_dropout_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 			block_height = l.dropblock_size_rel * l.h * multiplier;
 		}
 
-		block_width = max_val_cmp(1, block_width);
-		block_height = max_val_cmp(1, block_height);
+		std::clamp(block_width, 1, l.w);
+		std::clamp(block_height, 1, l.h);
 
-		block_width = min_val_cmp(l.w, block_width);
-		block_height = min_val_cmp(l.h, block_height);
-
-		const int block_size = min_val_cmp(block_width, block_height);
+		const int block_size = std::min(block_width, block_height);
 		const float block_prob = cur_prob / (block_size*block_size);
 		assert(block_size <= l.w && block_size <= l.h);
 
@@ -190,7 +187,8 @@ void backward_dropout_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 	const int size = l.inputs*l.batch;
 
 	// dropblock
-	if (l.dropblock) {
+	if (l.dropblock)
+	{
 		int iteration_num = get_current_iteration(state.net); //(*state.net.seen) / (state.net.batch*state.net.subdivisions);
 		float multiplier = 1.0;
 		if (iteration_num < (state.net.max_batches*0.85))
@@ -205,11 +203,8 @@ void backward_dropout_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 			block_height = l.dropblock_size_rel * l.h * multiplier;
 		}
 
-		block_width = max_val_cmp(1, block_width);
-		block_height = max_val_cmp(1, block_height);
-
-		block_width = min_val_cmp(l.w, block_width);
-		block_height = min_val_cmp(l.h, block_height);
+		std::clamp(block_width, 1, l.w);
+		std::clamp(block_height, 1, l.h);
 
 		int num_blocks = get_number_of_blocks(l.outputs * l.batch, BLOCK);
 		backward_dropblock_kernel <<<num_blocks, BLOCK, 0, get_cuda_stream() >>>(l.rand_gpu, state.delta, l.outputs * l.batch);

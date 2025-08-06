@@ -483,13 +483,12 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 {
 	TAT(TATPARMS);
 
-	int i,j,b,t,n;
 	memcpy(l.output, state.input, l.outputs*l.batch*sizeof(float));
 
 #ifndef DARKNET_GPU
-	for (b = 0; b < l.batch; ++b)
+	for (int b = 0; b < l.batch; ++b)
 	{
-		for(n = 0; n < l.n; ++n)
+		for (int n = 0; n < l.n; ++n)
 		{
 			// x : mu, sigma
 			int index = entry_gaussian_index(l, b, n*l.w*l.h, 0);
@@ -523,13 +522,14 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 	int count = 0;
 	int class_count = 0;
 	*(l.cost) = 0;
-	for (b = 0; b < l.batch; ++b)
+
+	for (int b = 0; b < l.batch; ++b)
 	{
-		for (j = 0; j < l.h; ++j)
+		for (int j = 0; j < l.h; ++j)
 		{
-			for (i = 0; i < l.w; ++i)
+			for (int i = 0; i < l.w; ++i)
 			{
-				for (n = 0; n < l.n; ++n)
+				for (int n = 0; n < l.n; ++n)
 				{
 					const int class_index = entry_gaussian_index(l, b, n*l.w*l.h + j*l.w + i, 9);
 					const int obj_index = entry_gaussian_index(l, b, n*l.w*l.h + j*l.w + i, 8);
@@ -540,7 +540,7 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 					int best_match_t = 0;
 					float best_iou = 0;
 					int best_t = 0;
-					for(t = 0; t < l.max_boxes; ++t)
+					for (int t = 0; t < l.max_boxes; ++t)
 					{
 						Darknet::Box truth = float_to_box_stride(state.truth + t*l.truth_size + b*l.truths, 1);
 						int class_id = state.truth[t*l.truth_size + b*l.truths + 4];
@@ -635,7 +635,8 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 				}
 			}
 		}
-		for(t = 0; t < l.max_boxes; ++t)
+
+		for (int t = 0; t < l.max_boxes; ++t)
 		{
 			Darknet::Box truth = float_to_box_stride(state.truth + t*l.truth_size + b*l.truths, 1);
 
@@ -646,26 +647,26 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 
 			float best_iou = 0;
 			int best_n = 0;
-			i = (truth.x * l.w);
-			j = (truth.y * l.h);
+			int i = (truth.x * l.w);
+			int j = (truth.y * l.h);
 
 			if (l.yolo_point == YOLO_CENTER)
 			{
 			}
 			else if (l.yolo_point == YOLO_LEFT_TOP)
 			{
-				i = min_val_cmp(l.w-1, max_val_cmp(0, ((truth.x - truth.w / 2) * l.w)));
-				j = min_val_cmp(l.h-1, max_val_cmp(0, ((truth.y - truth.h / 2) * l.h)));
+				std::clamp(i, l.w - 1, (static_cast<int>(truth.x - truth.w / 2.0f) * l.w));
+				std::clamp(j, l.h - 1, (static_cast<int>(truth.y - truth.h / 2.0f) * l.h));
 			}
 			else if (l.yolo_point == YOLO_RIGHT_BOTTOM)
 			{
-				i = min_val_cmp(l.w-1, max_val_cmp(0, ((truth.x + truth.w / 2) * l.w)));
-				j = min_val_cmp(l.h-1, max_val_cmp(0, ((truth.y + truth.h / 2) * l.h)));
+				std::clamp(i, l.w - 1, (static_cast<int>(truth.x + truth.w / 2.0f) * l.w));
+				std::clamp(j, l.h - 1, (static_cast<int>(truth.y + truth.h / 2.0f) * l.h));
 			}
 
 			Darknet::Box truth_shift = truth;
 			truth_shift.x = truth_shift.y = 0;
-			for(n = 0; n < l.total; ++n)
+			for (int n = 0; n < l.total; ++n)
 			{
 				Darknet::Box pred = {0};
 				pred.w = l.biases[2*n]/ state.net.w;
@@ -713,7 +714,7 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 
 
 			// iou_thresh
-			for (n = 0; n < l.total; ++n)
+			for (int n = 0; n < l.total; ++n)
 			{
 				int mask_n = int_index(l.mask, n, l.n);
 				if (mask_n >= 0 && n != best_n && l.iou_thresh < 1.0f)
@@ -760,11 +761,11 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 		}
 
 		// averages the deltas obtained by the function: delta_yolo_box()_accumulate
-		for (j = 0; j < l.h; ++j)
+		for (int j = 0; j < l.h; ++j)
 		{
-			for (i = 0; i < l.w; ++i)
+			for (int i = 0; i < l.w; ++i)
 			{
-				for (n = 0; n < l.n; ++n)
+				for (int n = 0; n < l.n; ++n)
 				{
 					int box_index = entry_gaussian_index(l, b, n*l.w*l.h + j*l.w + i, 0);
 					int class_index = entry_gaussian_index(l, b, n*l.w*l.h + j*l.w + i, 9);
@@ -782,13 +783,13 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 	float* classification_lost = (float *)calloc(l.batch * l.outputs, sizeof(float));
 	memcpy(classification_lost, l.delta, l.batch * l.outputs * sizeof(float));
 
-	for (b = 0; b < l.batch; ++b)
+	for (int b = 0; b < l.batch; ++b)
 	{
-		for (j = 0; j < l.h; ++j)
+		for (int j = 0; j < l.h; ++j)
 		{
-			for (i = 0; i < l.w; ++i)
+			for (int i = 0; i < l.w; ++i)
 			{
-				for (n = 0; n < l.n; ++n)
+				for (int n = 0; n < l.n; ++n)
 				{
 					int box_index = entry_gaussian_index(l, b, n*l.w*l.h + j*l.w + i, 0);
 
@@ -810,13 +811,13 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 
 	float* except_uncertainty_lost = (float *)calloc(l.batch * l.outputs, sizeof(float));
 	memcpy(except_uncertainty_lost, l.delta, l.batch * l.outputs * sizeof(float));
-	for (b = 0; b < l.batch; ++b)
+	for (int b = 0; b < l.batch; ++b)
 	{
-		for (j = 0; j < l.h; ++j)
+		for (int j = 0; j < l.h; ++j)
 		{
-			for (i = 0; i < l.w; ++i)
+			for (int i = 0; i < l.w; ++i)
 			{
-				for (n = 0; n < l.n; ++n)
+				for (int n = 0; n < l.n; ++n)
 				{
 					int box_index = entry_gaussian_index(l, b, n*l.w*l.h + j*l.w + i, 0);
 					except_uncertainty_lost[box_index + 4 * stride] = 0;
