@@ -92,8 +92,7 @@ static inline float relu_activate(float x)
 static inline float relu6_activate(float x)
 {
 	TAT(TATPARMS);
-	std::clamp(x, 0.0f, 6.0f);
-	return x;
+	return std::clamp(x, 0.0f, 6.0f);
 }
 
 static inline float elu_activate(float x)

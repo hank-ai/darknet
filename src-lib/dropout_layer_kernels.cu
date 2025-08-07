@@ -140,8 +140,8 @@ void forward_dropout_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 			block_height = l.dropblock_size_rel * l.h * multiplier;
 		}
 
-		std::clamp(block_width, 1, l.w);
-		std::clamp(block_height, 1, l.h);
+		block_width		= std::clamp(block_width, 1, l.w);
+		block_height	= std::clamp(block_height, 1, l.h);
 
 		const int block_size = std::min(block_width, block_height);
 		const float block_prob = cur_prob / (block_size*block_size);
@@ -203,8 +203,8 @@ void backward_dropout_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 			block_height = l.dropblock_size_rel * l.h * multiplier;
 		}
 
-		std::clamp(block_width, 1, l.w);
-		std::clamp(block_height, 1, l.h);
+		block_width		= std::clamp(block_width, 1, l.w);
+		block_height	= std::clamp(block_height, 1, l.h);
 
 		int num_blocks = get_number_of_blocks(l.outputs * l.batch, BLOCK);
 		backward_dropblock_kernel <<<num_blocks, BLOCK, 0, get_cuda_stream() >>>(l.rand_gpu, state.delta, l.outputs * l.batch);
