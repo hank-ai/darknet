@@ -655,13 +655,13 @@ void forward_gaussian_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state
 			}
 			else if (l.yolo_point == YOLO_LEFT_TOP)
 			{
-				std::clamp(i, l.w - 1, (static_cast<int>(truth.x - truth.w / 2.0f) * l.w));
-				std::clamp(j, l.h - 1, (static_cast<int>(truth.y - truth.h / 2.0f) * l.h));
+				i = std::clamp(i, l.w - 1, (static_cast<int>(truth.x - truth.w / 2.0f) * l.w));
+				j = std::clamp(j, l.h - 1, (static_cast<int>(truth.y - truth.h / 2.0f) * l.h));
 			}
 			else if (l.yolo_point == YOLO_RIGHT_BOTTOM)
 			{
-				std::clamp(i, l.w - 1, (static_cast<int>(truth.x + truth.w / 2.0f) * l.w));
-				std::clamp(j, l.h - 1, (static_cast<int>(truth.y + truth.h / 2.0f) * l.h));
+				i = std::clamp(i, l.w - 1, (static_cast<int>(truth.x + truth.w / 2.0f) * l.w));
+				j = std::clamp(j, l.h - 1, (static_cast<int>(truth.y + truth.h / 2.0f) * l.h));
 			}
 
 			Darknet::Box truth_shift = truth;
