@@ -489,6 +489,10 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 
 		const std::regex rx(txt);
 		VStr filenames_which_matched;
+		if (cfg_and_state.is_trace)
+		{
+			*cfg_and_state.output << "looking at files in \"" << parent.string() << "\"" << std::endl;
+		}
 		for (const auto & entry : std::filesystem::directory_iterator(parent))
 		{
 			std::string fn = Darknet::lowercase(entry.path().filename().string());
@@ -740,13 +744,24 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 			std::string stem = tmp.filename().string();
 
 			VStr matching_files;
-			for (auto iter : std::filesystem::directory_iterator(parent))
+			if (cfg_and_state.is_trace)
 			{
-				const std::filesystem::path path = iter.path();
-				if (path.filename().string().find(stem) == 0)
+				*cfg_and_state.output << "looking for neural network in \"" << parent.string() << "\"" << std::endl;
+			}
+			try
+			{
+				for (auto iter : std::filesystem::directory_iterator(parent))
 				{
-					matching_files.push_back(path.string());
+					const std::filesystem::path path = iter.path();
+					if (path.filename().string().find(stem) == 0)
+					{
+						matching_files.push_back(path.string());
+					}
 				}
+			}
+			catch (...)
+			{
+				// probably not a directory, so we need to ignore this parameter
 			}
 
 			std::sort(matching_files.begin(), matching_files.end());
@@ -1210,6 +1225,10 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 	{
 		if (parm.type == EParmType::kDirectory)
 		{
+			if (cfg_and_state.is_trace)
+			{
+				*cfg_and_state.output << "looking for images in \"" << parm.string << "\"" << std::endl;
+			}
 			for (const auto & entry : std::filesystem::directory_iterator(parm.string))
 			{
 				const auto ext = Darknet::lowercase(entry.path().extension().string());
