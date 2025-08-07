@@ -85,10 +85,10 @@ int main(int argc, char * argv[])
 			<< "-> each frame lasts ......... " << nanoseconds_per_frame << " nanoseconds"		<< std::endl
 			<< "-> each frame lasts ......... " << milliseconds_per_frame << " milliseconds"	<< std::endl;
 
-		size_t frame_counter				= 0;
-		size_t total_objects_found			= 0;
-		size_t recent_error_counter			= 0;
-		double total_sleep_in_milliseconds	= 0.0;
+		size_t frame_counter		= 0;
+		size_t total_objects_found	= 0;
+		size_t recent_error_counter	= 0;
+		auto total_sleep_time		= std::chrono::milliseconds(0);
 		const auto timestamp_when_stream_started = std::chrono::high_resolution_clock::now();
 
 		cv::namedWindow(stream, cv::WindowFlags::WINDOW_GUI_NORMAL);
@@ -116,9 +116,9 @@ int main(int argc, char * argv[])
 			}
 
 			// sleep for a reasonable amount of time beween each frame
-			const int time_to_sleep = std::clamp(static_cast<int>(milliseconds_per_frame) / 2, 5, 20);
-			total_sleep_in_milliseconds += time_to_sleep;
-			const char c = cv::waitKey(time_to_sleep);
+			const int time_to_sleep_in_milliseconds = std::clamp(milliseconds_per_frame / 2UL, 5UL, 20UL);
+			total_sleep_time += std::chrono::milliseconds(time_to_sleep_in_milliseconds);
+			const char c = cv::waitKey(time_to_sleep_in_milliseconds);
 			if (c == 27) // ESC
 			{
 				std::cout << std::endl << "ESC!" << std::endl;
@@ -126,19 +126,20 @@ int main(int argc, char * argv[])
 			}
 		}
 
-		const auto timestamp_when_stream_ended = std::chrono::high_resolution_clock::now();
-		const auto video_duration = timestamp_when_stream_ended - timestamp_when_stream_started;
-		const size_t video_length_in_milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(video_duration).count();
-		const double final_fps = 1000.0 * frame_counter / video_length_in_milliseconds;
+		const auto timestamp_when_stream_ended		= std::chrono::high_resolution_clock::now();
+		const auto video_duration					= timestamp_when_stream_ended - timestamp_when_stream_started;
+		const auto average_sleep_per_frame			= total_sleep_time / frame_counter;
+		const size_t video_length_in_milliseconds	= std::chrono::duration_cast<std::chrono::milliseconds>(video_duration).count();
+		const double final_fps						= 1000.0 * frame_counter / video_length_in_milliseconds;
 
 		std::cout
-			<< "-> recent error counter ..... " << recent_error_counter												<< std::endl
-			<< "-> number of frames shown ... " << frame_counter													<< std::endl
-			<< "-> average sleep per frame .. " << total_sleep_in_milliseconds / frame_counter << " milliseconds"	<< std::endl
-			<< "-> total length of stream ... " << Darknet::format_duration_string(video_duration)					<< std::endl
-			<< "-> processed frame rate ..... " << final_fps << " FPS"												<< std::endl
-			<< "-> total objects founds ..... " << total_objects_found												<< std::endl
-			<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter			<< std::endl;
+			<< "-> recent error counter ..... " << recent_error_counter										<< std::endl
+			<< "-> number of frames shown ... " << frame_counter											<< std::endl
+			<< "-> average sleep per frame .. " << Darknet::format_duration_string(average_sleep_per_frame)	<< std::endl
+			<< "-> total length of stream ... " << Darknet::format_duration_string(video_duration)			<< std::endl
+			<< "-> processed frame rate ..... " << final_fps << " FPS"										<< std::endl
+			<< "-> total objects founds ..... " << total_objects_found										<< std::endl
+			<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter	<< std::endl;
 
 		Darknet::free_neural_network(net);
 	}
