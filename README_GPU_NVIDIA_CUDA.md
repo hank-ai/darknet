@@ -30,7 +30,7 @@ The NVIDIA CUDA and cuDNN software must be installed **prior** to running `cmake
 
 * It is recommended that you disable "secure boot" in your BIOS to ensure you don't run into problems loading the Linux video drivers.
 * Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
-* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#cudnn-package-manager-installation-overview> to download and install cuDNN.
+* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/installation/latest/linux.html#package-manager-installation> to download and install cuDNN.
 
 > [!TIP]
 > Once you install CUDA make sure you can run both `nvcc` and `nvidia-smi`.  You may have to [modify your `PATH` variable](https://docs.nvidia.com/cuda/cuda-installation-guide-linux/index.html#mandatory-actions).
@@ -44,7 +44,7 @@ The NVIDIA CUDA and cuDNN software must be installed **prior** to running `cmake
 > If you install CUDA and cuDNN after having already built Darknet/YOLO, you'll need to delete your `c:/src/darknet/build/CMakeCache.txt` file to force CMake to re-detect CUDA, cuDNN, your GPU, and the necessary files.
 
 * Visit <https://developer.nvidia.com/cuda-downloads> to download and install CUDA.
-* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/install-guide/index.html#download-windows> to download and install cuDNN.
+* Visit <https://developer.nvidia.com/rdp/cudnn-download> or <https://docs.nvidia.com/deeplearning/cudnn/installation/latest/windows.html> to download and install cuDNN.
 
 > [!TIP]
 > Remember to reboot once you've installed the NVIDIA driver and software.<br>
