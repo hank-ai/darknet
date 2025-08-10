@@ -26,6 +26,7 @@
 #include <chrono>
 #include <condition_variable>
 #include <deque>
+// #include <execution> => "error: identifier __builtin_ia32_sttilecfg is undefined" due to GCC 13.x and some versions of nvcc 12.x
 #include <fstream>
 #include <list>
 #include <mutex>

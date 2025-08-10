@@ -22,7 +22,7 @@ namespace
 }
 
 
-Darknet::TimingAndTracking::TimingAndTracking(const std::string& n, const bool r, const std::string & c)
+Darknet::TimingAndTracking::TimingAndTracking(const std::string & n, const bool r, const std::string & c)
 {
 //	TAT(TATPARMS); ... nope, don't cause recursion!
 
@@ -85,7 +85,7 @@ Darknet::TimingRecords::~TimingRecords()
 	{
 		sorted_names.push_back(k);
 	}
-	std::sort(sorted_names.begin(), sorted_names.end(),
+	std::sort(/** @todo try again in 2026 std::execution::par_unseq, */ sorted_names.begin(), sorted_names.end(),
 			[&](const std::string & lhs, const std::string & rhs)
 			{
 				// sort by total time

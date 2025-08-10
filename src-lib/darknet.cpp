@@ -507,7 +507,7 @@ Darknet::Parms Darknet::parse_arguments(const Darknet::VStr & v)
 		{
 			// great, we found some matching filenames!
 			// so remove this parameter, and insert the filenames instead
-			std::sort(filenames_which_matched.begin(), filenames_which_matched.end());
+			std::sort(/** @todo try this again in 2026? std::execution::par_unseq,*/ filenames_which_matched.begin(), filenames_which_matched.end());
 
 			for (const auto & fn : filenames_which_matched)
 			{
@@ -764,7 +764,7 @@ bool Darknet::find_neural_network_files(Darknet::Parms & parms)
 				// probably not a directory, so we need to ignore this parameter
 			}
 
-			std::sort(matching_files.begin(), matching_files.end());
+			std::sort(/** @todo try this again in 2026? std::execution::par_unseq,*/ matching_files.begin(), matching_files.end());
 
 			std::string backup_weights;
 
@@ -1245,11 +1245,11 @@ Darknet::NetworkPtr Darknet::load_neural_network(Darknet::Parms & parms)
 		{
 			std::mt19937 rng(std::random_device{}());
 
-			std::shuffle(v.begin(), v.end(), rng);
+			std::shuffle(/** @todo try this again in 2026? std::execution::par_unseq,*/ v.begin(), v.end(), rng);
 		}
 		else
 		{
-			std::sort(v.begin(), v.end());
+			std::sort(/** @todo try this again in 2026? std::execution::par_unseq,*/ v.begin(), v.end());
 		}
 
 		// insert all the image filenames into "parms"

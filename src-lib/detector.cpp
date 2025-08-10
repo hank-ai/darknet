@@ -68,7 +68,8 @@ void prime_training_images_cache(list * image_filenames)
 		const size_t n = std::max(2U, std::thread::hardware_concurrency());
 		const int to_load = std::ceil(image_filenames->size / static_cast<float>(n));
 
-		std::cout << "Using " << n << " threads to prime loading " << image_filenames->size << " images." << std::endl;
+		*cfg_and_state.output << "Using " << n << " threads to prime loading " << image_filenames->size << " images." << std::endl;
+
 		Darknet::VThreads threads;
 		threads.reserve(n);
 
@@ -100,23 +101,23 @@ void prime_training_images_cache(list * image_filenames)
 			const int percentage = std::round(100.0f * recent / image_filenames->size);
 			t2 = std::chrono::high_resolution_clock::now();
 
-			std::cout << "\r-> loading image " << recent << "/" << image_filenames->size << " (" << percentage << "%) in " << Darknet::format_duration_string(t2 - t1) << "         " << std::flush;
+			*cfg_and_state.output << "\r-> loading image " << recent << "/" << image_filenames->size << " (" << percentage << "%) in " << Darknet::format_duration_string(t2 - t1) << "         " << std::flush;
 
 			if (t2 > time_limit)
 			{
-				std::cout << std::endl << "-> time limit reached";
+				*cfg_and_state.output << std::endl << "-> time limit reached";
 				break;
 			}
 		}
 
 		prime_loading_threads_must_exit = true;
-		std::cout << std::endl << "-> loaded " << recent << " images in " << Darknet::format_duration_string(t2 - t1) << std::endl;
+		*cfg_and_state.output << std::endl << "-> loaded " << recent << " images in " << Darknet::format_duration_string(t2 - t1) << std::endl;
 
 		for (auto & t : threads)
 		{
 			t.join();
 		}
-		std::cout << "-> done with the " << threads.size() << " image prime threads" << std::endl;
+		*cfg_and_state.output << "-> done with the " << threads.size() << " image prime threads" << std::endl;
 	}
 
 	return;
@@ -1638,7 +1639,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	// - qsort() with function took:	576286 nanoseconds
 	// - std::sort() with lambda took:	414231 nanoseconds
 	//
-	std::sort(detections, detections + detections_count,
+	std::sort(/** @todo try this again in 2026? std::execution::par_unseq,*/ detections, detections + detections_count,
 			[](const box_prob & lhs, const box_prob & rhs)
 			{
 				return lhs.p > rhs.p;

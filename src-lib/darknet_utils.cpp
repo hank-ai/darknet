@@ -402,7 +402,7 @@ void Darknet::cfg_layers()
 		}
 	}
 
-	std::sort(filenames.begin(), filenames.end(),
+	std::sort(/** @todo try this again in 2026? std::execution::par_unseq,*/ filenames.begin(), filenames.end(),
 		[](const std::string & lhs, const std::string & rhs)
 		{
 			// sort subdirectories below files, so first check for "/" or "\\"

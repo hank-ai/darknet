@@ -225,7 +225,7 @@ namespace
 			// We want to sort from high probability to low probability.  The default sort behaviour would be to
 			// sort from low to high.  We reverse the sort order by comparing RHS to LHS instead of LHS to RHS.
 
-			std::sort(dets, dets + total,
+			std::sort(/** @todo try this again in 2026? std::execution::par_unseq,*/ dets, dets + total,
 					[](const Darknet::Detection & lhs, const Darknet::Detection & rhs) -> bool
 					{
 						if (rhs.sort_class < 0)
