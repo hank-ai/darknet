@@ -299,11 +299,20 @@ void Darknet::show_version_info()
 		*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightWhite, DARKNET_BRANCH_NAME) << "]";
 	}
 	#ifndef NDEBUG
-	*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightRed, "DEBUG BUILD!");
+	*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightRed, "DEBUG BUILD!") << "]";
 	#endif
 	#ifdef DARKNET_TIMING_AND_TRACKING_ENABLED
-	*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightBlue, "TIMING BUILD!");
+	*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightBlue, "TIMING BUILD!") << "]";
 	#endif
+
+	#ifdef DARKNET_PROFILE_GEN
+	*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightCyan, "PROFILE GEN!") << "]";
+	#endif
+
+	#ifdef DARKNET_PROFILE_USE
+	*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightCyan, "PROFILE USE!") << "]";
+	#endif
+
 	*cfg_and_state.output << std::endl;
 
 	#if DARKNET_GPU_ROCM

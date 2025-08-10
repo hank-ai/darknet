@@ -119,17 +119,22 @@ IF (UNIX)
 ENDIF ()
 
 IF (DARKNET_PROFILE_GEN AND DARKNET_PROFILE_USE)
-	MESSAGE (FATAL_ERROR "DARKNET_PROFILE_GEN and DARKNET_PROFILE_USE must not both be set at the same time.")
+	MESSAGE (FATAL_ERROR "Cannot use DARKNET_PROFILE_GEN and DARKNET_PROFILE_USE at the same time.")
 ENDIF ()
 IF (COMPILER_IS_GNU_OR_CLANG AND DARKNET_PROFILE_GEN)
 	# generate profile-driven optimizations
 	ADD_LINK_OPTIONS    (-fprofile-generate -fprofile-abs-path -fprofile-update=atomic -fprofile-arcs -ftest-coverage)
 	ADD_COMPILE_OPTIONS (-fprofile-generate -fprofile-abs-path -fprofile-update=atomic -fprofile-arcs -ftest-coverage)
-ENDIF ()
-IF (COMPILER_IS_GNU_OR_CLANG AND DARKNET_PROFILE_USE)
+	ADD_COMPILE_DEFINITIONS (DARKNET_PROFILE_GEN)
+	MESSAGE (WARNING "Profile-Guided Optimization (PGO) is enabled.  This build will *GENERATE* new profile data.")
+ELSEIF (COMPILER_IS_GNU_OR_CLANG AND DARKNET_PROFILE_USE)
 	# use profile-driven optimizations
 	ADD_LINK_OPTIONS    (-fprofile-use -Wno-coverage-mismatch -Wno-missing-profile)
 	ADD_COMPILE_OPTIONS (-fprofile-use -Wno-coverage-mismatch -Wno-missing-profile)
+	ADD_COMPILE_DEFINITIONS (DARKNET_PROFILE_USE)
+	MESSAGE (WARNING "Profile-Guided Optimization (PGO) is enabled.  This build will *USE* existing profile data generated from previous runs.")
+ELSE ()
+	MESSAGE (STATUS "Profile-Guided Optimization (PGO) is disabled.")
 ENDIF ()
 
 # TODO: https://learn.microsoft.com/en-us/cpp/build/reference/fp-specify-floating-point-behavior?view=msvc-170
