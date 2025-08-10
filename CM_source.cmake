@@ -51,6 +51,9 @@ IF (UNIX)
 	ADD_COMPILE_OPTIONS (-Wall)					# enable "all" warnings
 	ADD_COMPILE_OPTIONS (-Wextra)				# enable even more warnings
 	ADD_COMPILE_OPTIONS (-Wno-unused-parameter)	# don't report this error
+#	ADD_COMPILE_OPTIONS (-pedantic)				# all the warnings demanded by strict ISO C and ISO C++
+#	ADD_COMPILE_OPTIONS (-pedantic-errors)		# give an error whenever the base standard requires a diagnostic
+#	ADD_COMPILE_OPTIONS (-Werror)				# turn warnings into errors
 
 	IF (NOT DARKNET_USE_ROCM)
 		# The compiler we switch to when using ROCm/HIP complains about this option.
@@ -70,6 +73,8 @@ IF (UNIX)
 		ADD_COMPILE_DEFINITIONS (NDEBUG)
 		ADD_COMPILE_OPTIONS (-O3)				# turn on optimizations
 		ADD_COMPILE_OPTIONS (-mtune=native)		# optimize for the architecture where g++ is running
+		ADD_COMPILE_OPTIONS (-frename-registers)	# avoid false dependencies in scheduled code by making use of registers left over after register allocation
+		ADD_COMPILE_OPTIONS (-funroll-loops)		# unroll loops whose number of iterations can be determined at compile time or upon entry to the loop
 
 		IF (ENABLE_SSE_AND_AVX)
 			# don't understand why this causes problems on older hardware without SSE and AVX (Darknet/YOLO issue #115)
@@ -111,6 +116,20 @@ IF (UNIX)
 	# TODO remove the following options and clean up the code instead of ignoring the problem
 	ADD_COMPILE_OPTIONS (-Wno-missing-field-initializers)
 	ADD_COMPILE_OPTIONS (-Wno-sign-compare)
+ENDIF ()
+
+IF (DARKNET_PROFILE_GEN AND DARKNET_PROFILE_USE)
+	MESSAGE (FATAL_ERROR "DARKNET_PROFILE_GEN and DARKNET_PROFILE_USE must not both be set at the same time.")
+ENDIF ()
+IF (COMPILER_IS_GNU_OR_CLANG AND DARKNET_PROFILE_GEN)
+	# generate profile-driven optimizations
+	ADD_LINK_OPTIONS    (-fprofile-generate -fprofile-abs-path -fprofile-update=atomic -fprofile-arcs -ftest-coverage)
+	ADD_COMPILE_OPTIONS (-fprofile-generate -fprofile-abs-path -fprofile-update=atomic -fprofile-arcs -ftest-coverage)
+ENDIF ()
+IF (COMPILER_IS_GNU_OR_CLANG AND DARKNET_PROFILE_USE)
+	# use profile-driven optimizations
+	ADD_LINK_OPTIONS    (-fprofile-use -Wno-coverage-mismatch -Wno-missing-profile)
+	ADD_COMPILE_OPTIONS (-fprofile-use -Wno-coverage-mismatch -Wno-missing-profile)
 ENDIF ()
 
 # TODO: https://learn.microsoft.com/en-us/cpp/build/reference/fp-specify-floating-point-behavior?view=msvc-170
