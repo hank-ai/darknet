@@ -306,11 +306,11 @@ void Darknet::show_version_info()
 	#endif
 
 	#ifdef DARKNET_PROFILE_GEN
-	*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightCyan, "PROFILE GEN!") << "]";
+	*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightCyan, "PGO GENERATE!") << "]";
 	#endif
 
 	#ifdef DARKNET_PROFILE_USE
-	*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightCyan, "PROFILE USE!") << "]";
+	*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightCyan, "PGO ENABLED!") << "]";
 	#endif
 
 	*cfg_and_state.output << std::endl;

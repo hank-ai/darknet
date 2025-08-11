@@ -209,6 +209,10 @@ sudo snap install cmake --classic
 
 > [!TIP]
 > Advanced users:<br>
+> See [the readme for PGO (Profile-Guided Optimization)](README_PGO.md) if you want to run an optimized Darknet/YOLO.
+
+> [!TIP]
+> Advanced users:<br>
 > If you want to build a RPM installation file instead of a DEB file, see the relevant lines in `CM_package.cmake`.  Prior to running `make -j4 package` you'll need to edit these two lines:
 ```cmake
 SET (CPACK_GENERATOR "DEB")
