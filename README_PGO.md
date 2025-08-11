@@ -26,7 +26,7 @@ sudo dpkg -i darknet...etc...
 
 ## Using GNU GCC PGO (Profile-Guided Optimization)
 
-When using GNU GCC -- the usual C/C++ compiler on most Linux distributions -- PGO (Profile-Guided Optimization) can be used to help Darknet/YOLO run faster.  PGO with Darknet/YOLO [makes a significant difference](#results) when using fast CPUs without a GPU.  It has marginal impact when using CUDA, or with tiny devices like Raspberry Pi.
+When using GNU GCC -- the usual C/C++ compiler on most Linux distributions -- PGO (Profile-Guided Optimization) can be used to help Darknet/YOLO run faster.  PGO with Darknet/YOLO can make a difference, but not as much as OpenBLAS.
 
 PGO is a 2-step process.  First you turn it on to generate some compiler-specific profile files.  Then you tell the compiler to use those files to rebuild Darknet/YOLO as an optimized application.
 
@@ -48,7 +48,7 @@ cd ~/nn/LegoGears
 darknet_05_process_videos_multithreaded LegoGears DSCN*.MOV
 ```
 
-This should create some `.gcda` and `.gcno` files in the `~/src/darknet/build/src-lib/CMakeFiles/darknetobjlib.dir/` subdirectory.
+This should create some `.gcda` files in the `~/src/darknet/build/src-lib/CMakeFiles/darknetobjlib.dir/` subdirectory.
 
 You must then rebuild Darknet to _use_ the profile data generated with the previous command:
 
@@ -70,7 +70,7 @@ If you have multiple compilers installed, you may need to specify which one CMak
 See which compiler you have installed.  For example:
 
 ```sh
-> ls -lh /usr/bin/g++*
+ls -lh /usr/bin/g++*
 lrwxrwxrwx 1 root root  6 Jan 31  2024 /usr/bin/g++ -> g++-13*
 lrwxrwxrwx 1 root root 23 Apr  3  2024 /usr/bin/g++-12 -> x86_64-linux-gnu-g++-12*
 lrwxrwxrwx 1 root root 23 Sep  4  2024 /usr/bin/g++-13 -> x86_64-linux-gnu-g++-13*
@@ -78,15 +78,17 @@ lrwxrwxrwx 1 root root 23 Sep  4  2024 /usr/bin/g++-13 -> x86_64-linux-gnu-g++-1
 
 Note when CMake first runs, it displays which compiler will be used, and which one nvcc uses:
 
-	> cmake -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_CUDA=ON -DDARKNET_PROFILE_USE=ON ..
-	-- Darknet v5.0-64-gb5c1c24e-dirty
-	-- Darknet branch name: v5
-	-- The C compiler identification is GNU 13.3.0		# <-- NOTE v13.3.0
-	-- The CXX compiler identification is GNU 13.3.0
-	-- Looking for a CUDA compiler - /usr/bin/nvcc
-	-- CUDA detected. Darknet will use NVIDIA GPUs.  CUDA compiler is /usr/bin/nvcc.
-	-- The CUDA compiler identification is NVIDIA 12.0.140		# <-- NOTE v12.0.140
-	-- Detecting CUDA compiler ABI info
+```sh
+cmake -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_CUDA=ON -DDARKNET_PROFILE_USE=ON ..
+-- Darknet v5.0-64-gb5c1c24e-dirty
+-- Darknet branch name: v5
+-- The C compiler identification is GNU 13.3.0		# <-- NOTE v13.3.0
+-- The CXX compiler identification is GNU 13.3.0
+-- Looking for a CUDA compiler - /usr/bin/nvcc
+-- CUDA detected. Darknet will use NVIDIA GPUs.  CUDA compiler is /usr/bin/nvcc.
+-- The CUDA compiler identification is NVIDIA 12.0.140		# <-- NOTE v12.0.140
+-- Detecting CUDA compiler ABI info
+```
 
 Please note how NVCC is using the C++ 12.0.140 compiler, while the rest of Darknet is built with version 13.3.0.
 
