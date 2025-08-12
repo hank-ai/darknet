@@ -18,14 +18,13 @@ int main(int argc, char * argv[])
 	{
 		// make sure the network loads correctly
 		Darknet::Parms parms	= Darknet::parse_arguments(argc, argv);
-		Darknet::set_verbose(false);
 		Darknet::NetworkPtr ptr	= Darknet::load_neural_network(parms);
 		const auto cfg_fn		= Darknet::get_config_filename(ptr);
 		const auto weights_fn	= Darknet::get_weights_filename(ptr);
 		const auto onnx_fn		= std::filesystem::path(cfg_fn).replace_extension(".onnx");
 		Darknet::free_neural_network(ptr);
 
-		// once we get here we know we have all the right parms, and the network correctly loads
+		// once we get here we know we have all the right parms, and the network successfully loads
 
 		Darknet::ONNXExport onnx_export(cfg_fn, weights_fn, onnx_fn);
 		onnx_export.load_network();
@@ -41,7 +40,7 @@ int main(int argc, char * argv[])
 	catch (const std::exception & e)
 	{
 		rc = 2;
-		std::cout															<< std::endl
+		std::cerr															<< std::endl
 			<< "A fatal exception was detected:"							<< std::endl
 			<< Darknet::in_colour(Darknet::EColour::kBrightRed, e.what())	<< std::endl;
 	}

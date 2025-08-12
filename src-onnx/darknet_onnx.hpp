@@ -47,6 +47,7 @@ namespace Darknet
 			ONNXExport & populate_graph_input();
 			ONNXExport & populate_graph_output();
 			ONNXExport & populate_graph_nodes();
+			ONNXExport & populate_graph_initializers();
 			ONNXExport & build_model();
 
 			/// Save the entire model as an .onnx file.

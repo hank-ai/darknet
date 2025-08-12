@@ -6,10 +6,15 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
 
-	/// @returns the number of bytes read
+	/// @returns the total number of bytes read
 	static inline size_t xfread(void * dst, const size_t size, const size_t count, std::FILE * fp, const std::string & description = "")
 	{
 		TAT(TATPARMS);
+
+		if (dst == nullptr)
+		{
+			darknet_fatal_error(DARKNET_LOC, "attempting to load %lu %s, but destination pointer is NULL", count, description.c_str());
+		}
 
 		const auto items_read = std::fread(dst, size, count, fp);
 		if (items_read != count)
@@ -339,8 +344,8 @@ size_t load_connected_weights(Darknet::Layer & l, FILE *fp, int transpose)
 
 	size_t bytes_read = 0;
 
-	bytes_read += xfread(l.biases	, sizeof(float), l.outputs			, fp, "biases"	);
-	bytes_read += xfread(l.weights, sizeof(float), l.outputs * l.inputs	, fp, "weights"	);
+	bytes_read += xfread(l.biases	, sizeof(float), l.outputs				, fp, "biases"	);
+	bytes_read += xfread(l.weights	, sizeof(float), l.outputs * l.inputs	, fp, "weights"	);
 	if (transpose)
 	{
 		transpose_matrix(l.weights, l.inputs, l.outputs);
@@ -380,7 +385,7 @@ size_t load_convolutional_weights(Darknet::Layer & l, FILE *fp)
 
 	if (l.flipped)
 	{
-		transpose_matrix(l.weights, (l.c/l.groups)*l.size*l.size, l.n);
+		transpose_matrix(l.weights, (l.c / l.groups) * l.size * l.size, l.n);
 	}
 	//if (l.binary) binarize_weights(l.weights, l.n, (l.c/l.groups)*l.size*l.size, l.weights);
 #ifdef DARKNET_GPU
@@ -491,6 +496,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 			continue;
 		}
 
+		// also see Darknet::ONNXExport::populate_graph_initializers()
 		switch(l.type)
 		{
 			case Darknet::ELayerType::CONVOLUTIONAL:
