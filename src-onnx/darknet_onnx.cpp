@@ -323,6 +323,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_output()
 
 Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 {
+	TAT(TATPARMS);
+
 	// https://github.com/onnx/onnx/blob/main/docs/Operators.md
 	const std::map<Darknet::ELayerType, std::string> op =
 	{
@@ -475,6 +477,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 
 	const auto export_convolutional = [&](Darknet::Layer & l, const int idx, const std::string & name) -> void
 	{
+		TAT(TATPARMS);
+
 		// loosely based on load_convolutional_weights()
 		const bool flag = l.batch_normalize and not l.dontloadscales;
 //		Darknet::display_warning_msg("Layer #" + std::to_string(idx) + ": export of \"" + Darknet::to_string(l.type) + "\"" " from line #" + std::to_string(cfg.sections[idx].line_number) + " is untested.\n");
@@ -487,6 +491,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 
 	const auto export_connected = [&](Darknet::Layer & l, const int idx, const std::string & name) -> void
 	{
+		TAT(TATPARMS);
+
 		// loosely based on load_connected_weights()
 		const bool flag = l.batch_normalize and not l.dontloadscales;
 		Darknet::display_warning_msg("Layer #" + std::to_string(idx) + ": export of \"" + Darknet::to_string(l.type) + "\"" " from line #" + std::to_string(cfg.sections[idx].line_number) + " is untested.\n");
@@ -497,7 +503,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 		if (flag) populate_graph_initializer(l.rolling_variance	, l.outputs				, idx, l, name + "rolling_variance"	);
 	};
 
-	// look for all the layers and export the values from the ones that have weights, biases, etc.
+	// look through all the layers and export the values from the ones that have weights, biases, etc.
 	for (int idx = 0; idx < cfg.net.n; idx ++)
 	{
 		auto & l = cfg.net.layers[idx];
