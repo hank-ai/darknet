@@ -47,6 +47,7 @@ namespace Darknet
 			ONNXExport & populate_graph_input();
 			ONNXExport & populate_graph_output();
 			ONNXExport & populate_graph_nodes();
+			ONNXExport & populate_graph_initializer(const float * f, const size_t n, const size_t idx, const Darknet::Layer & l, const std::string & name);
 			ONNXExport & populate_graph_initializers();
 			ONNXExport & build_model();
 

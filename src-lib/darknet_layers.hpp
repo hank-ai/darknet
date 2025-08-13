@@ -43,7 +43,7 @@ namespace Darknet
 		int inputs;
 		int outputs;
 		float mean_alpha;
-		int nweights;
+		int nweights; ///< number of floats stored in @ref weights
 		int nbiases; ///< unused?  Seems to be no references to this in the codebase.
 		int extra;
 		int truths;

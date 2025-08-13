@@ -27,6 +27,13 @@ namespace
 		TAT(TATPARMS);
 		return format_name(idx, Darknet::to_string(l.type));
 	}
+
+
+	static std::string format_weights(const size_t idx, const Darknet::Layer & l, const std::string & name)
+	{
+		TAT(TATPARMS);
+		return format_name(idx, l) + "_" + name;
+	}
 }
 
 
@@ -408,37 +415,83 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 }
 
 
+Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const float * f, const size_t n, const size_t idx, const Darknet::Layer & l, const std::string & name)
+{
+	TAT(TATPARMS);
+
+	if (cfg_and_state.is_trace)
+	{
+		*cfg_and_state.output << "=> " << format_weights(idx, l, name) << ": exporting " << n << " " << name << std::endl;
+	}
+
+	if (f == nullptr)
+	{
+		throw std::invalid_argument(format_weights(idx, l, name) + ": cannot dereference null float pointer, layer or weights are invalid (n=" + std::to_string(n) + ")");
+	}
+	if (n == 0)
+	{
+		throw std::invalid_argument(format_weights(idx, l, name) + ": cannot export weights with a size of zero");
+	}
+
+	onnx::TensorProto * initializer = graph->add_initializer();
+	initializer->add_dims(32);	/// @todo
+	initializer->add_dims(1);	/// @todo
+	initializer->set_data_type(onnx::TensorProto::FLOAT);
+	initializer->set_name(format_weights(idx, l, name));
+	initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[idx].line_number) + " [" + Darknet::to_string(l.type) + ", " + std::to_string(n) + " " + name + "]");
+
+	for (size_t i = 0; i < n; i ++)
+	{
+		initializer->add_float_data(f[i]);
+	}
+
+	return *this;
+}
+
+
 Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 {
 	TAT(TATPARMS);
 
-	// look for all the layers with weights and biases
+	// define several helper lambdas to export floats
 
+	const auto export_convolutional = [&](Darknet::Layer & l, const int idx, const std::string & name) -> void
+	{
+		// loosely based on load_convolutional_weights()
+		const bool flag = l.batch_normalize and not l.dontloadscales;
+//		Darknet::display_warning_msg("Layer #" + std::to_string(idx) + ": export of \"" + Darknet::to_string(l.type) + "\"" " from line #" + std::to_string(cfg.sections[idx].line_number) + " is untested.\n");
+		if (true) populate_graph_initializer(l.biases			, l.n			, idx, l, name + "biases"			);
+		if (true) populate_graph_initializer(l.weights			, l.nweights	, idx, l, name + "weights"			);
+		if (flag) populate_graph_initializer(l.scales			, l.n			, idx, l, name + "scales"			);
+		if (flag) populate_graph_initializer(l.rolling_mean		, l.n			, idx, l, name + "rolling_mean"		);
+		if (flag) populate_graph_initializer(l.rolling_variance	, l.n			, idx, l, name + "rolling_variance"	);
+	};
+
+	const auto export_connected = [&](Darknet::Layer & l, const int idx, const std::string & name) -> void
+	{
+		// loosely based on load_connected_weights()
+		const bool flag = l.batch_normalize and not l.dontloadscales;
+		Darknet::display_warning_msg("Layer #" + std::to_string(idx) + ": export of \"" + Darknet::to_string(l.type) + "\"" " from line #" + std::to_string(cfg.sections[idx].line_number) + " is untested.\n");
+		if (true) populate_graph_initializer(l.biases			, l.outputs				, idx, l, name + "biases"			);
+		if (true) populate_graph_initializer(l.weights			, l.outputs * l.inputs	, idx, l, name + "weights"			);
+		if (flag) populate_graph_initializer(l.scales			, l.outputs				, idx, l, name + "scales"			);
+		if (flag) populate_graph_initializer(l.rolling_mean		, l.outputs				, idx, l, name + "rolling_mean"		);
+		if (flag) populate_graph_initializer(l.rolling_variance	, l.outputs				, idx, l, name + "rolling_variance"	);
+	};
+
+	// look for all the layers and export the values from the ones that have weights, biases, etc.
 	for (int idx = 0; idx < cfg.net.n; idx ++)
 	{
-		const auto & l = cfg.net.layers[idx];
+		auto & l = cfg.net.layers[idx];
 
-		bool load = false;
-
-
-
-		/* ***************************** */
-		/* TODO TODO TODO TODO TODO TODO */
-		/* ***************************** */
-
-		// similar switch() statement to the one in load_weights_upto()
+		// similar switch() statement to the one in load_weights_upto(), see weights.cpp for details
 		switch(l.type)
 		{
 			case Darknet::ELayerType::CONVOLUTIONAL:
 			{
-				if (l.share_layer == NULL)
+				if (l.share_layer == nullptr)
 				{
-					if (cfg_and_state.is_trace)
-					{
-						*cfg_and_state.output << "=> layer #" << idx << " (" << Darknet::to_string(l.type) << "): exporting convolutional weights" << std::endl;
-					}
-					//load_convolutional_weights(l, fp);
-					load = true;
+					export_convolutional(l, idx, "");
 				}
 				break;
 			}
@@ -446,64 +499,40 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 			{
 				if (l.nweights > 0)
 				{
-					if (cfg_and_state.is_trace)
-					{
-						*cfg_and_state.output << "=> layer #" << idx << " (" << Darknet::to_string(l.type) << "): exporting shortcut weights" << std::endl;
-					}
-					//bytes_read += load_shortcut_weights(l, fp);
-					load = true;
+					Darknet::display_warning_msg("Layer #" + std::to_string(idx) + ": export of \"" + Darknet::to_string(l.type) + "\"" " from line #" + std::to_string(cfg.sections[idx].line_number) + " is untested.\n");
+					populate_graph_initializer(l.weights, l.nweights, idx, l, "weights");
 				}
 				break;
 			}
 			case Darknet::ELayerType::CONNECTED:
 			{
-				if (cfg_and_state.is_trace)
-				{
-					*cfg_and_state.output << "=> layer #" << idx << " (" << Darknet::to_string(l.type) << "): exporting connected weights" << std::endl;
-				}
-				//bytes_read += load_connected_weights(l, fp, transpose);
-				load = true;
+				export_connected(l, idx, "");
 				break;
 			}
 			case Darknet::ELayerType::CRNN:
 			{
-				if (cfg_and_state.is_trace)
-				{
-					*cfg_and_state.output << "=> layer #" << idx << " (" << Darknet::to_string(l.type) << "): exporting convolutional weights" << std::endl;
-				}
-//				bytes_read += load_convolutional_weights(*(l.input_layer)	, fp);
-//				bytes_read += load_convolutional_weights(*(l.self_layer)	, fp);
-//				bytes_read += load_convolutional_weights(*(l.output_layer)	, fp);
-				load = true;
+				export_convolutional(*l.input_layer	, idx, "input_"	);
+				export_convolutional(*l.self_layer	, idx, "self_"	);
+				export_convolutional(*l.output_layer, idx, "output_");
 				break;
 			}
 			case Darknet::ELayerType::RNN:
 			{
-				if (cfg_and_state.is_trace)
-				{
-					*cfg_and_state.output << "=> layer #" << idx << " (" << Darknet::to_string(l.type) << "): exporting connected weights" << std::endl;
-				}
-//				bytes_read += load_connected_weights(*(l.input_layer)	, fp, transpose);
-//				bytes_read += load_connected_weights(*(l.self_layer)	, fp, transpose);
-//				bytes_read += load_connected_weights(*(l.output_layer)	, fp, transpose);
-				load = true;
+				export_connected(*l.input_layer	, idx, "input_"	);
+				export_connected(*l.self_layer	, idx, "self_"	);
+				export_connected(*l.output_layer, idx, "output_");
 				break;
 			}
 			case Darknet::ELayerType::LSTM:
 			{
-				if (cfg_and_state.is_trace)
-				{
-					*cfg_and_state.output << "=> layer #" << idx << " (" << Darknet::to_string(l.type) << "): exporting connected weights" << std::endl;
-				}
-//				bytes_read += load_connected_weights(*(l.wf), fp, transpose);
-//				bytes_read += load_connected_weights(*(l.wi), fp, transpose);
-//				bytes_read += load_connected_weights(*(l.wg), fp, transpose);
-//				bytes_read += load_connected_weights(*(l.wo), fp, transpose);
-//				bytes_read += load_connected_weights(*(l.uf), fp, transpose);
-//				bytes_read += load_connected_weights(*(l.ui), fp, transpose);
-//				bytes_read += load_connected_weights(*(l.ug), fp, transpose);
-//				bytes_read += load_connected_weights(*(l.uo), fp, transpose);
-				load = true;
+				export_connected(*l.wf, idx, "wf_");
+				export_connected(*l.wi, idx, "wi_");
+				export_connected(*l.wg, idx, "wg_");
+				export_connected(*l.wo, idx, "wo_");
+				export_connected(*l.uf, idx, "uf_");
+				export_connected(*l.ui, idx, "ui_");
+				export_connected(*l.ug, idx, "ug_");
+				export_connected(*l.uo, idx, "uo_");
 				break;
 			}
 			default:
@@ -511,33 +540,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 				// this layer does not have weights to load
 				if (cfg_and_state.is_trace)
 				{
-					*cfg_and_state.output << "=> layer #" << idx << " (" << Darknet::to_string(l.type) << "): no weights to export" << std::endl;
+					*cfg_and_state.output << "=> " << format_weights(idx, l, "none") << ": no weights to export for this layer" << std::endl;
 				}
 				break;
 			}
-		}
-
-		/* ***************************** */
-		/* TODO TODO TODO TODO TODO TODO */
-		/* ***************************** */
-
-
-
-
-
-
-		if (load)
-		{
-			onnx::TensorProto * initializer = graph->add_initializer();
-			initializer->add_dims(32);
-			initializer->add_dims(1);
-			initializer->set_data_type(onnx::TensorProto::FLOAT);
-			initializer->add_float_data(0.783f);
-			initializer->add_float_data(0.784f);
-			initializer->add_float_data(0.785f);
-			initializer->add_float_data(0.786f);
-			initializer->set_name(format_name(idx, l));
-			initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[idx].line_number) + " [" + Darknet::to_string(l.type) + "]");
 		}
 	}
 
