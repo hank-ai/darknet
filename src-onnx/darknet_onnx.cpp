@@ -434,8 +434,26 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 	}
 
 	onnx::TensorProto * initializer = graph->add_initializer();
-	initializer->add_dims(32);	/// @todo
-	initializer->add_dims(1);	/// @todo
+
+	/** @todo V5 2025-08-13:  This is black magic!  I actually have no idea how the DIMS work.  I saw some example
+	 * Darknet/YOLO weights converted to ONNX and attempted to figure out the patern.  While this seems to work for
+	 * the few examples I have, I would be extremely happy if someone can point out to me exactly how this works so
+	 * I can implement it correctly!
+	 */
+
+	// "l.n" is always the first dimension
+	initializer->add_dims(l.n);
+	if (n > l.n)
+	{
+		// must be dealing with weights
+
+		const int div = std::max(1, l.size); // prevent division-by-zero
+
+		initializer->add_dims(n / l.n / div / div);
+		initializer->add_dims(div);
+		initializer->add_dims(div);
+	}
+
 	initializer->set_data_type(onnx::TensorProto::FLOAT);
 	initializer->set_name(format_weights(idx, l, name));
 	initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[idx].line_number) + " [" + Darknet::to_string(l.type) + ", " + std::to_string(n) + " " + name + "]");
@@ -460,7 +478,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 		// loosely based on load_convolutional_weights()
 		const bool flag = l.batch_normalize and not l.dontloadscales;
 //		Darknet::display_warning_msg("Layer #" + std::to_string(idx) + ": export of \"" + Darknet::to_string(l.type) + "\"" " from line #" + std::to_string(cfg.sections[idx].line_number) + " is untested.\n");
-		if (true) populate_graph_initializer(l.biases			, l.n			, idx, l, name + "biases"			);
+		if (true) populate_graph_initializer(l.biases			, l.n			, idx, l, name + "bias"				);
 		if (true) populate_graph_initializer(l.weights			, l.nweights	, idx, l, name + "weights"			);
 		if (flag) populate_graph_initializer(l.scales			, l.n			, idx, l, name + "scales"			);
 		if (flag) populate_graph_initializer(l.rolling_mean		, l.n			, idx, l, name + "rolling_mean"		);
@@ -472,7 +490,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 		// loosely based on load_connected_weights()
 		const bool flag = l.batch_normalize and not l.dontloadscales;
 		Darknet::display_warning_msg("Layer #" + std::to_string(idx) + ": export of \"" + Darknet::to_string(l.type) + "\"" " from line #" + std::to_string(cfg.sections[idx].line_number) + " is untested.\n");
-		if (true) populate_graph_initializer(l.biases			, l.outputs				, idx, l, name + "biases"			);
+		if (true) populate_graph_initializer(l.biases			, l.outputs				, idx, l, name + "bias"				);
 		if (true) populate_graph_initializer(l.weights			, l.outputs * l.inputs	, idx, l, name + "weights"			);
 		if (flag) populate_graph_initializer(l.scales			, l.outputs				, idx, l, name + "scales"			);
 		if (flag) populate_graph_initializer(l.rolling_mean		, l.outputs				, idx, l, name + "rolling_mean"		);
