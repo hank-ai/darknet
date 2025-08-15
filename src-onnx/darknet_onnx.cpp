@@ -349,6 +349,40 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 
 		node->set_op_type(op.at(section.type));
 
+		if (index == 0)
+		{
+			node->add_input("000_net"); // special case
+		}
+		else
+		{
+			node->add_input(format_name(index - 1, cfg.sections[index - 1].type));
+		}
+		node->add_output(format_name(index, section.type));
+
+		// does this layer have weights?
+		const auto & l = cfg.net.layers[index];
+		if (l.weights != nullptr and l.nweights > 0)
+		{
+			node->add_input(format_weights(index, l, "weights"));
+
+			// what about batch normalize (bn)?
+
+			node = graph->add_node();
+			node->set_name(format_name(index, l.type) + "_bn");
+			node->set_op_type("BatchNormalization");
+			node->add_input(format_name(index, l.type));
+			node->add_output(format_name(index, l.type) + "_bn");
+//			if (l.batch_normalize and not l.dontloadscales)
+			{
+				node->add_input(format_name(index, l.type) + "_scales");
+				node->add_input(format_name(index, l.type) + "_bias");
+				node->add_input(format_name(index, l.type) + "_rolling_mean");
+				node->add_input(format_name(index, l.type) + "_rolling_variance");
+			}
+		}
+
+
+#if 0 /// @todo need to revisit this to determine exactly what is needed
 		for (const auto & [key, line] : section.lines)
 		{
 			auto attrib = node->add_attribute();
@@ -411,6 +445,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 				}
 			}
 		}
+#endif
 	}
 
 	return *this;
