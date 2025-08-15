@@ -30,11 +30,10 @@ Darknet is an open source neural network framework written in C, C++, and CUDA.
 
 YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection system, which runs in the Darknet framework.
 
-* Read how **[Hank.ai is helping the Darknet/YOLO community](https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/)**
-* Announcing **[Darknet V3 "Jazz"](https://hank.ai/announcing-darknet-v3-a-quantum-leap-in-open-source-object-detection/)**
+* Darknet/YOLO repo has moved to **[Codeberg.org/CCodeRun/darknet/](https://ccodeberg.org/CCodeRun/darknet/)**
 * See the **[Darknet/YOLO web site](https://darknetcv.ai/)**
 * Please read through the **[Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/)**
-* Join the **[Darknet/YOLO discord server](https://discord.gg/zSq8rtW)**
+* Join the **[Darknet/YOLO discord server](https://discord.gg/CPZJPSYZU2)**
 
 # Papers
 
@@ -52,8 +51,10 @@ products -- including commercial ones -- without a license or paying a fee.
 
 Darknet V3 ("Jazz") released in October 2024 can accurately run the LEGO dataset videos at up to **1000 FPS** when using
 a NVIDIA RTX 3090 GPU, meaning each video frame is read, resized, and processed by Darknet/YOLO in 1 millisecond or less.
+Additional performance improvements have been implemented in Darknet V4 and the upcoming Darknet V5, without compromising
+the quality of detections.
 
-Please join the Darknet/YOLO Discord server if you need help or you want to discuss Darknet/YOLO and related tools:  https://discord.gg/zSq8rtW
+Please join the Darknet/YOLO Discord server if you need help or you want to discuss Darknet/YOLO and related tools:  https://discord.gg/CPZJPSYZU2
 
 The CPU version of Darknet/YOLO can run on simple devices such as Raspberry Pi, cloud &amp; colab servers, desktops,
 laptops, and high-end training rigs.  The GPU version of Darknet/YOLO requires either a CUDA-capable GPU from NVIDIA,
@@ -84,6 +85,8 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* All `printf()` and `std::cout` calls have all been replaced so Darknet/YOLO logging messages can easily be redirected.
 * Currently in development for Q2 or Q3 2025 is 5.x "Moonlit".
 	* More performance optimizations.
+	* Use of OpenBLAS when building CPU-only versions of Darknet.
+	* ONNX export functionality.
 	* JAVA language bindings.
 
 # Pre-trained Weights
@@ -558,7 +561,7 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 
 # Roadmap
 
-Last updated 2025-07-22:
+Last updated 2025-08-15:
 
 ## Completed
 
@@ -598,6 +601,7 @@ Last updated 2025-07-22:
 * [X] heatmaps
 * [X] remove all calls to printf() and std::cout and replace with std::ofstream to log to a file
 * [X] add support for AMD GPUs
+* [X] move from github to codeberg
 
 ## Short-term goals
 
