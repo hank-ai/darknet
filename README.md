@@ -136,7 +136,7 @@ DarkHelp coco.names yolov4-tiny.cfg yolov4-tiny.weights video1.avi
 The various build methods available in the past (pre-2023) have been merged together into a single unified solution.  Darknet requires C++17 or newer, OpenCV, and uses CMake to generate the necessary project files.
 
 > [!NOTE]
-> You do not need to know C++ to build, install, nor run Darknet/YOLO.
+> You do not need to know CMake, C++, C, Python, or any other programmaing language to build, install, nor run Darknet/YOLO.  Some advanced topics -- such as using the Darknet/YOLO API -- does require programming experience.
 
 Select one of the following build types:
 
@@ -147,15 +147,15 @@ Select one of the following build types:
 * [Docker](#docker)
 
 > [!CAUTION]
-> Beware if you are following old tutorials with more complicated build steps, or build steps that don't match what is in this readme.  The new build steps as described below started in August 2023.
+> Beware if you are following old tutorials with more complicated build steps, or build steps that don't seem to match what is in this readme.  The new build steps started in August 2023.
 
 Software developers are encouraged to visit https://darknetcv.ai/ to get information on the internals of the Darknet/YOLO object detection framework.
 
 ## Google Colab
 
-The Google Colab instructions are the same as the [Linux](#linux-cmake-method) instructions.  Several Jupyter notebooks are available showing how to do certain tasks, such as training a new network.
+The Google Colab instructions are the same as the [Linux](#linux-cmake-method) instructions.  Several [Jupyter notebooks are available](colab/) showing how to do certain tasks, such as training a new network.
 
-See the notebooks in the `colab` subdirectory, and/or follow [the Linux instructions](#linux_cmake-method) below.
+See the notebooks in the [`colab` subdirectory](colab/) for details, and/or follow [the Linux instructions](#linux_cmake-method) below.
 
 ## WSL
 
@@ -164,7 +164,7 @@ If you have a modern version of Windows and a decent computer, then the use of W
 WSL is a feature in Windows which allows people to run Linux-based applications from within their Windows desktop.  This is similar to a virtual machine with host/guest extensions.  Linux apps running in WSL have access to the GPU if you [install the Linux NVIDIA driver for WSL](https://docs.nvidia.com/cuda/wsl-user-guide/), and you can train a new network with Darknet/YOLO running within WSL.
 
 > [!TIP]
-> [Once WSL is installed](https://learn.microsoft.com/windows/wsl/install), run `sudo apt-get update` at least once from your Ubuntu command prompt to get the updated list of packages, and then follow the usual [Linux instructions](#linux-cmake-method).
+> [Once WSL is installed](https://learn.microsoft.com/windows/wsl/install), please remember to run `sudo apt-get update` at least once from your Ubuntu command prompt to get the updated list of packages, and then follow the usual [Linux instructions](#linux-cmake-method).
 
 If you don't want to use Darknet/YOLO from within WSL, then skip ahead to the [Windows instructions](#windows-cmake-method).
 
@@ -181,6 +181,9 @@ If you don't want to use Darknet/YOLO from within WSL, then skip ahead to the [W
 ```sh
 sudo apt-get install libopenblas64-0 libopenblas64-0-openmp libopenblas64-openmp-dev
 ```
+
+> [!TIP]
+> If you would like to export your Darknet/YOLO `.weights` to ONNX format, see [the additional dependency you may need to install](README_ONNX.md).
 
 These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
 
@@ -303,6 +306,9 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 ```sh
 .\vcpkg.exe install openblas:x64-windows
 ```
+
+> [!TIP]
+> If you would like to export your Darknet/YOLO `.weights` to ONNX format, see [the additional dependency you may need to install](README_ONNX.md).
 
 Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies.  Make sure you continue to use the **Developer Command Prompt** as described above when you run these commands:
 
@@ -547,11 +553,12 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 * [Python bindings for Darknet/YOLO](src-python/) (in the Darknet/YOLO repo)
 * [Java bindings for Darknet/YOLO](https://github.com/stephanecharette/DarknetJava)
 * [Delphi bindings for Darknet/YOLO](https://github.com/hansvas/Darknet4Delphi)
+* [Darknet2Any](https://github.com/jredmondson/darknet2any/)
 * If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/zSq8rtW).
 
 # Roadmap
 
-Last updated 2025-05-26:
+Last updated 2025-07-22:
 
 ## Completed
 
@@ -613,6 +620,7 @@ Last updated 2025-05-26:
 
 * [ ] fix CUDA/CUDNN issues with all GPUs
 * [ ] re-write CUDA+cuDNN code
+* [ ] onnx export **(in progress)**
 * [ ] look into adding support for additional hardware
 * [ ] rotated bounding boxes, or some sort of "angle" support
 * [ ] keypoints/skeletons

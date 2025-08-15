@@ -43,7 +43,7 @@ namespace Darknet
 		int inputs;
 		int outputs;
 		float mean_alpha;
-		int nweights;
+		int nweights; ///< number of floats stored in @ref weights
 		int nbiases; ///< unused?  Seems to be no references to this in the codebase.
 		int extra;
 		int truths;
@@ -53,7 +53,7 @@ namespace Darknet
 		int out_h;
 		int out_w;
 		int out_c;
-		int n; ///< number of anchors, masks (?); for example, with YOLOv4-tiny this is set to @p 3
+		int n; ///< number of anchors, masks (?), weights (?); for example, with YOLOv4-tiny this is set to @p 3
 		int max_boxes;
 		int truth_size;
 		int groups;
@@ -218,17 +218,17 @@ namespace Darknet
 
 		float *binary_weights;
 
-		float *biases;
+		float *biases;			/// biases loaded here by @ref load_convolutional_weights() and @ref load_connected_weights(), see @ref n
 		float *bias_updates;
 
-		float *scales;
+		float *scales;			/// scales loaded here by @ref load_convolutional_weights() when @ref batch_normalize is set
 		float *scale_updates;
 
 		float *weights_ema;
 		float *biases_ema;
 		float *scales_ema;
 
-		float *weights;
+		float *weights;			/// weights loaded here by @ref load_convolutional_weights(), @ref load_connected_weights(), and @ref load_shortcut_weights()
 		float *weight_updates;
 
 		float scale_x_y;
@@ -277,8 +277,8 @@ namespace Darknet
 		float * mean_delta;
 		float * variance_delta;
 
-		float * rolling_mean;
-		float * rolling_variance;
+		float * rolling_mean;		/// rolling means loaded here by @ref load_convolutional_weights() and @ref load_connected_weights() when @ref batch_normalize is set
+		float * rolling_variance;	/// rolling variance loaded here by @ref load_convolutional_weights() and @ref load_connected_weights() when @ref batch_normalize is set
 
 		float * x;
 		float * x_norm;
@@ -290,7 +290,6 @@ namespace Darknet
 		float * bias_v;
 		float * scale_m;
 		float * scale_v;
-
 
 		float *z_cpu;
 		float *r_cpu;
@@ -342,23 +341,25 @@ namespace Darknet
 		Layer *input_h_layer_unused; ///< @todo V5: unused?
 		Layer *state_h_layer_unused; ///< @todo V5: unused?
 
+		// "They are mostly relevant during training and not in the prediction/output phase."
+
 		Layer *wz_unused; ///< @todo V5: unused?
 		Layer *uz_unused; ///< @todo V5: unused?
 		Layer *wr_unused; ///< @todo V5: unused?
 		Layer *ur_unused; ///< @todo V5: unused?
 		Layer *wh_unused; ///< @todo V5: unused?
 		Layer *uh_unused; ///< @todo V5: unused?
-		Layer *uo; ///< used in lstm
-		Layer *wo; ///< used in lstm
+		Layer *uo; ///< used in lstm (update for output gate?)
+		Layer *wo; ///< used in lstm (weights for output forget gate?)
 		Layer *vo_unused; ///< @todo V5: unused?
-		Layer *uf; ///< used in lstm
-		Layer *wf; ///< used in lstm
+		Layer *uf; ///< used in lstm (update for forget gate?)
+		Layer *wf; ///< used in lstm (weights for forget gate?)
 		Layer *vf_unused; ///< @todo V5: unused?
-		Layer *ui; ///< used in lstm
-		Layer *wi; ///< used in lstm
+		Layer *ui; ///< used in lstm (update input gate?)
+		Layer *wi; ///< used in lstm (weight for input connections?)
 		Layer *vi_unused; ///< @todo V5: unused?
-		Layer *ug; ///< used in lstm
-		Layer *wg; ///< used in lstm
+		Layer *ug; ///< used in lstm (update gradient?)
+		Layer *wg; ///< used in lstm (weight gradient?)
 
 		Darknet::Tree *softmax_tree;
 

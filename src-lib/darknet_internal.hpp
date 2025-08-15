@@ -41,6 +41,10 @@
 #include <omp.h>
 #endif
 
+#if DARKNET_HAS_PROTOBUF
+#include "onnx.proto3.pb.h"
+#endif
+
 /** If you're using some old software that expects the original @p C API in the %Darknet library,
  * then make sure you @p "#define DARKNET_INCLUDE_ORIGINAL_API" before you include darknet.h.
  *
