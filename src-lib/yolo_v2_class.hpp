@@ -9,7 +9,7 @@
 * library.  You can find more information on the DarkHelp library here:
 *
 * - https://www.ccoderun.ca/darkhelp/api/API.html
-* - https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-c-api
+* - https://codeberg.org/CCodeRun/DarkHelp#what-is-the-darkhelp-c-api
 */
 
 

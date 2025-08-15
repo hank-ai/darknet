@@ -6,28 +6,28 @@ Browse <a target="_blank" href="https://hank.ai/darknet-welcomes-hank-ai-as-offi
 
 @section download Download Darknet/YOLO
 
-- Download the latest version of Darknet/YOLO from here: <a target="_blank" href="https://github.com/hank-ai/darknet">https://github.com/hank-ai/darknet</a>
-- See the instructions on <a target="_blank" href="https://github.com/hank-ai/darknet?tab=readme-ov-file#building">how to build Darknet/YOLO</a>
+- Download the latest version of Darknet/YOLO from here: <a target="_blank" href="https://codeberg.org/CCodeRun/darknet">https://codeberg.org/CCodeRun/darknet</a>
+- See the instructions on <a target="_blank" href="https://codeberg.org/CCodeRun/darknet#building">how to build Darknet/YOLO</a>
 - If you'd like additional assistance, join the Darknet/YOLO Discord server:  <a target="_blank" href="https://discord.gg/CPZJPSYZU2">https://discord.gg/CPZJPSYZU2</a>
 - Please read the <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/">Darknet/YOLO FAQ</a>
 
 @section using_cli Using Darknet/YOLO
 
 - Run @p "darknet help" to get a list of common commands to run.
-	- On Linux, if you completed <a target="_blank" href="https://github.com/hank-ai/darknet#linux-cmake-method">the build and installation steps</a>, all of the %Darknet commands should have been installed to @p /usr/bin/, such as @p /usr/bin/darknet.
-	- On Windows, if you completed <a target="_blank" href="https://github.com/hank-ai/darknet#windows-cmake-method">the build and installation steps</a>, all of the %Darknet commands should have been installed to @p "C:/Program Files/Darknet/bin/", such as @p "C:/Program Files/Darknet/bin/darknet.exe".
+	- On Linux, if you completed <a target="_blank" href="https://codeberg.org/CCodeRun/darknet#linux-cmake-method">the build and installation steps</a>, all of the %Darknet commands should have been installed to @p /usr/bin/, such as @p /usr/bin/darknet.
+	- On Windows, if you completed <a target="_blank" href="https://codeberg.org/CCodeRun/darknet#windows-cmake-method">the build and installation steps</a>, all of the %Darknet commands should have been installed to @p "C:/Program Files/Darknet/bin/", such as @p "C:/Program Files/Darknet/bin/darknet.exe".
 - Take a look at the %Darknet example applications in <a href="files.html">src-examples/</a> to see a list of possible commands to run.
 - To train your own custom Darknet/YOLO neural network, see the following:
 	- <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#training_command">the Darknet/YOLO FAQ</a>,
-	- <a target="_blank" href="https://github.com/hank-ai/darknet#training">the Darknet/YOLO readme in the repo</a>,
-	- <a target="_blank" href="https://www.youtube.com/@StephaneCharette/videos">Stéphane's YouTube tutorials</a>.
+	- <a target="_blank" href="https://codeberg.org/CCodeRun/darknet#training">the Darknet/YOLO readme in the repo</a>,
+	- <a target="_blank" href="https://www.youtube.com/watch?v=ciEcM6kvr3w">Stéphane's YouTube tutorials</a>.
 
 @section other Other Darknet/YOLO Projects
 
-- Both the original @p pjreddie and @p alexeyab %Darknet repos are no longer supported.  Please update to <a target="_blank" href="https://github.com/hank-ai/darknet">the new Darknet/YOLO repo</a>.
+- Both the original @p pjreddie and @p alexeyab %Darknet repos are no longer supported.  Please update to <a target="_blank" href="https://codeberg.org/CCodeRun/darknet">the new Darknet/YOLO repo</a>.
 	- For additional details, see the FAQ:  <a target="_blank" href="https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid">https://www.ccoderun.ca/programming/darknet_faq/#which_repos_to_use_and_avoid</a>.
-- <a target="_blank" href="https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-c-api">DarkHelp</a> is a professional, free, open-source CLI tool and C/C++/Python API to use Darknet/YOLO.
-- <a target="_blank" href="https://github.com/stephanecharette/DarkMark#what-is-darkmark">DarkMark</a> is a free open-source tool for managing Darknet/YOLO project, annotating images, videos, and PDFs, and generating Darknet/YOLO training files.
+- <a target="_blank" href="https://codeberg.org/CCodeRun/DarkHelp#what-is-the-darkhelp-c-api">DarkHelp</a> is a professional, free, open-source CLI tool and C/C++/Python API to use Darknet/YOLO.
+- <a target="_blank" href="https://codeberg.org/CCodeRun/DarkMark#what-is-darkmark">DarkMark</a> is a free open-source tool for managing Darknet/YOLO project, annotating images, videos, and PDFs, and generating Darknet/YOLO training files.
 - <a target="_blank" href="https://www.youtube.com/c/StephaneCharette/videos">Stéphane's YouTube channel</a> with many Darknet/YOLO "How-To" videos.
 
 @section programming Programming With Darknet/YOLO

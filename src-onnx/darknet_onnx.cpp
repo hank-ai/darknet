@@ -1,3 +1,7 @@
+/* Darknet/YOLO:  https://codeberg.org/CCodeRun/darknet
+ * Copyright 2024-2025 Stephane Charette
+ */
+
 #include "darknet_onnx.hpp"
 
 

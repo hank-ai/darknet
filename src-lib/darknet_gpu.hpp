@@ -1,4 +1,4 @@
-/* Darknet/YOLO:  https://github.com/hank-ai/darknet
+/* Darknet/YOLO:  https://codeberg.org/CCodeRun/darknet
  * Copyright 2025 Stephane Charette
  */
 

@@ -191,7 +191,7 @@ These instructions assume (but do not require!) a system running Ubuntu 22.04.  
 sudo apt-get install build-essential git libopencv-dev cmake
 mkdir ~/src
 cd ~/src
-git clone https://github.com/hank-ai/darknet
+git clone https://codeberg.org/CCodeRun/darknet.git
 cd darknet
 mkdir build
 cd build
@@ -314,7 +314,7 @@ Once all of the previous steps have finished successfully, you need to clone Dar
 
 ```bat
 cd c:\src
-git clone https://github.com/hank-ai/darknet.git
+git clone https://codeberg.org/CCodeRun/darknet.git
 cd darknet
 mkdir build
 cd build
@@ -373,7 +373,7 @@ RUN apt-get install -y build-essential git libopenblas64-openmp-dev libopencv-de
 WORKDIR /workspace
 
 # Clone Darknet
-RUN git clone https://github.com/hank-ai/darknet.git
+RUN git clone https://codeberg.org/CCodeRun/darknet.git
 
 # Defer building the Darknet package to runtime (GPU visible)
 CMD ["/bin/bash", "-c", "\
@@ -396,7 +396,7 @@ CMD ["/bin/bash", "-c", "\
 The following is not the full list of all commands supported by Darknet.
 
 > [!IMPORTANT]
-> In addition to the Darknet CLI, also note [the DarkHelp project CLI](https://github.com/stephanecharette/DarkHelp#what-is-the-darkhelp-cli) which provides an _additional_ CLI to Darknet/YOLO.  The DarkHelp CLI also has several advanced features that are not available directly in Darknet.  You can use both the Darknet CLI and the DarkHelp CLI together, they are not mutually exclusive.
+> In addition to the Darknet CLI, also note [the DarkHelp project CLI](https://codeberg.org/CCodeRun/DarkHelp#what-is-the-darkhelp-c-api) which provides an _additional_ CLI to Darknet/YOLO.  The DarkHelp CLI also has several advanced features that are not available directly in Darknet.  You can use both the Darknet CLI and the DarkHelp CLI together, they are not mutually exclusive.
 
 > [!TIP]
 > For most of the commands shown below, you'll need the `.weights` file with the corresponding `.names` and `.cfg` files.  You can either [train your own network](#training) (highly recommended!) or download a neural network that someone has already trained and made available for free on the internet.  Examples of pre-trained datasets include:
@@ -482,7 +482,7 @@ Quick links to relevant sections of the Darknet/YOLO FAQ:
 * [What command should I use when training my own network?](https://www.ccoderun.ca/programming/yolo_faq/#training_command)
 
 > [!TIP]
-> The simplest way to annotate and train is with the use of [DarkMark](https://github.com/stephanecharette/DarkMark) to create all of the necessary Darknet files.  This is definitely the recommended way to train a new neural network.
+> The simplest way to annotate and train is with the use of [DarkMark](https://codeberg.org/CCodeRun/DarkMark#what-is-darkmark) to create all of the necessary Darknet files.  This is definitely the recommended way to train a new neural network.
 
 If you'd rather manually setup the various files to train a custom network:
 
@@ -506,7 +506,7 @@ names = /home/username/nn/animals/animals.names
 backup = /home/username/nn/animals
 ```
 
-* Create a folder where you'll store your images and annotations.  For example, this could be `~/nn/animals/dataset`.  Each image will need a coresponding `.txt` file which describes the annotations for that image.  The format of the `.txt` annotation files is very specific.  You cannot create these files by hand since each annotation needs to contain the exact coordinates for the annotation.  See [DarkMark](https://github.com/stephanecharette/DarkMark) or other similar software to annotate your images.  The YOLO annotation format is described in the [Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#darknet_annotations).
+* Create a folder where you'll store your images and annotations.  For example, this could be `~/nn/animals/dataset`.  Each image will need a coresponding `.txt` file which describes the annotations for that image.  The format of the `.txt` annotation files is very specific.  You cannot create these files by hand since each annotation needs to contain the exact coordinates for the annotation.  See [DarkMark](https://codeberg.org/CCodeRun/DarkMark#what-is-darkmark) or other similar software to annotate your images.  The YOLO annotation format is described in the [Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/yolo_faq/#darknet_annotations).
 * Create the "train" and "valid" text files named in the `.data` file.  These two text files need to individually list all of the images which Darknet must use to train and for validation when calculating the mAP%.  Exactly one image per line.  The path and filenames may be relative or absolute.
 * Modify your `.cfg` file with a text editor.
 	* Make sure that `batch=64`.
@@ -544,8 +544,8 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 
 # Other Tools and Links
 
-* To manage your Darknet/YOLO projects, annotate images, verify your annotations, and generate the necessary files to train with Darknet, [see DarkMark](https://github.com/stephanecharette/DarkMark).
-* For a robust alternative CLI to Darknet, to use image tiling, for object tracking in your videos, or for a robust C++ API that can easily be used in commercial applications, [see DarkHelp](https://github.com/stephanecharette/DarkHelp).
+* To manage your Darknet/YOLO projects, annotate images, verify your annotations, and generate the necessary files to train with Darknet, [see DarkMark](https://codeberg.org/CCodeRun/DarkMark#what-is-darkmark).
+* For a robust alternative CLI to Darknet, to use image tiling, for object tracking in your videos, or for a robust C++ API that can easily be used in commercial applications, [see DarkHelp](https://codeberg.org/CCodeRun/DarkHelp#what-is-the-darkhelp-c-api).
 * See if [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/) can help answer your questions.
 * See the many tutorial and example videos on [Stéphane's YouTube channel](https://www.youtube.com/c/StephaneCharette/videos)
 * [C++ bindings for Darknet/YOLO](https://darknetcv.ai/api/api.html#apiv3_cpp) (in the Darknet/YOLO repo)

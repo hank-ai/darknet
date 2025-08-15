@@ -2,7 +2,7 @@
 
 
 # Do not build in the project's root directory!  The build steps are explained in the git repo.
-# See here for details:  https://github.com/hank-ai/darknet#building
+# See here for details:  https://codeberg.org/CCodeRun/darknet#building
 IF (CMAKE_BINARY_DIR STREQUAL CMAKE_SOURCE_DIR)
 	MESSAGE (FATAL_ERROR  "Please create a 'build' directory.  See the build instructions for details.")
 ENDIF ()
