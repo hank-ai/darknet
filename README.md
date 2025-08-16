@@ -30,7 +30,8 @@ Darknet is an open source neural network framework written in C, C++, and CUDA.
 
 YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection system, which runs in the Darknet framework.
 
-* Darknet/YOLO repo has moved to **[Codeberg.org/CCodeRun/darknet/](https://ccodeberg.org/CCodeRun/darknet/)**
+* 2025-08:  Darknet/YOLO repo has moved to **[Codeberg.org/CCodeRun/darknet/](https://ccodeberg.org/CCodeRun/darknet/)**
+	* All commits are automatically mirrored from Codeberg to the older Hank.ai GitHub repo.
 * See the **[Darknet/YOLO web site](https://darknetcv.ai/)**
 * Please read through the **[Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/)**
 * Join the **[Darknet/YOLO discord server](https://discord.gg/CPZJPSYZU2)**
@@ -82,10 +83,13 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* New apps and sample code in `src-examples`:  https://darknetcv.ai/api/files.html
 * The next release was in early 2025.  The `version` command now returns 4.x "SLATE".
 	* Added support for AMD GPUs using ROCm.
+		* Still need to add support for MIOpen.
 	* All `printf()` and `std::cout` calls have all been replaced so Darknet/YOLO logging messages can easily be redirected.
-* Currently in development for Q2 or Q3 2025 is 5.x "Moonlit".
+* Currently in development for Q3 2025 is 5.x "Moonlit".
+	* Move source code repo from github to codeberg.
 	* More performance optimizations.
 	* Use of OpenBLAS when building CPU-only versions of Darknet.
+	* Support for Profile-Guided Optimization.
 	* ONNX export functionality.
 	* JAVA language bindings.
 
@@ -601,6 +605,8 @@ Last updated 2025-08-15:
 * [X] heatmaps
 * [X] remove all calls to printf() and std::cout and replace with std::ofstream to log to a file
 * [X] add support for AMD GPUs
+* [X] add support for OpenBLAS (CPU builds only)
+* [X] add support for Profile Guided Optimization
 * [X] move from github to codeberg
 
 ## Short-term goals

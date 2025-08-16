@@ -160,6 +160,26 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		<< "-> model version ........ " << model.model_version()				<< std::endl
 		;
 
+	for (const auto & [key, val] : number_of_floats_exported)
+	{
+		*cfg_and_state.output << "-> exported " << key << " ";
+		if (key.size() < 12)
+		{
+			*cfg_and_state.output << std::string(12 - key.size(), '.');
+		}
+
+		// add a comma every 3rd digit to make it easier to read
+		std::string str = std::to_string(val);
+		size_t pos = str.size();
+		while (pos > 3)
+		{
+			pos -= 3;
+			str.insert(pos, ",");
+		}
+
+		*cfg_and_state.output << " " << sizeof(float) << " x " << str << " (" << size_to_IEC_string(sizeof(float) * val) << ")" << std::endl;
+	}
+
 	return *this;
 }
 
@@ -503,6 +523,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 	{
 		initializer->add_float_data(f[i]);
 	}
+
+	// get the last part of the name to use as a key; for example, "002_conv_weights" returns a key of "weights"
+	std::string key = name;
+	auto pos = key.rfind("_");
+	if (pos != std::string::npos)
+	{
+		key.erase(0, pos + 1);
+	}
+	number_of_floats_exported[key] += n;
 
 	return *this;
 }

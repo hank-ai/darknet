@@ -31,6 +31,10 @@ was checked in as part of Darknet/YOLO then there might be confusion as to
 who "owns" the file, or who has the most recent version.  The ONNX version
 must always be considered to be newer and/or more "official".
 
+Command used to display as plain text the contents of .onnx files:
+
+    protoc --decode=onnx.ModelProto onnx.proto3 < example.onnx
+
 In regards to licensing:
 
 - The ONNX project uses the Apache 2 license.

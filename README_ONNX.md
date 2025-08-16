@@ -20,7 +20,7 @@ On Windows, this is done using:
 
 Once this additional dependency has been installed, please continue with the usual Darknet/YOLO build steps as described in the [README.md](README.md#Building).
 
-As of July 2025, the Darknet/YOLO ONNX export tool has only been tested with the following *stock* configuration files:
+As of August 2025, the Darknet/YOLO ONNX export tool has only been tested with the following *stock* configuration files:
 
 - YOLOv4-tiny.cfg
 - YOLOv4-tiny-3l.cfg
@@ -28,7 +28,3 @@ As of July 2025, the Darknet/YOLO ONNX export tool has only been tested with the
 
 > [!TIP]
 > Software developers wanting more information on the ONNX process should see [the instructions on using `onnx.proto3`](src-onnx/onnx.proto3.pb.txt).
-
-
-
-protoc --decode=onnx.ModelProto onnx.proto < output/LegoGears_best.onnx

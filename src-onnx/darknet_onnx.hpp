@@ -62,5 +62,10 @@ namespace Darknet
 
 			onnx::ModelProto	model;
 			onnx::GraphProto	* graph;
+
+			/** The key is the last part of the string, and the value is the number of floats.
+			 * For example, for "000_conv_bias", we store the key as "bias".
+			 */
+			std::map<std::string, size_t> number_of_floats_exported;
 	};
 }
