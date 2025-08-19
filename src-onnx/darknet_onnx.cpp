@@ -381,6 +381,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 		auto & section = cfg.sections[index];
 
 		const auto current_node_name		= format_name(index, section.type);
+		const auto doc_string				= cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + "]";
 
 		const bool route_is_concat 			= section.type == Darknet::ELayerType::ROUTE and not	section.exists("groups");
 		const bool route_is_split			= section.type == Darknet::ELayerType::ROUTE and		section.exists("groups");
@@ -402,6 +403,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 
 		auto node = graph->add_node();
 		node->set_name(current_node_name);
+		node->set_doc_string(doc_string);
 
 		if (op.count(section.type) != 1)
 		{
@@ -547,6 +549,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 				// what about batch normalize (bn)?
 
 				auto node2 = graph->add_node();
+				node2->set_doc_string(doc_string);
 				node2->set_op_type("BatchNormalization");
 				node2->add_input(most_recent_node_output);
 				const auto bn_name = current_node_name + "_bn";
@@ -557,7 +560,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 				/// @todo V5 why is this if() statement wrong?
 //				if (l.batch_normalize and not l.dontloadscales)
 				{
-					node2->add_input(current_node_name + "_scales"	);
+					node2->add_input(current_node_name + "_scale"	);
 					node2->add_input(current_node_name + "_bias"	);
 					node2->add_input(current_node_name + "_mean"	);
 					node2->add_input(current_node_name + "_variance");
@@ -584,6 +587,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 			auto node2 = graph->add_node();
 			node2->set_op_type("LeakyRelu");
 			const auto name = format_name(index, section.type) + "_lrelu";
+			node2->set_doc_string(doc_string);
 			node2->set_name(name);
 			node2->add_input(most_recent_node_output);
 			node2->add_output(name);
@@ -741,7 +745,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 //		Darknet::display_warning_msg("Layer #" + std::to_string(idx) + ": export of \"" + Darknet::to_string(l.type) + "\"" " from line #" + std::to_string(cfg.sections[idx].line_number) + " is untested.\n");
 		if (true) populate_graph_initializer(l.biases			, l.n			, idx, l, name + "bias"		);
 		if (true) populate_graph_initializer(l.weights			, l.nweights	, idx, l, name + "weights"	);
-		if (flag) populate_graph_initializer(l.scales			, l.n			, idx, l, name + "scales"	);
+		if (flag) populate_graph_initializer(l.scales			, l.n			, idx, l, name + "scale"	);
 		if (flag) populate_graph_initializer(l.rolling_mean		, l.n			, idx, l, name + "mean"		);
 		if (flag) populate_graph_initializer(l.rolling_variance	, l.n			, idx, l, name + "variance"	);
 	};
@@ -755,7 +759,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 		Darknet::display_warning_msg("Layer #" + std::to_string(idx) + ": export of \"" + Darknet::to_string(l.type) + "\"" " from line #" + std::to_string(cfg.sections[idx].line_number) + " is untested.\n");
 		if (true) populate_graph_initializer(l.biases			, l.outputs				, idx, l, name + "bias"		);
 		if (true) populate_graph_initializer(l.weights			, l.outputs * l.inputs	, idx, l, name + "weights"	);
-		if (flag) populate_graph_initializer(l.scales			, l.outputs				, idx, l, name + "scales"	);
+		if (flag) populate_graph_initializer(l.scales			, l.outputs				, idx, l, name + "scale"	);
 		if (flag) populate_graph_initializer(l.rolling_mean		, l.outputs				, idx, l, name + "mean"		);
 		if (flag) populate_graph_initializer(l.rolling_variance	, l.outputs				, idx, l, name + "variance"	);
 	};
