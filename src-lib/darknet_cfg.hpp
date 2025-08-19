@@ -86,6 +86,9 @@ namespace Darknet
 			/// Verify that there are no "unused" lines in this section.
 			const CfgSection & find_unused_lines() const;
 
+			/// Determines if a key exists.
+			bool exists(const std::string & key) const;
+
 			/// Find an @p int config item in @ref lines.  The given key @em must exist.
 			int find_int(const std::string & key);
 

@@ -45,21 +45,23 @@ void resize_route_layer(Darknet::Layer *l, Darknet::Network * net)
 {
 	TAT(TATPARMS);
 
-	int i;
 	Darknet::Layer & first = net->layers[l->input_layers[0]];
 	l->out_w = first.out_w;
 	l->out_h = first.out_h;
 	l->out_c = first.out_c;
 	l->outputs = first.outputs;
 	l->input_sizes[0] = first.outputs;
-	for(i = 1; i < l->n; ++i){
+	for (int i = 1; i < l->n; ++i)
+	{
 		int index = l->input_layers[i];
 		const Darknet::Layer & next = net->layers[index];
 		l->outputs += next.outputs;
 		l->input_sizes[i] = next.outputs;
-		if(next.out_w == first.out_w && next.out_h == first.out_h){
+		if (next.out_w == first.out_w && next.out_h == first.out_h)
+		{
 			l->out_c += next.out_c;
-		}else
+		}
+		else
 		{
 			darknet_fatal_error(DARKNET_LOC, "different size of input layers: %d x %d, %d x %d", next.out_w, next.out_h, first.out_w, first.out_h);
 		}
@@ -83,14 +85,15 @@ void forward_route_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	int i, j;
 	int offset = 0;
-	for(i = 0; i < l.n; ++i){
+	for (int i = 0; i < l.n; ++i)
+	{
 		int index = l.input_layers[i];
 		float *input = state.net.layers[index].output;
 		int input_size = l.input_sizes[i];
 		int part_input_size = input_size / l.groups;
-		for(j = 0; j < l.batch; ++j){
+		for (int j = 0; j < l.batch; ++j)
+		{
 			//copy_cpu(input_size, input + j*input_size, 1, l.output + offset + j*l.outputs, 1);
 			copy_cpu(part_input_size, input + j*input_size + part_input_size*l.group_id, 1, l.output + offset + j*l.outputs, 1);
 		}
@@ -103,14 +106,15 @@ void backward_route_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	int i, j;
 	int offset = 0;
-	for(i = 0; i < l.n; ++i){
+	for (int i = 0; i < l.n; ++i)
+	{
 		int index = l.input_layers[i];
 		float *delta = state.net.layers[index].delta;
 		int input_size = l.input_sizes[i];
 		int part_input_size = input_size / l.groups;
-		for(j = 0; j < l.batch; ++j){
+		for (int j = 0; j < l.batch; ++j)
+		{
 			//axpy_cpu(input_size, 1, l.delta + offset + j*l.outputs, 1, delta + j*input_size, 1);
 			axpy_cpu(part_input_size, 1, l.delta + offset + j*l.outputs, 1, delta + j*input_size + part_input_size*l.group_id, 1);
 		}
@@ -124,22 +128,25 @@ void forward_route_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	if (l.stream >= 0) {
+	if (l.stream >= 0)
+	{
 		switch_stream(l.stream);
 	}
 
-	if (l.wait_stream_id >= 0) {
+	if (l.wait_stream_id >= 0)
+	{
 		wait_stream(l.wait_stream_id);
 	}
 
-	int i, j;
 	int offset = 0;
-	for(i = 0; i < l.n; ++i){
+	for (int i = 0; i < l.n; ++i)
+	{
 		int index = l.input_layers[i];
 		float *input = state.net.layers[index].output_gpu;
 		int input_size = l.input_sizes[i];
 		int part_input_size = input_size / l.groups;
-		for(j = 0; j < l.batch; ++j){
+		for (int j = 0; j < l.batch; ++j)
+		{
 			//copy_ongpu(input_size, input + j*input_size, 1, l.output_gpu + offset + j*l.outputs, 1);
 			//simple_copy_ongpu(input_size, input + j*input_size, l.output_gpu + offset + j*l.outputs);
 			simple_copy_ongpu(part_input_size, input + j*input_size + part_input_size*l.group_id, l.output_gpu + offset + j*l.outputs);
@@ -153,14 +160,15 @@ void backward_route_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	int i, j;
 	int offset = 0;
-	for(i = 0; i < l.n; ++i){
+	for (int i = 0; i < l.n; ++i)
+	{
 		int index = l.input_layers[i];
 		float *delta = state.net.layers[index].delta_gpu;
 		int input_size = l.input_sizes[i];
 		int part_input_size = input_size / l.groups;
-		for(j = 0; j < l.batch; ++j){
+		for (int j = 0; j < l.batch; ++j)
+		{
 			//axpy_ongpu(input_size, 1, l.delta_gpu + offset + j*l.outputs, 1, delta + j*input_size, 1);
 			axpy_ongpu(part_input_size, 1, l.delta_gpu + offset + j*l.outputs, 1, delta + j*input_size + part_input_size*l.group_id, 1);
 		}

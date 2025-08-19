@@ -75,7 +75,7 @@ namespace Darknet
 		int pad;
 		int sqrt;
 		int flip;
-		int index;
+		int index; ///< layer number starting at zero ([net] does not count)
 		int scale_wh;
 		int binary;
 		int xnor;

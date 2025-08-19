@@ -132,6 +132,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 		Darknet::set_verbose(original_verbose_flag);
 	}
 
+// does not seem to be necessary
+#if 0
+	// run a dummy image through the network to ensure everything is populated
+	Darknet::Image img = make_image(cfg.net.w, cfg.net.h, cfg.net.c);
+	Darknet::predict(&cfg.net, img);
+	Darknet::free_image(img);
+#endif
+
 	return *this;
 }
 
@@ -216,24 +224,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	model.set_doc_string("ONNX generated from Darknet/YOLO neural network files " + cfg_fn.filename().string() + " and " + weights_fn.filename().string() + " on " + buffer + ".");
 
 	auto opset = model.add_opset_import();
-	opset->set_version(9); // beware of v10 or higher since op "Upsample" was deprecated
+	opset->set_version(9); // beware of v10 or higher since op "Upsample" was deprecated in v10
 
 	graph = new onnx::GraphProto();
 	graph->set_name(weights_fn.stem().string());
 	model.set_allocated_graph(graph);
-
-	return *this;
-}
-
-
-Darknet::ONNXExport & Darknet::ONNXExport::set_doc_string(onnx::ValueInfoProto * proto, const size_t line_number)
-{
-	TAT(TATPARMS);
-
-	if (proto and line_number > 0)
-	{
-		proto->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(line_number));
-	}
 
 	return *this;
 }
@@ -262,7 +257,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx
 	*/
 
 	proto->set_name(name);
-	set_doc_string(proto, line_number);
+	proto->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(line_number));
 
 	auto type = new onnx::TypeProto();
 	proto->set_allocated_type(type);
@@ -353,58 +348,231 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 	const std::map<Darknet::ELayerType, std::string> op =
 	{
 		{Darknet::ELayerType::CONVOLUTIONAL	, "Conv"	},
-		{Darknet::ELayerType::ROUTE			, "Split"	},	// or "Concat"?
+		{Darknet::ELayerType::ROUTE			, "Split"	},	// or "Concat", depending on the purpose of [route] -- see below
 		{Darknet::ELayerType::MAXPOOL		, "MaxPool"	},
 		{Darknet::ELayerType::UPSAMPLE		, "Upsample"},	// beware, this was deprecated starting with onnx operator set version 10
-		{Darknet::ELayerType::YOLO			, "unknown"	},
 	};
+
+	std::string most_recent_node_output = "000_net";
 
 	for (size_t index = 0; index < cfg.sections.size(); index ++)
 	{
 		auto & section = cfg.sections[index];
 
+		const auto current_node_name		= format_name(index, section.type);
+
+		const bool route_is_concat 			= section.type == Darknet::ELayerType::ROUTE and not	section.exists("groups");
+		const bool route_is_split			= section.type == Darknet::ELayerType::ROUTE and		section.exists("groups");
+
+		const bool previous_layer_is_yolo	= index > 0 and cfg.sections[index - 1].type == Darknet::ELayerType::YOLO;
+		const bool next_layer_is_yolo		= index < (cfg.sections.size() - 1) and cfg.sections[index + 1].type == Darknet::ELayerType::YOLO;
+
+		if (section.type == Darknet::ELayerType::YOLO)
+		{
+			// skip to the next layer
+			continue;
+		}
+
+		if (section.type == Darknet::ELayerType::ROUTE and previous_layer_is_yolo)
+		{
+			/// @todo V5: why do we skip to the next layer in this case?  Is this correct?
+			continue;
+		}
+
 		auto node = graph->add_node();
-		node->set_name(format_name(index, section.type));
+		node->set_name(current_node_name);
 
 		if (op.count(section.type) != 1)
 		{
 			throw std::invalid_argument("layer type " + Darknet::to_string(section.type) + " does not have a known operator");
 		}
 
-		node->set_op_type(op.at(section.type));
-
-		if (index == 0)
+		if (route_is_concat)
 		{
-			node->add_input("000_net"); // special case
+			node->set_op_type("Concat");
+			// get the layers we're combining to figure out the input names to use
+			for (int input_layer_index : section.find_int_array("layers"))
+			{
+				// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
+				if (input_layer_index < 0)
+				{
+					input_layer_index += index;
+				}
+
+				auto input_name = format_name(input_layer_index, cfg.sections[input_layer_index].type);
+				if (cfg.sections[input_layer_index].type == Darknet::ELayerType::CONVOLUTIONAL)
+				{
+					input_name += "_lrelu";
+				}
+				node->add_input(input_name);
+			}
 		}
 		else
 		{
-			node->add_input(format_name(index - 1, cfg.sections[index - 1].type));
+			node->set_op_type(op.at(section.type));
+			node->add_input(most_recent_node_output);
+
+			if (section.type == Darknet::ELayerType::UPSAMPLE)
+			{
+				node->add_input(current_node_name + "_scale");
+			}
 		}
-		node->add_output(format_name(index, section.type));
+
+		if (route_is_split)
+		{
+			// create a 2nd output when we have a route (split)
+			node->add_output(current_node_name + "_dummy0");
+		}
+
+		node->add_output(current_node_name);
+		most_recent_node_output = current_node_name;
+
+		if (section.type == Darknet::ELayerType::MAXPOOL)
+		{
+			/// @todo V5 more hard-coded attributes that I need to better understand
+			auto attrib = node->add_attribute();
+			attrib->set_name("auto_pad");
+			attrib->set_s("SAME_UPPER"); // note UPPER while CONV uses LOWER?
+			attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_STRING);
+//			attrib->set_doc_string("???");
+		}
+
+		if (section.type == Darknet::ELayerType::CONVOLUTIONAL)
+		{
+			/// @todo V5 more hard-coded attributes that I need to better understand
+			auto attrib = node->add_attribute();
+			attrib->set_name("auto_pad");
+			attrib->set_s("SAME_LOWER"); // note LOWER while MAXPOOL uses UPPER?
+			attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_STRING);
+//			attrib->set_doc_string("???");
+
+			attrib = node->add_attribute();
+			attrib->set_name("dilations"); // layer->dilation ?
+			attrib->add_ints(1);
+			attrib->add_ints(1);
+			attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_INTS);
+//			attrib->set_doc_string("???");
+		}
+		if (section.type == Darknet::ELayerType::CONVOLUTIONAL or section.type == Darknet::ELayerType::MAXPOOL)
+		{
+			auto attrib = node->add_attribute();
+			attrib->set_name("kernel_shape");
+			attrib->add_ints(section.find_int("size", 3));
+			attrib->add_ints(section.find_int("size", 3));
+			attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_INTS);
+//			attrib->set_doc_string("???");
+
+			attrib = node->add_attribute();
+			attrib->set_name("strides");
+			attrib->add_ints(section.find_int("stride", 2));
+			attrib->add_ints(section.find_int("stride", 2));
+			attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_INTS);
+//			attrib->set_doc_string("???");
+		}
+
+		if (section.type == Darknet::ELayerType::ROUTE)
+		{
+			/// @todo V5 more hard-coded attributes that I need to better understand
+			auto attrib = node->add_attribute();
+			attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
+			attrib->set_i(1);
+			attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_INT);
+//			attrib->set_doc_string("???");
+
+			if (route_is_split)
+			{
+				int layer_to_split = section.find_int("layers");
+				// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
+				if (layer_to_split < 0)
+				{
+					layer_to_split += index;
+				}
+				const auto & l = cfg.net.layers[layer_to_split];
+
+				// split:  "length of each output" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#Split-2
+				//
+				// the size we need is half of the input layer
+				const int split = l.n / 2; ///< @todo V5: is this logic correct?  This is only a guess as to how this works.
+
+				attrib = node->add_attribute();
+				attrib->set_name("split");
+				attrib->add_ints(split);
+				attrib->add_ints(split);
+				attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_INTS);
+//				attrib->set_doc_string("???");
+			}
+		}
+
+		if (section.type == Darknet::ELayerType::UPSAMPLE)
+		{
+			auto attrib = node->add_attribute();
+			attrib->set_name("mode");
+			attrib->set_s("nearest"); // default is "nearest"
+			attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_STRING);
+		}
 
 		// does this layer have weights?
 		const auto & l = cfg.net.layers[index];
 		if (l.weights != nullptr and l.nweights > 0)
 		{
-			node->add_input(format_weights(index, l, "weights"));
-
-			// what about batch normalize (bn)?
-
-			node = graph->add_node();
-			node->set_name(format_name(index, l.type) + "_bn");
-			node->set_op_type("BatchNormalization");
-			node->add_input(format_name(index, l.type));
-			node->add_output(format_name(index, l.type) + "_bn");
-//			if (l.batch_normalize and not l.dontloadscales)
+			node->add_input(current_node_name + "_weights");
+			if (next_layer_is_yolo)
 			{
-				node->add_input(format_name(index, l.type) + "_scales");
-				node->add_input(format_name(index, l.type) + "_bias");
-				node->add_input(format_name(index, l.type) + "_rolling_mean");
-				node->add_input(format_name(index, l.type) + "_rolling_variance");
+				node->add_input(current_node_name + "_bias");
+			}
+			else
+			{
+
+				// what about batch normalize (bn)?
+
+				auto node2 = graph->add_node();
+				node2->set_op_type("BatchNormalization");
+				node2->add_input(most_recent_node_output);
+				const auto bn_name = current_node_name + "_bn";
+				node2->set_name(bn_name);
+				node2->add_output(bn_name);
+				most_recent_node_output = bn_name;
+
+				/// @todo V5 why is this if() statement wrong?
+//				if (l.batch_normalize and not l.dontloadscales)
+				{
+					node2->add_input(current_node_name + "_scales"	);
+					node2->add_input(current_node_name + "_bias"	);
+					node2->add_input(current_node_name + "_mean"	);
+					node2->add_input(current_node_name + "_variance");
+
+					/// @todo V5: hard-coded attributes...need to understand these and how to generate them correctly
+					auto attrib = node2->add_attribute();
+					attrib->set_name("epsilon");
+					attrib->set_f(0.00001f); // 1e-05
+					attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT);
+//					attrib->set_doc_string("???");
+
+					attrib = node2->add_attribute();
+					attrib->set_name("momentum");
+					attrib->set_f(0.99f);
+					attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT);
+//					attrib->set_doc_string("???");
+				}
 			}
 		}
 
+		/// @todo V5: this next block should not be hard-coded
+		if (section.type == Darknet::ELayerType::CONVOLUTIONAL and not next_layer_is_yolo) /// @todo check for type, such as lrelu
+		{
+			auto node2 = graph->add_node();
+			node2->set_op_type("LeakyRelu");
+			const auto name = format_name(index, section.type) + "_lrelu";
+			node2->set_name(name);
+			node2->add_input(most_recent_node_output);
+			node2->add_output(name);
+			most_recent_node_output = name;
+
+			auto attrib = node2->add_attribute();
+			attrib->set_name("alpha");
+			attrib->set_f(0.1f);
+			attrib->set_type(onnx::AttributeProto_AttributeType::AttributeProto_AttributeType_FLOAT);
+		}
 
 #if 0 /// @todo need to revisit this to determine exactly what is needed
 		for (const auto & [key, line] : section.lines)
@@ -480,18 +648,18 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 {
 	TAT(TATPARMS);
 
+	if (f == nullptr or n == 0)
+	{
+		if (cfg_and_state.is_trace)
+		{
+			*cfg_and_state.output << "   " << format_weights(idx, l, name) << ": f=" << (void*)f << " n=" << n << std::endl;
+		}
+		return *this;
+	}
+
 	if (cfg_and_state.is_trace)
 	{
 		*cfg_and_state.output << "=> " << format_weights(idx, l, name) << ": exporting " << n << " " << name << std::endl;
-	}
-
-	if (f == nullptr)
-	{
-		throw std::invalid_argument(format_weights(idx, l, name) + ": cannot dereference null float pointer, layer or weights are invalid (n=" + std::to_string(n) + ")");
-	}
-	if (n == 0)
-	{
-		throw std::invalid_argument(format_weights(idx, l, name) + ": cannot export weights with a size of zero");
 	}
 
 	onnx::TensorProto * initializer = graph->add_initializer();
@@ -550,11 +718,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 		// loosely based on load_convolutional_weights()
 		const bool flag = l.batch_normalize and not l.dontloadscales;
 //		Darknet::display_warning_msg("Layer #" + std::to_string(idx) + ": export of \"" + Darknet::to_string(l.type) + "\"" " from line #" + std::to_string(cfg.sections[idx].line_number) + " is untested.\n");
-		if (true) populate_graph_initializer(l.biases			, l.n			, idx, l, name + "bias"				);
-		if (true) populate_graph_initializer(l.weights			, l.nweights	, idx, l, name + "weights"			);
-		if (flag) populate_graph_initializer(l.scales			, l.n			, idx, l, name + "scales"			);
-		if (flag) populate_graph_initializer(l.rolling_mean		, l.n			, idx, l, name + "rolling_mean"		);
-		if (flag) populate_graph_initializer(l.rolling_variance	, l.n			, idx, l, name + "rolling_variance"	);
+		if (true) populate_graph_initializer(l.biases			, l.n			, idx, l, name + "bias"		);
+		if (true) populate_graph_initializer(l.weights			, l.nweights	, idx, l, name + "weights"	);
+		if (flag) populate_graph_initializer(l.scales			, l.n			, idx, l, name + "scales"	);
+		if (flag) populate_graph_initializer(l.rolling_mean		, l.n			, idx, l, name + "mean"		);
+		if (flag) populate_graph_initializer(l.rolling_variance	, l.n			, idx, l, name + "variance"	);
 	};
 
 	const auto export_connected = [&](Darknet::Layer & l, const int idx, const std::string & name) -> void
@@ -564,11 +732,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 		// loosely based on load_connected_weights()
 		const bool flag = l.batch_normalize and not l.dontloadscales;
 		Darknet::display_warning_msg("Layer #" + std::to_string(idx) + ": export of \"" + Darknet::to_string(l.type) + "\"" " from line #" + std::to_string(cfg.sections[idx].line_number) + " is untested.\n");
-		if (true) populate_graph_initializer(l.biases			, l.outputs				, idx, l, name + "bias"				);
-		if (true) populate_graph_initializer(l.weights			, l.outputs * l.inputs	, idx, l, name + "weights"			);
-		if (flag) populate_graph_initializer(l.scales			, l.outputs				, idx, l, name + "scales"			);
-		if (flag) populate_graph_initializer(l.rolling_mean		, l.outputs				, idx, l, name + "rolling_mean"		);
-		if (flag) populate_graph_initializer(l.rolling_variance	, l.outputs				, idx, l, name + "rolling_variance"	);
+		if (true) populate_graph_initializer(l.biases			, l.outputs				, idx, l, name + "bias"		);
+		if (true) populate_graph_initializer(l.weights			, l.outputs * l.inputs	, idx, l, name + "weights"	);
+		if (flag) populate_graph_initializer(l.scales			, l.outputs				, idx, l, name + "scales"	);
+		if (flag) populate_graph_initializer(l.rolling_mean		, l.outputs				, idx, l, name + "mean"		);
+		if (flag) populate_graph_initializer(l.rolling_variance	, l.outputs				, idx, l, name + "variance"	);
 	};
 
 	// look through all the layers and export the values from the ones that have weights, biases, etc.
@@ -632,7 +800,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializers()
 				// this layer does not have weights to load
 				if (cfg_and_state.is_trace)
 				{
-					*cfg_and_state.output << "=> " << format_weights(idx, l, "none") << ": no weights to export for this layer" << std::endl;
+					*cfg_and_state.output << "   " << format_weights(idx, l, "none") << ": no weights" << std::endl;
 				}
 				break;
 			}
