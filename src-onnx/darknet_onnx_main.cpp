@@ -6,7 +6,12 @@
 #include "darknet_onnx.hpp"
 
 
-// Example command to dump the content of a .onnx file:
+/** @file
+ * Convert Darknet/YOLO .cfg and .weights files to .onnx files.
+ */
+
+
+// Example command to dump the content of a .onnx file as plain text:
 //
 //			protoc --decode=onnx.ModelProto onnx.proto3 < LegoGears.onnx
 //
@@ -36,8 +41,6 @@ int main(int argc, char * argv[])
 		onnx_export.build_model();
 		onnx_export.display_summary();
 		onnx_export.save_output_file();
-
-		std::cout << "-> done!" << std::endl;
 
 		rc = 0;
 	}

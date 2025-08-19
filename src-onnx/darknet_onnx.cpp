@@ -5,6 +5,25 @@
 #include "darknet_onnx.hpp"
 
 
+/** @file
+ * Convert Darknet/YOLO .cfg and .weights files to .onnx files.
+ *
+ * @warning This code cannot be trusted.  It was written in the summer of 2025 by Stephane Charette without a full
+ * understanding of either the Darknet/YOLO internals, nor any reasonable understanding of the ONNX internals.  I
+ * obtained some sample .onnx files from several sources on the web, and attempted to reverse engineer how these .onnx
+ * files may have (!?) been put together from Darknet/YOLO weights.  I appologize for the cases where things are not
+ * yet working as expected, and if it does happen to work I regret to say it is likely a mix of luck and happy
+ * coincidences.
+ *
+ * Over time, I'm hoping other people will show up to help shine light in the dark corners, or provide me with more
+ * configurations and weights that are broken to help make this tool work better.  But as you'll no doubt see in the
+ * code below, there are many places where I've left some "todo" comments in an attempt to document code that needs to
+ * be fixed.
+ *
+ * Stephane Charette, 2025-08-18.
+ */
+
+
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
@@ -132,14 +151,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 		Darknet::set_verbose(original_verbose_flag);
 	}
 
-// does not seem to be necessary
-#if 0
-	// run a dummy image through the network to ensure everything is populated
-	Darknet::Image img = make_image(cfg.net.w, cfg.net.h, cfg.net.c);
-	Darknet::predict(&cfg.net, img);
-	Darknet::free_image(img);
-#endif
-
 	return *this;
 }
 
@@ -150,7 +161,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 
 	*cfg_and_state.output
 		<< "-> type name ............ " << model.GetTypeName()					<< std::endl
-		<< "-> opset import size .... " << model.opset_import_size()			<< std::endl
+		<< "-> domain ............... " << model.domain()						<< std::endl
 //		<< "-> metadata props size .. " << model.metadata_props_size()			<< std::endl
 //		<< "-> training info size ... " << model.training_info_size()			<< std::endl
 //		<< "-> functions size ....... " << model.functions_size()				<< std::endl
@@ -163,10 +174,19 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		<< "-> graph output size .... " << graph->output_size()					<< std::endl
 		<< "-> graph node size ...... " << graph->node_size()					<< std::endl
 		<< "-> graph initializers ... " << graph->initializer_size()			<< std::endl
-		<< "-> ir version ........... " << model.ir_version()					<< std::endl
-		<< "-> domain ............... " << model.domain()						<< std::endl
 		<< "-> model version ........ " << model.model_version()				<< std::endl
-		;
+		<< "-> ir version ........... " << model.ir_version()					<< std::endl
+		<< "-> opset version ........ ";
+
+	for (const auto & opset : model.opset_import())
+	{
+		if (opset.domain().empty() == false)
+		{
+			*cfg_and_state.output << opset.domain() << ":";
+		}
+		*cfg_and_state.output << opset.version() << " ";
+	}
+	*cfg_and_state.output << std::endl;
 
 	for (const auto & [key, val] : number_of_floats_exported)
 	{
@@ -224,6 +244,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	model.set_doc_string("ONNX generated from Darknet/YOLO neural network files " + cfg_fn.filename().string() + " and " + weights_fn.filename().string() + " on " + buffer + ".");
 
 	auto opset = model.add_opset_import();
+	opset->set_domain(""); // empty string means use the default ONNX domain
 	opset->set_version(9); // beware of v10 or higher since op "Upsample" was deprecated in v10
 
 	graph = new onnx::GraphProto();
@@ -840,7 +861,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::save_output_file()
 	*cfg_and_state.output
 		<< "-> onnx saved to ........ " << onnx_fn.string()
 		<< " (" << size_to_IEC_string(std::filesystem::file_size(onnx_fn)) << ")"
-		<< std::endl;
+		<< std::endl
+		<< "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "This Darknet/YOLO ONNX Export Tool is experimental.") << std::endl
+		<< "-> done!" << std::endl;
 
 	return *this;
 }
