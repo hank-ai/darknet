@@ -261,7 +261,7 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 			if (net)
 			{
 				additional_arguments.push_back(original_arg);
-				display_warning_msg("skipped validating of argument #" + std::to_string(idx) + " \"" + original_arg + "\" (does not appear to be a known parameter, file, or directory)");
+				display_warning_msg("skipped validation of argument #" + std::to_string(idx) + " \"" + original_arg + "\" (does not appear to be a known parameter, file, or directory)");
 				*output << std::endl;
 			}
 
