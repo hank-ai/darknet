@@ -362,7 +362,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_output()
 			auto output = graph->add_output();
 			populate_input_output_dimensions(output, format_name(idx, l), 1, l.c, l.h, l.w, section.line_number);
 
-			output->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + "]");
+			output->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(idx) + "]");
 		}
 	}
 
@@ -418,6 +418,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 			case Darknet::ELayerType::YOLO:
 			{
 				add_node_yolo(index, section);
+				break;
+			}
+			case Darknet::ELayerType::SHORTCUT:
+			{
+				// shortcut is in YOLOv4 (full), not in tiny or tiny-3L
+				add_node_shortcut(index, section);
 				break;
 			}
 			default:
@@ -492,12 +498,54 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 		populate_graph_initializer(l.biases, l.n, index, l, "bias");
 	}
 
-	// when outputing a "Conv" node, if it uses activation=... then we may need to also output an activation node
+	check_activation(index, section);
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::add_node_shortcut(const size_t index, Darknet::CfgSection & section)
+{
+	TAT(TATPARMS);
+
+	const auto name = format_name(index, section.type);
+
+	auto node = graph->add_node();
+	node->set_name(name);
+	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
+	node->set_op_type("Add");
+	node->add_input(most_recent_output_per_index[index - 1]);
+
+	int layer_to_add = section.find_int("from");
+	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
+	if (layer_to_add < 0)
+	{
+		layer_to_add += index;
+	}
+	node->add_input(most_recent_output_per_index[layer_to_add]);
+	node->add_output(name);
+	most_recent_output_per_index[index] = name;
+
+	const auto & l = cfg.net.layers[index];
+	populate_graph_initializer(l.weights, l.nweights, index, l, "weights");
+
+	check_activation(index, section);
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::check_activation(const size_t index, Darknet::CfgSection & section)
+{
+	TAT(TATPARMS);
+
+	// when outputing certain nodes such as "Conv" or "Add", if it uses activation=... then we may need to also output an activation node
 	const auto & activation = section.find_str("activation", "linear");
 	switch(cfg.net.layers[index].activation)
 	{
 		case LEAKY:
 		case RELU:
+		case MISH:
 		{
 			add_node_activation(index, section);
 			break;
@@ -544,6 +592,27 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 	else if (activation == RELU)
 	{
 		node->set_op_type("Relu");
+	}
+	else if (activation == MISH)
+	{
+		// YOLOv4 (full), not in tiny or tiny-3L
+
+		// note that "Mish" as an operator was only introduced in opset 18+
+		auto opset = model.mutable_opset_import(0);
+		if (opset->version() < 18)
+		{
+			opset->set_version(18);
+			*cfg_and_state.output << "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "The use of \"mish\" in \"" + name + "\" requires the opset version to be increased to " + std::to_string(opset->version()) + ".") << std::endl;
+		}
+
+		node->set_op_type("Mish");
+
+		// if we need to support this in an earlier version of the ONNX opset, then we'd need to split it out into 4 nodes:
+		//
+		//		1) exp(x)
+		//		2) log(1+...)
+		//		3) tanh(...)
+		//		4) x * ...
 	}
 	else
 	{
@@ -796,7 +865,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 	onnx::TensorProto * initializer = graph->add_initializer();
 	initializer->set_data_type(onnx::TensorProto::FLOAT);
 	initializer->set_name(format_weights(idx, l, name));
-	initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[idx].line_number) + " [" + Darknet::to_string(l.type) + ", " + std::to_string(n) + " " + name + "]");
+	initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[idx].line_number) + " [" + Darknet::to_string(l.type) + ", layer #" + std::to_string(idx) + ", " + std::to_string(n) + " x " + name + "]");
 
 	/** @todo V5 2025-08-13:  This is black magic!  I actually have no idea how the DIMS work.  I saw some example
 	 * Darknet/YOLO weights converted to ONNX and attempted to figure out the patern.  While this seems to work for

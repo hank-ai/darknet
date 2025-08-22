@@ -46,6 +46,8 @@ namespace Darknet
 			ONNXExport & populate_graph_nodes();
 
 			ONNXExport & add_node_conv			(const size_t index, Darknet::CfgSection & section);
+			ONNXExport & add_node_shortcut		(const size_t index, Darknet::CfgSection & section);
+			ONNXExport & check_activation		(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_activation	(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_route_split	(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_route_concat	(const size_t index, Darknet::CfgSection & section);
