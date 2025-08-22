@@ -164,6 +164,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 
 		ArgsAndParms("camera"	, "c"			, 0		, "The camera (webcam) index, where numbering is typically sequential and begins with zero."),
 		ArgsAndParms("thresh"	, "threshold"	, 0.24f	, "The detection threshold.  Objects with confidence value below this are dropped."),
+		ArgsAndParms("nms"		, "nmsthresh"	, 0.45f	, "The NMS (non-maximal suppression) threshold."),
 
 		ArgsAndParms("saveweights", "", 0, "How often the .weights are saved during training.  For example, this could be set to \"500\" to save the weights every 500 iteration."),
 
@@ -434,9 +435,9 @@ void Darknet::display_usage()
 		<< YELLOW("    darknet -trace ...")															<< std::endl
 		<< "  Enabling \"trace\" automatically enables \"verbose\" as well."						<< std::endl
 		<< ""																						<< std::endl
-		<< "  Minimum detection thresholds can be specified with most Darknet/YOLO tools:"			<< std::endl
+		<< "  Minimum detection thresholds and NMS can be specified with most Darknet/YOLO tools:"	<< std::endl
 		<< YELLOW("    darknet_05_process_videos_multithreaded -threshold 0.38 ...")				<< std::endl
-		<< YELLOW("    darknet_06_images_to_json -threshold 0.75 ...")								<< std::endl
+		<< YELLOW("    darknet_06_images_to_json -nms 0.3 -threshold 0.75 ...")						<< std::endl
 		<< ""																						<< std::endl
 		<< "  Turn off colour output:"																<< std::endl
 		<< YELLOW("    darknet -nocolour ...") << " (or " << YELLOW("darknet -nocolor ...") << ")"	<< std::endl

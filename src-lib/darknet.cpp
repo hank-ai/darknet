@@ -1014,6 +1014,11 @@ void Darknet::set_non_maximal_suppression_threshold(Darknet::NetworkPtr ptr, flo
 {
 	TAT(TATPARMS);
 
+	if (cfg_and_state.is_trace)
+	{
+		*cfg_and_state.output << "-> attempting to set NMS threshold to " << threshold << std::endl;
+	}
+
 	Darknet::Network * net = reinterpret_cast<Darknet::Network*>(ptr);
 	if (net == nullptr)
 	{
@@ -1208,6 +1213,10 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 	if (cfg_and_state.is_set("threshold"))
 	{
 		set_detection_threshold(ptr, cfg_and_state.get_float("threshold"));
+	}
+	if (cfg_and_state.is_set("nms"))
+	{
+		set_non_maximal_suppression_threshold(ptr, cfg_and_state.get_float("nms"));
 	}
 
 	return ptr;
