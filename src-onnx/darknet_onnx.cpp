@@ -8,7 +8,7 @@
 /** @file
  * Convert Darknet/YOLO .cfg and .weights files to .onnx files.
  *
- * @warning This code cannot be trusted.  It was written in the summer of 2025 by Stephane Charette without a full
+ * @warning This code should not be trusted.  It was written in the summer of 2025 by Stephane Charette without a full
  * understanding of either the Darknet/YOLO internals, nor any reasonable understanding of the ONNX internals.  I
  * obtained some sample .onnx files from several sources on the web, and attempted to reverse engineer how these .onnx
  * files may have (!?) been put together from Darknet/YOLO weights.  I appologize for the cases where things are not
@@ -16,9 +16,9 @@
  * coincidences.
  *
  * Over time, I'm hoping other people will show up to help shine light in the dark corners, or provide me with more
- * configurations and weights that are broken to help make this tool work better.  But as you'll no doubt see in the
- * code below, there are many places where I've left some "todo" comments in an attempt to document code that needs to
- * be fixed.
+ * configurations and weights that are broken to help make this tool work better.  As you'll no doubt see in the code
+ * below, there are many places where I've left some "todo" comments in an attempt to document code that needs to be
+ * fixed.
  *
  * Stephane Charette, 2025-08-18.
  */
@@ -85,6 +85,13 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 	cfg_fn(cfg_filename),
 	weights_fn(weights_filename),
 	onnx_fn(onnx_filename),
+	opset_version(18),	// - Upsample is until v9 (Mar 2019)
+						// - Resize begins at v10 (May 2019)
+						// - Mish begins at v18 (Dec 2022)
+						//
+						// Technically, we could use v10 for YOLOv4-tiny and YOLOv4-tiny-3L,
+						// and only fall back to v18 when YOLOv4 (full) is used, but at this
+						// point it is easier to settle on a single ONNX version to support.
 	graph(nullptr)
 {
 	TAT(TATPARMS);
@@ -160,6 +167,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 	TAT(TATPARMS);
 
 	*cfg_and_state.output
+		<< "-> doc string ........... " << model.doc_string()					<< std::endl
 		<< "-> type name ............ " << model.GetTypeName()					<< std::endl
 		<< "-> domain ............... " << model.domain()						<< std::endl
 //		<< "-> metadata props size .. " << model.metadata_props_size()			<< std::endl
@@ -168,7 +176,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 //		<< "-> configuration size ... " << model.configuration_size()			<< std::endl
 		<< "-> producer name ........ " << model.producer_name()				<< std::endl
 		<< "-> producer version ..... " << model.producer_version()				<< std::endl
-		<< "-> doc string ........... " << model.doc_string()					<< std::endl
 		<< "-> has graph ............ " << (model.has_graph() ? "yes" : "no")	<< std::endl
 		<< "-> graph input size ..... " << graph->input_size()					<< std::endl
 		<< "-> graph output size .... " << graph->output_size()					<< std::endl
@@ -241,11 +248,19 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	std::time_t tt = std::time(nullptr);
 	char buffer[50];
 	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", std::localtime(&tt));
-	model.set_doc_string("ONNX generated from Darknet/YOLO neural network files " + cfg_fn.filename().string() + " and " + weights_fn.filename().string() + " on " + buffer + ".");
+	model.set_doc_string(
+		"ONNX generated from Darknet/YOLO neural network " +
+		cfg_fn.filename().string() +
+		" (" + std::to_string(cfg.sections.size()) + " layers)"
+		" and " +
+		weights_fn.filename().string() +
+		" (" + size_to_IEC_string(std::filesystem::file_size(weights_fn)) + ")"
+		" on " +
+		buffer + ".");
 
 	auto opset = model.add_opset_import();
 	opset->set_domain(""); // empty string means use the default ONNX domain
-	opset->set_version(10); // "Upsample" is only supported up to v9, and "Resize" requires a minimum of v10
+	opset->set_version(opset_version); // "Upsample" is only supported up to v9, and "Resize" requires a minimum of v10.  MISH requires v18.
 
 	graph = new onnx::GraphProto();
 	graph->set_name(weights_fn.stem().string());
@@ -321,7 +336,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx
 }
 
 
-Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_000_net()
+Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 {
 	TAT(TATPARMS);
 
@@ -383,6 +398,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 	{
 		auto & section = cfg.sections[index];
 
+		*cfg_and_state.output
+			<< "\r"
+			"-> processing layer ..... " << index+1 << "/" << cfg.sections.size() << " [" << section.name << "] on line #" << section.line_number << "          " << std::flush;
+
 		switch(section.type)
 		{
 			case Darknet::ELayerType::CONVOLUTIONAL:
@@ -432,6 +451,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 			}
 		}
 	}
+
+	*cfg_and_state.output << std::endl;
 
 	return *this;
 }
@@ -598,10 +619,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 		// YOLOv4 (full), not in tiny or tiny-3L
 
 		// note that "Mish" as an operator was only introduced in opset 18+
-		auto opset = model.mutable_opset_import(0);
-		if (opset->version() < 18)
+		if (opset_version < 18)
 		{
+			auto opset = model.mutable_opset_import(0);
 			opset->set_version(18);
+			opset_version = 18;
+
 			*cfg_and_state.output << "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "The use of \"mish\" in \"" + name + "\" requires the opset version to be increased to " + std::to_string(opset->version()) + ".") << std::endl;
 		}
 
@@ -651,17 +674,28 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_split(const size_t ind
 	attrib->set_i(1); // 1 == concat on channel axis
 	attrib->set_type(onnx::AttributeProto::INT);
 
-	const auto & l = cfg.net.layers[layer_to_split];
-	// split:  "length of each output" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#Split-2
-	//
-	// the size we need is half of the input layer
-	const int split = l.n / 2; ///< @todo V5: is this logic correct?  This is only a guess as to how this works.
+	if (opset_version < 13) // this was removed at v13
+	{
+		const auto & l = cfg.net.layers[layer_to_split];
+		// split:  "length of each output" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#Split-2
+		//
+		// the size we need is half of the input layer
+		const int split = l.n / 2; ///< @todo V5: is this logic correct?  This is only a guess as to how this works.
 
-	attrib = node->add_attribute();
-	attrib->set_name("split");
-	attrib->add_ints(split);
-	attrib->add_ints(split);
-	attrib->set_type(onnx::AttributeProto::INTS);
+		attrib = node->add_attribute();
+		attrib->set_name("split");
+		attrib->add_ints(split);
+		attrib->add_ints(split);
+		attrib->set_type(onnx::AttributeProto::INTS);
+	}
+
+	if (opset_version >= 18) // this was introduced at v18
+	{
+		attrib = node->add_attribute();
+		attrib->set_name("num_outputs");
+		attrib->set_i(2);
+		attrib->set_type(onnx::AttributeProto::INT);
+	}
 
 	return *this;
 }
@@ -744,12 +778,26 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_yolo(const size_t index, Dar
 	const auto name = format_name(index, section.type);
 
 	auto node = graph->add_node();
-	node->set_op_type("YOLO");
+	node->set_op_type("Identity");//"YOLO");
 	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_name(name);
 	node->add_input(most_recent_output_per_index[index - 1]);
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
+
+#if 1
+	node->set_doc_string(
+		cfg_fn.filename().string() +
+		" line #" + std::to_string(section.line_number) +
+		" [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]"
+		" anchors="	+ section.find_str("anchors") +
+		" mask="	+ section.find_str("mask"	) +
+		" classes="	+ section.find_str("classes"));
+#else
+
+	// These are non-standard attributes.
+	// They cannot be added as it breaks any validation checks that users attempt to run on the .onnx output file.
+	// This is also why this node was changed to be "Identity" instead of using a custom "YOLO" node type.
 
 	auto attrib = node->add_attribute();
 	attrib->set_name("anchors");
@@ -771,6 +819,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_yolo(const size_t index, Dar
 	attrib->set_name("classes");
 	attrib->set_type(onnx::AttributeProto::INT);
 	attrib->set_i(section.find_int("classes"));
+#endif
 
 	return *this;
 }
@@ -781,6 +830,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, D
 	TAT(TATPARMS);
 
 	const auto name = format_name(index, section.type);
+
+	if (opset_version < 10)
+	{
+		throw std::runtime_error("op type \"Resize\" required for node " + name + " needs opset >= 10, but opset is currently set to " + std::to_string(opset_version) + ".");
+	}
 
 	auto node = graph->add_node();
 	node->set_op_type("Resize"); // this requires opset v10 or newer (prior to v10, it was called "Upsample")
@@ -1033,7 +1087,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::build_model()
 {
 	TAT(TATPARMS);
 
-	populate_graph_input_000_net();
+	populate_graph_input_frame();
 	populate_graph_input();
 	populate_graph_output();
 	populate_graph_nodes();
