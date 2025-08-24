@@ -972,7 +972,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_bn(const size_t index, Darkn
 	node->add_input(name + "_scale");
 	node->add_input(name + "_bias");
 	node->add_input(name + "_mean");
-	node->add_input(name + "_var");
+	node->add_input(name + "_variance");
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
 
