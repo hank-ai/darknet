@@ -364,7 +364,23 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold);
 float *network_predict(Darknet::Network & net, float *input);
 det_num_pair* network_predict_batch(Darknet::Network *net, Darknet::Image im, int batch_size, int w, int h, float thresh, float hier, int *map, int relative, int letter);
 void free_batch_detections(det_num_pair *det_num_pairs, int n);
+
+
+/** @b ChatGPT:  The function @p fuse_conv_batchnorm() in the Darknet/YOLO codebase is responsible for fusing the
+ * convolutional layer and batch normalization layer into a single operation. This process is essential for both model
+ * optimization and inference efficiency, as it reduces the number of operations needed during model execution.
+ *
+ * In Darknet, when you have a convolutional layer followed by a batch normalization layer, the two layers can be fused
+ * into a single convolution-like operation that combines both the convolution and normalization. This reduces the need
+ * for the separate batch normalization step during inference, thus improving speed.
+ *
+ * The fused operation allows the model to perform one pass of convolution instead of:
+ *	- Convolution operation.
+ *	- Batch normalization (normalization, scaling, shifting).
+ *	- Activation function (like ReLU).
+ */
 void fuse_conv_batchnorm(Darknet::Network & net);
+
 
 float validate_detector_map(const char * datacfg, const char * cfgfile, const char * weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network *existing_net);
 void train_detector(const char *datacfg, const char *cfgfile, const char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int show_imgs, int benchmark_layers, const char* chart_path);

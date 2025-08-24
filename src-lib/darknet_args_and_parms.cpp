@@ -152,6 +152,9 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("colour"		, "color"							, "Enable colour output in the console.  This is the default."),
 		ArgsAndParms("nocolour"		, "nocolor"							, "Disable colour output in the console."),
 
+		ArgsAndParms("fuse"			, ArgsAndParms::EType::kParameter	, "Fuse batch normalization (scales, rolling mean, rolling variance) into weights and biases.  This is the default for inference."),
+		ArgsAndParms("dontfuse"		, "nofuse"							, "Don't fuse batch normlization and weights/biases.  This is the default when training."),
+
 		// I originally didn't know about "show_details" when I implemented "verbose".
 		ArgsAndParms("verbose"		, "show_details"					, "Logs more verbose messages."),
 		ArgsAndParms("trace"		, ArgsAndParms::EType::kParameter	, "Intended for debug purposes.  This allows Darknet to log trace messages for some commands."),
@@ -422,6 +425,11 @@ void Darknet::display_usage()
 		<< YELLOW("    darknet_02_display_annotated_images cars *.jpg")								<< std::endl
 		<< "  But you can also be explicit with the neural network filenames to load:"				<< std::endl
 		<< YELLOW("    darknet_02_display_annotated_images ../cars.cfg ../lab.names testing/Mike.weights *.jpg") << std::endl
+		<< ""																						<< std::endl
+		<< "  Export Darknet/YOLO configuration and weights to a ONNX file:"						<< std::endl
+		<< YELLOW("    darknet_onnx_export cars")													<< std::endl
+		<< YELLOW("    darknet_onnx_export -dontfuse -trace cars.cfg cars.weights cars.names")		<< std::endl
+		<< "  This requires the Google ProtoBuf tools be installed when building Darknet."			<< std::endl
 		<< ""																						<< std::endl
 		<< "  Redirect console output to a file (this also turns off colour output):"				<< std::endl
 		<< YELLOW("    darknet -log /some/path/filename.log ...")									<< std::endl

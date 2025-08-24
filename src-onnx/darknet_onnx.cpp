@@ -97,7 +97,8 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 						// point it is easier to settle on a single ONNX version to support.
 						//
 						// Also see initialize_model() where the IR version is set.
-	graph(nullptr)
+	graph(nullptr),
+	fuse_batchnorm(true)
 {
 	TAT(TATPARMS);
 	*cfg_and_state.output											<< std::endl
@@ -155,11 +156,18 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 	cfg.create_network(1, 1);
 	load_weights(&cfg.net, weights_fn.string().c_str());
 
-#if 0
-	// should the mean, scale, and variance be fused into the weights?
-	fuse_conv_batchnorm(cfg.net);
-	calculate_binary_weights(&cfg.net);
-#endif
+	if (cfg_and_state.is_set("dontfuse"))
+	{
+		// do not fuse the mean/scale/var
+		fuse_batchnorm = false;
+	}
+	else
+	{
+		// fuse the mean, scale, and variance into the weights
+		fuse_batchnorm = true;
+		fuse_conv_batchnorm(cfg.net);
+		calculate_binary_weights(&cfg.net);
+	}
 
 	// restore the verbose flag
 	if (not original_verbose_flag)
@@ -189,8 +197,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 //		<< "-> configuration size ... " << model.configuration_size()			<< std::endl
 		<< "-> producer name ........ " << model.producer_name()				<< std::endl
 		<< "-> producer version ..... " << model.producer_version()				<< std::endl
-		<< "-> has graph ............ " << (model.has_graph() ? "yes" : "no")	<< std::endl
-		<< "-> graph input size ..... " << graph->input_size()					<< std::endl
+		<< "-> batchnorm fused ...... " << (fuse_batchnorm		? "yes" : "no")	<< std::endl
+		<< "-> has graph ............ " << (model.has_graph()	? "yes" : "no")	<< std::endl
+		<< "-> graph input size ..... " << graph->input_size() << " " << input_string << std::endl
 		<< "-> graph output size .... " << graph->output_size()					<< std::endl
 		<< "-> graph node size ...... " << graph->node_size()					<< std::endl
 		<< "-> graph initializers ... " << graph->initializer_size()			<< std::endl
@@ -364,6 +373,13 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 	populate_input_output_dimensions(input, "frame", b, c, h, w, cfg.network_section.line_number);
 
 	input->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.network_section.line_number) + " [w=" + std::to_string(w) + ", h=" + std::to_string(h) + ", c=" + std::to_string(c) + "]");
+
+	input_string =
+		"[B=" + std::to_string(b) +
+		" C=" + std::to_string(c) +
+		" H=" + std::to_string(h) +
+		" W=" + std::to_string(w) +
+		"]";
 
 	return *this;
 }
