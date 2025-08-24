@@ -60,6 +60,53 @@ namespace
 		TAT(TATPARMS);
 		return format_name(idx, l) + "_" + name;
 	}
+
+	static std::string ir_date_lookup(const int ir)
+	{
+		TAT(TATPARMS);
+
+		switch (ir)
+		{
+			// check these dates, they came from ChatGPT
+			case 3:		return "Aug 2017";
+			case 4:		return "Jan 2019";
+			case 5:		return "Mar 2019";
+			case 6:		return "Sep 2019";
+			case 7:		return "May 2020";
+			case 8:		return "Jul 2021";
+			case 9:		return "May 2023";
+			case 10:	return "Mar 2024";
+			case 11:	return "May 2025";
+		}
+		return "unknown";
+	}
+
+	static std::string ops_date_lookup(const int ops)
+	{
+		TAT(TATPARMS);
+
+		switch (ops)
+		{
+			// check these dates, they came from ChatGPT
+			case 8:		return "Apr 2018";
+			case 9:		return "Dec 2018";
+			case 10:	return "Apr 2019";
+			case 11:	return "Sep 2019";
+			case 12:	return "May 2020";
+			case 13:	return "Aug 2020";
+			case 14:	return "Aug 2020";
+			case 15:	return "Jul 2021";
+			case 16:	return "Feb 2022";
+			case 17:	return "Jun 2022";
+			case 18:	return "Dec 2022";
+			case 19:	return "May 2023";
+			case 20:	return "Oct 2023";
+			case 21:	return "Mar 2024";
+			case 22:	return "Jan 2025";
+			case 23:	return "May 2025";
+		}
+		return "unknown";
+	}
 }
 
 
@@ -196,15 +243,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 //		<< "-> functions size ....... " << model.functions_size()				<< std::endl
 //		<< "-> configuration size ... " << model.configuration_size()			<< std::endl
 		<< "-> producer name ........ " << model.producer_name()				<< std::endl
-		<< "-> producer version ..... " << model.producer_version()				<< std::endl
+		<< "-> producer version ..... " << model.producer_version() << " "		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, "[built " __DATE__ "]") << std::endl
+		<< "-> model version ........ " << model.model_version()				<< std::endl
 		<< "-> batchnorm fused ...... " << (fuse_batchnorm		? "yes" : "no")	<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fuse or -dontfuse]") << std::endl
-		<< "-> has graph ............ " << (model.has_graph()	? "yes" : "no")	<< std::endl
+//		<< "-> has graph ............ " << (model.has_graph()	? "yes" : "no")	<< std::endl
 		<< "-> graph input size ..... " << graph->input_size()	<< " "			<< Darknet::in_colour(Darknet::EColour::kDarkGrey, input_string)	<< std::endl
 		<< "-> graph output size .... " << graph->output_size()	<< " "			<< Darknet::in_colour(Darknet::EColour::kDarkGrey, output_string)	<< std::endl
 		<< "-> graph node size ...... " << graph->node_size()					<< std::endl
 		<< "-> graph initializers ... " << graph->initializer_size()			<< std::endl
-		<< "-> ir version ........... " << model.ir_version()					<< std::endl
-		<< "-> model version ........ " << model.model_version()				<< std::endl
+		<< "-> ir version ........... " << model.ir_version()	<< " "			<< Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + ir_date_lookup(model.ir_version()) + "]") << std::endl
 		<< "-> opset version ........ ";
 
 	for (const auto & opset : model.opset_import())
@@ -213,7 +260,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		{
 			*cfg_and_state.output << opset.domain() << ":";
 		}
-		*cfg_and_state.output << opset.version() << " ";
+		*cfg_and_state.output << opset.version() << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + ops_date_lookup(opset.version()) + "]") << " ";
 	}
 	*cfg_and_state.output << std::endl;
 
