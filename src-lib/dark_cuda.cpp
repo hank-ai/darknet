@@ -629,7 +629,7 @@ int *cuda_make_int_array_new_api(int *x, size_t n)
 	}
 	if (!x_gpu)
 	{
-		darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed (%s)", size_to_IEC_string(size));
+		darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed (%s)", size_to_IEC_string(size).c_str());
 	}
 	return x_gpu;
 }

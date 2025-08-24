@@ -79,6 +79,9 @@ namespace Darknet
 			/// The dimensions used in @ref populate_graph_input_frame().
 			std::string input_string;
 
+			/// The output nodes for this neural network.
+			std::string output_string;
+
 			/// Keep track of the single most recent output name for each of the layers.
 			std::map<int, std::string> most_recent_output_per_index;
 

@@ -501,7 +501,8 @@ namespace
 	std::abort();
 }
 
-const char * size_to_IEC_string(const size_t size)
+
+std::string size_to_IEC_string(const size_t size)
 {
 	TAT(TATPARMS);
 
@@ -510,32 +511,34 @@ const char * size_to_IEC_string(const size_t size)
 	const float MiB = 1024.0f * KiB;
 	const float GiB = 1024.0f * MiB;
 
-	static char buffer[25]; /// @todo not thread safe
+	std::stringstream ss;
+	ss << std::fixed << std::setprecision(1);
 
-	if		(size < 0.75f * KiB)	sprintf(buffer, "%ld bytes", static_cast<long>(size));
-	else if (size < 0.75f * MiB)	sprintf(buffer, "%1.1f KiB", bytes / KiB);
-	else if (size < 0.75f * GiB)	sprintf(buffer, "%1.1f MiB", bytes / MiB);
-	else							sprintf(buffer, "%1.1f GiB", bytes / GiB);
+	if		(size < 0.75f * KiB)	ss << size << " bytes";
+	else if (size < 0.75f * MiB)	ss << (bytes / KiB) << " KiB";
+	else if (size < 0.75f * GiB)	ss << (bytes / MiB) << " MiB";
+	else							ss << (bytes / GiB) << " GiB";
 
-	return buffer;
+	return ss.str();
 }
+
 
 void malloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
 //	TAT(TATPARMS); ... don't bother, we're about to abort
-	darknet_fatal_error(filename, funcname, line, "failed to malloc %s", size_to_IEC_string(size));
+	darknet_fatal_error(filename, funcname, line, "failed to malloc %s", size_to_IEC_string(size).c_str());
 }
 
 void calloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
 //	TAT(TATPARMS); ... don't bother, we're about to abort
-	darknet_fatal_error(filename, funcname, line, "failed to calloc %s", size_to_IEC_string(size));
+	darknet_fatal_error(filename, funcname, line, "failed to calloc %s", size_to_IEC_string(size).c_str());
 }
 
 void realloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
 //	TAT(TATPARMS); ... don't bother, we're about to abort
-	darknet_fatal_error(filename, funcname, line, "failed to realloc %s", size_to_IEC_string(size));
+	darknet_fatal_error(filename, funcname, line, "failed to realloc %s", size_to_IEC_string(size).c_str());
 }
 
 void file_error(const char * const s, const char * const filename, const char * const funcname, const int line)

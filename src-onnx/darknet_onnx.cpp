@@ -197,10 +197,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 //		<< "-> configuration size ... " << model.configuration_size()			<< std::endl
 		<< "-> producer name ........ " << model.producer_name()				<< std::endl
 		<< "-> producer version ..... " << model.producer_version()				<< std::endl
-		<< "-> batchnorm fused ...... " << (fuse_batchnorm		? "yes" : "no")	<< std::endl
+		<< "-> batchnorm fused ...... " << (fuse_batchnorm		? "yes" : "no")	<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fuse or -dontfuse]") << std::endl
 		<< "-> has graph ............ " << (model.has_graph()	? "yes" : "no")	<< std::endl
-		<< "-> graph input size ..... " << graph->input_size() << " " << input_string << std::endl
-		<< "-> graph output size .... " << graph->output_size()					<< std::endl
+		<< "-> graph input size ..... " << graph->input_size()	<< " "			<< Darknet::in_colour(Darknet::EColour::kDarkGrey, input_string)	<< std::endl
+		<< "-> graph output size .... " << graph->output_size()	<< " "			<< Darknet::in_colour(Darknet::EColour::kDarkGrey, output_string)	<< std::endl
 		<< "-> graph node size ...... " << graph->node_size()					<< std::endl
 		<< "-> graph initializers ... " << graph->initializer_size()			<< std::endl
 		<< "-> ir version ........... " << model.ir_version()					<< std::endl
@@ -234,7 +234,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 			str.insert(pos, ",");
 		}
 
-		*cfg_and_state.output << " " << sizeof(float) << " x " << str << " (" << size_to_IEC_string(sizeof(float) * val) << ")" << std::endl;
+		*cfg_and_state.output << " " << sizeof(float) << " x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(sizeof(float) * val) + "]") << std::endl;
 	}
 
 	return *this;
@@ -401,6 +401,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_output()
 			populate_input_output_dimensions(output, format_name(idx, l), 1, l.c, l.h, l.w, section.line_number);
 
 			output->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(idx) + "]");
+
+			output_string += "[" + output->name() + "] ";
 		}
 	}
 
@@ -424,6 +426,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 		*cfg_and_state.output
 			<< "\r"
 			"-> processing layer ..... " << index+1 << "/" << cfg.sections.size() << " [" << section.name << "] on line #" << section.line_number << "          " << std::flush;
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << std::endl;
+		}
 
 		switch(section.type)
 		{
@@ -489,6 +495,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 
 	auto node = graph->add_node();
 	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
 	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_op_type("Conv");
 	node->add_input(most_recent_output_per_index[index - 1]);
@@ -533,7 +543,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 	// loosely based on load_convolutional_weights()
 	populate_graph_initializer(l.weights, l.nweights, index, l, "weights");
 
-	if (section.find_int("batch_normalize", 0))
+	if (section.find_int("batch_normalize", 0) and not fuse_batchnorm)
 	{
 		// insert a batch normalization node
 		add_node_bn(index, section);
@@ -559,6 +569,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_shortcut(const size_t index,
 
 	auto node = graph->add_node();
 	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
 	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_op_type("Add");
 	node->add_input(most_recent_output_per_index[index - 1]);
@@ -623,6 +637,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 	auto node = graph->add_node();
 	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
 	node->add_input(most_recent_output_per_index[index]);
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
@@ -684,6 +702,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_split(const size_t ind
 	node->set_op_type("Split");
 	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
 
 	int layer_to_split = section.find_int("layers");
 	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
@@ -739,6 +761,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_concat(const size_t in
 	node->set_op_type("Concat");
 	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
 
@@ -773,6 +799,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_maxpool(const size_t index, 
 	node->set_op_type("MaxPool");
 	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
 	node->add_input(most_recent_output_per_index[index - 1]);
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
@@ -826,6 +856,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_yolo(const size_t index, Dar
 	node->set_op_type("Identity"); //"YOLO");
 //	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
 	node->add_input(most_recent_output_per_index[index - 1]);
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
@@ -884,6 +918,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, D
 	auto node = graph->add_node();
 	node->set_op_type("Resize"); // this requires opset v10 or newer (prior to v10, it was called "Upsample")
 	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
 	node->add_input(most_recent_output_per_index[index - 1]);
 	node->add_input(name + "_roi");
 	node->add_input(name + "_scales");
@@ -926,6 +964,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_bn(const size_t index, Darkn
 	auto node = graph->add_node();
 	node->set_op_type("BatchNormalization");
 	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
 	node->add_input(most_recent_output_per_index[index]);
 	node->add_input(name + "_scale");
 	node->add_input(name + "_bias");
@@ -959,16 +1001,13 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 {
 	TAT(TATPARMS);
 
-	if (cfg_and_state.is_trace)
+	if (cfg_and_state.is_trace and (f == nullptr or n == 0))
 	{
-		if (f == nullptr or n == 0)
-		{
-			*cfg_and_state.output << "   " << format_weights(idx, l, name) << ": f=" << (void*)f << " n=" << n << std::endl;
-		}
-		else
-		{
-			*cfg_and_state.output << "=> " << format_weights(idx, l, name) << ": exporting " << n << " " << name << std::endl;
-		}
+		*cfg_and_state.output << "   " << format_weights(idx, l, name) << ": f=" << (void*)f << " n=" << n << std::endl;
+	}
+	else if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "-> " << format_weights(idx, l, name) << ": exporting " << n << " " << name << std::endl;
 	}
 
 	onnx::TensorProto * initializer = graph->add_initializer();
@@ -1163,7 +1202,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::save_output_file()
 	ofs.close();
 
 	*cfg_and_state.output
-		<< "-> onnx saved to ........ " << onnx_fn.string() << " (" << size_to_IEC_string(std::filesystem::file_size(onnx_fn)) << ")"			<< std::endl
+		<< "-> onnx saved to ........ " << Darknet::in_colour(Darknet::EColour::kBrightCyan, onnx_fn.string()) << " "
+		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(std::filesystem::file_size(onnx_fn)) + "]")					<< std::endl
 		<< "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "This Darknet/YOLO ONNX Export Tool is experimental.")	<< std::endl
 		<< "-> done!"																															<< std::endl;
 
