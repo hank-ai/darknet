@@ -41,7 +41,6 @@ namespace Darknet
 
 			ONNXExport & populate_input_output_dimensions(onnx::ValueInfoProto * proto, const std::string & name, const int v1, const int v2=-1, const int v3=-1, const int v4=-1, const size_t line_number=0);
 			ONNXExport & populate_graph_input_frame();
-			ONNXExport & populate_graph_input();
 			ONNXExport & populate_graph_output();
 			ONNXExport & populate_graph_nodes();
 

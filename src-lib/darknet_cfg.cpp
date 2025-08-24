@@ -224,6 +224,8 @@ const Darknet::CfgSection & Darknet::CfgSection::find_unused_lines() const
 
 bool Darknet::CfgSection::exists(const std::string & key) const
 {
+	TAT(TATPARMS);
+
 	return lines.count(key) > 0;
 }
 

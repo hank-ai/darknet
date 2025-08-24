@@ -29,11 +29,14 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
 
+	size_t padding_len = 2;
+
+
 	static std::string format_name(const size_t idx, const std::string & name)
 	{
 		TAT(TATPARMS);
 		std::stringstream ss;
-		ss << std::setfill('0') << std::setw(3) << (idx) << "_" << name;
+		ss << std::setfill('0') << std::setw(padding_len) << (idx) << "_" << name;
 		return ss.str();
 	}
 
@@ -92,6 +95,8 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 						// Technically, we could use v10 for YOLOv4-tiny and YOLOv4-tiny-3L,
 						// and only fall back to v18 when YOLOv4 (full) is used, but at this
 						// point it is easier to settle on a single ONNX version to support.
+						//
+						// Also see initialize_model() where the IR version is set.
 	graph(nullptr)
 {
 	TAT(TATPARMS);
@@ -149,14 +154,22 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 	cfg.read(cfg_fn);
 	cfg.create_network(1, 1);
 	load_weights(&cfg.net, weights_fn.string().c_str());
+
+#if 0
+	// should the mean, scale, and variance be fused into the weights?
 	fuse_conv_batchnorm(cfg.net);
 	calculate_binary_weights(&cfg.net);
+#endif
 
 	// restore the verbose flag
 	if (not original_verbose_flag)
 	{
 		Darknet::set_verbose(original_verbose_flag);
 	}
+
+	// tiny and tiny-3L have less than 100 sections, so pad 2 characters,
+	// while yolo-full have over 100 sections, so pad 3 characters
+	padding_len = std::to_string(cfg.sections.size()).size();
 
 	return *this;
 }
@@ -181,8 +194,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		<< "-> graph output size .... " << graph->output_size()					<< std::endl
 		<< "-> graph node size ...... " << graph->node_size()					<< std::endl
 		<< "-> graph initializers ... " << graph->initializer_size()			<< std::endl
-		<< "-> model version ........ " << model.model_version()				<< std::endl
 		<< "-> ir version ........... " << model.ir_version()					<< std::endl
+		<< "-> model version ........ " << model.model_version()				<< std::endl
 		<< "-> opset version ........ ";
 
 	for (const auto & opset : model.opset_import())
@@ -227,7 +240,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	// https://github.com/onnx/onnx/blob/main/docs/IR.md
 	// https://github.com/onnx/onnx/blob/main/docs/Versioning.md
 	// 2019_9_19 aka "6" is the last version prior to introducing training
-	model.set_ir_version(onnx::Version::IR_VERSION_2019_9_19); // == 6
+//	model.set_ir_version(onnx::Version::IR_VERSION_2019_9_19);	// == 6
+	model.set_ir_version(onnx::Version::IR_VERSION_2023_5_5);	// == 9 (Mish was introduced in Dec 2022)
 //	model.set_ir_version(onnx::Version::IR_VERSION_2025_05_12); // == 11
 
 	// The name of the framework or tool used to generate this model.
@@ -342,21 +356,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 
 	auto input = graph->add_input();
 
+	const int b = 1;
 	const int c = cfg.net.c;
 	const int h = cfg.net.h;
 	const int w = cfg.net.w;
 
-	populate_input_output_dimensions(input, "frame", 1, c, h, w, cfg.network_section.line_number);
+	populate_input_output_dimensions(input, "frame", b, c, h, w, cfg.network_section.line_number);
 
 	input->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.network_section.line_number) + " [w=" + std::to_string(w) + ", h=" + std::to_string(h) + ", c=" + std::to_string(c) + "]");
-
-	return *this;
-}
-
-
-Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input()
-{
-	TAT(TATPARMS);
 
 	return *this;
 }
@@ -473,12 +480,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
 
-	/// @todo V5 more hard-coded attributes that I need to better understand
 	auto attrib = node->add_attribute();
-	attrib->set_name("auto_pad");
-	attrib->set_s("SAME_LOWER"); // note LOWER while MAXPOOL uses UPPER
-	attrib->set_type(onnx::AttributeProto::STRING);
+	attrib->set_name("pads");
+	attrib->add_ints(section.find_int("pad", 1));
+	attrib->add_ints(section.find_int("pad", 1));
+	attrib->add_ints(section.find_int("pad", 1));
+	attrib->add_ints(section.find_int("pad", 1));
+	attrib->set_type(onnx::AttributeProto::INTS);
 
+	/// @todo V5 is this right?
 	attrib = node->add_attribute();
 	attrib->set_name("dilations"); // layer->dilation ?
 	attrib->add_ints(1);
@@ -507,7 +517,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 	// loosely based on load_convolutional_weights()
 	populate_graph_initializer(l.weights, l.nweights, index, l, "weights");
 
-	if (l.scales and l.rolling_mean and l.rolling_variance)
+	if (section.find_int("batch_normalize", 0))
 	{
 		// insert a batch normalization node
 		add_node_bn(index, section);
@@ -547,8 +557,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_shortcut(const size_t index,
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
 
+#if 0 /// @todo V5: unused?  Do we have weights for shortcuts?
 	const auto & l = cfg.net.layers[index];
 	populate_graph_initializer(l.weights, l.nweights, index, l, "weights");
+#endif
 
 	check_activation(index, section);
 
@@ -745,20 +757,37 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_maxpool(const size_t index, 
 	node->set_op_type("MaxPool");
 	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_name(name);
-
 	node->add_input(most_recent_output_per_index[index - 1]);
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
 
+#if 0
+	/// @todo V5: change "auto_pad" to "pads" since this is deprecated
 	auto attrib = node->add_attribute();
 	attrib->set_name("auto_pad");
 	attrib->set_s("SAME_UPPER"); // note UPPER while CONV uses LOWER
 	attrib->set_type(onnx::AttributeProto::STRING);
+#else
+	auto attrib = node->add_attribute();
+	attrib->set_name("pads");
+	attrib->add_ints(section.find_int("pad", 1));
+	attrib->add_ints(section.find_int("pad", 1));
+	attrib->add_ints(section.find_int("pad", 1));
+	attrib->add_ints(section.find_int("pad", 1));
+	attrib->set_type(onnx::AttributeProto::INTS);
+#endif
 
 	attrib = node->add_attribute();
 	attrib->set_name("kernel_shape");
 	attrib->add_ints(section.find_int("size", 3));
 	attrib->add_ints(section.find_int("size", 3));
+	attrib->set_type(onnx::AttributeProto::INTS);
+
+	/// @todo V5 is this right?
+	attrib = node->add_attribute();
+	attrib->set_name("dilations"); // layer->dilation ?
+	attrib->add_ints(1);
+	attrib->add_ints(1);
 	attrib->set_type(onnx::AttributeProto::INTS);
 
 	attrib = node->add_attribute();
@@ -778,8 +807,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_yolo(const size_t index, Dar
 	const auto name = format_name(index, section.type);
 
 	auto node = graph->add_node();
-	node->set_op_type("Identity");//"YOLO");
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
+	node->set_op_type("Identity"); //"YOLO");
+//	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_name(name);
 	node->add_input(most_recent_output_per_index[index - 1]);
 	node->add_output(name);
@@ -825,7 +854,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_yolo(const size_t index, Dar
 }
 
 
-Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, Darknet::CfgSection & section)
+Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, Darknet::CfgSection & section) // aka "Upsample"
 {
 	TAT(TATPARMS);
 
@@ -848,7 +877,17 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, D
 	auto attrib = node->add_attribute();
 	attrib->set_name("mode");
 	attrib->set_type(onnx::AttributeProto::STRING);
-	attrib->set_s("nearest");
+	attrib->set_s("nearest"); // "nearest" or "linear" or "cubic"
+
+	attrib = node->add_attribute();
+	attrib->set_name("nearest_mode");
+	attrib->set_type(onnx::AttributeProto::STRING);
+	attrib->set_s("round_prefer_floor"); // "round_prefer_floor" or "round_prefer_ceil", or "floor", or "ceil"
+
+	attrib = node->add_attribute();
+	attrib->set_name("antialias");
+	attrib->set_type(onnx::AttributeProto::INT);
+	attrib->set_i(0); // 0=disable antialias
 
 	const auto & l = cfg.net.layers[index];
 
@@ -1088,7 +1127,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::build_model()
 	TAT(TATPARMS);
 
 	populate_graph_input_frame();
-	populate_graph_input();
 	populate_graph_output();
 	populate_graph_nodes();
 
