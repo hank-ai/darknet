@@ -946,6 +946,8 @@ WARN_LOGFILE           =
 INPUT                  = ${PROJECT_SOURCE_DIR}/src-cli \
                          ${PROJECT_SOURCE_DIR}/src-lib \
                          ${PROJECT_SOURCE_DIR}/src-examples \
+                         ${PROJECT_SOURCE_DIR}/src-onnx \
+                         ${PROJECT_SOURCE_DIR}/src-python \
                          ${PROJECT_SOURCE_DIR}/doc
 
 # This tag can be used to specify the character encoding of the source files
