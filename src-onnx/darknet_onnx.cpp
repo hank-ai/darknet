@@ -979,6 +979,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, D
 	}
 
 	auto node = graph->add_node();
+	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_op_type("Resize"); // this requires opset v10 or newer (prior to v10, it was called "Upsample")
 	node->set_name(name);
 	if (cfg_and_state.is_verbose)
@@ -986,7 +987,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, D
 		*cfg_and_state.output << "=> " << node->name() << std::endl;
 	}
 	node->add_input(most_recent_output_per_index[index - 1]);
-	node->add_input(name + "_roi");
+	node->add_input(""); // ROI (unused)
 	node->add_input(name + "_scales");
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
@@ -1006,12 +1007,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, D
 	attrib->set_type(onnx::AttributeProto::INT);
 	attrib->set_i(0); // 0=disable antialias
 
+	attrib = node->add_attribute();
+	attrib->set_name("coordinate_transformation_mode");
+	attrib->set_type(onnx::AttributeProto::STRING);
+	attrib->set_s("asymmetric");
+
+	const float stride = section.find_float("stride", 2.0f);
+	float f[4] = {1.0f, 1.0f, stride, stride};
+
 	const auto & l = cfg.net.layers[index];
-
-	// create a "dummy" RoI tensor with zero items
-	populate_graph_initializer(nullptr, 0, index, l, "roi", true);
-
-	float f[4] = {1.0f, 1.0f, 2.0f, 2.0f};
 	populate_graph_initializer(f, 4, index, l, "scales", true);
 
 	return *this;
