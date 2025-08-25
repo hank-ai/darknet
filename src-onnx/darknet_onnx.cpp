@@ -553,19 +553,31 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
 
+	const int dilation		= 1;
+	const int stride		= section.find_int("stride"	, 2);
+	const int kernel_size	= section.find_int("size"	, 3);
+	const int pad			= [&]() -> int
+	{
+		int i = 0;
+		if (section.find_int("pad", 0))
+		{
+			i = dilation * (kernel_size - 1) / 2;
+		}
+		return i;
+	}();
+
 	auto attrib = node->add_attribute();
 	attrib->set_name("pads");
-	attrib->add_ints(section.find_int("pad", 1));
-	attrib->add_ints(section.find_int("pad", 1));
-	attrib->add_ints(section.find_int("pad", 1));
-	attrib->add_ints(section.find_int("pad", 1));
+	attrib->add_ints(pad);
+	attrib->add_ints(pad);
+	attrib->add_ints(pad);
+	attrib->add_ints(pad);
 	attrib->set_type(onnx::AttributeProto::INTS);
 
-	/// @todo V5 is this right?
 	attrib = node->add_attribute();
-	attrib->set_name("dilations"); // layer->dilation ?
-	attrib->add_ints(1);
-	attrib->add_ints(1);
+	attrib->set_name("dilations");
+	attrib->add_ints(dilation);
+	attrib->add_ints(dilation);
 	attrib->set_type(onnx::AttributeProto::INTS);
 
 	attrib = node->add_attribute();
@@ -575,14 +587,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 
 	attrib = node->add_attribute();
 	attrib->set_name("kernel_shape");
-	attrib->add_ints(section.find_int("size", 3));
-	attrib->add_ints(section.find_int("size", 3));
+	attrib->add_ints(kernel_size);
+	attrib->add_ints(kernel_size);
 	attrib->set_type(onnx::AttributeProto::INTS);
 
 	attrib = node->add_attribute();
 	attrib->set_name("strides");
-	attrib->add_ints(section.find_int("stride", 2));
-	attrib->add_ints(section.find_int("stride", 2));
+	attrib->add_ints(stride);
+	attrib->add_ints(stride);
 	attrib->set_type(onnx::AttributeProto::INTS);
 
 	const auto & l = cfg.net.layers[index];
@@ -854,39 +866,43 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_maxpool(const size_t index, 
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
 
-#if 0
-	/// @todo V5: change "auto_pad" to "pads" since this is deprecated
-	auto attrib = node->add_attribute();
-	attrib->set_name("auto_pad");
-	attrib->set_s("SAME_UPPER"); // note UPPER while CONV uses LOWER
-	attrib->set_type(onnx::AttributeProto::STRING);
-#else
+	const int dilation		= 1;
+	const int stride		= section.find_int("stride"	, 2);
+	const int kernel_size	= section.find_int("size"	, 3);
+	const int pad			= [&]() -> int
+	{
+		int i = 0;
+		if (section.find_int("pad", 0))
+		{
+			i = dilation * (kernel_size - 1) / 2;
+		}
+		return i;
+	}();
+
 	auto attrib = node->add_attribute();
 	attrib->set_name("pads");
-	attrib->add_ints(section.find_int("pad", 1));
-	attrib->add_ints(section.find_int("pad", 1));
-	attrib->add_ints(section.find_int("pad", 1));
-	attrib->add_ints(section.find_int("pad", 1));
+	attrib->add_ints(pad);
+	attrib->add_ints(pad);
+	attrib->add_ints(pad);
+	attrib->add_ints(pad);
 	attrib->set_type(onnx::AttributeProto::INTS);
-#endif
 
 	attrib = node->add_attribute();
 	attrib->set_name("kernel_shape");
-	attrib->add_ints(section.find_int("size", 3));
-	attrib->add_ints(section.find_int("size", 3));
+	attrib->add_ints(kernel_size);
+	attrib->add_ints(kernel_size);
 	attrib->set_type(onnx::AttributeProto::INTS);
 
-	/// @todo V5 is this right?
 	attrib = node->add_attribute();
-	attrib->set_name("dilations"); // layer->dilation ?
-	attrib->add_ints(1);
-	attrib->add_ints(1);
+	attrib->set_name("dilations");
+	attrib->add_ints(dilation);
+	attrib->add_ints(dilation);
 	attrib->set_type(onnx::AttributeProto::INTS);
 
 	attrib = node->add_attribute();
 	attrib->set_name("strides");
-	attrib->add_ints(section.find_int("stride", 2));
-	attrib->add_ints(section.find_int("stride", 2));
+	attrib->add_ints(stride);
+	attrib->add_ints(stride);
 	attrib->set_type(onnx::AttributeProto::INTS);
 
 	return *this;
