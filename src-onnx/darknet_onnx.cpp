@@ -755,7 +755,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_split(const size_t ind
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type);
+	const auto name = format_name(index, section.type) + "_split";
 
 	auto node = graph->add_node();
 	node->set_op_type("Split");
@@ -814,7 +814,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_concat(const size_t in
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type);
+	const auto name = format_name(index, section.type) + "_concat";
 
 	auto node = graph->add_node();
 	node->set_op_type("Concat");
@@ -834,6 +834,33 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_concat(const size_t in
 		if (idx < 0)
 		{
 			idx += index;
+		}
+
+		/* Things get tricky here.  If the input we need is the result of a route split, then update the name to be "ROUTE_B".
+		 * The reason this is tricky is the route comes *after* the node we're pointing to, and the output name will be
+		 * "ROUTE_A".
+		 *
+		 * An example using YOLOv4-tiny:
+		 *
+		 * #00 CONV
+		 * #01 CONV
+		 * #02 CONV
+		 * #03 ROUTE SPLIT -1 (meaning 03_ROUTE_A and 03_ROUTE_B
+		 * #04 CONV
+		 * #05 CONV
+		 * #06 ROUTE CONCAT -1, -2
+		 * #07 CONV
+		 * #08 ROUTE CONCAT -6, -1   <== The -6 here refers to layer #02...but in ONNX should be route B from #03!
+		 */
+		if (most_recent_output_per_index[idx + 1].find("_route_split_A") != std::string::npos)
+		{
+			/* Ah ha!  Just like the example above, the layer is pointing to "-6" (layer #2) but that
+			 * layer is immediately followed by a split.  So use "route B" from the split instead.
+			 */
+			idx ++;
+			auto & tmp = most_recent_output_per_index[idx];
+			tmp.erase(tmp.size() - 1);
+			tmp += "B";
 		}
 
 		node->add_input(most_recent_output_per_index[idx]);
