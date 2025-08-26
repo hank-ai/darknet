@@ -1024,7 +1024,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, D
 		*cfg_and_state.output << "=> " << node->name() << std::endl;
 	}
 	node->add_input(most_recent_output_per_index[index - 1]);
-	node->add_input(""); // ROI (unused)
+	node->add_input(name + "_roi"); // (unused)
 	node->add_input(name + "_scales");
 	node->add_output(name);
 	most_recent_output_per_index[index] = name;
@@ -1054,6 +1054,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, D
 
 	const auto & l = cfg.net.layers[index];
 	populate_graph_initializer(f, 4, index, l, "scales", true);
+
+	// even though the RoI isn't used, we still need to provide a dummy (empty) tensor
+	populate_graph_initializer(nullptr, 0, index, l, "roi", true);
 
 	return *this;
 }
