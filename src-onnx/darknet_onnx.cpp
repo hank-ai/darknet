@@ -488,16 +488,21 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 			case Darknet::ELayerType::ROUTE:
 			{
 				// check to see if we're splitting the output, or concatenating two previous outputs
-				const bool route_is_split = (section.find_int_array("layers").size() == 1);
+				const auto number_of_layers = section.find_int_array("layers").size();
 
-				if (route_is_split)
+				if (number_of_layers == 1)
 				{
 					add_node_route_split(index, section);
 				}
-				else
+				else if (number_of_layers == 2)
 				{
 					add_node_route_concat(index, section);
 				}
+				else
+				{
+					throw std::invalid_argument(format_name(index, section.type) + " on line #" + std::to_string(section.line_number) + ": number of layers is not supported: " + std::to_string(number_of_layers));
+				}
+
 				break;
 			}
 			case Darknet::ELayerType::MAXPOOL:
@@ -766,21 +771,51 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_split(const size_t ind
 		*cfg_and_state.output << "=> " << node->name() << std::endl;
 	}
 
+	// this is a split, so we'll always have a *single* layer, not an array of ints like on concat nodes
 	int layer_to_split = section.find_int("layers");
+
 	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
 	if (layer_to_split < 0)
 	{
 		layer_to_split += index;
 	}
-
 	node->add_input(most_recent_output_per_index[layer_to_split]);
-	node->add_output(name + "_A");
-	node->add_output(name + "_B");
-	most_recent_output_per_index[index] = name + "_A";
+
+	// "axis" needs to be set to 1 for Darknet (1==channel axis)
+	// "groups=2" means split it into 2 parts
+	// group_id is the 0-based output that needs to be fed into the next layer
+	//
+	// prior to ops 13, there was an attribute called "split=[#,#]" but this has been replaced by "num_outputs=#" in ops 18+.
+
+	const int number_of_groups	= section.find_int("groups"		, 1);
+	const int group_to_use		= section.find_int("group_id"	, 0);
+
+	if (number_of_groups == 1 and cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << name << ": splitting into 1 group is the same as a NO-OP.  This node could be eliminated." << std::endl;
+	}
+	if (number_of_groups < 1)
+	{
+		throw std::invalid_argument(name + ": invalid number of groups (" + std::to_string(number_of_groups) + ")");
+	}
+	if (group_to_use < 0 or group_to_use >= number_of_groups)
+	{
+		throw std::invalid_argument(name + ": invalid group number (" + std::to_string(group_to_use) + ")");
+	}
+
+	for (int idx = 0; idx < number_of_groups; idx ++)
+	{
+		const std::string output_name = name + "_group_" + std::to_string(idx);
+		node->add_output(output_name);
+		if (group_to_use == idx)
+		{
+			most_recent_output_per_index[index] = output_name;
+		}
+	}
 
 	auto attrib = node->add_attribute();
 	attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
-	attrib->set_i(1); // 1 == concat on channel axis
+	attrib->set_i(1); // 1 == Darknet always concats on channel axis
 	attrib->set_type(onnx::AttributeProto::INT);
 
 	if (opset_version < 13) // this was removed at v13
@@ -789,12 +824,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_split(const size_t ind
 		// split:  "length of each output" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#Split-2
 		//
 		// the size we need is half of the input layer
-		const int split = l.n / 2; ///< @todo V5: is this logic correct?  This is only a guess as to how this works.
+		const int split = l.n / number_of_groups;
 
 		attrib = node->add_attribute();
 		attrib->set_name("split");
-		attrib->add_ints(split);
-		attrib->add_ints(split);
+		for (int idx = 0; idx < number_of_groups; idx ++)
+		{
+			attrib->add_ints(split);
+		}
 		attrib->set_type(onnx::AttributeProto::INTS);
 	}
 
@@ -802,7 +839,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_split(const size_t ind
 	{
 		attrib = node->add_attribute();
 		attrib->set_name("num_outputs");
-		attrib->set_i(2);
+		attrib->set_i(number_of_groups);
 		attrib->set_type(onnx::AttributeProto::INT);
 	}
 
@@ -834,33 +871,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_concat(const size_t in
 		if (idx < 0)
 		{
 			idx += index;
-		}
-
-		/* Things get tricky here.  If the input we need is the result of a route split, then update the name to be "ROUTE_B".
-		 * The reason this is tricky is the route comes *after* the node we're pointing to, and the output name will be
-		 * "ROUTE_A".
-		 *
-		 * An example using YOLOv4-tiny:
-		 *
-		 * #00 CONV
-		 * #01 CONV
-		 * #02 CONV
-		 * #03 ROUTE SPLIT -1 (meaning 03_ROUTE_A and 03_ROUTE_B
-		 * #04 CONV
-		 * #05 CONV
-		 * #06 ROUTE CONCAT -1, -2
-		 * #07 CONV
-		 * #08 ROUTE CONCAT -6, -1   <== The -6 here refers to layer #02...but in ONNX should be route B from #03!
-		 */
-		if (most_recent_output_per_index[idx + 1].find("_route_split_A") != std::string::npos)
-		{
-			/* Ah ha!  Just like the example above, the layer is pointing to "-6" (layer #2) but that
-			 * layer is immediately followed by a split.  So use "route B" from the split instead.
-			 */
-			idx ++;
-			auto & tmp = most_recent_output_per_index[idx];
-			tmp.erase(tmp.size() - 1);
-			tmp += "B";
 		}
 
 		node->add_input(most_recent_output_per_index[idx]);
