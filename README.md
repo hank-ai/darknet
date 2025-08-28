@@ -30,11 +30,13 @@ Darknet is an open source neural network framework written in C, C++, and CUDA.
 
 YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection system, which runs in the Darknet framework.
 
+* 2025-08:  Darknet/YOLO repo has moved to **[Codeberg.org/CCodeRun/darknet/](https://ccodeberg.org/CCodeRun/darknet/)**
+	* All commits are automatically mirrored from Codeberg to the older Hank.ai GitHub repo.
 * Read how **[Hank.ai is helping the Darknet/YOLO community](https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/)**
 * Announcing **[Darknet V3 "Jazz"](https://hank.ai/announcing-darknet-v3-a-quantum-leap-in-open-source-object-detection/)**
 * See the **[Darknet/YOLO web site](https://darknetcv.ai/)**
 * Please read through the **[Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/)**
-* Join the **[Darknet/YOLO discord server](https://discord.gg/zSq8rtW)**
+* Join the **[Darknet/YOLO discord server](https://discord.gg/CPZJPSYZU2)**
 
 # Papers
 
@@ -79,7 +81,7 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* Legacy C API was modified; applications that use the original Darknet API will need minor modifications:  https://darknetcv.ai/api/api.html
 	* New Darknet V3 C and C++ API to make it easier for developers to write applications that use Darknet/YOLO:  https://darknetcv.ai/api/api.html
 	* New apps and sample code in `src-examples`:  https://darknetcv.ai/api/files.html
-* The most recent version was released in early 2025.  The `version` command now returns 4.x "SLATE".
+* The next released was in early 2025.  The `version` command now returns 4.x "SLATE".
 	* Added support for AMD GPUs using ROCm.
 	* All `printf()` and `std::cout` calls have all been replaced so Darknet/YOLO logging messages can easily be redirected.
 
@@ -173,7 +175,7 @@ These instructions assume (but do not require!) a system running Ubuntu 22.04.  
 sudo apt-get install build-essential git libopencv-dev cmake
 mkdir ~/src
 cd ~/src
-git clone https://github.com/hank-ai/darknet
+git clone https://codeberg.org/CCodeRun/darknet.git
 cd darknet
 mkdir build
 cd build
@@ -282,7 +284,7 @@ Once all of the previous steps have finished successfully, you need to clone Dar
 
 ```bat
 cd c:\src
-git clone https://github.com/hank-ai/darknet.git
+git clone https://codeberg.org/CCodeRun/darknet.git
 cd darknet
 mkdir build
 cd build
@@ -338,7 +340,7 @@ RUN apt-get install -y build-essential git libopencv-dev wget file cmake
 WORKDIR /workspace
 
 # Clone Darknet
-RUN git clone https://github.com/hank-ai/darknet.git
+RUN git clone https://codeberg.org/CCodeRun/darknet.git
 
 # Defer building the Darknet package to runtime (GPU visible)
 CMD ["/bin/bash", "-c", "\
