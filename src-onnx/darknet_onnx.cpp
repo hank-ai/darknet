@@ -1069,6 +1069,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_bn(const size_t index, Darkn
 	const auto name = format_name(index, section.type) + "_bn";
 
 	auto node = graph->add_node();
+	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_op_type("BatchNormalization");
 	node->set_name(name);
 	if (cfg_and_state.is_verbose)
