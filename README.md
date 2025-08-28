@@ -85,13 +85,13 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* Added support for AMD GPUs using ROCm.
 		* Still need to add support for MIOpen.
 	* All `printf()` and `std::cout` calls have all been replaced so Darknet/YOLO logging messages can easily be redirected.
-* Currently in development for Q3 2025 is 5.x "Moonlit".
-	* Move source code repo from github to codeberg.
+* The latest release was in August 2025.  The `version` command now returns 5.x "Moonlit".
+	* Move source code repo from github to [codeberg](https://codeberg.org/CCodeRun/darknet#table-of-contents).
 	* More performance optimizations.
 	* Use of OpenBLAS when building CPU-only versions of Darknet.
 	* Support for Profile-Guided Optimization.
-	* ONNX export functionality.
-	* JAVA language bindings.
+	* ONNX export functionality.  [experimental]
+	* JAVA language bindings.  [incomplete, in-progress]
 
 # Pre-trained Weights
 
@@ -558,14 +558,14 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 * [C++ bindings for Darknet/YOLO](https://darknetcv.ai/api/api.html#apiv3_cpp) (in the Darknet/YOLO repo)
 * [C bindings for Darknet/YOLO](https://darknetcv.ai/api/api.html#apiv3_c) (in the Darknet/YOLO repo)
 * [Python bindings for Darknet/YOLO](src-python/) (in the Darknet/YOLO repo)
-* [Java bindings for Darknet/YOLO](https://github.com/stephanecharette/DarknetJava)
+* [Java bindings for Darknet/YOLO](https://github.com/stephanecharette/DarknetJava)  [incomplete, in-progress]
 * [Delphi bindings for Darknet/YOLO](https://github.com/hansvas/Darknet4Delphi)
 * [Darknet2Any](https://github.com/jredmondson/darknet2any/)
 * If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/zSq8rtW).
 
 # Roadmap
 
-Last updated 2025-08-15:
+Last updated 2025-08-27:
 
 ## Completed
 
@@ -608,6 +608,7 @@ Last updated 2025-08-15:
 * [X] add support for OpenBLAS (CPU builds only)
 * [X] add support for Profile Guided Optimization
 * [X] move from github to codeberg
+* [X] onnx export **(experimental)**
 
 ## Short-term goals
 
@@ -630,7 +631,6 @@ Last updated 2025-08-15:
 
 * [ ] fix CUDA/CUDNN issues with all GPUs
 * [ ] re-write CUDA+cuDNN code
-* [ ] onnx export **(in progress)**
 * [ ] look into adding support for additional hardware
 * [ ] rotated bounding boxes, or some sort of "angle" support
 * [ ] keypoints/skeletons
