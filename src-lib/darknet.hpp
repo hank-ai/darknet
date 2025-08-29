@@ -325,7 +325,7 @@ namespace Darknet
 	 *
 	 * @param [in] roundness Determines how large the rounded corners will appear.  The value must be between @p 0.0
 	 * (small rounded corners) and @p 1.0 (large rounded corners).  At the extreme of @p 1.0, the bounding box will
-	 * appear as a circle.  The default is @p 0.5, but will only take effect if @p rounded is also set to @p true.
+	 * appear as a circle.  The default is @p 0.5, but will only take effect when @p toggle is set to @p true.
 	 *
 	 * @since 2024-07-30
 	 */

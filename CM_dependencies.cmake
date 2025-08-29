@@ -282,11 +282,20 @@ ENDIF ()
 # ===================================
 # == Protocol Buffer (ONNX export) ==
 # ===================================
-FIND_PACKAGE (Protobuf QUIET)
-IF (Protobuf_FOUND)
-	MESSAGE (STATUS "Found protocol buffer (needed for ONNX export) ${Protobuf_VERSION}")
-	INCLUDE_DIRECTORIES (${Protobuf_INCLUDE_DIRS})
-	ADD_COMPILE_DEFINITIONS(DARKNET_HAS_PROTOBUF)
+IF (NOT DEFINED DARKNET_TRY_ONNX)
+	# Looks like we'll need to re-generate the protobuf header file specifically for the compiler being used, so for now
+	# skip ONNX support unless the user specifically asks for it by using -DDARKNET_TRY_ONNX=True when calling cmake.
+	SET (DARKNET_TRY_ONNX False)
+ENDIF ()
+IF (DARKNET_TRY_ONNX)
+	FIND_PACKAGE (Protobuf QUIET)
+	IF (Protobuf_FOUND)
+		MESSAGE (STATUS "Found protocol buffer (needed for ONNX export) ${Protobuf_VERSION}")
+		INCLUDE_DIRECTORIES (${Protobuf_INCLUDE_DIRS})
+		ADD_COMPILE_DEFINITIONS(DARKNET_HAS_PROTOBUF)
+	ELSE ()
+		MESSAGE (WARNING "Protocol buffer not found.  Skipping support for ONNX export.")
+	ENDIF ()
 ELSE ()
-	MESSAGE (WARNING "Protocol buffer not found.  Skipping support for ONNX export.")
+	MESSAGE (STATUS "Darknet is skipping ONNX.  Run cmake with '-DDARKNET_TRY_ONNX=True' to support the ONNX export tool.")
 ENDIF ()
