@@ -116,7 +116,7 @@ int main(int argc, char * argv[])
 			}
 
 			// sleep for a reasonable amount of time beween each frame
-			const int time_to_sleep_in_milliseconds = std::clamp(milliseconds_per_frame / 2UL, 5UL, 20UL);
+			const int time_to_sleep_in_milliseconds = std::clamp(static_cast<unsigned long>(milliseconds_per_frame) / 2UL, 5UL, 20UL);
 			total_sleep_time += std::chrono::milliseconds(time_to_sleep_in_milliseconds);
 			const char c = cv::waitKey(time_to_sleep_in_milliseconds);
 			if (c == 27) // ESC
