@@ -198,17 +198,26 @@ LIST (APPEND DARKNET_LINK_LIBS Threads::Threads)
 # == This is only used when Darknet is built for CPU-only.	==
 # ============================================================
 IF (DARKNET_DETECTED_CPU_ONLY)
-	# APPLE devices need a hint to find the brew installation.  On top of which, on some distrios (and again APPLE)
-	# the package is called OpenBLAS, while on other distros it is called OpenBLAS64.  We need to search for both.
-	FIND_PACKAGE (OpenBLAS NAMES OpenBLAS64 OpenBLAS QUIET HINTS "/opt/homebrew/opt/openblas/lib/cmake/openblas")
-	IF (OpenBLAS_FOUND)
-		MESSAGE (STATUS "Found OpenBLAS ${OpenBLAS_VERSION}")
-		INCLUDE_DIRECTORIES (${OpenBLAS_INCLUDE_DIRS})
-		LIST (APPEND DARKNET_LINK_LIBS ${OpenBLAS_LIBRARIES})	# Linux
-		LIST (APPEND DARKNET_LINK_LIBS OpenBLAS::OpenBLAS)		# Win32
-		ADD_COMPILE_DEFINITIONS (DARKNET_USE_OPENBLAS)
+
+	IF (NOT DEFINED DARKNET_TRY_OPENBLAS)
+		SET (DARKNET_TRY_OPENBLAS True)
+	ENDIF ()
+
+	IF (DARKNET_TRY_OPENBLAS)
+		# APPLE devices need a hint to find the brew installation.  On top of which, on some distrios (and again APPLE)
+		# the package is called OpenBLAS, while on other distros it is called OpenBLAS64.  We need to search for both.
+		FIND_PACKAGE (OpenBLAS NAMES OpenBLAS64 OpenBLAS QUIET HINTS "/opt/homebrew/opt/openblas/lib/cmake/openblas")
+		IF (OpenBLAS_FOUND)
+			MESSAGE (STATUS "Found OpenBLAS ${OpenBLAS_VERSION}")
+			INCLUDE_DIRECTORIES (${OpenBLAS_INCLUDE_DIRS})
+			LIST (APPEND DARKNET_LINK_LIBS ${OpenBLAS_LIBRARIES})	# Linux
+			LIST (APPEND DARKNET_LINK_LIBS OpenBLAS::OpenBLAS)		# Win32 and vcpkg
+			ADD_COMPILE_DEFINITIONS (DARKNET_USE_OPENBLAS)
+		ELSE ()
+			MESSAGE (WARNING "OpenBLAS not found. Building Darknet for CPU-only without support for OpenBLAS.")
+		ENDIF ()
 	ELSE ()
-		MESSAGE (WARNING "OpenBLAS not found. Building Darknet for CPU-only without support for OpenBLAS.")
+		MESSAGE (WARNING "OpenBLAS is disabled. Building Darknet for CPU-only without support for OpenBLAS.")
 	ENDIF ()
 ELSE ()
 	MESSAGE (STATUS "Skipping OpenBLAS since we have a GPU.")
