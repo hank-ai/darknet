@@ -30,7 +30,7 @@ Darknet is an open source neural network framework written in C, C++, and CUDA.
 
 YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection system, which runs in the Darknet framework.
 
-* 2025-08:  Darknet/YOLO repo has moved to **[Codeberg.org/CCodeRun/darknet/](https://ccodeberg.org/CCodeRun/darknet/)**
+* 2025-08:  Darknet/YOLO repo has moved to **[Codeberg.org/CCodeRun/darknet/](https://codeberg.org/CCodeRun/darknet/)**
 	* All commits are automatically mirrored from Codeberg to the older Hank.ai GitHub repo.
 * Read how **[Hank.ai is helping the Darknet/YOLO community](https://hank.ai/darknet-welcomes-hank-ai-as-official-sponsor-and-commercial-entity/)**
 * Announcing **[Darknet V3 "Jazz"](https://hank.ai/announcing-darknet-v3-a-quantum-leap-in-open-source-object-detection/)**
