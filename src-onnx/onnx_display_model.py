@@ -52,16 +52,23 @@ if len(sys.argv) != 2:
     exit(1)
 
 try:
-    model = onnx.shape_inference.infer_shapes(model=onnx.load(sys.argv[1]), check_type=True, strict_mode=True)
+    # best case scenario is if we can use shape_inference to get all the dimensions
+    try:
+        model = onnx.shape_inference.infer_shapes(model=onnx.load(sys.argv[1]), check_type=True, strict_mode=True)
+    except Exception as e:
+        print("Shape inference failed with the following exception:")
+        print(f"{e}")
+        print("Trying again to load the model directly.  Some dimensions may not be available.")
+        model = onnx.load(sys.argv[1])
 
     for node in model.graph.node:
-        print(f"\n{node.name:20}  OP: {node.op_type:20} DOC: {node.doc_string}")
+        print(f"\n{node.name:20}  OP: {node.op_type:25} DOC: {node.doc_string}")
         for input_name in node.input:
             shape = get_tensor_shape_by_name(model, input_name)
-            print(f"                      IN: {input_name:20} DIM: {shape}")
+            print(f"                      IN: {input_name:25} DIM: {shape}")
         for output_name in node.output:
             shape = get_tensor_shape_by_name(model, output_name)
-            print(f"                     OUT: {output_name:20} DIM: {shape}")
+            print(f"                     OUT: {output_name:25} DIM: {shape}")
         if len(node.attribute) > 0:
             print("                  ATTRIB: ", end="")
             for attrib in node.attribute:
