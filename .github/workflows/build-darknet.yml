@@ -1,0 +1,352 @@
+name: Build Darknet
+
+on:
+  push:
+    branches: [ "**" ]
+  pull_request:
+    branches: [ "**" ]
+
+# Prevent overlapping runs on the same ref
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  # =========================
+  # CPU builds (Linux/macOS/Windows)
+  # =========================
+  cpu-matrix:
+    name: CPU • ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+          - os: macos-14
+          - os: windows-2022
+
+    steps:
+      - name: Checkout (full history with tags)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # unshallow so 'git describe' works
+          submodules: recursive
+
+      # If your tags live on Codeberg and the GH mirror lacks them, optionally pull them in:
+      - name: Ensure tags exist for versioning
+        run: |
+          # First, try to fetch any tags from the current remote
+          git fetch --tags --force --prune
+
+          # Optional: also fetch tags from the upstream Codeberg repo (won't fail the job)
+          git remote add upstream https://codeberg.org/CCodeRun/darknet.git || true
+          git fetch upstream --tags || true
+          # (This doesn't change your code; it only imports tag objects.)
+
+          # If still no tags, create a CI-only fallback so CMake gets a parsable semver
+          if ! git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            echo "No git tags found; creating CI fallback tag v0.0.0"
+            git tag -a v0.0.0 -m "CI fallback tag"
+          fi
+
+          echo "Using git describe:"
+          git describe --tags --always || true
+
+
+      # ---------- Ubuntu ----------
+      - name: Install deps (Ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential cmake git pkg-config \
+            libopencv-dev \
+            libopenblas64-0 libopenblas64-0-openmp libopenblas64-openmp-dev
+          cmake --version
+          pkg-config --modversion opencv4 || true
+
+      - name: Configure (Ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          mkdir -p build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release ..
+      
+      - name: Build (Ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          cmake --build build --parallel
+          cmake --build build --target package
+
+      - name: Smoke test (Ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          # Try installed package if present; otherwise run from build dir
+          DEB=$(ls build/darknet-*.deb | head -n 1 || true)
+          if [ -n "$DEB" ]; then
+            sudo dpkg -i "$DEB"
+            darknet version
+          else
+            ./build/src-cli/darknet version || true
+          fi
+
+      - name: Upload artifacts (Ubuntu)
+        if: startsWith(matrix.os, 'ubuntu')
+        uses: actions/upload-artifact@v4
+        with:
+          name: darknet-ubuntu-artifacts
+          path: |
+            build/darknet-*.deb
+            build/src-cli/darknet
+            build/src-cli/*.so
+          if-no-files-found: warn
+
+      # ---------- macOS ----------
+      - name: Install OpenCV & OpenBLAS (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          set -euxo pipefail
+          brew update
+          # Don't reinstall cmake; it’s pinned on runners and causes an error.
+          brew ls --versions opencv   >/dev/null || brew install opencv
+          brew ls --versions openblas >/dev/null || brew install openblas
+          cmake --version
+
+      - name: Resolve OpenCV paths (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          set -euxo pipefail
+          # Figure out which formula exists: opencv or opencv@4
+          if brew ls --versions opencv >/dev/null 2>&1; then
+            OPENCV_FORMULA=opencv
+          elif brew ls --versions opencv@4 >/dev/null 2>&1; then
+            OPENCV_FORMULA=opencv@4
+          else
+            echo "OpenCV formula not installed"; exit 1
+          fi
+
+          OPENCV_PREFIX="$(brew --prefix "$OPENCV_FORMULA")"
+          OPENBLAS_PREFIX="$(brew --prefix openblas || true)"
+
+          # Canonical Homebrew location for config:
+          if [ -f "$OPENCV_PREFIX/lib/cmake/opencv4/OpenCVConfig.cmake" ]; then
+            OPENCV_DIR="$OPENCV_PREFIX/lib/cmake/opencv4"
+          else
+            # Fallback search (handles formula layout changes)
+            OPENCV_DIR="$(/usr/bin/find "$OPENCV_PREFIX" -type f -name OpenCVConfig.cmake -print -quit | xargs dirname || true)"
+          fi
+
+          echo "Resolved OpenCV_DIR=$OPENCV_DIR"
+          test -n "$OPENCV_DIR" && test -f "$OPENCV_DIR/OpenCVConfig.cmake"
+
+          # Export for next steps
+          {
+            echo "OpenCV_DIR=$OPENCV_DIR"
+            echo "OPENBLAS_PREFIX=$OPENBLAS_PREFIX"
+            echo "PKG_CONFIG_PATH=$OPENCV_PREFIX/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+            echo "BLA_VENDOR=OpenBLAS"
+            # Help CMake discover Homebrew prefixes
+            echo "CMAKE_PREFIX_PATH=$OPENCV_PREFIX;$OPENBLAS_PREFIX;$(brew --prefix)"
+          } >> "$GITHUB_ENV"
+
+      - name: Configure (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          set -euxo pipefail
+          mkdir -p build && cd build
+          cmake -DCMAKE_BUILD_TYPE=Release \
+                -DOpenCV_DIR="$OpenCV_DIR" \
+                -DCMAKE_PREFIX_PATH="$CMAKE_PREFIX_PATH" \
+                -DBLA_VENDOR="$BLA_VENDOR" \
+                ..
+
+      - name: Build (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          set -euxo pipefail
+          cmake --build build --parallel
+
+      - name: Smoke test (macOS)
+        if: startsWith(matrix.os, 'macos')
+        run: |
+          ./build/src-cli/darknet version || true
+
+      - name: Upload artifacts (macOS)
+        if: startsWith(matrix.os, 'macos')
+        uses: actions/upload-artifact@v4
+        with:
+          name: darknet-macos-artifacts
+          path: |
+            build/src-cli/darknet
+            build/src-cli/*.dylib
+          if-no-files-found: warn
+
+      # ---------- Windows ----------
+      - name: Set up MSVC Developer Command Prompt (Windows)
+        if: startsWith(matrix.os, 'windows')
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install vcpkg & deps (Windows)
+        if: startsWith(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          Set-Location $env:RUNNER_TEMP
+          git clone https://github.com/microsoft/vcpkg
+          Set-Location vcpkg
+          .\bootstrap-vcpkg.bat
+          .\vcpkg.exe integrate install
+          # OpenCV (& optionally OpenBLAS) for CPU builds
+          .\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows
+          # .\vcpkg.exe install openblas:x64-windows
+
+      - name: Configure (Windows)
+        if: startsWith(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          $TOOLCHAIN = Join-Path $env:RUNNER_TEMP "vcpkg\scripts\buildsystems\vcpkg.cmake"
+          New-Item -ItemType Directory -Force -Path build | Out-Null
+          Set-Location build
+          # Use the default VS generator; pass -A x64 to avoid Win32
+          cmake -A x64 -DCMAKE_BUILD_TYPE=Release `
+                -DCMAKE_TOOLCHAIN_FILE="$TOOLCHAIN" `
+                -DVCPKG_TARGET_TRIPLET=x64-windows `
+                ..
+
+      - name: Build (Windows)
+        if: startsWith(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          cmake --build build --config Release --parallel
+          # If packaging is configured on Windows:
+          cmake --build build --config Release --target package || $true
+
+      - name: Smoke test (Windows)
+        if: startsWith(matrix.os, 'windows')
+        shell: pwsh
+        run: |
+          $exe = "build\src-cli\Release\darknet.exe"
+          if (Test-Path $exe) {
+            & $exe --version
+            if ($LASTEXITCODE -ne 0) { & $exe version }
+          } else {
+            Write-Host "darknet.exe not found at $exe"
+          }
+
+      - name: Upload artifacts (Windows)
+        if: startsWith(matrix.os, 'windows')
+        uses: actions/upload-artifact@v4
+        with:
+          name: darknet-windows-artifacts
+          path: |
+            build\src-cli\Release\darknet.exe
+            build\*.exe
+            build\*.msi
+          if-no-files-found: warn
+
+
+  # =========================
+  # CUDA toolchain compile (Linux, inside NVIDIA CUDA container)
+  # =========================
+  cuda-compile:
+    name: CUDA container compile (no GPU runtime)
+    runs-on: ubuntu-22.04
+    # Use container so CUDA toolkit is available; no GPU on hosted runners.
+    container:
+      image: nvidia/cuda:12.4.1-devel-ubuntu22.04
+    steps:
+      # add ninja so we can cap jobs precisely
+      - name: Install deps in container
+        run: |
+          set -euxo pipefail
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            git build-essential pkg-config ninja-build \
+            libopencv-dev libopenblas64-openmp-dev wget gpg
+          # Kitware CMake repo (jammy) for 3.24+
+          wget -O - https://apt.kitware.com/keys/kitware-archive-latest.asc \
+            | gpg --dearmor -o /usr/share/keyrings/kitware-archive-keyring.gpg
+          echo 'deb [signed-by=/usr/share/keyrings/kitware-archive-keyring.gpg] https://apt.kitware.com/ubuntu/ jammy main' \
+            > /etc/apt/sources.list.d/kitware.list
+          apt-get update && apt-get install -y cmake
+          cmake --version
+
+      - name: Checkout (full)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0   # unshallow so 'git describe' works
+
+      # Fix 'dubious ownership' for the mounted workspace inside the container
+      - name: Trust workspace for git-in-CMake
+        run: |
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          # Also trust the current path just in case
+          git config --global --add safe.directory "$(pwd)"
+
+      - name: Ensure tags for versioning (match CPU jobs)
+        run: |
+          set -euo pipefail
+          # Trust the workspace in the container (already done earlier, ok to repeat)
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+          # Get tags from origin
+          git fetch --tags --force --prune || true
+
+          # Get tags from upstream Codeberg (same as CPU jobs)
+          git remote add upstream https://codeberg.org/CCodeRun/darknet.git || true
+          git fetch upstream --tags || true
+
+          # Fallback only if still no tags; create a 'v0.0' tag that your parser accepts
+          if ! git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            echo "No tags found; creating fallback tag v0.0"
+            # Use a lightweight tag (no identity needed). If your parser requires annotated tags,
+            # uncomment the two config lines and switch to 'git tag -a ... -m ...'.
+            git tag -f v0.0 || true
+
+            # If you need annotated instead of lightweight:
+            # git config --global user.email "ci@local"
+            # git config --global user.name "CI"
+            # git tag -fa v0.0 -m "CI fallback tag"
+          fi
+
+          echo "git describe →"
+          git describe --tags --always --long || true
+
+
+
+      - name: Configure (CUDA)
+        run: |
+          mkdir -p build && cd build
+          cmake -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DENABLE_CUDA=ON \
+            -DCMAKE_CUDA_ARCHITECTURES=75 \
+            ..
+
+      # cap parallel jobs to cut peak RAM
+      - name: Build (CUDA)
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: 2   # try 2; if it still OOMs, drop to 1
+        run: |
+          cmake --build build --parallel
+
+
+      - name: Show CUDA compile info
+        run: |
+          nvcc --version || true
+          ls -lah build | sed -n '1,120p'
+          # We cannot run GPU code here; just print the binary presence.
+          file build/src-cli/darknet || true
+
+      - name: Upload artifacts (CUDA)
+        uses: actions/upload-artifact@v4
+        with:
+          name: darknet-cuda-compile-artifacts
+          path: |
+            build/darknet-*.deb
+            build/src-cli/darknet
+          if-no-files-found: warn
