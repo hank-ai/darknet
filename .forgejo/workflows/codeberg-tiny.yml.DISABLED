@@ -1,17 +1,16 @@
 name: CI Workflow for Darknet
 
-# Disable CI until I figure out how to upgrade CMake
-#on:
-#  push:
-#    branches:
-#      - master
-#      - v4
-#      - v5
-#  pull_request:
-#    branches:
-#      - master
-#      - v4
-#      - v5
+on:
+  push:
+    branches:
+      - master
+      - v4
+      - v5
+  pull_request:
+    branches:
+      - master
+      - v4
+      - v5
 
 jobs:
   build:
