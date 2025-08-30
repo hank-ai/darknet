@@ -23,8 +23,8 @@ jobs:
       - name: Run a script
         run: |
           # get a new version of cmake directly from Kitware
-          wget -qO - https://apt.kitware.com/keys/kitware-archive.asc | sudo tee /etc/apt/trusted.gpg.d/kitware.asc
-          sudo apt-add-repository "deb https://apt.kitware.com/cmake/ubuntu/$(lsb_release -c | awk '{print $2}') main"
+          #wget -qO - https://apt.kitware.com/keys/kitware-archive.asc | sudo tee /etc/apt/trusted.gpg.d/kitware.asc
+          #sudo apt-add-repository "deb https://apt.kitware.com/cmake/ubuntu/$(lsb_release -c | awk '{print $2}') main"
 
           # install dependencies
           sudo apt-get update
