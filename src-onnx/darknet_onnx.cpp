@@ -494,7 +494,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 				{
 					add_node_route_split(index, section);
 				}
-				else if (number_of_layers == 2)
+				else if (number_of_layers >= 2)
 				{
 					add_node_route_concat(index, section);
 				}
