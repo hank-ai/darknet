@@ -527,7 +527,7 @@ float *cuda_make_array(float *x, size_t n)
 	cudaError_t status = cudaMalloc((void **)&x_gpu, size);
 	if (status != cudaSuccess || !x_gpu)
 	{
-		darknet_fatal_error(DARKNET_LOC, "CUDA memory allocation failed (%s).\nIf possible, try to set subdivisions=... higher in your cfg file.", size_to_IEC_string(size));
+		darknet_fatal_error(DARKNET_LOC, "CUDA memory allocation failed (%s).\nIf possible, try to set subdivisions=... higher in your cfg file.", size_to_IEC_string(size).c_str());
 	}
 	CHECK_CUDA(status);
 
@@ -560,7 +560,7 @@ void **cuda_make_array_pointers(void **x, size_t n)
 	}
 	if (!x_gpu)
 	{
-		darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed (%s)", size_to_IEC_string(size));
+		darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed (%s)", size_to_IEC_string(size).c_str());
 	}
 	return x_gpu;
 }
