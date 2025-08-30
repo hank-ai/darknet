@@ -22,8 +22,15 @@ jobs:
           fetch-depth: 0
       - name: Run a script
         run: |
+          # get a new version of cmake directly from Kitware
+          wget -qO - https://apt.kitware.com/keys/kitware-archive.asc | sudo tee /etc/apt/trusted.gpg.d/kitware.asc
+          sudo apt-add-repository "deb https://apt.kitware.com/cmake/ubuntu/$(lsb_release -c | awk '{print $2}') main"
+
+          # install dependencies
           sudo apt-get update
           sudo apt-get install -y build-essential cmake git pkg-config libopencv-dev libopenblas64-0 libopenblas64-0-openmp libopenblas64-openmp-dev
+
+          # build and install darknet
           mkdir -p build
           cd build
           cmake -DCMAKE_BUILD_TYPE=Release ..
