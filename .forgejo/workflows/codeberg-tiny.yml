@@ -1,16 +1,17 @@
 name: CI Workflow for Darknet
 
-on:
-  push:
-    branches:
-      - master
-      - v4
-      - v5
-  pull_request:
-    branches:
-      - master
-      - v4
-      - v5
+# Disable CI until I figure out how to upgrade CMake
+#on:
+#  push:
+#    branches:
+#      - master
+#      - v4
+#      - v5
+#  pull_request:
+#    branches:
+#      - master
+#      - v4
+#      - v5
 
 jobs:
   build:
@@ -20,7 +21,7 @@ jobs:
       - uses: https://code.forgejo.org/actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Run a script
+      - name: Build and run unit tests
         run: |
           # get a new version of cmake directly from Kitware
           #wget -qO - https://apt.kitware.com/keys/kitware-archive.asc | sudo tee /etc/apt/trusted.gpg.d/kitware.asc
@@ -38,3 +39,6 @@ jobs:
           cmake --build build --target package
           sudo dpkg -i darknet*.deb
           darknet --version
+
+          # run the unit tests
+          src-test/darknet_tests
