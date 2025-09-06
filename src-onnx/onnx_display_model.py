@@ -61,16 +61,33 @@ try:
         print("Trying again to load the model directly.  Some dimensions may not be available.")
         model = onnx.load(sys.argv[1])
 
+    # display a few bits of information before we go through the nodes
+    print(f"Filename ............. {sys.argv[1]}")
+    print(f"Doc string ........... {model.doc_string}")
+    print(f"Domain ............... {model.domain}")
+    print(f"Producer name ........ {model.producer_name}")
+    print(f"Producer version ..... {model.producer_version}")
+    print(f"Model version ........ {model.model_version}")
+    print(f"Graph input size ..... {len(model.graph.input)}")
+    print(f"Graph output size .... {len(model.graph.output)}")
+    print(f"Graph node size ...... {len(model.graph.node)}")
+    print(f"Graph initializers ... {len(model.graph.initializer)}")
+    print(f"IR version ........... {model.ir_version}")
+
+    for opset in model.opset_import:
+        domain = opset.domain + ":" if opset.domain else ""
+        print(f"Opset version ........ {domain}{opset.version}")
+
     for node in model.graph.node:
-        print(f"\n{node.name:20}  OP: {node.op_type:25} DOC: {node.doc_string}")
+        print(f"\n{node.name:30}  OP: {node.op_type:35} DOC: {node.doc_string}")
         for input_name in node.input:
             shape = get_tensor_shape_by_name(model, input_name)
-            print(f"                      IN: {input_name:25} DIM: {shape}")
+            print(f"                                IN: {input_name:35} DIM: {shape}")
         for output_name in node.output:
             shape = get_tensor_shape_by_name(model, output_name)
-            print(f"                     OUT: {output_name:25} DIM: {shape}")
+            print(f"                               OUT: {output_name:35} DIM: {shape}")
         if len(node.attribute) > 0:
-            print("                  ATTRIB: ", end="")
+            print("                            ATTRIB: ", end="")
             for attrib in node.attribute:
                 print(f"{attrib.name}=", end="")
                 if attrib.type == onnx.AttributeProto.FLOAT:
@@ -83,8 +100,10 @@ try:
                     print(f"{attrib.ints} ", end="")
                 elif attrib.type == onnx.AttributeProto.STRING:
                     print(f"{attrib.s.decode('utf-8')} ", end="")
+                elif attrib.type == onnx.AttributeProto.TENSOR:
+                    print(f"{onnx.numpy_helper.to_array(attrib.t)} (TENSOR) ", end="")
                 else:
-                    print(f"... ", end="")
+                    print(f"... (type #{attrib.type}) ", end="")
             print("")
 
     print("")
@@ -93,7 +112,7 @@ try:
         shape = get_tensor_shape_by_name(model, node.name)
         if len(shape) == 4:
             # can we assume the shape is BCHW?
-            print(f"Model input node:         {node.name:10} W={shape[3]:4} H={shape[2]:4} C={shape[1]:2} B={shape[0]:1}    {shape}")
+            print(f"Model input node:         {node.name:10} W={shape[3]:4} H={shape[2]:4} C={shape[1]:3} B={shape[0]:1}    {shape}")
         else:
             print(f"Model input node:         {node.name:10}     {shape}")
 
@@ -101,7 +120,7 @@ try:
         shape = get_tensor_shape_by_name(model, node.name)
         if len(shape) == 4:
             # can we assume the shape is BCHW?
-            print(f"Model output node:        {node.name:10} W={shape[3]:4} H={shape[2]:4} C={shape[1]:2} B={shape[0]:1}    {shape}")
+            print(f"Model output node:        {node.name:10} W={shape[3]:4} H={shape[2]:4} C={shape[1]:3} B={shape[0]:1}    {shape}")
         else:
             print(f"Model output node:        {node.name:10}     {shape}")
     exit(0)
