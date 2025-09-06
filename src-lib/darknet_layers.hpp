@@ -47,12 +47,12 @@ namespace Darknet
 		int nbiases; ///< unused?  Seems to be no references to this in the codebase.
 		int extra;
 		int truths;
-		int h; ///< height
-		int w; ///< width
-		int c; ///< channels
-		int out_h;
-		int out_w;
-		int out_c;
+		int h; ///< input height
+		int w; ///< input width
+		int c; ///< input channels
+		int out_h;	///< output height
+		int out_w;	///< output width
+		int out_c;	///< output channels
 		int n; ///< number of anchors, masks (?), weights (?); for example, with YOLOv4-tiny this is set to @p 3
 		int max_boxes;
 		int truth_size;

@@ -1406,7 +1406,7 @@ Darknet::Predictions Darknet::predict(Darknet::NetworkPtr ptr, Darknet::Image & 
 	if (original_image_size.width	< 1) original_image_size.width	= img.w;
 	if (original_image_size.height	< 1) original_image_size.height	= img.h;
 
-	network_predict(*net, img.data); /// todo pass net by ref or pointer, not copy constructor!
+	network_predict(*net, img.data); /// @todo pass net by ref or pointer, not copy constructor!
 	Darknet::free_image(img);
 
 	int nboxes = 0;

@@ -29,6 +29,14 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
 
+	/** Purely cosmetic zero-padding used when generating the ONNX node names.
+	 *
+	 * For example, with YOLOv4-tiny which has 37 layers then the length is set to @p 2 and the node names will be padded
+	 * like this:  @p 02_conv
+	 *
+	 * And with YOLOv4-full which has over 100 layers, then the length is set to @p 3 and the node names will be padded
+	 * like this:  @p 002_conv
+	 */
 	size_t padding_len = 2;
 
 
@@ -61,6 +69,7 @@ namespace
 		return format_name(idx, l) + "_" + name;
 	}
 
+
 	static std::string ir_date_lookup(const int ir)
 	{
 		TAT(TATPARMS);
@@ -80,6 +89,7 @@ namespace
 		}
 		return "unknown";
 	}
+
 
 	static std::string ops_date_lookup(const int ops)
 	{
@@ -137,7 +147,8 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 	onnx_fn(onnx_filename),
 	opset_version(18),	// - Upsample is until v9 (Mar 2019)
 						// - Resize begins at v10 (May 2019)
-						// - Mish begins at v18 (Dec 2022)
+						// - Constant (with value_int) begins at v12
+						// - Mish (used in YOLOv4-full) begins at v18 (Dec 2022)
 						//
 						// Technically, we could use v10 for YOLOv4-tiny and YOLOv4-tiny-3L,
 						// and only fall back to v18 when YOLOv4 (full) is used, but at this
@@ -492,7 +503,16 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 
 				if (number_of_layers == 1)
 				{
-					add_node_route_split(index, section);
+					if (section.exists("groups") or section.exists("group_id"))
+					{
+						// we're doing a channel slice
+						add_node_route_slice(index, section);
+					}
+					else
+					{
+						// reference a specific layer but effectively a no-op
+						add_node_route_identity(index, section);
+					}
 				}
 				else if (number_of_layers >= 2)
 				{
@@ -756,14 +776,37 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 }
 
 
-Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_split(const size_t index, Darknet::CfgSection & section)
+Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_identity(const size_t index, Darknet::CfgSection & section)
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type) + "_split";
+	const auto name = format_name(index, section.type) + "_identity";
+
+	// if we get here, then we should have no "groups" or "group_id"
+	if (section.exists("groups") or section.exists("group_id"))
+	{
+		throw std::runtime_error(name + ": layer should not have 'groups' or 'group_id'");
+	}
+
+	/** @todo verify what ChatGPT has to say about this:
+	 *
+	 * Many Darknet-to-ONNX converters mistakenly convert single-layer route layers into Split or Slice nodes due to:
+	 *
+	 *	1. Overgeneralized conversion logic (trying to handle all cases with the same code)
+	 *	2. Misinterpretation of what route does
+	 *	3. Incorrect assumptions about data layout
+	 *	4. Legacy from older or broken conversion scripts
+	 *
+	 * In reality, single-layer route is just a pass-through, but some tools try to “process” it unnecessarily.
+	 *
+	 * ...and:
+	 *
+	 * In ONNX, the Identity operator is functionally equivalent to a no-op (no operation) on the tensor data.
+	 * It simply passes the input through to the output unchanged.
+	 */
 
 	auto node = graph->add_node();
-	node->set_op_type("Split");
+	node->set_op_type("Identity");
 	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_name(name);
 	if (cfg_and_state.is_verbose)
@@ -771,77 +814,114 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_split(const size_t ind
 		*cfg_and_state.output << "=> " << node->name() << std::endl;
 	}
 
-	// this is a split, so we'll always have a *single* layer, not an array of ints like on concat nodes
-	int layer_to_split = section.find_int("layers");
-
 	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
-	if (layer_to_split < 0)
+	int layer_referenced = section.find_int("layers");
+	if (layer_referenced < 0)
 	{
-		layer_to_split += index;
+		layer_referenced += index;
 	}
-	node->add_input(most_recent_output_per_index[layer_to_split]);
+	node->add_input(most_recent_output_per_index[layer_referenced]);
 
-	// "axis" needs to be set to 1 for Darknet (1==channel axis)
-	// "groups=2" means split it into 2 parts
-	// group_id is the 0-based output that needs to be fed into the next layer
-	//
-	// prior to ops 13, there was an attribute called "split=[#,#]" but this has been replaced by "num_outputs=#" in ops 18+.
+	node->add_output(name);
+	most_recent_output_per_index[index] = name;
 
-	const int number_of_groups	= section.find_int("groups"		, 1);
-	const int group_to_use		= section.find_int("group_id"	, 0);
+	return *this;
+}
 
-	if (number_of_groups == 1 and cfg_and_state.is_verbose)
+
+Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_slice(const size_t index, Darknet::CfgSection & section)
+{
+	TAT(TATPARMS);
+
+	const auto name = format_name(index, section.type) + "_slice";
+
+	if (opset_version < 12)
+	{
+		throw std::runtime_error("op type \"Constant\" required for node " + name + " needs opset >= 12, but opset is currently set to " + std::to_string(opset_version) + ".");
+	}
+
+	const int groups	= section.find_int("groups"		, 1);
+	const int group_id	= section.find_int("group_id"	, 0);
+	if (groups == 1 and cfg_and_state.is_verbose)
 	{
 		*cfg_and_state.output << name << ": splitting into 1 group is the same as a NO-OP.  This node could be eliminated." << std::endl;
 	}
-	if (number_of_groups < 1)
+	if (groups < 1)
 	{
-		throw std::invalid_argument(name + ": invalid number of groups (" + std::to_string(number_of_groups) + ")");
+		throw std::invalid_argument(name + ": invalid number of groups (" + std::to_string(groups) + ")");
 	}
-	if (group_to_use < 0 or group_to_use >= number_of_groups)
+	if (group_id < 0 or group_id >= groups)
 	{
-		throw std::invalid_argument(name + ": invalid group number (" + std::to_string(group_to_use) + ")");
-	}
-
-	for (int idx = 0; idx < number_of_groups; idx ++)
-	{
-		const std::string output_name = name + "_group_" + std::to_string(idx);
-		node->add_output(output_name);
-		if (group_to_use == idx)
-		{
-			most_recent_output_per_index[index] = output_name;
-		}
+		throw std::invalid_argument(name + ": invalid group number (" + std::to_string(group_id) + ")");
 	}
 
-	auto attrib = node->add_attribute();
-	attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
-	attrib->set_i(1); // 1 == Darknet always concats on channel axis
-	attrib->set_type(onnx::AttributeProto::INT);
+	const auto doc_string =
+		cfg_fn.filename().string() +
+		" line #" + std::to_string(section.line_number) +
+		" [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]"
+		" groups="		+ std::to_string(groups) +
+		" group_id="	+ std::to_string(group_id);
 
-	if (opset_version < 13) // this was removed at v13
+	// this is a slice, so we'll always have a *single* layer, not an array of ints like on concat nodes
+	int layer_to_slice = section.find_int("layers");
+
+	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
+	if (layer_to_slice < 0)
 	{
-		const auto & l = cfg.net.layers[layer_to_split];
-		// split:  "length of each output" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#Split-2
-		//
-		// the size we need is half of the input layer
-		const int split = l.n / number_of_groups;
-
-		attrib = node->add_attribute();
-		attrib->set_name("split");
-		for (int idx = 0; idx < number_of_groups; idx ++)
-		{
-			attrib->add_ints(split);
-		}
-		attrib->set_type(onnx::AttributeProto::INTS);
+		layer_to_slice += index;
 	}
 
-	if (opset_version >= 18) // this was introduced at v18
+	const auto & l = cfg.net.layers[layer_to_slice];
+	const int channels = l.out_c;
+
+	// The inputs we're going to need for the Slice node are:
+	//
+	//	- starts (group_id * channels_per_group)
+	//	- ends (start + channels_per_group)
+	//	- axes (1)
+	//	- steps (1)
+	//
+	const int channels_per_group	= channels / groups;
+	const int starts				= group_id * channels_per_group;
+	const int ends					= starts + channels_per_group;
+
+	const std::map<std::string, int> constants =
 	{
-		attrib = node->add_attribute();
-		attrib->set_name("num_outputs");
-		attrib->set_i(number_of_groups);
+		{name + "_1_starts"	, starts},
+		{name + "_2_ends"	, ends},
+		{name + "_3_axes"	, 1},
+		{name + "_4_steps"	, 1}
+	};
+	for (const auto & [key, val] : constants)
+	{
+		auto node = graph->add_node();
+		node->set_op_type("Constant");
+		node->set_doc_string(doc_string);
+		node->set_name(key);
+		node->add_output(key);
+		auto attrib = node->add_attribute();
+		attrib->set_name("value_int");
 		attrib->set_type(onnx::AttributeProto::INT);
+		attrib->set_i(val);
 	}
+
+	auto node = graph->add_node();
+	node->set_op_type("Slice");
+	node->set_doc_string(doc_string);
+	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
+
+	node->add_input(most_recent_output_per_index[layer_to_slice]);
+	node->add_input(name + "_1_starts"	);
+	node->add_input(name + "_2_ends"	);
+	node->add_input(name + "_3_axes"	);
+	node->add_input(name + "_4_steps"	);
+
+	node->add_output(name);
+	most_recent_output_per_index[index] = name;
 
 	return *this;
 }
