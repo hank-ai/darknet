@@ -280,11 +280,11 @@ DarknetImage make_image(int w, int h, int c);
  *
  * @see @ref Darknet::free_image()
  *
- * @note The @ref image is passed by value, meaning that the data pointer in the caller's copy of the image will
- * be left dangling.  Be careful not to reference it once this call returns.  Where possible when using C++, call
+ * @note The image is passed by value, meaning that the data pointer in the caller's copy of the image will be
+ * left dangling.  Be careful not to reference it once this call returns.  Where possible when using C++, call
  * @ref Darknet::free_image() instead.
  */
-void free_image(image im);
+void free_image(DarknetImage image);
 
 /// This is part of the original @p C API.  Non Maxima Suppression.
 void do_nms_sort(detection * dets, int total, int classes, float thresh);
