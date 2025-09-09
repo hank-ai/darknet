@@ -1881,11 +1881,11 @@ void Darknet::show_images(Darknet::Image *ims, int n, const char * window)
 
 
 // this is the "C" version of the call, where the image is not passed by reference
-void free_image(image im)
+void free_image(DarknetImage image)
 {
 	TAT(TATPARMS);
 
-	Darknet::free_image(im);
+	Darknet::free_image(image);
 
 	return;
 }
