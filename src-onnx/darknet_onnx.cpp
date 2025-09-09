@@ -912,6 +912,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_slice(const size_t ind
 			initializer->set_data_type(onnx::TensorProto::INT32);
 			initializer->set_name(key);
 			initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[index].line_number) + " [" + Darknet::to_string(l.type) + ", layer #" + std::to_string(index) + ", " + key + "=" + std::to_string(val) + "]");
+			initializer->add_dims(1);
 			initializer->add_int32_data(val);
 		#endif
 	}
