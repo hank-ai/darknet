@@ -894,15 +894,27 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_slice(const size_t ind
 	};
 	for (const auto & [key, val] : constants)
 	{
-		auto node = graph->add_node();
-		node->set_op_type("Constant");
-		node->set_doc_string(doc_string);
-		node->set_name(key);
-		node->add_output(key);
-		auto attrib = node->add_attribute();
-		attrib->set_name("value_int");
-		attrib->set_type(onnx::AttributeProto::INT);
-		attrib->set_i(val);
+		/** @todo 2025-09-09:  I believe this is valid (to use contant nodes) but it appears some tools aren't expecting it,
+		 * so for now let's go back to using initializers until I better understand how this is supposed to be working.
+		 */
+		#if 0
+			auto node = graph->add_node();
+			node->set_op_type("Constant");
+			node->set_doc_string(doc_string);
+			node->set_name(key);
+			node->add_output(key);
+			auto attrib = node->add_attribute();
+			attrib->set_name("value_int");
+			attrib->set_type(onnx::AttributeProto::INT);
+			attrib->set_i(val);
+		#else
+			onnx::TensorProto * initializer = graph->add_initializer();
+			initializer->set_data_type(onnx::TensorProto::INT32);
+			initializer->set_name(key);
+			initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[index].line_number) + " [" + Darknet::to_string(l.type) + ", layer #" + std::to_string(index) + ", " + key + "=" + std::to_string(val) + "]");
+			initializer->add_dims(1);
+			initializer->add_int32_data(val);
+		#endif
 	}
 
 	auto node = graph->add_node();
