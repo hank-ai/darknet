@@ -325,7 +325,7 @@ def detect_image(network, class_names, image, thresh=.5, hier_thresh=.5, nms=.45
 
 # Platform-specific library path and initialization
 if os.name == "posix":
-    libpath = "/usr/lib/libdarknet.so"
+    libpath = "libdarknet.so"
 elif os.name == "nt":
     libpath = "C:/Program Files/darknet/bin/darknet.dll"
 else:
