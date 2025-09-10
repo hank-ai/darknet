@@ -7,8 +7,9 @@ assignees: stephanecharette
 
 ---
 
-If you have a question, please consider asking on the Darknet/YOLO discord server instead of creating this github issue.  Asking on the discord server will get you a quicker reply.
+The Darknet/YOLO discord may be best for support and feature discussions:  https://discord.gg/CPZJPSYZU2
 
-You can get to the Darknet/YOLO discord server here:  https://discord.gg/CPZJPSYZU2
+In August 2025, the Darknet/YOLO repo moved from Github to Codeberg:  https://codeberg.org/CCodeRun/darknet#table-of-contents
+For quicker replies, consider creating new issues on Codeberg instead of Github.
 
 Additionally, you may find answers to common question in the Darknet/YOLO FAQ:  https://www.ccoderun.ca/programming/darknet_faq/
