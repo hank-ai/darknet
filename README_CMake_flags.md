@@ -47,18 +47,18 @@ With CPU-only builds, this determines if OpenBLAS should be auto-detected.  Syst
 
 Toggle creating profile-guided optimizations.  See [README_PGO.md](README_PGO.md).  The default is `OFF`.
 
-	cmake -DDARKNET_PROFILE_GEN=ON
-	cmake -DDARKNET_PROFILE_GEN=OFF
+	cmake -DDARKNET_PROFILE_GEN=ON ...
+	cmake -DDARKNET_PROFILE_GEN=OFF ...
 
 Toggle using the previously-generated profile-guided optimizations.  See [README_PGO.md](README_PGO.md).  The default is `OFF`.
 
-	cmake -DDARKNET_PROFILE_USE=ON
-	cmake -DDARKNET_PROFILE_USE=OFF
+	cmake -DDARKNET_PROFILE_USE=ON ...
+	cmake -DDARKNET_PROFILE_USE=OFF ...
 
 Toggle looking for Protocol Buffers and building the ONNX export tool.  See [README_ONNX.md](README_ONNX.md).  The default is `OFF`.
 
-	cmake -DDARKNET_TRY_ONNX=ON
-	cmake -DDARKNET_TRY_ONNX=OFF
+	cmake -DDARKNET_TRY_ONNX=ON ...
+	cmake -DDARKNET_TRY_ONNX=OFF ...
 
 ### Debugging
 
@@ -71,6 +71,14 @@ Toggle the "timing and tracking" functionality to time how long functions take t
 
 	cmake -DENABLE_TIMING_AND_TRACKING=ON ...
 	cmake -DENABLE_TIMING_AND_TRACKING=OFF ...
+
+### Linux
+
+By default, CPack (part of CMake) will install to `/usr/bin/` and `/usr/lib/`.  To force Darknet to be installed to a different path, you must set _two_ variables, `CPACK_SET_DESTDIR` and `CMAKE_INSTALL_PREFIX`.
+
+	cmake -DCPACK_SET_DESTDIR=ON -DCMAKE_INSTALL_PREFIX=/usr/local/ ...
+
+(Also see `CPACK_PACKAGING_INSTALL_PREFIX` which may provide an alterate way to install to a different location.)
 
 ## Environment Variables
 
