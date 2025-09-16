@@ -18,7 +18,7 @@ void draw_detections_cv_v3(cv::Mat show_img, Darknet::Detection *dets, int num, 
 Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
     int pleft, int ptop, int swidth, int sheight, int flip,
     float dhue, float dsat, float dexp,
-    int gaussian_noise, int blur, int num_boxes, int truth_size, float *truth);
+    int gaussian_noise, int blur, int fog, int num_boxes, int truth_size, float *truth);
 
 // blend two images with (alpha and beta)
 void blend_images_cv(Darknet::Image new_img, float alpha, Darknet::Image old_img, float beta);

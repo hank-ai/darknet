@@ -320,6 +320,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	args.angle = net.angle;
 	args.gaussian_noise = net.gaussian_noise;
 	args.blur = net.blur;
+	args.fog = net.fog;
 	args.mixup = net.mixup;
 	args.exposure = net.exposure;
 	args.saturation = net.saturation;

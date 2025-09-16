@@ -292,7 +292,7 @@ void draw_detections_cv_v3(cv::Mat mat, Darknet::Detection * dets, int num, floa
 Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
 	int pleft, int ptop, int swidth, int sheight, int flip,
 	float dhue, float dsat, float dexp,
-	int gaussian_noise, int blur, int num_boxes, int truth_size, float *truth)
+	int gaussian_noise, int blur, int fog, int num_boxes, int truth_size, float *truth)
 {
 	TAT(TATPARMS);
 
@@ -417,6 +417,21 @@ Darknet::Image image_data_augmentation(cv::Mat mat, int w, int h,
 			//cv::imshow("gaussian noise", sized_norm);
 			//cv::waitKey(0);
 			sized = sized_norm;
+		}
+
+		if (fog)
+		{
+			cv::Mat fog_mask = cv::Mat::zeros(sized.size(), sized.type());
+			fog_mask.setTo(cv::Scalar(180, 178, 166));
+			
+			cv::GaussianBlur(sized, sized, cv::Size(15, 15), 0);
+			
+			std::random_device rd;
+			std::mt19937 gen(rd());
+			std::uniform_real_distribution<> dis(0.5, 0.9);
+			double t = dis(gen);
+			
+			cv::addWeighted(sized, t, fog_mask, 1 - t, 0.0, sized);
 		}
 
 		// Mat -> image

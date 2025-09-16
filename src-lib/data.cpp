@@ -576,7 +576,7 @@ void blend_truth_mosaic(float *new_truth, int boxes, int truth_size, float *old_
 }
 
 
-data load_data_detection(int n, char **paths, int m, int w, int h, int c, int boxes, int truth_size, int classes, int use_flip, int use_gaussian_noise, int use_blur, int use_mixup,
+data load_data_detection(int n, char **paths, int m, int w, int h, int c, int boxes, int truth_size, int classes, int use_flip, int use_gaussian_noise, int use_blur, int use_fog, int use_mixup,
 	float jitter, float resize, float hue, float saturation, float exposure, int mini_batch, int track, int augment_speed, int letter_box, int mosaic_bound, int contrastive, int contrastive_jit_flip, int contrastive_color, int show_imgs)
 {
 	TAT(TATPARMS);
@@ -636,6 +636,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 	float blur = 0.0f;
 	int augmentation_calculated = 0;
 	int gaussian_noise = 0;
+	int fog = 0;
 
 	d.y = make_matrix(n, truth_size * boxes);
 
@@ -731,9 +732,17 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 				{
 					gaussian_noise = use_gaussian_noise;
 				}
+				else {
+					gaussian_noise = 0;
+				}
+
+				if (use_fog && rand_bool())
+				{
+					fog = use_fog;
+				}
 				else
 				{
-					gaussian_noise = 0;
+					fog = 0;
 				}
 			}
 
@@ -815,7 +824,7 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 				blur = min_w_h / 8;   // disable blur if one of the objects is too small
 			}
 
-			Darknet::Image ai = image_data_augmentation(src, w, h, pleft, ptop, swidth, sheight, flip, dhue, dsat, dexp, gaussian_noise, blur, boxes, truth_size, truth);
+			Darknet::Image ai = image_data_augmentation(src, w, h, pleft, ptop, swidth, sheight, flip, dhue, dsat, dexp, gaussian_noise, blur, fog, boxes, truth_size, truth);
 
 			if (use_mixup == 0)
 			{
@@ -965,7 +974,7 @@ void Darknet::load_single_image_data(load_args args)
 		case DETECTION_DATA:
 		{
 			// 2024:  used in detector.cpp (when training a neural network)
-			*args.d = load_data_detection(args.n, args.paths, args.m, args.w, args.h, args.c, args.num_boxes, args.truth_size, args.classes, args.flip, args.gaussian_noise, args.blur, args.mixup, args.jitter, args.resize,
+			*args.d = load_data_detection(args.n, args.paths, args.m, args.w, args.h, args.c, args.num_boxes, args.truth_size, args.classes, args.flip, args.gaussian_noise, args.blur, args.fog, args.mixup, args.jitter, args.resize,
 					args.hue, args.saturation, args.exposure, args.mini_batch, args.track, args.augment_speed, args.letter_box, args.mosaic_bound, args.contrastive, args.contrastive_jit_flip, args.contrastive_color, args.show_imgs);
 			break;
 		}

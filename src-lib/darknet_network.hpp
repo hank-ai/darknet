@@ -209,6 +209,7 @@ namespace Darknet
 			int flip; ///< horizontal flip 50% probability augmentaiont for classifier training (default = 1)
 			int gaussian_noise;
 			int blur;
+			int fog;
 			int mixup;
 			float label_smooth_eps;
 			int resize_step;

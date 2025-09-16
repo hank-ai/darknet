@@ -288,6 +288,7 @@ typedef struct load_args {
 	int flip;
 	int gaussian_noise;
 	int blur;
+	int fog;
 	int mixup;
 	float angle;
 	float aspect;

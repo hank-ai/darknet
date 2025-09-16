@@ -1276,6 +1276,7 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 	net.flip = s.find_int("flip", 1);
 	net.blur = s.find_int("blur", 0);
 	net.gaussian_noise = s.find_int("gaussian_noise", 0);
+	net.fog = s.find_int("fog", 0);
 	net.mixup = s.find_int("mixup", 0);
 	int cutmix = s.find_int("cutmix", 0);
 	int mosaic = s.find_int("mosaic", 0);
