@@ -1,4 +1,9 @@
 #include <csignal>
+#include <vector>
+#include <algorithm>
+#include <cmath>
+#include <memory>
+#include <cstring>
 
 #if defined(_MSC_VER) && defined(_DEBUG)
 #include <crtdbg.h>
@@ -132,6 +137,361 @@ void speed(const char * cfgfile, int tics)
 		<< "avg BDP detections per eval: " << avg_bdp_detections << std::endl
 		<< "Speed: " << t/tics << " sec/eval"		<< std::endl
 		<< "Speed: " << tics/t << " Hz"				<< std::endl;
+}
+
+void draw_line(Darknet::Image& im, int x0, int y0, int x1, int y1, int r, int g, int b)
+{
+	// Simple Bresenham's line algorithm
+	int dx = abs(x1 - x0);
+	int dy = abs(y1 - y0);
+	int sx = (x0 < x1) ? 1 : -1;
+	int sy = (y0 < y1) ? 1 : -1;
+	int err = dx - dy;
+	
+	int x = x0, y = y0;
+	
+	while (true) {
+		// Set pixel if within image bounds
+		if (x >= 0 && x < im.w && y >= 0 && y < im.h) {
+			// Darknet image format: [R][G][B] non-interlaced
+			int idx = y * im.w + x;
+			im.data[idx] = r / 255.0f;                    // Red channel
+			im.data[im.w * im.h + idx] = g / 255.0f;      // Green channel  
+			im.data[2 * im.w * im.h + idx] = b / 255.0f;  // Blue channel
+		}
+		
+		if (x == x1 && y == y1) break;
+		
+		int e2 = 2 * err;
+		if (e2 > -dy) {
+			err -= dy;
+			x += sx;
+		}
+		if (e2 < dx) {
+			err += dx;
+			y += sy;
+		}
+	}
+}
+
+void draw_oriented_box(Darknet::Image& im, DarknetBoxBDP box, int r, int g, int b)
+{
+	// Convert coordinates to pixel space
+	float cx = box.x * im.w;   // Center X
+	float cy = box.y * im.h;   // Center Y
+	float fx = box.fx * im.w;  // Front point X
+	float fy = box.fy * im.h;  // Front point Y
+	float w = box.w * im.w;    // Width
+	float h = box.h * im.h;    // Height
+	
+	// The front point (fx, fy) should be one corner of the rectangle
+	// Calculate the 4 corners where (fx, fy) is one of them
+	
+	// Vector from center to front point
+	float front_dx = fx - cx;
+	float front_dy = fy - cy;
+	
+	// Calculate the opposite corner (back point)
+	float bx = cx - front_dx;  // Back point X (opposite to front)
+	float by = cy - front_dy;  // Back point Y (opposite to front)
+	
+	// Calculate perpendicular vector for width
+	float perp_dx = -front_dy;  // Perpendicular to front vector
+	float perp_dy = front_dx;
+	
+	// Normalize perpendicular vector
+	float perp_length = sqrt(perp_dx*perp_dx + perp_dy*perp_dy);
+	if (perp_length > 0) {
+		perp_dx /= perp_length;
+		perp_dy /= perp_length;
+	}
+	
+	// Calculate half-width offset
+	float hw_offset_x = perp_dx * w * 0.5f;
+	float hw_offset_y = perp_dy * w * 0.5f;
+	
+	// Calculate the 4 corners of the rectangle
+	// Front edge corners
+	int x1 = (int)(fx + hw_offset_x);  // Front-right corner
+	int y1 = (int)(fy + hw_offset_y);
+	int x2 = (int)(fx - hw_offset_x);  // Front-left corner  
+	int y2 = (int)(fy - hw_offset_y);
+	
+	// Back edge corners
+	int x3 = (int)(bx - hw_offset_x);  // Back-left corner
+	int y3 = (int)(by - hw_offset_y);
+	int x4 = (int)(bx + hw_offset_x);  // Back-right corner
+	int y4 = (int)(by + hw_offset_y);
+	
+	// Draw the 4 sides of the rectangle
+	draw_line(im, x1, y1, x2, y2, r, g, b);  // Front edge
+	draw_line(im, x2, y2, x3, y3, r, g, b);  // Left edge
+	draw_line(im, x3, y3, x4, y4, r, g, b);  // Back edge
+	draw_line(im, x4, y4, x1, y1, r, g, b);  // Right edge
+	
+	// Draw center point as a + (plus sign)
+	int cross_size = 4;
+	draw_line(im, (int)cx - cross_size, (int)cy, (int)cx + cross_size, (int)cy, r, g, b);
+	draw_line(im, (int)cx, (int)cy - cross_size, (int)cx, (int)cy + cross_size, r, g, b);
+	
+	// Draw front point as a * (asterisk) - this should be ON the rectangle edge
+	int star_size = 3;
+	draw_line(im, (int)fx - star_size, (int)fy, (int)fx + star_size, (int)fy, r, g, b);
+	draw_line(im, (int)fx, (int)fy - star_size, (int)fx, (int)fy + star_size, r, g, b);
+	draw_line(im, (int)fx - star_size, (int)fy - star_size, (int)fx + star_size, (int)fy + star_size, r, g, b);
+	draw_line(im, (int)fx - star_size, (int)fy + star_size, (int)fx + star_size, (int)fy - star_size, r, g, b);
+}
+
+void experiment(int argc, char** argv, const char* cfgfile, const char* imagepath)
+{
+	TAT(TATPARMS);
+
+	// Check for --draw parameter
+	bool draw_detections = find_arg(argc, argv, "--draw");
+
+	*cfg_and_state.output << "Loading image: " << imagepath << std::endl;
+
+	// Load network from config file
+	Darknet::Network net = parse_network_cfg(cfgfile);
+	set_batch_network(&net, 1);
+
+	// Load image from file path
+	Darknet::Image orig = Darknet::load_image(imagepath, 0, 0, net.c);
+	*cfg_and_state.output << "Image size: " << orig.w << "x" << orig.h 
+						  << ", Network size: " << net.w << "x" << net.h << std::endl;
+
+	// Resize image to network dimensions
+	Darknet::Image sized = Darknet::resize_image(orig, net.w, net.h);
+
+	// BDP detection counting variables
+	float detection_threshold = 0.85f; // Threshold for counting meaningful detections
+
+	// Perform single inference with timing
+	time_t start = time(0);
+	network_predict(net, sized.data);
+
+	// Count BDP detections and extract them if drawing is requested
+	int total_bdp_detections = 0;
+	std::vector<DarknetDetectionOBB> all_detections;
+	
+	for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+	{
+		Darknet::Layer& layer = net.layers[layer_idx];
+		if (layer.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			// Count detections in this BDP layer using the 6-parameter format
+			int layer_detections = yolo_num_detections_bdp(layer, detection_threshold);
+			total_bdp_detections += layer_detections;
+			
+			// If drawing is requested, extract actual detections
+			if (draw_detections && layer_detections > 0)
+			{
+				*cfg_and_state.output << "Layer " << layer_idx << ": Found " << layer_detections << " detections above threshold " << detection_threshold << std::endl;
+				
+				// Create detection array with smart pointers for safe memory management
+				std::vector<DarknetDetectionOBB> layer_dets(layer_detections);
+				std::vector<std::unique_ptr<float[]>> prob_arrays;
+				prob_arrays.reserve(layer_detections);
+				
+				// Initialize each detection with proper memory allocation using smart pointers
+				for (int i = 0; i < layer_detections; ++i)
+				{
+					std::memset(&layer_dets[i], 0, sizeof(DarknetDetectionOBB));
+					layer_dets[i].classes = layer.classes;
+					
+					// Use smart pointer for automatic cleanup
+					prob_arrays.emplace_back(std::make_unique<float[]>(layer.classes));
+					layer_dets[i].prob = prob_arrays[i].get();
+					
+					// Initialize other pointers to null
+					layer_dets[i].mask = nullptr;
+					layer_dets[i].uc = nullptr;
+					layer_dets[i].embeddings = nullptr;
+					layer_dets[i].embedding_size = 0;
+					layer_dets[i].points = 0;
+				}
+				
+				int actual_count = get_yolo_detections_bdp(layer, orig.w, orig.h, net.w, net.h, 
+														 detection_threshold, nullptr, 0, layer_dets.data(), 0);
+				
+				*cfg_and_state.output << "get_yolo_detections_bdp returned " << actual_count << " detections" << std::endl;
+				
+				// Add valid detections to all detections (the smart pointers will clean up automatically)
+				for (int i = 0; i < actual_count && i < layer_detections; ++i)
+				{
+					// Debug: show detection info
+					*cfg_and_state.output << "Detection " << i << ": objectness=" << layer_dets[i].objectness 
+										  << " bbox=(" << layer_dets[i].bbox.x << "," << layer_dets[i].bbox.y 
+										  << "," << layer_dets[i].bbox.w << "," << layer_dets[i].bbox.h 
+										  << "," << layer_dets[i].bbox.fx << "," << layer_dets[i].bbox.fy << ")" << std::endl;
+					
+					// Copy the detection data (but not the pointer addresses)
+					DarknetDetectionOBB det_copy = layer_dets[i];
+					
+					// Allocate new memory for the prob array in the copy
+					std::unique_ptr<float[]> new_prob = std::make_unique<float[]>(layer.classes);
+					std::memcpy(new_prob.get(), layer_dets[i].prob, layer.classes * sizeof(float));
+					det_copy.prob = new_prob.release(); // Transfer ownership (will need manual cleanup)
+					
+					all_detections.push_back(det_copy);
+				}
+				
+				// Smart pointers automatically clean up when going out of scope
+			}
+		}
+	}
+	double t = difftime(time(0), start);
+
+	// Display results
+	*cfg_and_state.output << "BDP detections found: " << total_bdp_detections << std::endl
+						  << "Inference time: " << t << " seconds" << std::endl;
+
+	// Debug: Show what we collected for drawing
+	if (draw_detections)
+	{
+		*cfg_and_state.output << "Drawing requested. Collected " << all_detections.size() << " detections for visualization." << std::endl;
+		if (all_detections.empty() && total_bdp_detections > 0)
+		{
+			*cfg_and_state.output << "Warning: " << total_bdp_detections << " detections counted but none extracted for drawing." << std::endl;
+		}
+	}
+
+	// Add hardcoded BDP examples for testing when drawing is requested
+	if (draw_detections)
+	{
+		*cfg_and_state.output << "Adding 5 hardcoded BDP examples for testing..." << std::endl;
+		
+		// Clear any existing detections to use only hardcoded ones
+		for (auto& det : all_detections)
+		{
+			if (det.prob) delete[] det.prob;
+		}
+		all_detections.clear();
+		
+		// Create 5 example BDP detections with different orientations
+		for (int i = 0; i < 5; ++i)
+		{
+			DarknetDetectionOBB example_det;
+			std::memset(&example_det, 0, sizeof(DarknetDetectionOBB));
+			
+			// Allocate prob array
+			example_det.classes = 80; // COCO classes
+			example_det.prob = new float[80]();
+			
+			// Set a high objectness score
+			example_det.objectness = 0.9f - (i * 0.1f); // 0.9, 0.8, 0.7, 0.6, 0.5
+			
+			// Create different oriented bounding boxes across the image
+			switch(i)
+			{
+				case 0: // Top-left, horizontal orientation
+					example_det.bbox.x = 0.25f;   // Center X (25% from left)
+					example_det.bbox.y = 0.25f;   // Center Y (25% from top)  
+					example_det.bbox.w = 0.2f;    // Width (20% of image)
+					example_det.bbox.h = 0.1f;    // Height (10% of image)
+					example_det.bbox.fx = 0.25f;  // Front point X (right of center)
+					example_det.bbox.fy = 0.15f;  // Front point Y (same as center - horizontal)
+					break;
+					
+				case 1: // Top-right, vertical orientation  
+					example_det.bbox.x = 0.75f;   // Center X (75% from left)
+					example_det.bbox.y = 0.25f;   // Center Y (25% from top)
+					example_det.bbox.w = 0.1f;    // Width (10% of image)
+					example_det.bbox.h = 0.2f;    // Height (20% of image)
+					example_det.bbox.fx = 0.85f;  // Front point X (same as center)
+					example_det.bbox.fy = 0.35f;  // Front point Y (above center - vertical up)
+					break;
+					
+				case 2: // Center, diagonal orientation
+					example_det.bbox.x = 0.5f;    // Center X (50% from left)
+					example_det.bbox.y = 0.5f;    // Center Y (50% from top)
+					example_det.bbox.w = 0.15f;   // Width (15% of image)
+					example_det.bbox.h = 0.15f;   // Height (15% of image)
+					example_det.bbox.fx = 0.6f;   // Front point X (diagonal right)
+					example_det.bbox.fy = 0.4f;   // Front point Y (diagonal up)
+					break;
+					
+				case 3: // Bottom-left, angled orientation
+					example_det.bbox.x = 0.25f;   // Center X (25% from left)
+					example_det.bbox.y = 0.75f;   // Center Y (75% from top)
+					example_det.bbox.w = 0.18f;   // Width (18% of image)
+					example_det.bbox.h = 0.12f;   // Height (12% of image)
+					example_det.bbox.fx = 0.30f;  // Front point X (slight right)
+					example_det.bbox.fy = 0.60f;  // Front point Y (angled up-right)
+					break;
+					
+				case 4: // Bottom-right, steep angle
+					example_det.bbox.x = 0.75f;   // Center X (75% from left)
+					example_det.bbox.y = 0.75f;   // Center Y (75% from top)
+					example_det.bbox.w = 0.12f;   // Width (12% of image)
+					example_det.bbox.h = 0.18f;   // Height (18% of image)
+					example_det.bbox.fx = 0.60f;  // Front point X (left of center)
+					example_det.bbox.fy = 0.60f;  // Front point Y (below center - steep angle)
+					break;
+			}
+			
+			// Set best class (just use class 0 for simplicity)
+			example_det.best_class_idx = 0;
+			example_det.prob[0] = example_det.objectness; // Set class probability
+			
+			all_detections.push_back(example_det);
+			
+			*cfg_and_state.output << "Added example detection " << (i+1) << ": objectness=" << example_det.objectness 
+								  << " bbox=(" << example_det.bbox.x << "," << example_det.bbox.y 
+								  << "," << example_det.bbox.w << "," << example_det.bbox.h 
+								  << "," << example_det.bbox.fx << "," << example_det.bbox.fy << ")" << std::endl;
+		}
+	}
+
+	// If drawing is requested and we have detections (real or hardcoded)
+	if (draw_detections && !all_detections.empty())
+	{
+		// Sort detections by objectness score (highest first)
+		std::sort(all_detections.begin(), all_detections.end(), 
+				  [](const DarknetDetectionOBB& a, const DarknetDetectionOBB& b) {
+					  return a.objectness > b.objectness;
+				  });
+
+		// Take top 5 detections
+		int num_to_draw = std::min(5, (int)all_detections.size());
+		*cfg_and_state.output << "Drawing top " << num_to_draw << " BDP detections on image..." << std::endl;
+
+		// Create copy of original image for annotation
+		Darknet::Image annotated = Darknet::copy_image(orig);
+
+		// Colors for the boxes (RGB)
+		int colors[][3] = {{255,0,0}, {0,255,0}, {0,0,255}, {255,255,0}, {255,0,255}};
+
+		// Draw top detections
+		for (int i = 0; i < num_to_draw; ++i)
+		{
+			DarknetDetectionOBB& det = all_detections[i];
+			*cfg_and_state.output << "Detection " << (i+1) << ": objectness=" << det.objectness << std::endl;
+			
+			draw_oriented_box(annotated, det.bbox, colors[i][0], colors[i][1], colors[i][2]);
+		}
+
+		// Save annotated image
+		const char* output_filename = "image_bdp_annot.png";
+		Darknet::save_image_png(annotated, output_filename);
+		*cfg_and_state.output << "Annotated image saved as: " << output_filename << std::endl;
+
+		// Clean up annotated image
+		Darknet::free_image(annotated);
+	}
+
+	// Clean up manually allocated prob arrays in all_detections
+	for (auto& det : all_detections)
+	{
+		if (det.prob)
+		{
+			delete[] det.prob;
+		}
+	}
+
+	// Clean up memory
+	Darknet::free_image(orig);
+	Darknet::free_image(sized);
 }
 
 
@@ -573,6 +933,7 @@ int main(int argc, char **argv)
 		else if (cfg_and_state.command == "cfglayers")		{ Darknet::cfg_layers();			}
 		else if (cfg_and_state.command == "denormalize")	{ denormalize_net	(argv[2], argv[3], argv[4]); }
 		else if (cfg_and_state.command == "detector")		{ run_detector		(argc, argv);	}
+		else if (cfg_and_state.command == "experiment")	{ experiment		(argc, argv, cfg_and_state.cfg_filename.string().c_str(), argv[3]); }
 		else if (cfg_and_state.command == "help")			{ Darknet::display_usage();			}
 		else if (cfg_and_state.command == "nightmare")		{ run_nightmare		(argc, argv);	}
 		else if (cfg_and_state.command == "normalize")		{ normalize_net		(argv[2], argv[3], argv[4]); }
