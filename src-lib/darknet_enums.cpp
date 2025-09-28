@@ -14,6 +14,7 @@ const Darknet::NamesAndLayers & Darknet::all_names_and_layers()
 		{"cost"				, ELayerType::COST				},
 		{"region"			, ELayerType::REGION			},
 		{"yolo"				, ELayerType::YOLO				},
+		{"yolo_bdp"			, ELayerType::YOLO_BDP			}, // oriented bounding boxes (6 parameters)
 		{"Gaussian_yolo"	, ELayerType::GAUSSIAN_YOLO		}, // not a typo, this one has an uppercase 'G'
 		{"conv"				, ELayerType::CONVOLUTIONAL		},
 		{"convolutional"	, ELayerType::CONVOLUTIONAL		},

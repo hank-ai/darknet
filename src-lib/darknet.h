@@ -119,6 +119,35 @@ typedef struct DarknetDetection
 	int track_id;
 } DarknetDetection;
 
+/// @implement OBB: Oriented bounding box with 6 parameters (x,y,w,h,fx,fy)
+typedef struct DarknetBoxBDP
+{
+	float x;  ///< center X coordinate (normalized)
+	float y;  ///< center Y coordinate (normalized)
+	float w;  ///< width (normalized)
+	float h;  ///< height (normalized)
+	float fx; ///< front point X coordinate (normalized) - defines orientation
+	float fy; ///< front point Y coordinate (normalized) - defines orientation
+} DarknetBoxBDP;
+
+/// @implement OBB: Detection structure for oriented bounding boxes
+typedef struct DarknetDetectionOBB
+{
+	DarknetBoxBDP bbox; ///< oriented bounding boxes are normalized (between 0.0f and 1.0f)
+	int classes;
+	int best_class_idx;
+	float *prob;
+	float *mask;
+	float objectness;
+	int sort_class;
+	float *uc; ///< Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
+	int points; ///< bit-0 - center, bit-1 - top-left-corner, bit-2 - bottom-right-corner
+	float *embeddings;  ///< embeddings for tracking
+	int embedding_size;
+	float sim;
+	int track_id;
+} DarknetDetectionOBB;
+
 /** The structure @ref DarknetImage is used to store a normalized RGB %Darknet image.  The format is intended to be
  * used for internal use by %Darknet, but there are some situations where it may also be used or referenced externally
  * via the %Darknet API.
@@ -197,6 +226,12 @@ typedef struct DarknetBox box;
 
 /// Everything %Darknet knows about a specific detection.
 typedef struct DarknetDetection detection;
+
+/// @implement OBB: Oriented bounding box typedef for C compatibility
+typedef struct DarknetBoxBDP box_bdp;
+
+/// @implement OBB: Oriented detection typedef for C compatibility  
+typedef struct DarknetDetectionOBB detection_obb;
 
 /// Darknet-style image (vector of floats).
 typedef struct DarknetImage image;

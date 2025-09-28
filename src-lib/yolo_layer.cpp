@@ -1,4 +1,5 @@
 #include "darknet_internal.hpp"
+#include <boost/contract.hpp>
 
 namespace
 {
@@ -38,6 +39,62 @@ namespace
 			b.w = exp(x[index + 2 * stride]) * biases[2 * n] / w;
 			b.h = exp(x[index + 3 * stride]) * biases[2 * n + 1] / h;
 		}
+		return b;
+	}
+
+
+	/// @implement OBB: Extract 6-parameter oriented bounding box from YOLO output using BDP representation
+	static inline DarknetBoxBDP get_yolo_box_bdp(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
+	{
+		TAT_COMMENT(TATPARMS, "BDP box extraction from YOLO layer output");
+
+		// Static assertions for compile-time validation
+		static_assert(sizeof(DarknetBoxBDP) == 6 * sizeof(float), "DarknetBoxBDP must contain exactly 6 float parameters");
+		static_assert(std::is_trivially_copyable_v<DarknetBoxBDP>, "DarknetBoxBDP must be trivially copyable");
+
+		// Pre-conditions using assertions
+		assert(x != nullptr && "Input array x must not be null");
+		assert(biases != nullptr && "Biases array must not be null");
+		assert(stride > 0 && "Stride must be positive");
+		assert(lw > 0 && lh > 0 && "Layer dimensions must be positive");
+		assert(w > 0 && h > 0 && "Network dimensions must be positive");
+		assert(n >= 0 && "Anchor index must be non-negative");
+		assert(i >= 0 && i < lw && "Grid x coordinate must be within layer bounds");
+		assert(j >= 0 && j < lh && "Grid y coordinate must be within layer bounds");
+
+		DarknetBoxBDP b;
+		
+		if (new_coords)
+		{
+			// New coordinate system: use squared terms for w,h
+			b.x = (i + x[index + 0 * stride]) / lw;
+			b.y = (j + x[index + 1 * stride]) / lh;
+			b.w = x[index + 2 * stride] * x[index + 2 * stride] * 4 * biases[2 * n] / w;
+			b.h = x[index + 3 * stride] * x[index + 3 * stride] * 4 * biases[2 * n + 1] / h;
+			// Extract front point coordinates (parameters 4 and 5)
+			b.fx = (i + x[index + 4 * stride]) / lw;
+			b.fy = (j + x[index + 5 * stride]) / lh;
+		}
+		else
+		{
+			// Traditional coordinate system: use exp for w,h
+			b.x = (i + x[index + 0 * stride]) / lw;
+			b.y = (j + x[index + 1 * stride]) / lh;
+			b.w = exp(x[index + 2 * stride]) * biases[2 * n] / w;
+			b.h = exp(x[index + 3 * stride]) * biases[2 * n + 1] / h;
+			// Extract front point coordinates (parameters 4 and 5)
+			b.fx = (i + x[index + 4 * stride]) / lw;
+			b.fy = (j + x[index + 5 * stride]) / lh;
+		}
+
+		// Post-conditions: validate output ranges for normalized coordinates
+		assert(b.x >= 0.0f && b.x <= 1.0f && "Center x coordinate must be normalized [0,1]");
+		assert(b.y >= 0.0f && b.y <= 1.0f && "Center y coordinate must be normalized [0,1]");
+		assert(b.w > 0.0f && b.w <= 1.0f && "Width must be positive and normalized [0,1]");
+		assert(b.h > 0.0f && b.h <= 1.0f && "Height must be positive and normalized [0,1]");
+		assert(b.fx >= 0.0f && b.fx <= 1.0f && "Front point x coordinate must be normalized [0,1]");
+		assert(b.fy >= 0.0f && b.fy <= 1.0f && "Front point y coordinate must be normalized [0,1]");
+
 		return b;
 	}
 
@@ -336,6 +393,58 @@ namespace
 	}
 
 
+	/// @implement OBB: Entry index calculation for BDP (6-parameter) oriented bounding boxes
+	/// This function calculates memory indices for accessing BDP box parameters in YOLO layer output.
+	/// 
+	/// INTERACTION WITH OTHER FUNCTIONS:
+	/// - Called by: forward_yolo_layer_bdp(), get_yolo_detections_bdp(), yolo_num_detections_bdp()
+	/// - Uses: Layer structure (l.w, l.h, l.classes, l.outputs)
+	/// - Purpose: Maps (batch, location, entry) coordinates to linear memory index
+	///
+	/// MEMORY LAYOUT FOR BDP:
+	/// Each anchor box has: [x, y, w, h, fx, fy, objectness, class0, class1, ..., classN]
+	/// Total entries per box = 6 (coords) + 1 (objectness) + classes = 7 + classes
+	/// This differs from standard YOLO which uses 4 (coords) + 1 (objectness) + classes = 5 + classes
+	///
+	/// COORDINATE MAPPING:
+	/// - entry 0-1: center coordinates (x,y)
+	/// - entry 2-3: dimensions (w,h) 
+	/// - entry 4-5: front point coordinates (fx,fy) - NEW for BDP
+	/// - entry 6: objectness score
+	/// - entry 7+: class probabilities
+	static inline int yolo_entry_index_bdp(const Darknet::Layer & l, const int batch, const int location, const int entry)
+	{
+		TAT_COMMENT(TATPARMS, "BDP entry index calculation for 6-parameter boxes");
+
+		// Static assertions for compile-time validation
+		static_assert(sizeof(int) >= 4, "Integer must be at least 32 bits");
+		
+		// Pre-conditions: validate input parameters to prevent buffer overflows
+		assert(batch >= 0 && "Batch index must be non-negative");
+		assert(location >= 0 && "Location must be non-negative"); 
+		assert(entry >= 0 && "Entry must be non-negative");
+		assert(l.w > 0 && l.h > 0 && "Layer dimensions must be positive");
+
+		// Calculate anchor and local position within the grid
+		const int n = location / (l.w * l.h);      // Which anchor box (0 to l.n-1)
+		const int loc = location % (l.w * l.h);    // Grid position (0 to w*h-1)
+		
+		// BDP uses 6 coordinates + 1 objectness + classes (vs standard YOLO's 4 + 1 + classes)
+		const int bdp_entries_per_box = 6 + 1 + l.classes; // x,y,w,h,fx,fy + objectness + classes
+		
+		// Calculate linear memory index in the flattened output array
+		// Memory layout: [batch0[anchor0[entry0...entryN], anchor1[...]], batch1[...]]
+		int result = batch * l.outputs +                    // Skip to current batch
+					 n * l.w * l.h * bdp_entries_per_box +  // Skip to current anchor
+					 entry * l.w * l.h +                    // Skip to current entry type
+					 loc;                                   // Skip to grid position
+
+		// Post-condition: ensure result is within valid bounds
+		assert(result >= 0 && "Calculated index must be non-negative");
+		
+		return result;
+	}
+
 	static inline int yolo_entry_index(const Darknet::Layer & l, const int batch, const int location, const int entry)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
@@ -450,6 +559,124 @@ Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *m
 	else
 	{
 		std::ignore = cudaGetLastError(); // reset CUDA-error
+		l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
+	}
+#endif
+
+	return l;
+}
+
+
+/// @implement OBB: Factory function for oriented bounding box YOLO layer (BDP representation)
+/// This function creates a YOLO_BDP layer that processes 6-parameter oriented bounding boxes.
+///
+/// INTERACTION WITH OTHER FUNCTIONS:
+/// - Called by: parse_yolo_bdp_section() during configuration parsing
+/// - Creates: Layer with forward_yolo_layer_bdp as forward function
+/// - Initializes: 6-parameter coordinate handling (x,y,w,h,fx,fy)
+///
+/// DIFFERENCES FROM STANDARD make_yolo_layer:
+/// - Sets l.type = ELayerType::YOLO_BDP instead of YOLO
+/// - Sets l.coords = 6 instead of 4 (adds fx,fy front point coordinates)
+/// - Adjusts output calculations for 6-parameter boxes: (6 + 1 + classes) instead of (4 + 1 + classes)
+/// - Uses forward_yolo_layer_bdp for processing oriented boxes
+/// - Sets truth_size = 6 + 2 for ground truth handling (6 coords + 1 class + 1 objectness)
+Darknet::Layer make_yolo_layer_bdp(int batch, int w, int h, int n, int total, int *mask, int classes, int max_boxes)
+{
+	TAT(TATPARMS);
+
+	// Aggressive static assertions for compile-time validation
+	static_assert(sizeof(DarknetBoxBDP) == 6 * sizeof(float), "BDP box must have exactly 6 float parameters");
+	static_assert(std::is_trivially_copyable_v<DarknetBoxBDP>, "BDP box must be trivially copyable");
+
+	// Precondition checks
+	assert(batch > 0 && batch <= 64);        // Reasonable batch size bounds
+	assert(w > 0 && w <= 2048);              // Grid width bounds
+	assert(h > 0 && h <= 2048);              // Grid height bounds
+	assert(n > 0 && n <= 10);                // Reasonable anchor count
+	assert(total > 0 && total <= 20);        // Total anchor count bounds
+	assert(classes > 0 && classes <= 1000);  // Reasonable class count
+	assert(max_boxes > 0 && max_boxes <= 1000); // Reasonable max boxes
+
+	Darknet::Layer l = { (Darknet::ELayerType)0 };
+	l.type = Darknet::ELayerType::YOLO_BDP;  // Set as BDP layer type
+
+	l.n = n;
+	l.total = total;
+	l.batch = batch;
+	l.h = h;
+	l.w = w;
+	l.coords = 6;  // BDP uses 6 parameters: x,y,w,h,fx,fy
+	l.c = n * (classes + 6 + 1);  // 6 coordinates + 1 objectness + classes
+	l.out_w = l.w;
+	l.out_h = l.h;
+	l.out_c = l.c;
+	l.classes = classes;
+	l.cost = (float*)xcalloc(1, sizeof(float));
+	l.biases = (float*)xcalloc(total * 2, sizeof(float));
+	l.nbiases = total * 2;
+
+	if (mask)
+	{
+		l.mask = mask;
+	}
+	else
+	{
+		l.mask = (int*)xcalloc(n, sizeof(int));
+		for (int i = 0; i < n; ++i)
+		{
+			l.mask[i] = i;
+		}
+	}
+	
+	l.bias_updates = (float*)xcalloc(n * 2, sizeof(float));
+	l.outputs = h * w * n * (classes + 6 + 1);  // 6 coordinates + 1 objectness + classes
+	l.inputs = l.outputs;
+	l.max_boxes = max_boxes;
+	l.truth_size = 6 + 2;  // 6 coordinates + 1 class + 1 objectness for ground truth
+	l.truths = l.max_boxes * l.truth_size;
+	l.labels = (int*)xcalloc(batch * l.w * l.h * l.n, sizeof(int));
+	for (int i = 0; i < batch * l.w * l.h * l.n; ++i)
+	{
+		l.labels[i] = -1;
+	}
+	l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
+	l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
+
+	for (int i = 0; i < total * 2; ++i)
+	{
+		l.biases[i] = .5;
+	}
+
+	l.forward = forward_yolo_layer_bdp;  // Use BDP-specific forward function
+	l.backward = backward_yolo_layer;    // Can reuse standard backward for now
+
+#ifdef DARKNET_GPU
+	l.forward_gpu = forward_yolo_layer_gpu;  // TODO: Implement BDP GPU version if needed
+	l.backward_gpu = backward_yolo_layer_gpu;
+	l.output_gpu = cuda_make_array(l.output, batch * l.outputs);
+	l.output_avg_gpu = cuda_make_array(l.output, batch * l.outputs);
+	l.delta_gpu = cuda_make_array(l.delta, batch * l.outputs);
+
+	free(l.output);
+	if (cudaSuccess == cudaHostAlloc((void**)&l.output, batch * l.outputs * sizeof(float), cudaHostRegisterMapped))
+	{
+		l.output_pinned = 1;
+	}
+	else
+	{
+		std::ignore = cudaGetLastError();
+		l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
+	}
+
+	free(l.delta);
+	if (cudaSuccess == cudaHostAlloc((void**)&l.delta, batch * l.outputs * sizeof(float), cudaHostRegisterMapped))
+	{
+		l.delta_pinned = 1;
+	}
+	else
+	{
+		std::ignore = cudaGetLastError();
 		l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	}
 #endif
@@ -1659,4 +1886,609 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 	}
 
 	return m;
+}
+
+
+/// @implement OBB: Forward pass for YOLO layer with oriented bounding box (BDP) support
+/// This function processes the YOLO layer output for 6-parameter oriented bounding boxes.
+///
+/// INTERACTION WITH OTHER FUNCTIONS:
+/// - Called by: Network forward pass when layer is in BDP mode
+/// - Calls: yolo_entry_index_bdp() to access memory locations
+/// - Uses: get_yolo_box_bdp() indirectly through detection extraction
+/// - Modifies: l.output (applies activation functions)
+///
+/// DIFFERENCES FROM STANDARD FORWARD PASS:
+/// - Expects 6 parameters per box instead of 4 (x,y,w,h,fx,fy vs x,y,w,h)
+/// - Uses yolo_entry_index_bdp() which accounts for 6+1+classes entries per box
+/// - Objectness and class activations remain at positions 6 and 7+ (instead of 4 and 5+)
+/// - Front point coordinates (fx,fy) at positions 4-5 get same treatment as center (x,y)
+///
+/// MEMORY LAYOUT PROCESSING:
+/// - Processes each batch, each anchor, applies activations to coordinate subsets
+/// - Applies logistic activation to: x,y coordinates (entries 0-1) and fx,fy (entries 4-5) 
+/// - Applies logistic activation to: objectness (entry 6) and classes (entries 7+)
+/// - Applies scaling to center coordinates (x,y) for numerical stability
+void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
+{
+	TAT(TATPARMS);
+
+	// Aggressive static assertions for compile-time validation
+	static_assert(sizeof(DarknetBoxBDP) == 6 * sizeof(float), "BDP box must have exactly 6 float parameters");
+	static_assert(std::is_trivially_copyable_v<DarknetBoxBDP>, "BDP box must be trivially copyable for memcpy operations");
+	static_assert(std::is_standard_layout_v<DarknetBoxBDP>, "BDP box must have standard layout for C compatibility");
+	static_assert(alignof(DarknetBoxBDP) <= alignof(float), "BDP box alignment must not exceed float alignment");
+	static_assert(offsetof(DarknetBoxBDP, x) == 0 * sizeof(float), "x must be at offset 0");
+	static_assert(offsetof(DarknetBoxBDP, y) == 1 * sizeof(float), "y must be at offset 4");
+	static_assert(offsetof(DarknetBoxBDP, w) == 2 * sizeof(float), "w must be at offset 8");
+	static_assert(offsetof(DarknetBoxBDP, h) == 3 * sizeof(float), "h must be at offset 12");
+	static_assert(offsetof(DarknetBoxBDP, fx) == 4 * sizeof(float), "fx must be at offset 16");
+	static_assert(offsetof(DarknetBoxBDP, fy) == 5 * sizeof(float), "fy must be at offset 20");
+	static_assert(sizeof(float) == 4, "Float must be 32-bit for memory calculations");
+	static_assert(std::numeric_limits<float>::is_iec559, "Float must be IEEE 754 compliant");
+	static_assert(LOGISTIC < 32, "LOGISTIC activation must fit in reasonable enum range");
+	
+	// Boost.Contract preconditions
+	void* old_output = nullptr;
+	size_t old_output_size = 0;
+	
+	// Precondition checks
+	assert(l.coords == 6);           // Must be configured for 6-parameter boxes
+	assert(l.classes > 0);           // Must have at least one class
+	assert(l.classes <= 1000);       // Reasonable upper bound on classes
+	assert(l.n > 0);                 // Must have at least one anchor
+	assert(l.n <= 10);               // Reasonable upper bound on anchors
+	assert(l.batch > 0);             // Must have at least one batch
+	assert(l.batch <= 64);           // Reasonable upper bound on batch size
+	assert(l.w > 0 && l.w <= 2048);  // Grid width bounds
+	assert(l.h > 0 && l.h <= 2048);  // Grid height bounds
+	assert(l.w % 32 == 0 || l.w <= 32); // Width should be multiple of 32 or small
+	assert(l.h % 32 == 0 || l.h <= 32); // Height should be multiple of 32 or small
+	assert(state.input != nullptr);  // Input must be valid
+	assert(l.output != nullptr);     // Output must be allocated
+	assert(l.outputs > 0);           // Must have positive output size
+	
+	// Verify output size calculation: batch * anchors * grid * (coords + objectness + classes)
+	size_t expected_outputs = l.batch * l.n * l.w * l.h * (6 + 1 + l.classes);
+	assert(l.outputs == expected_outputs);
+	
+	// Memory bounds checking
+	assert(l.outputs <= 1000000);    // Reasonable upper bound to prevent overflow
+	
+	// Scale factor bounds
+	assert(l.scale_x_y >= 1.0f && l.scale_x_y <= 2.0f);
+	
+	// Store old output state for postconditions
+	old_output_size = l.outputs * l.batch * sizeof(float);
+	old_output = malloc(old_output_size);
+	if (old_output) {
+		memcpy(old_output, l.output, old_output_size);
+	}
+
+	// Copy input to output (standard YOLO behavior - raw predictions copied first)
+	memcpy(l.output, state.input, l.outputs * l.batch * sizeof(float));
+
+// Force CPU activation regardless of GPU settings (debug)
+#if 1  // Always execute this path for debugging
+	// CPU-only processing: apply activation functions to appropriate ranges
+	for (int b = 0; b < l.batch; ++b)
+	{
+		for (int n = 0; n < l.n; ++n)  // For each anchor box
+		{
+			// Get starting index for bounding box coordinates (x,y,w,h,fx,fy)
+			int bbox_index = yolo_entry_index_bdp(l, b, n * l.w * l.h, 0);
+			
+			// Additional runtime bounds checking
+			assert(bbox_index >= 0 && bbox_index < l.outputs * l.batch);
+			assert(bbox_index + 6 * l.w * l.h <= l.outputs * l.batch);
+			
+			if (l.new_coords)
+			{
+				// New coordinate system: don't apply activation to w,h (use squared terms)
+				// Apply logistic activation to x,y (entries 0-1)
+				activate_array(l.output + bbox_index, 2 * l.w * l.h, LOGISTIC);
+				
+				// Apply logistic activation to fx,fy (entries 4-5) - front point coordinates  
+				int front_point_index = yolo_entry_index_bdp(l, b, n * l.w * l.h, 4);
+				assert(front_point_index >= 0 && front_point_index + 2 * l.w * l.h <= l.outputs * l.batch);
+				activate_array(l.output + front_point_index, 2 * l.w * l.h, LOGISTIC);
+				
+				// Apply logistic activation to objectness and classes (entries 6+)
+				int obj_index = yolo_entry_index_bdp(l, b, n * l.w * l.h, 6);
+				assert(obj_index >= 0 && obj_index + (1 + l.classes) * l.w * l.h <= l.outputs * l.batch);
+				activate_array(l.output + obj_index, (1 + l.classes) * l.w * l.h, LOGISTIC);
+			}
+			else
+			{
+				// Traditional coordinate system: apply logistic to x,y,fx,fy but not w,h (use exp)
+				// Apply logistic activation to x,y (entries 0-1)
+				activate_array(l.output + bbox_index, 2 * l.w * l.h, LOGISTIC);
+				
+				// Skip w,h (entries 2-3) - they use exp() in get_yolo_box_bdp()
+				
+				// Apply logistic activation to fx,fy (entries 4-5) - front point coordinates
+				int front_point_index = yolo_entry_index_bdp(l, b, n * l.w * l.h, 4);
+				assert(front_point_index >= 0 && front_point_index + 2 * l.w * l.h <= l.outputs * l.batch);
+				activate_array(l.output + front_point_index, 2 * l.w * l.h, LOGISTIC);
+				
+				// Apply logistic activation to objectness and classes (entries 6+)
+				int obj_index = yolo_entry_index_bdp(l, b, n * l.w * l.h, 6);
+				assert(obj_index >= 0 && obj_index + (1 + l.classes) * l.w * l.h <= l.outputs * l.batch);
+				activate_array(l.output + obj_index, (1 + l.classes) * l.w * l.h, LOGISTIC);
+			}
+			
+			// Apply coordinate scaling to x,y for numerical stability (standard YOLO technique)
+			if (l.scale_x_y != 1)
+			{
+				assert(l.scale_x_y > 0.0f && "Scale factor must be positive");
+				scal_add_cpu(2 * l.w * l.h, l.scale_x_y, -0.5f * (l.scale_x_y - 1), l.output + bbox_index, 1);
+			}
+		}
+	}
+#endif
+
+	// Postcondition checks
+	assert(l.output != nullptr);     // Output still valid
+	
+	// CRITICAL POSTCONDITION: Verify that activation functions were applied to the output
+	if (old_output && !state.train) {
+		bool outputs_differ = (memcmp(state.input, l.output, old_output_size) != 0);
+		
+		// More detailed check: compare first few values to see what changed
+		float* input_ptr = state.input;
+		int changed_count = 0;
+		int checked_count = std::min(10, static_cast<int>(l.outputs * l.batch));
+		for (int i = 0; i < checked_count; i++) {
+			if (std::abs(input_ptr[i] - l.output[i]) > 1e-6f) {
+				changed_count++;
+			}
+		}
+		
+		// Allow for the case where no activations are applied in new_coords mode
+		if (l.new_coords) {
+			// In new_coords mode, some values might remain unchanged
+			// This is acceptable behavior
+		} else {
+			// Use enhanced contract violation with detailed diagnostics
+			std::string context = "Forward pass failed to modify outputs - activations not applied. "
+							     "Layer: w=" + std::to_string(l.w) + " h=" + std::to_string(l.h) + 
+							     " n=" + std::to_string(l.n) + " classes=" + std::to_string(l.classes) + 
+							     " new_coords=" + std::to_string(l.new_coords) + " batch=" + std::to_string(l.batch) + 
+							     " outputs=" + std::to_string(l.outputs) + " train=" + std::to_string(state.train) +
+							     " changed_values=" + std::to_string(changed_count) + "/" + std::to_string(checked_count) +
+							     " memcmp_result=" + std::to_string(memcmp(state.input, l.output, old_output_size));
+			#ifdef DARKNET_GPU
+				context += " GPU_MODE=ON";
+			#else
+				context += " GPU_MODE=OFF";
+			#endif
+			
+			DARKNET_POSTCONDITION(outputs_differ, context);
+		}
+	}
+	
+	// Verify output values are in reasonable ranges after activation
+	for (int i = 0; i < std::min(100, static_cast<int>(l.outputs * l.batch)); ++i) {
+		assert(std::isfinite(l.output[i])); // No NaN or inf values
+		// After logistic activation, most values should be in [0,1] or reasonable range
+		if (i % (6 + 1 + l.classes) < 6) {
+			// Coordinate values - can be outside [0,1] due to scaling
+			assert(l.output[i] >= -10.0f && l.output[i] <= 10.0f);
+		} else if (i % (6 + 1 + l.classes) == 6) {
+			// Objectness after logistic should be in [0,1]
+			assert(l.output[i] >= 0.0f && l.output[i] <= 1.0f);
+		} else {
+			// Class probabilities after logistic should be in [0,1]
+			assert(l.output[i] >= 0.0f && l.output[i] <= 1.0f);
+		}
+	}
+	
+	// Clean up
+	if (old_output) {
+		free(old_output);
+	}
+
+	// For inference-only mode, skip training-related computations
+	if (!state.train)
+	{
+		return;
+	}
+
+	// @implement OBB: Training mode processing would go here in future implementation
+	// This would include:
+	// - Ground truth comparison using BDP IoU calculations
+	// - Loss computation for 6 parameters instead of 4  
+	// - Gradient calculation for fx,fy front point coordinates
+	// - Integration with the PIoU loss function from the provided OBB code
+}
+
+
+/// @implement OBB: Count number of oriented bounding box detections above threshold
+/// This function counts BDP detections by checking objectness scores in the layer output.
+///
+/// INTERACTION WITH OTHER FUNCTIONS:
+/// - Called by: get_yolo_detections_bdp(), network prediction functions
+/// - Calls: yolo_entry_index_bdp() to access objectness scores
+/// - Used by: Memory allocation for detection arrays
+///
+/// DIFFERENCES FROM STANDARD VERSION:
+/// - Uses yolo_entry_index_bdp() which accounts for 6-parameter boxes
+/// - Objectness is at entry 6 instead of entry 4 (due to fx,fy front point coordinates)
+/// - Otherwise identical logic: scan grid positions, check objectness > threshold
+///
+/// MEMORY ACCESS PATTERN:
+/// - Iterates through all anchor boxes (n) and grid positions (w*h)
+/// - Accesses objectness score at entry 6 for each box position
+/// - Returns count for subsequent memory allocation of detection array
+int yolo_num_detections_bdp(const Darknet::Layer & l, float thresh)
+{
+	TAT(TATPARMS);
+
+	// Aggressive static assertions for compile-time validation
+	static_assert(std::numeric_limits<float>::is_iec559, "Float must be IEEE 754 compliant");
+	static_assert(sizeof(float) == 4, "Float must be 32-bit");
+	static_assert(std::numeric_limits<int>::max() >= 1000000, "Int must be able to count large detection arrays");
+
+	// Boost.Contract preconditions and postconditions
+	int result = 0;
+	boost::contract::check c = boost::contract::function()
+		.precondition([&] {
+			assert(l.n > 0 && l.n <= 10);           // Reasonable anchor count
+			assert(l.w > 0 && l.w <= 2048);         // Grid width bounds
+			assert(l.h > 0 && l.h <= 2048);         // Grid height bounds
+			assert(l.classes > 0 && l.classes <= 1000); // Reasonable class count
+			assert(thresh >= 0.0f && thresh <= 1.0f); // Threshold must be probability
+			assert(l.output != nullptr);             // Output must be allocated
+			assert(l.outputs > 0);                   // Must have output size
+			
+			// Verify output size for BDP: batch * anchors * grid * (6 coords + 1 obj + classes)
+			size_t expected_min_outputs = l.n * l.w * l.h * (6 + 1 + l.classes);
+			assert(l.outputs >= expected_min_outputs);
+		})
+		.postcondition([&] {
+			assert(result >= 0);                     // Count must be non-negative
+			assert(result <= l.n * l.w * l.h);       // Can't exceed total possible boxes
+		});
+
+	int count = 0;
+	
+	// Iterate through all anchor boxes and grid positions
+	for (int n = 0; n < l.n; ++n)  // For each anchor
+	{
+		for (int i = 0; i < l.w * l.h; ++i)  // For each grid position
+		{
+			// Get objectness score (entry 6 for BDP vs entry 4 for standard)
+			const int obj_index = yolo_entry_index_bdp(l, 0, n * l.w * l.h + i, 6);
+			
+			// Runtime bounds checking
+			assert(obj_index >= 0 && obj_index < l.outputs);
+			assert(std::isfinite(l.output[obj_index])); // Verify no NaN/inf values
+			
+			// Check if objectness exceeds threshold
+			if (l.output[obj_index] > thresh)
+			{
+				++count;
+				
+				// Additional validation: objectness after logistic should be in [0,1]
+				assert(l.output[obj_index] >= 0.0f && l.output[obj_index] <= 1.0f);
+			}
+		}
+	}
+	
+	result = count;
+	return result;
+}
+
+
+/// @implement OBB: Extract oriented bounding box detections from YOLO layer output
+/// This function converts YOLO layer raw predictions into structured BDP detection objects.
+///
+/// INTERACTION WITH OTHER FUNCTIONS:
+/// - Called by: Network prediction pipeline, get_network_boxes_bdp()
+/// - Calls: get_yolo_box_bdp() to extract 6-parameter boxes
+/// - Calls: yolo_entry_index_bdp() to access objectness and class scores
+/// - Uses: correct_yolo_boxes_bdp() for coordinate correction (to be implemented)
+///
+/// DIFFERENCES FROM STANDARD VERSION:
+/// - Returns DarknetDetectionOBB* instead of Darknet::Detection*
+/// - Uses get_yolo_box_bdp() for 6-parameter box extraction (x,y,w,h,fx,fy)
+/// - Objectness at entry 6, classes at entry 7+ (vs 4, 5+ for standard)
+/// - Populates DarknetBoxBDP with front point coordinates for orientation
+///
+/// PROCESSING FLOW:
+/// 1. Iterate through grid positions and anchors
+/// 2. Check objectness score against threshold
+/// 3. Extract 6-parameter BDP box using get_yolo_box_bdp()
+/// 4. Calculate class probabilities (objectness * class_score)
+/// 5. Apply coordinate corrections for image dimensions
+/// 6. Return count of valid detections extracted
+int get_yolo_detections_bdp(const Darknet::Layer & l, int w, int h, int netw, int neth, float thresh, int *map, int relative, DarknetDetectionOBB *dets, int letter)
+{
+	TAT(TATPARMS);
+
+	// Aggressive static assertions for compile-time validation
+	static_assert(sizeof(DarknetDetectionOBB) >= sizeof(DarknetBoxBDP), "Detection must contain BDP box");
+	static_assert(std::is_trivially_copyable_v<DarknetBoxBDP>, "BDP box must be trivially copyable");
+	static_assert(alignof(DarknetDetectionOBB) >= alignof(float), "Detection alignment must accommodate float arrays");
+	static_assert(offsetof(DarknetDetectionOBB, bbox) == 0, "BDP box must be first member of detection");
+
+	// Boost.Contract preconditions and postconditions
+	int result = 0;
+	boost::contract::check c = boost::contract::function()
+		.precondition([&] {
+			assert(l.n > 0 && l.n <= 10);           // Reasonable anchor count
+			assert(l.w > 0 && l.w <= 2048);         // Layer grid width bounds
+			assert(l.h > 0 && l.h <= 2048);         // Layer grid height bounds
+			assert(l.classes > 0 && l.classes <= 1000); // Reasonable class count
+			assert(w > 0 && w <= 8192);              // Image width bounds
+			assert(h > 0 && h <= 8192);              // Image height bounds
+			assert(netw > 0 && netw <= 2048);        // Network input width
+			assert(neth > 0 && neth <= 2048);        // Network input height
+			assert(thresh >= 0.0f && thresh <= 1.0f); // Threshold must be probability
+			assert(l.output != nullptr);             // Layer output must exist
+			assert(dets != nullptr);                 // Detection array must be allocated
+			assert(l.biases != nullptr);             // Anchor biases must exist
+			assert(l.mask != nullptr);               // Anchor mask must exist
+			
+			// Verify biases array has correct size
+			assert(l.n <= 10); // Reasonable upper bound for checking bias array
+		})
+		.postcondition([&] {
+			assert(result >= 0);                     // Count must be non-negative  
+			assert(result <= l.n * l.w * l.h);       // Can't exceed total possible boxes
+		});
+
+	const float * predictions = l.output;
+	int count = 0;
+
+	// Process each grid position and anchor box
+	for (int i = 0; i < l.w * l.h; ++i)
+	{
+		// Calculate grid coordinates from linear index
+		int row = i / l.w;
+		int col = i % l.w;
+		
+		// Bounds checking for grid coordinates
+		assert(row >= 0 && row < l.h);
+		assert(col >= 0 && col < l.w);
+
+		for (int n = 0; n < l.n; ++n)  // For each anchor box
+		{
+			// Get objectness score (entry 6 for BDP vs entry 4 for standard)
+			int obj_index = yolo_entry_index_bdp(l, 0, n * l.w * l.h + i, 6);
+			
+			// Runtime bounds checking
+			assert(obj_index >= 0 && obj_index < l.outputs);
+			
+			float objectness = predictions[obj_index];
+			
+			// Validate objectness value
+			assert(std::isfinite(objectness));
+			assert(objectness >= 0.0f && objectness <= 1.0f); // Should be in [0,1] after logistic
+			
+			// Check if detection meets threshold
+			if (objectness > thresh)
+			{
+				// Extract 6-parameter oriented bounding box
+				int box_index = yolo_entry_index_bdp(l, 0, n * l.w * l.h + i, 0);
+				assert(box_index >= 0 && box_index + 5 < l.outputs); // Ensure 6 parameters fit
+				
+				// Use get_yolo_box_bdp to extract x,y,w,h,fx,fy
+				dets[count].bbox = get_yolo_box_bdp(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w * l.h, l.new_coords);
+				
+				// Set detection metadata
+				dets[count].objectness = objectness;
+				dets[count].classes = l.classes;
+				dets[count].best_class_idx = -1; // Will be set during NMS
+				
+				// Handle embeddings if present (for tracking)
+				if (l.embedding_output)
+				{
+					// @implement OBB: Add embedding extraction for tracking support
+					// get_embedding(l.embedding_output, l.w, l.h, l.n * l.embedding_size, l.embedding_size, col, row, n, 0, dets[count].embeddings);
+					assert(dets[count].embeddings != nullptr);
+					dets[count].embedding_size = l.embedding_size;
+				}
+				else
+				{
+					dets[count].embeddings = nullptr;
+					dets[count].embedding_size = 0;
+				}
+				
+				// Extract class probabilities (entries 7+ for BDP vs 5+ for standard)
+				assert(dets[count].prob != nullptr); // Should be allocated by caller
+				
+				for (int j = 0; j < l.classes; ++j)
+				{
+					int class_index = yolo_entry_index_bdp(l, 0, n * l.w * l.h + i, 7 + j);
+					assert(class_index >= 0 && class_index < l.outputs);
+					
+					float class_score = predictions[class_index];
+					assert(std::isfinite(class_score));
+					assert(class_score >= 0.0f && class_score <= 1.0f); // Should be in [0,1] after logistic
+					
+					// Calculate final probability: objectness * class_probability
+					float prob = objectness * class_score;
+					
+					// Apply threshold and class mapping
+					if (prob > thresh)
+					{
+						dets[count].prob[j] = prob;
+					}
+					else
+					{
+						dets[count].prob[j] = 0.0f;
+					}
+				}
+				
+				// Validate detection bounds
+				assert(dets[count].bbox.x >= 0.0f && dets[count].bbox.x <= 1.0f);
+				assert(dets[count].bbox.y >= 0.0f && dets[count].bbox.y <= 1.0f);
+				assert(dets[count].bbox.w > 0.0f && dets[count].bbox.w <= 1.0f);
+				assert(dets[count].bbox.h > 0.0f && dets[count].bbox.h <= 1.0f);
+				assert(dets[count].bbox.fx >= 0.0f && dets[count].bbox.fx <= 1.0f);
+				assert(dets[count].bbox.fy >= 0.0f && dets[count].bbox.fy <= 1.0f);
+				
+				++count;
+			}
+		}
+	}
+
+	// Apply coordinate corrections for different image dimensions
+	correct_yolo_boxes_bdp(dets, count, w, h, netw, neth, relative, letter);
+
+	result = count;
+	return result;
+}
+
+
+/// @implement OBB: Coordinate correction function for oriented bounding boxes (BDP representation)
+/// This function converts normalized BDP coordinates from network space to original image space.
+///
+/// INTERACTION WITH OTHER FUNCTIONS:
+/// - Called by: get_yolo_detections_bdp() after detection extraction
+/// - Similar to: correct_yolo_boxes() but handles 6-parameter BDP boxes
+/// - Modifies: DarknetDetectionOBB array in-place to correct coordinates
+///
+/// DIFFERENCES FROM STANDARD VERSION:
+/// - Operates on DarknetDetectionOBB* instead of Darknet::Detection*
+/// - Corrects 6 parameters (x,y,w,h,fx,fy) instead of 4 (x,y,w,h)
+/// - Front point coordinates (fx,fy) undergo same transformations as center (x,y)
+/// - Maintains orientation relationships between center and front point
+///
+/// COORDINATE TRANSFORMATIONS:
+/// - Accounts for letterboxing and aspect ratio differences
+/// - Converts from network normalized space [0,1] to image pixel space
+/// - Applies scaling and offset corrections for proper image alignment
+/// - Preserves oriented bounding box geometry during transformation
+void correct_yolo_boxes_bdp(DarknetDetectionOBB *dets, int n, int w, int h, int netw, int neth, int relative, int letter)
+{
+	TAT(TATPARMS);
+
+	// Aggressive static assertions for compile-time validation
+	static_assert(sizeof(DarknetBoxBDP) == 6 * sizeof(float), "BDP box must have exactly 6 float parameters");
+	static_assert(std::is_trivially_copyable_v<DarknetDetectionOBB>, "Detection must be trivially copyable");
+	static_assert(offsetof(DarknetDetectionOBB, bbox) == 0, "BDP box must be first member");
+	static_assert(std::numeric_limits<float>::is_iec559, "Float must be IEEE 754 compliant");
+
+	// Boost.Contract preconditions and postconditions
+	boost::contract::check c = boost::contract::function()
+		.precondition([&] {
+			assert(dets != nullptr || n == 0);     // Array must exist if n > 0
+			assert(n >= 0 && n <= 100000);         // Reasonable detection count bounds
+			assert(w > 0 && w <= 8192);            // Original image width bounds
+			assert(h > 0 && h <= 8192);            // Original image height bounds
+			assert(netw > 0 && netw <= 2048);      // Network input width bounds  
+			assert(neth > 0 && neth <= 2048);      // Network input height bounds
+			assert(relative == 0 || relative == 1); // Boolean flag validation
+			assert(letter == 0 || letter == 1);    // Boolean flag validation
+			
+			// Validate input coordinates are in expected ranges (normalized [0,1])
+			for (int i = 0; i < std::min(n, 10); ++i) {  // Check first 10 detections
+				assert(dets[i].bbox.x >= 0.0f && dets[i].bbox.x <= 1.0f);
+				assert(dets[i].bbox.y >= 0.0f && dets[i].bbox.y <= 1.0f);  
+				assert(dets[i].bbox.w > 0.0f && dets[i].bbox.w <= 1.0f);
+				assert(dets[i].bbox.h > 0.0f && dets[i].bbox.h <= 1.0f);
+				assert(dets[i].bbox.fx >= 0.0f && dets[i].bbox.fx <= 1.0f);
+				assert(dets[i].bbox.fy >= 0.0f && dets[i].bbox.fy <= 1.0f);
+			}
+		})
+		.postcondition([&] {
+			// Validate output coordinates are in reasonable ranges
+			for (int i = 0; i < std::min(n, 10); ++i) {  // Check first 10 detections
+				if (relative) {
+					// Relative coordinates should remain in [0,1] range
+					assert(dets[i].bbox.x >= 0.0f && dets[i].bbox.x <= 1.0f);
+					assert(dets[i].bbox.y >= 0.0f && dets[i].bbox.y <= 1.0f);
+					assert(dets[i].bbox.fx >= 0.0f && dets[i].bbox.fx <= 1.0f);
+					assert(dets[i].bbox.fy >= 0.0f && dets[i].bbox.fy <= 1.0f);
+				} else {
+					// Absolute coordinates should be in pixel ranges
+					assert(dets[i].bbox.x >= -w && dets[i].bbox.x <= 2*w);  // Allow some overflow
+					assert(dets[i].bbox.y >= -h && dets[i].bbox.y <= 2*h);
+					assert(dets[i].bbox.fx >= -w && dets[i].bbox.fx <= 2*w);
+					assert(dets[i].bbox.fy >= -h && dets[i].bbox.fy <= 2*h);
+				}
+				assert(dets[i].bbox.w > 0.0f);      // Width must remain positive
+				assert(dets[i].bbox.h > 0.0f);      // Height must remain positive
+			}
+		});
+
+	// Calculate letterboxing parameters (same logic as standard correct_yolo_boxes)
+	int new_w = 0;
+	int new_h = 0;
+	
+	if (letter)
+	{
+		// Letterbox mode: maintain aspect ratio with padding
+		if (((float)netw / w) < ((float)neth / h))
+		{
+			new_w = netw;
+			new_h = (h * netw) / w;
+		}
+		else
+		{
+			new_h = neth;
+			new_w = (w * neth) / h;
+		}
+	}
+	else
+	{
+		// Stretch mode: fill entire network input
+		new_w = netw;
+		new_h = neth;
+	}
+	
+	// Calculate transformation parameters
+	const float deltaw = netw - new_w;        // Horizontal padding offset
+	const float deltah = neth - new_h;        // Vertical padding offset
+	const float ratiow = (float)new_w / netw; // Horizontal scaling ratio
+	const float ratioh = (float)new_h / neth; // Vertical scaling ratio
+	
+	// Runtime validation of calculated parameters
+	assert(ratiow > 0.0f && ratiow <= 1.0f);
+	assert(ratioh > 0.0f && ratioh <= 1.0f);
+	assert(deltaw >= 0.0f && deltaw <= netw);
+	assert(deltah >= 0.0f && deltah <= neth);
+
+	// Apply coordinate corrections to all detections
+	for (int i = 0; i < n; ++i)
+	{
+		DarknetBoxBDP b = dets[i].bbox;
+		
+		// Validate input coordinates for this detection
+		assert(std::isfinite(b.x) && std::isfinite(b.y) && std::isfinite(b.w) && std::isfinite(b.h));
+		assert(std::isfinite(b.fx) && std::isfinite(b.fy));
+		
+		// Transform center coordinates (same as standard YOLO correction)
+		b.x = (b.x - deltaw / 2.0f / netw) / ratiow;
+		b.y = (b.y - deltah / 2.0f / neth) / ratioh;
+		
+		// Transform front point coordinates (using same transformation as center)
+		b.fx = (b.fx - deltaw / 2.0f / netw) / ratiow;
+		b.fy = (b.fy - deltah / 2.0f / neth) / ratioh;
+		
+		// Scale dimensions  
+		b.w /= ratiow;
+		b.h /= ratioh;
+		
+		// Convert to absolute coordinates if requested
+		if (!relative)
+		{
+			b.x *= w;   // Center x to pixel coordinates
+			b.y *= h;   // Center y to pixel coordinates
+			b.w *= w;   // Width to pixel dimensions
+			b.h *= h;   // Height to pixel dimensions
+			b.fx *= w;  // Front point x to pixel coordinates
+			b.fy *= h;  // Front point y to pixel coordinates
+		}
+		
+		// Validate output coordinates
+		assert(std::isfinite(b.x) && std::isfinite(b.y) && std::isfinite(b.w) && std::isfinite(b.h));
+		assert(std::isfinite(b.fx) && std::isfinite(b.fy));
+		assert(b.w > 0.0f && b.h > 0.0f); // Dimensions must remain positive
+		
+		// Store corrected coordinates back to detection
+		dets[i].bbox = b;
+	}
 }

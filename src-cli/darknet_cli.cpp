@@ -99,15 +99,37 @@ void speed(const char * cfgfile, int tics)
 	set_batch_network(&net, 1);
 	int i;
 	Darknet::Image im = make_image(net.w, net.h, net.c);
+	
+	// BDP detection counting variables
+	int total_bdp_detections = 0;
+	float detection_threshold = 0.35f; // Threshold for counting meaningful detections
+	
 	time_t start = time(0);
 	for (i = 0; i < tics; ++i)
 	{
 		network_predict(net, im.data);
+		
+		// Count BDP detections for this evaluation
+		int eval_bdp_detections = 0;
+		for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+		{
+			Darknet::Layer& layer = net.layers[layer_idx];
+			if (layer.type == Darknet::ELayerType::YOLO_BDP)
+			{
+				// Count detections in this BDP layer using the 6-parameter format
+				eval_bdp_detections += yolo_num_detections_bdp(layer, detection_threshold);
+			}
+		}
+		total_bdp_detections += eval_bdp_detections;
 	}
 	double t = difftime(time(0), start);
 
+	// Calculate average BDP detections per evaluation
+	double avg_bdp_detections = static_cast<double>(total_bdp_detections) / tics;
+
 	*cfg_and_state.output							<< std::endl
 		<< tics << " evals, " << t << " seconds"	<< std::endl
+		<< "avg BDP detections per eval: " << avg_bdp_detections << std::endl
 		<< "Speed: " << t/tics << " sec/eval"		<< std::endl
 		<< "Speed: " << tics/t << " Hz"				<< std::endl;
 }

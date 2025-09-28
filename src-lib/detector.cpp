@@ -253,6 +253,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	{
 		Darknet::Layer & lk = net.layers[k];
 		if (lk.type == Darknet::ELayerType::YOLO or
+			lk.type == Darknet::ELayerType::YOLO_BDP or
 			lk.type == Darknet::ELayerType::GAUSSIAN_YOLO or
 			lk.type == Darknet::ELayerType::REGION)
 		{
@@ -1013,6 +1014,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, const cha
 	{
 		Darknet::Layer & lk = net.layers[k];
 		if (lk.type == Darknet::ELayerType::YOLO or
+			lk.type == Darknet::ELayerType::YOLO_BDP or
 			lk.type == Darknet::ELayerType::GAUSSIAN_YOLO or
 			lk.type == Darknet::ELayerType::REGION)
 		{
@@ -1379,6 +1381,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	{
 		Darknet::Layer & lk = net.layers[k];
 		if (lk.type == Darknet::ELayerType::YOLO or
+			lk.type == Darknet::ELayerType::YOLO_BDP or
 			lk.type == Darknet::ELayerType::GAUSSIAN_YOLO or
 			lk.type == Darknet::ELayerType::REGION)
 		{

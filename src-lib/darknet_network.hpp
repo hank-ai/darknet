@@ -210,6 +210,7 @@ namespace Darknet
 			int gaussian_noise;
 			int blur;
 			int fog;
+			int cutout;
 			int mixup;
 			float label_smooth_eps;
 			int resize_step;

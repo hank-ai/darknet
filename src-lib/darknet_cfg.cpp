@@ -1,4 +1,5 @@
 #include "darknet_internal.hpp"
+#include <boost/contract.hpp>
 
 
 namespace
@@ -818,6 +819,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 			case ELayerType::REORG:			{l = parse_reorg_section(idx);									break;}
 			case ELayerType::AVGPOOL:		{l = parse_avgpool_section(idx);								break;}
 			case ELayerType::YOLO:			{l = parse_yolo_section(idx);			l.keep_delta_gpu = 1;	break;}
+			case ELayerType::YOLO_BDP:		{l = parse_yolo_bdp_section(idx);		l.keep_delta_gpu = 1;	break;}
 			case ELayerType::COST:			{l = parse_cost_section(idx);			l.keep_delta_gpu = 1;	break;}
 			case ELayerType::REGION:		{l = parse_region_section(idx);			l.keep_delta_gpu = 1;	break;}
 			case ELayerType::GAUSSIAN_YOLO:	{l = parse_gaussian_yolo_section(idx);	l.keep_delta_gpu = 1;	break;}
@@ -1195,7 +1197,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 #endif
 
 	Darknet::ELayerType lt = net.layers[net.n - 1].type;
-	if (lt == Darknet::ELayerType::YOLO || lt == Darknet::ELayerType::REGION)
+	if (lt == Darknet::ELayerType::YOLO || lt == Darknet::ELayerType::YOLO_BDP || lt == Darknet::ELayerType::REGION)
 	{
 		if (net.w % 32 != 0 ||
 			net.h % 32 != 0 ||
@@ -1277,6 +1279,7 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 	net.blur = s.find_int("blur", 0);
 	net.gaussian_noise = s.find_int("gaussian_noise", 0);
 	net.fog = s.find_int("fog", 0);
+	net.cutout = s.find_int("cutout", 0);
 	net.mixup = s.find_int("mixup", 0);
 	int cutmix = s.find_int("cutmix", 0);
 	int mosaic = s.find_int("mosaic", 0);
@@ -1679,6 +1682,127 @@ Darknet::Layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	l.ignore_thresh = s.find_float("ignore_thresh", .5);
 	l.truth_thresh = s.find_float("truth_thresh", 1);
 	l.iou_thresh = s.find_float("iou_thresh", 1); // recommended to use iou_thresh=0.213 in [yolo]
+	l.random = s.find_float("random", 0);
+
+	l.track_history_size = s.find_int("track_history_size", 5);
+	l.sim_thresh = s.find_float("sim_thresh", 0.8);
+	l.dets_for_track = s.find_int("dets_for_track", 1);
+	l.dets_for_show = s.find_int("dets_for_show", 1);
+	l.track_ciou_norm = s.find_float("track_ciou_norm", 0.01);
+	int embedding_layer_id = s.find_int("embedding_layer", 999999);
+	if (embedding_layer_id < 0) embedding_layer_id = parms.index + embedding_layer_id;
+	if (embedding_layer_id != 999999)
+	{
+		const Darknet::Layer & le = net.layers[embedding_layer_id];
+		l.embedding_layer_id = embedding_layer_id;
+		l.embedding_output = (float*)xcalloc(le.batch * le.outputs, sizeof(float));
+		l.embedding_size = le.n / l.n;
+		if (le.n % l.n != 0)
+		{
+			darknet_fatal_error(DARKNET_LOC, "filters=%d number in embedding_layer=%d isn't divisable by number of anchors %d", le.n, embedding_layer_id, l.n);
+		}
+	}
+
+	const std::string map_file = s.find_str("map");
+	if (not map_file.empty())
+	{
+		l.map = read_map(map_file.c_str());
+	}
+
+	const VFloat vf = s.find_float_array("anchors");
+	for (size_t i = 0; i < vf.size(); i ++)
+	{
+		l.biases[i] = vf[i];
+	}
+
+	return l;
+}
+
+
+/// @implement OBB: Configuration parser for oriented bounding box YOLO layer (BDP representation)
+/// This function parses [yolo_bdp] sections in configuration files to create BDP-enabled YOLO layers.
+///
+/// INTERACTION WITH OTHER FUNCTIONS:
+/// - Called by: Layer creation switch in create_network() when ELayerType::YOLO_BDP is encountered
+/// - Calls: make_yolo_layer_bdp() to create the actual layer
+/// - Similar to: parse_yolo_section() but for 6-parameter oriented boxes
+///
+/// DIFFERENCES FROM STANDARD parse_yolo_section:
+/// - Creates YOLO_BDP layer type using make_yolo_layer_bdp()
+/// - Validates filter count for 6-parameter boxes: (6 + 1 + classes) * anchors
+/// - All other configuration parameters (anchors, classes, IoU settings, etc.) are identical
+/// - Supports same training and inference parameters as standard YOLO
+Darknet::Layer Darknet::CfgFile::parse_yolo_bdp_section(const size_t section_idx)
+{
+	TAT(TATPARMS);
+
+	// Boost.Contract preconditions
+	// Precondition check
+	assert(section_idx < sections.size());
+
+	auto & s = sections.at(section_idx);
+
+	int classes		= s.find_int("classes", 20);
+	int total		= s.find_int("num", 1);
+	int max_boxes	= s.find_int("max", 200);
+	int num			= total;
+	const auto v	= s.find_int_array("mask"); // e.g., [0, 1, 2]
+	int * mask		= nullptr;
+
+	if (not v.empty())
+	{
+		mask = (int*)xcalloc(v.size(), sizeof(int));
+		for (size_t i = 0; i < v.size(); i ++)
+		{
+			mask[i] = v[i];
+		}
+		num = v.size();
+	}
+
+	// Create BDP layer with 6-parameter coordinates
+	Darknet::Layer l = make_yolo_layer_bdp(parms.batch, parms.w, parms.h, num, total, mask, classes, max_boxes);
+
+	// Validate filter count for BDP: (6 coords + 1 objectness + classes) * anchors
+	if (l.outputs != parms.inputs)
+	{
+		darknet_fatal_error(DARKNET_LOC, "filters in convolutional layer prior to [%s] on line %ld does not match BDP requirements (inputs=%d, expected=%d for 6-parameter boxes)", s.name.c_str(), s.line_number, parms.inputs, l.outputs);
+	}
+
+	// The old Darknet had a CLI option called "-show_details".  This was replaced by "--verbose".
+	l.show_details = cfg_and_state.is_verbose ? 1 : 0;
+
+	l.max_delta = s.find_float("max_delta", FLT_MAX);   // set 10
+
+	VInt vi = s.find_int_array("counters_per_class");
+	l.classes_multipliers = get_classes_multipliers(vi, classes, l.max_delta);
+
+	l.label_smooth_eps = s.find_float("label_smooth_eps", 0.0f);
+	l.scale_x_y = s.find_float("scale_x_y", 1);
+	l.objectness_smooth = s.find_int("objectness_smooth", 0);
+	l.new_coords = s.find_int("new_coords", 0);
+	l.iou_normalizer = s.find_float("iou_normalizer", 0.75);
+	l.obj_normalizer = s.find_float("obj_normalizer", 1);
+	l.cls_normalizer = s.find_float("cls_normalizer", 1);
+	l.delta_normalizer = s.find_float("delta_normalizer", 1);
+
+	const std::string iou_loss = s.find_str("iou_loss", "mse");
+	l.iou_loss = static_cast<IOU_LOSS>(get_IoU_loss_from_name(iou_loss)); // "iou"
+
+	const std::string iou_thresh_kind = s.find_str("iou_thresh_kind", "iou");
+	l.iou_thresh_kind = static_cast<IOU_LOSS>(get_IoU_loss_from_name(iou_thresh_kind));
+
+	l.beta_nms = s.find_float("beta_nms", 0.6);
+
+	const std::string nms_kind = s.find_str("nms_kind", "default");
+	l.nms_kind = static_cast<NMS_KIND>(get_NMS_kind_from_name(nms_kind));
+
+	l.jitter = s.find_float("jitter", .2);
+	l.resize = s.find_float("resize", 1.0);
+	l.focal_loss = s.find_int("focal_loss", 0);
+
+	l.ignore_thresh = s.find_float("ignore_thresh", .5);
+	l.truth_thresh = s.find_float("truth_thresh", 1);
+	l.iou_thresh = s.find_float("iou_thresh", 1); // recommended to use iou_thresh=0.213 in [yolo_bdp]
 	l.random = s.find_float("random", 0);
 
 	l.track_history_size = s.find_int("track_history_size", 5);

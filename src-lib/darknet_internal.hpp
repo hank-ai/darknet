@@ -34,6 +34,9 @@
 #include <random>
 #include <regex>
 
+// Boost.Contract configuration must be included before any Boost.Contract usage
+#include "darknet_contract_config.hpp"
+
 // 3rd-party lib headers
 #include <opencv2/opencv.hpp>
 
@@ -289,6 +292,7 @@ typedef struct load_args {
 	int gaussian_noise;
 	int blur;
 	int fog;
+	int cutout;
 	int mixup;
 	float angle;
 	float aspect;

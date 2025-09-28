@@ -645,6 +645,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 			case Darknet::ELayerType::LOCAL_AVGPOOL:	resize_maxpool_layer(&l, w, h);				break;
 			case Darknet::ELayerType::REGION:			resize_region_layer(&l, w, h);				break;
 			case Darknet::ELayerType::YOLO:				resize_yolo_layer(&l, w, h);				break;
+			case Darknet::ELayerType::YOLO_BDP:			resize_yolo_layer(&l, w, h);				break;
 			case Darknet::ELayerType::GAUSSIAN_YOLO:	resize_gaussian_yolo_layer(&l, w, h);		break;
 			case Darknet::ELayerType::ROUTE:			resize_route_layer(&l, net);				break;
 			case Darknet::ELayerType::SHORTCUT:			resize_shortcut_layer(&l, w, h, net);		break;
@@ -860,6 +861,10 @@ int num_detections(Darknet::Network * net, float thresh)
 			/// @todo V3 JAZZ:  this is where we spend all our time
 			s += yolo_num_detections(l, thresh);
 		}
+		else if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			s += yolo_num_detections_bdp(l, thresh);
+		}
 
 		if (l.type == Darknet::ELayerType::GAUSSIAN_YOLO)
 		{
@@ -891,6 +896,11 @@ int num_detections_v3(Darknet::Network * net, float thresh, Darknet::Output_Obje
 			/// @todo V3 JAZZ:  this is where we spend all our time
 			detections += yolo_num_detections_v3(net, i, thresh, cache);
 		}
+		else if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			// Use standard counting for BDP layers (v3 cache not implemented for BDP)
+			detections += yolo_num_detections_bdp(l, thresh);
+		}
 
 		/// @todo Is this still used in a modern .cfg file?  Should it be removed?
 		else if (l.type == Darknet::ELayerType::GAUSSIAN_YOLO)
@@ -921,6 +931,11 @@ int num_detections_batch(Darknet::Network * net, float thresh, int batch)
 		{
 			s += yolo_num_detections_batch(l, thresh, batch);
 		}
+		else if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			// BDP layers use same counting logic as standard YOLO
+			s += yolo_num_detections_bdp(l, thresh);
+		}
 		else if (l.type == Darknet::ELayerType::REGION)
 		{
 			s += l.w*l.h*l.n;
@@ -945,6 +960,7 @@ detection * make_network_boxes(DarknetNetworkPtr ptr, float thresh, int * num)
 	{
 		Darknet::Layer & l_tmp = net->layers[i];
 		if (l_tmp.type == Darknet::ELayerType::YOLO or
+			l_tmp.type == Darknet::ELayerType::YOLO_BDP or
 			l_tmp.type == Darknet::ELayerType::GAUSSIAN_YOLO or
 			l_tmp.type == Darknet::ELayerType::REGION or
 			i == (net->n - 1))
@@ -1013,6 +1029,7 @@ Darknet::Detection * make_network_boxes_v3(Darknet::Network * net, const float t
 
 			const Darknet::Layer & tmp = net->layers[i];
 			if (tmp.type == Darknet::ELayerType::YOLO			or
+				tmp.type == Darknet::ELayerType::YOLO_BDP		or
 				tmp.type == Darknet::ELayerType::GAUSSIAN_YOLO	or
 				tmp.type == Darknet::ELayerType::REGION			)
 			{
@@ -1070,6 +1087,7 @@ Darknet::Detection *make_network_boxes_batch(Darknet::Network * net, float thres
 	{
 		const Darknet::Layer & l_tmp = net->layers[i];
 		if (l_tmp.type == Darknet::ELayerType::YOLO or
+			l_tmp.type == Darknet::ELayerType::YOLO_BDP or
 			l_tmp.type == Darknet::ELayerType::GAUSSIAN_YOLO or
 			l_tmp.type == Darknet::ELayerType::REGION)
 		{
@@ -1184,6 +1202,15 @@ void fill_network_boxes(Darknet::Network * net, int w, int h, float thresh, floa
 				}
 				break;
 			}
+			case Darknet::ELayerType::YOLO_BDP:
+			{
+				// Note: For BDP layers, we would need to handle DarknetDetectionOBB differently
+				// This is a placeholder - full BDP integration would require separate detection arrays
+				// For now, we skip BDP layers in standard detection pipeline
+				// TODO: Implement proper BDP detection handling when needed
+				*cfg_and_state.output << "Warning: YOLO_BDP layer encountered in standard detection pipeline. Skipping." << std::endl;
+				break;
+			}
 			case Darknet::ELayerType::GAUSSIAN_YOLO:
 			{
 				int count = get_gaussian_yolo_detections(l, w, h, net->w, net->h, thresh, map, relative, dets, letter);
@@ -1237,6 +1264,11 @@ void fill_network_boxes_batch(Darknet::Network * net, int w, int h, float thresh
 			{
 				darknet_fatal_error(DARKNET_LOC, "Different [yolo] layers have different number of classes = %d and %d - check your cfg-file!", prev_classes, l.classes);
 			}
+		}
+		else if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			// Skip BDP layers in standard batch detection pipeline
+			*cfg_and_state.output << "Warning: YOLO_BDP layer encountered in batch detection pipeline. Skipping." << std::endl;
 		}
 		else if (l.type == Darknet::ELayerType::REGION)
 		{
@@ -2024,9 +2056,9 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold)
 			continue;
 		}
 
-		if (net.n > i + 1) if (net.layers[i + 1].type == Darknet::ELayerType::YOLO) continue;
-		if (net.n > i + 2) if (net.layers[i + 2].type == Darknet::ELayerType::YOLO) continue;
-		if (net.n > i + 3) if (net.layers[i + 3].type == Darknet::ELayerType::YOLO) continue;
+		if (net.n > i + 1) if (net.layers[i + 1].type == Darknet::ELayerType::YOLO || net.layers[i + 1].type == Darknet::ELayerType::YOLO_BDP) continue;
+		if (net.n > i + 2) if (net.layers[i + 2].type == Darknet::ELayerType::YOLO || net.layers[i + 2].type == Darknet::ELayerType::YOLO_BDP) continue;
+		if (net.n > i + 3) if (net.layers[i + 3].type == Darknet::ELayerType::YOLO || net.layers[i + 3].type == Darknet::ELayerType::YOLO_BDP) continue;
 
 		if (l.type == Darknet::ELayerType::CONVOLUTIONAL && l.activation != LINEAR)
 		{

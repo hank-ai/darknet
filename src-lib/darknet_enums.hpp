@@ -42,6 +42,7 @@ namespace Darknet
 		NETWORK										,	///< used in every config
 		REGION										,	///< only used in tiny-yolo_xnor.cfg (which is NOT a YOLO config)
 		YOLO										,	///< used often
+		YOLO_BDP									,	///< oriented bounding boxes with 6 parameters (x,y,w,h,fx,fy)
 		GAUSSIAN_YOLO								,	///< only used in Gaussian_yolov3_BDD.cfg
 		REORG			/* aka "3D" */				,	///< only used in yolov4-sam-mish-csp-reorg-bfm.cfg
 		UPSAMPLE									,	///< used often, does downsampling instead if l.reverse=1
