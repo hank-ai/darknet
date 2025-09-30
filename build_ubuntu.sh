@@ -17,7 +17,5 @@ ls -lh *.deb
 
 echo Installing the .deb file...
 sudo dpkg -i *.deb
-echo Running the trace
-darknet speed cfg/yolov4-tiny-bdp.cfg --trace
 
 cd ..

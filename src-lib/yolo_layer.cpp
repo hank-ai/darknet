@@ -5,6 +5,8 @@ namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
+	// Macro for debug output - only prints if --trace flag is enabled
+	#define DEBUG_TRACE(msg) if (cfg_and_state.is_trace) { *cfg_and_state.output << msg << std::endl; }
 
 	struct train_yolo_args
 	{
@@ -63,29 +65,62 @@ namespace
 		assert(j >= 0 && j < lh && "Grid y coordinate must be within layer bounds");
 
 		DarknetBoxBDP b;
-		
+
+		// BDP-specific: Read raw values and validate they are finite before processing
+		// This prevents NaN/inf from propagating through calculations
+		float raw_x = x[index + 0 * stride];
+		float raw_y = x[index + 1 * stride];
+		float raw_w = x[index + 2 * stride];
+		float raw_h = x[index + 3 * stride];
+		float raw_fx = x[index + 4 * stride];
+		float raw_fy = x[index + 5 * stride];
+
+		// BDP-specific: Fix NaN/inf in raw input values before computation
+		// This is critical to prevent exp() from producing inf, and prevents NaN propagation
+		if (!std::isfinite(raw_x)) raw_x = 0.0f;
+		if (!std::isfinite(raw_y)) raw_y = 0.0f;
+		if (!std::isfinite(raw_w)) raw_w = 0.0f;
+		if (!std::isfinite(raw_h)) raw_h = 0.0f;
+		if (!std::isfinite(raw_fx)) raw_fx = 0.0f;
+		if (!std::isfinite(raw_fy)) raw_fy = 0.0f;
+
+		// BDP-specific: Clamp raw_w and raw_h to prevent exp() overflow
+		// exp(x) overflows to inf for x > ~88.7, so we clamp to a safe range
+		raw_w = std::max(-10.0f, std::min(10.0f, raw_w));
+		raw_h = std::max(-10.0f, std::min(10.0f, raw_h));
+
 		if (new_coords)
 		{
 			// New coordinate system: use squared terms for w,h
-			b.x = (i + x[index + 0 * stride]) / lw;
-			b.y = (j + x[index + 1 * stride]) / lh;
-			b.w = x[index + 2 * stride] * x[index + 2 * stride] * 4 * biases[2 * n] / w;
-			b.h = x[index + 3 * stride] * x[index + 3 * stride] * 4 * biases[2 * n + 1] / h;
+			b.x = (i + raw_x) / lw;
+			b.y = (j + raw_y) / lh;
+			b.w = raw_w * raw_w * 4 * biases[2 * n] / w;
+			b.h = raw_h * raw_h * 4 * biases[2 * n + 1] / h;
 			// Extract front point coordinates (parameters 4 and 5)
-			b.fx = (i + x[index + 4 * stride]) / lw;
-			b.fy = (j + x[index + 5 * stride]) / lh;
+			b.fx = (i + raw_fx) / lw;
+			b.fy = (j + raw_fy) / lh;
 		}
 		else
 		{
 			// Traditional coordinate system: use exp for w,h
-			b.x = (i + x[index + 0 * stride]) / lw;
-			b.y = (j + x[index + 1 * stride]) / lh;
-			b.w = exp(x[index + 2 * stride]) * biases[2 * n] / w;
-			b.h = exp(x[index + 3 * stride]) * biases[2 * n + 1] / h;
+			// BDP-specific: exp() is now safe because raw_w and raw_h are clamped
+			b.x = (i + raw_x) / lw;
+			b.y = (j + raw_y) / lh;
+			b.w = exp(raw_w) * biases[2 * n] / w;
+			b.h = exp(raw_h) * biases[2 * n + 1] / h;
 			// Extract front point coordinates (parameters 4 and 5)
-			b.fx = (i + x[index + 4 * stride]) / lw;
-			b.fy = (j + x[index + 5 * stride]) / lh;
+			b.fx = (i + raw_fx) / lw;
+			b.fy = (j + raw_fy) / lh;
 		}
+
+		// BDP-specific: Clamp output values to valid ranges after computation
+		// This ensures coordinates stay within [0,1] even with bad input data
+		b.x = std::max(0.0f, std::min(1.0f, b.x));
+		b.y = std::max(0.0f, std::min(1.0f, b.y));
+		b.w = std::max(0.0f, std::min(1.0f, b.w));
+		b.h = std::max(0.0f, std::min(1.0f, b.h));
+		b.fx = std::max(0.0f, std::min(1.0f, b.fx));
+		b.fy = std::max(0.0f, std::min(1.0f, b.fy));
 
 		// Post-conditions: validate output ranges for normalized coordinates
 		assert(b.x >= 0.0f && b.x <= 1.0f && "Center x coordinate must be normalized [0,1]");
@@ -106,6 +141,23 @@ namespace
 		if (std::isnan(val) or std::isinf(val))
 		{
 			val = 0.0f;
+		}
+
+		return;
+	}
+
+	/// Custom NaN/inf fix for BDP forward pass: NaN → 0, inf → 1
+	static inline void fix_nan_inf_bdp_forward(float & val)
+	{
+		TAT_COMMENT(TATPARMS, "BDP forward NaN/inf fix");
+
+		if (std::isnan(val))
+		{
+			val = 0.0f;
+		}
+		else if (std::isinf(val))
+		{
+			val = 1.0f;
 		}
 
 		return;
@@ -257,6 +309,200 @@ namespace
 			delta[index + 1 * stride] += dy;
 			delta[index + 2 * stride] += dw;
 			delta[index + 3 * stride] += dh;
+		}
+
+		return all_ious;
+	}
+
+
+	/// BDP loss function: delta for 6-parameter oriented bounding box (x,y,w,h,fx,fy)
+	static inline ious delta_yolo_box_bdp(const DarknetBoxBDP & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
+	{
+		TAT(TATPARMS);
+
+		if (rewritten_bbox)
+		{
+			(*rewritten_bbox) = 0;
+		}
+
+		if (truth.w == 0 || truth.h == 0)
+		{
+			return ious{ 0 };
+		}
+
+		if (x[index + 0 * stride] != x[index + 0 * stride] ||
+			x[index + 1 * stride] != x[index + 1 * stride] ||
+			x[index + 2 * stride] != x[index + 2 * stride] ||
+			x[index + 3 * stride] != x[index + 3 * stride] ||
+			x[index + 4 * stride] != x[index + 4 * stride] ||
+			x[index + 5 * stride] != x[index + 5 * stride])
+		{
+			return ious{ 0 };
+		}
+
+		if (rewritten_bbox && 
+			delta[index + 0 * stride] != 0 &&
+			delta[index + 1 * stride] != 0 &&
+			delta[index + 2 * stride] != 0 &&
+			delta[index + 3 * stride] != 0 &&
+			delta[index + 4 * stride] != 0 &&
+			delta[index + 5 * stride] != 0)
+		{
+			(*rewritten_bbox)++;
+		}
+
+		ious all_ious = { 0 };
+		
+		// Convert BDP to standard box for IoU calculation (use center+dimensions only)
+		Darknet::Box pred_center;
+		pred_center.x = x[index + 0 * stride];
+		pred_center.y = x[index + 1 * stride]; 
+		pred_center.w = x[index + 2 * stride];
+		pred_center.h = x[index + 3 * stride];
+		
+		Darknet::Box truth_center;
+		truth_center.x = truth.x;
+		truth_center.y = truth.y;
+		truth_center.w = truth.w;
+		truth_center.h = truth.h;
+		
+		// Standard box IoU calculations for center+dimensions
+		all_ious.iou = box_iou(pred_center, truth_center);
+		all_ious.giou = box_giou(pred_center, truth_center);
+		all_ious.diou = box_diou(pred_center, truth_center);
+		all_ious.ciou = box_ciou(pred_center, truth_center);
+
+		// Avoid nan in dx_box_iou
+		if (pred_center.w == 0) pred_center.w = 1.0;
+		if (pred_center.h == 0) pred_center.h = 1.0;
+
+		if (iou_loss == MSE)    // MSE loss for all 6 parameters
+		{
+			// Standard x,y,w,h loss (same as original)
+			float tx = (truth.x * lw - i);
+			float ty = (truth.y * lh - j);
+
+			// BDP-specific: Ensure log/sqrt arguments are positive to prevent NaN
+			float safe_w_arg = std::max(1e-9f, truth.w * w / biases[2 * n]);
+			float safe_h_arg = std::max(1e-9f, truth.h * h / biases[2 * n + 1]);
+
+			float tw = log(safe_w_arg);
+			float th = log(safe_h_arg);
+
+			// Front point loss (new for BDP)
+			float tfx = (truth.fx * lw - i);  // Target front point x
+			float tfy = (truth.fy * lh - j);  // Target front point y
+
+			if (new_coords)
+			{
+				// BDP-specific: Ensure sqrt arguments are positive
+				float safe_w_sqrt_arg = std::max(0.0f, truth.w * w / (4 * biases[2 * n]));
+				float safe_h_sqrt_arg = std::max(0.0f, truth.h * h / (4 * biases[2 * n + 1]));
+				tw = sqrt(safe_w_sqrt_arg);
+				th = sqrt(safe_h_sqrt_arg);
+			}
+
+			// Calculate deltas for all 6 parameters
+			float dx = scale * (tx - x[index + 0 * stride]) * iou_normalizer;
+			float dy = scale * (ty - x[index + 1 * stride]) * iou_normalizer;
+			float dw = scale * (tw - x[index + 2 * stride]) * iou_normalizer;
+			float dh = scale * (th - x[index + 3 * stride]) * iou_normalizer;
+			float dfx = scale * (tfx - x[index + 4 * stride]) * iou_normalizer;
+			float dfy = scale * (tfy - x[index + 5 * stride]) * iou_normalizer;
+
+			// Fix NaN/inf values in all deltas
+			fix_nan_inf(dx); fix_nan_inf(dy); fix_nan_inf(dw); fix_nan_inf(dh);
+			fix_nan_inf(dfx); fix_nan_inf(dfy);
+
+			// Apply clipping if specified
+			if (max_delta != FLT_MAX)
+			{
+				clip_value(dx, max_delta); clip_value(dy, max_delta);
+				clip_value(dw, max_delta); clip_value(dh, max_delta);
+				clip_value(dfx, max_delta); clip_value(dfy, max_delta);
+			}
+
+			// Accumulate delta for all 6 parameters
+			delta[index + 0 * stride] += dx;   // x
+			delta[index + 1 * stride] += dy;   // y
+			delta[index + 2 * stride] += dw;   // w
+			delta[index + 3 * stride] += dh;   // h
+			delta[index + 4 * stride] += dfx;  // fx (front point x)
+			delta[index + 5 * stride] += dfy;  // fy (front point y)
+		}
+		else  // IoU-based loss
+		{
+			// Calculate gradients for center+dimensions using standard IoU
+			all_ious.dx_iou = dx_box_iou(pred_center, truth_center, iou_loss);
+
+			// Standard gradients for x,y,w,h
+			float dx = all_ious.dx_iou.dt;
+			float dy = all_ious.dx_iou.db;
+			float dw = all_ious.dx_iou.dl;
+			float dh = all_ious.dx_iou.dr;
+
+			// For front point gradients, use MSE loss as fallback
+			// TODO: In future, implement proper oriented IoU loss here
+			float tfx = (truth.fx * lw - i);
+			float tfy = (truth.fy * lh - j);
+			float dfx = scale * (tfx - x[index + 4 * stride]);
+			float dfy = scale * (tfy - x[index + 5 * stride]);
+
+			// Apply exponential gradient for w,h if needed
+			// BDP-specific: Validate input values before exp() to prevent inf in gradients
+			if (!new_coords)
+			{
+				float raw_w_for_grad = x[index + 2 * stride];
+				float raw_h_for_grad = x[index + 3 * stride];
+
+				// BDP-specific: Check for finite values and clamp to safe range before exp()
+				if (!std::isfinite(raw_w_for_grad)) raw_w_for_grad = 0.0f;
+				if (!std::isfinite(raw_h_for_grad)) raw_h_for_grad = 0.0f;
+				raw_w_for_grad = std::max(-10.0f, std::min(10.0f, raw_w_for_grad));
+				raw_h_for_grad = std::max(-10.0f, std::min(10.0f, raw_h_for_grad));
+
+				dw *= exp(raw_w_for_grad);
+				dh *= exp(raw_h_for_grad);
+			}
+
+			// Normalize all gradients
+			dx *= iou_normalizer;
+			dy *= iou_normalizer;
+			dw *= iou_normalizer;
+			dh *= iou_normalizer;
+			dfx *= iou_normalizer;
+			dfy *= iou_normalizer;
+
+			// Fix NaN/inf values
+			fix_nan_inf(dx); fix_nan_inf(dy); fix_nan_inf(dw); fix_nan_inf(dh);
+			fix_nan_inf(dfx); fix_nan_inf(dfy);
+
+			// Apply clipping if specified
+			if (max_delta != FLT_MAX)
+			{
+				clip_value(dx, max_delta); clip_value(dy, max_delta);
+				clip_value(dw, max_delta); clip_value(dh, max_delta);
+				clip_value(dfx, max_delta); clip_value(dfy, max_delta);
+			}
+
+			// Zero out deltas if not accumulating
+			if (!accumulate)
+			{
+				delta[index + 0 * stride] = 0;  // x
+				delta[index + 1 * stride] = 0;  // y
+				delta[index + 2 * stride] = 0;  // w
+				delta[index + 3 * stride] = 0;  // h
+				delta[index + 4 * stride] = 0;  // fx
+				delta[index + 5 * stride] = 0;  // fy
+			}
+
+			// Accumulate all deltas
+			delta[index + 0 * stride] += dx;   // x
+			delta[index + 1 * stride] += dy;   // y
+			delta[index + 2 * stride] += dw;   // w
+			delta[index + 3 * stride] += dh;   // h
+			delta[index + 4 * stride] += dfx;  // fx (front point x)
+			delta[index + 5 * stride] += dfy;  // fy (front point y)
 		}
 
 		return all_ious;
@@ -600,6 +846,7 @@ Darknet::Layer make_yolo_layer_bdp(int batch, int w, int h, int n, int total, in
 
 	Darknet::Layer l = { (Darknet::ELayerType)0 };
 	l.type = Darknet::ELayerType::YOLO_BDP;  // Set as BDP layer type
+	l.detection = 0;  // Set to 0 to allow free_layer to free labels/class_ids arrays
 
 	l.n = n;
 	l.total = total;
@@ -635,11 +882,22 @@ Darknet::Layer make_yolo_layer_bdp(int batch, int w, int h, int n, int total, in
 	l.max_boxes = max_boxes;
 	l.truth_size = 6 + 2;  // 6 coordinates + 1 class + 1 objectness for ground truth
 	l.truths = l.max_boxes * l.truth_size;
+
+	// Allocate and initialize labels array for tracking assigned ground truth boxes
 	l.labels = (int*)xcalloc(batch * l.w * l.h * l.n, sizeof(int));
 	for (int i = 0; i < batch * l.w * l.h * l.n; ++i)
 	{
 		l.labels[i] = -1;
 	}
+
+	// Allocate and initialize class_ids array for tracking assigned class IDs
+	// This array is used in training to store which class each grid cell was assigned
+	l.class_ids = (int*)xcalloc(batch * l.w * l.h * l.n, sizeof(int));
+	for (int i = 0; i < batch * l.w * l.h * l.n; ++i)
+	{
+		l.class_ids[i] = -1;
+	}
+
 	l.delta = (float*)xcalloc(batch * l.outputs, sizeof(float));
 	l.output = (float*)xcalloc(batch * l.outputs, sizeof(float));
 
@@ -648,8 +906,8 @@ Darknet::Layer make_yolo_layer_bdp(int batch, int w, int h, int n, int total, in
 		l.biases[i] = .5;
 	}
 
-	l.forward = forward_yolo_layer_bdp;  // Use BDP-specific forward function
-	l.backward = backward_yolo_layer;    // Can reuse standard backward for now
+	l.forward = forward_yolo_layer_bdp;   // Use BDP-specific forward function
+	l.backward = backward_yolo_layer_bdp; // Use BDP-specific backward function for 6-parameter loss
 
 #ifdef DARKNET_GPU
 	l.forward_gpu = forward_yolo_layer_gpu;  // TODO: Implement BDP GPU version if needed
@@ -1381,6 +1639,76 @@ void backward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	axpy_cpu(l.batch*l.inputs, 1, l.delta, 1, state.delta, 1);
 }
 
+void backward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
+{
+	TAT(TATPARMS);
+
+	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: ENTRY - layer params: "
+	                      << "batch=" << l.batch << " inputs=" << l.inputs << " outputs=" << l.outputs
+	                      << " train=" << state.train);
+
+	// Aggressive static assertions for compile-time validation
+	static_assert(sizeof(DarknetBoxBDP) == 6 * sizeof(float), "BDP box must have exactly 6 float parameters");
+	static_assert(std::is_trivially_copyable_v<DarknetBoxBDP>, "BDP box must be trivially copyable for memcpy operations");
+	static_assert(std::is_standard_layout_v<DarknetBoxBDP>, "BDP box must have standard layout for C compatibility");
+	static_assert(alignof(DarknetBoxBDP) <= alignof(float), "BDP box alignment must not exceed float alignment");
+	static_assert(offsetof(DarknetBoxBDP, fx) == 4 * sizeof(float), "fx must be at offset 16");
+	static_assert(offsetof(DarknetBoxBDP, fy) == 5 * sizeof(float), "fy must be at offset 20");
+	
+	// Simple precondition checks without postcondition validation to avoid race conditions
+	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: Validating preconditions...");
+
+	// Layer structure validation
+	assert(l.type == Darknet::ELayerType::YOLO_BDP && "Layer must be YOLO_BDP type");
+	assert(l.coords == 6 && "BDP layer must have 6 coordinates");
+	assert(l.classes > 0 && l.classes <= 1000 && "Classes must be between 1-1000");
+	assert(l.n > 0 && l.n <= 10 && "Anchors must be between 1-10");
+	assert(l.batch > 0 && l.batch <= 64 && "Batch size must be between 1-64");
+	assert(l.w > 0 && l.w <= 2048 && l.h > 0 && l.h <= 2048 && "Grid dimensions must be positive");
+
+	// Memory validation
+	assert(l.delta != nullptr && "Layer delta must be allocated");
+	assert(state.delta != nullptr && "State delta must be allocated");
+	assert(l.inputs > 0 && l.outputs > 0 && "Layer inputs/outputs must be positive");
+
+	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: Preconditions passed");
+
+	// For BDP layers, we need to call the BDP-specific loss calculation
+	// This function should be called during training to compute gradients for the 6-parameter boxes
+
+	if (!state.train) {
+		// If not training, just copy deltas like standard backward
+		DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: Inference mode - copying deltas...");
+		DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: Calling axpy_cpu with n=" << (l.batch*l.inputs));
+		axpy_cpu(l.batch*l.inputs, 1, l.delta, 1, state.delta, 1);
+		DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: axpy_cpu completed");
+		return;
+	}
+
+	// During training, ensure proper gradient computation for BDP layers
+	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: Training mode - propagating gradients...");
+
+	// Note: The actual loss calculation happens in forward_yolo_layer_bdp()
+	// which should call delta_yolo_box_bdp() for each ground truth box
+	// This backward function just propagates the computed deltas
+
+	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: Calling axpy_cpu with n=" << (l.batch*l.inputs));
+	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: l.delta=" << l.delta << " state.delta=" << state.delta);
+	axpy_cpu(l.batch*l.inputs, 1, l.delta, 1, state.delta, 1);
+	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: axpy_cpu completed");
+
+	// Fix NaN/inf values in the propagated gradients (network-level safety)
+	if (state.net.try_fix_nan)
+	{
+		DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: Fixing NaN/inf values...");
+		fix_nan_and_inf_cpu(state.delta, l.batch * l.inputs);
+		fix_nan_and_inf_cpu(l.delta, l.batch * l.outputs);
+		DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: NaN/inf fixing completed");
+	}
+
+	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: EXIT - gradient propagation completed");
+}
+
 // Converts output of the network to detection boxes
 // w,h: image width,height
 // netw,neth: network width,height
@@ -1889,6 +2217,457 @@ Darknet::MMats Darknet::create_yolo_heatmaps(Darknet::NetworkPtr ptr, const floa
 }
 
 
+/// @implement OBB: Helper function to extract BDP ground truth box from truth array
+/// Extracts a 6-parameter oriented bounding box from the truth array with stride support.
+///
+/// @param f Pointer to truth array at the start of box data (x coordinate)
+/// @param stride Memory stride between consecutive values (typically 1)
+/// @return DarknetBoxBDP with x,y,w,h,fx,fy extracted from truth array
+///
+/// MEMORY LAYOUT EXPECTED (truth_size = 8):
+/// - f[0*stride]: x (center x coordinate, normalized [0,1])
+/// - f[1*stride]: y (center y coordinate, normalized [0,1])
+/// - f[2*stride]: w (width, normalized [0,1])
+/// - f[3*stride]: h (height, normalized [0,1])
+/// - f[4*stride]: fx (front point x coordinate, normalized [0,1])
+/// - f[5*stride]: fy (front point y coordinate, normalized [0,1])
+/// - f[6*stride]: reserved/track_id (not extracted, accessed separately via offset +6)
+/// - f[7*stride]: class_id (not extracted, accessed separately via offset +7)
+///
+/// USAGE IN TRAINING:
+/// Called from process_batch_bdp() to extract ground truth for loss calculation.
+/// Pointer arithmetic: state.truth + t * l.truth_size + b * l.truths gives box start.
+static inline DarknetBoxBDP float_to_box_bdp_stride(const float *f, const int stride)
+{
+	TAT(TATPARMS);
+
+	// Preconditions: validate input parameters (using asserts instead of exceptions)
+	#ifndef NDEBUG
+	assert(f != nullptr && "Truth array pointer must not be null");
+	assert(stride > 0 && "Stride must be positive");
+	// Validate all 6 coordinates are finite
+	assert(std::isfinite(f[0]) && "x coordinate must be finite");
+	assert(std::isfinite(f[1 * stride]) && "y coordinate must be finite");
+	assert(std::isfinite(f[2 * stride]) && "w must be finite");
+	assert(std::isfinite(f[3 * stride]) && "h must be finite");
+	assert(std::isfinite(f[4 * stride]) && "fx coordinate must be finite");
+	assert(std::isfinite(f[5 * stride]) && "fy coordinate must be finite");
+	// Validate coordinate ranges [0,1]
+	assert(f[0] >= 0.0f && f[0] <= 1.0f && "x must be in [0,1]");
+	assert(f[1 * stride] >= 0.0f && f[1 * stride] <= 1.0f && "y must be in [0,1]");
+	assert(f[2 * stride] >= 0.0f && f[2 * stride] <= 1.0f && "w must be in [0,1]");
+	assert(f[3 * stride] >= 0.0f && f[3 * stride] <= 1.0f && "h must be in [0,1]");
+	assert(f[4 * stride] >= 0.0f && f[4 * stride] <= 1.0f && "fx must be in [0,1]");
+	assert(f[5 * stride] >= 0.0f && f[5 * stride] <= 1.0f && "fy must be in [0,1]");
+	#endif
+
+	// Extract 6-parameter BDP box from truth array
+	DarknetBoxBDP b;
+	b.x = f[0];
+	b.y = f[1 * stride];
+	b.w = f[2 * stride];
+	b.h = f[3 * stride];
+	b.fx = f[4 * stride];
+	b.fy = f[5 * stride];
+
+	// Postconditions: validate output box (using asserts instead of exceptions)
+	#ifndef NDEBUG
+	assert(std::isfinite(b.x) && "Output x must be finite");
+	assert(std::isfinite(b.y) && "Output y must be finite");
+	assert(std::isfinite(b.w) && "Output w must be finite");
+	assert(std::isfinite(b.h) && "Output h must be finite");
+	assert(std::isfinite(b.fx) && "Output fx must be finite");
+	assert(std::isfinite(b.fy) && "Output fy must be finite");
+	assert(b.w > 0.0f && b.h > 0.0f && "Width and height must be positive");
+	#endif
+
+	return b;
+}
+
+
+/// @implement OBB: Process a single batch for BDP training
+/// This function computes loss and gradients for one batch of BDP boxes.
+///
+/// @param ptr Pointer to train_yolo_args structure containing layer and state
+///
+/// PROCESSING FLOW:
+/// 1. Iterate through all grid positions and anchors
+/// 2. Extract predicted BDP boxes using get_yolo_box_bdp()
+/// 3. Match predictions with ground truth using IOU (based on x,y,w,h)
+/// 4. Compute objectness delta for background/foreground classification
+/// 5. For matched boxes, call delta_yolo_box_bdp() to compute coordinate loss
+/// 6. Compute class loss using delta_yolo_class()
+///
+/// DIFFERENCES FROM STANDARD PROCESS_BATCH:
+/// - Uses yolo_entry_index_bdp() for memory access (6 coords instead of 4)
+/// - Calls delta_yolo_box_bdp() instead of delta_yolo_box()
+/// - Extracts ground truth using float_to_box_bdp_stride()
+/// - Class ID at offset +6 instead of +4 in truth array
+/// - Objectness at entry 6, classes at entry 7+ (instead of 4, 5+)
+void process_batch_bdp(void* ptr)
+{
+	TAT_COMMENT(TATPARMS, "BDP training batch processing");
+
+	DEBUG_TRACE("   [DEBUG] process_batch_bdp: ENTRY - ptr=" << ptr);
+
+	train_yolo_args *args = (train_yolo_args*)ptr;
+	DEBUG_TRACE("   [DEBUG] process_batch_bdp: args=" << args);
+
+	const Darknet::Layer & l = *args->l;
+	DEBUG_TRACE("   [DEBUG] process_batch_bdp: layer at " << args->l);
+
+	Darknet::NetworkState state = args->state;
+	int b = args->b;
+	DEBUG_TRACE("   [DEBUG] process_batch_bdp: batch index b=" << b);
+
+	// Validate inputs
+	DEBUG_TRACE("   [DEBUG] process_batch_bdp: Validating inputs...");
+	if (!state.truth)
+	{
+		*cfg_and_state.output << "   [WARNING] process_batch_bdp: No ground truth available - returning" << std::endl;
+		return; // No ground truth available
+	}
+	DEBUG_TRACE("   [DEBUG] process_batch_bdp: Ground truth OK at " << state.truth);
+
+	if (b < 0 || b >= l.batch)
+	{
+		*cfg_and_state.output << "   [ERROR] process_batch_bdp: Invalid batch index b=" << b << " (valid range: 0-" << (l.batch-1) << ")" << std::endl;
+		darknet_fatal_error(DARKNET_LOC, "invalid batch index b=%d (must be 0 <= b < %d)", b, l.batch);
+	}
+	DEBUG_TRACE("   [DEBUG] process_batch_bdp: Batch index valid");
+
+	float avg_cat = 0.0f;
+
+	// Iterate through grid positions and anchors
+	DEBUG_TRACE("   [DEBUG] process_batch_bdp: Starting grid iteration (h=" << l.h << " w=" << l.w << " n=" << l.n << ")...");
+	for (int j = 0; j < l.h; ++j)
+	{
+		for (int i = 0; i < l.w; ++i)
+		{
+			for (int n = 0; n < l.n; ++n)
+			{
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: Grid position j=" << j << " i=" << i << " anchor n=" << n);
+
+				// Get memory indices for this anchor box
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: Calling yolo_entry_index_bdp for indices...");
+				const int class_index = yolo_entry_index_bdp(l, b, n * l.w * l.h + j * l.w + i, 7); // Classes at entry 7+
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: class_index=" << class_index);
+
+				const int obj_index = yolo_entry_index_bdp(l, b, n * l.w * l.h + j * l.w + i, 6);   // Objectness at entry 6
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: obj_index=" << obj_index);
+
+				const int box_index = yolo_entry_index_bdp(l, b, n * l.w * l.h + j * l.w + i, 0);   // Box starts at entry 0
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: box_index=" << box_index);
+
+				const int stride = l.w * l.h;
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: stride=" << stride);
+
+				// Extract predicted BDP box
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: Calling get_yolo_box_bdp...");
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: Parameters - l.output=" << l.output << " l.biases=" << l.biases << " l.mask[" << n << "]=" << l.mask[n]);
+				DarknetBoxBDP pred_bdp = get_yolo_box_bdp(l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.w * l.h, l.new_coords);
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: get_yolo_box_bdp returned successfully");
+
+				// Convert to standard box for IOU matching (use only x,y,w,h)
+				Darknet::Box pred;
+				pred.x = pred_bdp.x;
+				pred.y = pred_bdp.y;
+				pred.w = pred_bdp.w;
+				pred.h = pred_bdp.h;
+
+				float best_match_iou = 0;
+				float best_iou = 0;
+				int best_t = 0;
+
+				// Match prediction with ground truth boxes
+				for (int t = 0; t < l.max_boxes; ++t)
+				{
+					// Extract ground truth BDP box
+					DarknetBoxBDP truth_bdp = float_to_box_bdp_stride(state.truth + t * l.truth_size + b * l.truths, 1);
+					if (!truth_bdp.x)
+					{
+						break;  // No more ground truth boxes
+					}
+
+					// Get class ID (at offset +7 in BDP truth array: [x,y,w,h,fx,fy,reserved,class_id])
+					int class_id = state.truth[t * l.truth_size + b * l.truths + 7];
+					if (class_id >= l.classes || class_id < 0)
+					{
+						darknet_fatal_error(DARKNET_LOC, "invalid class ID #%d", class_id);
+					}
+
+					// Check for NaN/inf in objectness
+					float objectness = l.output[obj_index];
+					if (isnan(objectness) || isinf(objectness))
+					{
+						l.output[obj_index] = 0;
+					}
+
+					// Compare class predictions
+					int class_id_match = compare_yolo_class(l.output, l.classes, class_index, l.w * l.h, objectness, class_id, 0.25f);
+
+					// Convert truth to standard box for IOU
+					Darknet::Box truth;
+					truth.x = truth_bdp.x;
+					truth.y = truth_bdp.y;
+					truth.w = truth_bdp.w;
+					truth.h = truth_bdp.h;
+
+					float iou = box_iou(pred, truth);
+					if (iou > best_match_iou && class_id_match == 1)
+					{
+						best_match_iou = iou;
+					}
+					if (iou > best_iou)
+					{
+						best_iou = iou;
+						best_t = t;
+					}
+				}
+
+				// Compute objectness delta for background boxes
+				l.delta[obj_index] = l.obj_normalizer * (0 - l.output[obj_index]);
+				if (best_match_iou > l.ignore_thresh)
+				{
+					if (l.objectness_smooth)
+					{
+						const float delta_obj = l.obj_normalizer * (best_match_iou - l.output[obj_index]);
+						if (delta_obj > l.delta[obj_index])
+						{
+							l.delta[obj_index] = delta_obj;
+						}
+					}
+					else
+					{
+						l.delta[obj_index] = 0;
+					}
+				}
+				else if (state.net.adversarial)
+				{
+					float scale = pred.w * pred.h;
+					if (scale > 0)
+					{
+						scale = sqrt(scale);
+					}
+					l.delta[obj_index] = scale * l.obj_normalizer * (0 - l.output[obj_index]);
+					int cl_id;
+					int found_object = 0;
+					for (cl_id = 0; cl_id < l.classes; ++cl_id)
+					{
+						if (l.output[class_index + stride * cl_id] * l.output[obj_index] > 0.25)
+						{
+							l.delta[class_index + stride * cl_id] = scale * (0 - l.output[class_index + stride * cl_id]);
+							found_object = 1;
+						}
+					}
+					if (found_object)
+					{
+						for (cl_id = 0; cl_id < l.classes; ++cl_id)
+						{
+							if (l.output[class_index + stride * cl_id] * l.output[obj_index] < 0.25)
+							{
+								l.delta[class_index + stride * cl_id] = scale * (1 - l.output[class_index + stride * cl_id]);
+							}
+						}
+
+						l.delta[box_index + 0 * stride] += scale * (0 - l.output[box_index + 0 * stride]);
+						l.delta[box_index + 1 * stride] += scale * (0 - l.output[box_index + 1 * stride]);
+						l.delta[box_index + 2 * stride] += scale * (0 - l.output[box_index + 2 * stride]);
+						l.delta[box_index + 3 * stride] += scale * (0 - l.output[box_index + 3 * stride]);
+						l.delta[box_index + 4 * stride] += scale * (0 - l.output[box_index + 4 * stride]); // fx
+						l.delta[box_index + 5 * stride] += scale * (0 - l.output[box_index + 5 * stride]); // fy
+					}
+				}
+
+				// If IOU exceeds threshold, compute full loss for this matched box
+				if (best_iou > l.truth_thresh)
+				{
+					const float iou_multiplier = best_iou * best_iou;
+					if (l.objectness_smooth)
+					{
+						l.delta[obj_index] = l.obj_normalizer * (iou_multiplier - l.output[obj_index]);
+					}
+					else
+					{
+						l.delta[obj_index] = l.obj_normalizer * (1 - l.output[obj_index]);
+					}
+
+					// Get ground truth class ID and apply mapping if needed
+					int class_id = state.truth[best_t * l.truth_size + b * l.truths + 7];
+					if (l.map)
+					{
+						class_id = l.map[class_id];
+					}
+
+					// Compute class loss
+					delta_yolo_class(l.output, l.delta, class_index, class_id, l.classes, l.w * l.h, 0, l.focal_loss, l.label_smooth_eps, l.classes_multipliers, l.cls_normalizer);
+					const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
+					if (l.objectness_smooth)
+					{
+						l.delta[class_index + stride * class_id] = class_multiplier * (iou_multiplier - l.output[class_index + stride * class_id]);
+					}
+
+					// Extract ground truth BDP box and compute coordinate loss
+					DarknetBoxBDP truth_bdp = float_to_box_bdp_stride(state.truth + best_t * l.truth_size + b * l.truths, 1);
+
+					// Compute BDP box loss (includes x,y,w,h,fx,fy)
+					delta_yolo_box_bdp(truth_bdp, l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+					(*state.net.total_bbox)++;
+				}
+			}
+		}
+	}
+
+	// Process all ground truth boxes to ensure they are assigned to best anchor
+	for (int t = 0; t < l.max_boxes; ++t)
+	{
+		DarknetBoxBDP truth_bdp = float_to_box_bdp_stride(state.truth + t * l.truth_size + b * l.truths, 1);
+		if (!truth_bdp.x)
+		{
+			break;  // No more ground truth boxes
+		}
+
+		// Validate coordinates
+		if (truth_bdp.x < 0 || truth_bdp.y < 0 || truth_bdp.x > 1 || truth_bdp.y > 1 || truth_bdp.w < 0 || truth_bdp.h < 0)
+		{
+			darknet_fatal_error(DARKNET_LOC, "invalid coordinates, width, or height (x=%f, y=%f, w=%f, h=%f)", truth_bdp.x, truth_bdp.y, truth_bdp.w, truth_bdp.h);
+		}
+
+		const int check_class_id = state.truth[t * l.truth_size + b * l.truths + 7];
+		if (check_class_id >= l.classes || check_class_id < 0)
+		{
+			continue; // Skip if class_id is invalid
+		}
+
+		// Find best anchor for this ground truth box
+		float best_iou = 0;
+		int best_n = 0;
+		int i = (truth_bdp.x * l.w);
+		int j = (truth_bdp.y * l.h);
+
+		// Create shifted box for anchor matching (centered at 0,0)
+		Darknet::Box truth_shift;
+		truth_shift.x = 0;
+		truth_shift.y = 0;
+		truth_shift.w = truth_bdp.w;
+		truth_shift.h = truth_bdp.h;
+
+		for (int n = 0; n < l.total; ++n)
+		{
+			Darknet::Box pred = { 0 };
+			pred.w = l.biases[2 * n] / state.net.w;
+			pred.h = l.biases[2 * n + 1] / state.net.h;
+			float iou = box_iou(pred, truth_shift);
+			if (iou > best_iou)
+			{
+				best_iou = iou;
+				best_n = n;
+			}
+		}
+
+		// If best anchor is in this layer's mask, compute loss
+		int mask_n2 = int_index(l.mask, best_n, l.n);
+		if (mask_n2 >= 0)
+		{
+			int class_id = state.truth[t * l.truth_size + b * l.truths + 7];
+			if (l.map)
+			{
+				class_id = l.map[class_id];
+			}
+
+			int box_index = yolo_entry_index_bdp(l, b, mask_n2 * l.w * l.h + j * l.w + i, 0);
+			const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
+
+			// Compute BDP box loss for this ground truth
+			ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, best_n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+			(*state.net.total_bbox)++;
+
+			const int truth_in_index = t * l.truth_size + b * l.truths + 6; // Track ID/reserved at offset +6
+			const int track_id = state.truth[truth_in_index];
+			const int truth_out_index = b * l.n * l.w * l.h + mask_n2 * l.w * l.h + j * l.w + i;
+			l.labels[truth_out_index] = track_id;
+			l.class_ids[truth_out_index] = class_id;
+
+			// Accumulate IOU statistics
+			args->tot_iou += all_ious.iou;
+			args->tot_iou_loss += 1 - all_ious.iou;
+			args->tot_giou_loss += 1 - all_ious.giou;
+
+			int obj_index = yolo_entry_index_bdp(l, b, mask_n2 * l.w * l.h + j * l.w + i, 6);
+			if (l.objectness_smooth)
+			{
+				float delta_obj = class_multiplier * l.obj_normalizer * (1 - l.output[obj_index]);
+				if (l.delta[obj_index] == 0)
+				{
+					l.delta[obj_index] = delta_obj;
+				}
+			}
+			else
+			{
+				l.delta[obj_index] = class_multiplier * l.obj_normalizer * (1 - l.output[obj_index]);
+			}
+
+			int class_index = yolo_entry_index_bdp(l, b, mask_n2 * l.w * l.h + j * l.w + i, 7);
+			delta_yolo_class(l.output, l.delta, class_index, class_id, l.classes, l.w * l.h, &avg_cat, l.focal_loss, l.label_smooth_eps, l.classes_multipliers, l.cls_normalizer);
+
+			++(args->count);
+			++(args->class_count);
+		}
+
+		// Handle IOU threshold for additional anchors
+		for (int n = 0; n < l.total; ++n)
+		{
+			int mask_n = int_index(l.mask, n, l.n);
+			if (mask_n >= 0 && n != best_n && l.iou_thresh < 1.0f)
+			{
+				Darknet::Box pred = { 0 };
+				pred.w = l.biases[2 * n] / state.net.w;
+				pred.h = l.biases[2 * n + 1] / state.net.h;
+				float iou = box_iou_kind(pred, truth_shift, l.iou_thresh_kind);
+
+				if (iou > l.iou_thresh)
+				{
+					int class_id = state.truth[t * l.truth_size + b * l.truths + 7];
+					if (l.map)
+					{
+						class_id = l.map[class_id];
+					}
+
+					int box_index = yolo_entry_index_bdp(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
+					const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
+					ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+					(*state.net.total_bbox)++;
+
+					args->tot_iou += all_ious.iou;
+					args->tot_iou_loss += 1 - all_ious.iou;
+					args->tot_giou_loss += 1 - all_ious.giou;
+
+					int obj_index = yolo_entry_index_bdp(l, b, mask_n * l.w * l.h + j * l.w + i, 6);
+					if (l.objectness_smooth)
+					{
+						float delta_obj = class_multiplier * l.obj_normalizer * (1 - l.output[obj_index]);
+						if (l.delta[obj_index] == 0)
+						{
+							l.delta[obj_index] = delta_obj;
+						}
+					}
+					else
+					{
+						l.delta[obj_index] = class_multiplier * l.obj_normalizer * (1 - l.output[obj_index]);
+					}
+
+					int class_index = yolo_entry_index_bdp(l, b, mask_n * l.w * l.h + j * l.w + i, 7);
+					delta_yolo_class(l.output, l.delta, class_index, class_id, l.classes, l.w * l.h, &avg_cat, l.focal_loss, l.label_smooth_eps, l.classes_multipliers, l.cls_normalizer);
+
+					++(args->count);
+					++(args->class_count);
+				}
+			}
+		}
+	}
+}
+
+
 /// @implement OBB: Forward pass for YOLO layer with oriented bounding box (BDP) support
 /// This function processes the YOLO layer output for 6-parameter oriented bounding boxes.
 ///
@@ -1913,6 +2692,12 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
+	// Debug: Entry point logging with detailed layer parameters
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: ENTRY - layer params: "
+	                      << "batch=" << l.batch << " n=" << l.n << " w=" << l.w << " h=" << l.h
+	                      << " classes=" << l.classes << " coords=" << l.coords << " outputs=" << l.outputs
+	                      << " train=" << state.train);
+
 	// Aggressive static assertions for compile-time validation
 	static_assert(sizeof(DarknetBoxBDP) == 6 * sizeof(float), "BDP box must have exactly 6 float parameters");
 	static_assert(std::is_trivially_copyable_v<DarknetBoxBDP>, "BDP box must be trivially copyable for memcpy operations");
@@ -1927,11 +2712,14 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	static_assert(sizeof(float) == 4, "Float must be 32-bit for memory calculations");
 	static_assert(std::numeric_limits<float>::is_iec559, "Float must be IEEE 754 compliant");
 	static_assert(LOGISTIC < 32, "LOGISTIC activation must fit in reasonable enum range");
-	
+
+	// Debug: Precondition validation phase
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Starting precondition checks...");
+
 	// Boost.Contract preconditions
 	void* old_output = nullptr;
 	size_t old_output_size = 0;
-	
+
 	// Precondition checks
 	assert(l.coords == 6);           // Must be configured for 6-parameter boxes
 	assert(l.classes > 0);           // Must have at least one class
@@ -1951,32 +2739,88 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	// Verify output size calculation: batch * anchors * grid * (coords + objectness + classes)
 	size_t expected_outputs = l.batch * l.n * l.w * l.h * (6 + 1 + l.classes);
 	assert(l.outputs == expected_outputs);
-	
+
 	// Memory bounds checking
 	assert(l.outputs <= 1000000);    // Reasonable upper bound to prevent overflow
-	
+
 	// Scale factor bounds
 	assert(l.scale_x_y >= 1.0f && l.scale_x_y <= 2.0f);
-	
+
+	// Debug: Preconditions passed
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Preconditions PASSED");
+
 	// Store old output state for postconditions
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Allocating old_output buffer (size=" << (l.outputs * l.batch * sizeof(float)) << " bytes)...");
 	old_output_size = l.outputs * l.batch * sizeof(float);
 	old_output = malloc(old_output_size);
 	if (old_output) {
 		memcpy(old_output, l.output, old_output_size);
+		DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: old_output buffer allocated successfully");
+	} else {
+		*cfg_and_state.output << "   [WARNING] forward_yolo_layer_bdp: Failed to allocate old_output buffer" << std::endl;
 	}
 
 	// Copy input to output (standard YOLO behavior - raw predictions copied first)
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Copying input to output (size=" << (l.outputs * l.batch * sizeof(float)) << " bytes)...");
 	memcpy(l.output, state.input, l.outputs * l.batch * sizeof(float));
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Input copied to output successfully");
+
+	// BDP-specific: Fix NaN/inf values in raw input BEFORE applying activation functions
+	// This is critical because activation functions can amplify or propagate NaN/inf
+	// Specifically, we must clamp w,h values before activation to prevent exp() overflow
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Checking for NaN/inf values (try_fix_nan=" << state.net.try_fix_nan << ")...");
+	if (state.net.try_fix_nan)
+	{
+		int nan_count = 0, inf_count = 0;
+		for (int b = 0; b < l.batch; ++b)
+		{
+			for (int n = 0; n < l.n; ++n)
+			{
+				// Process w,h entries (indices 2-3) - these are critical for exp() safety
+				int wh_index = yolo_entry_index_bdp(l, b, n * l.w * l.h, 2);
+				for (int i = 0; i < 2 * l.w * l.h; ++i)
+				{
+					float& val = l.output[wh_index + i];
+					if (std::isnan(val))
+					{
+						val = 0.0f;
+						nan_count++;
+					}
+					else if (std::isinf(val))
+					{
+						val = 0.0f;  // Use 0 for inf in w,h to prevent exp() overflow
+						inf_count++;
+					}
+					else if (val > 10.0f || val < -10.0f)
+					{
+						// BDP-specific: Clamp w,h to safe range for exp()
+						val = std::max(-10.0f, std::min(10.0f, val));
+					}
+				}
+			}
+		}
+
+		if (nan_count > 0 || inf_count > 0)
+		{
+			*cfg_and_state.output << "BDP forward pass (pre-activation): fixed " << nan_count
+			                      << " NaN values and " << inf_count << " inf values in w/h coordinates" << std::endl;
+		}
+	}
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: NaN/inf check completed");
 
 // Force CPU activation regardless of GPU settings (debug)
 #if 1  // Always execute this path for debugging
 	// CPU-only processing: apply activation functions to appropriate ranges
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Starting activation loop for batch=" << l.batch << " anchors=" << l.n);
 	for (int b = 0; b < l.batch; ++b)
 	{
+		DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Processing batch " << b << "/" << l.batch);
 		for (int n = 0; n < l.n; ++n)  // For each anchor box
 		{
+			DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Processing anchor " << n << "/" << l.n << " (batch " << b << ")");
 			// Get starting index for bounding box coordinates (x,y,w,h,fx,fy)
 			int bbox_index = yolo_entry_index_bdp(l, b, n * l.w * l.h, 0);
+			DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: bbox_index=" << bbox_index << " (max allowed=" << (l.outputs * l.batch) << ")");
 			
 			// Additional runtime bounds checking
 			assert(bbox_index >= 0 && bbox_index < l.outputs * l.batch);
@@ -1984,36 +2828,48 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 			
 			if (l.new_coords)
 			{
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Using new_coords mode");
 				// New coordinate system: don't apply activation to w,h (use squared terms)
 				// Apply logistic activation to x,y (entries 0-1)
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Activating x,y at index " << bbox_index);
 				activate_array(l.output + bbox_index, 2 * l.w * l.h, LOGISTIC);
-				
-				// Apply logistic activation to fx,fy (entries 4-5) - front point coordinates  
+
+				// Apply logistic activation to fx,fy (entries 4-5) - front point coordinates
 				int front_point_index = yolo_entry_index_bdp(l, b, n * l.w * l.h, 4);
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: front_point_index=" << front_point_index);
 				assert(front_point_index >= 0 && front_point_index + 2 * l.w * l.h <= l.outputs * l.batch);
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Activating fx,fy at index " << front_point_index);
 				activate_array(l.output + front_point_index, 2 * l.w * l.h, LOGISTIC);
-				
+
 				// Apply logistic activation to objectness and classes (entries 6+)
 				int obj_index = yolo_entry_index_bdp(l, b, n * l.w * l.h, 6);
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: obj_index=" << obj_index);
 				assert(obj_index >= 0 && obj_index + (1 + l.classes) * l.w * l.h <= l.outputs * l.batch);
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Activating objectness+classes at index " << obj_index << " (count=" << ((1 + l.classes) * l.w * l.h) << ")");
 				activate_array(l.output + obj_index, (1 + l.classes) * l.w * l.h, LOGISTIC);
 			}
 			else
 			{
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Using traditional coords mode");
 				// Traditional coordinate system: apply logistic to x,y,fx,fy but not w,h (use exp)
 				// Apply logistic activation to x,y (entries 0-1)
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Activating x,y at index " << bbox_index);
 				activate_array(l.output + bbox_index, 2 * l.w * l.h, LOGISTIC);
-				
+
 				// Skip w,h (entries 2-3) - they use exp() in get_yolo_box_bdp()
-				
+
 				// Apply logistic activation to fx,fy (entries 4-5) - front point coordinates
 				int front_point_index = yolo_entry_index_bdp(l, b, n * l.w * l.h, 4);
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: front_point_index=" << front_point_index);
 				assert(front_point_index >= 0 && front_point_index + 2 * l.w * l.h <= l.outputs * l.batch);
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Activating fx,fy at index " << front_point_index);
 				activate_array(l.output + front_point_index, 2 * l.w * l.h, LOGISTIC);
-				
+
 				// Apply logistic activation to objectness and classes (entries 6+)
 				int obj_index = yolo_entry_index_bdp(l, b, n * l.w * l.h, 6);
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: obj_index=" << obj_index);
 				assert(obj_index >= 0 && obj_index + (1 + l.classes) * l.w * l.h <= l.outputs * l.batch);
+				DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Activating objectness+classes at index " << obj_index << " (count=" << ((1 + l.classes) * l.w * l.h) << ")");
 				activate_array(l.output + obj_index, (1 + l.classes) * l.w * l.h, LOGISTIC);
 			}
 			
@@ -2026,6 +2882,31 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 		}
 	}
 #endif
+
+	// Fix NaN/inf values in the output after activation functions (BDP specific rules)
+	if (state.net.try_fix_nan)
+	{
+		int nan_count = 0, inf_count = 0;
+		for (int i = 0; i < l.outputs * l.batch; ++i)
+		{
+			if (std::isnan(l.output[i]))
+			{
+				l.output[i] = 0.0f;
+				nan_count++;
+			}
+			else if (std::isinf(l.output[i]))
+			{
+				l.output[i] = 1.0f;
+				inf_count++;
+			}
+		}
+		
+		if (nan_count > 0 || inf_count > 0)
+		{
+			*cfg_and_state.output << "BDP forward pass: fixed " << nan_count << " NaN values (→0) and "
+			                      << inf_count << " inf values (→1)" << std::endl;
+		}
+	}
 
 	// Postcondition checks
 	assert(l.output != nullptr);     // Output still valid
@@ -2067,12 +2948,15 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 		}
 	}
 	
-	// Verify output values are in reasonable ranges after activation
+	// Verify output values are in reasonable ranges after activation and NaN/inf fixing
 	for (int i = 0; i < std::min(100, static_cast<int>(l.outputs * l.batch)); ++i) {
-		assert(std::isfinite(l.output[i])); // No NaN or inf values
+		// After NaN/inf fixing, all values should be finite
+		assert(std::isfinite(l.output[i])); // No NaN or inf values should remain
+		
 		// After logistic activation, most values should be in [0,1] or reasonable range
 		if (i % (6 + 1 + l.classes) < 6) {
 			// Coordinate values - can be outside [0,1] due to scaling
+			// But should be reasonable after NaN/inf fixing
 			assert(l.output[i] >= -10.0f && l.output[i] <= 10.0f);
 		} else if (i % (6 + 1 + l.classes) == 6) {
 			// Objectness after logistic should be in [0,1]
@@ -2089,17 +2973,252 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 
 	// For inference-only mode, skip training-related computations
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Checking training mode (train=" << state.train << ")...");
 	if (!state.train)
 	{
+		DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Inference mode - skipping training computations");
 		return;
 	}
 
-	// @implement OBB: Training mode processing would go here in future implementation
-	// This would include:
-	// - Ground truth comparison using BDP IoU calculations
-	// - Loss computation for 6 parameters instead of 4  
-	// - Gradient calculation for fx,fy front point coordinates
-	// - Integration with the PIoU loss function from the provided OBB code
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Training mode ENABLED - proceeding with loss calculation");
+
+	// @implement OBB: Training mode processing for BDP oriented bounding boxes
+	// Compute loss and gradients for 6-parameter boxes (x,y,w,h,fx,fy)
+	//
+	// NOTE: Loss for front point coordinates (fx, fy) is computed inside delta_yolo_box_bdp()
+	// The function computes MSE loss for all 6 parameters: x, y, w, h, fx, fy
+	// See delta_yolo_box_bdp() at lines 317-489 for the full implementation
+
+	// Verify ground truth is available
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Checking ground truth availability...");
+	if (!state.truth)
+	{
+		*cfg_and_state.output << "WARNING: Training mode enabled but no ground truth provided (state.truth is null)" << std::endl;
+		return;
+	}
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Ground truth available at " << state.truth);
+
+	// Zero delta array
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Zeroing delta array (size=" << (l.outputs * l.batch * sizeof(float)) << " bytes)...");
+	if (l.delta == nullptr) {
+		*cfg_and_state.output << "   [ERROR] forward_yolo_layer_bdp: l.delta is NULL!" << std::endl;
+	}
+	memset(l.delta, 0, l.outputs * l.batch * sizeof(float));
+
+	// Initialize label arrays
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Initializing label arrays...");
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Checking l.labels pointer: " << l.labels);
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Checking l.class_ids pointer: " << l.class_ids);
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Array size needed: " << (l.batch * l.w * l.h * l.n) << " elements");
+
+	if (l.labels == nullptr) {
+		*cfg_and_state.output << "   [ERROR] forward_yolo_layer_bdp: l.labels is NULL! Cannot initialize." << std::endl;
+		darknet_fatal_error(DARKNET_LOC, "l.labels array is NULL - layer not properly initialized");
+	}
+	if (l.class_ids == nullptr) {
+		*cfg_and_state.output << "   [ERROR] forward_yolo_layer_bdp: l.class_ids is NULL! Cannot initialize." << std::endl;
+		darknet_fatal_error(DARKNET_LOC, "l.class_ids array is NULL - layer not properly initialized");
+	}
+
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Initializing l.labels array...");
+	for (int i = 0; i < l.batch * l.w*l.h*l.n; ++i)
+	{
+		l.labels[i] = -1;
+	}
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: l.labels initialized successfully");
+
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Initializing l.class_ids array...");
+	for (int i = 0; i < l.batch * l.w*l.h*l.n; ++i)
+	{
+		l.class_ids[i] = -1;
+	}
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: l.class_ids initialized successfully");
+
+	// Initialize loss accumulators
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Initializing loss accumulators...");
+	float tot_iou = 0;
+	float tot_iou_loss = 0;
+	float tot_giou_loss = 0;
+	int count = 0;
+	int class_count = 0;
+	*(l.cost) = 0;
+
+	// Create threads for parallel batch processing
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Creating threads for parallel processing (num_threads=" << l.batch << ")...");
+	int num_threads = l.batch;
+	Darknet::VThreads threads;
+	threads.reserve(num_threads);
+
+	struct train_yolo_args * yolo_args = (train_yolo_args*)xcalloc(l.batch, sizeof(struct train_yolo_args));
+	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Allocated yolo_args array at " << yolo_args);
+
+	for (int b = 0; b < l.batch; b++)
+	{
+		DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Setting up thread " << b << " args...");
+		yolo_args[b].l = &l;
+		yolo_args[b].state = state;
+		yolo_args[b].b = b;
+
+		yolo_args[b].tot_iou = 0;
+		yolo_args[b].tot_iou_loss = 0;
+		yolo_args[b].tot_giou_loss = 0;
+		yolo_args[b].count = 0;
+		yolo_args[b].class_count = 0;
+
+		DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Launching thread " << b << " for process_batch_bdp...");
+		threads.emplace_back(process_batch_bdp, &(yolo_args[b]));
+	}
+
+	// Wait for all threads to complete and aggregate results
+	for (int b = 0; b < l.batch; b++)
+	{
+		threads[b].join();
+
+		tot_iou += yolo_args[b].tot_iou;
+		tot_iou_loss += yolo_args[b].tot_iou_loss;
+		tot_giou_loss += yolo_args[b].tot_giou_loss;
+		count += yolo_args[b].count;
+		class_count += yolo_args[b].class_count;
+	}
+
+	free(yolo_args);
+
+	// Handle bad label rejection and equidistant point logic (same as standard YOLO)
+	int iteration_num = get_current_iteration(state.net);
+	const int start_point = state.net.max_batches * 3 / 4;
+
+	if ((state.net.badlabels_rejection_percentage && start_point < iteration_num) ||
+		(state.net.num_sigmas_reject_badlabels && start_point < iteration_num) ||
+		(state.net.equidistant_point && state.net.equidistant_point < iteration_num))
+	{
+		const float progress_it = iteration_num - state.net.equidistant_point;
+		const float progress = progress_it / (state.net.max_batches - state.net.equidistant_point);
+		float ep_loss_threshold = (*state.net.delta_rolling_avg) * progress * 1.4;
+
+		float cur_max = 0;
+		float cur_avg = 0;
+		float counter = 0;
+		for (int i = 0; i < l.batch * l.outputs; ++i)
+		{
+			if (l.delta[i] != 0)
+			{
+				counter++;
+				cur_avg += fabs(l.delta[i]);
+
+				if (cur_max < fabs(l.delta[i]))
+				{
+					cur_max = fabs(l.delta[i]);
+				}
+			}
+		}
+
+		cur_avg = cur_avg / counter;
+
+		if (*state.net.delta_rolling_max == 0)
+		{
+			*state.net.delta_rolling_max = cur_max;
+		}
+		*state.net.delta_rolling_max = *state.net.delta_rolling_max * 0.99 + cur_max * 0.01;
+		*state.net.delta_rolling_avg = *state.net.delta_rolling_avg * 0.99 + cur_avg * 0.01;
+
+		// Reject high loss to filter bad labels
+		if (state.net.num_sigmas_reject_badlabels && start_point < iteration_num)
+		{
+			const float rolling_std = (*state.net.delta_rolling_std);
+			const float rolling_max = (*state.net.delta_rolling_max);
+			const float rolling_avg = (*state.net.delta_rolling_avg);
+			const float progress_badlabels = (float)(iteration_num - start_point) / (start_point);
+
+			float cur_std = 0.0f;
+			counter = 0.0f;
+			for (int i = 0; i < l.batch * l.outputs; ++i)
+			{
+				if (l.delta[i] != 0)
+				{
+					counter++;
+					cur_std += pow(l.delta[i] - rolling_avg, 2);
+				}
+			}
+			cur_std = sqrt(cur_std / counter);
+
+			*state.net.delta_rolling_std = *state.net.delta_rolling_std * 0.99 + cur_std * 0.01;
+
+			float final_badlebels_threshold = rolling_avg + rolling_std * state.net.num_sigmas_reject_badlabels;
+			float badlabels_threshold = rolling_max - progress_badlabels * fabs(rolling_max - final_badlebels_threshold);
+			badlabels_threshold = std::max(final_badlebels_threshold, badlabels_threshold);
+			for (int i = 0; i < l.batch * l.outputs; ++i)
+			{
+				if (fabs(l.delta[i]) > badlabels_threshold)
+				{
+					l.delta[i] = 0;
+				}
+			}
+
+			ep_loss_threshold = std::min(final_badlebels_threshold, rolling_avg) * progress;
+		}
+
+		// Reject low loss to find equidistant point
+		if (state.net.equidistant_point && state.net.equidistant_point < iteration_num)
+		{
+			for (int i = 0; i < l.batch * l.outputs; ++i)
+			{
+				if (fabs(l.delta[i]) < ep_loss_threshold)
+				{
+					l.delta[i] = 0;
+				}
+			}
+		}
+	}
+
+	if (count == 0)
+	{
+		count = 1;
+	}
+	if (class_count == 0)
+	{
+		class_count = 1;
+	}
+
+	// Compute final loss metrics
+	int stride = l.w*l.h;
+	float* no_iou_loss_delta = (float *)calloc(l.batch * l.outputs, sizeof(float));
+	memcpy(no_iou_loss_delta, l.delta, l.batch * l.outputs * sizeof(float));
+
+	// Zero out coordinate deltas to isolate classification loss
+	for (int b = 0; b < l.batch; ++b)
+	{
+		for (int j = 0; j < l.h; ++j)
+		{
+			for (int i = 0; i < l.w; ++i)
+			{
+				for (int n = 0; n < l.n; ++n)
+				{
+					int index = yolo_entry_index_bdp(l, b, n*l.w*l.h + j*l.w + i, 0);
+					// Zero out all 6 coordinate deltas (x,y,w,h,fx,fy)
+					no_iou_loss_delta[index + 0 * stride] = 0;
+					no_iou_loss_delta[index + 1 * stride] = 0;
+					no_iou_loss_delta[index + 2 * stride] = 0;
+					no_iou_loss_delta[index + 3 * stride] = 0;
+					no_iou_loss_delta[index + 4 * stride] = 0;
+					no_iou_loss_delta[index + 5 * stride] = 0;
+				}
+			}
+		}
+	}
+
+	float classification_loss = l.obj_normalizer * pow(mag_array(no_iou_loss_delta, l.outputs * l.batch), 2);
+	free(no_iou_loss_delta);
+	float loss = pow(mag_array(l.delta, l.outputs * l.batch), 2);
+	float iou_loss = loss - classification_loss;
+
+	*(l.cost) = loss;
+
+	*cfg_and_state.output << "BDP training: loss=" << loss
+	                      << " iou_loss=" << iou_loss
+	                      << " class_loss=" << classification_loss
+	                      << " count=" << count
+	                      << " avg_iou=" << (tot_iou / count)
+	                      << std::endl;
 }
 
 

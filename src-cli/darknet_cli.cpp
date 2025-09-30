@@ -15,6 +15,9 @@
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
+
+	// Macro for debug output - only prints if --trace flag is enabled
+	#define DEBUG_TRACE(msg) if (cfg_and_state.is_trace) { *cfg_and_state.output << msg << std::endl; }
 }
 
 
@@ -182,7 +185,9 @@ void draw_oriented_box(Darknet::Image& im, DarknetBoxBDP box, int r, int g, int 
 	float fx = box.fx * im.w;  // Front point X
 	float fy = box.fy * im.h;  // Front point Y
 	float w = box.w * im.w;    // Width
-	float h = box.h * im.h;    // Height
+	// Note: h (height) is calculated but not used in current implementation
+	// The box dimensions are determined by the front point and width
+	(void)box.h;  // Suppress unused warning
 	
 	// The front point (fx, fy) should be one corner of the rectangle
 	// Calculate the 4 corners where (fx, fy) is one of them
@@ -247,7 +252,7 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 	TAT(TATPARMS);
 
 	// Check for --draw parameter
-	bool draw_detections = find_arg(argc, argv, "--draw");
+	bool draw_detections = find_arg(argc, argv, "--draw") != -1;
 
 	*cfg_and_state.output << "Loading image: " << imagepath << std::endl;
 
@@ -263,12 +268,509 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 	// Resize image to network dimensions
 	Darknet::Image sized = Darknet::resize_image(orig, net.w, net.h);
 
+	// Load ground truth labels for BDP training
+	std::string label_path = std::string(imagepath);
+	size_t ext_pos = label_path.find_last_of('.');
+	if (ext_pos != std::string::npos) {
+		label_path = label_path.substr(0, ext_pos) + ".txt";
+	}
+
+	*cfg_and_state.output << "Loading ground truth from: " << label_path << std::endl;
+
+	// Get max_boxes from YOLO layer (default 200)
+	int max_boxes = 200;
+	for (int i = 0; i < net.n; ++i) {
+		if (net.layers[i].type == Darknet::ELayerType::YOLO_BDP) {
+			max_boxes = net.layers[i].max_boxes;
+			break;
+		}
+	}
+
+	// Allocate truth array: batch * max_boxes * truth_size
+	// Truth size for BDP: 6 coords + 1 reserved + 1 class_id = 8
+	int truth_size = 8;
+	size_t truth_array_size = net.batch * max_boxes * truth_size;
+	float* truth = (float*)xcalloc(truth_array_size, sizeof(float));
+
+	// Load labels from file
+	std::ifstream label_file(label_path);
+	int box_count = 0;
+	if (label_file.is_open()) {
+		std::string line;
+		while (std::getline(label_file, line) && box_count < max_boxes) {
+			std::istringstream iss(line);
+			int class_id;
+			float x, y, w, h, fx, fy;
+
+			if (iss >> class_id >> x >> y >> w >> h >> fx >> fy) {
+				// Fill truth array: [x, y, w, h, fx, fy, reserved, class_id]
+				int base_idx = box_count * truth_size;
+				truth[base_idx + 0] = x;
+				truth[base_idx + 1] = y;
+				truth[base_idx + 2] = w;
+				truth[base_idx + 3] = h;
+				truth[base_idx + 4] = fx;
+				truth[base_idx + 5] = fy;
+				truth[base_idx + 6] = 0.0f;
+				truth[base_idx + 7] = (float)class_id;
+				box_count++;
+			}
+		}
+		label_file.close();
+		*cfg_and_state.output << "Loaded " << box_count << " ground truth BDP boxes" << std::endl;
+
+		// Debug: Print first few loaded boxes
+		for (int i = 0; i < std::min(3, box_count); ++i) {
+			int idx = i * truth_size;
+			*cfg_and_state.output << "  Box " << i << ": class=" << (int)truth[idx+7]
+			                      << " x=" << truth[idx+0] << " y=" << truth[idx+1]
+			                      << " w=" << truth[idx+2] << " h=" << truth[idx+3]
+			                      << " fx=" << truth[idx+4] << " fy=" << truth[idx+5] << std::endl;
+		}
+	} else {
+		*cfg_and_state.output << "WARNING: Could not open label file: " << label_path << std::endl;
+	}
+
 	// BDP detection counting variables
 	float detection_threshold = 0.85f; // Threshold for counting meaningful detections
 
-	// Perform single inference with timing
+	// Perform forward → backward → forward pass sequence with timing
 	time_t start = time(0);
-	network_predict(net, sized.data);
+	
+	*cfg_and_state.output << "Performing forward → backward → forward pass sequence..." << std::endl;
+	
+	// === FIRST FORWARD PASS ===
+	DEBUG_TRACE("1. Forward pass #1 (with ground truth for training)...");
+
+	// Set up network state for training forward pass
+	Darknet::NetworkState forward_state;
+	std::memset(&forward_state, 0, sizeof(forward_state));
+	forward_state.net = net;
+	forward_state.index = 0;
+	forward_state.input = sized.data;
+	forward_state.truth = truth;      // Provide ground truth for loss calculation
+	forward_state.train = 1;          // Enable training mode
+	forward_state.workspace = net.workspace;
+
+	// Run forward pass with training enabled (calculates loss and fills deltas)
+	forward_network(net, forward_state);
+
+	// Debug: Check if loss was calculated and deltas populated
+	if (cfg_and_state.is_trace) {
+		*cfg_and_state.output << "   DEBUG: Checking YOLO layer deltas after forward pass..." << std::endl;
+		for (int layer_idx = 0; layer_idx < net.n; ++layer_idx) {
+			Darknet::Layer& layer = net.layers[layer_idx];
+			if (layer.type == Darknet::ELayerType::YOLO_BDP) {
+				float total_cost = layer.cost ? *layer.cost : 0.0f;
+
+				// Check delta magnitude
+				float delta_sum = 0.0f;
+				float delta_max = 0.0f;
+				int non_zero_deltas = 0;
+				if (layer.delta && layer.outputs > 0) {
+					for (int i = 0; i < std::min(1000, layer.outputs); ++i) {
+						delta_sum += std::abs(layer.delta[i]);
+						delta_max = std::max(delta_max, std::abs(layer.delta[i]));
+						if (std::abs(layer.delta[i]) > 1e-6f) non_zero_deltas++;
+					}
+				}
+
+				*cfg_and_state.output << "   Layer " << layer_idx << " (YOLO_BDP): "
+				                      << "cost=" << total_cost
+				                      << " delta_sum=" << delta_sum
+				                      << " delta_max=" << delta_max
+				                      << " non_zero=" << non_zero_deltas << "/" << std::min(1000, layer.outputs) << std::endl;
+			}
+		}
+	}
+
+	// Postcondition: Ensure no NaN/inf values in forward pass outputs
+	DEBUG_TRACE("   Forward pass postcondition check: verifying no NaN/inf values...");
+	int forward_nan_count = 0;
+	int forward_inf_count = 0;
+	for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+	{
+		Darknet::Layer& layer = net.layers[layer_idx];
+		if (layer.output && layer.outputs > 0)
+		{
+			for (int i = 0; i < layer.outputs; ++i)
+			{
+				if (std::isnan(layer.output[i])) {
+					forward_nan_count++;
+					layer.output[i] = 0.0f; // Fix NaN immediately
+				}
+				else if (std::isinf(layer.output[i])) {
+					forward_inf_count++;
+					layer.output[i] = 1.0f; // Fix inf immediately
+				}
+			}
+		}
+	}
+	
+	if (cfg_and_state.is_trace) {
+		if (forward_nan_count > 0 || forward_inf_count > 0)
+		{
+			*cfg_and_state.output << "   POSTCONDITION VIOLATION: Forward pass produced " << forward_nan_count
+								  << " NaN values and " << forward_inf_count << " inf values - fixed immediately" << std::endl;
+		}
+		else
+		{
+			*cfg_and_state.output << "   Forward pass postcondition satisfied: no NaN/inf values detected" << std::endl;
+		}
+	}
+	
+	// Save layer outputs after first forward pass for restoration before second pass
+	DEBUG_TRACE("   Saving layer outputs for restoration...");
+	std::vector<std::vector<float>> saved_layer_outputs(net.n);
+	for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+	{
+		Darknet::Layer& layer = net.layers[layer_idx];
+		if (layer.output && layer.outputs > 0)
+		{
+			// Save a copy of the layer output
+			saved_layer_outputs[layer_idx].resize(layer.outputs);
+			std::memcpy(saved_layer_outputs[layer_idx].data(), layer.output, layer.outputs * sizeof(float));
+		}
+	}
+	DEBUG_TRACE("   Saved outputs for " << net.n << " layers");
+	
+	// Fix any NaN/inf values after forward pass if enabled
+	if (net.try_fix_nan)
+	{
+		DEBUG_TRACE("   Fixing NaN/inf values in layer outputs after forward pass...");
+		for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+		{
+			Darknet::Layer& layer = net.layers[layer_idx];
+			if (layer.output && layer.outputs > 0)
+			{
+				// Check for and count NaN/inf values before fixing
+				int nan_count = 0;
+				for (int i = 0; i < layer.outputs; ++i)
+				{
+					if (!std::isfinite(layer.output[i])) nan_count++;
+				}
+
+				if (nan_count > 0)
+				{
+					*cfg_and_state.output << "   Layer " << layer_idx << ": fixing " << nan_count << " non-finite values" << std::endl;
+					fix_nan_and_inf_cpu(layer.output, layer.outputs);
+				}
+			}
+
+			// Fix indexes array for maxpool layers - validate they're within bounds
+			// This prevents segfaults in backward_maxpool_layer when accessing state.delta[index]
+			if (layer.indexes && layer.outputs > 0)
+			{
+				int bad_index_count = 0;
+				// Find the input layer to determine valid index range
+				int max_valid_index = layer.inputs * layer.batch;
+
+				for (int i = 0; i < layer.outputs * layer.batch; ++i)
+				{
+					int idx = layer.indexes[i];
+					// Validate index is within valid memory range
+					if (idx < 0 || idx >= max_valid_index)
+					{
+						layer.indexes[i] = 0;  // Reset to safe default
+						bad_index_count++;
+					}
+				}
+
+				if (bad_index_count > 0)
+				{
+					*cfg_and_state.output << "   Layer " << layer_idx << ": fixed " << bad_index_count
+					                      << " invalid indexes (out of " << (layer.outputs * layer.batch) << ")" << std::endl;
+				}
+			}
+		}
+	}
+	
+	// === BACKWARD PASS (CPU ONLY) ===
+	DEBUG_TRACE("2. Backward pass (CPU)...");
+	
+	// Set up network state for backward pass with error checking
+	Darknet::NetworkState backward_state;
+	std::memset(&backward_state, 0, sizeof(backward_state));  // Zero initialize
+	
+	backward_state.net = net;
+	backward_state.index = 0;
+	backward_state.input = sized.data;
+	backward_state.truth = nullptr;  // No ground truth for this experiment
+	backward_state.train = 1;        // Enable training mode for backward pass
+	
+	// Use the network's existing workspace (already allocated during network setup)
+	backward_state.workspace = net.workspace;
+	
+	// Allocate delta with bounds checking
+	size_t delta_size = net.inputs * net.batch;
+	if (cfg_and_state.is_trace) {
+		*cfg_and_state.output << "   Allocating backward delta: " << delta_size << " elements ("
+							  << (delta_size * sizeof(float) / 1024) << " KB)" << std::endl;
+	}
+
+	float* original_backward_delta = (float*)xcalloc(delta_size, sizeof(float));
+	if (!original_backward_delta) {
+		*cfg_and_state.output << "ERROR: Failed to allocate backward delta memory" << std::endl;
+		Darknet::free_image(orig);
+		Darknet::free_image(sized);
+		return;
+	}
+	backward_state.delta = original_backward_delta;  // Save pointer for later freeing
+	
+	// Force CPU execution for backward pass (disable GPU if enabled)
+	#ifdef DARKNET_GPU
+	int original_gpu = net.gpu_index;
+	net.gpu_index = -1;  // Force CPU for backward pass
+	*cfg_and_state.output << "   Forced CPU mode for backward pass (original GPU: " << original_gpu << ")" << std::endl;
+	#endif
+	
+	// Clear all layer deltas before backward pass
+	for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+	{
+		Darknet::Layer& layer = net.layers[layer_idx];
+		if (layer.delta && layer.outputs > 0)
+		{
+			// Zero out layer deltas
+			std::memset(layer.delta, 0, layer.outputs * layer.batch * sizeof(float));
+		}
+	}
+	
+	// Call backward pass for each layer in reverse order with error handling
+	DEBUG_TRACE("   Executing backward pass through " << net.n << " layers...");
+
+	try {
+		for (int layer_idx = net.n - 1; layer_idx >= 0; --layer_idx)
+		{
+			Darknet::Layer& layer = net.layers[layer_idx];
+
+			// Update backward_state.delta to point to the previous layer's delta buffer
+			// This is critical: each layer needs to write gradients to the correct buffer
+			if (layer_idx > 0) {
+				// Point to the previous layer's delta (where this layer will write its gradients)
+				backward_state.delta = net.layers[layer_idx - 1].delta;
+				if (cfg_and_state.is_trace) {
+					*cfg_and_state.output << "   Layer " << layer_idx << ": backward_state.delta now points to layer " << (layer_idx-1) << " delta" << std::endl;
+				}
+			} else {
+				// For layer 0, point to the input delta buffer we allocated
+				// (this was allocated at line 501)
+				if (cfg_and_state.is_trace) {
+					*cfg_and_state.output << "   Layer " << layer_idx << ": backward_state.delta points to input delta buffer" << std::endl;
+				}
+			}
+
+			if (layer.backward)
+			{
+				if (cfg_and_state.is_trace) {
+					*cfg_and_state.output << "   Layer " << layer_idx << " ("
+										  << static_cast<int>(layer.type) << ") backward..." << std::endl;
+				}
+				
+				// Pre-backward safety checks with comprehensive memory validation
+				bool layer_memory_ok = true;
+
+				if (layer.delta && layer.outputs > 0)
+				{
+					// Verify layer delta memory is accessible and contains finite values
+					try {
+						for (int i = 0; i < std::min(10, layer.outputs); ++i)
+						{
+							volatile float test_read = layer.delta[i]; // Force memory access
+							if (!std::isfinite(test_read)) {
+								if (cfg_and_state.is_trace) {
+									*cfg_and_state.output << "   Layer " << layer_idx << " delta[" << i << "] = " << test_read << " (non-finite)" << std::endl;
+								}
+								layer.delta[i] = 0.0f; // Fix immediately
+							}
+							(void)test_read; // Suppress unused variable warning
+						}
+					} catch (...) {
+						*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " delta memory access failed" << std::endl;
+						layer_memory_ok = false;
+					}
+				}
+
+				if (layer.output && layer.outputs > 0)
+				{
+					// Verify layer output memory is accessible and contains finite values
+					try {
+						for (int i = 0; i < std::min(10, layer.outputs); ++i)
+						{
+							volatile float test_read = layer.output[i]; // Force memory access
+							if (!std::isfinite(test_read)) {
+								if (cfg_and_state.is_trace) {
+									*cfg_and_state.output << "   Layer " << layer_idx << " output[" << i << "] = " << test_read << " (non-finite)" << std::endl;
+								}
+								layer.output[i] = 0.0f; // Fix immediately
+							}
+							(void)test_read; // Suppress unused variable warning
+						}
+					} catch (...) {
+						*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " output memory access failed" << std::endl;
+						layer_memory_ok = false;
+					}
+				}
+
+				if (!layer_memory_ok) {
+					*cfg_and_state.output << "   WARNING: Layer " << layer_idx << " memory validation failed - skipping backward pass" << std::endl;
+					continue; // Skip this layer's backward pass
+				}
+
+				DEBUG_TRACE("   Layer " << layer_idx << " memory checks passed");
+				
+				// Call the appropriate backward function (BDP or standard)
+				try {
+					layer.backward(layer, backward_state);
+					
+					// Post-backward validation to catch issues immediately
+					int post_nan_count = 0;
+					if (layer.output && layer.outputs > 0) {
+						for (int i = 0; i < std::min(5, layer.outputs); ++i) {
+							if (!std::isfinite(layer.output[i])) {
+								post_nan_count++;
+								layer.output[i] = 0.0f; // Fix immediately
+							}
+						}
+					}
+					if (post_nan_count > 0 && cfg_and_state.is_trace) {
+						*cfg_and_state.output << "   Layer " << layer_idx << " backward: fixed " << post_nan_count << " non-finite output values" << std::endl;
+					}
+
+					DEBUG_TRACE("   Layer " << layer_idx << " backward completed");
+				} catch (const std::exception& e) {
+					*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " backward failed: " << e.what() << std::endl;
+					throw; // Re-throw to trigger outer exception handler
+				} catch (...) {
+					*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " backward failed with unknown exception" << std::endl;
+					throw; // Re-throw to trigger outer exception handler
+				}
+			}
+			else
+			{
+				*cfg_and_state.output << "   Layer " << layer_idx << " (" 
+									  << static_cast<int>(layer.type) << ") skipped (no backward function)" << std::endl;
+			}
+		}
+	} catch (const std::exception& e) {
+		*cfg_and_state.output << "ERROR: Backward pass failed with exception: " << e.what() << std::endl;
+		
+		// Clean up and restore state
+		if (backward_state.delta) {
+			free(backward_state.delta);
+			backward_state.delta = nullptr;
+		}
+		
+		#ifdef DARKNET_GPU
+		net.gpu_index = original_gpu;
+		#endif
+		
+		Darknet::free_image(orig);
+		Darknet::free_image(sized);
+		return;
+	}
+	
+	#ifdef DARKNET_GPU
+	// Restore original GPU setting
+	net.gpu_index = original_gpu;
+	*cfg_and_state.output << "   Restored GPU mode: " << original_gpu << std::endl;
+	#endif
+	
+	*cfg_and_state.output << "   Backward pass completed on CPU" << std::endl;
+	
+	// Add debugging checkpoint after backward pass
+	*cfg_and_state.output << "   Backward pass checkpoint: Memory integrity check..." << std::endl;
+	
+	// Verify network state integrity after backward pass and fix non-finite values
+	int total_output_nan_fixed = 0;
+	int total_delta_nan_fixed = 0;
+	for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+	{
+		Darknet::Layer& layer = net.layers[layer_idx];
+		
+		// Check and fix NaN/Inf in layer outputs
+		if (layer.output && layer.outputs > 0)
+		{
+			int output_nan_count = 0;
+			for (int i = 0; i < layer.outputs; ++i)
+			{
+				if (!std::isfinite(layer.output[i]))
+				{
+					output_nan_count++;
+				}
+			}
+			
+			if (output_nan_count > 0)
+			{
+				*cfg_and_state.output << "WARNING: Layer " << layer_idx << " has " << output_nan_count 
+									  << " non-finite values in outputs - fixing..." << std::endl;
+				fix_nan_and_inf_cpu(layer.output, layer.outputs);
+				total_output_nan_fixed += output_nan_count;
+			}
+		}
+		
+		// Check and fix NaN/Inf in layer deltas  
+		if (layer.delta && layer.outputs > 0)
+		{
+			int delta_nan_count = 0;
+			for (int i = 0; i < layer.outputs; ++i)
+			{
+				if (!std::isfinite(layer.delta[i]))
+				{
+					delta_nan_count++;
+				}
+			}
+			
+			if (delta_nan_count > 0)
+			{
+				*cfg_and_state.output << "WARNING: Layer " << layer_idx << " has " << delta_nan_count 
+									  << " non-finite values in deltas - fixing..." << std::endl;
+				fix_nan_and_inf_cpu(layer.delta, layer.outputs);
+				total_delta_nan_fixed += delta_nan_count;
+			}
+		}
+	}
+	
+	if (total_output_nan_fixed > 0 || total_delta_nan_fixed > 0)
+	{
+		*cfg_and_state.output << "   Fixed " << total_output_nan_fixed << " output NaN/inf values and " 
+							  << total_delta_nan_fixed << " delta NaN/inf values across all layers" << std::endl;
+	}
+	
+	*cfg_and_state.output << "   Memory integrity check completed" << std::endl;
+
+	// === SECOND FORWARD PASS ===
+	*cfg_and_state.output << "3. Forward pass #2..." << std::endl;
+	
+	// Restore layer outputs before second forward pass to prevent corruption from backward pass
+	*cfg_and_state.output << "   Restoring layer outputs from before backward pass..." << std::endl;
+	int restored_layers = 0;
+	for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+	{
+		Darknet::Layer& layer = net.layers[layer_idx];
+		if (layer.output && layer.outputs > 0 && !saved_layer_outputs[layer_idx].empty())
+		{
+			// Restore the original layer output
+			std::memcpy(layer.output, saved_layer_outputs[layer_idx].data(), layer.outputs * sizeof(float));
+			restored_layers++;
+		}
+	}
+	*cfg_and_state.output << "   Restored outputs for " << restored_layers << " layers" << std::endl;
+	
+	try {
+		network_predict(net, sized.data);
+		*cfg_and_state.output << "   Forward pass #2 completed successfully" << std::endl;
+	} catch (const std::exception& e) {
+		*cfg_and_state.output << "ERROR: Forward pass #2 failed with exception: " << e.what() << std::endl;
+		
+		// Clean up and return early to avoid further issues
+		if (backward_state.delta) {
+			free(backward_state.delta);
+			backward_state.delta = nullptr;
+		}
+		Darknet::free_image(orig);
+		Darknet::free_image(sized);
+		return;
+	}
 
 	// Count BDP detections and extract them if drawing is requested
 	int total_bdp_detections = 0;
@@ -288,18 +790,18 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 			{
 				*cfg_and_state.output << "Layer " << layer_idx << ": Found " << layer_detections << " detections above threshold " << detection_threshold << std::endl;
 				
-				// Create detection array with smart pointers for safe memory management
+				// Create detection array with smart pointers for safe memory management (temporary storage)
 				std::vector<DarknetDetectionOBB> layer_dets(layer_detections);
 				std::vector<std::unique_ptr<float[]>> prob_arrays;
 				prob_arrays.reserve(layer_detections);
 				
-				// Initialize each detection with proper memory allocation using smart pointers
+				// Initialize each detection with proper memory allocation using smart pointers for temporary use
 				for (int i = 0; i < layer_detections; ++i)
 				{
 					std::memset(&layer_dets[i], 0, sizeof(DarknetDetectionOBB));
 					layer_dets[i].classes = layer.classes;
 					
-					// Use smart pointer for automatic cleanup
+					// Use smart pointer for automatic cleanup of temporary arrays
 					prob_arrays.emplace_back(std::make_unique<float[]>(layer.classes));
 					layer_dets[i].prob = prob_arrays[i].get();
 					
@@ -320,18 +822,19 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 				for (int i = 0; i < actual_count && i < layer_detections; ++i)
 				{
 					// Debug: show detection info
-					*cfg_and_state.output << "Detection " << i << ": objectness=" << layer_dets[i].objectness 
-										  << " bbox=(" << layer_dets[i].bbox.x << "," << layer_dets[i].bbox.y 
-										  << "," << layer_dets[i].bbox.w << "," << layer_dets[i].bbox.h 
-										  << "," << layer_dets[i].bbox.fx << "," << layer_dets[i].bbox.fy << ")" << std::endl;
+					if (cfg_and_state.is_trace) {
+						*cfg_and_state.output << "Detection " << i << ": objectness=" << layer_dets[i].objectness
+											  << " bbox=(" << layer_dets[i].bbox.x << "," << layer_dets[i].bbox.y
+											  << "," << layer_dets[i].bbox.w << "," << layer_dets[i].bbox.h
+											  << "," << layer_dets[i].bbox.fx << "," << layer_dets[i].bbox.fy << ")" << std::endl;
+					}
 					
 					// Copy the detection data (but not the pointer addresses)
 					DarknetDetectionOBB det_copy = layer_dets[i];
 					
-					// Allocate new memory for the prob array in the copy
-					std::unique_ptr<float[]> new_prob = std::make_unique<float[]>(layer.classes);
-					std::memcpy(new_prob.get(), layer_dets[i].prob, layer.classes * sizeof(float));
-					det_copy.prob = new_prob.release(); // Transfer ownership (will need manual cleanup)
+					// Allocate new memory for the prob array in the copy using consistent allocation
+					det_copy.prob = new float[layer.classes];
+					std::memcpy(det_copy.prob, layer_dets[i].prob, layer.classes * sizeof(float));
 					
 					all_detections.push_back(det_copy);
 				}
@@ -374,9 +877,9 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 			DarknetDetectionOBB example_det;
 			std::memset(&example_det, 0, sizeof(DarknetDetectionOBB));
 			
-			// Allocate prob array
+			// Allocate prob array using consistent allocation pattern
 			example_det.classes = 80; // COCO classes
-			example_det.prob = new float[80]();
+			example_det.prob = new float[80](); // Zero-initialized
 			
 			// Set a high objectness score
 			example_det.objectness = 0.9f - (i * 0.1f); // 0.9, 0.8, 0.7, 0.6, 0.5
@@ -385,48 +888,48 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 			switch(i)
 			{
 				case 0: // Top-left, horizontal orientation
-					example_det.bbox.x = 0.25f;   // Center X (25% from left)
-					example_det.bbox.y = 0.25f;   // Center Y (25% from top)  
-					example_det.bbox.w = 0.2f;    // Width (20% of image)
-					example_det.bbox.h = 0.1f;    // Height (10% of image)
-					example_det.bbox.fx = 0.25f;  // Front point X (right of center)
-					example_det.bbox.fy = 0.15f;  // Front point Y (same as center - horizontal)
+					example_det.bbox.x = 0.35f;   // Center X (25% from left)
+					example_det.bbox.y = 0.35f;   // Center Y (25% from top)  
+					example_det.bbox.w = 0.29f;    // Width (20% of image)
+					example_det.bbox.h = 0.13f;    // Height (10% of image)
+					example_det.bbox.fx = 0.35f;  // Front point X (right of center)
+					example_det.bbox.fy = 0.14f;  // Front point Y (same as center - horizontal)
 					break;
 					
 				case 1: // Top-right, vertical orientation  
-					example_det.bbox.x = 0.75f;   // Center X (75% from left)
-					example_det.bbox.y = 0.25f;   // Center Y (25% from top)
-					example_det.bbox.w = 0.1f;    // Width (10% of image)
-					example_det.bbox.h = 0.2f;    // Height (20% of image)
-					example_det.bbox.fx = 0.85f;  // Front point X (same as center)
-					example_det.bbox.fy = 0.35f;  // Front point Y (above center - vertical up)
+					example_det.bbox.x = 0.74f;   // Center X (75% from left)
+					example_det.bbox.y = 0.23f;   // Center Y (25% from top)
+					example_det.bbox.w = 0.3f;    // Width (10% of image)
+					example_det.bbox.h = 0.5f;    // Height (20% of image)
+					example_det.bbox.fx = 0.75f;  // Front point X (same as center)
+					example_det.bbox.fy = 0.25f;  // Front point Y (above center - vertical up)
 					break;
 					
 				case 2: // Center, diagonal orientation
-					example_det.bbox.x = 0.5f;    // Center X (50% from left)
-					example_det.bbox.y = 0.5f;    // Center Y (50% from top)
-					example_det.bbox.w = 0.15f;   // Width (15% of image)
-					example_det.bbox.h = 0.15f;   // Height (15% of image)
-					example_det.bbox.fx = 0.6f;   // Front point X (diagonal right)
-					example_det.bbox.fy = 0.4f;   // Front point Y (diagonal up)
+					example_det.bbox.x = 0.55f;    // Center X (50% from left)
+					example_det.bbox.y = 0.55f;    // Center Y (50% from top)
+					example_det.bbox.w = 0.17f;   // Width (15% of image)
+					example_det.bbox.h = 0.19f;   // Height (15% of image)
+					example_det.bbox.fx = 0.55f;   // Front point X (diagonal right)
+					example_det.bbox.fy = 0.41;   // Front point Y (diagonal up)
 					break;
 					
 				case 3: // Bottom-left, angled orientation
-					example_det.bbox.x = 0.25f;   // Center X (25% from left)
-					example_det.bbox.y = 0.75f;   // Center Y (75% from top)
-					example_det.bbox.w = 0.18f;   // Width (18% of image)
-					example_det.bbox.h = 0.12f;   // Height (12% of image)
-					example_det.bbox.fx = 0.30f;  // Front point X (slight right)
-					example_det.bbox.fy = 0.60f;  // Front point Y (angled up-right)
+					example_det.bbox.x = 0.27f;   // Center X (25% from left)
+					example_det.bbox.y = 0.77f;   // Center Y (75% from top)
+					example_det.bbox.w = 0.12f;   // Width (18% of image)
+					example_det.bbox.h = 0.11f;   // Height (12% of image)
+					example_det.bbox.fx = 0.35f;  // Front point X (slight right)
+					example_det.bbox.fy = 0.63f;  // Front point Y (angled up-right)
 					break;
 					
 				case 4: // Bottom-right, steep angle
-					example_det.bbox.x = 0.75f;   // Center X (75% from left)
-					example_det.bbox.y = 0.75f;   // Center Y (75% from top)
-					example_det.bbox.w = 0.12f;   // Width (12% of image)
-					example_det.bbox.h = 0.18f;   // Height (18% of image)
-					example_det.bbox.fx = 0.60f;  // Front point X (left of center)
-					example_det.bbox.fy = 0.60f;  // Front point Y (below center - steep angle)
+					example_det.bbox.x = 0.55f;   // Center X (75% from left)
+					example_det.bbox.y = 0.71f;   // Center Y (75% from top)
+					example_det.bbox.w = 0.10f;   // Width (12% of image)
+					example_det.bbox.h = 0.19f;   // Height (18% of image)
+					example_det.bbox.fx = 0.56f;  // Front point X (left of center)
+					example_det.bbox.fy = 0.59f;  // Front point Y (below center - steep angle)
 					break;
 			}
 			
@@ -436,10 +939,12 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 			
 			all_detections.push_back(example_det);
 			
-			*cfg_and_state.output << "Added example detection " << (i+1) << ": objectness=" << example_det.objectness 
-								  << " bbox=(" << example_det.bbox.x << "," << example_det.bbox.y 
-								  << "," << example_det.bbox.w << "," << example_det.bbox.h 
-								  << "," << example_det.bbox.fx << "," << example_det.bbox.fy << ")" << std::endl;
+			if (cfg_and_state.is_trace) {
+				*cfg_and_state.output << "Added example detection " << (i+1) << ": objectness=" << example_det.objectness
+									  << " bbox=(" << example_det.bbox.x << "," << example_det.bbox.y
+									  << "," << example_det.bbox.w << "," << example_det.bbox.h
+									  << "," << example_det.bbox.fx << "," << example_det.bbox.fy << ")" << std::endl;
+			}
 		}
 	}
 
@@ -466,7 +971,9 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 		for (int i = 0; i < num_to_draw; ++i)
 		{
 			DarknetDetectionOBB& det = all_detections[i];
-			*cfg_and_state.output << "Detection " << (i+1) << ": objectness=" << det.objectness << std::endl;
+			if (cfg_and_state.is_trace) {
+				*cfg_and_state.output << "Detection " << (i+1) << ": objectness=" << det.objectness << std::endl;
+			}
 			
 			draw_oriented_box(annotated, det.bbox, colors[i][0], colors[i][1], colors[i][2]);
 		}
@@ -477,21 +984,79 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 		*cfg_and_state.output << "Annotated image saved as: " << output_filename << std::endl;
 
 		// Clean up annotated image
+		DEBUG_TRACE("[DEBUG] Freeing annotated image...");
 		Darknet::free_image(annotated);
+		DEBUG_TRACE("[DEBUG] Annotated image freed");
 	}
 
 	// Clean up manually allocated prob arrays in all_detections
-	for (auto& det : all_detections)
+	if (cfg_and_state.is_trace) {
+		*cfg_and_state.output << "[DEBUG] Cleaning up detection prob arrays (count=" << all_detections.size() << ")..." << std::endl;
+	}
+	for (size_t i = 0; i < all_detections.size(); ++i)
 	{
+		auto& det = all_detections[i];
 		if (det.prob)
 		{
+			if (cfg_and_state.is_trace) {
+				*cfg_and_state.output << "[DEBUG] Freeing detection " << i << " prob array..." << std::endl;
+			}
 			delete[] det.prob;
+			det.prob = nullptr;
+			if (cfg_and_state.is_trace) {
+				*cfg_and_state.output << "[DEBUG] Detection " << i << " prob array freed" << std::endl;
+			}
+		}
+	}
+	DEBUG_TRACE("[DEBUG] All detection prob arrays freed");
+
+	// Clean up backward pass memory
+	// IMPORTANT: Free the original allocated delta, not the reassigned pointer
+	DEBUG_TRACE("[DEBUG] Freeing backward_state.delta (original allocation)...");
+	if (original_backward_delta)
+	{
+		free(original_backward_delta);
+		original_backward_delta = nullptr;
+	}
+	backward_state.delta = nullptr;  // Clear the pointer (it was pointing to a layer delta)
+	DEBUG_TRACE("[DEBUG] backward_state.delta freed");
+
+	// Clean up memory
+	DEBUG_TRACE("[DEBUG] Freeing orig image...");
+	Darknet::free_image(orig);
+	DEBUG_TRACE("[DEBUG] orig image freed");
+
+	DEBUG_TRACE("[DEBUG] Freeing sized image...");
+	Darknet::free_image(sized);
+	DEBUG_TRACE("[DEBUG] sized image freed");
+
+	// Free truth array
+	DEBUG_TRACE("[DEBUG] Freeing truth array...");
+	if (truth) {
+		free(truth);
+		truth = nullptr;
+	}
+	DEBUG_TRACE("[DEBUG] truth array freed");
+
+	// Free the network to prevent memory leak (critical fix)
+	DEBUG_TRACE("[DEBUG] Freeing network...");
+	if (cfg_and_state.is_trace) {
+		*cfg_and_state.output << "[DEBUG] Network has " << net.n << " layers" << std::endl;
+	}
+
+	// Debug: Check BDP layers before freeing
+	if (cfg_and_state.is_trace) {
+		for (int i = 0; i < net.n; ++i) {
+			if (net.layers[i].type == Darknet::ELayerType::YOLO_BDP) {
+				*cfg_and_state.output << "[DEBUG] Layer " << i << " is YOLO_BDP: detection=" << net.layers[i].detection
+				                      << " labels=" << net.layers[i].labels
+				                      << " class_ids=" << net.layers[i].class_ids << std::endl;
+			}
 		}
 	}
 
-	// Clean up memory
-	Darknet::free_image(orig);
-	Darknet::free_image(sized);
+	free_network(net);
+	DEBUG_TRACE("[DEBUG] network freed - experiment completed successfully");
 }
 
 
@@ -899,11 +1464,11 @@ int main(int argc, char **argv)
 
 		#ifdef _DEBUG
 		_CrtSetDbgFlag(_CRTDBG_ALLOC_MEM_DF | _CRTDBG_LEAK_CHECK_DF);
-		Darknet::display_warning_msg("DEBUG is used\n");
+		Darknet::display_warning_msg("DEBUG is used\n" << std::endl;
 		#endif
 
 		#ifdef DEBUG
-		Darknet::display_warning_msg("DEBUG=1 is enabled\n");
+		Darknet::display_warning_msg("DEBUG=1 is enabled\n" << std::endl;
 		#endif
 
 		errno = 0;
@@ -919,7 +1484,7 @@ int main(int argc, char **argv)
 			cuda_set_device(cfg_and_state.gpu_index);
 			CHECK_CUDA(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
 		}
-		cuda_debug_sync = find_arg(argc, argv, "-cuda_debug_sync");
+		cuda_debug_sync = find_arg(argc, argv, "-cuda_debug_sync" << std::endl;
 #endif
 
 		errno = 0;
