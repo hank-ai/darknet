@@ -240,6 +240,7 @@ namespace Darknet
 		float iou_normalizer;
 		float obj_normalizer;
 		float cls_normalizer;
+		float fp_normalizer;  // λ4 - weight for front point loss (BDP)
 		float delta_normalizer;
 		IOU_LOSS iou_loss;
 		IOU_LOSS iou_thresh_kind;

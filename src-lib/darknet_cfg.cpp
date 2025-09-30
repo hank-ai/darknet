@@ -1662,6 +1662,7 @@ Darknet::Layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	l.iou_normalizer = s.find_float("iou_normalizer", 0.75);
 	l.obj_normalizer = s.find_float("obj_normalizer", 1);
 	l.cls_normalizer = s.find_float("cls_normalizer", 1);
+	l.fp_normalizer = s.find_float("fp_normalizer", 1.0);  // λ4 for front point loss (paper equation 10)
 	l.delta_normalizer = s.find_float("delta_normalizer", 1);
 
 	const std::string iou_loss = s.find_str("iou_loss", "mse");
@@ -1783,6 +1784,7 @@ Darknet::Layer Darknet::CfgFile::parse_yolo_bdp_section(const size_t section_idx
 	l.iou_normalizer = s.find_float("iou_normalizer", 0.75);
 	l.obj_normalizer = s.find_float("obj_normalizer", 1);
 	l.cls_normalizer = s.find_float("cls_normalizer", 1);
+	l.fp_normalizer = s.find_float("fp_normalizer", 1.0);  // λ4 for front point loss (paper equation 10)
 	l.delta_normalizer = s.find_float("delta_normalizer", 1);
 
 	const std::string iou_loss = s.find_str("iou_loss", "mse");

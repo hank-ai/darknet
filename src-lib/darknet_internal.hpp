@@ -218,6 +218,7 @@ typedef struct ious {
 	float iou, giou, diou, ciou;
 	dxrep dx_iou;
 	dxrep dx_giou;
+	float fp_loss;  // Front point loss for BDP (smooth L1)
 } ious;
 
 
@@ -313,6 +314,10 @@ typedef struct box_label {
 	float x, y, w, h;
 	float left, right, top, bottom;
 } box_label;
+
+typedef struct box_label_bdp : box_label {
+	float fx, fy; // for focal loss
+} box_label_bdp;
 
 
 // layer.h

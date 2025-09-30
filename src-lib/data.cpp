@@ -156,11 +156,11 @@ char **get_random_paths(char **paths, int n, int m)
 }
 
 
-box_label *read_boxes(char *filename, int *n)
+box_label_bdp *read_boxes(char *filename, int *n)
 {
 	TAT(TATPARMS);
 
-	box_label* boxes = (box_label*)xcalloc(1, sizeof(box_label));
+	box_label_bdp* boxes = (box_label_bdp*)xcalloc(1, sizeof(box_label_bdp));
 	FILE *file = fopen(filename, "r");
 	if (!file)
 	{
@@ -169,20 +169,23 @@ box_label *read_boxes(char *filename, int *n)
 
 	const int max_obj_img = 4000;// 30000;
 	const int img_hash = (custom_hash(filename) % max_obj_img)*max_obj_img;
-	float x, y, h, w;
+	float x, y, h, w, fx, fy;
 	int id;
 	int count = 0;
-	while(fscanf(file, "%d %f %f %f %f", &id, &x, &y, &w, &h) == 5)
+	while(fscanf(file, "%d %f %f %f %f %f %f", &id, &x, &y, &w, &h, &fx, &fy) == 7)
 	{
 //		*cfg_and_state.output << "x=" << x << " y=" << y << " w=" << w << " h=" << h << std::endl;
 
-		boxes = (box_label*)xrealloc(boxes, (count + 1) * sizeof(box_label));
+		boxes = (box_label_bdp*)xrealloc(boxes, (count + 1) * sizeof(box_label_bdp));
 		boxes[count].track_id = count + img_hash;
 		boxes[count].id = id;
 		boxes[count].x = x;
 		boxes[count].y = y;
 		boxes[count].h = h;
 		boxes[count].w = w;
+		// @implement change to box_label_bdp, since box label uses different coordinates
+		boxes[count].fx = fx;
+		boxes[count].fy = fy;
 		boxes[count].left   = x - w / 2.0f;
 		boxes[count].right  = x + w / 2.0f;
 		boxes[count].top    = y - h / 2.0f;
@@ -196,8 +199,51 @@ box_label *read_boxes(char *filename, int *n)
 	return boxes;
 }
 
+/*
+box_label_bdp *read_boxes_bdp(char *filename, int *n)
+{
+	TAT(TATPARMS);
 
-void randomize_boxes(box_label *b, int n)
+	box_label_bdp* boxes = (box_label_bdp*)xcalloc(1, sizeof(box_label_bdp));
+	FILE *file = fopen(filename, "r");
+	if (!file)
+	{
+		darknet_fatal_error(DARKNET_LOC, "failed to open annotation file \"%s\"", filename);
+	}
+	const int max_obj_img = 4000;// 30000;
+	const int img_hash = (custom_hash(filename) % max_obj_img)*max_obj_img;
+	float x, y, h, w, fx, fy;
+	int id;
+	int count = 0;
+	while(fscanf(file, "%d %f %f %f %f %f %f", &id, &x, &y, &w, &h, &fx, &fy) == 7)
+	{
+//		*cfg_and_state.output << "x=" << x << " y=" << y << " w=" << w << " h=" << h << std::endl;
+
+		boxes = (box_label_bdp*)xrealloc(boxes, (count + 1) * sizeof(box_label_bdp));
+		boxes[count].track_id = count + img_hash;
+		boxes[count].id = id;s
+		boxes[count].x = x;
+		boxes[count].y = y;
+		boxes[count].h = h;
+		boxes[count].w = w;
+		boxes[count].fx = fx;
+		boxes[count].fy = fy;
+		// @implement change to box_label_bdp, since box label uses different coordinates
+		boxes[count].left   = x - w / 2.0f; 
+		boxes[count].right  = x + w / 2.0f;
+		boxes[count].top    = y - h / 2.0f;
+		boxes[count].bottom = y + h / 2.0f;
+		++count;
+	}
+
+	fclose(file);
+	*n = count;
+
+	return boxes;
+}
+*/
+
+void randomize_boxes(box_label_bdp *b, int n)
 {
 	TAT(TATPARMS);
 
@@ -210,7 +256,7 @@ void randomize_boxes(box_label *b, int n)
 }
 
 
-void correct_boxes(box_label *boxes, int n, float dx, float dy, float sx, float sy, int flip)
+void correct_boxes(box_label_bdp *boxes, int n, float dx, float dy, float sx, float sy, int flip)
 {
 	TAT(TATPARMS);
 
@@ -223,6 +269,8 @@ void correct_boxes(box_label *boxes, int n, float dx, float dy, float sx, float 
 			boxes[i].y = 999999;
 			boxes[i].w = 999999;
 			boxes[i].h = 999999;
+			boxes[i].fx = 999999;
+			boxes[i].fy = 999999;
 			continue;
 		}
 		if ((boxes[i].x + boxes[i].w / 2) < 0 || (boxes[i].y + boxes[i].h / 2) < 0 ||
@@ -232,12 +280,15 @@ void correct_boxes(box_label *boxes, int n, float dx, float dy, float sx, float 
 			boxes[i].y = 999999;
 			boxes[i].w = 999999;
 			boxes[i].h = 999999;
+			boxes[i].fx = 999999;
+			boxes[i].fy = 999999;
 			continue;
 		}
 		boxes[i].left   = boxes[i].left  * sx - dx;
 		boxes[i].right  = boxes[i].right * sx - dx;
 		boxes[i].top    = boxes[i].top   * sy - dy;
 		boxes[i].bottom = boxes[i].bottom* sy - dy;
+		// @implement something with fx, fy
 
 		if(flip)
 		{
@@ -273,7 +324,7 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 
 	int count = 0;
 	int i;
-	box_label *boxes = read_boxes(labelpath, &count);
+	box_label_bdp *boxes = read_boxes(labelpath, &count);
 	int min_w_h = 0;
 	float lowest_w = 1.F / net_w;
 	float lowest_h = 1.F / net_h;
@@ -283,7 +334,7 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 	{
 		count = num_boxes;
 	}
-	float x, y, w, h;
+	float x, y, w, h, fx, fy;
 	int id;
 	int sub = 0;
 
@@ -293,6 +344,8 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 		y = boxes[i].y;
 		w = boxes[i].w;
 		h = boxes[i].h;
+		fx = boxes[i].fx;
+		fy = boxes[i].fy;
 		id = boxes[i].id;
 		int track_id = boxes[i].track_id;
 
@@ -337,8 +390,10 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 		truth[(i-sub)*truth_size +1] = y;
 		truth[(i-sub)*truth_size +2] = w;
 		truth[(i-sub)*truth_size +3] = h;
-		truth[(i-sub)*truth_size +4] = id;
-		truth[(i-sub)*truth_size +5] = track_id;
+		truth[(i-sub)*truth_size +4] = fx;
+		truth[(i-sub)*truth_size +5] = fy;
+		truth[(i-sub)*truth_size +6] = track_id;  // BDP: reserved/track_id at position 6
+		truth[(i-sub)*truth_size +7] = id;        // BDP: class_id at position 7 (matches yolo_layer.cpp)
 
 		if (min_w_h == 0) min_w_h = w*net_w;
 		if (min_w_h > w*net_w) min_w_h = w*net_w;

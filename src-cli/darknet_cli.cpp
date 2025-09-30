@@ -353,7 +353,20 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 	forward_state.workspace = net.workspace;
 
 	// Run forward pass with training enabled (calculates loss and fills deltas)
+	// Note: The forward function prints detailed losses: total_loss, iou_loss, fp_loss, class_loss, count, avg_iou
 	forward_network(net, forward_state);
+
+	// Print summary after forward pass #1
+	if (cfg_and_state.is_trace) {
+		*cfg_and_state.output << "   === Forward pass #1 completed - see detailed losses above ===" << std::endl;
+		for (int layer_idx = 0; layer_idx < net.n; ++layer_idx) {
+			Darknet::Layer& layer = net.layers[layer_idx];
+			if (layer.type == Darknet::ELayerType::YOLO_BDP) {
+				float total_cost = layer.cost ? *layer.cost : 0.0f;
+				*cfg_and_state.output << "   Layer " << layer_idx << " (YOLO_BDP): stored total_loss=" << total_cost << std::endl;
+			}
+		}
+	}
 
 	// Debug: Check if loss was calculated and deltas populated
 	if (cfg_and_state.is_trace) {
@@ -484,293 +497,459 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 			}
 		}
 	}
-	
-	// === BACKWARD PASS (CPU ONLY) ===
-	DEBUG_TRACE("2. Backward pass (CPU)...");
-	
-	// Set up network state for backward pass with error checking
-	Darknet::NetworkState backward_state;
-	std::memset(&backward_state, 0, sizeof(backward_state));  // Zero initialize
-	
-	backward_state.net = net;
-	backward_state.index = 0;
-	backward_state.input = sized.data;
-	backward_state.truth = nullptr;  // No ground truth for this experiment
-	backward_state.train = 1;        // Enable training mode for backward pass
-	
-	// Use the network's existing workspace (already allocated during network setup)
-	backward_state.workspace = net.workspace;
-	
-	// Allocate delta with bounds checking
-	size_t delta_size = net.inputs * net.batch;
-	if (cfg_and_state.is_trace) {
-		*cfg_and_state.output << "   Allocating backward delta: " << delta_size << " elements ("
-							  << (delta_size * sizeof(float) / 1024) << " KB)" << std::endl;
-	}
 
+	// === LOOP: 9 BACKWARD + FORWARD PASSES ===
+	// Perform 9 iterations of backward → forward passes (total: 10 forward, 9 backward)
+	// Allocate backward delta once, outside the loop to avoid repeated allocation/deallocation
+	const int num_iterations = 9;
+	*cfg_and_state.output << "Starting training loop: " << num_iterations << " backward-forward iterations..." << std::endl;
+
+	size_t delta_size = net.inputs * net.batch;
+	DEBUG_TRACE("Allocating backward delta: " << delta_size << " elements (" << (delta_size * sizeof(float) / 1024) << " KB)");
 	float* original_backward_delta = (float*)xcalloc(delta_size, sizeof(float));
 	if (!original_backward_delta) {
 		*cfg_and_state.output << "ERROR: Failed to allocate backward delta memory" << std::endl;
 		Darknet::free_image(orig);
 		Darknet::free_image(sized);
+		free(truth);
 		return;
 	}
-	backward_state.delta = original_backward_delta;  // Save pointer for later freeing
-	
-	// Force CPU execution for backward pass (disable GPU if enabled)
-	#ifdef DARKNET_GPU
-	int original_gpu = net.gpu_index;
-	net.gpu_index = -1;  // Force CPU for backward pass
-	*cfg_and_state.output << "   Forced CPU mode for backward pass (original GPU: " << original_gpu << ")" << std::endl;
-	#endif
-	
-	// Clear all layer deltas before backward pass
-	for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
-	{
-		Darknet::Layer& layer = net.layers[layer_idx];
-		if (layer.delta && layer.outputs > 0)
-		{
-			// Zero out layer deltas
-			std::memset(layer.delta, 0, layer.outputs * layer.batch * sizeof(float));
-		}
-	}
-	
-	// Call backward pass for each layer in reverse order with error handling
-	DEBUG_TRACE("   Executing backward pass through " << net.n << " layers...");
 
-	try {
-		for (int layer_idx = net.n - 1; layer_idx >= 0; --layer_idx)
+	for (int iteration = 0; iteration < num_iterations; ++iteration)
+	{
+		*cfg_and_state.output << "\n=== ITERATION " << (iteration + 1) << "/" << num_iterations << " ===" << std::endl;
+
+		// === BACKWARD PASS (CPU ONLY) ===
+		DEBUG_TRACE((iteration + 2) << ". Backward pass #" << (iteration + 1) << " (CPU)...");
+
+		// Set up network state for backward pass with error checking
+		Darknet::NetworkState backward_state;
+		std::memset(&backward_state, 0, sizeof(backward_state));  // Zero initialize
+
+		backward_state.net = net;
+		backward_state.index = 0;
+		backward_state.input = sized.data;
+		backward_state.truth = nullptr;  // No ground truth for backward pass
+		backward_state.train = 1;        // Enable training mode for backward pass
+
+		// Use the network's existing workspace (already allocated during network setup)
+		backward_state.workspace = net.workspace;
+
+		// Point to the pre-allocated delta buffer (reset to zero before use)
+		std::memset(original_backward_delta, 0, delta_size * sizeof(float));
+		backward_state.delta = original_backward_delta;  // Use pre-allocated buffer
+
+		// Force CPU execution for backward pass (disable GPU if enabled)
+		#ifdef DARKNET_GPU
+		int original_gpu = net.gpu_index;
+		net.gpu_index = -1;  // Force CPU for backward pass
+		*cfg_and_state.output << "   Forced CPU mode for backward pass (original GPU: " << original_gpu << ")" << std::endl;
+		#endif
+
+		// Clear all layer deltas before backward pass
+		for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+		{
+			Darknet::Layer& layer = net.layers[layer_idx];
+			if (layer.delta && layer.outputs > 0)
+			{
+				// Zero out layer deltas
+				std::memset(layer.delta, 0, layer.outputs * layer.batch * sizeof(float));
+			}
+		}
+
+		// Call backward pass for each layer in reverse order with error handling
+		DEBUG_TRACE("   Executing backward pass through " << net.n << " layers...");
+
+		try {
+			for (int layer_idx = net.n - 1; layer_idx >= 0; --layer_idx)
+			{
+				Darknet::Layer& layer = net.layers[layer_idx];
+
+				// Update backward_state.delta to point to the previous layer's delta buffer
+				// This is critical: each layer needs to write gradients to the correct buffer
+				if (layer_idx > 0) {
+					// Point to the previous layer's delta (where this layer will write its gradients)
+					backward_state.delta = net.layers[layer_idx - 1].delta;
+					if (cfg_and_state.is_trace) {
+						*cfg_and_state.output << "   Layer " << layer_idx << ": backward_state.delta now points to layer " << (layer_idx-1) << " delta" << std::endl;
+					}
+				} else {
+					// For layer 0, point to the input delta buffer we allocated
+					if (cfg_and_state.is_trace) {
+						*cfg_and_state.output << "   Layer " << layer_idx << ": backward_state.delta points to input delta buffer" << std::endl;
+					}
+				}
+
+				if (layer.backward)
+				{
+					if (cfg_and_state.is_trace) {
+						*cfg_and_state.output << "   Layer " << layer_idx << " ("
+											  << static_cast<int>(layer.type) << ") backward..." << std::endl;
+					}
+
+					// Pre-backward safety checks with comprehensive memory validation
+					bool layer_memory_ok = true;
+
+					if (layer.delta && layer.outputs > 0)
+					{
+						// Verify layer delta memory is accessible and contains finite values
+						try {
+							for (int i = 0; i < std::min(10, layer.outputs); ++i)
+							{
+								volatile float test_read = layer.delta[i]; // Force memory access
+								if (!std::isfinite(test_read)) {
+									if (cfg_and_state.is_trace) {
+										*cfg_and_state.output << "   Layer " << layer_idx << " delta[" << i << "] = " << test_read << " (non-finite)" << std::endl;
+									}
+									layer.delta[i] = 0.0f; // Fix immediately
+								}
+								(void)test_read; // Suppress unused variable warning
+							}
+						} catch (...) {
+							*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " delta memory access failed" << std::endl;
+							layer_memory_ok = false;
+						}
+					}
+
+					if (layer.output && layer.outputs > 0)
+					{
+						// Verify layer output memory is accessible and contains finite values
+						try {
+							for (int i = 0; i < std::min(10, layer.outputs); ++i)
+							{
+								volatile float test_read = layer.output[i]; // Force memory access
+								if (!std::isfinite(test_read)) {
+									if (cfg_and_state.is_trace) {
+										*cfg_and_state.output << "   Layer " << layer_idx << " output[" << i << "] = " << test_read << " (non-finite)" << std::endl;
+									}
+									layer.output[i] = 0.0f; // Fix immediately
+								}
+								(void)test_read; // Suppress unused variable warning
+							}
+						} catch (...) {
+							*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " output memory access failed" << std::endl;
+							layer_memory_ok = false;
+						}
+					}
+
+					if (!layer_memory_ok) {
+						*cfg_and_state.output << "   WARNING: Layer " << layer_idx << " memory validation failed - skipping backward pass" << std::endl;
+						continue; // Skip this layer's backward pass
+					}
+
+					DEBUG_TRACE("   Layer " << layer_idx << " memory checks passed");
+
+					// Call the appropriate backward function (BDP or standard)
+					try {
+						layer.backward(layer, backward_state);
+
+						// Post-backward validation to catch issues immediately
+						int post_nan_count = 0;
+						if (layer.output && layer.outputs > 0) {
+							for (int i = 0; i < std::min(5, layer.outputs); ++i) {
+								if (!std::isfinite(layer.output[i])) {
+									post_nan_count++;
+									layer.output[i] = 0.0f; // Fix immediately
+								}
+							}
+						}
+						if (post_nan_count > 0 && cfg_and_state.is_trace) {
+							*cfg_and_state.output << "   Layer " << layer_idx << " backward: fixed " << post_nan_count << " non-finite output values" << std::endl;
+						}
+
+						DEBUG_TRACE("   Layer " << layer_idx << " backward completed");
+					} catch (const std::exception& e) {
+						*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " backward failed: " << e.what() << std::endl;
+						throw; // Re-throw to trigger outer exception handler
+					} catch (...) {
+						*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " backward failed with unknown exception" << std::endl;
+						throw; // Re-throw to trigger outer exception handler
+					}
+				}
+				else
+				{
+					*cfg_and_state.output << "   Layer " << layer_idx << " ("
+										  << static_cast<int>(layer.type) << ") skipped (no backward function)" << std::endl;
+				}
+			}
+		} catch (const std::exception& e) {
+			*cfg_and_state.output << "ERROR: Backward pass failed with exception: " << e.what() << std::endl;
+
+			// Clean up allocated memory and exit the experiment
+			free(original_backward_delta);
+			free(truth);
+			Darknet::free_image(orig);
+			Darknet::free_image(sized);
+			return;
+		}
+
+		#ifdef DARKNET_GPU
+		// Restore original GPU setting
+		net.gpu_index = original_gpu;
+		*cfg_and_state.output << "   Restored GPU mode: " << original_gpu << std::endl;
+		#endif
+
+		*cfg_and_state.output << "   Backward pass completed on CPU" << std::endl;
+
+		// Add debugging checkpoint after backward pass
+		*cfg_and_state.output << "   Backward pass checkpoint: Memory integrity check..." << std::endl;
+
+		// Verify network state integrity after backward pass and fix non-finite values
+		int total_output_nan_fixed = 0;
+		int total_delta_nan_fixed = 0;
+		for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
 		{
 			Darknet::Layer& layer = net.layers[layer_idx];
 
-			// Update backward_state.delta to point to the previous layer's delta buffer
-			// This is critical: each layer needs to write gradients to the correct buffer
-			if (layer_idx > 0) {
-				// Point to the previous layer's delta (where this layer will write its gradients)
-				backward_state.delta = net.layers[layer_idx - 1].delta;
-				if (cfg_and_state.is_trace) {
-					*cfg_and_state.output << "   Layer " << layer_idx << ": backward_state.delta now points to layer " << (layer_idx-1) << " delta" << std::endl;
+			// Check and fix NaN/Inf in layer outputs
+			if (layer.output && layer.outputs > 0)
+			{
+				int output_nan_count = 0;
+				for (int i = 0; i < layer.outputs; ++i)
+				{
+					if (!std::isfinite(layer.output[i]))
+					{
+						output_nan_count++;
+					}
 				}
-			} else {
-				// For layer 0, point to the input delta buffer we allocated
-				// (this was allocated at line 501)
-				if (cfg_and_state.is_trace) {
-					*cfg_and_state.output << "   Layer " << layer_idx << ": backward_state.delta points to input delta buffer" << std::endl;
+
+				if (output_nan_count > 0)
+				{
+					*cfg_and_state.output << "WARNING: Layer " << layer_idx << " has " << output_nan_count
+										  << " non-finite values in outputs - fixing..." << std::endl;
+					fix_nan_and_inf_cpu(layer.output, layer.outputs);
+					total_output_nan_fixed += output_nan_count;
 				}
 			}
 
-			if (layer.backward)
+			// Check and fix NaN/Inf in layer deltas
+			if (layer.delta && layer.outputs > 0)
 			{
-				if (cfg_and_state.is_trace) {
-					*cfg_and_state.output << "   Layer " << layer_idx << " ("
-										  << static_cast<int>(layer.type) << ") backward..." << std::endl;
+				int delta_nan_count = 0;
+				for (int i = 0; i < layer.outputs; ++i)
+				{
+					if (!std::isfinite(layer.delta[i]))
+					{
+						delta_nan_count++;
+					}
 				}
-				
-				// Pre-backward safety checks with comprehensive memory validation
-				bool layer_memory_ok = true;
 
+				if (delta_nan_count > 0)
+				{
+					*cfg_and_state.output << "WARNING: Layer " << layer_idx << " has " << delta_nan_count
+										  << " non-finite values in deltas - fixing..." << std::endl;
+					fix_nan_and_inf_cpu(layer.delta, layer.outputs);
+					total_delta_nan_fixed += delta_nan_count;
+				}
+			}
+		}
+
+		if (total_output_nan_fixed > 0 || total_delta_nan_fixed > 0)
+		{
+			*cfg_and_state.output << "   Fixed " << total_output_nan_fixed << " output NaN/inf values and "
+								  << total_delta_nan_fixed << " delta NaN/inf values across all layers" << std::endl;
+		}
+
+		*cfg_and_state.output << "   Memory integrity check completed" << std::endl;
+
+		// Check if network is too corrupted to continue safely
+		// If more than 10% of gradients are NaN, the network is likely broken beyond recovery
+		int total_delta_elements = 0;
+		for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+		{
+			if (net.layers[layer_idx].delta && net.layers[layer_idx].outputs > 0)
+				total_delta_elements += net.layers[layer_idx].outputs;
+		}
+
+		float corruption_ratio = (total_delta_elements > 0) ? (float)total_delta_nan_fixed / total_delta_elements : 0.0f;
+		if (corruption_ratio > 0.1f) {
+			*cfg_and_state.output << "WARNING: Network severely corrupted (" << (corruption_ratio * 100.0f)
+			                      << "% NaN gradients) - skipping weight update to prevent total collapse" << std::endl;
+			*cfg_and_state.output << "Stopping training loop early at iteration " << (iteration + 1) << std::endl;
+			break; // Exit the training loop
+		}
+
+		// === GRADIENT CLIPPING ===
+		// Clip gradients to prevent explosion and subsequent NaN propagation
+		// This is critical: without clipping, weight updates cause complete network collapse
+		// Weight initialization uses He: scale = sqrt(2/(kernel_size²*channels))
+		// For conv layers: typical scale ≈ 0.1-0.3, so gradients should be similar magnitude
+		const float grad_clip_threshold = 1.0f;  // Aggressive clipping for uninitialized network
+		int total_clipped = 0;
+
+		*cfg_and_state.output << "   Clipping gradients (threshold=" << grad_clip_threshold << ")..." << std::endl;
+		for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+		{
+			Darknet::Layer& layer = net.layers[layer_idx];
+			if (layer.delta && layer.outputs > 0)
+			{
+				int layer_clipped = 0;
+				for (int i = 0; i < layer.outputs; ++i)
+				{
+					if (std::abs(layer.delta[i]) > grad_clip_threshold)
+					{
+						layer.delta[i] = (layer.delta[i] > 0) ? grad_clip_threshold : -grad_clip_threshold;
+						layer_clipped++;
+					}
+				}
+				total_clipped += layer_clipped;
+
+				if (layer_clipped > 0 && cfg_and_state.is_trace) {
+					*cfg_and_state.output << "   Layer " << layer_idx << ": clipped " << layer_clipped
+					                      << " gradients (" << (100.0f * layer_clipped / layer.outputs) << "%)" << std::endl;
+				}
+			}
+		}
+		*cfg_and_state.output << "   Total gradients clipped: " << total_clipped << std::endl;
+
+		// === GRADIENT STATISTICS (after clipping) ===
+		// Check gradient magnitudes to diagnose gradient explosion
+		if (cfg_and_state.is_trace) {
+			*cfg_and_state.output << "   === Gradient statistics after clipping ===" << std::endl;
+			for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
+			{
+				Darknet::Layer& layer = net.layers[layer_idx];
 				if (layer.delta && layer.outputs > 0)
 				{
-					// Verify layer delta memory is accessible and contains finite values
-					try {
-						for (int i = 0; i < std::min(10, layer.outputs); ++i)
-						{
-							volatile float test_read = layer.delta[i]; // Force memory access
-							if (!std::isfinite(test_read)) {
-								if (cfg_and_state.is_trace) {
-									*cfg_and_state.output << "   Layer " << layer_idx << " delta[" << i << "] = " << test_read << " (non-finite)" << std::endl;
-								}
-								layer.delta[i] = 0.0f; // Fix immediately
-							}
-							(void)test_read; // Suppress unused variable warning
-						}
-					} catch (...) {
-						*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " delta memory access failed" << std::endl;
-						layer_memory_ok = false;
-					}
-				}
+					// Compute gradient statistics
+					float delta_sum = 0.0f;
+					float delta_max = 0.0f;
+					float delta_min = FLT_MAX;
+					int non_zero_deltas = 0;
 
-				if (layer.output && layer.outputs > 0)
-				{
-					// Verify layer output memory is accessible and contains finite values
-					try {
-						for (int i = 0; i < std::min(10, layer.outputs); ++i)
-						{
-							volatile float test_read = layer.output[i]; // Force memory access
-							if (!std::isfinite(test_read)) {
-								if (cfg_and_state.is_trace) {
-									*cfg_and_state.output << "   Layer " << layer_idx << " output[" << i << "] = " << test_read << " (non-finite)" << std::endl;
-								}
-								layer.output[i] = 0.0f; // Fix immediately
-							}
-							(void)test_read; // Suppress unused variable warning
-						}
-					} catch (...) {
-						*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " output memory access failed" << std::endl;
-						layer_memory_ok = false;
-					}
-				}
-
-				if (!layer_memory_ok) {
-					*cfg_and_state.output << "   WARNING: Layer " << layer_idx << " memory validation failed - skipping backward pass" << std::endl;
-					continue; // Skip this layer's backward pass
-				}
-
-				DEBUG_TRACE("   Layer " << layer_idx << " memory checks passed");
-				
-				// Call the appropriate backward function (BDP or standard)
-				try {
-					layer.backward(layer, backward_state);
-					
-					// Post-backward validation to catch issues immediately
-					int post_nan_count = 0;
-					if (layer.output && layer.outputs > 0) {
-						for (int i = 0; i < std::min(5, layer.outputs); ++i) {
-							if (!std::isfinite(layer.output[i])) {
-								post_nan_count++;
-								layer.output[i] = 0.0f; // Fix immediately
-							}
-						}
-					}
-					if (post_nan_count > 0 && cfg_and_state.is_trace) {
-						*cfg_and_state.output << "   Layer " << layer_idx << " backward: fixed " << post_nan_count << " non-finite output values" << std::endl;
+					for (int i = 0; i < layer.outputs; ++i)
+					{
+						float abs_delta = std::abs(layer.delta[i]);
+						delta_sum += abs_delta;
+						delta_max = std::max(delta_max, abs_delta);
+						delta_min = std::min(delta_min, abs_delta);
+						if (abs_delta > 1e-6f) non_zero_deltas++;
 					}
 
-					DEBUG_TRACE("   Layer " << layer_idx << " backward completed");
-				} catch (const std::exception& e) {
-					*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " backward failed: " << e.what() << std::endl;
-					throw; // Re-throw to trigger outer exception handler
-				} catch (...) {
-					*cfg_and_state.output << "   ERROR: Layer " << layer_idx << " backward failed with unknown exception" << std::endl;
-					throw; // Re-throw to trigger outer exception handler
+					float avg_delta = delta_sum / layer.outputs;
+					if (avg_delta > 0.1f || delta_max > 5.0f) {
+						*cfg_and_state.output << "   Layer " << layer_idx << ": avg_grad=" << avg_delta
+						                      << " max_grad=" << delta_max << " min_grad=" << delta_min
+						                      << " non_zero=" << non_zero_deltas << "/" << layer.outputs << std::endl;
+					}
 				}
 			}
-			else
-			{
-				*cfg_and_state.output << "   Layer " << layer_idx << " (" 
-									  << static_cast<int>(layer.type) << ") skipped (no backward function)" << std::endl;
+		}
+
+		// === WEIGHT UPDATE ===
+		// After backward pass, apply gradients to update weights
+		// This is the crucial step that was missing - backward only computes gradients
+
+		// Calculate and display current learning rate
+		int current_batch = (*net.seen) / (net.batch * net.subdivisions);
+		float current_lr = get_current_rate(net);
+		*cfg_and_state.output << "   Current batch: " << current_batch
+		                      << ", Learning rate: " << current_lr << std::endl;
+
+		if (current_lr == 0.0f) {
+			*cfg_and_state.output << "   WARNING: Learning rate is 0.0 - weights will not update!" << std::endl;
+		}
+
+		// Check a few weights before update
+		if (cfg_and_state.is_trace && net.layers[0].weights) {
+			float w_sum = 0.0f;
+			for (int i = 0; i < std::min(10, net.layers[0].nweights); ++i) {
+				w_sum += std::abs(net.layers[0].weights[i]);
 			}
+			*cfg_and_state.output << "   Layer 0 weights before update (avg of first 10): " << (w_sum / 10.0f) << std::endl;
 		}
-	} catch (const std::exception& e) {
-		*cfg_and_state.output << "ERROR: Backward pass failed with exception: " << e.what() << std::endl;
-		
-		// Clean up and restore state
-		if (backward_state.delta) {
-			free(backward_state.delta);
-			backward_state.delta = nullptr;
+
+		*cfg_and_state.output << "   Updating network weights..." << std::endl;
+		update_network(net);
+		*cfg_and_state.output << "   Weights updated" << std::endl;
+
+		// Check weights after update
+		if (cfg_and_state.is_trace && net.layers[0].weights) {
+			float w_sum = 0.0f;
+			int nan_count = 0;
+			for (int i = 0; i < std::min(10, net.layers[0].nweights); ++i) {
+				w_sum += std::abs(net.layers[0].weights[i]);
+				if (!std::isfinite(net.layers[0].weights[i])) nan_count++;
+			}
+			*cfg_and_state.output << "   Layer 0 weights after update (avg of first 10): " << (w_sum / 10.0f)
+			                      << ", NaN count: " << nan_count << std::endl;
 		}
-		
-		#ifdef DARKNET_GPU
-		net.gpu_index = original_gpu;
-		#endif
-		
-		Darknet::free_image(orig);
-		Darknet::free_image(sized);
-		return;
-	}
-	
-	#ifdef DARKNET_GPU
-	// Restore original GPU setting
-	net.gpu_index = original_gpu;
-	*cfg_and_state.output << "   Restored GPU mode: " << original_gpu << std::endl;
-	#endif
-	
-	*cfg_and_state.output << "   Backward pass completed on CPU" << std::endl;
-	
-	// Add debugging checkpoint after backward pass
-	*cfg_and_state.output << "   Backward pass checkpoint: Memory integrity check..." << std::endl;
-	
-	// Verify network state integrity after backward pass and fix non-finite values
-	int total_output_nan_fixed = 0;
-	int total_delta_nan_fixed = 0;
-	for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
-	{
-		Darknet::Layer& layer = net.layers[layer_idx];
-		
-		// Check and fix NaN/Inf in layer outputs
-		if (layer.output && layer.outputs > 0)
+
+		// Increment batch counter for next iteration
+		(*net.seen) += net.batch * net.subdivisions;
+
+		// === FORWARD PASS (iteration forward pass) ===
+		*cfg_and_state.output << (iteration + 3) << ". Forward pass #" << (iteration + 2) << "..." << std::endl;
+
+		// Restore layer outputs before forward pass to prevent corruption from backward pass
+		*cfg_and_state.output << "   Restoring layer outputs from before backward pass..." << std::endl;
+		int restored_layers = 0;
+		for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
 		{
-			int output_nan_count = 0;
-			for (int i = 0; i < layer.outputs; ++i)
+			Darknet::Layer& layer = net.layers[layer_idx];
+			if (layer.output && layer.outputs > 0 && !saved_layer_outputs[layer_idx].empty())
 			{
-				if (!std::isfinite(layer.output[i]))
-				{
-					output_nan_count++;
-				}
-			}
-			
-			if (output_nan_count > 0)
-			{
-				*cfg_and_state.output << "WARNING: Layer " << layer_idx << " has " << output_nan_count 
-									  << " non-finite values in outputs - fixing..." << std::endl;
-				fix_nan_and_inf_cpu(layer.output, layer.outputs);
-				total_output_nan_fixed += output_nan_count;
+				// Restore the original layer output
+				std::memcpy(layer.output, saved_layer_outputs[layer_idx].data(), layer.outputs * sizeof(float));
+				restored_layers++;
 			}
 		}
-		
-		// Check and fix NaN/Inf in layer deltas  
-		if (layer.delta && layer.outputs > 0)
-		{
-			int delta_nan_count = 0;
-			for (int i = 0; i < layer.outputs; ++i)
-			{
-				if (!std::isfinite(layer.delta[i]))
-				{
-					delta_nan_count++;
-				}
-			}
-			
-			if (delta_nan_count > 0)
-			{
-				*cfg_and_state.output << "WARNING: Layer " << layer_idx << " has " << delta_nan_count 
-									  << " non-finite values in deltas - fixing..." << std::endl;
-				fix_nan_and_inf_cpu(layer.delta, layer.outputs);
-				total_delta_nan_fixed += delta_nan_count;
-			}
-		}
-	}
-	
-	if (total_output_nan_fixed > 0 || total_delta_nan_fixed > 0)
-	{
-		*cfg_and_state.output << "   Fixed " << total_output_nan_fixed << " output NaN/inf values and " 
-							  << total_delta_nan_fixed << " delta NaN/inf values across all layers" << std::endl;
-	}
-	
-	*cfg_and_state.output << "   Memory integrity check completed" << std::endl;
+		*cfg_and_state.output << "   Restored outputs for " << restored_layers << " layers" << std::endl;
 
-	// === SECOND FORWARD PASS ===
-	*cfg_and_state.output << "3. Forward pass #2..." << std::endl;
-	
-	// Restore layer outputs before second forward pass to prevent corruption from backward pass
-	*cfg_and_state.output << "   Restoring layer outputs from before backward pass..." << std::endl;
-	int restored_layers = 0;
-	for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
-	{
-		Darknet::Layer& layer = net.layers[layer_idx];
-		if (layer.output && layer.outputs > 0 && !saved_layer_outputs[layer_idx].empty())
+		try {
+			// Note: network_predict doesn't calculate loss (only forward_network with truth does)
+			// So we need to run forward_network with truth instead
+			Darknet::NetworkState forward_state_loop;
+			std::memset(&forward_state_loop, 0, sizeof(forward_state_loop));
+			forward_state_loop.net = net;
+			forward_state_loop.index = 0;
+			forward_state_loop.input = sized.data;
+			forward_state_loop.truth = truth;  // Provide ground truth for loss calculation
+			forward_state_loop.train = 1;      // Enable training mode
+			forward_state_loop.workspace = net.workspace;
+
+			forward_network(net, forward_state_loop);
+			*cfg_and_state.output << "   Forward pass #" << (iteration + 2) << " completed successfully" << std::endl;
+		} catch (const std::exception& e) {
+			*cfg_and_state.output << "ERROR: Forward pass #" << (iteration + 2) << " failed with exception: " << e.what() << std::endl;
+
+			// Clean up and return early to avoid further issues
+			free(original_backward_delta);
+			free(truth);
+			Darknet::free_image(orig);
+			Darknet::free_image(sized);
+			return;
+		}
+
+		// Print summary after this forward pass
+		if (cfg_and_state.is_trace) {
+			*cfg_and_state.output << "   === Forward pass #" << (iteration + 2) << " completed - see detailed losses above ===" << std::endl;
+			for (int layer_idx = 0; layer_idx < net.n; ++layer_idx) {
+				Darknet::Layer& layer = net.layers[layer_idx];
+				if (layer.type == Darknet::ELayerType::YOLO_BDP) {
+					float total_cost = layer.cost ? *layer.cost : 0.0f;
+					*cfg_and_state.output << "   Layer " << layer_idx << " (YOLO_BDP): stored total_loss=" << total_cost << std::endl;
+				}
+			}
+		}
+
+		// Save updated layer outputs after this forward pass for next iteration
+		DEBUG_TRACE("   Updating saved layer outputs for next iteration...");
+		for (int layer_idx = 0; layer_idx < net.n; ++layer_idx)
 		{
-			// Restore the original layer output
-			std::memcpy(layer.output, saved_layer_outputs[layer_idx].data(), layer.outputs * sizeof(float));
-			restored_layers++;
+			Darknet::Layer& layer = net.layers[layer_idx];
+			if (layer.output && layer.outputs > 0)
+			{
+				// Update the saved output with the new forward pass results
+				saved_layer_outputs[layer_idx].resize(layer.outputs);
+				std::memcpy(saved_layer_outputs[layer_idx].data(), layer.output, layer.outputs * sizeof(float));
+			}
 		}
-	}
-	*cfg_and_state.output << "   Restored outputs for " << restored_layers << " layers" << std::endl;
-	
-	try {
-		network_predict(net, sized.data);
-		*cfg_and_state.output << "   Forward pass #2 completed successfully" << std::endl;
-	} catch (const std::exception& e) {
-		*cfg_and_state.output << "ERROR: Forward pass #2 failed with exception: " << e.what() << std::endl;
-		
-		// Clean up and return early to avoid further issues
-		if (backward_state.delta) {
-			free(backward_state.delta);
-			backward_state.delta = nullptr;
-		}
-		Darknet::free_image(orig);
-		Darknet::free_image(sized);
-		return;
-	}
+	}  // End of training loop
+
+	// Free the backward delta buffer after all iterations complete
+	free(original_backward_delta);
+	*cfg_and_state.output << "\nTraining loop completed: " << num_iterations << " backward-forward iterations finished." << std::endl;
 
 	// Count BDP detections and extract them if drawing is requested
 	int total_bdp_detections = 0;
@@ -1010,16 +1189,7 @@ void experiment(int argc, char** argv, const char* cfgfile, const char* imagepat
 	}
 	DEBUG_TRACE("[DEBUG] All detection prob arrays freed");
 
-	// Clean up backward pass memory
-	// IMPORTANT: Free the original allocated delta, not the reassigned pointer
-	DEBUG_TRACE("[DEBUG] Freeing backward_state.delta (original allocation)...");
-	if (original_backward_delta)
-	{
-		free(original_backward_delta);
-		original_backward_delta = nullptr;
-	}
-	backward_state.delta = nullptr;  // Clear the pointer (it was pointing to a layer delta)
-	DEBUG_TRACE("[DEBUG] backward_state.delta freed");
+	// Note: original_backward_delta was already freed after the training loop (line 789)
 
 	// Clean up memory
 	DEBUG_TRACE("[DEBUG] Freeing orig image...");

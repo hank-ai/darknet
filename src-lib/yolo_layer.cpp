@@ -17,6 +17,7 @@ namespace
 		float tot_iou;
 		float tot_giou_loss;
 		float tot_iou_loss;
+		float tot_fp_loss;  // Total front point loss for BDP
 		int count;
 		int class_count;
 	};
@@ -315,8 +316,42 @@ namespace
 	}
 
 
+	/// @implement OBB: Compute angle between two vectors for angular IoU correction
+	/// Returns angle in radians between vector (px, py) and (tx, ty)
+	/// Uses atan2 for robust angle calculation handling all quadrants
+	///
+	/// NOTE: This is an initial implementation based on paper equation 11.
+	/// The exact angle computation method for LIoU = IoU * cos(angle/2) may need verification.
+	/// Alternative approaches to consider:
+	/// - Direct angle from atan2 of each vector separately, then take difference
+	/// - Normalization of vectors before angle computation
+	/// - Different handling of edge cases (zero vectors, opposite directions)
+	static inline float compute_angle_between_vectors(float px, float py, float tx, float ty)
+	{
+		// Compute vector magnitudes
+		float pred_mag = std::sqrt(px * px + py * py);
+		float truth_mag = std::sqrt(tx * tx + ty * ty);
+
+		// Handle degenerate cases (zero-length vectors)
+		if (pred_mag < 1e-6f || truth_mag < 1e-6f) {
+			return 0.0f;  // No angle if either vector is too small
+		}
+
+		// Compute dot product and cross product magnitude
+		float dot = px * tx + py * ty;
+		float cross = px * ty - py * tx;
+
+		// Use atan2 for robust angle calculation
+		float angle = std::atan2(cross, dot);
+
+		// Return absolute angle (we only care about magnitude of difference)
+		return std::abs(angle);
+	}
+
+
 	/// BDP loss function: delta for 6-parameter oriented bounding box (x,y,w,h,fx,fy)
-	static inline ious delta_yolo_box_bdp(const DarknetBoxBDP & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
+	/// Added fp_normalizer parameter (λ4 from paper equation 10) for front point loss weighting
+	static inline ious delta_yolo_box_bdp(const DarknetBoxBDP & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const float fp_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
 	{
 		TAT(TATPARMS);
 
@@ -354,23 +389,45 @@ namespace
 		ious all_ious = { 0 };
 		
 		// Convert BDP to standard box for IoU calculation (use center+dimensions only)
-		Darknet::Box pred_center;
+		DarknetBoxBDP pred_center;
 		pred_center.x = x[index + 0 * stride];
-		pred_center.y = x[index + 1 * stride]; 
+		pred_center.y = x[index + 1 * stride];
 		pred_center.w = x[index + 2 * stride];
 		pred_center.h = x[index + 3 * stride];
-		
-		Darknet::Box truth_center;
+		pred_center.fx = x[index + 4 * stride];
+		pred_center.fy = x[index + 5 * stride];
+
+		DarknetBoxBDP truth_center;
 		truth_center.x = truth.x;
 		truth_center.y = truth.y;
 		truth_center.w = truth.w;
 		truth_center.h = truth.h;
-		
-		// Standard box IoU calculations for center+dimensions
-		all_ious.iou = box_iou(pred_center, truth_center);
-		all_ious.giou = box_giou(pred_center, truth_center);
-		all_ious.diou = box_diou(pred_center, truth_center);
-		all_ious.ciou = box_ciou(pred_center, truth_center);
+		truth_center.fx = truth.fx;
+		truth_center.fy = truth.fy;
+
+		// Standard box IoU calculations for center+dimensions (using BDP-specific IoU functions)
+		all_ious.iou = box_iou_bdp(pred_center, truth_center);
+		all_ious.giou = box_giou_bdp(pred_center, truth_center);
+		all_ious.diou = box_diou_bdp(pred_center, truth_center);
+		all_ious.ciou = box_ciou_bdp(pred_center, truth_center);
+
+		// Angular IoU correction (paper equation 11): LIoU = IoU * cos(angle/2)
+		// Compute vectors from center to front point
+		float pred_vec_x = x[index + 4 * stride] - pred_center.x;   // predicted front point vector
+		float pred_vec_y = x[index + 5 * stride] - pred_center.y;
+		float truth_vec_x = truth.fx - truth.x;  // ground truth front point vector
+		float truth_vec_y = truth.fy - truth.y;
+
+		// Compute angle between vectors and apply correction
+		float angle_diff = compute_angle_between_vectors(pred_vec_x, pred_vec_y, truth_vec_x, truth_vec_y);
+		float angular_correction = std::cos(angle_diff / 2.0f);
+
+		// Apply angular correction to all IoU values (paper equation 11)
+		// NOTE: This is the critical step - IoU is penalized when orientation is wrong
+		all_ious.iou *= angular_correction;
+		all_ious.giou *= angular_correction;
+		all_ious.diou *= angular_correction;
+		all_ious.ciou *= angular_correction;
 
 		// Avoid nan in dx_box_iou
 		if (pred_center.w == 0) pred_center.w = 1.0;
@@ -389,9 +446,25 @@ namespace
 			float tw = log(safe_w_arg);
 			float th = log(safe_h_arg);
 
-			// Front point loss (new for BDP)
-			float tfx = (truth.fx * lw - i);  // Target front point x
-			float tfy = (truth.fy * lh - j);  // Target front point y
+			// Front point loss: both truth and prediction are absolute [0,1] coordinates
+			// Network outputs absolute fx,fy after sigmoid, truth.fx/fy are also absolute
+			float diff_fx = truth.fx - x[index + 4 * stride];
+			float diff_fy = truth.fy - x[index + 5 * stride];
+			float abs_diff_fx = std::abs(diff_fx);
+			float abs_diff_fy = std::abs(diff_fy);
+
+			// Smooth L1 loss for front point
+			float loss_fx = (abs_diff_fx < 1.0f) ? (0.5f * diff_fx * diff_fx) : (abs_diff_fx - 0.5f);
+			float loss_fy = (abs_diff_fy < 1.0f) ? (0.5f * diff_fy * diff_fy) : (abs_diff_fy - 0.5f);
+			all_ious.fp_loss = loss_fx + loss_fy;
+
+			// Gradient for Smooth L1
+			float grad_fx = (abs_diff_fx < 1.0f) ? diff_fx : ((diff_fx > 0) ? 1.0f : -1.0f);
+			float grad_fy = (abs_diff_fy < 1.0f) ? diff_fy : ((diff_fy > 0) ? 1.0f : -1.0f);
+
+			// Compute deltas (will be accumulated later with x,y,w,h deltas)
+			float dfx = scale * (-grad_fx) * logistic_gradient(x[index + 4 * stride]) * fp_normalizer;
+			float dfy = scale * (-grad_fy) * logistic_gradient(x[index + 5 * stride]) * fp_normalizer;
 
 			if (new_coords)
 			{
@@ -402,13 +475,14 @@ namespace
 				th = sqrt(safe_h_sqrt_arg);
 			}
 
-			// Calculate deltas for all 6 parameters
+			// Calculate deltas for x,y,w,h (standard MSE)
 			float dx = scale * (tx - x[index + 0 * stride]) * iou_normalizer;
 			float dy = scale * (ty - x[index + 1 * stride]) * iou_normalizer;
 			float dw = scale * (tw - x[index + 2 * stride]) * iou_normalizer;
 			float dh = scale * (th - x[index + 3 * stride]) * iou_normalizer;
-			float dfx = scale * (tfx - x[index + 4 * stride]) * iou_normalizer;
-			float dfy = scale * (tfy - x[index + 5 * stride]) * iou_normalizer;
+
+			// Front point deltas already computed above (line 466-467)
+			// dfx and dfy are already defined in the scope above
 
 			// Fix NaN/inf values in all deltas
 			fix_nan_inf(dx); fix_nan_inf(dy); fix_nan_inf(dw); fix_nan_inf(dh);
@@ -432,8 +506,8 @@ namespace
 		}
 		else  // IoU-based loss
 		{
-			// Calculate gradients for center+dimensions using standard IoU
-			all_ious.dx_iou = dx_box_iou(pred_center, truth_center, iou_loss);
+			// Calculate gradients for center+dimensions using BDP-specific IoU gradient function
+			all_ious.dx_iou = dx_box_iou_bdp(pred_center, truth_center, iou_loss);
 
 			// Standard gradients for x,y,w,h
 			float dx = all_ious.dx_iou.dt;
@@ -441,12 +515,47 @@ namespace
 			float dw = all_ious.dx_iou.dl;
 			float dh = all_ious.dx_iou.dr;
 
-			// For front point gradients, use MSE loss as fallback
-			// TODO: In future, implement proper oriented IoU loss here
-			float tfx = (truth.fx * lw - i);
-			float tfy = (truth.fy * lh - j);
-			float dfx = scale * (tfx - x[index + 4 * stride]);
-			float dfy = scale * (tfy - x[index + 5 * stride]);
+			// Front point loss: both truth and prediction are absolute [0,1] coordinates
+			// Network outputs absolute fx,fy after sigmoid, truth.fx/fy are also absolute
+			float diff_fx = truth.fx - x[index + 4 * stride];
+			float diff_fy = truth.fy - x[index + 5 * stride];
+			float abs_diff_fx = std::abs(diff_fx);
+			float abs_diff_fy = std::abs(diff_fy);
+
+			// DEBUG: Print actual values in IoU-based loss path
+			static int debug_count_iou = 0;
+			if (debug_count_iou++ < 5) {
+				*cfg_and_state.output << "   [BDP_DEBUG_IOU] CALL#" << debug_count_iou
+				                      << " grid=(i=" << i << ",j=" << j << ")"
+				                      << " truth.x=" << truth.x << " truth.y=" << truth.y
+				                      << "\n      truth.fx=" << truth.fx << " truth.fy=" << truth.fy
+				                      << "\n      pred_fx=" << x[index + 4 * stride]
+				                      << " pred_fy=" << x[index + 5 * stride]
+				                      << "\n      diff_fx=" << diff_fx << " diff_fy=" << diff_fy
+				                      << std::endl;
+			}
+
+			// Smooth L1 loss computation
+			float loss_fx = (abs_diff_fx < 1.0f) ? (0.5f * diff_fx * diff_fx) : (abs_diff_fx - 0.5f);
+			float loss_fy = (abs_diff_fy < 1.0f) ? (0.5f * diff_fy * diff_fy) : (abs_diff_fy - 0.5f);
+			all_ious.fp_loss = loss_fx + loss_fy;
+
+			if (debug_count_iou <= 3) {
+				*cfg_and_state.output << "      loss_fx=" << loss_fx << " loss_fy=" << loss_fy
+				                      << " fp_loss=" << all_ious.fp_loss
+				                      << " fp_normalizer=" << fp_normalizer << std::endl;
+			}
+
+			// Smooth L1 gradient
+			float grad_fx = (abs_diff_fx < 1.0f) ? diff_fx : ((diff_fx > 0) ? 1.0f : -1.0f);
+			float grad_fy = (abs_diff_fy < 1.0f) ? diff_fy : ((diff_fy > 0) ? 1.0f : -1.0f);
+
+			// Apply chain rule through sigmoid activation function
+			// Since forward pass applies sigmoid(raw_fx), we need gradient: dL/d(raw_fx) = dL/d(sigmoid(raw_fx)) * d(sigmoid)/d(raw_fx)
+			// logistic_gradient computes d(sigmoid)/dx = sigmoid(x) * (1 - sigmoid(x))
+			// This matches the pattern used in region_layer.cpp for x,y coordinates
+			float dfx = scale * grad_fx * logistic_gradient(x[index + 4 * stride]);
+			float dfy = scale * grad_fy * logistic_gradient(x[index + 5 * stride]);
 
 			// Apply exponential gradient for w,h if needed
 			// BDP-specific: Validate input values before exp() to prevent inf in gradients
@@ -470,8 +579,8 @@ namespace
 			dy *= iou_normalizer;
 			dw *= iou_normalizer;
 			dh *= iou_normalizer;
-			dfx *= iou_normalizer;
-			dfy *= iou_normalizer;
+			dfx *= fp_normalizer;  // Front point uses fp_normalizer (λ4)
+			dfy *= fp_normalizer;
 
 			// Fix NaN/inf values
 			fix_nan_inf(dx); fix_nan_inf(dy); fix_nan_inf(dw); fix_nan_inf(dh);
@@ -1352,6 +1461,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	//float tot_ciou = 0;
 	float tot_iou_loss = 0;
 	float tot_giou_loss = 0;
+	float tot_fp_loss = 0;  // Total front point loss across all batches
 	//float tot_diou_loss = 0;
 	//float tot_ciou_loss = 0;
 	//float recall = 0;
@@ -1378,6 +1488,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		yolo_args[b].tot_iou = 0;
 		yolo_args[b].tot_iou_loss = 0;
 		yolo_args[b].tot_giou_loss = 0;
+		yolo_args[b].tot_fp_loss = 0;  // Initialize front point loss
 		yolo_args[b].count = 0;
 		yolo_args[b].class_count = 0;
 
@@ -1391,6 +1502,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		tot_iou += yolo_args[b].tot_iou;
 		tot_iou_loss += yolo_args[b].tot_iou_loss;
 		tot_giou_loss += yolo_args[b].tot_giou_loss;
+		tot_fp_loss += yolo_args[b].tot_fp_loss;  // Aggregate front point loss
 		count += yolo_args[b].count;
 		class_count += yolo_args[b].class_count;
 	}
@@ -2374,6 +2486,8 @@ void process_batch_bdp(void* ptr)
 				pred.y = pred_bdp.y;
 				pred.w = pred_bdp.w;
 				pred.h = pred_bdp.h;
+				pred_bdp.fx = pred_bdp.fx;
+				pred_bdp.fy = pred_bdp.fy;
 
 				float best_match_iou = 0;
 				float best_iou = 0;
@@ -2510,8 +2624,18 @@ void process_batch_bdp(void* ptr)
 					// Extract ground truth BDP box and compute coordinate loss
 					DarknetBoxBDP truth_bdp = float_to_box_bdp_stride(state.truth + best_t * l.truth_size + b * l.truths, 1);
 
-					// Compute BDP box loss (includes x,y,w,h,fx,fy)
-					delta_yolo_box_bdp(truth_bdp, l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+					// Compute BDP box loss (includes x,y,w,h,fx,fy with Smooth L1 for fx/fy)
+					ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.fp_normalizer, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+
+					static int accum_count_1 = 0;
+					if (accum_count_1++ < 5) {
+						*cfg_and_state.output << "   [ACCUM#1-" << accum_count_1 << "] Location: first loop (grid scan)"
+						                      << " fp_loss=" << all_ious.fp_loss
+						                      << " tot_fp_loss_before=" << args->tot_fp_loss
+						                      << " tot_fp_loss_after=" << (args->tot_fp_loss + all_ious.fp_loss) << std::endl;
+					}
+
+					args->tot_fp_loss += all_ious.fp_loss;  // Accumulate front point loss
 					(*state.net.total_bbox)++;
 				}
 			}
@@ -2578,8 +2702,18 @@ void process_batch_bdp(void* ptr)
 			int box_index = yolo_entry_index_bdp(l, b, mask_n2 * l.w * l.h + j * l.w + i, 0);
 			const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
 
-			// Compute BDP box loss for this ground truth
-			ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, best_n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+			// Compute BDP box loss for this ground truth (includes angular IoU correction and Smooth L1 for fx/fy)
+			ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, best_n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.fp_normalizer, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+
+			static int accum_count_2 = 0;
+			if (accum_count_2++ < 5) {
+				*cfg_and_state.output << "   [ACCUM#2-" << accum_count_2 << "] Location: second loop (GT assignment to best anchor)"
+				                      << " fp_loss=" << all_ious.fp_loss
+				                      << " tot_fp_loss_before=" << args->tot_fp_loss
+				                      << " tot_fp_loss_after=" << (args->tot_fp_loss + all_ious.fp_loss) << std::endl;
+			}
+
+			args->tot_fp_loss += all_ious.fp_loss;  // Accumulate front point loss
 			(*state.net.total_bbox)++;
 
 			const int truth_in_index = t * l.truth_size + b * l.truths + 6; // Track ID/reserved at offset +6
@@ -2635,7 +2769,17 @@ void process_batch_bdp(void* ptr)
 
 					int box_index = yolo_entry_index_bdp(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
 					const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
-					ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+					ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.fp_normalizer, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+
+					static int accum_count_3 = 0;
+					if (accum_count_3++ < 5) {
+						*cfg_and_state.output << "   [ACCUM#3-" << accum_count_3 << "] Location: third loop (additional high-IOU anchors)"
+						                      << " fp_loss=" << all_ious.fp_loss
+						                      << " tot_fp_loss_before=" << args->tot_fp_loss
+						                      << " tot_fp_loss_after=" << (args->tot_fp_loss + all_ious.fp_loss) << std::endl;
+					}
+
+					args->tot_fp_loss += all_ious.fp_loss;  // Accumulate front point loss
 					(*state.net.total_bbox)++;
 
 					args->tot_iou += all_ious.iou;
@@ -2739,6 +2883,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	// Verify output size calculation: batch * anchors * grid * (coords + objectness + classes)
 	size_t expected_outputs = l.batch * l.n * l.w * l.h * (6 + 1 + l.classes);
 	assert(l.outputs == expected_outputs);
+	(void)expected_outputs;  // Suppress unused warning in release builds
 
 	// Memory bounds checking
 	assert(l.outputs <= 1000000);    // Reasonable upper bound to prevent overflow
@@ -3039,6 +3184,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	float tot_iou = 0;
 	float tot_iou_loss = 0;
 	float tot_giou_loss = 0;
+	float tot_fp_loss = 0;  // Front point loss accumulator (paper equation 10)
 	int count = 0;
 	int class_count = 0;
 	*(l.cost) = 0;
@@ -3062,6 +3208,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 		yolo_args[b].tot_iou = 0;
 		yolo_args[b].tot_iou_loss = 0;
 		yolo_args[b].tot_giou_loss = 0;
+		yolo_args[b].tot_fp_loss = 0;  // Initialize front point loss
 		yolo_args[b].count = 0;
 		yolo_args[b].class_count = 0;
 
@@ -3077,6 +3224,10 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 		tot_iou += yolo_args[b].tot_iou;
 		tot_iou_loss += yolo_args[b].tot_iou_loss;
 		tot_giou_loss += yolo_args[b].tot_giou_loss;
+		tot_fp_loss += yolo_args[b].tot_fp_loss;  // Aggregate front point loss
+		DEBUG_TRACE("   [BDP] forward_yolo_layer_bdp: batch=" << b
+		            << " batch_fp_loss=" << yolo_args[b].tot_fp_loss
+		            << " total_fp_loss=" << tot_fp_loss);
 		count += yolo_args[b].count;
 		class_count += yolo_args[b].class_count;
 	}
@@ -3211,10 +3362,28 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	float loss = pow(mag_array(l.delta, l.outputs * l.batch), 2);
 	float iou_loss = loss - classification_loss;
 
+	// Compute average front point loss
+	float avg_fp_loss = (count > 0) ? (tot_fp_loss / count) : 0.0f;
+
+	// Debug: Check for errors in loss values and BDP loss computation
+	DEBUG_TRACE("   [BDP] forward_yolo_layer_bdp: FINAL tot_fp_loss=" << tot_fp_loss
+	            << " count=" << count << " avg_fp_loss=" << avg_fp_loss
+	            << " fp_normalizer=" << l.fp_normalizer);
+	DEBUG_TRACE("   [DEBUG] Loss computation: total_loss=" << loss << " iou_loss=" << iou_loss
+	            << " class_loss=" << classification_loss << " fp_loss=" << avg_fp_loss);
+	if (std::isnan(loss) || std::isinf(loss)) {
+		*cfg_and_state.output << "   [ERROR] Total loss is NaN/inf!" << std::endl;
+	}
+	if (std::isnan(avg_fp_loss) || std::isinf(avg_fp_loss)) {
+		*cfg_and_state.output << "   [ERROR] Front point loss is NaN/inf!" << std::endl;
+	}
+
 	*(l.cost) = loss;
 
+	// Output training metrics including front point loss (paper equation 10)
 	*cfg_and_state.output << "BDP training: loss=" << loss
-	                      << " iou_loss=" << iou_loss
+	                      << " iou_loss=" << iou_loss << "(corrected)"  // IoU with angular correction (equation 11)
+	                      << " fp_loss=" << avg_fp_loss  // Front point Smooth L1 loss (equation 10)
 	                      << " class_loss=" << classification_loss
 	                      << " count=" << count
 	                      << " avg_iou=" << (tot_iou / count)
@@ -3263,6 +3432,7 @@ int yolo_num_detections_bdp(const Darknet::Layer & l, float thresh)
 			// Verify output size for BDP: batch * anchors * grid * (6 coords + 1 obj + classes)
 			size_t expected_min_outputs = l.n * l.w * l.h * (6 + 1 + l.classes);
 			assert(l.outputs >= expected_min_outputs);
+			(void)expected_min_outputs;  // Suppress unused warning in release builds
 		})
 		.postcondition([&] {
 			assert(result >= 0);                     // Count must be non-negative

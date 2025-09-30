@@ -30,6 +30,13 @@ float box_diou(const Darknet::Box & a, const Darknet::Box & b);
 float box_ciou(const Darknet::Box & a, const Darknet::Box & b);
 dxrep dx_box_iou(const Darknet::Box & a, const Darknet::Box & b, const IOU_LOSS iou_loss);
 dbox diou(const Darknet::Box & a, const Darknet::Box & b);
+
+// BDP-specific IoU functions - use only x,y,w,h for IoU calculation (ignore fx,fy orientation)
+float box_iou_bdp(const DarknetBoxBDP & a, const DarknetBoxBDP & b);
+float box_giou_bdp(const DarknetBoxBDP & a, const DarknetBoxBDP & b);
+float box_diou_bdp(const DarknetBoxBDP & a, const DarknetBoxBDP & b);
+float box_ciou_bdp(const DarknetBoxBDP & a, const DarknetBoxBDP & b);
+dxrep dx_box_iou_bdp(const DarknetBoxBDP & a, const DarknetBoxBDP & b, const IOU_LOSS iou_loss);
 float box_rmse(const Darknet::Box & a, const Darknet::Box & b);
 void do_nms(Darknet::Box *boxes, float **probs, int total, int classes, float thresh);
 void do_nms_sort_v2(Darknet::Box *boxes, float **probs, int total, int classes, float thresh);

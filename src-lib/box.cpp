@@ -1108,3 +1108,57 @@ Darknet::Box decode_box(const Darknet::Box & b, const Darknet::Box & anchor)
 
 	return decode;
 }
+
+
+// BDP-specific IoU functions - wrapper functions that extract x,y,w,h from 6-parameter BDP boxes
+// and delegate to standard IoU functions. The front point (fx,fy) is not used for IoU calculation.
+
+float box_iou_bdp(const DarknetBoxBDP & a, const DarknetBoxBDP & b)
+{
+	TAT(TATPARMS);
+	// Convert BDP boxes to standard boxes (only x,y,w,h needed for IoU)
+	Darknet::Box box_a = {a.x, a.y, a.w, a.h};
+	Darknet::Box box_b = {b.x, b.y, b.w, b.h};
+	return box_iou(box_a, box_b);
+}
+
+
+float box_giou_bdp(const DarknetBoxBDP & a, const DarknetBoxBDP & b)
+{
+	TAT(TATPARMS);
+	// Convert BDP boxes to standard boxes (only x,y,w,h needed for GIoU)
+	Darknet::Box box_a = {a.x, a.y, a.w, a.h};
+	Darknet::Box box_b = {b.x, b.y, b.w, b.h};
+	return box_giou(box_a, box_b);
+}
+
+
+float box_diou_bdp(const DarknetBoxBDP & a, const DarknetBoxBDP & b)
+{
+	TAT(TATPARMS);
+	// Convert BDP boxes to standard boxes (only x,y,w,h needed for DIoU)
+	Darknet::Box box_a = {a.x, a.y, a.w, a.h};
+	Darknet::Box box_b = {b.x, b.y, b.w, b.h};
+	return box_diou(box_a, box_b);
+}
+
+
+float box_ciou_bdp(const DarknetBoxBDP & a, const DarknetBoxBDP & b)
+{
+	TAT(TATPARMS);
+	// Convert BDP boxes to standard boxes (only x,y,w,h needed for CIoU)
+	Darknet::Box box_a = {a.x, a.y, a.w, a.h};
+	Darknet::Box box_b = {b.x, b.y, b.w, b.h};
+	return box_ciou(box_a, box_b);
+}
+
+
+dxrep dx_box_iou_bdp(const DarknetBoxBDP & a, const DarknetBoxBDP & b, const IOU_LOSS iou_loss)
+{
+	TAT(TATPARMS);
+	// Convert BDP boxes to standard boxes (only x,y,w,h needed for IoU gradient)
+	// Returns gradients with respect to box_a: {dt, db, dl, dr} for (x, y, w, h)
+	Darknet::Box box_a = {a.x, a.y, a.w, a.h};
+	Darknet::Box box_b = {b.x, b.y, b.w, b.h};
+	return dx_box_iou(box_a, box_b, iou_loss);
+}
