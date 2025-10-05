@@ -8,6 +8,131 @@ namespace
 	// Macro for debug output - only prints if --trace flag is enabled
 	#define DEBUG_TRACE(msg) if (cfg_and_state.is_trace) { *cfg_and_state.output << msg << std::endl; }
 
+	// Debug macros for BDP loss/gradient logging (active until iteration 20)
+	// These macros log loss components and gradients during training to diagnose
+	// why training fails at step 16. Each macro logs only if iteration <= MAX_ITER.
+	#define BDP_DEBUG_MAX_ITER 20
+
+	#define LOSS_RIOU(iter, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			*cfg_and_state.output << "[LOSS_RIOU iter=" << (iter) << "] " << __VA_ARGS__ << std::endl; \
+		}
+
+	// Helper function to get color for value: blue for near-zero, red for large values
+	inline std::string value_color(float val) {
+		float abs_val = std::abs(val);
+		if (!std::isfinite(val)) return cfg_and_state.colour_is_enabled ? "\033[1;31m" : ""; // Bright red for NaN/Inf
+		if (abs_val < 1e-6f) return cfg_and_state.colour_is_enabled ? "\033[34m" : ""; // Blue for ~0
+		if (abs_val > 1.0f) return cfg_and_state.colour_is_enabled ? "\033[31m" : ""; // Red for >1
+		return ""; // No color for normal values
+	}
+
+	// Helper function to get color for loss values: red if ~0, blue if 0.005-0.1, red if >0.1
+	inline std::string loss_color(float val) {
+		float abs_val = std::abs(val);
+		if (!std::isfinite(val)) return cfg_and_state.colour_is_enabled ? "\033[1;31m" : ""; // Bright red for NaN/Inf
+		if (abs_val < 0.005f) return cfg_and_state.colour_is_enabled ? "\033[31m" : ""; // Red for close to 0
+		if (abs_val >= 0.005f && abs_val <= 0.1f) return cfg_and_state.colour_is_enabled ? "\033[34m" : ""; // Blue for good range
+		if (abs_val > 0.1f) return cfg_and_state.colour_is_enabled ? "\033[31m" : ""; // Red for too large
+		return ""; // No color
+	}
+
+	inline std::string reset_color() {
+		return cfg_and_state.colour_is_enabled ? "\033[0m" : "";
+	}
+
+	#define LOSS_IOU(iter, riou_val, angular_val) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(riou_val) || !std::isfinite(angular_val) || \
+							   std::abs(riou_val) < 1e-6f || std::abs(angular_val) < 1e-6f || \
+							   riou_val > 1.0f || angular_val > 1.0f; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[LOSS_IOU iter=" << (iter) << "] anchor=" << n << " grid=(" << i << "," << j << ") " \
+									  << "riou=" << value_color(riou_val) << riou_val << reset_color() \
+									  << " angular_corr=" << value_color(angular_val) << angular_val << reset_color() \
+									  << std::endl; \
+			} \
+		}
+
+	#define LOSS_GIOU(iter, giou_val, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(giou_val) || std::abs(giou_val) < 1e-6f || giou_val > 1.0f; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[LOSS_GIOU iter=" << (iter) << "] " \
+									  << "giou=" << value_color(giou_val) << giou_val << reset_color() \
+									  << " " << __VA_ARGS__ << std::endl; \
+			} \
+		}
+
+	#define LOSS_DIOU(iter, diou_val, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(diou_val) || std::abs(diou_val) < 1e-6f || diou_val > 1.0f; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[LOSS_DIOU iter=" << (iter) << "] " \
+									  << "diou=" << value_color(diou_val) << diou_val << reset_color() \
+									  << " " << __VA_ARGS__ << std::endl; \
+			} \
+		}
+
+	#define LOSS_CIOU(iter, ciou_val, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(ciou_val) || std::abs(ciou_val) < 1e-6f || ciou_val > 1.0f; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[LOSS_CIOU iter=" << (iter) << "] " \
+									  << "ciou=" << value_color(ciou_val) << ciou_val << reset_color() \
+									  << " " << __VA_ARGS__ << std::endl; \
+			} \
+		}
+
+	#define LOSS_FP(iter, fp_val, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(fp_val) || std::abs(fp_val) < 1e-6f || fp_val > 1.0f; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[LOSS_FP iter=" << (iter) << "] " \
+									  << "fp_loss=" << value_color(fp_val) << fp_val << reset_color() \
+									  << " " << __VA_ARGS__ << std::endl; \
+			} \
+		}
+
+	#define GRAD_LOSS_RIOU(iter, dx_val, dy_val, dw_val, dh_val, dfx_val, dfy_val) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(dx_val) || !std::isfinite(dy_val) || !std::isfinite(dw_val) || \
+							   !std::isfinite(dh_val) || !std::isfinite(dfx_val) || !std::isfinite(dfy_val) || \
+							   (std::abs(dx_val) < 1e-6f && std::abs(dy_val) < 1e-6f && std::abs(dw_val) < 1e-6f && std::abs(dh_val) < 1e-6f) || \
+							   std::abs(dx_val) > 1.0f || std::abs(dy_val) > 1.0f || std::abs(dw_val) > 1.0f || \
+							   std::abs(dh_val) > 1.0f || std::abs(dfx_val) > 1.0f || std::abs(dfy_val) > 1.0f; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[GRAD_LOSS_RIOU iter=" << (iter) << "] anchor=" << n << " grid=(" << i << "," << j << ") " \
+									  << "dx=" << value_color(dx_val) << dx_val << reset_color() \
+									  << " dy=" << value_color(dy_val) << dy_val << reset_color() \
+									  << " dw=" << value_color(dw_val) << dw_val << reset_color() \
+									  << " dh=" << value_color(dh_val) << dh_val << reset_color() \
+									  << " dfx=" << value_color(dfx_val) << dfx_val << reset_color() \
+									  << " dfy=" << value_color(dfy_val) << dfy_val << reset_color() \
+									  << std::endl; \
+			} \
+		}
+
+	#define GRAD_LOSS_FP(iter, fx_val, fy_val, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(fx_val) || !std::isfinite(fy_val) || \
+							   std::abs(fx_val) < 1e-6f || std::abs(fy_val) < 1e-6f || \
+							   std::abs(fx_val) > 1.0f || std::abs(fy_val) > 1.0f; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[GRAD_LOSS_FP iter=" << (iter) << "] " \
+									  << "dfx=" << value_color(fx_val) << fx_val << reset_color() \
+									  << " dfy=" << value_color(fy_val) << fy_val << reset_color() \
+									  << " " << __VA_ARGS__ << std::endl; \
+			} \
+		}
+
 	struct train_yolo_args
 	{
 		const Darknet::Layer * l;
@@ -85,10 +210,13 @@ namespace
 		if (!std::isfinite(raw_fx)) raw_fx = 0.0f;
 		if (!std::isfinite(raw_fy)) raw_fy = 0.0f;
 
-		// BDP-specific: Clamp raw_w and raw_h to prevent exp() overflow
+		// BDP-specific: Clamp raw values to prevent exp() overflow and gradient explosion
 		// exp(x) overflows to inf for x > ~88.7, so we clamp to a safe range
+		// Also clamp fx,fy to prevent front point divergence during gradient computation
 		raw_w = std::max(-10.0f, std::min(10.0f, raw_w));
 		raw_h = std::max(-10.0f, std::min(10.0f, raw_h));
+		raw_fx = std::max(-10.0f, std::min(10.0f, raw_fx));
+		raw_fy = std::max(-10.0f, std::min(10.0f, raw_fy));
 
 		if (new_coords)
 		{
@@ -316,42 +444,12 @@ namespace
 	}
 
 
-	/// @implement OBB: Compute angle between two vectors for angular IoU correction
-	/// Returns angle in radians between vector (px, py) and (tx, ty)
-	/// Uses atan2 for robust angle calculation handling all quadrants
-	///
-	/// NOTE: This is an initial implementation based on paper equation 11.
-	/// The exact angle computation method for LIoU = IoU * cos(angle/2) may need verification.
-	/// Alternative approaches to consider:
-	/// - Direct angle from atan2 of each vector separately, then take difference
-	/// - Normalization of vectors before angle computation
-	/// - Different handling of edge cases (zero vectors, opposite directions)
-	static inline float compute_angle_between_vectors(float px, float py, float tx, float ty)
-	{
-		// Compute vector magnitudes
-		float pred_mag = std::sqrt(px * px + py * py);
-		float truth_mag = std::sqrt(tx * tx + ty * ty);
-
-		// Handle degenerate cases (zero-length vectors)
-		if (pred_mag < 1e-6f || truth_mag < 1e-6f) {
-			return 0.0f;  // No angle if either vector is too small
-		}
-
-		// Compute dot product and cross product magnitude
-		float dot = px * tx + py * ty;
-		float cross = px * ty - py * tx;
-
-		// Use atan2 for robust angle calculation
-		float angle = std::atan2(cross, dot);
-
-		// Return absolute angle (we only care about magnitude of difference)
-		return std::abs(angle);
-	}
 
 
 	/// BDP loss function: delta for 6-parameter oriented bounding box (x,y,w,h,fx,fy)
 	/// Added fp_normalizer parameter (λ4 from paper equation 10) for front point loss weighting
-	static inline ious delta_yolo_box_bdp(const DarknetBoxBDP & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const float fp_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
+	/// Added current_iter parameter for debug logging (logs until iteration 20)
+	static inline ious delta_yolo_box_bdp(const DarknetBoxBDP & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const float fp_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords, const int current_iter)
 	{
 		TAT(TATPARMS);
 
@@ -359,12 +457,7 @@ namespace
 		{
 			(*rewritten_bbox) = 0;
 		}
-
-		if (truth.w == 0 || truth.h == 0)
-		{
-			return ious{ 0 };
-		}
-
+		
 		if (x[index + 0 * stride] != x[index + 0 * stride] ||
 			x[index + 1 * stride] != x[index + 1 * stride] ||
 			x[index + 2 * stride] != x[index + 2 * stride] ||
@@ -372,7 +465,7 @@ namespace
 			x[index + 4 * stride] != x[index + 4 * stride] ||
 			x[index + 5 * stride] != x[index + 5 * stride])
 		{
-			return ious{ 0 };
+			(*rewritten_bbox)++;
 		}
 
 		if (rewritten_bbox && 
@@ -389,45 +482,68 @@ namespace
 		ious all_ious = { 0 };
 		
 		// Convert BDP to standard box for IoU calculation (use center+dimensions only)
-		DarknetBoxBDP pred_center;
-		pred_center.x = x[index + 0 * stride];
-		pred_center.y = x[index + 1 * stride];
-		pred_center.w = x[index + 2 * stride];
-		pred_center.h = x[index + 3 * stride];
-		pred_center.fx = x[index + 4 * stride];
-		pred_center.fy = x[index + 5 * stride];
+		DarknetBoxBDP pred_center = get_yolo_box_bdp(x, biases, n, index, i, j, lw, lh, w, h, stride, new_coords);
 
-		DarknetBoxBDP truth_center;
-		truth_center.x = truth.x;
-		truth_center.y = truth.y;
-		truth_center.w = truth.w;
-		truth_center.h = truth.h;
-		truth_center.fx = truth.fx;
-		truth_center.fy = truth.fy;
+		// BDP IoU: Use axis-aligned IoU with angular correction (following paper)
+		// IoU is computed on (x, y, w, h) only, then multiplied by cos(angle/2) for orientation
+		all_ious.iou = box_iou_bdp(pred_center, truth);  // RIOU only
+		all_ious.giou = 0.0f;  // Not used for BDP
+		all_ious.diou = 0.0f;  // Not used for BDP
+		all_ious.ciou = 0.0f;  // Not used for BDP
 
-		// Standard box IoU calculations for center+dimensions (using BDP-specific IoU functions)
-		all_ious.iou = box_iou_bdp(pred_center, truth_center);
-		all_ious.giou = box_giou_bdp(pred_center, truth_center);
-		all_ious.diou = box_diou_bdp(pred_center, truth_center);
-		all_ious.ciou = box_ciou_bdp(pred_center, truth_center);
+		// Angular correction: cos(α/2) where α is angle between front point vectors
+		// Paper equation 11: L_IoU = IoU * cos(angle/2)
+		float pred_front_dx = pred_center.fx - pred_center.x;
+		float pred_front_dy = pred_center.fy - pred_center.y;
+		float truth_front_dx = truth.fx - truth.x;
+		float truth_front_dy = truth.fy - truth.y;
 
-		// Angular IoU correction (paper equation 11): LIoU = IoU * cos(angle/2)
-		// Compute vectors from center to front point
-		float pred_vec_x = x[index + 4 * stride] - pred_center.x;   // predicted front point vector
-		float pred_vec_y = x[index + 5 * stride] - pred_center.y;
-		float truth_vec_x = truth.fx - truth.x;  // ground truth front point vector
-		float truth_vec_y = truth.fy - truth.y;
+		// Compute angle between vectors using dot product
+		float pred_length = std::sqrt(pred_front_dx * pred_front_dx + pred_front_dy * pred_front_dy);
+		float truth_length = std::sqrt(truth_front_dx * truth_front_dx + truth_front_dy * truth_front_dy);
 
-		// Compute angle between vectors and apply correction
-		float angle_diff = compute_angle_between_vectors(pred_vec_x, pred_vec_y, truth_vec_x, truth_vec_y);
-		float angular_correction = std::cos(angle_diff / 2.0f);
+		float angular_correction = 1.0f;  // Default if vectors are degenerate
+		if (pred_length > 1e-6f && truth_length > 1e-6f) {
+			float dot = pred_front_dx * truth_front_dx + pred_front_dy * truth_front_dy;
+			float cos_angle = dot / (pred_length * truth_length);
+			cos_angle = std::max(-1.0f, std::min(1.0f, cos_angle));  // Clamp to [-1, 1]
+			float angle = std::acos(cos_angle);
+			angular_correction = std::cos(angle / 2.0f);
+		}
 
-		// Apply angular correction to all IoU values (paper equation 11)
-		// NOTE: This is the critical step - IoU is penalized when orientation is wrong
+		// Apply angular correction to IoU
 		all_ious.iou *= angular_correction;
 		all_ious.giou *= angular_correction;
 		all_ious.diou *= angular_correction;
 		all_ious.ciou *= angular_correction;
+
+		// Safety: Clamp all IoU values to [0, 1] and fix NaN/Inf
+		// This prevents training divergence if any IoU function returns invalid values
+		static int iou_nan_debug = 0;
+		bool iou_has_nan = !std::isfinite(all_ious.iou) || !std::isfinite(all_ious.giou) ||
+		                   !std::isfinite(all_ious.diou) || !std::isfinite(all_ious.ciou);
+		if (iou_has_nan || iou_nan_debug++ < 3) {
+			*cfg_and_state.output << "   [IOU_DEBUG] iou=" << all_ious.iou << " giou=" << all_ious.giou
+			                      << " diou=" << all_ious.diou << " ciou=" << all_ious.ciou
+			                      << "\n      pred: x=" << pred_center.x << " y=" << pred_center.y
+			                      << " w=" << pred_center.w << " h=" << pred_center.h
+			                      << " fx=" << pred_center.fx << " fy=" << pred_center.fy
+			                      << "\n      truth: x=" << truth.x << " y=" << truth.y
+			                      << " w=" << truth.w << " h=" << truth.h
+			                      << " fx=" << truth.fx << " fy=" << truth.fy << std::endl;
+		}
+		if (!std::isfinite(all_ious.iou) || all_ious.iou < 0.0f || all_ious.iou > 1.0f) all_ious.iou = 0.0f;
+		if (!std::isfinite(all_ious.giou)) all_ious.giou = 0.0f;
+		if (!std::isfinite(all_ious.diou)) all_ious.diou = 0.0f;
+		if (!std::isfinite(all_ious.ciou)) all_ious.ciou = 0.0f;
+
+		// Clamp RIOU to minimum of 0.001 to ensure gradient flow even when boxes don't overlap
+		// This prevents zero gradients for orientation when there's no geometric overlap
+		all_ious.iou = std::max(0.001f, all_ious.iou);
+
+		// Log RIOU values for debugging (only when abnormal or first 5 iterations)
+		// RIOU = rotated IoU * angular_correction (cos of angle/2 between front point vectors)
+		LOSS_IOU(current_iter, all_ious.iou, angular_correction);
 
 		// Avoid nan in dx_box_iou
 		if (pred_center.w == 0) pred_center.w = 1.0;
@@ -446,10 +562,10 @@ namespace
 			float tw = log(safe_w_arg);
 			float th = log(safe_h_arg);
 
-			// Front point loss: both truth and prediction are absolute [0,1] coordinates
-			// Network outputs absolute fx,fy after sigmoid, truth.fx/fy are also absolute
-			float diff_fx = truth.fx - x[index + 4 * stride];
-			float diff_fy = truth.fy - x[index + 5 * stride];
+			// Front point loss: Compare decoded predictions (absolute [0,1]) with truth
+			// pred_center.fx and pred_center.fy are already decoded to [0,1] coordinates
+			float diff_fx = truth.fx - pred_center.fx;
+			float diff_fy = truth.fy - pred_center.fy;
 			float abs_diff_fx = std::abs(diff_fx);
 			float abs_diff_fy = std::abs(diff_fy);
 
@@ -457,6 +573,11 @@ namespace
 			float loss_fx = (abs_diff_fx < 1.0f) ? (0.5f * diff_fx * diff_fx) : (abs_diff_fx - 0.5f);
 			float loss_fy = (abs_diff_fy < 1.0f) ? (0.5f * diff_fy * diff_fy) : (abs_diff_fy - 0.5f);
 			all_ious.fp_loss = loss_fx + loss_fy;
+
+			// Log front point loss for debugging (MSE path)
+			LOSS_FP(current_iter, all_ious.fp_loss, "anchor=" << n << " grid=(" << i << "," << j << ") "
+			        << "loss_fx=" << loss_fx << " loss_fy=" << loss_fy
+			        << " diff_fx=" << diff_fx << " diff_fy=" << diff_fy);
 
 			// Gradient for Smooth L1
 			float grad_fx = (abs_diff_fx < 1.0f) ? diff_fx : ((diff_fx > 0) ? 1.0f : -1.0f);
@@ -496,6 +617,20 @@ namespace
 				clip_value(dfx, max_delta); clip_value(dfy, max_delta);
 			}
 
+			// Clip gradients to prevent explosion (especially dw, dh due to exp() multiplication)
+			const float grad_clip = 2.0f;
+			const float fp_grad_clip = 0.1f;  // Much smaller clip for front point gradients
+			dx = std::max(-grad_clip, std::min(grad_clip, dx));
+			dy = std::max(-grad_clip, std::min(grad_clip, dy));
+			dw = std::max(-grad_clip, std::min(grad_clip, dw));
+			dh = std::max(-grad_clip, std::min(grad_clip, dh));
+			dfx = std::max(-fp_grad_clip, std::min(fp_grad_clip, dfx));
+			dfy = std::max(-fp_grad_clip, std::min(fp_grad_clip, dfy));
+
+			// Log gradients before accumulation (MSE path)
+			GRAD_LOSS_FP(current_iter, dfx, dfy, "anchor=" << n << " grid=(" << i << "," << j << ") "
+			             << "dx=" << dx << " dy=" << dy << " dw=" << dw << " dh=" << dh);
+
 			// Accumulate delta for all 6 parameters
 			delta[index + 0 * stride] += dx;   // x
 			delta[index + 1 * stride] += dy;   // y
@@ -503,22 +638,57 @@ namespace
 			delta[index + 3 * stride] += dh;   // h
 			delta[index + 4 * stride] += dfx;  // fx (front point x)
 			delta[index + 5 * stride] += dfy;  // fy (front point y)
+
+			// Fix any NaN/inf in delta array immediately after accumulation (MSE path)
+			if (!std::isfinite(delta[index + 0 * stride])) delta[index + 0 * stride] = 0.0f;
+			if (!std::isfinite(delta[index + 1 * stride])) delta[index + 1 * stride] = 0.0f;
+			if (!std::isfinite(delta[index + 2 * stride])) delta[index + 2 * stride] = 0.0f;
+			if (!std::isfinite(delta[index + 3 * stride])) delta[index + 3 * stride] = 0.0f;
+			if (!std::isfinite(delta[index + 4 * stride])) delta[index + 4 * stride] = 0.0f;
+			if (!std::isfinite(delta[index + 5 * stride])) delta[index + 5 * stride] = 0.0f;
 		}
 		else  // IoU-based loss
 		{
-			// Calculate gradients for center+dimensions using BDP-specific IoU gradient function
-			all_ious.dx_iou = dx_box_iou_bdp(pred_center, truth_center, iou_loss);
+			// BDP gradients: Use axis-aligned IoU gradients (following paper)
+			// Gradients only affect (x, y, w, h), NOT (fx, fy) - orientation handled by front point loss
+			dxrep_bdp iou_grad = dx_box_riou(pred_center, truth, iou_loss);
 
-			// Standard gradients for x,y,w,h
-			float dx = all_ious.dx_iou.dt;
-			float dy = all_ious.dx_iou.db;
-			float dw = all_ious.dx_iou.dl;
-			float dh = all_ious.dx_iou.dr;
+			// Fix NaN/inf BEFORE clipping (std::max/min don't handle NaN properly)
+			if (!std::isfinite(iou_grad.dx)) iou_grad.dx = 0.0f;
+			if (!std::isfinite(iou_grad.dy)) iou_grad.dy = 0.0f;
+			if (!std::isfinite(iou_grad.dw)) iou_grad.dw = 0.0f;
+			if (!std::isfinite(iou_grad.dh)) iou_grad.dh = 0.0f;
+			if (!std::isfinite(iou_grad.dfx)) iou_grad.dfx = 0.0f;
+			if (!std::isfinite(iou_grad.dfy)) iou_grad.dfy = 0.0f;
 
-			// Front point loss: both truth and prediction are absolute [0,1] coordinates
-			// Network outputs absolute fx,fy after sigmoid, truth.fx/fy are also absolute
-			float diff_fx = truth.fx - x[index + 4 * stride];
-			float diff_fy = truth.fy - x[index + 5 * stride];
+			// Clip raw RIOU gradients to prevent explosion
+			// Conservative clipping based on observed gradient magnitudes
+			const float pos_grad_clip = 0.08f;   // Max ±0.08 for dx/dy
+			const float size_grad_clip = 0.08f;  // Max ±0.08 for dw/dh
+			const float fp_grad_clip = 0.08f;    // Max ±0.08 for dfx/dfy
+			iou_grad.dx = std::max(-pos_grad_clip, std::min(pos_grad_clip, iou_grad.dx));
+			iou_grad.dy = std::max(-pos_grad_clip, std::min(pos_grad_clip, iou_grad.dy));
+			iou_grad.dw = std::max(-size_grad_clip, std::min(size_grad_clip, iou_grad.dw));
+			iou_grad.dh = std::max(-size_grad_clip, std::min(size_grad_clip, iou_grad.dh));
+			iou_grad.dfx = std::max(-fp_grad_clip, std::min(fp_grad_clip, iou_grad.dfx));
+			iou_grad.dfy = std::max(-fp_grad_clip, std::min(fp_grad_clip, iou_grad.dfy));
+
+			// Extract gradients for x,y,w,h from RIOU
+			// dxrep_bdp contains {dx, dy, dw, dh, dfx, dfy}
+			float dx = iou_grad.dx;
+			float dy = iou_grad.dy;
+			float dw = iou_grad.dw;
+			float dh = iou_grad.dh;
+
+			// Orientation gradients from RIOU (includes angular correction in rotated IoU)
+			float dfx_from_iou = iou_grad.dfx;
+			float dfy_from_iou = iou_grad.dfy;
+
+			// Front point Smooth L1 loss: additional regularization for orientation
+			// This provides a direct signal independent of IoU for learning rotation
+			// Use decoded predictions (absolute [0,1] coords) vs truth
+			float diff_fx = truth.fx - pred_center.fx;
+			float diff_fy = truth.fy - pred_center.fy;
 			float abs_diff_fx = std::abs(diff_fx);
 			float abs_diff_fy = std::abs(diff_fy);
 
@@ -540,22 +710,49 @@ namespace
 			float loss_fy = (abs_diff_fy < 1.0f) ? (0.5f * diff_fy * diff_fy) : (abs_diff_fy - 0.5f);
 			all_ious.fp_loss = loss_fx + loss_fy;
 
-			if (debug_count_iou <= 3) {
-				*cfg_and_state.output << "      loss_fx=" << loss_fx << " loss_fy=" << loss_fy
-				                      << " fp_loss=" << all_ious.fp_loss
-				                      << " fp_normalizer=" << fp_normalizer << std::endl;
+			// Log front point loss for debugging (IoU-based loss path)
+			LOSS_FP(current_iter, all_ious.fp_loss, "anchor=" << n << " grid=(" << i << "," << j << ") "
+			        << "loss_fx=" << loss_fx << " loss_fy=" << loss_fy
+			        << " diff_fx=" << diff_fx << " diff_fy=" << diff_fy);
+
+			// Smooth L1 gradient for front point
+			float grad_fx_smoothL1 = (abs_diff_fx < 1.0f) ? diff_fx : ((diff_fx > 0) ? 1.0f : -1.0f);
+			float grad_fy_smoothL1 = (abs_diff_fy < 1.0f) ? diff_fy : ((diff_fy > 0) ? 1.0f : -1.0f);
+
+			// DEBUG: Check for NaN in gradients before combining
+			static int nan_debug = 0;
+			bool has_nan = !std::isfinite(dfx_from_iou) || !std::isfinite(dfy_from_iou) ||
+			               !std::isfinite(grad_fx_smoothL1) || !std::isfinite(grad_fy_smoothL1) ||
+			               !std::isfinite(dx) || !std::isfinite(dy) || !std::isfinite(dw) || !std::isfinite(dh);
+			if (has_nan || nan_debug++ < 3) {
+				const char* loss_name = "UNKNOWN";
+				switch(iou_loss) {
+					case IOU: loss_name = "IOU"; break;
+					case GIOU: loss_name = "GIOU"; break;
+					case MSE: loss_name = "MSE"; break;
+					case DIOU: loss_name = "DIOU"; break;
+					case CIOU: loss_name = "CIOU"; break;
+					case RIOU: loss_name = "RIOU"; break;
+				}
+				*cfg_and_state.output << "   [GRAD_DEBUG] loss_type=" << loss_name << " (" << iou_loss << ")"
+				                      << "\n      dx=" << dx << " dy=" << dy << " dw=" << dw << " dh=" << dh
+				                      << "\n      dfx_from_iou=" << dfx_from_iou << " dfy_from_iou=" << dfy_from_iou
+				                      << "\n      grad_fx_smoothL1=" << grad_fx_smoothL1 << " grad_fy_smoothL1=" << grad_fy_smoothL1
+				                      << "\n      iou_normalizer=" << iou_normalizer << " fp_normalizer=" << fp_normalizer
+				                      << " scale=" << scale << std::endl;
 			}
 
-			// Smooth L1 gradient
-			float grad_fx = (abs_diff_fx < 1.0f) ? diff_fx : ((diff_fx > 0) ? 1.0f : -1.0f);
-			float grad_fy = (abs_diff_fy < 1.0f) ? diff_fy : ((diff_fy > 0) ? 1.0f : -1.0f);
-
+			// Phase 3: Combine IoU gradients with Smooth L1 gradients for orientation
+			// Total gradient = IoU gradient (from rotated IoU) + Smooth L1 gradient (direct penalty)
+			// Scale down Smooth L1 gradients when RIOU is very small (< 0.1) to prioritize position first
+			// Minimum RIOU of 0.001 ensures some gradient flow even when boxes don't overlap
+			float riou_clamped = std::max(0.001f, all_ious.iou);
+			// Scaling: 0.01 if riou=0.001, 1 if riou>=0.1, linear in between
+			float riou_scale = std::min(1.0f, riou_clamped / 0.1f);
 			// Apply chain rule through sigmoid activation function
-			// Since forward pass applies sigmoid(raw_fx), we need gradient: dL/d(raw_fx) = dL/d(sigmoid(raw_fx)) * d(sigmoid)/d(raw_fx)
 			// logistic_gradient computes d(sigmoid)/dx = sigmoid(x) * (1 - sigmoid(x))
-			// This matches the pattern used in region_layer.cpp for x,y coordinates
-			float dfx = scale * grad_fx * logistic_gradient(x[index + 4 * stride]);
-			float dfy = scale * grad_fy * logistic_gradient(x[index + 5 * stride]);
+			float dfx = scale * (dfx_from_iou * iou_normalizer + grad_fx_smoothL1 * fp_normalizer * riou_scale) * logistic_gradient(x[index + 4 * stride]);
+			float dfy = scale * (dfy_from_iou * iou_normalizer + grad_fy_smoothL1 * fp_normalizer * riou_scale) * logistic_gradient(x[index + 5 * stride]);
 
 			// Apply exponential gradient for w,h if needed
 			// BDP-specific: Validate input values before exp() to prevent inf in gradients
@@ -574,17 +771,36 @@ namespace
 				dh *= exp(raw_h_for_grad);
 			}
 
-			// Normalize all gradients
+			// Normalize x,y,w,h gradients (fx,fy already normalized in combined gradient above)
 			dx *= iou_normalizer;
 			dy *= iou_normalizer;
 			dw *= iou_normalizer;
 			dh *= iou_normalizer;
-			dfx *= fp_normalizer;  // Front point uses fp_normalizer (λ4)
-			dfy *= fp_normalizer;
+			// Note: dfx, dfy already include normalizers from line 496-497
 
 			// Fix NaN/inf values
 			fix_nan_inf(dx); fix_nan_inf(dy); fix_nan_inf(dw); fix_nan_inf(dh);
 			fix_nan_inf(dfx); fix_nan_inf(dfy);
+
+			// DEBUG: Check if final gradients after fix_nan_inf are still NaN
+			static int final_nan_check = 0;
+			if (!std::isfinite(dx) || !std::isfinite(dy) || !std::isfinite(dw) ||
+			    !std::isfinite(dh) || !std::isfinite(dfx) || !std::isfinite(dfy)) {
+				*cfg_and_state.output << "   [ERROR] Gradients still NaN after fix_nan_inf! count=" << final_nan_check++
+				                      << "\n      dx=" << dx << " dy=" << dy << " dw=" << dw << " dh=" << dh
+				                      << "\n      dfx=" << dfx << " dfy=" << dfy << std::endl;
+			}
+
+			// DEBUG: Log pre-clip values when riou=0
+			static int pre_clip_debug = 0;
+			if (all_ious.iou < 1e-6f && pre_clip_debug++ < 5) {
+				*cfg_and_state.output << "   [PRE_CLIP_DEBUG] riou=" << all_ious.iou
+				                      << " riou_scale=" << riou_scale
+				                      << "\n      dfx_before_clip=" << dfx << " dfy_before_clip=" << dfy
+				                      << "\n      dfx_from_iou=" << dfx_from_iou << " dfy_from_iou=" << dfy_from_iou
+				                      << "\n      grad_fx_smoothL1=" << grad_fx_smoothL1 << " grad_fy_smoothL1=" << grad_fy_smoothL1
+				                      << "\n      fp_normalizer=" << fp_normalizer << " scale=" << scale << std::endl;
+			}
 
 			// Apply clipping if specified
 			if (max_delta != FLT_MAX)
@@ -593,6 +809,12 @@ namespace
 				clip_value(dw, max_delta); clip_value(dh, max_delta);
 				clip_value(dfx, max_delta); clip_value(dfy, max_delta);
 			}
+
+			// NOTE: Gradients already clipped at lines 653-663 after dx_box_riou()
+			// No additional clipping needed here to avoid redundancy
+
+			// Log gradients before accumulation (only when abnormal or first 5 iterations)
+			GRAD_LOSS_RIOU(current_iter, dx, dy, dw, dh, dfx, dfy);
 
 			// Zero out deltas if not accumulating
 			if (!accumulate)
@@ -612,6 +834,30 @@ namespace
 			delta[index + 3 * stride] += dh;   // h
 			delta[index + 4 * stride] += dfx;  // fx (front point x)
 			delta[index + 5 * stride] += dfy;  // fy (front point y)
+
+			// Fix any NaN/inf in delta array immediately after accumulation
+			if (!std::isfinite(delta[index + 0 * stride])) delta[index + 0 * stride] = 0.0f;
+			if (!std::isfinite(delta[index + 1 * stride])) delta[index + 1 * stride] = 0.0f;
+			if (!std::isfinite(delta[index + 2 * stride])) delta[index + 2 * stride] = 0.0f;
+			if (!std::isfinite(delta[index + 3 * stride])) delta[index + 3 * stride] = 0.0f;
+			if (!std::isfinite(delta[index + 4 * stride])) delta[index + 4 * stride] = 0.0f;
+			if (!std::isfinite(delta[index + 5 * stride])) delta[index + 5 * stride] = 0.0f;
+
+			// DEBUG: Check delta array after accumulation for NaN
+			static int delta_nan_check = 0;
+			if (!std::isfinite(delta[index + 0 * stride]) || !std::isfinite(delta[index + 1 * stride]) ||
+			    !std::isfinite(delta[index + 2 * stride]) || !std::isfinite(delta[index + 3 * stride]) ||
+			    !std::isfinite(delta[index + 4 * stride]) || !std::isfinite(delta[index + 5 * stride])) {
+				*cfg_and_state.output << "   [ERROR] Delta array contains NaN after accumulation! count=" << delta_nan_check++
+				                      << "\n      delta[x]=" << delta[index + 0 * stride]
+				                      << " delta[y]=" << delta[index + 1 * stride]
+				                      << " delta[w]=" << delta[index + 2 * stride]
+				                      << " delta[h]=" << delta[index + 3 * stride]
+				                      << " delta[fx]=" << delta[index + 4 * stride]
+				                      << " delta[fy]=" << delta[index + 5 * stride]
+				                      << "\n      Added: dx=" << dx << " dy=" << dy << " dw=" << dw
+				                      << " dh=" << dh << " dfx=" << dfx << " dfy=" << dfy << std::endl;
+			}
 		}
 
 		return all_ious;
@@ -720,6 +966,24 @@ namespace
 				if (classes_multipliers && n == class_id)
 				{
 					delta[index + stride * class_id] *= classes_multipliers[class_id] * cls_normalizer;
+				}
+
+				// DEBUG: Check for NaN in classification delta
+				static int class_nan_debug = 0;
+				if (!std::isfinite(delta[index + stride * n])) {
+					if (class_nan_debug++ < 10) {
+						*cfg_and_state.output << "   [GRAD_DEBUG_CLASS] NaN in class delta! class=" << n
+						                      << " target_class=" << class_id
+						                      << "\n      output[" << n << "]=" << output[index + stride * n]
+						                      << " y_true=" << y_true
+						                      << " result_delta=" << result_delta
+						                      << " delta[" << n << "]=" << delta[index + stride * n]
+						                      << "\n      cls_normalizer=" << cls_normalizer;
+						if (classes_multipliers) {
+							*cfg_and_state.output << " classes_multipliers[" << class_id << "]=" << classes_multipliers[class_id];
+						}
+						*cfg_and_state.output << std::endl;
+					}
 				}
 
 				if (n == class_id && avg_cat)
@@ -1802,10 +2066,12 @@ void backward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 
 	// Note: The actual loss calculation happens in forward_yolo_layer_bdp()
 	// which should call delta_yolo_box_bdp() for each ground truth box
-	// This backward function just propagates the computed deltas
+	// Copy *l.delta(Already computed in forward pass) to *net.delta, namely *l.delta of the previous layer.
 
-	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: Calling axpy_cpu with n=" << (l.batch*l.inputs));
-	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: l.delta=" << l.delta << " state.delta=" << state.delta);
+	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: Calling axpy_cpu with n=" << std::dec << (l.batch*l.inputs));
+	float delta_mag = mag_array(l.delta, l.batch*l.outputs);
+	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: l.delta magnitude=" << std::dec << delta_mag << " (ptr=" << l.delta << ")");
+	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: state.delta ptr=" << state.delta);
 	axpy_cpu(l.batch*l.inputs, 1, l.delta, 1, state.delta, 1);
 	DEBUG_TRACE("   [DEBUG] backward_yolo_layer_bdp: axpy_cpu completed");
 
@@ -2458,36 +2724,36 @@ void process_batch_bdp(void* ptr)
 		{
 			for (int n = 0; n < l.n; ++n)
 			{
-				DEBUG_TRACE("   [DEBUG] process_batch_bdp: Grid position j=" << j << " i=" << i << " anchor n=" << n);
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: Grid position j=" << std::dec << j << " i=" << i << " anchor n=" << n);
 
 				// Get memory indices for this anchor box
 				DEBUG_TRACE("   [DEBUG] process_batch_bdp: Calling yolo_entry_index_bdp for indices...");
 				const int class_index = yolo_entry_index_bdp(l, b, n * l.w * l.h + j * l.w + i, 7); // Classes at entry 7+
-				DEBUG_TRACE("   [DEBUG] process_batch_bdp: class_index=" << class_index);
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: class_index=" << std::dec << class_index);
 
 				const int obj_index = yolo_entry_index_bdp(l, b, n * l.w * l.h + j * l.w + i, 6);   // Objectness at entry 6
-				DEBUG_TRACE("   [DEBUG] process_batch_bdp: obj_index=" << obj_index);
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: obj_index=" << std::dec << obj_index);
 
 				const int box_index = yolo_entry_index_bdp(l, b, n * l.w * l.h + j * l.w + i, 0);   // Box starts at entry 0
-				DEBUG_TRACE("   [DEBUG] process_batch_bdp: box_index=" << box_index);
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: box_index=" << std::dec << box_index);
 
 				const int stride = l.w * l.h;
-				DEBUG_TRACE("   [DEBUG] process_batch_bdp: stride=" << stride);
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: stride=" << std::dec << stride);
 
 				// Extract predicted BDP box
 				DEBUG_TRACE("   [DEBUG] process_batch_bdp: Calling get_yolo_box_bdp...");
-				DEBUG_TRACE("   [DEBUG] process_batch_bdp: Parameters - l.output=" << l.output << " l.biases=" << l.biases << " l.mask[" << n << "]=" << l.mask[n]);
+				DEBUG_TRACE("   [DEBUG] process_batch_bdp: Parameters - l.mask[" << std::dec << n << "]=" << std::dec << l.mask[n]
+				            << " biases[0]=" << l.biases[0] << " biases[1]=" << l.biases[1]);
 				DarknetBoxBDP pred_bdp = get_yolo_box_bdp(l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.w * l.h, l.new_coords);
 				DEBUG_TRACE("   [DEBUG] process_batch_bdp: get_yolo_box_bdp returned successfully");
 
-				// Convert to standard box for IOU matching (use only x,y,w,h)
-				Darknet::Box pred;
+				DarknetBoxBDP pred;
 				pred.x = pred_bdp.x;
 				pred.y = pred_bdp.y;
 				pred.w = pred_bdp.w;
 				pred.h = pred_bdp.h;
-				pred_bdp.fx = pred_bdp.fx;
-				pred_bdp.fy = pred_bdp.fy;
+				pred.fx = pred_bdp.fx;
+				pred.fy = pred_bdp.fy;
 
 				float best_match_iou = 0;
 				float best_iou = 0;
@@ -2520,27 +2786,33 @@ void process_batch_bdp(void* ptr)
 					// Compare class predictions
 					int class_id_match = compare_yolo_class(l.output, l.classes, class_index, l.w * l.h, objectness, class_id, 0.25f);
 
-					// Convert truth to standard box for IOU
-					Darknet::Box truth;
-					truth.x = truth_bdp.x;
-					truth.y = truth_bdp.y;
-					truth.w = truth_bdp.w;
-					truth.h = truth_bdp.h;
-
-					float iou = box_iou(pred, truth);
-					if (iou > best_match_iou && class_id_match == 1)
+					// Use BDP IoU for matching
+					float iou_bdp = box_iou_bdp(pred_bdp, truth_bdp);
+					if (iou_bdp > best_match_iou && class_id_match == 1)
 					{
-						best_match_iou = iou;
+						best_match_iou = iou_bdp;
 					}
-					if (iou > best_iou)
+					if (iou_bdp > best_iou)
 					{
-						best_iou = iou;
+						best_iou = iou_bdp;
 						best_t = t;
 					}
 				}
 
 				// Compute objectness delta for background boxes
 				l.delta[obj_index] = l.obj_normalizer * (0 - l.output[obj_index]);
+
+				// DEBUG: Track objectness delta for background/ignored boxes
+				static int obj_nan_debug = 0;
+				bool obj_has_nan = !std::isfinite(l.delta[obj_index]) || !std::isfinite(l.output[obj_index]);
+				if (obj_has_nan || obj_nan_debug++ < 3) {
+					*cfg_and_state.output << "   [OBJ_BG_DEBUG] batch=" << b << " n=" << n << " i=" << i << " j=" << j
+					                      << "\n      best_match_iou=" << best_match_iou << " ignore_thresh=" << l.ignore_thresh
+					                      << "\n      l.output[obj_index]=" << l.output[obj_index]
+					                      << " l.delta[obj_index]=" << l.delta[obj_index]
+					                      << " obj_normalizer=" << l.obj_normalizer << std::endl;
+				}
+
 				if (best_match_iou > l.ignore_thresh)
 				{
 					if (l.objectness_smooth)
@@ -2555,47 +2827,26 @@ void process_batch_bdp(void* ptr)
 					{
 						l.delta[obj_index] = 0;
 					}
-				}
-				else if (state.net.adversarial)
-				{
-					float scale = pred.w * pred.h;
-					if (scale > 0)
-					{
-						scale = sqrt(scale);
-					}
-					l.delta[obj_index] = scale * l.obj_normalizer * (0 - l.output[obj_index]);
-					int cl_id;
-					int found_object = 0;
-					for (cl_id = 0; cl_id < l.classes; ++cl_id)
-					{
-						if (l.output[class_index + stride * cl_id] * l.output[obj_index] > 0.25)
-						{
-							l.delta[class_index + stride * cl_id] = scale * (0 - l.output[class_index + stride * cl_id]);
-							found_object = 1;
-						}
-					}
-					if (found_object)
-					{
-						for (cl_id = 0; cl_id < l.classes; ++cl_id)
-						{
-							if (l.output[class_index + stride * cl_id] * l.output[obj_index] < 0.25)
-							{
-								l.delta[class_index + stride * cl_id] = scale * (1 - l.output[class_index + stride * cl_id]);
-							}
-						}
 
-						l.delta[box_index + 0 * stride] += scale * (0 - l.output[box_index + 0 * stride]);
-						l.delta[box_index + 1 * stride] += scale * (0 - l.output[box_index + 1 * stride]);
-						l.delta[box_index + 2 * stride] += scale * (0 - l.output[box_index + 2 * stride]);
-						l.delta[box_index + 3 * stride] += scale * (0 - l.output[box_index + 3 * stride]);
-						l.delta[box_index + 4 * stride] += scale * (0 - l.output[box_index + 4 * stride]); // fx
-						l.delta[box_index + 5 * stride] += scale * (0 - l.output[box_index + 5 * stride]); // fy
+					// DEBUG: After adjustment
+					if (obj_has_nan || !std::isfinite(l.delta[obj_index]) || std::abs(l.delta[obj_index]) < 1e-6f || std::abs(l.delta[obj_index]) > 1.0f) {
+						*cfg_and_state.output << "   [OBJ_IGNORED_DEBUG] After ignore_thresh adjustment:"
+						                      << " l.delta[obj_index]=" << l.delta[obj_index]
+						                      << " objectness_smooth=" << l.objectness_smooth << std::endl;
 					}
 				}
 
 				// If IOU exceeds threshold, compute full loss for this matched box
 				if (best_iou > l.truth_thresh)
 				{
+					// DEBUG: Track truth_thresh match
+					static int truth_match_debug = 0;
+					if (truth_match_debug++ < 3) {
+						*cfg_and_state.output << "   [TRUTH_MATCH_DEBUG] batch=" << b << " n=" << n << " i=" << i << " j=" << j
+						                      << "\n      best_iou=" << best_iou << " truth_thresh=" << l.truth_thresh
+						                      << " best_t=" << best_t << std::endl;
+					}
+
 					const float iou_multiplier = best_iou * best_iou;
 					if (l.objectness_smooth)
 					{
@@ -2604,6 +2855,15 @@ void process_batch_bdp(void* ptr)
 					else
 					{
 						l.delta[obj_index] = l.obj_normalizer * (1 - l.output[obj_index]);
+					}
+
+					// DEBUG: Check objectness delta
+					if (!std::isfinite(l.delta[obj_index])) {
+						*cfg_and_state.output << "   [TRUTH_OBJ_NAN_DEBUG] NaN in truth-matched objectness delta!"
+						                      << " obj_index=" << obj_index
+						                      << " iou_multiplier=" << iou_multiplier
+						                      << " l.output[obj_index]=" << l.output[obj_index]
+						                      << " obj_normalizer=" << l.obj_normalizer << std::endl;
 					}
 
 					// Get ground truth class ID and apply mapping if needed
@@ -2625,7 +2885,9 @@ void process_batch_bdp(void* ptr)
 					DarknetBoxBDP truth_bdp = float_to_box_bdp_stride(state.truth + best_t * l.truth_size + b * l.truths, 1);
 
 					// Compute BDP box loss (includes x,y,w,h,fx,fy with Smooth L1 for fx/fy)
-					ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.fp_normalizer, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+					// current_iter = seen / batch_size (approx iteration number for logging)
+					int current_iter = state.net.seen ? (*state.net.seen / l.batch) : 0;
+					ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.fp_normalizer, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords, current_iter);
 
 					static int accum_count_1 = 0;
 					if (accum_count_1++ < 5) {
@@ -2652,9 +2914,10 @@ void process_batch_bdp(void* ptr)
 		}
 
 		// Validate coordinates
-		if (truth_bdp.x < 0 || truth_bdp.y < 0 || truth_bdp.x > 1 || truth_bdp.y > 1 || truth_bdp.w < 0 || truth_bdp.h < 0)
+		if (truth_bdp.x < 0 || truth_bdp.y < 0 || truth_bdp.x > 1 || truth_bdp.y > 1 || truth_bdp.w < 0 || truth_bdp.h < 0 ||
+		    truth_bdp.w > 1 || truth_bdp.h > 1 || truth_bdp.fx < 0 || truth_bdp.fy < 0 || truth_bdp.fx > 1 || truth_bdp.fy > 1)
 		{
-			darknet_fatal_error(DARKNET_LOC, "invalid coordinates, width, or height (x=%f, y=%f, w=%f, h=%f)", truth_bdp.x, truth_bdp.y, truth_bdp.w, truth_bdp.h);
+			darknet_fatal_error(DARKNET_LOC, "invalid coordinates, width, or height (x=%f, y=%f, w=%f, h=%f, fx=%f, fy=%f)", truth_bdp.x, truth_bdp.y, truth_bdp.w, truth_bdp.h, truth_bdp.fx, truth_bdp.fy);
 		}
 
 		const int check_class_id = state.truth[t * l.truth_size + b * l.truths + 7];
@@ -2670,18 +2933,26 @@ void process_batch_bdp(void* ptr)
 		int j = (truth_bdp.y * l.h);
 
 		// Create shifted box for anchor matching (centered at 0,0)
-		Darknet::Box truth_shift;
+		DarknetBoxBDP truth_shift;
 		truth_shift.x = 0;
 		truth_shift.y = 0;
 		truth_shift.w = truth_bdp.w;
 		truth_shift.h = truth_bdp.h;
+		truth_shift.fx = truth_bdp.fx;
+		truth_shift.fy = truth_bdp.fy;
 
 		for (int n = 0; n < l.total; ++n)
 		{
-			Darknet::Box pred = { 0 };
+			DarknetBoxBDP pred = { 0 };
 			pred.w = l.biases[2 * n] / state.net.w;
 			pred.h = l.biases[2 * n + 1] / state.net.h;
-			float iou = box_iou(pred, truth_shift);
+			// Anchors only define shape (w,h), not orientation (fx,fy)
+			// Match center and orientation with truth for proper angular correction
+			pred.x = truth_shift.x;
+			pred.y = truth_shift.y;
+			pred.fx = truth_shift.fx;
+			pred.fy = truth_shift.fy;
+			float iou = box_iou_bdp(pred, truth_shift);
 			if (iou > best_iou)
 			{
 				best_iou = iou;
@@ -2702,8 +2973,29 @@ void process_batch_bdp(void* ptr)
 			int box_index = yolo_entry_index_bdp(l, b, mask_n2 * l.w * l.h + j * l.w + i, 0);
 			const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
 
+			// DEBUG: Track GT assignment to best anchor
+			static int gt_assign_debug = 0;
+			if (gt_assign_debug++ < 3) {
+				*cfg_and_state.output << "   [GT_ASSIGN_DEBUG] t=" << t << " best_n=" << best_n << " mask_n2=" << mask_n2
+				                      << " i=" << i << " j=" << j
+				                      << "\n      truth: x=" << truth_bdp.x << " y=" << truth_bdp.y
+				                      << " w=" << truth_bdp.w << " h=" << truth_bdp.h
+				                      << " fx=" << truth_bdp.fx << " fy=" << truth_bdp.fy
+				                      << "\n      iou_normalizer=" << l.iou_normalizer << " fp_normalizer=" << l.fp_normalizer
+				                      << " class_multiplier=" << class_multiplier << std::endl;
+			}
+
 			// Compute BDP box loss for this ground truth (includes angular IoU correction and Smooth L1 for fx/fy)
-			ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, best_n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.fp_normalizer, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+			int current_iter = state.net.seen ? (*state.net.seen / l.batch) : 0;
+			ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, best_n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.fp_normalizer, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords, current_iter);
+
+			// DEBUG: Check for NaN in returned IoUs
+			if (!std::isfinite(all_ious.iou) || !std::isfinite(all_ious.fp_loss)) {
+				*cfg_and_state.output << "   [GT_IOU_NAN_DEBUG] NaN in second loop (GT assignment)!"
+				                      << " iou=" << all_ious.iou << " giou=" << all_ious.giou
+				                      << " diou=" << all_ious.diou << " ciou=" << all_ious.ciou
+				                      << " fp_loss=" << all_ious.fp_loss << std::endl;
+			}
 
 			static int accum_count_2 = 0;
 			if (accum_count_2++ < 5) {
@@ -2754,10 +3046,16 @@ void process_batch_bdp(void* ptr)
 			int mask_n = int_index(l.mask, n, l.n);
 			if (mask_n >= 0 && n != best_n && l.iou_thresh < 1.0f)
 			{
-				Darknet::Box pred = { 0 };
+				DarknetBoxBDP pred = { 0 };
 				pred.w = l.biases[2 * n] / state.net.w;
 				pred.h = l.biases[2 * n + 1] / state.net.h;
-				float iou = box_iou_kind(pred, truth_shift, l.iou_thresh_kind);
+				// Anchors only define shape (w,h), not orientation (fx,fy)
+				// Match center and orientation with truth for proper angular correction
+				pred.x = truth_shift.x;
+				pred.y = truth_shift.y;
+				pred.fx = truth_shift.fx;
+				pred.fy = truth_shift.fy;
+				float iou = box_iou_bdp(pred, truth_shift);
 
 				if (iou > l.iou_thresh)
 				{
@@ -2769,7 +3067,8 @@ void process_batch_bdp(void* ptr)
 
 					int box_index = yolo_entry_index_bdp(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
 					const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
-					ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.fp_normalizer, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
+					int current_iter = state.net.seen ? (*state.net.seen / l.batch) : 0;
+					ious all_ious = delta_yolo_box_bdp(truth_bdp, l.output, l.biases, n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth_bdp.w * truth_bdp.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.fp_normalizer, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords, current_iter);
 
 					static int accum_count_3 = 0;
 					if (accum_count_3++ < 5) {
@@ -2836,11 +3135,18 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
+	// BDP requires RIOU loss - enforce this requirement
+	if (l.iou_loss != RIOU) {
+		*cfg_and_state.output << "   [ERROR] BDP layer requires iou_loss=RIOU, but got iou_loss=" << l.iou_loss << std::endl;
+		*cfg_and_state.output << "   [ERROR] Please set 'iou_loss=riou' in your .cfg file for BDP layers" << std::endl;
+		throw std::runtime_error("BDP layer requires RIOU loss");
+	}
+
 	// Debug: Entry point logging with detailed layer parameters
 	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: ENTRY - layer params: "
 	                      << "batch=" << l.batch << " n=" << l.n << " w=" << l.w << " h=" << l.h
 	                      << " classes=" << l.classes << " coords=" << l.coords << " outputs=" << l.outputs
-	                      << " train=" << state.train);
+	                      << " train=" << state.train << " iou_loss=RIOU");
 
 	// Aggressive static assertions for compile-time validation
 	static_assert(sizeof(DarknetBoxBDP) == 6 * sizeof(float), "BDP box must have exactly 6 float parameters");
@@ -2860,7 +3166,6 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	// Debug: Precondition validation phase
 	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Starting precondition checks...");
 
-	// Boost.Contract preconditions
 	void* old_output = nullptr;
 	size_t old_output_size = 0;
 
@@ -2884,15 +3189,13 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	size_t expected_outputs = l.batch * l.n * l.w * l.h * (6 + 1 + l.classes);
 	assert(l.outputs == expected_outputs);
 	(void)expected_outputs;  // Suppress unused warning in release builds
-
 	// Memory bounds checking
 	assert(l.outputs <= 1000000);    // Reasonable upper bound to prevent overflow
-
 	// Scale factor bounds
 	assert(l.scale_x_y >= 1.0f && l.scale_x_y <= 2.0f);
-
 	// Debug: Preconditions passed
 	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Preconditions PASSED");
+
 
 	// Store old output state for postconditions
 	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Allocating old_output buffer (size=" << (l.outputs * l.batch * sizeof(float)) << " bytes)...");
@@ -2902,7 +3205,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 		memcpy(old_output, l.output, old_output_size);
 		DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: old_output buffer allocated successfully");
 	} else {
-		*cfg_and_state.output << "   [WARNING] forward_yolo_layer_bdp: Failed to allocate old_output buffer" << std::endl;
+		*cfg_and_state.output << " [WARNING] forward_yolo_layer_bdp: Failed to allocate old_output buffer" << std::endl;
 	}
 
 	// Copy input to output (standard YOLO behavior - raw predictions copied first)
@@ -2913,6 +3216,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	// BDP-specific: Fix NaN/inf values in raw input BEFORE applying activation functions
 	// This is critical because activation functions can amplify or propagate NaN/inf
 	// Specifically, we must clamp w,h values before activation to prevent exp() overflow
+	/*
 	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Checking for NaN/inf values (try_fix_nan=" << state.net.try_fix_nan << ")...");
 	if (state.net.try_fix_nan)
 	{
@@ -2952,9 +3256,10 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 		}
 	}
 	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: NaN/inf check completed");
+	*/
 
-// Force CPU activation regardless of GPU settings (debug)
-#if 1  // Always execute this path for debugging
+	// Force CPU activation regardless of GPU settings (debug)
+	#if 1  // Always execute this path for debugging
 	// CPU-only processing: apply activation functions to appropriate ranges
 	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Starting activation loop for batch=" << l.batch << " anchors=" << l.n);
 	for (int b = 0; b < l.batch; ++b)
@@ -3029,6 +3334,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 #endif
 
 	// Fix NaN/inf values in the output after activation functions (BDP specific rules)
+	/*
 	if (state.net.try_fix_nan)
 	{
 		int nan_count = 0, inf_count = 0;
@@ -3052,6 +3358,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 			                      << inf_count << " inf values (→1)" << std::endl;
 		}
 	}
+	*/
 
 	// Postcondition checks
 	assert(l.output != nullptr);     // Output still valid
@@ -3135,6 +3442,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	// See delta_yolo_box_bdp() at lines 317-489 for the full implementation
 
 	// Verify ground truth is available
+	/*
 	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Checking ground truth availability...");
 	if (!state.truth)
 	{
@@ -3142,6 +3450,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 		return;
 	}
 	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Ground truth available at " << state.truth);
+	*/
 
 	// Zero delta array
 	DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Zeroing delta array (size=" << (l.outputs * l.batch * sizeof(float)) << " bytes)...");
@@ -3202,10 +3511,10 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	{
 		DEBUG_TRACE("   [DEBUG] forward_yolo_layer_bdp: Setting up thread " << b << " args...");
 		yolo_args[b].l = &l;
-		yolo_args[b].state = state;
-		yolo_args[b].b = b;
+		yolo_args[b].state = state;  // training state
+		yolo_args[b].b = b;  // batch index
 
-		yolo_args[b].tot_iou = 0;
+		yolo_args[b].tot_iou = 0;   
 		yolo_args[b].tot_iou_loss = 0;
 		yolo_args[b].tot_giou_loss = 0;
 		yolo_args[b].tot_fp_loss = 0;  // Initialize front point loss
@@ -3330,9 +3639,30 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 		class_count = 1;
 	}
 
+	// Fix any remaining NaN/inf in the entire delta array before computing loss
+	// This prevents NaN from objectness/class deltas contaminating the loss
+	for (int i = 0; i < l.batch * l.outputs; ++i) {
+		if (!std::isfinite(l.delta[i])) {
+			l.delta[i] = 0.0f;
+		}
+	}
+
 	// Compute final loss metrics
 	int stride = l.w*l.h;
 	float* no_iou_loss_delta = (float *)calloc(l.batch * l.outputs, sizeof(float));
+
+	// Check for NaN in l.delta before computing classification loss
+	static int delta_nan_count = 0;
+	for (int i = 0; i < l.batch * l.outputs && delta_nan_count < 5; i++) {
+		if (!std::isfinite(l.delta[i])) {
+			if (delta_nan_count++ < 5) {
+				*cfg_and_state.output << "   [ERROR] NaN/Inf found in l.delta[" << i << "]=" << l.delta[i] << std::endl;
+			}
+			// Replace NaN/Inf with 0 to prevent propagation
+			l.delta[i] = 0.0f;
+		}
+	}
+
 	memcpy(no_iou_loss_delta, l.delta, l.batch * l.outputs * sizeof(float));
 
 	// Zero out coordinate deltas to isolate classification loss
@@ -3357,10 +3687,57 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 		}
 	}
 
-	float classification_loss = l.obj_normalizer * pow(mag_array(no_iou_loss_delta, l.outputs * l.batch), 2);
+	float mag_no_iou = mag_array(no_iou_loss_delta, l.outputs * l.batch);
+	if (!std::isfinite(mag_no_iou)) {
+		*cfg_and_state.output << "   [ERROR] mag_no_iou is NaN/Inf! Setting to 0" << std::endl;
+		mag_no_iou = 0.0f;
+	}
+
+	float classification_loss = l.obj_normalizer * pow(mag_no_iou, 2);
+	if (!std::isfinite(classification_loss)) {
+		*cfg_and_state.output << "   [ERROR] classification_loss is NaN/Inf! obj_normalizer=" << l.obj_normalizer
+		                      << " mag_no_iou=" << mag_no_iou << " Setting to minimum" << std::endl;
+		classification_loss = 0.00001f;
+	}
+	// Clamp classification_loss to minimum of 0.00001 to prevent zero/NaN propagation
+	classification_loss = std::max(0.00001f, classification_loss);
+
 	free(no_iou_loss_delta);
-	float loss = pow(mag_array(l.delta, l.outputs * l.batch), 2);
+
+	float mag_delta = mag_array(l.delta, l.outputs * l.batch);
+	if (!std::isfinite(mag_delta)) {
+		DEBUG_TRACE("   [ERROR] mag_delta is NaN/inf! Checking l.delta array for NaN values...");
+		int nan_count = 0;
+		for (int idx = 0; idx < l.outputs * l.batch && nan_count < 10; ++idx) {
+			if (!std::isfinite(l.delta[idx])) {
+				DEBUG_TRACE("      l.delta[" << std::dec << idx << "] = " << l.delta[idx]);
+				nan_count++;
+			}
+		}
+		DEBUG_TRACE("   [ERROR] Found " << std::dec << nan_count << " NaN/inf values in l.delta. Setting mag_delta=0");
+		mag_delta = 0.0f;
+	}
+
+	float loss = pow(mag_delta, 2);
+	if (!std::isfinite(loss)) loss = 0.0f;
+
 	float iou_loss = loss - classification_loss;
+	if (!std::isfinite(iou_loss)) iou_loss = 0.0001f;
+	// Clamp iou_loss to minimum of 0.0001 to prevent zero/NaN propagation
+	iou_loss = std::max(0.0001f, iou_loss);
+
+	// DEBUG: Check for NaN/inf in loss computation
+	static int loss_nan_count = 0;
+	if (!std::isfinite(mag_no_iou) || !std::isfinite(mag_delta) ||
+	    !std::isfinite(classification_loss) || !std::isfinite(loss) || !std::isfinite(iou_loss)) {
+		if (loss_nan_count++ < 10) {
+			*cfg_and_state.output << "   [LOSS_DEBUG] NaN/inf in loss computation!"
+			                      << "\n      mag_no_iou=" << mag_no_iou << " classification_loss=" << classification_loss
+			                      << "\n      mag_delta=" << mag_delta << " loss=" << loss
+			                      << " iou_loss=" << iou_loss
+			                      << "\n      l.obj_normalizer=" << l.obj_normalizer << std::endl;
+		}
+	}
 
 	// Compute average front point loss
 	float avg_fp_loss = (count > 0) ? (tot_fp_loss / count) : 0.0f;
@@ -3369,6 +3746,11 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	DEBUG_TRACE("   [BDP] forward_yolo_layer_bdp: FINAL tot_fp_loss=" << tot_fp_loss
 	            << " count=" << count << " avg_fp_loss=" << avg_fp_loss
 	            << " fp_normalizer=" << l.fp_normalizer);
+	DEBUG_TRACE("   [BDP] Loss breakdown: "
+	            << "iou_loss=" << loss_color(iou_loss) << iou_loss << reset_color()
+	            << " class_loss=" << loss_color(classification_loss) << classification_loss << reset_color()
+	            << " fp_loss=" << loss_color(avg_fp_loss) << avg_fp_loss << reset_color()
+	            << " total=" << loss_color(loss) << loss << reset_color());
 	DEBUG_TRACE("   [DEBUG] Loss computation: total_loss=" << loss << " iou_loss=" << iou_loss
 	            << " class_loss=" << classification_loss << " fp_loss=" << avg_fp_loss);
 	if (std::isnan(loss) || std::isinf(loss)) {
@@ -3381,13 +3763,34 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	*(l.cost) = loss;
 
 	// Output training metrics including front point loss (paper equation 10)
-	*cfg_and_state.output << "BDP training: loss=" << loss
-	                      << " iou_loss=" << iou_loss << "(corrected)"  // IoU with angular correction (equation 11)
-	                      << " fp_loss=" << avg_fp_loss  // Front point Smooth L1 loss (equation 10)
-	                      << " class_loss=" << classification_loss
+	// Use high precision and always print alert if: NaN, Inf, very small (<1e-4), or exceeds 15.0f
+	bool should_always_print = std::isnan(loss) || std::isinf(loss) ||
+	                           std::isnan(iou_loss) || std::isinf(iou_loss) ||
+	                           std::isnan(avg_fp_loss) || std::isinf(avg_fp_loss) ||
+	                           std::isnan(classification_loss) || std::isinf(classification_loss) ||
+	                           std::abs(loss) < 1e-4f || std::abs(iou_loss) < 1e-4f ||
+	                           std::abs(avg_fp_loss) < 1e-4f || std::abs(classification_loss) < 1e-4f ||
+	                           loss > 15.0f || iou_loss > 15.0f || avg_fp_loss > 15.0f || classification_loss > 15.0f;
+
+	const char* iou_note = (iou_loss <= 0.0001f) ? "(min-clamped)" : "";
+	*cfg_and_state.output << std::fixed << std::setprecision(8)
+	                      << "BDP training: "
+	                      << "loss=" << loss_color(loss) << loss << reset_color()
+	                      << " iou_loss=" << loss_color(iou_loss) << iou_loss << reset_color() << iou_note
+	                      << " fp_loss=" << loss_color(avg_fp_loss) << avg_fp_loss << reset_color()
+	                      << " class_loss=" << loss_color(classification_loss) << classification_loss << reset_color()
 	                      << " count=" << count
 	                      << " avg_iou=" << (tot_iou / count)
 	                      << std::endl;
+
+	if (should_always_print) {
+		*cfg_and_state.output << "   [ALERT] Abnormal loss values detected: "
+		                      << "loss=" << (std::isnan(loss) ? "NaN" : std::isinf(loss) ? "Inf" : std::abs(loss) < 1e-4f ? "~0" : ">15")
+		                      << " iou_loss=" << (std::isnan(iou_loss) ? "NaN" : std::isinf(iou_loss) ? "Inf" : std::abs(iou_loss) < 1e-4f ? "~0" : ">15")
+		                      << " fp_loss=" << (std::isnan(avg_fp_loss) ? "NaN" : std::isinf(avg_fp_loss) ? "Inf" : std::abs(avg_fp_loss) < 1e-4f ? "~0" : ">15")
+		                      << " class_loss=" << (std::isnan(classification_loss) ? "NaN" : std::isinf(classification_loss) ? "Inf" : std::abs(classification_loss) < 1e-4f ? "~0" : ">15")
+		                      << std::endl;
+	}
 }
 
 

@@ -106,7 +106,7 @@ typedef enum {
 // parser.h
 typedef enum
 {
-	IOU, GIOU, MSE, DIOU, CIOU
+	IOU, GIOU, MSE, DIOU, CIOU, RIOU
 } IOU_LOSS;
 
 // parser.h
@@ -212,6 +212,11 @@ typedef struct boxabs {
 typedef struct dxrep {
 	float dt, db, dl, dr;
 } dxrep;
+
+// box.h - BDP gradients for 6-parameter oriented bounding boxes
+typedef struct dxrep_bdp {
+	float dx, dy, dw, dh, dfx, dfy;  // Gradients w.r.t. (x, y, w, h, fx, fy)
+} dxrep_bdp;
 
 // box.h
 typedef struct ious {

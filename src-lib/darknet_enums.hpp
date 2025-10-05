@@ -137,6 +137,7 @@ namespace Darknet
 		MSE		= IOU_LOSS::MSE,
 		DIOU	= IOU_LOSS::DIOU,
 		CIOU	= IOU_LOSS::CIOU,
+		RIOU	= IOU_LOSS::RIOU,
 	};
 
 	/// @{ Convert between names and IoU loss types.

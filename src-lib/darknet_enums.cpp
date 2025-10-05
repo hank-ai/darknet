@@ -210,6 +210,7 @@ const Darknet::NamesAndIoULoss & Darknet::all_names_and_IoU_loss()
 		{"mse"	, EIoULoss::MSE	},
 		{"diou"	, EIoULoss::DIOU},
 		{"ciou"	, EIoULoss::CIOU},
+		{"riou"	, EIoULoss::RIOU},
 	};
 
 	return m;
