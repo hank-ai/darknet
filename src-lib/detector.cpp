@@ -1342,12 +1342,12 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	struct box_prob
 	{
-		Darknet::Box b;			// bounding box
-		float p;				// probability
+		Darknet::Box b;         // bounding box
+		float p;	         	// probability (score)
 		int class_id;
-		int image_index;		// ?
-		int truth_flag;			// ?
-		int unique_truth_index;	// ?
+		int image_index;
+		int truth_flag;			// 1 if matched to some GT (greedy best-IoU of same class), else 0
+		int unique_truth_index; // global index of matched GT, to prevent double counting
 	};
 
 	list *options = read_data_cfg(datacfg);
@@ -1434,28 +1434,20 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	args.h = net.h;
 	args.c = net.c;
 	letter_box = net.letter_box;
-	if (letter_box)
-	{
-		args.type = LETTERBOX_DATA;
-	}
-	else
-	{
-		args.type = IMAGE_DATA;
-	}
+	args.type = letter_box ? LETTERBOX_DATA : IMAGE_DATA;
 
-	//const float thresh_calc_avg_iou = 0.24;
-	float avg_iou = 0;
-	int tp_for_thresh = 0;
-	int fp_for_thresh = 0;
+	float avg_iou = 0.f;   // diagnostic IoU at thresh_calc_avg_iou across (TP+FP) — not used for AP
+	int tp_for_thresh = 0; // diagnostic TP at thresh_calc_avg_iou (across all classes)
+	int fp_for_thresh = 0; // diagnostic FP at thresh_calc_avg_iou (across all classes)
 
 	box_prob* detections = (box_prob*)xcalloc(1, sizeof(box_prob));
 	int detections_count = 0;
 	int unique_truth_count = 0;
 
-	/// @todo I think this is TP + FN (where the object actually exists, and we either found it, or missed it)
+	// counts of GT per class
 	int* truth_classes_count = (int*)xcalloc(classes, sizeof(int));
 
-	// For multi-class precision and recall computation
+	// Per-class diagnostics for the chosen confidence threshold
 	float *avg_iou_per_class = (float*)xcalloc(classes, sizeof(float));
 	int *tp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
 	int *fp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
@@ -1652,10 +1644,9 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	for (int class_id = 0; class_id < classes; class_id++)
 	{
-		if ((tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id]) > 0)
-		{
-			avg_iou_per_class[class_id] = avg_iou_per_class[class_id] / (tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id]);
-		}
+		const int denom = tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id];
+		if (denom > 0)
+			avg_iou_per_class[class_id] = avg_iou_per_class[class_id] / denom;
 	}
 
 	// Sort the array from high probability to low probability.
@@ -1673,21 +1664,19 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	struct pr_t
 	{
-		double prob;
-		double precision;
-		double recall;
-		int tp;
-		int fp;
-		int fn;
+		double prob = 0.0;
+		double precision = 0.0;
+		double recall = 0.0;
+		int tp = 0;
+		int fp = 0;
+		int fn = 0;
 	};
 
 	// for PR-curve
 	// Note this is a pointer-to-a-pointer.  We don't have just 1 of these per class, but these exist for every detections_count.
 	pr_t** pr = (pr_t**)xcalloc(classes, sizeof(pr_t*));
 	for (int i = 0; i < classes; ++i)
-	{
-		pr[i] = (pr_t*)xcalloc(detections_count, sizeof(pr_t));
-	}
+		pr[i] = (pr_t*)xcalloc(std::max(1, detections_count), sizeof(pr_t)); // allocate at least 1 to avoid nullptr deref
 
 	*cfg_and_state.output << "detections_count=" << detections_count << ", unique_truth_count=" << unique_truth_count << std::endl;
 
@@ -1697,8 +1686,9 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		detection_per_class_count[detections[j].class_id]++;
 	}
 
-	int* truth_flags = (int*)xcalloc(unique_truth_count, sizeof(int));
+	int *truth_flags = (int*)xcalloc(std::max(1, unique_truth_count), sizeof(int));
 
+	// Accumulate PR for each rank
 	for (int rank = 0; rank < detections_count; ++rank)
 	{
 		if (rank % 100 == 0)
@@ -1720,13 +1710,15 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 		if (d.truth_flag == 1)
 		{
-			if (truth_flags[d.unique_truth_index] == 0)
+			if (d.unique_truth_index >= 0 && d.unique_truth_index < unique_truth_count &&
+				truth_flags[d.unique_truth_index] == 0)
 			{
 				truth_flags[d.unique_truth_index] = 1;
-				pr[d.class_id][rank].tp++;    // true-positive
-			} else
+				pr[d.class_id][rank].tp++; // true positive
+			}
+			else
 			{
-				pr[d.class_id][rank].fp++;
+				pr[d.class_id][rank].fp++; // duplicate hit on same GT
 			}
 		}
 		else
@@ -1738,26 +1730,11 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		{
 			const int tp = pr[i][rank].tp;
 			const int fp = pr[i][rank].fp;
-			const int fn = truth_classes_count[i] - tp;    // false-negative = objects - true-positive
+			const int fn = truth_classes_count[i] - tp; // remaining GT are false negatives
 			pr[i][rank].fn = fn;
 
-			if ((tp + fp) > 0)
-			{
-				pr[i][rank].precision = (double)tp / (double)(tp + fp);
-			}
-			else
-			{
-				pr[i][rank].precision = 0;
-			}
-
-			if ((tp + fn) > 0)
-			{
-				pr[i][rank].recall = (double)tp / (double)(tp + fn);
-			}
-			else
-			{
-				pr[i][rank].recall = 0;
-			}
+			pr[i][rank].precision = (tp + fp) > 0 ? (double)tp / (double)(tp + fp) : 0.0;
+			pr[i][rank].recall = (tp + fn) > 0 ? (double)tp / (double)(tp + fn) : 0.0;
 
 			if (rank == (detections_count - 1) && detection_per_class_count[i] != (tp + fp))
 			{
@@ -1777,6 +1754,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	double mean_average_precision = 0.0;
 
+	// ---- Per-class AP + reporting (no TN/accuracy/specificity) ----
 	for (int i = 0; i < classes; ++i)
 	{
 		double avg_precision = 0.0;
@@ -1787,8 +1765,15 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		// ImageNet - uses Area-Under-Curve on PR-chart.
 
 		// correct mAP calculation: ImageNet, PascalVOC 2010-2012
-		if (map_points == 0)
+		const int gt_i = truth_classes_count[i];
+
+		if (detections_count == 0)
 		{
+			// No detections at all -> AP remains 0 (unless you prefer to skip classes with gt_i==0)
+		}
+		else if (map_points == 0)
+		{
+			// VOC2010 / AUC of the precision envelope
 			double last_recall = pr[i][detections_count - 1].recall;
 			double last_precision = pr[i][detections_count - 1].precision;
 			for (int rank = detections_count - 2; rank >= 0; --rank)
@@ -1804,75 +1789,89 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 				avg_precision += delta_recall * last_precision;
 			}
 			//add remaining area of PR curve when recall isn't 0 at rank-1
-			double delta_recall = last_recall - 0;
+			double delta_recall = last_recall - 0.0;
 			avg_precision += delta_recall * last_precision;
 		}
-		// MSCOCO - 101 Recall-points, PascalVOC - 11 Recall-points
 		else
 		{
-			int point;
-			for (point = 0; point < map_points; ++point)
+			// Sampled AP (VOC2007 11-pt, or COCO-style 101-pt sampling at a SINGLE IoU)
+			if (map_points < 2)
 			{
-				double cur_recall = point * 1.0 / (map_points-1);
-				double cur_precision = 0;
-				//double cur_prob = 0;
+				darknet_fatal_error(DARKNET_LOC, "map_points must be >= 2 (e.g., 11 or 101).");
+			}
+
+			for (int point = 0; point < map_points; ++point)
+			{
+				double cur_recall = (map_points == 1) ? 0.0 : (point * 1.0 / (map_points - 1));
+				double cur_precision = 0.0;
 				for (int rank = 0; rank < detections_count; ++rank)
 				{
-					if (pr[i][rank].recall >= cur_recall)
+					if (pr[i][rank].recall >= cur_recall &&
+						pr[i][rank].precision > cur_precision)
 					{
-						// > or >=
-						if (pr[i][rank].precision > cur_precision)
-						{
-							cur_precision = pr[i][rank].precision;
-							//cur_prob = pr[i][rank].prob;
-						}
+						cur_precision = pr[i][rank].precision;
 					}
 				}
-
 				avg_precision += cur_precision;
 			}
 			avg_precision = avg_precision / map_points;
 		}
 
-		// Accuracy:							all correct		/ all		= (TP + TN)	/ (TP + TN + FP + FN)
-		// Misclassification (error rate):		all incorrect	/ all		= (FP + FN)	/ (TP + TN + FP + FN)
-		// Precision:							TP / predicted positives	= TP		/ (TP + FP)
-		// Sensitivity aka recall:				TP / all positives			= TP		/ (TP + FN)
-		// Specificity (true negative rate):	TN / all negatives			= TN		/ (TN + FP)
-		// False positive rate:					FP / all negatives			= FP		/ (TN + FP)
+		// Final (threshold-free) counts at last rank
+		int tp_final = 0, fp_final = 0;
+		if (detections_count > 0)
+		{
+			tp_final = pr[i][detections_count - 1].tp;
+			fp_final = pr[i][detections_count - 1].fp;
+		}
+		const int fn_final = std::max(0, gt_i - tp_final);
 
-		const int all_detections = detection_per_class_count[i];
-		const int tp = tp_for_thresh_per_class[i];
-		const int fn = truth_classes_count[i] - tp;
-		const int fp = fp_for_thresh_per_class[i];
-		const int tn = all_detections - tp - fn - fp;
-		const float accuracy		= static_cast<float>(tp + tn)	/ static_cast<float>(all_detections);
-		const float error_rate		= static_cast<float>(fp + fn)	/ static_cast<float>(all_detections);
-		const float precision		= static_cast<float>(tp)		/ static_cast<float>(tp + fp);
-		const float recall			= static_cast<float>(tp)		/ static_cast<float>(tp + fn);
-		const float specificity		= static_cast<float>(tn)		/ static_cast<float>(tn + fp);
-		const float false_pos_rate	= static_cast<float>(fp)		/ static_cast<float>(tn + fp);
+		// Optional diagnostic IoU at the chosen conf threshold
+		const float diag_avg_iou_at_thresh =
+			(tp_for_thresh_per_class[i] + fp_for_thresh_per_class[i]) > 0 ? (avg_iou_per_class[i]) : 0.0f;
 
+		// Header (once)
 		if (i == 0)
 		{
 			*cfg_and_state.output
 				<< std::endl
 				<< std::endl
-				<< "  Id Name             AvgPrecision     TP     FN     FP     TN Accuracy ErrorRate Precision Recall Specificity FalsePosRate" << std::endl
-				<< "  -- ----             ------------ ------ ------ ------ ------ -------- --------- --------- ------ ----------- ------------" << std::endl;
+				<< "  Id  Name                  AP(%)     TP     FP     FN     GT   AvgIoU@conf(%)"
+				<< std::endl
+				<< "  --  --------------------  --------- ------ ------ ------ ------ -----------------"
+				<< std::endl;
 		}
 
-		*cfg_and_state.output << Darknet::format_map_confusion_matrix_values(i, net.details->class_names[i], avg_precision, tp, fn, fp, tn, accuracy, error_rate, precision, recall, specificity, false_pos_rate) << std::endl;
+		// Colored row
+		*cfg_and_state.output
+			<< Darknet::format_map_ap_row_values(
+				   /*class_id*/ i,
+				   /*name*/ net.details->class_names[i],
+				   /*AP*/ (float)avg_precision,
+				   /*TP*/ tp_final,
+				   /*FP*/ fp_final,
+				   /*FN*/ fn_final,
+				   /*GT*/ gt_i,
+				   /*diag IoU*/ diag_avg_iou_at_thresh)
+			<< std::endl;
 
 		// send the result of this class to the C++ side of things so we can include it the right chart
-		Darknet::update_accuracy_in_new_charts(i, avg_precision);
+		Darknet::update_accuracy_in_new_charts(i, (float)avg_precision);
 
 		mean_average_precision += avg_precision;
 	}
 
-	const float cur_precision = (float)tp_for_thresh / ((float)tp_for_thresh + (float)fp_for_thresh);
-	const float cur_recall = (float)tp_for_thresh / ((float)tp_for_thresh + (float)(unique_truth_count - tp_for_thresh));
-	const float f1_score = 2.F * cur_precision * cur_recall / (cur_precision + cur_recall);
+	// Diagnostic summary (guard divisions)
+	float cur_precision = 0.f, cur_recall = 0.f, f1_score = 0.f;
+	const int det_denom = tp_for_thresh + fp_for_thresh;
+	if (det_denom > 0)
+		cur_precision = (float)tp_for_thresh / det_denom;
+
+	if (unique_truth_count > 0)
+		cur_recall = (float)tp_for_thresh / (float)unique_truth_count;
+
+	if ((cur_precision + cur_recall) > 0.f)
+		f1_score = 2.f * cur_precision * cur_recall / (cur_precision + cur_recall);
 
 	*cfg_and_state.output
 		<< std::endl
@@ -1898,7 +1897,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		*cfg_and_state.output << "used area-under-curve for each unique recall" << std::endl;
 	}
 
-	mean_average_precision = mean_average_precision / classes;
+	mean_average_precision = (classes > 0) ? (mean_average_precision / classes) : 0.0;
 	*cfg_and_state.output
 		<< "mean average precision (mAP@" << std::setprecision(2) << iou_thresh << ")="
 		<< Darknet::format_map_accuracy(mean_average_precision)
@@ -1954,7 +1953,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	free(buf);
 	free(buf_resized);
 
-	return mean_average_precision;
+	return (float)mean_average_precision;
 }
 
 typedef struct {

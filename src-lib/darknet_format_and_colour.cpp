@@ -225,6 +225,42 @@ std::string Darknet::format_map_confusion_matrix_values(
 }
 
 
+std::string Darknet::format_map_ap_row_values(
+	const int class_id,
+	std::string name,
+	const float &average_precision, // 0..1
+	const int &tp,
+	const int &fp,
+	const int &fn,
+	const int &gt,
+	const float &diag_avg_iou // 0..1
+)
+{
+	TAT(TATPARMS);
+
+	if (name.length() > 20)
+	{
+		name.erase(19);
+		name += "+";
+	}
+
+	// Note: format_in_colour(x,len) auto-colours by value.
+	// It also treats values >1 as percentages (divides by 100 for scale),
+	// so we pass AP*100 and IoU*100 to show nicely as percents with colour.
+	const std::string output =
+		"  " +
+		format_in_colour(class_id, EColour::kNormal, 2) + " " +
+		format_in_colour(name, EColour::kBrightWhite, 20) + " " +
+		format_in_colour(100.0f * average_precision, 9) + " " + // <- 9 so "100.0000" fits
+		format_in_colour(tp, EColour::kNormal, 6) + " " +
+		format_in_colour(fp, EColour::kNormal, 6) + " " +
+		format_in_colour(fn, EColour::kNormal, 6) + " " +
+		format_in_colour(gt, EColour::kNormal, 6) + " " +
+		format_in_colour(100.0f * diag_avg_iou, 17);
+	return output;
+}
+
+
 std::string Darknet::format_layer_summary(const size_t idx, const Darknet::CfgSection & section, const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
