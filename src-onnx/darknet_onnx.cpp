@@ -690,6 +690,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::check_activation(const size_t index, 
 	const auto & activation = section.find_str("activation", "linear");
 	switch(cfg.net.layers[index].activation)
 	{
+		case LOGISTIC:
 		case LEAKY:
 		case RELU:
 		case MISH:
@@ -739,6 +740,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 		attrib->set_name("alpha");
 		attrib->set_f(0.1f);
 		attrib->set_type(onnx::AttributeProto::FLOAT);
+	}
+	else if (activation == LOGISTIC)
+	{
+		node->set_op_type("Sigmoid");
 	}
 	else if (activation == RELU)
 	{
