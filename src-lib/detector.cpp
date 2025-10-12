@@ -523,7 +523,14 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 		if (time_to_load_images >= train_duration and avg_loss > 0.0f)
 		{
-			Darknet::display_warning_msg("Performance bottleneck:  loading " + std::to_string(args.n) + " images took longer than it takes to train.  Slow CPU or hard drive?  Loading images from a network share?\n");
+			static size_t warning_counter = 0;
+			warning_counter ++;
+			static auto previous_performance_warning = iteration_end_time - std::chrono::seconds(60);
+			if (iteration_end_time > previous_performance_warning + std::chrono::seconds(5))
+			{
+				previous_performance_warning = iteration_end_time;
+				Darknet::display_warning_msg("Performance bottleneck (#" + std::to_string(warning_counter) + "): loading " + std::to_string(args.n) + " images took longer than it takes to train.  Slow CPU or hard drive?  Loading images from a network share?\n");
+			}
 		}
 
 		// updating the console titlebar requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
