@@ -28,7 +28,7 @@ void prime_training_images_cache_thread(Darknet::VStr v)
 
 	// this runs on a secondary thread started by prime_training_images_cache()
 
-	for (const auto & fn : v)
+	for (auto & fn : v)
 	{
 		if (prime_loading_threads_must_exit)
 		{
@@ -48,7 +48,26 @@ void prime_training_images_cache_thread(Darknet::VStr v)
 
 		if (mat.empty() or mat.cols < 32 or mat.rows < 32)
 		{
-			Darknet::display_warning_msg("unexpected error while loading image: " + fn + "\n");
+			Darknet::display_warning_msg("unexpected error while loading image " + fn + "\n");
+		}
+
+		// now read the .txt file that goes with this image
+		const size_t pos = fn.rfind(".");
+		if (pos != std::string::npos)
+		{
+			fn.erase(pos);
+		}
+		fn += ".txt";
+
+		std::ifstream ifs(fn);
+		if (ifs.good())
+		{
+			std::string line;
+			ifs >> line;
+		}
+		else
+		{
+			Darknet::display_warning_msg("unexpected error while reading annotations from " + fn + "\n");
 		}
 	}
 
