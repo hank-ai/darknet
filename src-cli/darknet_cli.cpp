@@ -1654,7 +1654,7 @@ int main(int argc, char **argv)
 			cuda_set_device(cfg_and_state.gpu_index);
 			CHECK_CUDA(cudaSetDeviceFlags(cudaDeviceScheduleBlockingSync));
 		}
-		cuda_debug_sync = find_arg(argc, argv, "-cuda_debug_sync" << std::endl;
+		cuda_debug_sync = find_arg(argc, argv, "-cuda_debug_sync");
 #endif
 
 		errno = 0;

@@ -2005,8 +2005,8 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 	}
 
 	int classes = l.classes;
-	const float thresh = 0.005f;
-	const float nms = 0.10f; // NMS threshold for oriented boxes (lower = more aggressive suppression)
+	const float thresh = 0.2f;
+	const float nms = 0.60f; // NMS threshold for oriented boxes (lower = more aggressive suppression)
 
 	// Arrays to track statistics
 	int *truth_classes_count = (int*)xcalloc(classes, sizeof(int));
@@ -2041,36 +2041,60 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 	};
 	std::vector<gt_box> all_ground_truth;
 
-	*cfg_and_state.output << "Processing " << number_of_images << " validation images..." << std::endl;
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "Processing " << number_of_images << " validation images..." << std::endl;
+	}
 
 	// Process each image
 	for (int img_idx = 0; img_idx < number_of_images; ++img_idx)
 	{
 		char *path = paths[img_idx];
-		*cfg_and_state.output << "Loading image " << (img_idx + 1) << ": " << path << std::endl;
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "Loading image " << (img_idx + 1) << ": " << path << std::endl;
+		}
 
 		Darknet::Image im = Darknet::load_image(path, 0, 0, net.c);
 		Darknet::Image resized = Darknet::letterbox_image(im, net.w, net.h);
 
-		*cfg_and_state.output << "  Image size: " << im.w << "x" << im.h << ", resized to " << resized.w << "x" << resized.h << std::endl;
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "  Image size: " << im.w << "x" << im.h << ", resized to " << resized.w << "x" << resized.h << std::endl;
+		}
 
 		float *X = resized.data;
-		*cfg_and_state.output << "  Running network prediction..." << std::endl;
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "  Running network prediction..." << std::endl;
+		}
 		network_predict(net, X);
 
-		*cfg_and_state.output << "  Extracting BDP boxes..." << std::endl;
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "  Extracting BDP boxes..." << std::endl;
+		}
 		int nboxes = 0;
 		detection_obb *dets = get_network_boxes_bdp(&net, im.w, im.h, thresh, 0, 0, 1, &nboxes, letter_box);
-		*cfg_and_state.output << "  Got " << nboxes << " detections" << std::endl;
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "  Got " << nboxes << " detections" << std::endl;
+		}
 
 		// Apply NMS to remove overlapping detections
 		if (nms)
 		{
 			do_nms_sort_bdp(dets, nboxes, l.classes, nms);
-			*cfg_and_state.output << "  Applied NMS with threshold " << nms << std::endl;
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "  Applied NMS with threshold " << nms << std::endl;
+			}
 		}
 
-		*cfg_and_state.output << "  Processing detections..." << std::endl;
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "  Processing detections..." << std::endl;
+		}
 
 		if (dets && nboxes > 0)
 		{
@@ -2103,17 +2127,26 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 					detection_per_class_count[best_class]++; // Count detections per class
 				}
 			}
-			*cfg_and_state.output << "  Stored " << total_detections << " valid detections so far" << std::endl;
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "  Stored " << total_detections << " valid detections so far" << std::endl;
+			}
 
 			// Read ground truth
 			char labelpath[4096];
 			replace_image_to_label(path, labelpath);
-			*cfg_and_state.output << "  Reading labels from: " << labelpath << std::endl;
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "  Reading labels from: " << labelpath << std::endl;
+			}
 
 			int num_labels = 0;
 
 			box_label_bdp *truth = read_boxes_bdp(labelpath, &num_labels);
-			*cfg_and_state.output << "  Got " << num_labels << " ground truth boxes" << std::endl;
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "  Got " << num_labels << " ground truth boxes" << std::endl;
+			}
 
 			total_truth += num_labels;
 			if (truth && num_labels > 0)
@@ -2146,9 +2179,15 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 				free(truth);
 			}
 
-			*cfg_and_state.output << "  Freeing detections..." << std::endl;
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "  Freeing detections..." << std::endl;
+			}
 			free_detections_bdp(dets, nboxes);
-			*cfg_and_state.output << "  Done with image " << (img_idx + 1) << std::endl;
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "  Done with image " << (img_idx + 1) << std::endl;
+			}
 		}
 
 		Darknet::free_image(im);
@@ -2156,7 +2195,10 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 
 		if ((img_idx + 1) % 100 == 0)
 		{
-			*cfg_and_state.output << "Processed " << (img_idx + 1) << "/" << number_of_images << " images" << std::endl;
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "Processed " << (img_idx + 1) << "/" << number_of_images << " images" << std::endl;
+			}
 		}
 	}
 

@@ -1344,11 +1344,17 @@ detection_obb * get_network_boxes_bdp(DarknetNetworkPtr ptr, int w, int h, float
 		{
 			nboxes += l.w * l.h * l.n; // grid_w * grid_h * num_anchors
 			bdp_layer_count++;
-			*cfg_and_state.output << "    BDP layer " << i << ": " << l.w << "x" << l.h << " grid, " << l.n << " anchors = " << (l.w * l.h * l.n) << " boxes" << std::endl;
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "    BDP layer " << i << ": " << l.w << "x" << l.h << " grid, " << l.n << " anchors = " << (l.w * l.h * l.n) << " boxes" << std::endl;
+			}
 		}
 	}
 
-	*cfg_and_state.output << "    Total BDP layers: " << bdp_layer_count << ", total boxes: " << nboxes << std::endl;
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "    Total BDP layers: " << bdp_layer_count << ", total boxes: " << nboxes << std::endl;
+	}
 
 	if (nboxes == 0)
 	{
@@ -1357,11 +1363,17 @@ detection_obb * get_network_boxes_bdp(DarknetNetworkPtr ptr, int w, int h, float
 	}
 
 	// Allocate detection array
-	*cfg_and_state.output << "    Allocating " << nboxes << " detections..." << std::endl;
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "    Allocating " << nboxes << " detections..." << std::endl;
+	}
 	DarknetDetectionOBB *dets = (DarknetDetectionOBB*)xcalloc(nboxes, sizeof(DarknetDetectionOBB));
 
 	int classes = net->layers[net->n - 1].classes;
-	*cfg_and_state.output << "    Allocating probability arrays (classes=" << classes << ")..." << std::endl;
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "    Allocating probability arrays (classes=" << classes << ")..." << std::endl;
+	}
 	for (int i = 0; i < nboxes; ++i)
 	{
 		dets[i].prob = (float*)xcalloc(classes, sizeof(float));
@@ -1374,9 +1386,15 @@ detection_obb * get_network_boxes_bdp(DarknetNetworkPtr ptr, int w, int h, float
 		Darknet::Layer & l = net->layers[i];
 		if (l.type == Darknet::ELayerType::YOLO_BDP)
 		{
-			*cfg_and_state.output << "    Calling get_yolo_detections_bdp for layer " << i << "..." << std::endl;
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "    Calling get_yolo_detections_bdp for layer " << i << "..." << std::endl;
+			}
 			int layer_count = get_yolo_detections_bdp(l, w, h, net->w, net->h, thresh, map, relative, dets + count, letter);
-			*cfg_and_state.output << "    Layer " << i << " returned " << layer_count << " detections" << std::endl;
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "    Layer " << i << " returned " << layer_count << " detections" << std::endl;
+			}
 			count += layer_count;
 		}
 	}
