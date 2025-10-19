@@ -87,15 +87,16 @@ int main(int argc, char * argv[])
 
 		if (not json.empty())
 		{
-			std::ofstream ofs(json_path);
-			ofs << std::setw(4) << json << std::endl;
-			ofs.close();
+			std::ofstream(json_path) << std::setw(4) << json << std::endl;
+
+			const float fps = static_cast<float>(json["file"].size()) / std::chrono::duration_cast<std::chrono::nanoseconds>(end_time - start_time).count() * 1000000000.0f;
 
 			std::cout
-				<< "-> JSON results ....... " << std::filesystem::canonical(json_path).string()	<< std::endl
-				<< "-> images processed ... " << json["file"].size()							<< std::endl
-				<< "-> objects detected ... " << total_objects_detected							<< std::endl
-				<< "-> time elapsed ....... " << Darknet::format_duration_string(end_time - start_time) << std::endl;
+				<< "-> JSON results ....... " << std::filesystem::canonical(json_path).string()			<< std::endl
+				<< "-> images processed ... " << json["file"].size()									<< std::endl
+				<< "-> objects detected ... " << total_objects_detected									<< std::endl
+				<< "-> time elapsed ....... " << Darknet::format_duration_string(end_time - start_time)	<< std::endl
+				<< "-> processed rate ..... " << std::setprecision(1) << fps << " FPS"					<< std::endl;
 		}
 
 		Darknet::free_neural_network(net);
