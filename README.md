@@ -34,7 +34,7 @@ YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection sys
 	* All commits are automatically mirrored from Codeberg to the older Hank.ai GitHub repo.
 * See the **[Darknet/YOLO web site](https://darknetcv.ai/)**
 * Please read through the **[Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/)**
-* Join the **[Darknet/YOLO discord server](https://discord.gg/CPZJPSYZU2)**
+* Join the **[Darknet/YOLO discord server](https://discord.gg/MQw32W9Cqr)**
 
 # Papers
 
@@ -55,7 +55,7 @@ a NVIDIA RTX 3090 GPU, meaning each video frame is read, resized, and processed 
 Additional performance improvements have been implemented in Darknet V4 and the upcoming Darknet V5, without compromising
 the quality of detections.
 
-Please join the Darknet/YOLO Discord server if you need help or you want to discuss Darknet/YOLO and related tools:  https://discord.gg/CPZJPSYZU2
+Please join the Darknet/YOLO Discord server if you need help or you want to discuss Darknet/YOLO and related tools:  https://discord.gg/MQw32W9Cqr
 
 The CPU version of Darknet/YOLO can run on simple devices such as Raspberry Pi, cloud &amp; colab servers, desktops,
 laptops, and high-end training rigs.  The GPU version of Darknet/YOLO requires either a CUDA-capable GPU from NVIDIA,
@@ -561,7 +561,7 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 * [Java bindings for Darknet/YOLO](https://github.com/stephanecharette/DarknetJava)  [incomplete, in-progress]
 * [Delphi bindings for Darknet/YOLO](https://github.com/hansvas/Darknet4Delphi)
 * [Darknet2Any](https://github.com/jredmondson/darknet2any/)
-* If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/zSq8rtW).
+* If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/MQw32W9Cqr).
 
 # Roadmap
 
