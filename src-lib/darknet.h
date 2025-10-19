@@ -250,7 +250,7 @@ float * network_predict_ptr(DarknetNetworkPtr ptr, float * input);
  */
 float * network_predict_image(DarknetNetworkPtr ptr, const DarknetImage im);
 
-/** This is part of the original @p C API.  Do not use in new code.
+/** This is part of the original @p C API.  Do not use in new code.  See @ref Darknet::predict() for example code that calls this function.
  *
  * You must call @ref free_detections() to free up memory once done with the detections.
  *
@@ -286,7 +286,7 @@ DarknetImage make_image(int w, int h, int c);
  */
 void free_image(DarknetImage image);
 
-/// This is part of the original @p C API.  Non Maxima Suppression.
+/// This is part of the original @p C API.  Non Maxima Suppression.  See @ref Darknet::predict() for example code that calls this function.
 void do_nms_sort(detection * dets, int total, int classes, float thresh);
 
 /// This is part of the original @p C API.  Non Maxima Suppression.
@@ -295,13 +295,13 @@ void do_nms_obj(detection * dets, int total, int classes, float thresh);
 /// This is part of the original @p C API.  Non Maxima Suppression.
 void diounms_sort(detection * dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1);
 
-/// This is part of the original @p C API.  Convert from data pointer to a %Darknet image.  Used by the Python API.
+/// This is part of the original @p C API.  Convert from data pointer to a %Darknet image.  Used by the Python API and other language wrappers.
 void copy_image_from_bytes(DarknetImage im, char *pdata);
 
 /// This is part of the original @p C API.  This function does nothing when %Darknet was built to run on the CPU.
 void cuda_set_device(int n);
 
-/// This is part of the original @p C API.
+/// This is part of the original @p C API.  @see @ref get_network_boxes()  @see @ref make_network_boxes_v3()
 detection * make_network_boxes(DarknetNetworkPtr ptr, float thresh, int * num);
 
 /// This is part of the original @p C API.
@@ -310,10 +310,10 @@ void free_ptrs(void **ptrs, int n);
 /// This is part of the original @p C API.
 void reset_rnn(DarknetNetworkPtr ptr);
 
-/// This is part of the original @p C API.  This function exists for the Python API.
+/// This is part of the original @p C API.  This function exists for the Python API and other language wrappers.
 DarknetImage load_image_v2(const char * filename, int desired_width, int desired_height, int channels);
 
-/// This is part of the original @p C API.
+/// This is part of the original @p C API.  @warning Use of letterboxing is no longer a recommended technique.
 float * network_predict_image_letterbox(DarknetNetworkPtr ptr, DarknetImage im);
 
 #endif // DARKNET_INCLUDE_ORIGINAL_API

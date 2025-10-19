@@ -189,8 +189,12 @@ namespace Darknet
 
 	void hsv_to_rgb(Darknet::Image & im);
 
+	/// @warning Use of letterboxing is no longer a recommended technique.
 	Darknet::Image letterbox_image(const Darknet::Image & im, int w, int h);
+
+	/// @warning Use of letterboxing is no longer a recommended technique.
 	void letterbox_image_into(const Darknet::Image & im, int w, int h, Darknet::Image & boxed);
+
 	void random_distort_image(Darknet::Image & im, float hue, float saturation, float exposure);
 	void translate_image(Darknet::Image m, float s);
 	void distort_image(Darknet::Image & im, float hue, float sat, float val);
