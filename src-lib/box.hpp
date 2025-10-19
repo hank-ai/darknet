@@ -79,6 +79,10 @@ public:
 // Returns value in [0,1] where 1=perfect alignment, 0=opposite directions (180°)
 float computeFrontPointCosine(const RectParams& pred, const RectParams& target);
 
+// Analytical gradients of cos(angle/2) with respect to BDP parameters
+// Returns gradients {dx, dy, dw, dh, dfx, dfy} where dw=dh=0 (orientation independent of size)
+dxrep_bdp dx_computeFrontPointCosine(const DarknetBoxBDP& pred, const DarknetBoxBDP& target);
+
 void do_nms(Darknet::Box *boxes, float **probs, int total, int classes, float thresh);
 void do_nms_sort_v2(Darknet::Box *boxes, float **probs, int total, int classes, float thresh);
 Darknet::Box decode_box(const Darknet::Box & b, const Darknet::Box & anchor);
@@ -87,3 +91,5 @@ Darknet::Box encode_box(const Darknet::Box & b, const Darknet::Box & anchor);
 /// Creates array of detections with prob > thresh and fills best_class for them
 /// Return number of selected detections in *selected_detections_num
 detection_with_class * get_actual_detections(const Darknet::Detection *dets, int dets_num, float thresh, int* selected_detections_num, const Darknet::VStr & names);
+
+double sigmoid(double x);

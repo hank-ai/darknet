@@ -222,6 +222,21 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 	Darknet::Network & net = nets[0];
 
+	// @implement OBB: Detect if network has BDP layers for mAP calculation
+	bool has_bdp_layers = false;
+	if (calc_map)
+	{
+		for (int k = 0; k < net.n; ++k)
+		{
+			if (net.layers[k].type == Darknet::ELayerType::YOLO_BDP)
+			{
+				has_bdp_layers = true;
+				*cfg_and_state.output << "Detected BDP layers - will use rotated IoU for mAP calculation" << std::endl;
+				break;
+			}
+		}
+	}
+
 	if (calc_map)
 	{
 		net_map.details->class_names = net.details->class_names;
@@ -560,7 +575,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			*cfg_and_state.output << "Tensor cores are disabled until iteration #" << (3 * net.burn_in) << "." << std::endl;
 		}
 
-		const int next_map_calc = fmax(net.burn_in, iter_map + calc_map_for_each);
+		const int next_map_calc = iter_map + calc_map_for_each;
 
 		// 5989: loss=0.444, avg loss=0.329, rate=0.000026, 64.424 milliseconds, 383296 images, time remaining=7 seconds
 		*cfg_and_state.output
@@ -619,7 +634,15 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			copy_weights_net(net, &net_map);
 
 			iter_map = iteration;
-			mean_average_precision = validate_detector_map(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);
+			// @implement OBB: Use BDP-specific mAP calculation if network has BDP layers
+			if (has_bdp_layers)
+			{
+				mean_average_precision = validate_detector_map_bdp(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);
+			}
+			else
+			{
+				mean_average_precision = validate_detector_map(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);
+			}
 			if (mean_average_precision >= best_map)
 			{
 				iter_best_map = iteration;
@@ -1935,6 +1958,415 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	return mean_average_precision;
 }
 
+/// BDP-specific mAP validation for oriented bounding boxes
+float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, const char * weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network * existing_net)
+{
+	TAT(TATPARMS);
+
+	*cfg_and_state.output << "\n=== BDP mAP Calculation (Oriented Bounding Boxes) ===" << std::endl;
+
+	list *options = read_data_cfg(datacfg);
+	const char *valid_images = option_find_str(options, "valid", nullptr);
+
+	Darknet::Network net;
+	if (existing_net)
+	{
+		net = *existing_net;
+	}
+	else
+	{
+		net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
+		if (weightfile)
+		{
+			load_weights(&net, weightfile);
+		}
+		fuse_conv_batchnorm(net);
+		Darknet::load_names(&net, option_find_str(options, "names", "unknown.names"));
+	}
+
+	list *plist = get_paths(valid_images);
+	char **paths = (char **)list_to_array(plist);
+	int number_of_images = plist->size;
+
+	*cfg_and_state.output << "Validating on " << number_of_images << " images..." << std::endl;
+
+	// Find BDP layer
+	Darknet::Layer l = net.layers[net.n - 1];
+	for (int k = 0; k < net.n; ++k)
+	{
+		if (net.layers[k].type == Darknet::ELayerType::YOLO_BDP)
+		{
+			l = net.layers[k];
+			*cfg_and_state.output << "Using BDP detection layer #" << k << std::endl;
+			break;
+		}
+	}
+
+	int classes = l.classes;
+	const float thresh = 0.005f;
+	const float nms = 0.10f; // NMS threshold for oriented boxes (lower = more aggressive suppression)
+
+	// Arrays to track statistics
+	int *truth_classes_count = (int*)xcalloc(classes, sizeof(int));
+	int total_detections = 0;
+	int total_truth = 0;
+
+	// For average IoU and TP/FP tracking at confidence threshold (using thresh_calc_avg_iou parameter)
+	float avg_iou = 0.0f;
+	int tp_for_thresh = 0;
+	int fp_for_thresh = 0;
+	float *avg_iou_per_class = (float*)xcalloc(classes, sizeof(float));
+	int *tp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
+	int *fp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
+	int *detection_per_class_count = (int*)xcalloc(classes, sizeof(int)); // Total detections per class
+
+	// For mAP calculation - store all detections with their confidence
+	struct det_with_conf {
+		DarknetBoxBDP box;
+		float confidence;
+		int class_id;
+		int image_index;
+		bool matched;
+	};
+	std::vector<det_with_conf> all_detections;
+
+	// Store all ground truth
+	struct gt_box {
+		DarknetBoxBDP box;
+		int class_id;
+		int image_index;
+		bool matched;
+	};
+	std::vector<gt_box> all_ground_truth;
+
+	*cfg_and_state.output << "Processing " << number_of_images << " validation images..." << std::endl;
+
+	// Process each image
+	for (int img_idx = 0; img_idx < number_of_images; ++img_idx)
+	{
+		char *path = paths[img_idx];
+		*cfg_and_state.output << "Loading image " << (img_idx + 1) << ": " << path << std::endl;
+
+		Darknet::Image im = Darknet::load_image(path, 0, 0, net.c);
+		Darknet::Image resized = Darknet::letterbox_image(im, net.w, net.h);
+
+		*cfg_and_state.output << "  Image size: " << im.w << "x" << im.h << ", resized to " << resized.w << "x" << resized.h << std::endl;
+
+		float *X = resized.data;
+		*cfg_and_state.output << "  Running network prediction..." << std::endl;
+		network_predict(net, X);
+
+		*cfg_and_state.output << "  Extracting BDP boxes..." << std::endl;
+		int nboxes = 0;
+		detection_obb *dets = get_network_boxes_bdp(&net, im.w, im.h, thresh, 0, 0, 1, &nboxes, letter_box);
+		*cfg_and_state.output << "  Got " << nboxes << " detections" << std::endl;
+
+		// Apply NMS to remove overlapping detections
+		if (nms)
+		{
+			do_nms_sort_bdp(dets, nboxes, l.classes, nms);
+			*cfg_and_state.output << "  Applied NMS with threshold " << nms << std::endl;
+		}
+
+		*cfg_and_state.output << "  Processing detections..." << std::endl;
+
+		if (dets && nboxes > 0)
+		{
+			// Store detections for mAP calculation
+			for (int d = 0; d < nboxes; ++d)
+			{
+				// Find best class
+				int best_class = -1;
+				float best_prob = 0.0f;
+				for (int c = 0; c < classes; ++c)
+				{
+					if (dets[d].prob[c] > best_prob)
+					{
+						best_prob = dets[d].prob[c];
+						best_class = c;
+					}
+				}
+
+				// Only store if above threshold and has valid class
+				if (best_prob > thresh && best_class >= 0)
+				{
+					det_with_conf det;
+					det.box = dets[d].bbox;
+					det.confidence = dets[d].objectness * best_prob;
+					det.class_id = best_class;
+					det.image_index = img_idx;
+					det.matched = false;
+					all_detections.push_back(det);
+					total_detections++;
+					detection_per_class_count[best_class]++; // Count detections per class
+				}
+			}
+			*cfg_and_state.output << "  Stored " << total_detections << " valid detections so far" << std::endl;
+
+			// Read ground truth
+			char labelpath[4096];
+			replace_image_to_label(path, labelpath);
+			*cfg_and_state.output << "  Reading labels from: " << labelpath << std::endl;
+
+			int num_labels = 0;
+			box_label_bdp *truth = read_boxes(labelpath, &num_labels);
+			*cfg_and_state.output << "  Got " << num_labels << " ground truth boxes" << std::endl;
+
+			total_truth += num_labels;
+			if (truth && num_labels > 0)
+			{
+				for (int j = 0; j < num_labels; ++j)
+				{
+					int class_id = truth[j].id;
+					if (class_id >= 0 && class_id < classes)
+					{
+						truth_classes_count[class_id]++;
+
+						// Store ground truth BDP box
+						gt_box gt;
+						gt.box.x = truth[j].x;
+						gt.box.y = truth[j].y;
+						gt.box.w = truth[j].w;
+						gt.box.h = truth[j].h;
+						gt.box.fx = truth[j].fx;
+						gt.box.fy = truth[j].fy;
+						gt.class_id = class_id;
+						gt.image_index = img_idx;
+						gt.matched = false;
+						all_ground_truth.push_back(gt);
+					}
+					else
+					{
+						*cfg_and_state.output << "  WARNING: Invalid class ID " << class_id << " (valid range: 0-" << (classes-1) << ")" << std::endl;
+					}
+				}
+				free(truth);
+			}
+
+			*cfg_and_state.output << "  Freeing detections..." << std::endl;
+			free_detections_bdp(dets, nboxes);
+			*cfg_and_state.output << "  Done with image " << (img_idx + 1) << std::endl;
+		}
+
+		Darknet::free_image(im);
+		Darknet::free_image(resized);
+
+		if ((img_idx + 1) % 100 == 0)
+		{
+			*cfg_and_state.output << "Processed " << (img_idx + 1) << "/" << number_of_images << " images" << std::endl;
+		}
+	}
+
+	*cfg_and_state.output << "\n=== Computing mAP with Rotated IoU ===" << std::endl;
+	*cfg_and_state.output << "Total detections: " << all_detections.size() << std::endl;
+	*cfg_and_state.output << "Total ground truth: " << all_ground_truth.size() << std::endl;
+	*cfg_and_state.output << "Detection threshold: " << thresh << std::endl;
+	*cfg_and_state.output << "Confidence threshold for TP/FP: " << thresh_calc_avg_iou << std::endl;
+	*cfg_and_state.output << "IoU threshold for matching: " << iou_thresh << std::endl;
+
+	// Sort detections by confidence (descending)
+	std::sort(all_detections.begin(), all_detections.end(),
+		[](const det_with_conf& a, const det_with_conf& b) { return a.confidence > b.confidence; });
+
+	float mean_ap = 0.0f;
+	int valid_classes = 0;
+	float *per_class_ap = (float*)xcalloc(classes, sizeof(float)); // Store AP for each class
+
+	// Calculate AP for each class
+	for (int c = 0; c < classes; ++c)
+	{
+		// Filter detections and GT for this class
+		std::vector<det_with_conf*> class_dets;
+		std::vector<gt_box*> class_gt;
+
+		for (auto& det : all_detections)
+			if (det.class_id == c) class_dets.push_back(&det);
+
+		for (auto& gt : all_ground_truth)
+			if (gt.class_id == c) class_gt.push_back(&gt);
+
+		if (class_gt.empty()) continue; // No GT for this class
+		valid_classes++;
+
+		// Match detections to GT using rotated IoU
+		int tp = 0, fp = 0;
+		std::vector<float> precisions, recalls;
+
+		for (auto det_ptr : class_dets)
+		{
+			// Find best matching GT box using RIOU
+			float best_iou = 0.0f;
+			gt_box* best_gt = nullptr;
+
+			for (auto gt_ptr : class_gt)
+			{
+				if (gt_ptr->matched) continue; // Already matched
+				float riou = box_riou(det_ptr->box, gt_ptr->box);
+				if (riou > best_iou)
+				{
+					best_iou = riou;
+					best_gt = gt_ptr;
+				}
+			}
+
+			// Match if IoU > threshold
+			if (best_iou >= iou_thresh && best_gt)
+			{
+				best_gt->matched = true;
+				tp++;
+
+				// Track IoU and TP/FP at confidence threshold (using detection threshold, not calc threshold)
+				if (det_ptr->confidence > thresh)
+				{
+					avg_iou += best_iou;
+					tp_for_thresh++;
+					avg_iou_per_class[c] += best_iou;
+					tp_for_thresh_per_class[c]++;
+				}
+			}
+			else
+			{
+				fp++;
+
+				// Track FP at confidence threshold (using detection threshold, not calc threshold)
+				if (det_ptr->confidence > thresh)
+				{
+					fp_for_thresh++;
+					fp_for_thresh_per_class[c]++;
+				}
+			}
+
+			float precision = (float)tp / (tp + fp);
+			float recall = (float)tp / class_gt.size();
+			precisions.push_back(precision);
+			recalls.push_back(recall);
+		}
+
+		// Compute AP using 11-point interpolation
+		float ap = 0.0f;
+		for (float recall_thresh = 0.0f; recall_thresh <= 1.0f; recall_thresh += 0.1f)
+		{
+			float max_precision = 0.0f;
+			for (size_t i = 0; i < recalls.size(); ++i)
+			{
+				if (recalls[i] >= recall_thresh)
+					max_precision = std::max(max_precision, precisions[i]);
+			}
+			ap += max_precision;
+		}
+		ap /= 11.0f;
+
+		per_class_ap[c] = ap; // Store for later output
+		mean_ap += ap;
+		*cfg_and_state.output << "Class " << c << " AP: " << (ap * 100.0f) << "%" << std::endl;
+	}
+
+	if (valid_classes > 0)
+		mean_ap /= valid_classes;
+
+	*cfg_and_state.output << "\n*** mAP@" << iou_thresh << " = " << (mean_ap * 100.0f) << "% ***\n" << std::endl;
+
+	// Calculate average IoU
+	if ((tp_for_thresh + fp_for_thresh) > 0)
+	{
+		avg_iou = avg_iou / (tp_for_thresh + fp_for_thresh);
+	}
+
+	for (int class_id = 0; class_id < classes; class_id++)
+	{
+		if ((tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id]) > 0)
+		{
+			avg_iou_per_class[class_id] = avg_iou_per_class[class_id] / (tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id]);
+		}
+	}
+
+	// Output confusion matrix and detailed metrics for each class
+	*cfg_and_state.output
+		<< std::endl
+		<< std::endl
+		<< "  Id Name             AvgPrecision     TP     FN     FP     TN Accuracy Precision Recall AvgIoU" << std::endl
+		<< "  -- ----             ------------ ------ ------ ------ ------ -------- --------- ------ ------" << std::endl;
+
+	for (int i = 0; i < classes; ++i)
+	{
+		const int all_class_detections = detection_per_class_count[i];
+		const int tp = tp_for_thresh_per_class[i];
+		const int fn = truth_classes_count[i] - tp;
+		const int fp = fp_for_thresh_per_class[i];
+		const int tn = all_class_detections - tp - fn - fp;
+
+		const float accuracy = (all_class_detections > 0) ? (float)(tp + tn) / (float)all_class_detections : 0.0f;
+		const float precision = ((tp + fp) > 0) ? (float)tp / (float)(tp + fp) : 0.0f;
+		const float recall = ((tp + fn) > 0) ? (float)tp / (float)(tp + fn) : 0.0f;
+
+		*cfg_and_state.output
+			<< std::setw(4) << i
+			<< " " << std::setw(16) << std::left << net.details->class_names[i] << std::right
+			<< " " << std::setw(12) << std::fixed << std::setprecision(2) << (per_class_ap[i] * 100.0f) << "%"
+			<< " " << std::setw(6) << tp
+			<< " " << std::setw(6) << fn
+			<< " " << std::setw(6) << fp
+			<< " " << std::setw(6) << tn
+			<< " " << std::setw(7) << std::fixed << std::setprecision(2) << (accuracy * 100.0f) << "%"
+			<< " " << std::setw(8) << std::fixed << std::setprecision(2) << (precision * 100.0f) << "%"
+			<< " " << std::setw(5) << std::fixed << std::setprecision(2) << (recall * 100.0f) << "%"
+			<< " " << std::setw(5) << std::fixed << std::setprecision(2) << (avg_iou_per_class[i] * 100.0f) << "%"
+			<< std::endl;
+	}
+
+	// Calculate overall F1 score and summary
+	const int unique_truth_count = all_ground_truth.size();
+	const float cur_precision = (tp_for_thresh + fp_for_thresh > 0) ? (float)tp_for_thresh / (float)(tp_for_thresh + fp_for_thresh) : 0.0f;
+	const float cur_recall = (tp_for_thresh + (unique_truth_count - tp_for_thresh) > 0) ? (float)tp_for_thresh / (float)(tp_for_thresh + (unique_truth_count - tp_for_thresh)) : 0.0f;
+	const float f1_score = (cur_precision + cur_recall > 0) ? 2.0f * cur_precision * cur_recall / (cur_precision + cur_recall) : 0.0f;
+
+	*cfg_and_state.output
+		<< std::endl
+		<< "for conf_thresh=" << thresh
+		<< ", precision=" << cur_precision
+		<< ", recall=" << cur_recall
+		<< ", F1 score=" << f1_score
+		<< std::endl
+		<< "for conf_thresh=" << thresh
+		<< ", TP=" << tp_for_thresh
+		<< ", FP=" << fp_for_thresh
+		<< ", FN=" << (unique_truth_count - tp_for_thresh)
+		<< ", average IoU=" << std::fixed << std::setprecision(2) << (avg_iou * 100.0f) << "%"
+		<< std::endl
+		<< "IoU threshold=" << (iou_thresh * 100.0f) << "%, used 11 recall points"
+		<< std::endl;
+
+	// Free additional arrays
+	free(per_class_ap);
+	free(avg_iou_per_class);
+	free(tp_for_thresh_per_class);
+	free(fp_for_thresh_per_class);
+	free(detection_per_class_count);
+
+	*cfg_and_state.output << "Cleaning up..." << std::endl;
+	free(truth_classes_count);
+	*cfg_and_state.output << "  Freed truth_classes_count" << std::endl;
+
+	free(paths);
+	*cfg_and_state.output << "  Freed paths" << std::endl;
+
+	free_list_contents(plist);
+	*cfg_and_state.output << "  Freed list contents" << std::endl;
+
+	free_list(plist);
+	*cfg_and_state.output << "  Freed list" << std::endl;
+
+	if (!existing_net)
+	{
+		*cfg_and_state.output << "  Freeing network..." << std::endl;
+		free_network(net);
+		*cfg_and_state.output << "  Network freed" << std::endl;
+	}
+
+	*cfg_and_state.output << "BDP mAP calculation complete." << std::endl;
+	return mean_ap;
+}
+
 typedef struct {
 	float w, h;
 } anchors_t;
@@ -2461,7 +2893,24 @@ void run_detector(int argc, char **argv)
 	else if (cfg_and_state.function == "train"		) { train_detector(datacfg, cfg, weights, gpus, ngpus, clear, dont_show, calc_map, thresh, iou_thresh, show_imgs, benchmark_layers, chart_path); }
 	else if (cfg_and_state.function == "valid"		) { validate_detector(datacfg, cfg, weights, outfile); }
 	else if (cfg_and_state.function == "recall"		) { validate_detector_recall(datacfg, cfg, weights); }
-	else if (cfg_and_state.function == "map"		) { validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL); }
+	else if (cfg_and_state.function == "map"		) {
+		// Check if network has BDP layers
+		Darknet::Network temp_net = parse_network_cfg_custom(cfg, 1, 1);
+		bool has_bdp = false;
+		for (int k = 0; k < temp_net.n; ++k) {
+			if (temp_net.layers[k].type == Darknet::ELayerType::YOLO_BDP) {
+				has_bdp = true;
+				break;
+			}
+		}
+		free_network(temp_net);
+
+		if (has_bdp) {
+			validate_detector_map_bdp(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL);
+		} else {
+			validate_detector_map(datacfg, cfg, weights, thresh, iou_thresh, map_points, letter_box, NULL);
+		}
+	}
 	else if (cfg_and_state.function == "calcanchors")
 	{
 		const int show				= cfg_and_state.is_set	("show"			) ? 1 : 0;

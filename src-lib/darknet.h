@@ -294,8 +294,14 @@ float * network_predict_image(DarknetNetworkPtr ptr, const DarknetImage im);
  */
 detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int * map, int relative, int * num, int letter);
 
+/// BDP version: Get oriented bounding box detections from network
+detection_obb * get_network_boxes_bdp(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int * map, int relative, int * num, int letter);
+
 /// This is part of the original @p C API.  Do not use in new code.
 void free_detections(detection * dets, int n);
+
+/// BDP version: Free oriented bounding box detections
+void free_detections_bdp(detection_obb * dets, int n);
 
 /** This is part of the original @p C API.  Make an empty image with the given dimensions.  The data pointer will be
  * @p nullptr.
@@ -323,6 +329,9 @@ void free_image(DarknetImage image);
 
 /// This is part of the original @p C API.  Non Maxima Suppression.
 void do_nms_sort(detection * dets, int total, int classes, float thresh);
+
+/// @implement OBB: Non Maxima Suppression for oriented bounding boxes using rotated IoU
+void do_nms_sort_bdp(detection_obb * dets, int total, int classes, float thresh);
 
 /// This is part of the original @p C API.  Non Maxima Suppression.
 void do_nms_obj(detection * dets, int total, int classes, float thresh);

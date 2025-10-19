@@ -1308,6 +1308,64 @@ detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh,
 	return dets;
 }
 
+/// BDP version: Get network boxes for oriented bounding boxes
+detection_obb * get_network_boxes_bdp(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+
+	// Count total detections from all BDP YOLO layers
+	int nboxes = 0;
+	int bdp_layer_count = 0;
+	for (int i = 0; i < net->n; ++i)
+	{
+		Darknet::Layer & l = net->layers[i];
+		if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			nboxes += l.w * l.h * l.n; // grid_w * grid_h * num_anchors
+			bdp_layer_count++;
+			*cfg_and_state.output << "    BDP layer " << i << ": " << l.w << "x" << l.h << " grid, " << l.n << " anchors = " << (l.w * l.h * l.n) << " boxes" << std::endl;
+		}
+	}
+
+	*cfg_and_state.output << "    Total BDP layers: " << bdp_layer_count << ", total boxes: " << nboxes << std::endl;
+
+	if (nboxes == 0)
+	{
+		*num = 0;
+		return nullptr;
+	}
+
+	// Allocate detection array
+	*cfg_and_state.output << "    Allocating " << nboxes << " detections..." << std::endl;
+	DarknetDetectionOBB *dets = (DarknetDetectionOBB*)xcalloc(nboxes, sizeof(DarknetDetectionOBB));
+
+	int classes = net->layers[net->n - 1].classes;
+	*cfg_and_state.output << "    Allocating probability arrays (classes=" << classes << ")..." << std::endl;
+	for (int i = 0; i < nboxes; ++i)
+	{
+		dets[i].prob = (float*)xcalloc(classes, sizeof(float));
+	}
+
+	// Extract detections from each BDP layer
+	int count = 0;
+	for (int i = 0; i < net->n; ++i)
+	{
+		Darknet::Layer & l = net->layers[i];
+		if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			*cfg_and_state.output << "    Calling get_yolo_detections_bdp for layer " << i << "..." << std::endl;
+			int layer_count = get_yolo_detections_bdp(l, w, h, net->w, net->h, thresh, map, relative, dets + count, letter);
+			*cfg_and_state.output << "    Layer " << i << " returned " << layer_count << " detections" << std::endl;
+			count += layer_count;
+		}
+	}
+
+	*num = count;
+	return dets;
+}
+
 
 void free_detections(detection * dets, int n)
 {
@@ -1319,6 +1377,21 @@ void free_detections(detection * dets, int n)
 	{
 		free(dets[i].prob);
 
+		if (dets[i].uc)			free(dets[i].uc);
+		if (dets[i].mask)		free(dets[i].mask);
+		if (dets[i].embeddings)	free(dets[i].embeddings);
+	}
+
+	free(dets);
+}
+
+void free_detections_bdp(detection_obb * dets, int n)
+{
+	TAT(TATPARMS);
+
+	for (int i = 0; i < n; ++i)
+	{
+		free(dets[i].prob);
 		if (dets[i].uc)			free(dets[i].uc);
 		if (dets[i].mask)		free(dets[i].mask);
 		if (dets[i].embeddings)	free(dets[i].embeddings);
