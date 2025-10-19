@@ -34,6 +34,9 @@
 #include <random>
 #include <regex>
 
+// Boost.Contract configuration must be included before any Boost.Contract usage
+#include "darknet_contract_config.hpp"
+
 // 3rd-party lib headers
 #include <opencv2/opencv.hpp>
 
@@ -103,7 +106,7 @@ typedef enum {
 // parser.h
 typedef enum
 {
-	IOU, GIOU, MSE, DIOU, CIOU
+	IOU, GIOU, MSE, DIOU, CIOU, RIOU
 } IOU_LOSS;
 
 // parser.h
@@ -210,11 +213,17 @@ typedef struct dxrep {
 	float dt, db, dl, dr;
 } dxrep;
 
+// box.h - BDP gradients for 6-parameter oriented bounding boxes
+typedef struct dxrep_bdp {
+	float dx, dy, dw, dh, dfx, dfy;  // Gradients w.r.t. (x, y, w, h, fx, fy)
+} dxrep_bdp;
+
 // box.h
 typedef struct ious {
 	float iou, giou, diou, ciou;
 	dxrep dx_iou;
 	dxrep dx_giou;
+	float fp_loss;  // Front point loss for BDP (smooth L1)
 } ious;
 
 
@@ -283,11 +292,14 @@ typedef struct load_args {
 	int contrastive;
 	int contrastive_jit_flip;
 	int contrastive_color;
+	int use_bdp;	///< Use BDP format (7 values) when true, standard YOLO (5 values) when false
 	float jitter;
 	float resize;
 	int flip;
 	int gaussian_noise;
 	int blur;
+	int fog;
+	int cutout;
 	int mixup;
 	float angle;
 	float aspect;
@@ -308,6 +320,10 @@ typedef struct box_label {
 	float x, y, w, h;
 	float left, right, top, bottom;
 } box_label;
+
+typedef struct box_label_bdp : box_label {
+	float fx, fy; // for focal loss
+} box_label_bdp;
 
 
 // layer.h

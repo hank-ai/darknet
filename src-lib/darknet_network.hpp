@@ -209,6 +209,8 @@ namespace Darknet
 			int flip; ///< horizontal flip 50% probability augmentaiont for classifier training (default = 1)
 			int gaussian_noise;
 			int blur;
+			int fog;
+			int cutout;
 			int mixup;
 			float label_smooth_eps;
 			int resize_step;
@@ -353,6 +355,14 @@ int get_network_input_size(Darknet::Network & net);
 
 float get_network_cost(const Darknet::Network & net);
 
+/** Check if the network contains any YOLO_BDP layers.
+ * WHY: During training, data loading needs to know if annotations should use
+ *      BDP format (7 values: x,y,w,h,fx,fy,class) or standard YOLO format
+ *      (5 values: x,y,w,h,class). This determines which read_boxes function to use.
+ * @returns true if any layer in the network is of type YOLO_BDP, false otherwise
+ */
+bool network_has_yolo_bdp_layers(const Darknet::Network & net);
+
 void copy_weights_net(const Darknet::Network & net_train, Darknet::Network *net_map);
 void free_network_recurrent_state(Darknet::Network & net);
 void restore_network_recurrent_state(Darknet::Network & net);
@@ -383,6 +393,7 @@ void fuse_conv_batchnorm(Darknet::Network & net);
 
 
 float validate_detector_map(const char * datacfg, const char * cfgfile, const char * weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network *existing_net);
+float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, const char * weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network *existing_net);
 void train_detector(const char *datacfg, const char *cfgfile, const char *weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int show_imgs, int benchmark_layers, const char* chart_path);
 void test_detector(const char *datacfg, const char *cfgfile, const char *weightfile, const char *filename, float thresh, float hier_thresh, int dont_show, int ext_output, int save_labels, const char *outfile, int letter_box, int benchmark_layers);
 int network_width(Darknet::Network *net);
