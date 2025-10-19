@@ -21,9 +21,6 @@ void *xrealloc_location(void *ptr, const size_t size, const char * const filenam
 /// Calling this function ends the application.  This function will @em never return control back to the caller.  @see @ref DARKNET_LOC
 [[noreturn]] void darknet_fatal_error(const char * const filename, const char * const funcname, const int line, const char * const msg, ...);
 
-/// Convert the given size to a human-readable string.  This uses 1024 as a divider, so 1 KiB == 1024 bytes.
-std::string size_to_IEC_string(const size_t size);
-
 int *read_map(const char *filename);
 void shuffle(void *arr, size_t n, size_t size);
 void sorta_shuffle(void *arr, size_t n, size_t size, size_t sections);

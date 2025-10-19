@@ -702,4 +702,7 @@ namespace Darknet
 	std::string lowercase(const std::string & str);
 	std::string & lowercase(std::string & str);
 	/// @}
+
+	/// Convert the given size to a human-readable string.  This uses 1024 as a divider, so 1 KiB == 1024 bytes.
+	std::string size_to_IEC_string(const size_t size);
 }

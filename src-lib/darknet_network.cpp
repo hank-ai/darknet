@@ -547,7 +547,7 @@ int recalculate_workspace_size(Darknet::Network * net)
 	if (cfg_and_state.gpu_index >= 0)
 	{
 		const auto workspace_to_allocate = workspace_size / sizeof(float) + 1;
-		*cfg_and_state.output << std::endl << "allocating workspace: " << size_to_IEC_string(workspace_to_allocate) << std::endl;
+		*cfg_and_state.output << std::endl << "allocating workspace: " << Darknet::size_to_IEC_string(workspace_to_allocate) << std::endl;
 		net->workspace = cuda_make_array(0, workspace_to_allocate);
 		*cfg_and_state.output << "CUDA allocate done!" << std::endl;
 	}
@@ -688,7 +688,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 		//if(l.type == AVGPOOL) break;
 	}
 
-	*cfg_and_state.output << "GPU #" << net->gpu_index << ": allocating workspace: " << size_to_IEC_string(workspace_size);
+	*cfg_and_state.output << "GPU #" << net->gpu_index << ": allocating workspace: " << Darknet::size_to_IEC_string(workspace_size);
 #ifdef DARKNET_GPU
 	const int size = get_network_input_size(*net) * net->batch;
 	if (cfg_and_state.gpu_index >= 0)

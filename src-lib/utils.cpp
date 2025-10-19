@@ -502,7 +502,7 @@ namespace
 }
 
 
-std::string size_to_IEC_string(const size_t size)
+std::string Darknet::size_to_IEC_string(const size_t size)
 {
 	TAT(TATPARMS);
 
@@ -526,19 +526,19 @@ std::string size_to_IEC_string(const size_t size)
 void malloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
 //	TAT(TATPARMS); ... don't bother, we're about to abort
-	darknet_fatal_error(filename, funcname, line, "failed to malloc %s", size_to_IEC_string(size).c_str());
+	darknet_fatal_error(filename, funcname, line, "failed to malloc %s", Darknet::size_to_IEC_string(size).c_str());
 }
 
 void calloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
 //	TAT(TATPARMS); ... don't bother, we're about to abort
-	darknet_fatal_error(filename, funcname, line, "failed to calloc %s", size_to_IEC_string(size).c_str());
+	darknet_fatal_error(filename, funcname, line, "failed to calloc %s", Darknet::size_to_IEC_string(size).c_str());
 }
 
 void realloc_error(const size_t size, const char * const filename, const char * const funcname, const int line)
 {
 //	TAT(TATPARMS); ... don't bother, we're about to abort
-	darknet_fatal_error(filename, funcname, line, "failed to realloc %s", size_to_IEC_string(size).c_str());
+	darknet_fatal_error(filename, funcname, line, "failed to realloc %s", Darknet::size_to_IEC_string(size).c_str());
 }
 
 void file_error(const char * const s, const char * const filename, const char * const funcname, const int line)

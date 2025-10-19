@@ -34,12 +34,24 @@ int main(int argc, char * argv[])
 		int network_h = 0;
 		int network_c = 0;
 		Darknet::network_dimensions(net, network_w, network_h, network_c);
+		const cv::Size network_dims(network_w, network_h);
+
+		auto total_reading_from_disk	= std::chrono::nanoseconds(0);
+		auto total_resize_images		= std::chrono::nanoseconds(0);
+		auto total_darknet_predictions	= std::chrono::nanoseconds(0);
+		auto total_darknet_annotate		= std::chrono::nanoseconds(0);
+		auto total_save_output			= std::chrono::nanoseconds(0);
+		auto total_all_time				= std::chrono::nanoseconds(0);
+
+		size_t file_counter				= 0;
+		size_t error_counter			= 0;
 
 		for (const auto & parm : parms)
 		{
 			if (parm.type == Darknet::EParmType::kFilename)
 			{
 				const std::filesystem::path input_filename(parm.string);
+				file_counter ++;
 
 				std::cout << "loading " << input_filename << std::endl;
 				const auto t1 = std::chrono::high_resolution_clock::now();
@@ -48,21 +60,28 @@ int main(int argc, char * argv[])
 				if (mat.empty())
 				{
 					std::cout << "...invalid image?" << std::endl;
+					error_counter ++;
 					continue;
 				}
 
-				// output all of the predictions on the console as plain text
+				// Note that INTER_NEAREST gives us *speed*, not image quality.
 				const auto t3 = std::chrono::high_resolution_clock::now();
-				const auto results = Darknet::predict(net, input_filename);
+				cv::Mat resized;
+				cv::resize(mat, resized, network_dims, cv::INTER_NEAREST);
 				const auto t4 = std::chrono::high_resolution_clock::now();
 
-				// save the annotated image to disk
+				// output all of the predictions on the console as plain text
 				const auto t5 = std::chrono::high_resolution_clock::now();
-				cv::Mat output = Darknet::annotate(net, results, mat);
+				const auto results = Darknet::predict(net, resized);
 				const auto t6 = std::chrono::high_resolution_clock::now();
+
+				// save the annotated image to disk
+				const auto t7 = std::chrono::high_resolution_clock::now();
+				cv::Mat output = Darknet::annotate(net, results, mat);
+				const auto t8 = std::chrono::high_resolution_clock::now();
 				std::string output_filename = input_filename.stem().string() + "_output";
 
-				const auto t7 = std::chrono::high_resolution_clock::now();
+				const auto t9 = std::chrono::high_resolution_clock::now();
 #if 1
 				output_filename += ".jpg";
 				const bool successful = cv::imwrite(output_filename, output, {cv::ImwriteFlags::IMWRITE_JPEG_QUALITY, 70});
@@ -70,24 +89,50 @@ int main(int argc, char * argv[])
 				output_filename += ".png";
 				const bool successful = cv::imwrite(output_filename, output, {cv::ImwriteFlags::IMWRITE_PNG_COMPRESSION, 5});
 #endif
-				const auto t8 = std::chrono::high_resolution_clock::now();
+				const auto t10 = std::chrono::high_resolution_clock::now();
 
 				if (not successful)
 				{
+					error_counter ++;
 					std::cout << "failed to save the output to " << output_filename << std::endl;
 				}
 
-				const auto duration = t8 - t1;
+				const auto duration = t10 - t1;
 				const int fps = std::round(1000000000.0f / std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count());
 
 				std::cout
-					<< "-> reading image from disk ........... " << Darknet::format_duration_string(t2 - t1, 3, Darknet::EFormatDuration::kPad) << " [" << output.cols << " x " << output.rows << " x " << output.channels() << "]" << std::endl
-					<< "-> using Darknet to predict .......... " << Darknet::format_duration_string(t4 - t3, 3, Darknet::EFormatDuration::kPad) << " [" << results.size() << " object" << (results.size() == 1 ? "" : "s") << "]" << std::endl
-					<< "-> using Darknet to annotate image ... " << Darknet::format_duration_string(t6 - t5, 3, Darknet::EFormatDuration::kPad) << std::endl
-					<< "-> save output image to disk ......... " << Darknet::format_duration_string(t8 - t7, 3, Darknet::EFormatDuration::kPad) << std::endl
+					<< "-> reading image from disk ........... " << Darknet::format_duration_string(t2 - t1	, 3, Darknet::EFormatDuration::kPad) << " [" << mat.cols << " x " << mat.rows << " x " << mat.channels() << "] [" << Darknet::size_to_IEC_string(std::filesystem::file_size(input_filename)) << "]" << std::endl
+					<< "-> resizing image to network dims .... " << Darknet::format_duration_string(t4 - t3	, 3, Darknet::EFormatDuration::kPad) << " [" << network_w << " x " << network_h << " x " << network_c << "]" << std::endl
+					<< "-> using Darknet to predict .......... " << Darknet::format_duration_string(t6 - t5	, 3, Darknet::EFormatDuration::kPad) << " [" << results.size() << " object" << (results.size() == 1 ? "" : "s") << "]" << std::endl
+					<< "-> using Darknet to annotate image ... " << Darknet::format_duration_string(t8 - t7	, 3, Darknet::EFormatDuration::kPad) << " [" << output.cols << " x " << output.rows << " x " << output.channels() << "]" << std::endl
+					<< "-> save output image to disk ......... " << Darknet::format_duration_string(t10 - t9, 3, Darknet::EFormatDuration::kPad) << " [" << Darknet::size_to_IEC_string(std::filesystem::file_size(output_filename)) << "]" << std::endl
 					<< "-> total time elapsed ................ " << Darknet::format_duration_string(duration, 3, Darknet::EFormatDuration::kPad) << " [" << fps << " FPS]" << std::endl
 					<< results << std::endl << std::endl;
+
+				total_reading_from_disk		+= (t2 - t1);
+				total_resize_images			+= (t4 - t3);
+				total_darknet_predictions	+= (t6 - t5);
+				total_darknet_annotate		+= (t8 - t7);
+				total_save_output			+= (t10 - t9);
+				total_all_time				+= duration;
 			}
+		}
+
+		if (error_counter + file_counter > 1)
+		{
+			const float fps = static_cast<float>(file_counter) / std::chrono::duration_cast<std::chrono::nanoseconds>(total_all_time).count() * 1000000000.0f;
+
+			std::cout
+				<< "TOTALS:"													<< std::endl
+				<< "-> number of images with errors ...... " << error_counter	<< std::endl
+				<< "-> number of images processed ........ " << file_counter	<< std::endl
+				<< "-> total time reading from disk ...... " << Darknet::format_duration_string(total_reading_from_disk		, 3, Darknet::EFormatDuration::kPad) << " [" << Darknet::format_duration_string(total_reading_from_disk		/ file_counter, 3) << " per image]" << std::endl
+				<< "-> total time resizing images ........ " << Darknet::format_duration_string(total_resize_images			, 3, Darknet::EFormatDuration::kPad) << " [" << Darknet::format_duration_string(total_resize_images			/ file_counter, 3) << " per image]" << std::endl
+				<< "-> total time predicting ............. " << Darknet::format_duration_string(total_darknet_predictions	, 3, Darknet::EFormatDuration::kPad) << " [" << Darknet::format_duration_string(total_darknet_predictions	/ file_counter, 3) << " per image]" << std::endl
+				<< "-> total time annotating ............. " << Darknet::format_duration_string(total_darknet_annotate		, 3, Darknet::EFormatDuration::kPad) << " [" << Darknet::format_duration_string(total_darknet_annotate		/ file_counter, 3) << " per image]" << std::endl
+				<< "-> total time saving to disk ......... " << Darknet::format_duration_string(total_save_output			, 3, Darknet::EFormatDuration::kPad) << " [" << Darknet::format_duration_string(total_save_output			/ file_counter, 3) << " per image]" << std::endl
+				<< "-> total time processing images ...... " << Darknet::format_duration_string(total_all_time				, 3, Darknet::EFormatDuration::kPad) << " [" << Darknet::format_duration_string(total_all_time				/ file_counter, 3) << " per image, or " << std::setprecision(1) << fps << " FPS]" << std::endl
+				<< std::endl;
 		}
 
 		Darknet::free_neural_network(net);

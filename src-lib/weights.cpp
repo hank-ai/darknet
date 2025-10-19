@@ -28,7 +28,7 @@ namespace
 
 		if (cfg_and_state.is_trace)
 		{
-			*cfg_and_state.output << "-> read " << count << " x " << (size * 8) << "-bit values (" << size_to_IEC_string(size * count) << ")" << (description.empty() ? "" : " as " + description) << std::endl;
+			*cfg_and_state.output << "-> read " << count << " x " << (size * 8) << "-bit values (" << Darknet::size_to_IEC_string(size * count) << ")" << (description.empty() ? "" : " as " + description) << std::endl;
 		}
 
 		return size * count;
@@ -440,7 +440,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 	if (cfg_and_state.is_verbose)
 	{
 		*cfg_and_state.output << "Loading weights from \"" << filename << "\""
-			<< " (" << size_to_IEC_string(std::filesystem::file_size(filename)) << ")"
+			<< " (" << Darknet::size_to_IEC_string(std::filesystem::file_size(filename)) << ")"
 			<< std::endl;
 	}
 
@@ -512,7 +512,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 				}
 				if (cfg_and_state.is_trace)
 				{
-					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << size_to_IEC_string(bytes_read) << std::endl;
+					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << Darknet::size_to_IEC_string(bytes_read) << std::endl;
 				}
 				total_bytes_read += bytes_read;
 				break;
@@ -531,7 +531,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 				}
 				if (cfg_and_state.is_trace)
 				{
-					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << size_to_IEC_string(bytes_read) << std::endl;
+					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << Darknet::size_to_IEC_string(bytes_read) << std::endl;
 				}
 				total_bytes_read += bytes_read;
 				break;
@@ -547,7 +547,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 				bytes_read += load_connected_weights(l, fp, transpose);
 				if (cfg_and_state.is_trace)
 				{
-					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << size_to_IEC_string(bytes_read) << std::endl;
+					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << Darknet::size_to_IEC_string(bytes_read) << std::endl;
 				}
 				total_bytes_read += bytes_read;
 				break;
@@ -565,7 +565,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 				bytes_read += load_convolutional_weights(*(l.output_layer)	, fp);
 				if (cfg_and_state.is_trace)
 				{
-					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << size_to_IEC_string(bytes_read) << std::endl;
+					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << Darknet::size_to_IEC_string(bytes_read) << std::endl;
 				}
 				total_bytes_read += bytes_read;
 				break;
@@ -583,7 +583,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 				bytes_read += load_connected_weights(*(l.output_layer)	, fp, transpose);
 				if (cfg_and_state.is_trace)
 				{
-					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << size_to_IEC_string(bytes_read) << std::endl;
+					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << Darknet::size_to_IEC_string(bytes_read) << std::endl;
 				}
 				total_bytes_read += bytes_read;
 				break;
@@ -606,7 +606,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 				bytes_read += load_connected_weights(*(l.uo), fp, transpose);
 				if (cfg_and_state.is_trace)
 				{
-					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << size_to_IEC_string(bytes_read) << std::endl;
+					*cfg_and_state.output << "-> layer #" << i << " (" << Darknet::to_string(l.type) << "): loaded " << Darknet::size_to_IEC_string(bytes_read) << std::endl;
 				}
 				total_bytes_read += bytes_read;
 				break;
@@ -644,7 +644,7 @@ void load_weights_upto(Darknet::Network * net, const char * filename, int cutoff
 
 	if (cfg_and_state.is_verbose)
 	{
-		*cfg_and_state.output << "Loaded " << size_to_IEC_string(total_bytes_read) << " in weights for " << layers_with_weights << " of " << net->n << " layers from " << filename << std::endl;
+		*cfg_and_state.output << "Loaded " << Darknet::size_to_IEC_string(total_bytes_read) << " in weights for " << layers_with_weights << " of " << net->n << " layers from " << filename << std::endl;
 	}
 
 	fclose(fp);

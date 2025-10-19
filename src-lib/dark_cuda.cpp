@@ -402,9 +402,9 @@ void pre_allocate_pinned_memory(const size_t size)
 
 		*cfg_and_state.output
 			<< "pre_allocate:"
-			<< " size="				<< size_to_IEC_string(size)
+			<< " size="				<< Darknet::size_to_IEC_string(size)
 			<< ", num_of_blocks="	<< num_of_blocks
-			<< ", block_size="		<< size_to_IEC_string(pinned_block_size)
+			<< ", block_size="		<< Darknet::size_to_IEC_string(pinned_block_size)
 			<< std::endl;
 
 		for (int k = 0; k < num_of_blocks; ++k)
@@ -420,7 +420,7 @@ void pre_allocate_pinned_memory(const size_t size)
 				darknet_fatal_error(DARKNET_LOC, "cudaHostAlloc() failed, k=%d, num=%ul, size=%ul", k, num_of_blocks, pinned_block_size);
 			}
 
-			*cfg_and_state.output << (k + 1) << "/" << num_of_blocks << ": allocated " << size_to_IEC_string(pinned_block_size) << " pinned block" << std::endl;
+			*cfg_and_state.output << (k + 1) << "/" << num_of_blocks << ": allocated " << Darknet::size_to_IEC_string(pinned_block_size) << " pinned block" << std::endl;
 		}
 		pinned_num_of_blocks = num_of_blocks;
 	}
@@ -458,7 +458,7 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 	{
 		if (allocation_size > pinned_block_size / 2)
 		{
-			*cfg_and_state.output << "Try to allocate new pinned memory, size=" << size_to_IEC_string(size) << std::endl;
+			*cfg_and_state.output << "Try to allocate new pinned memory, size=" << Darknet::size_to_IEC_string(size) << std::endl;
 			cudaError_t status = cudaHostAlloc((void **)&x_cpu, size, cudaHostRegisterMapped);
 			if (status != cudaSuccess)
 			{
@@ -468,7 +468,7 @@ float *cuda_make_array_pinned_preallocated(float *x, size_t n)
 		}
 		else
 		{
-			*cfg_and_state.output << "Try to allocate new pinned BLOCK, size=" << size_to_IEC_string(size) << std::endl;
+			*cfg_and_state.output << "Try to allocate new pinned BLOCK, size=" << Darknet::size_to_IEC_string(size) << std::endl;
 			pinned_num_of_blocks++;
 			pinned_block_id = pinned_num_of_blocks - 1;
 			pinned_index = 0;
@@ -527,7 +527,7 @@ float *cuda_make_array(float *x, size_t n)
 	cudaError_t status = cudaMalloc((void **)&x_gpu, size);
 	if (status != cudaSuccess || !x_gpu)
 	{
-		darknet_fatal_error(DARKNET_LOC, "CUDA memory allocation failed (%s).\nIf possible, try to set subdivisions=... higher in your cfg file.", size_to_IEC_string(size).c_str());
+		darknet_fatal_error(DARKNET_LOC, "CUDA memory allocation failed (%s).\nIf possible, try to set subdivisions=... higher in your cfg file.", Darknet::size_to_IEC_string(size).c_str());
 	}
 	CHECK_CUDA(status);
 
@@ -560,7 +560,7 @@ void **cuda_make_array_pointers(void **x, size_t n)
 	}
 	if (!x_gpu)
 	{
-		darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed (%s)", size_to_IEC_string(size).c_str());
+		darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed (%s)", Darknet::size_to_IEC_string(size).c_str());
 	}
 	return x_gpu;
 }
@@ -629,7 +629,7 @@ int *cuda_make_int_array_new_api(int *x, size_t n)
 	}
 	if (!x_gpu)
 	{
-		darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed (%s)", size_to_IEC_string(size).c_str());
+		darknet_fatal_error(DARKNET_LOC, "CUDA malloc failed (%s)", Darknet::size_to_IEC_string(size).c_str());
 	}
 	return x_gpu;
 }
@@ -773,7 +773,7 @@ void show_cuda_cudnn_info()
 			*cfg_and_state.output
 				<< "=> " << idx << ": " << Darknet::in_colour(Darknet::EColour::kBrightGreen, prop.name)
 				<< " [#" << prop.major << "." << prop.minor << "]"
-				<< ", " << Darknet::in_colour(Darknet::EColour::kYellow, size_to_IEC_string(prop.totalGlobalMem))
+				<< ", " << Darknet::in_colour(Darknet::EColour::kYellow, Darknet::size_to_IEC_string(prop.totalGlobalMem))
 				<< std::endl;
 		}
 	}
