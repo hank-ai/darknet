@@ -1,5 +1,7 @@
 #include "darknet_internal.hpp"
 #include <boost/contract.hpp>
+#include <fstream>
+#include <string>
 
 static inline void fix_nan_inf(float & val)
 	{
@@ -23,9 +25,12 @@ static inline void fix_nan_inf(float & val)
 		{
 			val = 0.0f;
 		}
-
 		return;
 	}
+
+// Forward declaration for NaN detection function (defined later in file)
+// WHY: Called in forward_yolo_layer_bdp() before definition
+void find_nan_in_output(const Darknet::Layer &l, const int epoch);
 
 namespace
 {
@@ -2132,9 +2137,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 	// Fix any remaining NaN/inf in the entire delta array before computing loss
 	// This prevents NaN from objectness/class deltas contaminating the loss
 	for (int i = 0; i < l.batch * l.outputs; ++i) {
-		if (!std::isfinite(l.delta[i])) {
-			l.delta[i] = 0.0f;
-		}
+		fix_nan_inf(l.delta[i]);
 	}
 
 	// Compute final loss metrics
@@ -2148,6 +2151,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 		memcpy(&bits, &x, sizeof(float));
 		return ((bits >> 23) & 0xFF) == 0xFF;
 	};
+
 	static int delta_nan_count = 0;
 	for (int i = 0; i < l.batch * l.outputs && delta_nan_count < 5; i++) {
 		if (is_bad_ldelta(l.delta[i])) {
@@ -2155,7 +2159,7 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 				*cfg_and_state.output << "   [ERROR] NaN/Inf found in l.delta[" << i << "]=" << l.delta[i] << std::endl;
 			}
 			// Replace NaN/Inf with 0 to prevent propagation
-			l.delta[i] = 0.0f;
+			fix_nan_inf(l.delta[i]);
 		}
 	}
 
@@ -2182,6 +2186,36 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 			}
 		}
 	}
+	
+	float mag_no_iou = mag_array(no_iou_loss_delta, l.outputs * l.batch);
+	// Use manual binary check since std::isfinite/isnan are broken
+	auto check_bad_mag = [](float x) -> bool {
+		uint32_t bits;
+		memcpy(&bits, &x, sizeof(float));
+		return ((bits >> 23) & 0xFF) == 0xFF;
+	};
+	if (check_bad_mag(mag_no_iou)) {
+		if (cfg_and_state.is_verbose) {
+			*cfg_and_state.output << "   [ERROR] mag_no_iou is NaN/Inf! Setting to 0" << std::endl;
+		}
+		fix_nan_inf(mag_no_iou);
+	}
+
+	float classification_loss = l.obj_normalizer * pow(mag_no_iou, 2);
+	// Use manual binary check since std::isfinite/isnan are broken
+	auto check_bad = [](float x) -> bool {
+		uint32_t bits;
+		memcpy(&bits, &x, sizeof(float));
+		return ((bits >> 23) & 0xFF) == 0xFF;
+	};
+	if (check_bad(classification_loss)) {
+		if (cfg_and_state.is_verbose) {
+			*cfg_and_state.output << "   [ERROR] classification_loss is NaN/Inf! obj_normalizer=" << l.obj_normalizer
+								  << " mag_no_iou=" << mag_no_iou << " pow(mag_no_iou,2)=" << pow(mag_no_iou, 2)
+								  << " Setting to 0" << std::endl;
+		}
+		fix_nan_inf(classification_loss);
+	}
 
 	// Check no_iou_loss_delta for NaN before mag_array
 	// Use manual binary check since std::isfinite is broken
@@ -2196,39 +2230,10 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 			if (no_iou_nan_check++ < 5) {
 				*cfg_and_state.output << "   [ERROR] NaN/Inf in no_iou_loss_delta[" << i << "]=" << no_iou_loss_delta[i] << std::endl;
 			}
-			no_iou_loss_delta[i] = 0.0f;
+			fix_nan_inf(no_iou_loss_delta[i]);
 		}
 	}
 
-	float mag_no_iou = mag_array(no_iou_loss_delta, l.outputs * l.batch);
-	// Use manual binary check since std::isfinite/isnan are broken
-	auto check_bad_mag = [](float x) -> bool {
-		uint32_t bits;
-		memcpy(&bits, &x, sizeof(float));
-		return ((bits >> 23) & 0xFF) == 0xFF;
-	};
-	if (check_bad_mag(mag_no_iou)) {
-		if (cfg_and_state.is_verbose) {
-			*cfg_and_state.output << "   [ERROR] mag_no_iou is NaN/Inf! Setting to 0" << std::endl;
-		}
-		mag_no_iou = 0.0f;
-	}
-
-	float classification_loss = l.obj_normalizer * pow(mag_no_iou, 2);
-	// Use manual binary check since std::isfinite/isnan are broken
-	auto check_bad = [](float x) -> bool {
-		uint32_t bits;
-		memcpy(&bits, &x, sizeof(float));
-		return ((bits >> 23) & 0xFF) == 0xFF;
-	};
-	if (check_bad(classification_loss)) {
-		if (cfg_and_state.is_verbose) {
-			*cfg_and_state.output << "   [ERROR] classification_loss is NaN/Inf! obj_normalizer=" << l.obj_normalizer
-			                      << " mag_no_iou=" << mag_no_iou << " pow(mag_no_iou,2)=" << pow(mag_no_iou, 2)
-			                      << " Setting to 0" << std::endl;
-		}
-		classification_loss = 0.0f;
-	}
 
 	free(no_iou_loss_delta);
 
@@ -2428,6 +2433,9 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 		                      << " class_loss=" << (std::isnan(classification_loss) ? "NaN" : std::isinf(classification_loss) ? "Inf" : std::abs(classification_loss) < 1e-4f ? "~0" : ">15")
 		                      << std::endl;
 	}
+
+	int iteration_num_for_nan = get_current_iteration(state.net);
+	find_nan_in_output(l, iteration_num_for_nan);
 }
 
 
@@ -2821,4 +2829,48 @@ void correct_yolo_boxes_bdp(DarknetDetectionOBB *dets, int n, int w, int h, int 
 		// Store corrected coordinates back to detection
 		dets[i].bbox = b;
 	}
+}
+
+void find_nan_in_output(const Darknet::Layer &l, const int epoch)
+{
+    const int stride = l.w * l.h;
+    const int entries_per_anchor = l.classes + 6 + 1;
+
+    for (int i = 0; i < l.batch * l.outputs; ++i)
+    {
+        if (std::isnan(l.output[i]))
+        {
+            const int b = i / l.outputs;
+            int remainder = i % l.outputs;
+
+            const int n = remainder / (entries_per_anchor * stride);
+            remainder %= (entries_per_anchor * stride);
+
+            const int entry = remainder / stride;
+            remainder %= stride;
+
+            const int j = remainder / l.w;
+            const int i_loc = remainder % l.w;
+
+            std::string entry_name = "unknown";
+            if (entry == 0) entry_name = "x";
+            else if (entry == 1) entry_name = "y";
+            else if (entry == 2) entry_name = "w";
+            else if (entry == 3) entry_name = "h";
+            else if (entry == 4) entry_name = "fx";
+            else if (entry == 5) entry_name = "fy";
+            else if (entry == 6) entry_name = "objectness";
+            else if (entry >= 7 && entry < 7 + l.classes)
+            {
+                entry_name = "class_" + std::to_string(entry - 7);
+            }
+            std::ofstream log_file("nan_log.txt", std::ios_base::app);
+            log_file << "NaN detected in epoch " << epoch
+                     << ", batch " << b
+                     << ", anchor " << n
+                     << ", row " << j
+                     << ", col " << i_loc
+                     << ", entry " << entry << " (" << entry_name << ")" << std::endl;
+        }
+    }
 }
