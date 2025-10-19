@@ -147,7 +147,6 @@ char **get_random_paths_custom(char **paths, int n, int m, int contrastive)
 	return random_paths;
 }
 
-
 char **get_random_paths(char **paths, int n, int m)
 {
 	TAT(TATPARMS);
@@ -155,8 +154,46 @@ char **get_random_paths(char **paths, int n, int m)
 	return get_random_paths_custom(paths, n, m, 0);
 }
 
+box_label *read_boxes(char *filename, int *n)
+{
+	TAT(TATPARMS);
 
-box_label_bdp *read_boxes(char *filename, int *n)
+	box_label* boxes = (box_label*)xcalloc(1, sizeof(box_label));
+	FILE *file = fopen(filename, "r");
+	if (!file)
+	{
+		darknet_fatal_error(DARKNET_LOC, "failed to open annotation file \"%s\"", filename);
+	}
+	const int max_obj_img = 4000;// 30000;
+	const int img_hash = (custom_hash(filename) % max_obj_img)*max_obj_img;
+	float x, y, h, w;
+	int id;
+	int count = 0;
+	while(fscanf(file, "%d %f %f %f %f", &id, &x, &y, &w, &h) == 5)
+	{
+//		*cfg_and_state.output << "x=" << x << " y=" << y << " w=" << w << " h=" << h << std::endl;
+
+		boxes = (box_label*)xrealloc(boxes, (count + 1) * sizeof(box_label));
+		boxes[count].track_id = count + img_hash;
+		boxes[count].id = id;
+		boxes[count].x = x;
+		boxes[count].y = y;
+		boxes[count].h = h;
+		boxes[count].w = w;
+		boxes[count].left   = x - w / 2.0f; 
+		boxes[count].right  = x + w / 2.0f;
+		boxes[count].top    = y - h / 2.0f;
+		boxes[count].bottom = y + h / 2.0f;
+		++count;
+	}
+
+	fclose(file);
+	*n = count;
+
+	return boxes;
+}
+
+box_label_bdp *read_boxes_bdp(char *filename, int *n)
 {
 	TAT(TATPARMS);
 
@@ -199,51 +236,7 @@ box_label_bdp *read_boxes(char *filename, int *n)
 	return boxes;
 }
 
-/*
-box_label_bdp *read_boxes_bdp(char *filename, int *n)
-{
-	TAT(TATPARMS);
-
-	box_label_bdp* boxes = (box_label_bdp*)xcalloc(1, sizeof(box_label_bdp));
-	FILE *file = fopen(filename, "r");
-	if (!file)
-	{
-		darknet_fatal_error(DARKNET_LOC, "failed to open annotation file \"%s\"", filename);
-	}
-	const int max_obj_img = 4000;// 30000;
-	const int img_hash = (custom_hash(filename) % max_obj_img)*max_obj_img;
-	float x, y, h, w, fx, fy;
-	int id;
-	int count = 0;
-	while(fscanf(file, "%d %f %f %f %f %f %f", &id, &x, &y, &w, &h, &fx, &fy) == 7)
-	{
-//		*cfg_and_state.output << "x=" << x << " y=" << y << " w=" << w << " h=" << h << std::endl;
-
-		boxes = (box_label_bdp*)xrealloc(boxes, (count + 1) * sizeof(box_label_bdp));
-		boxes[count].track_id = count + img_hash;
-		boxes[count].id = id;s
-		boxes[count].x = x;
-		boxes[count].y = y;
-		boxes[count].h = h;
-		boxes[count].w = w;
-		boxes[count].fx = fx;
-		boxes[count].fy = fy;
-		// @implement change to box_label_bdp, since box label uses different coordinates
-		boxes[count].left   = x - w / 2.0f; 
-		boxes[count].right  = x + w / 2.0f;
-		boxes[count].top    = y - h / 2.0f;
-		boxes[count].bottom = y + h / 2.0f;
-		++count;
-	}
-
-	fclose(file);
-	*n = count;
-
-	return boxes;
-}
-*/
-
-void randomize_boxes(box_label_bdp *b, int n)
+void randomize_boxes(box_label *b, int n)
 {
 	TAT(TATPARMS);
 
@@ -255,8 +248,71 @@ void randomize_boxes(box_label_bdp *b, int n)
 	}
 }
 
+void randomize_boxes_bdp(box_label_bdp *b, int n)
+{
+	TAT(TATPARMS);
 
-void correct_boxes(box_label_bdp *boxes, int n, float dx, float dy, float sx, float sy, int flip)
+	int i;
+	for(i = 0; i < n; ++i)
+	{
+		const auto index = rand_uint(0, n - 1);
+		std::swap(b[i], b[index]);
+	}
+}
+
+void correct_boxes(box_label *boxes, int n, float dx, float dy, float sx, float sy, int flip)
+{
+	TAT(TATPARMS);
+
+	int i;
+	for(i = 0; i < n; ++i)
+	{
+		if(boxes[i].x == 0 && boxes[i].y == 0)
+		{
+			boxes[i].x = 999999;
+			boxes[i].y = 999999;
+			boxes[i].w = 999999;
+			boxes[i].h = 999999;
+			continue;
+		}
+		if ((boxes[i].x + boxes[i].w / 2) < 0 || (boxes[i].y + boxes[i].h / 2) < 0 ||
+			(boxes[i].x - boxes[i].w / 2) > 1 || (boxes[i].y - boxes[i].h / 2) > 1)
+		{
+			boxes[i].x = 999999;
+			boxes[i].y = 999999;
+			boxes[i].w = 999999;
+			boxes[i].h = 999999;
+			continue;
+		}
+		boxes[i].left   = boxes[i].left  * sx - dx;
+		boxes[i].right  = boxes[i].right * sx - dx;
+		boxes[i].top    = boxes[i].top   * sy - dy;
+		boxes[i].bottom = boxes[i].bottom* sy - dy;
+
+		if(flip)
+		{
+			float swap = boxes[i].left;
+			boxes[i].left = 1.0f - boxes[i].right;
+			boxes[i].right = 1.0f - swap;
+		}
+
+		boxes[i].left =  constrain(0, 1, boxes[i].left);
+		boxes[i].right = constrain(0, 1, boxes[i].right);
+		boxes[i].top =   constrain(0, 1, boxes[i].top);
+		boxes[i].bottom =   constrain(0, 1, boxes[i].bottom);
+
+		boxes[i].x = (boxes[i].left+boxes[i].right)/2;
+		boxes[i].y = (boxes[i].top+boxes[i].bottom)/2;
+		boxes[i].w = (boxes[i].right - boxes[i].left);
+		boxes[i].h = (boxes[i].bottom - boxes[i].top);
+
+		boxes[i].w = constrain(0, 1, boxes[i].w);
+		boxes[i].h = constrain(0, 1, boxes[i].h);
+	}
+}
+
+
+void correct_boxes_bdp(box_label_bdp *boxes, int n, float dx, float dy, float sx, float sy, int flip)
 {
 	TAT(TATPARMS);
 
@@ -312,7 +368,6 @@ void correct_boxes(box_label_bdp *boxes, int n, float dx, float dy, float sx, fl
 	}
 }
 
-
 int fill_truth_detection(const char *path, int num_boxes, int truth_size, float *truth, int classes, int flip, float dx, float dy, float sx, float sy, int net_w, int net_h)
 {
 	TAT(TATPARMS);
@@ -324,12 +379,98 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 
 	int count = 0;
 	int i;
-	box_label_bdp *boxes = read_boxes(labelpath, &count);
+	box_label *boxes = read_boxes(labelpath, &count);
 	int min_w_h = 0;
 	float lowest_w = 1.F / net_w;
 	float lowest_h = 1.F / net_h;
 	randomize_boxes(boxes, count);
 	correct_boxes(boxes, count, dx, dy, sx, sy, flip);
+	if (count > num_boxes)
+	{
+		count = num_boxes;
+	}
+	float x, y, w, h;
+	int id;
+	int sub = 0;
+
+	for (i = 0; i < count; ++i)
+	{
+		x = boxes[i].x;
+		y = boxes[i].y;
+		w = boxes[i].w;
+		h = boxes[i].h;
+		id = boxes[i].id;
+		int track_id = boxes[i].track_id;
+
+		// not detect small objects
+		//if ((w < 0.001F || h < 0.001F)) continue;
+		// if truth (box for object) is smaller than 1x1 pix
+		//char buff[256];
+		if (id >= classes)
+		{
+			darknet_fatal_error(DARKNET_LOC, "invalid class ID #%d in %s", id, labelpath);
+		}
+		if ((w < lowest_w || h < lowest_h))
+		{
+			++sub;
+			continue;
+		}
+
+		if (x == 999999 || y == 999999)
+		{
+			darknet_fatal_error(DARKNET_LOC, "invalid annotation for class ID #%d in %s", id, labelpath);
+		}
+		/// @todo shouldn't this be x - w/2 < 0.0f?  And same for other variables?
+		if (x <= 0.0f || x > 1.0f || y <= 0.0f || y > 1.0f)
+		{
+			darknet_fatal_error(DARKNET_LOC, "invalid coordinates for class ID #%d in %s", id, labelpath);
+		}
+		/// @todo again, instead of checking for > 1, shouldn't we check x + w / 2 ?
+		if (w > 1.0f)
+		{
+			darknet_fatal_error(DARKNET_LOC, "invalid width for class ID #%d in %s", id, labelpath);
+		}
+		/// @todo check for y - h/2 and y + h/2?
+		if (h > 1.0f)
+		{
+			darknet_fatal_error(DARKNET_LOC, "invalid height for class ID #%d in %s", id, labelpath);
+		}
+
+		if (x == 0) x += lowest_w;
+		if (y == 0) y += lowest_h;
+
+		truth[(i-sub)*truth_size +0] = x;
+		truth[(i-sub)*truth_size +1] = y;
+		truth[(i-sub)*truth_size +2] = w;
+		truth[(i-sub)*truth_size +3] = h;
+		truth[(i-sub)*truth_size +4] = id;
+		truth[(i-sub)*truth_size +5] = track_id;
+
+		if (min_w_h == 0) min_w_h = w*net_w;
+		if (min_w_h > w*net_w) min_w_h = w*net_w;
+		if (min_w_h > h*net_h) min_w_h = h*net_h;
+	}
+	free(boxes);
+	return min_w_h;
+}
+
+int fill_truth_detection_bdp(const char *path, int num_boxes, int truth_size, float *truth, int classes, int flip, float dx, float dy, float sx, float sy, int net_w, int net_h)
+{
+	TAT(TATPARMS);
+
+	// This method is used during the training process to load the boxes for the given image.
+
+	char labelpath[4096];
+	replace_image_to_label(path, labelpath);
+
+	int count = 0;
+	int i;
+	box_label_bdp *boxes = read_boxes_bdp(labelpath, &count);
+	int min_w_h = 0;
+	float lowest_w = 1.F / net_w;
+	float lowest_h = 1.F / net_h;
+	randomize_boxes_bdp(boxes, count);
+	correct_boxes_bdp(boxes, count, dx, dy, sx, sy, flip);
 	if (count > num_boxes)
 	{
 		count = num_boxes;
@@ -632,7 +773,7 @@ void blend_truth_mosaic(float *new_truth, int boxes, int truth_size, float *old_
 
 
 data load_data_detection(int n, char **paths, int m, int w, int h, int c, int boxes, int truth_size, int classes, int use_flip, int use_gaussian_noise, int use_blur, int use_fog, int use_mixup,
-	float jitter, float resize, float hue, float saturation, float exposure, int mini_batch, int track, int augment_speed, int letter_box, int mosaic_bound, int contrastive, int contrastive_jit_flip, int contrastive_color, int show_imgs)
+	float jitter, float resize, float hue, float saturation, float exposure, int mini_batch, int track, int augment_speed, int letter_box, int mosaic_bound, int contrastive, int contrastive_jit_flip, int contrastive_color, int show_imgs, int use_bdp)
 {
 	TAT(TATPARMS);
 
@@ -871,8 +1012,11 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int c, int bo
 			const float dx = ((float)pleft / ow) / sx;
 			const float dy = ((float)ptop / oh) / sy;
 
-			// This is where we get the annotations for this image.
-			const int min_w_h = fill_truth_detection(filename, boxes, truth_size, truth, classes, flip, dx, dy, 1. / sx, 1. / sy, w, h);
+			// Load annotations: use BDP format (7 values) or standard YOLO (5 values)
+			// based on network layer types detected during initialization
+			const int min_w_h = use_bdp
+				? fill_truth_detection_bdp(filename, boxes, truth_size, truth, classes, flip, dx, dy, 1. / sx, 1. / sy, w, h)
+				: fill_truth_detection(filename, boxes, truth_size, truth, classes, flip, dx, dy, 1. / sx, 1. / sy, w, h);
 
 			if ((min_w_h / 8) < blur && blur > 1)
 			{
@@ -1030,7 +1174,7 @@ void Darknet::load_single_image_data(load_args args)
 		{
 			// 2024:  used in detector.cpp (when training a neural network)
 			*args.d = load_data_detection(args.n, args.paths, args.m, args.w, args.h, args.c, args.num_boxes, args.truth_size, args.classes, args.flip, args.gaussian_noise, args.blur, args.fog, args.mixup, args.jitter, args.resize,
-					args.hue, args.saturation, args.exposure, args.mini_batch, args.track, args.augment_speed, args.letter_box, args.mosaic_bound, args.contrastive, args.contrastive_jit_flip, args.contrastive_color, args.show_imgs);
+					args.hue, args.saturation, args.exposure, args.mini_batch, args.track, args.augment_speed, args.letter_box, args.mosaic_bound, args.contrastive, args.contrastive_jit_flip, args.contrastive_color, args.show_imgs, args.use_bdp);
 			break;
 		}
 	}

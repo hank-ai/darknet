@@ -2277,6 +2277,10 @@ float computeFrontPointCosine(const RectParams& pred, const RectParams& target)
 		return 1.0f;  // Default to perfect alignment for degenerate cases
 	}
 
+	// Compute cosine of angle θ between the two orientation vectors
+	// cos(θ) = dot_product / (magnitude1 * magnitude2)
+	float cos_theta = dot / mag_product;
+
 	// Half-angle formula: cos(θ/2) = sqrt((1 + cos(θ)) / 2)
 	// This maps:
 	//   θ=0°   → cos(θ)=1  → cos(θ/2)=1     (perfect alignment)

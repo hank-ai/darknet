@@ -526,3 +526,4 @@ namespace Darknet
 #include "softmax_layer.hpp"
 #include "upsample_layer.hpp"
 #include "yolo_layer.hpp"
+#include "yolo_layer_bdp.hpp"

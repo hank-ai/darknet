@@ -355,6 +355,14 @@ int get_network_input_size(Darknet::Network & net);
 
 float get_network_cost(const Darknet::Network & net);
 
+/** Check if the network contains any YOLO_BDP layers.
+ * WHY: During training, data loading needs to know if annotations should use
+ *      BDP format (7 values: x,y,w,h,fx,fy,class) or standard YOLO format
+ *      (5 values: x,y,w,h,class). This determines which read_boxes function to use.
+ * @returns true if any layer in the network is of type YOLO_BDP, false otherwise
+ */
+bool network_has_yolo_bdp_layers(const Darknet::Network & net);
+
 void copy_weights_net(const Darknet::Network & net_train, Darknet::Network *net_map);
 void free_network_recurrent_state(Darknet::Network & net);
 void restore_network_recurrent_state(Darknet::Network & net);

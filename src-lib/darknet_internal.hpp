@@ -292,6 +292,7 @@ typedef struct load_args {
 	int contrastive;
 	int contrastive_jit_flip;
 	int contrastive_color;
+	int use_bdp;	///< Use BDP format (7 values) when true, standard YOLO (5 values) when false
 	float jitter;
 	float resize;
 	int flip;

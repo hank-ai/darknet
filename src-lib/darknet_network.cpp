@@ -757,6 +757,25 @@ int get_network_input_size(Darknet::Network & net)
 }
 
 
+bool network_has_yolo_bdp_layers(const Darknet::Network & net)
+{
+	TAT(TATPARMS);
+
+	// Iterate through all layers to check if any are YOLO_BDP type
+	// WHY: Training data loaders need to know annotation format (5 vs 7 values)
+	// HOW: Check each layer's type against YOLO_BDP enum value
+	for (int i = 0; i < net.n; ++i)
+	{
+		if (net.layers[i].type == Darknet::ELayerType::YOLO_BDP)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
 Darknet::Image get_network_image_layer(Darknet::Network & net, int i)
 {
 	TAT(TATPARMS);

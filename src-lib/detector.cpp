@@ -332,6 +332,8 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	args.d = &buffer;
 	args.type = DETECTION_DATA; // this is the only place in the code where this type is used
 	args.threads = 64;    // 16 or 64 -- see several lines below where this is set to 6 * GPUs
+	// Check if network has YOLO_BDP layers to determine annotation format
+	args.use_bdp = network_has_yolo_bdp_layers(net);
 
 	args.angle = net.angle;
 	args.gaussian_noise = net.gaussian_noise;
@@ -2109,7 +2111,8 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 			*cfg_and_state.output << "  Reading labels from: " << labelpath << std::endl;
 
 			int num_labels = 0;
-			box_label_bdp *truth = read_boxes(labelpath, &num_labels);
+
+			box_label_bdp *truth = read_boxes_bdp(labelpath, &num_labels);
 			*cfg_and_state.output << "  Got " << num_labels << " ground truth boxes" << std::endl;
 
 			total_truth += num_labels;

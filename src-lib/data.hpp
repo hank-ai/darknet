@@ -7,7 +7,18 @@
 #include "darknet_internal.hpp"
 
 
-box_label_bdp *read_boxes(char *filename, int *n);
+// Standard YOLO format (5 values: class_id x y w h)
+box_label *read_boxes(char *filename, int *n);
+void randomize_boxes(box_label *b, int n);
+void correct_boxes(box_label *boxes, int n, float dx, float dy, float sx, float sy, int flip);
+int fill_truth_detection(const char *path, int num_boxes, int truth_size, float *truth, int classes, int flip, float dx, float dy, float sx, float sy, int net_w, int net_h);
+
+// BDP format (7 values: class_id x y w h fx fy)
+box_label_bdp *read_boxes_bdp(char *filename, int *n);
+void randomize_boxes_bdp(box_label_bdp *b, int n);
+void correct_boxes_bdp(box_label_bdp *boxes, int n, float dx, float dy, float sx, float sy, int flip);
+int fill_truth_detection_bdp(const char *path, int num_boxes, int truth_size, float *truth, int classes, int flip, float dx, float dy, float sx, float sy, int net_w, int net_h);
+
 list *get_paths(const char *filename);
 
 data get_data_part(data d, int part, int total);
