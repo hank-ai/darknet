@@ -21,7 +21,7 @@ On Windows, this is done using:
 Once this additional dependency has been installed, please continue with the usual Darknet/YOLO build steps as described in the [README.md](README.md#Building).
 
 > [!TIP]
-> You must toggle testing for Google Protocol Buffers using `-DDARKNET_TRY_ONNX=True` and `-DDARKNET_TRY_ONNX=False`.  For the time being (early in the V5 release) the ONNX export tool is disabled by default.
+> The CMake flags `-DDARKNET_TRY_ONNX=ON` and `-DDARKNET_TRY_ONNX=OFF` can be used to skip building the ONNX tool.  The default in v5.0 was `-DDARKNET_TRY_ONNX=OFF`.  In v5.1, the default was changed to `ON`.
 
 As of August 2025, the Darknet/YOLO ONNX export tool has only been tested with the following *stock* configuration files:
 
