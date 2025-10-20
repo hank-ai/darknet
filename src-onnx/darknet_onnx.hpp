@@ -27,9 +27,6 @@ namespace Darknet
 			/// Destructor.
 			~ONNXExport();
 
-			/// Callback function that Protocol Buffers calls to log messages.
-			static void log_handler(google::protobuf::LogLevel level, const char * filename, int line, const std::string & message);
-
 			/// Use Darknet to load the neural network.
 			ONNXExport & load_network();
 

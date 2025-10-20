@@ -120,27 +120,6 @@ namespace
 }
 
 
-void Darknet::ONNXExport::log_handler(google::protobuf::LogLevel level, const char * filename, int line, const std::string & message)
-{
-	TAT(TATPARMS);
-
-	*cfg_and_state.output << "Protocol buffer error detected:"
-		<< " level="	<< level
-		<< " fn="		<< filename
-		<< " line="		<< line
-		<< " msg="		<< message
-		<< std::endl;
-
-	if (level == google::protobuf::LOGLEVEL_ERROR or
-		level == google::protobuf::LOGLEVEL_FATAL)
-	{
-		throw std::runtime_error("cannot continue due to unexpected protocol buffer error: " + message);
-	}
-
-	return;
-}
-
-
 Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, const std::filesystem::path & weights_filename, const std::filesystem::path & onnx_filename) :
 	cfg_fn(cfg_filename),
 	weights_fn(weights_filename),
@@ -166,8 +145,6 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 		<< "-> weights .............. " << weights_fn	.string()	<< std::endl
 		<< "-> onnx output .......... " << onnx_fn		.string()	<< std::endl
 		;
-
-	google::protobuf::SetLogHandler(&Darknet::ONNXExport::log_handler);
 
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 

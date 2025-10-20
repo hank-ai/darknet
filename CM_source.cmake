@@ -28,6 +28,7 @@ IF (WIN32)
 #	ADD_COMPILE_OPTIONS (/wd4113)
 #	ADD_COMPILE_OPTIONS (/wd4127)			# disable "conditional expression is constant"
 #	ADD_COMPILE_OPTIONS (/wd4133)
+	ADD_COMPILE_OPTIONS (/wd4141)			# disable "inline used more than once"
 #	ADD_COMPILE_OPTIONS (/wd4190)
 #	ADD_COMPILE_OPTIONS (/wd4244)
 #	ADD_COMPILE_OPTIONS (/wd4267)
