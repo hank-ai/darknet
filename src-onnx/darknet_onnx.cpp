@@ -156,7 +156,8 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 						//
 						// Also see initialize_model() where the IR version is set.
 	graph(nullptr),
-	fuse_batchnorm(true)
+	fuse_batchnorm(true),
+	postprocess_boxes(true)
 {
 	TAT(TATPARMS);
 	*cfg_and_state.output											<< std::endl
@@ -227,6 +228,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 		calculate_binary_weights(&cfg.net);
 	}
 
+	if (cfg_and_state.is_set("noboxes"))
+	{
+		postprocess_boxes = false;
+	}
+
 	// restore the verbose flag
 	if (not original_verbose_flag)
 	{
@@ -257,7 +263,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		<< "-> producer version ..... " << model.producer_version() << " "		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, "[built " __DATE__ "]") << std::endl
 		<< "-> model version ........ " << model.model_version()				<< std::endl
 		<< "-> batchnorm fused ...... " << (fuse_batchnorm		? "yes" : "no")	<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fuse or -dontfuse]") << std::endl
+		<< "-> post-process boxes ... " << (postprocess_boxes	? "yes" : "no")	<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -boxes or -noboxes]") << std::endl
 //		<< "-> has graph ............ " << (model.has_graph()	? "yes" : "no")	<< std::endl
+		<< "-> graph name ........... " << graph->name()						<< std::endl
 		<< "-> graph input size ..... " << graph->input_size()	<< " "			<< Darknet::in_colour(Darknet::EColour::kDarkGrey, input_string)	<< std::endl
 		<< "-> graph output size .... " << graph->output_size()	<< " "			<< Darknet::in_colour(Darknet::EColour::kDarkGrey, output_string)	<< std::endl
 		<< "-> graph node size ...... " << graph->node_size()					<< std::endl
@@ -292,7 +300,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 			str.insert(pos, ",");
 		}
 
-		*cfg_and_state.output << " " << sizeof(float) << " x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(sizeof(float) * val) + "]") << std::endl;
+		*cfg_and_state.output << " " << sizeof(float) << " bytes x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(sizeof(float) * val) + "]") << std::endl;
 	}
 
 	return *this;
@@ -326,14 +334,17 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	model.set_model_version(1);
 
 	// A human-readable documentation for this attribute. Markdown is allowed.
+	const size_t number_of_classes = cfg.net.details->class_names.size();
 	std::time_t tt = std::time(nullptr);
 	char buffer[50];
 	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", std::localtime(&tt));
 	model.set_doc_string(
 		"ONNX generated from Darknet/YOLO neural network " +
 		cfg_fn.filename().string() +
-		" (" + std::to_string(cfg.sections.size()) + " layers)"
-		" and " +
+		" (" +
+		std::to_string(number_of_classes) + " class" + (number_of_classes == 1 ? "" : "es") + ", " +
+		std::to_string(cfg.sections.size()) + " layers" +
+		") and " +
 		weights_fn.filename().string() +
 		" (" + size_to_IEC_string(std::filesystem::file_size(weights_fn)) + ")"
 		" on " +
@@ -344,7 +355,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	opset->set_version(opset_version); // "Upsample" is only supported up to v9, and "Resize" requires a minimum of v10.  MISH requires v18.
 
 	graph = new onnx::GraphProto();
-	graph->set_name(weights_fn.stem().string());
+	graph->set_name(cfg_fn.stem().string());
 	model.set_allocated_graph(graph);
 
 	return *this;
@@ -1051,7 +1062,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_yolo(const size_t index, Dar
 
 	auto node = graph->add_node();
 	node->set_op_type("Identity"); //"YOLO");
-//	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->set_name(name);
 	if (cfg_and_state.is_verbose)
 	{
@@ -1062,13 +1072,26 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_yolo(const size_t index, Dar
 	most_recent_output_per_index[index] = name;
 
 #if 1
+	const auto strip_spaces = [](const std::string & s) -> std::string
+			{
+				std::string out;
+				for (const auto & c : s)
+				{
+					if (not std::isspace(c))
+					{
+						out += c;
+					}
+				}
+				return out;
+			};
+
 	node->set_doc_string(
 		cfg_fn.filename().string() +
 		" line #" + std::to_string(section.line_number) +
 		" [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]"
-		" anchors="	+ section.find_str("anchors") +
-		" mask="	+ section.find_str("mask"	) +
-		" classes="	+ section.find_str("classes"));
+		" anchors="	+ strip_spaces(section.find_str("anchors"	)) +
+		" mask="	+ strip_spaces(section.find_str("mask"		)) +
+		" classes="	+ strip_spaces(section.find_str("classes"	)));
 #else
 
 	// These are non-standard attributes.
@@ -1253,16 +1276,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 			}
 		}
 
-		#if 0
-			// important assumption:  pointer must be to little-endian float32
-			initializer->set_raw_data(f, n * sizeof(float));
-		#else
-			// no need to worry about ARM and big/little endian byte order with this method
-			for (size_t i = 0; i < n; i ++)
-			{
-				initializer->add_float_data(f[i]);
-			}
-		#endif
+		// no need to worry about ARM and big/little endian byte order with this method
+		for (size_t i = 0; i < n; i ++)
+		{
+			initializer->add_float_data(f[i]);
+		}
 
 		// get the last part of the name to use as a key; for example, "002_conv_weights" returns a key of "weights"
 		std::string key = name;

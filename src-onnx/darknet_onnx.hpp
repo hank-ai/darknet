@@ -77,6 +77,9 @@ namespace Darknet
 			/// Whether or not we need to fuse batchnorm (`fuse` and `dontfuse` on the CLI).
 			bool fuse_batchnorm;
 
+			/// Whether or not we need to output the post-processing nodes to deal with boxes.
+			bool postprocess_boxes;
+
 			/// The dimensions used in @ref populate_graph_input_frame().
 			std::string input_string;
 
