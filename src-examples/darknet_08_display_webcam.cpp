@@ -249,7 +249,7 @@ int main(int argc, char * argv[])
 			<< "-> total frames captured .... " << frame_counter													<< std::endl
 			<< "-> total length of video .... " << Darknet::format_duration_string(video_duration)					<< std::endl
 			<< "-> average frame rate ....... " << average_fps << " FPS"											<< std::endl
-			<< "-> total objects founds ..... " << total_objects_found												<< std::endl
+			<< "-> total objects found ...... " << total_objects_found												<< std::endl
 			<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter			<< std::endl;
 
 		Darknet::free_neural_network(net);

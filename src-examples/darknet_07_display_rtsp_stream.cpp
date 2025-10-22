@@ -138,7 +138,7 @@ int main(int argc, char * argv[])
 			<< "-> average sleep per frame .. " << Darknet::format_duration_string(average_sleep_per_frame)	<< std::endl
 			<< "-> total length of stream ... " << Darknet::format_duration_string(video_duration)			<< std::endl
 			<< "-> processed frame rate ..... " << final_fps << " FPS"										<< std::endl
-			<< "-> total objects founds ..... " << total_objects_found										<< std::endl
+			<< "-> total objects found ...... " << total_objects_found										<< std::endl
 			<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter	<< std::endl;
 
 		Darknet::free_neural_network(net);
