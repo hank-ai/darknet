@@ -28,7 +28,7 @@
  *     -> total frames processed ... 1230
  *     -> time to process video .... 1719 milliseconds
  *     -> processed frame rate ..... 715.532286 FPS
- *     -> total objects founds ..... 6189
+ *     -> total objects found ...... 6189
  *     -> average objects/frame .... 5.031707
  */
 
@@ -393,7 +393,7 @@ int main(int argc, char * argv[])
 				<< "-> total frames processed ... " << frame_counter											<< std::endl
 				<< "-> time to process video .... " << Darknet::format_duration_string(processing_duration)		<< std::endl
 				<< "-> processed frame rate ..... " << final_fps << " FPS"										<< std::endl
-				<< "-> total objects founds ..... " << total_objects_found										<< std::endl
+				<< "-> total objects found ...... " << total_objects_found										<< std::endl
 				<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter	<< std::endl
 #if 0
 				// timing details are commented out, they're mostly for development purpose not end user consumption

@@ -177,7 +177,7 @@ int main(int argc, char * argv[])
 				std::cout << "-> failed to maintain FPS ... " << fell_behind << " frame" << (fell_behind == 1 ? "" : "s") << std::endl;
 			}
 			std::cout
-				<< "-> total objects founds ..... " << total_objects_found												<< std::endl
+				<< "-> total objects found ...... " << total_objects_found												<< std::endl
 				<< "-> average objects/frame .... " << static_cast<float>(total_objects_found) / frame_counter			<< std::endl;
 		}
 
