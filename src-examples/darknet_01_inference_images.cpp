@@ -67,12 +67,21 @@ int main(int argc, char * argv[])
 				// Note that INTER_NEAREST gives us *speed*, not image quality.
 				const auto t3 = std::chrono::high_resolution_clock::now();
 				cv::Mat resized;
+				// normally you'd skip this next line and go directly to predict()
 				cv::resize(mat, resized, network_dims, cv::INTER_NEAREST);
 				const auto t4 = std::chrono::high_resolution_clock::now();
 
 				// output all of the predictions on the console as plain text
 				const auto t5 = std::chrono::high_resolution_clock::now();
-				const auto results = Darknet::predict(net, resized);
+				/* This is a bad example.  If this was a "real" application, then we wouldn't resize the mat ourself and pass in
+				 * the original image to predict().  That way Darknet would resize it, and would remember the original size.
+				 * Otherwise, the results will be scaled to the resized mat, instead of the "full image".  The only reason we
+				 * manually resized the image above was to get the timing details.  So we're going to ignore the resized mat and
+				 * pass in the original mat...which means Darknet must resize it again.  Oops.  But I'd rather get "correct" images
+				 * and slightly wrong timing details.
+				 */
+//				const auto results = Darknet::predict(net, resized);
+				const auto results = Darknet::predict(net, mat);
 				const auto t6 = std::chrono::high_resolution_clock::now();
 
 				// save the annotated image to disk
@@ -101,17 +110,19 @@ int main(int argc, char * argv[])
 				const int fps = std::round(1000000000.0f / std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count());
 
 				std::cout
-					<< "-> reading image from disk ........... " << Darknet::format_duration_string(t2 - t1	, 3, Darknet::EFormatDuration::kPad) << " [" << mat.cols << " x " << mat.rows << " x " << mat.channels() << "] [" << Darknet::size_to_IEC_string(std::filesystem::file_size(input_filename)) << "]" << std::endl
-					<< "-> resizing image to network dims .... " << Darknet::format_duration_string(t4 - t3	, 3, Darknet::EFormatDuration::kPad) << " [" << network_w << " x " << network_h << " x " << network_c << "]" << std::endl
-					<< "-> using Darknet to predict .......... " << Darknet::format_duration_string(t6 - t5	, 3, Darknet::EFormatDuration::kPad) << " [" << results.size() << " object" << (results.size() == 1 ? "" : "s") << "]" << std::endl
-					<< "-> using Darknet to annotate image ... " << Darknet::format_duration_string(t8 - t7	, 3, Darknet::EFormatDuration::kPad) << " [" << output.cols << " x " << output.rows << " x " << output.channels() << "]" << std::endl
-					<< "-> save output image to disk ......... " << Darknet::format_duration_string(t10 - t9, 3, Darknet::EFormatDuration::kPad) << " [" << Darknet::size_to_IEC_string(std::filesystem::file_size(output_filename)) << "]" << std::endl
-					<< "-> total time elapsed ................ " << Darknet::format_duration_string(duration, 3, Darknet::EFormatDuration::kPad) << " [" << fps << " FPS]" << std::endl
+					<< "-> reading image from disk ........... " << Darknet::format_duration_string(t2 - t1					, 3, Darknet::EFormatDuration::kPad) << " [" << mat.cols << " x " << mat.rows << " x " << mat.channels() << "] [" << Darknet::size_to_IEC_string(std::filesystem::file_size(input_filename)) << "]" << std::endl
+					<< "-> resizing image to network dims .... " << Darknet::format_duration_string(t4 - t3					, 3, Darknet::EFormatDuration::kPad) << " [" << network_w << " x " << network_h << " x " << network_c << "]" << std::endl
+					// don't count resizing the image twice (see comment above in regards to "mat" vs "resized")
+					<< "-> using Darknet to predict .......... " << Darknet::format_duration_string((t6 - t5) - (t4 - t3)	, 3, Darknet::EFormatDuration::kPad) << " [" << results.size() << " object" << (results.size() == 1 ? "" : "s") << "]" << std::endl
+					<< "-> using Darknet to annotate image ... " << Darknet::format_duration_string(t8 - t7					, 3, Darknet::EFormatDuration::kPad) << " [" << output.cols << " x " << output.rows << " x " << output.channels() << "]" << std::endl
+					<< "-> save output image to disk ......... " << Darknet::format_duration_string(t10 - t9				, 3, Darknet::EFormatDuration::kPad) << " [" << Darknet::size_to_IEC_string(std::filesystem::file_size(output_filename)) << "]" << std::endl
+					<< "-> total time elapsed ................ " << Darknet::format_duration_string(duration				, 3, Darknet::EFormatDuration::kPad) << " [" << fps << " FPS]" << std::endl
 					<< results << std::endl << std::endl;
 
 				total_reading_from_disk		+= (t2 - t1);
 				total_resize_images			+= (t4 - t3);
 				total_darknet_predictions	+= (t6 - t5);
+				total_darknet_predictions	-= (t4 - t3); // remove the "resize twice" problem (see omment above in regards to "mat" vs "resized")
 				total_darknet_annotate		+= (t8 - t7);
 				total_save_output			+= (t10 - t9);
 				total_all_time				+= duration;
