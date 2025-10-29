@@ -645,6 +645,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 			case Darknet::ELayerType::LOCAL_AVGPOOL:	resize_maxpool_layer(&l, w, h);				break;
 			case Darknet::ELayerType::REGION:			resize_region_layer(&l, w, h);				break;
 			case Darknet::ELayerType::YOLO:				resize_yolo_layer(&l, w, h);				break;
+			case Darknet::ELayerType::YOLO_BDP:			resize_yolo_layer(&l, w, h);				break;
 			case Darknet::ELayerType::GAUSSIAN_YOLO:	resize_gaussian_yolo_layer(&l, w, h);		break;
 			case Darknet::ELayerType::ROUTE:			resize_route_layer(&l, net);				break;
 			case Darknet::ELayerType::SHORTCUT:			resize_shortcut_layer(&l, w, h, net);		break;
@@ -756,6 +757,25 @@ int get_network_input_size(Darknet::Network & net)
 }
 
 
+bool network_has_yolo_bdp_layers(const Darknet::Network & net)
+{
+	TAT(TATPARMS);
+
+	// Iterate through all layers to check if any are YOLO_BDP type
+	// WHY: Training data loaders need to know annotation format (5 vs 7 values)
+	// HOW: Check each layer's type against YOLO_BDP enum value
+	for (int i = 0; i < net.n; ++i)
+	{
+		if (net.layers[i].type == Darknet::ELayerType::YOLO_BDP)
+		{
+			return true;
+		}
+	}
+
+	return false;
+}
+
+
 Darknet::Image get_network_image_layer(Darknet::Network & net, int i)
 {
 	TAT(TATPARMS);
@@ -860,6 +880,10 @@ int num_detections(Darknet::Network * net, float thresh)
 			/// @todo V3 JAZZ:  this is where we spend all our time
 			s += yolo_num_detections(l, thresh);
 		}
+		else if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			s += yolo_num_detections_bdp(l, thresh);
+		}
 
 		if (l.type == Darknet::ELayerType::GAUSSIAN_YOLO)
 		{
@@ -891,6 +915,11 @@ int num_detections_v3(Darknet::Network * net, float thresh, Darknet::Output_Obje
 			/// @todo V3 JAZZ:  this is where we spend all our time
 			detections += yolo_num_detections_v3(net, i, thresh, cache);
 		}
+		else if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			// Use standard counting for BDP layers (v3 cache not implemented for BDP)
+			detections += yolo_num_detections_bdp(l, thresh);
+		}
 
 		/// @todo Is this still used in a modern .cfg file?  Should it be removed?
 		else if (l.type == Darknet::ELayerType::GAUSSIAN_YOLO)
@@ -921,6 +950,11 @@ int num_detections_batch(Darknet::Network * net, float thresh, int batch)
 		{
 			s += yolo_num_detections_batch(l, thresh, batch);
 		}
+		else if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			// BDP layers use same counting logic as standard YOLO
+			s += yolo_num_detections_bdp(l, thresh);
+		}
 		else if (l.type == Darknet::ELayerType::REGION)
 		{
 			s += l.w*l.h*l.n;
@@ -945,6 +979,7 @@ detection * make_network_boxes(DarknetNetworkPtr ptr, float thresh, int * num)
 	{
 		Darknet::Layer & l_tmp = net->layers[i];
 		if (l_tmp.type == Darknet::ELayerType::YOLO or
+			l_tmp.type == Darknet::ELayerType::YOLO_BDP or
 			l_tmp.type == Darknet::ELayerType::GAUSSIAN_YOLO or
 			l_tmp.type == Darknet::ELayerType::REGION or
 			i == (net->n - 1))
@@ -1013,6 +1048,7 @@ Darknet::Detection * make_network_boxes_v3(Darknet::Network * net, const float t
 
 			const Darknet::Layer & tmp = net->layers[i];
 			if (tmp.type == Darknet::ELayerType::YOLO			or
+				tmp.type == Darknet::ELayerType::YOLO_BDP		or
 				tmp.type == Darknet::ELayerType::GAUSSIAN_YOLO	or
 				tmp.type == Darknet::ELayerType::REGION			)
 			{
@@ -1070,6 +1106,7 @@ Darknet::Detection *make_network_boxes_batch(Darknet::Network * net, float thres
 	{
 		const Darknet::Layer & l_tmp = net->layers[i];
 		if (l_tmp.type == Darknet::ELayerType::YOLO or
+			l_tmp.type == Darknet::ELayerType::YOLO_BDP or
 			l_tmp.type == Darknet::ELayerType::GAUSSIAN_YOLO or
 			l_tmp.type == Darknet::ELayerType::REGION)
 		{
@@ -1184,6 +1221,15 @@ void fill_network_boxes(Darknet::Network * net, int w, int h, float thresh, floa
 				}
 				break;
 			}
+			case Darknet::ELayerType::YOLO_BDP:
+			{
+				// Note: For BDP layers, we would need to handle DarknetDetectionOBB differently
+				// This is a placeholder - full BDP integration would require separate detection arrays
+				// For now, we skip BDP layers in standard detection pipeline
+				// TODO: Implement proper BDP detection handling when needed
+				*cfg_and_state.output << "Warning: YOLO_BDP layer encountered in standard detection pipeline. Skipping." << std::endl;
+				break;
+			}
 			case Darknet::ELayerType::GAUSSIAN_YOLO:
 			{
 				int count = get_gaussian_yolo_detections(l, w, h, net->w, net->h, thresh, map, relative, dets, letter);
@@ -1238,6 +1284,11 @@ void fill_network_boxes_batch(Darknet::Network * net, int w, int h, float thresh
 				darknet_fatal_error(DARKNET_LOC, "Different [yolo] layers have different number of classes = %d and %d - check your cfg-file!", prev_classes, l.classes);
 			}
 		}
+		else if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			// Skip BDP layers in standard batch detection pipeline
+			*cfg_and_state.output << "Warning: YOLO_BDP layer encountered in batch detection pipeline. Skipping." << std::endl;
+		}
 		else if (l.type == Darknet::ELayerType::REGION)
 		{
 			custom_get_region_detections(l, w, h, net->w, net->h, thresh, map, hier, relative, dets, letter);
@@ -1276,6 +1327,82 @@ detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh,
 	return dets;
 }
 
+/// BDP version: Get network boxes for oriented bounding boxes
+detection_obb * get_network_boxes_bdp(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter)
+{
+	TAT(TATPARMS);
+
+	Darknet::Network * net = reinterpret_cast<Darknet::Network *>(ptr);
+
+	// Count total detections from all BDP YOLO layers
+	int nboxes = 0;
+	int bdp_layer_count = 0;
+	for (int i = 0; i < net->n; ++i)
+	{
+		Darknet::Layer & l = net->layers[i];
+		if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			nboxes += l.w * l.h * l.n; // grid_w * grid_h * num_anchors
+			bdp_layer_count++;
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "    BDP layer " << i << ": " << l.w << "x" << l.h << " grid, " << l.n << " anchors = " << (l.w * l.h * l.n) << " boxes" << std::endl;
+			}
+		}
+	}
+
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "    Total BDP layers: " << bdp_layer_count << ", total boxes: " << nboxes << std::endl;
+	}
+
+	if (nboxes == 0)
+	{
+		*num = 0;
+		return nullptr;
+	}
+
+	// Allocate detection array
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "    Allocating " << nboxes << " detections..." << std::endl;
+	}
+	DarknetDetectionOBB *dets = (DarknetDetectionOBB*)xcalloc(nboxes, sizeof(DarknetDetectionOBB));
+
+	int classes = net->layers[net->n - 1].classes;
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "    Allocating probability arrays (classes=" << classes << ")..." << std::endl;
+	}
+	for (int i = 0; i < nboxes; ++i)
+	{
+		dets[i].prob = (float*)xcalloc(classes, sizeof(float));
+	}
+
+	// Extract detections from each BDP layer
+	int count = 0;
+	for (int i = 0; i < net->n; ++i)
+	{
+		Darknet::Layer & l = net->layers[i];
+		if (l.type == Darknet::ELayerType::YOLO_BDP)
+		{
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "    Calling get_yolo_detections_bdp for layer " << i << "..." << std::endl;
+			}
+			int layer_count = get_yolo_detections_bdp(l, w, h, net->w, net->h, thresh, map, relative, dets + count, letter);
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "    Layer " << i << " returned " << layer_count << " detections" << std::endl;
+			}
+			count += layer_count;
+		}
+	}
+
+	*num = count;
+	return dets;
+}
+
 
 void free_detections(detection * dets, int n)
 {
@@ -1287,6 +1414,21 @@ void free_detections(detection * dets, int n)
 	{
 		free(dets[i].prob);
 
+		if (dets[i].uc)			free(dets[i].uc);
+		if (dets[i].mask)		free(dets[i].mask);
+		if (dets[i].embeddings)	free(dets[i].embeddings);
+	}
+
+	free(dets);
+}
+
+void free_detections_bdp(detection_obb * dets, int n)
+{
+	TAT(TATPARMS);
+
+	for (int i = 0; i < n; ++i)
+	{
+		free(dets[i].prob);
 		if (dets[i].uc)			free(dets[i].uc);
 		if (dets[i].mask)		free(dets[i].mask);
 		if (dets[i].embeddings)	free(dets[i].embeddings);
@@ -2024,9 +2166,9 @@ void reject_similar_weights(Darknet::Network & net, float sim_threshold)
 			continue;
 		}
 
-		if (net.n > i + 1) if (net.layers[i + 1].type == Darknet::ELayerType::YOLO) continue;
-		if (net.n > i + 2) if (net.layers[i + 2].type == Darknet::ELayerType::YOLO) continue;
-		if (net.n > i + 3) if (net.layers[i + 3].type == Darknet::ELayerType::YOLO) continue;
+		if (net.n > i + 1) if (net.layers[i + 1].type == Darknet::ELayerType::YOLO || net.layers[i + 1].type == Darknet::ELayerType::YOLO_BDP) continue;
+		if (net.n > i + 2) if (net.layers[i + 2].type == Darknet::ELayerType::YOLO || net.layers[i + 2].type == Darknet::ELayerType::YOLO_BDP) continue;
+		if (net.n > i + 3) if (net.layers[i + 3].type == Darknet::ELayerType::YOLO || net.layers[i + 3].type == Darknet::ELayerType::YOLO_BDP) continue;
 
 		if (l.type == Darknet::ELayerType::CONVOLUTIONAL && l.activation != LINEAR)
 		{

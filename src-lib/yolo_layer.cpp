@@ -1,23 +1,186 @@
 #include "darknet_internal.hpp"
-
+#include <boost/contract.hpp>
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
+	// Macro for debug output - only prints if --trace flag is enabled
+	#define DEBUG_TRACE(msg) if (cfg_and_state.is_trace) { *cfg_and_state.output << msg << std::endl; }
 
-	struct train_yolo_args
+	// Debug macros for BDP loss/gradient logging (active until iteration 20)
+	// These macros log loss components and gradients during training to diagnose
+	// why training fails at step 16. Each macro logs only if iteration <= MAX_ITER.
+	#define BDP_DEBUG_MAX_ITER 20
+
+	#define LOSS_RIOU(iter, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			*cfg_and_state.output << "[LOSS_RIOU iter=" << (iter) << "] " << __VA_ARGS__ << std::endl; \
+		}
+
+	// Helper function to get color for value: blue for near-zero, red for large values
+	inline std::string value_color(float val) {
+		float abs_val = std::abs(val);
+		if (!std::isfinite(val)) return cfg_and_state.colour_is_enabled ? "\033[1;31m" : ""; // Bright red for NaN/Inf
+		if (abs_val < 1e-6f) return cfg_and_state.colour_is_enabled ? "\033[34m" : ""; // Blue for ~0
+		if (abs_val > 1.0f) return cfg_and_state.colour_is_enabled ? "\033[31m" : ""; // Red for >1
+		return ""; // No color for normal values
+	}
+
+	// Helper function to get color for loss values: red if ~0, blue if 0.005-0.1, red if >0.1
+	inline std::string loss_color(float val) {
+		float abs_val = std::abs(val);
+		if (!std::isfinite(val)) return cfg_and_state.colour_is_enabled ? "\033[1;31m" : ""; // Bright red for NaN/Inf
+		if (abs_val < 0.005f) return cfg_and_state.colour_is_enabled ? "\033[31m" : ""; // Red for close to 0
+		if (abs_val >= 0.005f && abs_val <= 0.1f) return cfg_and_state.colour_is_enabled ? "\033[34m" : ""; // Blue for good range
+		if (abs_val > 0.1f) return cfg_and_state.colour_is_enabled ? "\033[31m" : ""; // Red for too large
+		return ""; // No color
+	}
+
+	inline std::string reset_color() {
+		return cfg_and_state.colour_is_enabled ? "\033[0m" : "";
+	}
+
+	#define LOSS_IOU(iter, riou_val, angular_val) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(riou_val) || !std::isfinite(angular_val) || \
+							   std::abs(riou_val) < 1e-6f || std::abs(angular_val) < 1e-6f || \
+							   riou_val > 1.0f || angular_val > 1.0f; \
+			if (is_abnormal || cfg_and_state.is_verbose) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[LOSS_IOU iter=" << (iter) << "] anchor=" << n << " grid=(" << i << "," << j << ") " \
+									  << "riou=" << value_color(riou_val) << riou_val << reset_color() \
+									  << " angular_corr=" << value_color(angular_val) << angular_val << reset_color() \
+									  << std::endl; \
+			} \
+		}
+
+	#define LOSS_GIOU(iter, giou_val, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(giou_val) || std::abs(giou_val) < 1e-6f || giou_val > 1.0f; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[LOSS_GIOU iter=" << (iter) << "] " \
+									  << "giou=" << value_color(giou_val) << giou_val << reset_color() \
+									  << " " << __VA_ARGS__ << std::endl; \
+			} \
+		}
+
+	#define LOSS_DIOU(iter, diou_val, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(diou_val) || std::abs(diou_val) < 1e-6f || diou_val > 1.0f; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[LOSS_DIOU iter=" << (iter) << "] " \
+									  << "diou=" << value_color(diou_val) << diou_val << reset_color() \
+									  << " " << __VA_ARGS__ << std::endl; \
+			} \
+		}
+
+	#define LOSS_CIOU(iter, ciou_val, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(ciou_val) || std::abs(ciou_val) < 1e-6f || ciou_val > 1.0f; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[LOSS_CIOU iter=" << (iter) << "] " \
+									  << "ciou=" << value_color(ciou_val) << ciou_val << reset_color() \
+									  << " " << __VA_ARGS__ << std::endl; \
+			} \
+		}
+
+	#define LOSS_FP(iter, fp_val, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(fp_val) || std::abs(fp_val) < 1e-6f || fp_val > 1.0f; \
+			if (is_abnormal || cfg_and_state.is_verbose) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[LOSS_FP iter=" << (iter) << "] " \
+									  << "fp_loss=" << value_color(fp_val) << fp_val << reset_color() \
+									  << " " << __VA_ARGS__ << std::endl; \
+			} \
+		}
+
+	#define GRAD_LOSS_RIOU(iter, dx_val, dy_val, dw_val, dh_val, dfx_val, dfy_val) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool grad_has_nan = !std::isfinite(dx_val) || !std::isfinite(dy_val) || !std::isfinite(dw_val) || \
+						   !std::isfinite(dh_val) || !std::isfinite(dfx_val) || !std::isfinite(dfy_val); \
+			bool grad_all_zero = (std::abs(dx_val) < 1e-8f && std::abs(dy_val) < 1e-8f && \
+							 std::abs(dw_val) < 1e-8f && std::abs(dh_val) < 1e-8f && \
+							 std::abs(dfx_val) < 1e-8f && std::abs(dfy_val) < 1e-8f); \
+			bool grad_very_large = std::abs(dx_val) > 2.0f || std::abs(dy_val) > 2.0f || std::abs(dw_val) > 2.0f || \
+							  std::abs(dh_val) > 2.0f || std::abs(dfx_val) > 2.0f || std::abs(dfy_val) > 2.0f; \
+			bool is_abnormal = grad_has_nan || grad_all_zero || grad_very_large; \
+			if (is_abnormal || cfg_and_state.is_verbose) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[GRAD_LOSS_RIOU iter=" << (iter) << "] anchor=" << n << " grid=(" << i << "," << j << ") " \
+									  << "dx=" << value_color(dx_val) << dx_val << reset_color() \
+									  << " dy=" << value_color(dy_val) << dy_val << reset_color() \
+									  << " dw=" << value_color(dw_val) << dw_val << reset_color() \
+									  << " dh=" << value_color(dh_val) << dh_val << reset_color() \
+									  << " dfx=" << value_color(dfx_val) << dfx_val << reset_color() \
+									  << " dfy=" << value_color(dfy_val) << dfy_val << reset_color(); \
+				if (grad_has_nan) *cfg_and_state.output << " [NaN!]"; \
+				if (grad_all_zero) *cfg_and_state.output << " [ALL_ZERO!]"; \
+				if (grad_very_large) *cfg_and_state.output << " [VERY_LARGE!]"; \
+				*cfg_and_state.output << std::endl; \
+			} \
+		}
+
+	#define GRAD_LOSS_CLASS(iter, class_val, class_id_val) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool grad_has_nan = !std::isfinite(class_val); \
+			bool grad_all_zero = std::abs(class_val) < 1e-8f; \
+			bool grad_very_large = std::abs(class_val) > 2.0f; \
+			bool is_abnormal = grad_has_nan || grad_all_zero || grad_very_large; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[GRAD_LOSS_CLASS iter=" << (iter) << "] anchor=" << n << " grid=(" << i << "," << j << ") " \
+									  << "class_id=" << (class_id_val) \
+									  << " grad=" << value_color(class_val) << class_val << reset_color(); \
+				if (grad_has_nan) *cfg_and_state.output << " [NaN!]"; \
+				if (grad_all_zero) *cfg_and_state.output << " [ALL_ZERO!]"; \
+				if (grad_very_large) *cfg_and_state.output << " [VERY_LARGE!]"; \
+				*cfg_and_state.output << std::endl; \
+			} \
+		}
+
+	#define GRAD_LOSS_FP(iter, fx_val, fy_val, ...) \
+		if ((iter) <= BDP_DEBUG_MAX_ITER) { \
+			bool is_abnormal = !std::isfinite(fx_val) || !std::isfinite(fy_val) || \
+							   std::abs(fx_val) < 1e-6f || std::abs(fy_val) < 1e-6f || \
+							   std::abs(fx_val) > 1.0f || std::abs(fy_val) > 1.0f; \
+			if (is_abnormal || (iter) <= 5) { \
+				*cfg_and_state.output << std::fixed << std::setprecision(6) \
+									  << "[GRAD_LOSS_FP iter=" << (iter) << "] " \
+									  << "dfx=" << value_color(fx_val) << fx_val << reset_color() \
+									  << " dfy=" << value_color(fy_val) << fy_val << reset_color() \
+									  << " " << __VA_ARGS__ << std::endl; \
+			} \
+		}
+
+	static inline void fix_nan_inf(float & val)
 	{
-		const Darknet::Layer * l;
-		Darknet::NetworkState state;
-		int b;
+		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
 
-		float tot_iou;
-		float tot_giou_loss;
-		float tot_iou_loss;
-		int count;
-		int class_count;
-	};
+		// First check using standard library functions
+		if (std::isnan(val) or std::isinf(val))
+		{
+			val = 0.0f;
+		}
 
+		// Additional manual binary check as safety (std::isnan/std::isinf may be broken)
+		// NaN/Inf have all exponent bits set (exponent = 0xFF)
+		// We use uint32_t to inspect the raw bit pattern of the float (32 bits)
+		// Float layout: [sign:1bit][exponent:8bits][mantissa:23bits]
+		// memcpy copies the float's bytes into uint32_t without conversion
+		uint32_t bits;
+		memcpy(&bits, &val, sizeof(float));
+		uint32_t exponent = (bits >> 23) & 0xFF;  // Extract 8 exponent bits
+		if (exponent == 0xFF)  // All 1s = NaN or Inf
+		{
+			val = 0.0f;
+		}
+
+		return;
+	}
 
 	static inline Darknet::Box get_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
 	{
@@ -41,19 +204,19 @@ namespace
 		return b;
 	}
 
-
-	static inline void fix_nan_inf(float & val)
+	struct train_yolo_args
 	{
-		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
+		const Darknet::Layer * l;
+		Darknet::NetworkState state;
+		int b;
 
-		if (std::isnan(val) or std::isinf(val))
-		{
-			val = 0.0f;
-		}
-
-		return;
-	}
-
+		float tot_iou;
+		float tot_giou_loss;
+		float tot_iou_loss;
+		float tot_fp_loss;  // Total front point loss for BDP
+		int count;
+		int class_count;
+	};
 
 	static inline void clip_value(float & val, const float max_val)
 	{
@@ -71,6 +234,7 @@ namespace
 		return;
 	}
 
+	
 
 	/// loss function:  delta for box
 	static inline ious delta_yolo_box(const Darknet::Box & truth, const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, float * delta, const float scale, const int stride, const float iou_normalizer, const IOU_LOSS iou_loss, const int accumulate, const float max_delta, int * rewritten_bbox, const int new_coords)
@@ -205,7 +369,6 @@ namespace
 		return all_ious;
 	}
 
-
 	static inline void averages_yolo_deltas(const int class_index, const int box_index, const int stride, const int classes, float * delta)
 	{
 		TAT_COMMENT(TATPARMS, "2024-05-14 inlined");
@@ -227,6 +390,9 @@ namespace
 			delta[box_index + 3 * stride] /= classes_in_one_box;
 		}
 	}
+
+
+	
 
 
 	/// loss function:  delta for class
@@ -310,6 +476,24 @@ namespace
 					delta[index + stride * class_id] *= classes_multipliers[class_id] * cls_normalizer;
 				}
 
+				// DEBUG: Check for NaN in classification delta
+				static int class_nan_debug = 0;
+				if (!std::isfinite(delta[index + stride * n])) {
+					if (class_nan_debug++ < 10) {
+						*cfg_and_state.output << "   [GRAD_DEBUG_CLASS] NaN in class delta! class=" << n
+						                      << " target_class=" << class_id
+						                      << "\n      output[" << n << "]=" << output[index + stride * n]
+						                      << " y_true=" << y_true
+						                      << " result_delta=" << result_delta
+						                      << " delta[" << n << "]=" << delta[index + stride * n]
+						                      << "\n      cls_normalizer=" << cls_normalizer;
+						if (classes_multipliers) {
+							*cfg_and_state.output << " classes_multipliers[" << class_id << "]=" << classes_multipliers[class_id];
+						}
+						*cfg_and_state.output << std::endl;
+					}
+				}
+
 				if (n == class_id && avg_cat)
 				{
 					*avg_cat += output[index + stride * n];
@@ -334,7 +518,6 @@ namespace
 
 		return 0;
 	}
-
 
 	static inline int yolo_entry_index(const Darknet::Layer & l, const int batch, const int location, const int entry)
 	{
@@ -456,6 +639,7 @@ Darknet::Layer make_yolo_layer(int batch, int w, int h, int n, int total, int *m
 
 	return l;
 }
+
 
 void resize_yolo_layer(Darknet::Layer * l, int w, int h)
 {
@@ -867,6 +1051,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	//float tot_ciou = 0;
 	float tot_iou_loss = 0;
 	float tot_giou_loss = 0;
+	float tot_fp_loss = 0;  // Total front point loss across all batches
 	//float tot_diou_loss = 0;
 	//float tot_ciou_loss = 0;
 	//float recall = 0;
@@ -893,6 +1078,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		yolo_args[b].tot_iou = 0;
 		yolo_args[b].tot_iou_loss = 0;
 		yolo_args[b].tot_giou_loss = 0;
+		yolo_args[b].tot_fp_loss = 0;  // Initialize front point loss
 		yolo_args[b].count = 0;
 		yolo_args[b].class_count = 0;
 
@@ -906,6 +1092,7 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		tot_iou += yolo_args[b].tot_iou;
 		tot_iou_loss += yolo_args[b].tot_iou_loss;
 		tot_giou_loss += yolo_args[b].tot_giou_loss;
+		tot_fp_loss += yolo_args[b].tot_fp_loss;  // Aggregate front point loss
 		count += yolo_args[b].count;
 		class_count += yolo_args[b].class_count;
 	}

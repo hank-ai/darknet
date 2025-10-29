@@ -119,6 +119,35 @@ typedef struct DarknetDetection
 	int track_id;
 } DarknetDetection;
 
+/// @implement OBB: Oriented bounding box with 6 parameters (x,y,w,h,fx,fy)
+typedef struct DarknetBoxBDP
+{
+	float x;  ///< center X coordinate (normalized)
+	float y;  ///< center Y coordinate (normalized)
+	float w;  ///< width (normalized)
+	float h;  ///< height (normalized)
+	float fx; ///< front point X coordinate (normalized) - defines orientation
+	float fy; ///< front point Y coordinate (normalized) - defines orientation
+} DarknetBoxBDP;
+
+/// @implement OBB: Detection structure for oriented bounding boxes
+typedef struct DarknetDetectionOBB
+{
+	DarknetBoxBDP bbox; ///< oriented bounding boxes are normalized (between 0.0f and 1.0f)
+	int classes;
+	int best_class_idx;
+	float *prob;
+	float *mask;
+	float objectness;
+	int sort_class;
+	float *uc; ///< Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
+	int points; ///< bit-0 - center, bit-1 - top-left-corner, bit-2 - bottom-right-corner
+	float *embeddings;  ///< embeddings for tracking
+	int embedding_size;
+	float sim;
+	int track_id;
+} DarknetDetectionOBB;
+
 /** The structure @ref DarknetImage is used to store a normalized RGB %Darknet image.  The format is intended to be
  * used for internal use by %Darknet, but there are some situations where it may also be used or referenced externally
  * via the %Darknet API.
@@ -198,6 +227,12 @@ typedef struct DarknetBox box;
 /// Everything %Darknet knows about a specific detection.
 typedef struct DarknetDetection detection;
 
+/// @implement OBB: Oriented bounding box typedef for C compatibility
+typedef struct DarknetBoxBDP box_bdp;
+
+/// @implement OBB: Oriented detection typedef for C compatibility  
+typedef struct DarknetDetectionOBB detection_obb;
+
 /// Darknet-style image (vector of floats).
 typedef struct DarknetImage image;
 
@@ -259,8 +294,14 @@ float * network_predict_image(DarknetNetworkPtr ptr, const DarknetImage im);
  */
 detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int * map, int relative, int * num, int letter);
 
+/// BDP version: Get oriented bounding box detections from network
+detection_obb * get_network_boxes_bdp(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int * map, int relative, int * num, int letter);
+
 /// This is part of the original @p C API.  Do not use in new code.
 void free_detections(detection * dets, int n);
+
+/// BDP version: Free oriented bounding box detections
+void free_detections_bdp(detection_obb * dets, int n);
 
 /** This is part of the original @p C API.  Make an empty image with the given dimensions.  The data pointer will be
  * @p nullptr.
@@ -288,6 +329,9 @@ void free_image(DarknetImage image);
 
 /// This is part of the original @p C API.  Non Maxima Suppression.  See @ref Darknet::predict() for example code that calls this function.
 void do_nms_sort(detection * dets, int total, int classes, float thresh);
+
+/// @implement OBB: Non Maxima Suppression for oriented bounding boxes using rotated IoU
+void do_nms_sort_bdp(detection_obb * dets, int total, int classes, float thresh);
 
 /// This is part of the original @p C API.  Non Maxima Suppression.
 void do_nms_obj(detection * dets, int total, int classes, float thresh);
