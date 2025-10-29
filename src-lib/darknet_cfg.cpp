@@ -1319,6 +1319,26 @@ Darknet::CfgFile & Darknet::CfgFile::parse_net_section()
 	net.hue = s.find_float("hue", 0);
 	net.power = s.find_float("power", 4);
 
+	// WHY: Validation thresholds must be specified in [net] section to ensure proper mAP calculation
+	// These control detection threshold, IoU threshold for mAP@X, and NMS threshold during validation
+	net.validation_thresh = s.find_float("validation_thresh", -1.0f);
+	net.validation_iou_thresh = s.find_float("validation_iou_thresh", -1.0f);
+	net.validation_nms_thresh = s.find_float("validation_nms_thresh", -1.0f);
+
+	// WHY: Ensure all validation parameters are present in config file
+	if (net.validation_thresh < 0.0f)
+	{
+		darknet_fatal_error(DARKNET_LOC, "validation_thresh must be specified in [net] section of cfg file (e.g., validation_thresh=0.25)");
+	}
+	if (net.validation_iou_thresh < 0.0f)
+	{
+		darknet_fatal_error(DARKNET_LOC, "validation_iou_thresh must be specified in [net] section of cfg file (e.g., validation_iou_thresh=0.5)");
+	}
+	if (net.validation_nms_thresh < 0.0f)
+	{
+		darknet_fatal_error(DARKNET_LOC, "validation_nms_thresh must be specified in [net] section of cfg file (e.g., validation_nms_thresh=0.45)");
+	}
+
 	if (!net.inputs && !(net.h && net.w && net.c))
 	{
 		darknet_fatal_error(DARKNET_LOC, "no input parameters supplied");

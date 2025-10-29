@@ -169,8 +169,23 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 		cuda_set_device(gpus[0]);
 		*cfg_and_state.output << "Prepare additional network for mAP calculation..." << std::endl;
+		*cfg_and_state.output << "Setting CUDA device to GPU #" << gpus[0] << " for mAP network" << std::endl;
+		*cfg_and_state.output << "cfg_and_state.gpu_index = " << cfg_and_state.gpu_index << std::endl;
+
 		net_map = parse_network_cfg_custom(cfgfile, 1, 1);
 		net_map.benchmark_layers = benchmark_layers;
+
+		*cfg_and_state.output << "mAP network gpu_index after creation: " << net_map.gpu_index << std::endl;
+#ifdef DARKNET_GPU
+		if (net_map.gpu_index >= 0)
+		{
+			*cfg_and_state.output << "mAP network is using GPU #" << net_map.gpu_index << std::endl;
+		}
+		else
+		{
+			*cfg_and_state.output << "WARNING: mAP network is using CPU (gpu_index=" << net_map.gpu_index << ")" << std::endl;
+		}
+#endif
 
 		// free memory unnecessary arrays
 		for (int k = 0; k < net_map.n - 1; ++k)
@@ -579,6 +594,10 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 		const int next_map_calc = iter_map + calc_map_for_each;
 
+		// WHY: During burn_in, show when burn_in completes; after burn_in, show next mAP calculation
+		// This provides more relevant information about the next important training milestone
+		const int next_milestone = (net.burn_in > 0 && iteration < net.burn_in) ? net.burn_in : next_map_calc;
+
 		// 5989: loss=0.444, avg loss=0.329, rate=0.000026, 64.424 milliseconds, 383296 images, time remaining=7 seconds
 		*cfg_and_state.output
 			<< Darknet::in_colour(Darknet::EColour::kBrightWhite, iteration)
@@ -586,7 +605,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			<< ", avg loss=" << Darknet::format_loss(avg_loss)
 			<< ", last=" << Darknet::format_map_accuracy(mean_average_precision)
 			<< ", best=" << Darknet::format_map_accuracy(best_map)
-			<< ", next=" << next_map_calc
+			<< ", next=" << next_milestone
 			<< ", rate=" << std::setprecision(8) << get_current_rate(net) << std::setprecision(2)
 			<< ", load " << args.n << "=" << Darknet::format_duration_string(time_to_load_images, 1)
 			<< ", train=" << Darknet::format_duration_string(train_duration, 1)
@@ -596,7 +615,8 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			<< std::endl;
 
 		// This is where we decide if we have to do the mAP% calculations.
-		if (calc_map && (iteration >= next_map_calc || iteration == net.max_batches))
+		// WHY: Also trigger validation at burn-in iteration to ensure mAP is calculated when training resumes after burn-in
+		if (calc_map && (iteration >= next_map_calc || iteration == net.max_batches || (net.burn_in > 0 && iteration == net.burn_in)))
 		{
 			if (l.random)
 			{
@@ -633,17 +653,22 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			}
 
 			/// @todo copy the weights...?
-			copy_weights_net(net, &net_map);
+			// WHY: net_map has most layers freed to save memory during training (see line ~191-194)
+			// FIX: Create fresh network for validation instead of using partially-freed net_map
+			// This ensures all layers have GPU memory allocated for proper GPU inference
+			// copy_weights_net(net, &net_map);  // DISABLED: Don't copy weights to freed network
 
 			iter_map = iteration;
 			// @implement OBB: Use BDP-specific mAP calculation if network has BDP layers
 			if (has_bdp_layers)
 			{
-				mean_average_precision = validate_detector_map_bdp(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);
+				// Pass NULL to force creation of fresh network with full GPU memory
+				mean_average_precision = validate_detector_map_bdp(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, NULL);
 			}
 			else
 			{
-				mean_average_precision = validate_detector_map(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);
+				// Pass NULL to force creation of fresh network with full GPU memory
+				mean_average_precision = validate_detector_map(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, NULL);
 			}
 			if (mean_average_precision >= best_map)
 			{
@@ -1015,6 +1040,11 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, const cha
 	int *map = 0;
 	if (mapf) map = read_map(mapf);
 
+	// WHY: Must set CUDA device before network initialization for GPU acceleration
+	// HOW: This allows parse_network_cfg_custom to allocate GPU memory correctly
+#ifdef DARKNET_GPU
+	cuda_set_device(cfg_and_state.gpu_index);
+#endif
 	Darknet::Network net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
 	if (weightfile)
 	{
@@ -1247,6 +1277,11 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 {
 	TAT(TATPARMS);
 
+	// WHY: Must set CUDA device before network initialization for GPU acceleration
+	// HOW: This allows parse_network_cfg_custom to allocate GPU memory correctly
+#ifdef DARKNET_GPU
+	cuda_set_device(cfg_and_state.gpu_index);
+#endif
 	Darknet::Network net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
 	if (weightfile)
 	{
@@ -1406,7 +1441,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	{
 		Darknet::Layer & lk = net.layers[k];
 		if (lk.type == Darknet::ELayerType::YOLO or
-			lk.type == Darknet::ELayerType::YOLO_BDP or
 			lk.type == Darknet::ELayerType::GAUSSIAN_YOLO or
 			lk.type == Darknet::ELayerType::REGION)
 		{
@@ -1417,8 +1451,10 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	int classes = l.classes;
 
 	const int number_of_validation_images = plist->size;
-	const float thresh = 0.005f;
-	const float nms = 0.45f;
+	// WHY: Use validation thresholds from .cfg file instead of hardcoded values
+	// This allows per-dataset tuning of detection threshold and NMS threshold for mAP calculation
+	const float thresh = net.validation_thresh;
+	const float nms = net.validation_nms_thresh;
 
 	int nthreads = 4; /// @todo how many cores do we have available?
 	if (number_of_validation_images < nthreads)
@@ -1536,7 +1572,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			box_label *truth = read_boxes(labelpath, &num_labels);
 			for (int j = 0; j < num_labels; ++j)
 			{
-				truth_classes_count[truth[j].id]++;
+				truth_classes_count[truth[j].id]++; // count of ground truth objects per class
 			}
 
 			// difficult
@@ -1965,6 +2001,9 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 {
 	TAT(TATPARMS);
 
+	// WHY: BDP-specific mAP validation for oriented bounding boxes
+	// HOW: Similar structure to validate_detector_map but adapted for BDP boxes and rotated IoU
+
 	*cfg_and_state.output << "\n=== BDP mAP Calculation (Oriented Bounding Boxes) ===" << std::endl;
 
 	list *options = read_data_cfg(datacfg);
@@ -1973,56 +2012,109 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 	Darknet::Network net;
 	if (existing_net)
 	{
+		const char *train_images = option_find_str(options, "train", nullptr);
+		valid_images = option_find_str(options, "valid", train_images);
 		net = *existing_net;
+		free_network_recurrent_state(*existing_net);
 	}
 	else
 	{
+#ifdef DARKNET_GPU
+		cuda_set_device(cfg_and_state.gpu_index);
+#endif
 		net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
 		if (weightfile)
 		{
 			load_weights(&net, weightfile);
 		}
+		//set_batch_network(&net, 1);
 		fuse_conv_batchnorm(net);
+		calculate_binary_weights(&net);
 		Darknet::load_names(&net, option_find_str(options, "names", "unknown.names"));
 	}
+
+	*cfg_and_state.output << "Calculating mAP (mean average precision) for BDP ..." << std::endl;
 
 	list *plist = get_paths(valid_images);
 	char **paths = (char **)list_to_array(plist);
 	int number_of_images = plist->size;
 
 	*cfg_and_state.output << "Validating on " << number_of_images << " images..." << std::endl;
+	*cfg_and_state.output << "cfg_and_state.gpu_index before validation loop: " << cfg_and_state.gpu_index << std::endl;
 
-	// Find BDP layer
+	const int actual_batch_size = net.batch * net.subdivisions;
+	if (plist->size == 0)
+	{
+		darknet_fatal_error(DARKNET_LOC, "no validation images available (verify %s)", valid_images);
+	}
+	if (plist->size < actual_batch_size)
+	{
+		Darknet::display_warning_msg("Warning: there seems to be very few validation images (num=" + std::to_string(plist->size) + ", batch=" + std::to_string(actual_batch_size) + ")\n");
+	}
+
+	// WHY: Find BDP detection layer similar to standard validate_detector_map finding YOLO layer
+	// HOW: Iterate through network layers and locate YOLO_BDP layer type
 	Darknet::Layer l = net.layers[net.n - 1];
 	for (int k = 0; k < net.n; ++k)
 	{
-		if (net.layers[k].type == Darknet::ELayerType::YOLO_BDP)
+		Darknet::Layer & lk = net.layers[k];
+		if (lk.type == Darknet::ELayerType::YOLO_BDP)
 		{
-			l = net.layers[k];
-			*cfg_and_state.output << "Using BDP detection layer #" << k << std::endl;
-			break;
+			l = lk;
+			*cfg_and_state.output << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
 		}
 	}
-
 	int classes = l.classes;
-	const float thresh = 0.2f;
-	const float nms = 0.60f; // NMS threshold for oriented boxes (lower = more aggressive suppression)
 
-	// Arrays to track statistics
-	int *truth_classes_count = (int*)xcalloc(classes, sizeof(int));
-	int total_detections = 0;
-	int total_truth = 0;
+	const int number_of_validation_images = plist->size;
+	// WHY: Use validation thresholds from .cfg file instead of hardcoded values
+	// This allows per-dataset tuning of detection threshold and NMS threshold for BDP mAP calculation
+	const float thresh = net.validation_thresh;
+	const float nms = net.validation_nms_thresh;
 
-	// For average IoU and TP/FP tracking at confidence threshold (using thresh_calc_avg_iou parameter)
-	float avg_iou = 0.0f;
+	// WHY: Use multi-threading to parallelize image I/O for faster validation
+	// HOW: Load next batch in background while processing current batch
+	int nthreads = 4;
+	if (number_of_images < nthreads)
+	{
+		nthreads = number_of_images;
+	}
+	*cfg_and_state.output << "using " << nthreads << " threads to load " << number_of_images << " validation images for mAP% calculations" << std::endl;
+
+	Darknet::Image* val = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
+	Darknet::Image* val_resized = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
+	Darknet::Image* buf = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
+	Darknet::Image* buf_resized = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
+
+	load_args args = { 0 };
+	args.w = net.w;
+	args.h = net.h;
+	args.c = net.c;
+	letter_box = net.letter_box;
+	if (letter_box)
+	{
+		args.type = LETTERBOX_DATA;
+	}
+	else
+	{
+		args.type = IMAGE_DATA;
+	}
+
+	// WHY: Allocate statistics tracking arrays similar to standard validate_detector_map
+	// HOW: Track ground truth counts, IoU metrics, and detection counts per class
+	float avg_iou = 0;
 	int tp_for_thresh = 0;
 	int fp_for_thresh = 0;
+
+	int* truth_classes_count = (int*)xcalloc(classes, sizeof(int));
+
 	float *avg_iou_per_class = (float*)xcalloc(classes, sizeof(float));
 	int *tp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
 	int *fp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
-	int *detection_per_class_count = (int*)xcalloc(classes, sizeof(int)); // Total detections per class
+	int *detection_per_class_count = (int*)xcalloc(classes, sizeof(int));
 
-	// For mAP calculation - store all detections with their confidence
+	// WHY: Use vectors to store detections and ground truth for BDP-specific mAP calculation
+	// HOW: Store all detections with confidence scores and match them against ground truth using rotated IoU
 	struct det_with_conf {
 		DarknetBoxBDP box;
 		float confidence;
@@ -2032,7 +2124,6 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 	};
 	std::vector<det_with_conf> all_detections;
 
-	// Store all ground truth
 	struct gt_box {
 		DarknetBoxBDP box;
 		int class_id;
@@ -2041,112 +2132,109 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 	};
 	std::vector<gt_box> all_ground_truth;
 
-	if (cfg_and_state.is_verbose)
+	// WHY: Track total detections and ground truth across all images for statistics
+	// HOW: Initialize counters to zero, increment as we process each image
+	int total_detections = 0;
+	int total_truth = 0;
+
+	// WHY: Start loading first batch of images in background threads before main loop
+	// HOW: Producer-consumer pattern similar to validate_detector_map - load next batch while processing current batch
+	Darknet::VThreads thr;
+	thr.reserve(nthreads);
+	for (int t = 0; t < nthreads; ++t)
 	{
-		*cfg_and_state.output << "Processing " << number_of_images << " validation images..." << std::endl;
+		args.path = paths[t];
+		args.im = &buf[t];
+		args.resized = &buf_resized[t];
+		thr.emplace_back(Darknet::load_single_image_data, args);
+		cfg_and_state.set_thread_name(thr.back(), "bdp map loading thread #" + std::to_string(t));
 	}
-
-	// Process each image
-	for (int img_idx = 0; img_idx < number_of_images; ++img_idx)
+	for (int i = nthreads; i < number_of_images + nthreads; i += nthreads)
 	{
-		char *path = paths[img_idx];
-		if (cfg_and_state.is_verbose)
+		const int percentage = std::round(100.0f * (i - nthreads) / number_of_images);
+		*cfg_and_state.output << "\rprocessing #" << (i - nthreads) << " (" << percentage << "%) " << std::flush;
+
+		/// wait until the 4 threads have finished loading in their image
+		for (int t = 0; t < nthreads && (i + t - nthreads) < number_of_images; ++t)
 		{
-			*cfg_and_state.output << "Loading image " << (img_idx + 1) << ": " << path << std::endl;
+			thr[t].join();
+			cfg_and_state.del_thread_name(thr[t]);
+			val[t] = buf[t];
+			val_resized[t] = buf_resized[t];
 		}
 
-		Darknet::Image im = Darknet::load_image(path, 0, 0, net.c);
-		Darknet::Image resized = Darknet::letterbox_image(im, net.w, net.h);
-
-		if (cfg_and_state.is_verbose)
+		// load the next set of images while we run predict()
+		for (int t = 0; t < nthreads && (i + t) < number_of_images; ++t)
 		{
-			*cfg_and_state.output << "  Image size: " << im.w << "x" << im.h << ", resized to " << resized.w << "x" << resized.h << std::endl;
+			args.path = paths[i + t];
+			args.im = &buf[t];
+			args.resized = &buf_resized[t];
+			thr[t] = std::thread(Darknet::load_single_image_data, args);
+			cfg_and_state.set_thread_name(thr[t], "bdp map loading thread #" + std::to_string(t));
 		}
 
-		float *X = resized.data;
-		if (cfg_and_state.is_verbose)
+		// WHY: Process batch of loaded images - predict and extract detections
+		// HOW: Run network prediction, get BDP boxes, apply NMS, store detections and ground truth
+		for (int t = 0; t < nthreads && i + t - nthreads < number_of_images; ++t)
 		{
-			*cfg_and_state.output << "  Running network prediction..." << std::endl;
-		}
-		network_predict(net, X);
+			const int img_idx = i + t - nthreads;
+			char *path = paths[img_idx];
+			float *X = val_resized[t].data;
 
-		if (cfg_and_state.is_verbose)
-		{
-			*cfg_and_state.output << "  Extracting BDP boxes..." << std::endl;
-		}
-		int nboxes = 0;
-		detection_obb *dets = get_network_boxes_bdp(&net, im.w, im.h, thresh, 0, 0, 1, &nboxes, letter_box);
-		if (cfg_and_state.is_verbose)
-		{
-			*cfg_and_state.output << "  Got " << nboxes << " detections" << std::endl;
-		}
+			// DEBUG: Track validation progress
+			*cfg_and_state.output << "About to call network_predict for image " << img_idx << std::endl;
+			network_predict(net, X);
+			*cfg_and_state.output << "network_predict completed for image " << img_idx << std::endl;
 
-		// Apply NMS to remove overlapping detections
-		if (nms)
-		{
-			do_nms_sort_bdp(dets, nboxes, l.classes, nms);
-			if (cfg_and_state.is_verbose)
+			int nboxes = 0;
+			*cfg_and_state.output << "About to call get_network_boxes_bdp" << std::endl;
+			detection_obb *dets = get_network_boxes_bdp(&net, val[t].w, val[t].h, thresh, 0, 0, 1, &nboxes, letter_box);
+			*cfg_and_state.output << "get_network_boxes_bdp returned " << nboxes << " boxes" << std::endl;
+
+			// Apply NMS to remove overlapping detections
+			if (nms)
 			{
-				*cfg_and_state.output << "  Applied NMS with threshold " << nms << std::endl;
+				do_nms_sort_bdp(dets, nboxes, l.classes, nms);
 			}
-		}
 
-		if (cfg_and_state.is_verbose)
-		{
-			*cfg_and_state.output << "  Processing detections..." << std::endl;
-		}
-
-		if (dets && nboxes > 0)
-		{
 			// Store detections for mAP calculation
-			for (int d = 0; d < nboxes; ++d)
+			if (dets && nboxes > 0)
 			{
-				// Find best class
-				int best_class = -1;
-				float best_prob = 0.0f;
-				for (int c = 0; c < classes; ++c)
+				for (int d = 0; d < nboxes; ++d)
 				{
-					if (dets[d].prob[c] > best_prob)
+					// Find best class
+					int best_class = -1;
+					float best_prob = 0.0f;
+					for (int c = 0; c < classes; ++c)
 					{
-						best_prob = dets[d].prob[c];
-						best_class = c;
+						if (dets[d].prob[c] > best_prob)
+						{
+							best_prob = dets[d].prob[c];
+							best_class = c;
+						}
+					}
+
+					// Only store if above threshold and has valid class
+					if (best_prob > thresh && best_class >= 0)
+					{
+						det_with_conf det;
+						det.box = dets[d].bbox;
+						det.confidence = dets[d].objectness * best_prob;
+						det.class_id = best_class;
+						det.image_index = img_idx;
+						det.matched = false;
+						all_detections.push_back(det);
+						total_detections++;
+						detection_per_class_count[best_class]++;
 					}
 				}
-
-				// Only store if above threshold and has valid class
-				if (best_prob > thresh && best_class >= 0)
-				{
-					det_with_conf det;
-					det.box = dets[d].bbox;
-					det.confidence = dets[d].objectness * best_prob;
-					det.class_id = best_class;
-					det.image_index = img_idx;
-					det.matched = false;
-					all_detections.push_back(det);
-					total_detections++;
-					detection_per_class_count[best_class]++; // Count detections per class
-				}
-			}
-			if (cfg_and_state.is_verbose)
-			{
-				*cfg_and_state.output << "  Stored " << total_detections << " valid detections so far" << std::endl;
 			}
 
 			// Read ground truth
 			char labelpath[4096];
 			replace_image_to_label(path, labelpath);
-			if (cfg_and_state.is_verbose)
-			{
-				*cfg_and_state.output << "  Reading labels from: " << labelpath << std::endl;
-			}
-
 			int num_labels = 0;
-
 			box_label_bdp *truth = read_boxes_bdp(labelpath, &num_labels);
-			if (cfg_and_state.is_verbose)
-			{
-				*cfg_and_state.output << "  Got " << num_labels << " ground truth boxes" << std::endl;
-			}
 
 			total_truth += num_labels;
 			if (truth && num_labels > 0)
@@ -2171,36 +2259,34 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 						gt.matched = false;
 						all_ground_truth.push_back(gt);
 					}
-					else
-					{
-						*cfg_and_state.output << "  WARNING: Invalid class ID " << class_id << " (valid range: 0-" << (classes-1) << ")" << std::endl;
-					}
 				}
 				free(truth);
 			}
 
-			if (cfg_and_state.is_verbose)
+			if (dets)
 			{
-				*cfg_and_state.output << "  Freeing detections..." << std::endl;
+				free_detections_bdp(dets, nboxes);
 			}
-			free_detections_bdp(dets, nboxes);
-			if (cfg_and_state.is_verbose)
-			{
-				*cfg_and_state.output << "  Done with image " << (img_idx + 1) << std::endl;
-			}
-		}
 
-		Darknet::free_image(im);
-		Darknet::free_image(resized);
-
-		if ((img_idx + 1) % 100 == 0)
-		{
-			if (cfg_and_state.is_verbose)
-			{
-				*cfg_and_state.output << "Processed " << (img_idx + 1) << "/" << number_of_images << " images" << std::endl;
-			}
+			Darknet::free_image(val[t]);
+			Darknet::free_image(val_resized[t]);
 		}
 	}
+
+	if ((tp_for_thresh + fp_for_thresh) > 0)
+	{
+		avg_iou = avg_iou / (tp_for_thresh + fp_for_thresh);
+	}
+
+	for (int class_id = 0; class_id < classes; class_id++)
+	{
+		if ((tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id]) > 0)
+		{
+			avg_iou_per_class[class_id] = avg_iou_per_class[class_id] / (tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id]);
+		}
+	}
+
+	*cfg_and_state.output << std::endl;
 
 	*cfg_and_state.output << "\n=== Computing mAP with Rotated IoU ===" << std::endl;
 	*cfg_and_state.output << "Total detections: " << all_detections.size() << std::endl;
@@ -2209,7 +2295,7 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 	*cfg_and_state.output << "Confidence threshold for TP/FP: " << thresh_calc_avg_iou << std::endl;
 	*cfg_and_state.output << "IoU threshold for matching: " << iou_thresh << std::endl;
 
-	// Sort detections by confidence (descending)
+	// Sort detections by confidence (descending) -> for moment don't care about performance here
 	std::sort(all_detections.begin(), all_detections.end(),
 		[](const det_with_conf& a, const det_with_conf& b) { return a.confidence > b.confidence; });
 
@@ -2391,6 +2477,14 @@ float validate_detector_map_bdp(const char * datacfg, const char * cfgfile, cons
 	*cfg_and_state.output << "Cleaning up..." << std::endl;
 	free(truth_classes_count);
 	*cfg_and_state.output << "  Freed truth_classes_count" << std::endl;
+
+	// WHY: Free image buffers allocated for multi-threading
+	// HOW: Free all four buffer arrays (val, val_resized, buf, buf_resized)
+	free(val);
+	free(val_resized);
+	free(buf);
+	free(buf_resized);
+	*cfg_and_state.output << "  Freed image buffers" << std::endl;
 
 	free(paths);
 	*cfg_and_state.output << "  Freed paths" << std::endl;

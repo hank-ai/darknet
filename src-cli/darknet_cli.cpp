@@ -1643,12 +1643,41 @@ int main(int argc, char **argv)
 
 		errno = 0;
 
-		cfg_and_state.gpu_index = find_int_arg(argc, argv, "-i", 0);
-
 #ifndef DARKNET_GPU
+		// No GPU support compiled in, force CPU mode
 		cfg_and_state.gpu_index = -1;
 		init_cpu();
 #else
+		// Check if -i flag was explicitly provided
+		// WHY: Auto-detect and use GPU if available, unless user explicitly specifies device
+		int user_specified_gpu = find_arg(argc, argv, "-i");
+		if (user_specified_gpu)
+		{
+			// User specified -i flag, use that value
+			cfg_and_state.gpu_index = find_int_arg(argc, argv, "-i", 0);
+		}
+		else
+		{
+			// No -i flag specified, auto-detect GPUs
+			int device_count = 0;
+			cudaError_t error = cudaGetDeviceCount(&device_count);
+			if (error == cudaSuccess && device_count > 0)
+			{
+				// GPUs available, default to GPU 0
+				cfg_and_state.gpu_index = 0;
+				*cfg_and_state.output << "Auto-detected " << device_count << " GPU(s), using GPU 0 by default" << std::endl;
+			}
+			else
+			{
+				// No GPUs available or error, use CPU
+				cfg_and_state.gpu_index = -1;
+				if (error != cudaSuccess)
+				{
+					*cfg_and_state.output << "GPU detection failed: " << cudaGetErrorString(error) << ", using CPU" << std::endl;
+				}
+			}
+		}
+
 		if (cfg_and_state.gpu_index >= 0)
 		{
 			cuda_set_device(cfg_and_state.gpu_index);
@@ -1656,8 +1685,6 @@ int main(int argc, char **argv)
 		}
 		cuda_debug_sync = find_arg(argc, argv, "-cuda_debug_sync");
 #endif
-
-		errno = 0;
 
 		/// @todo V3 look through these and see what we no longer need
 		if		(cfg_and_state.command.empty())				{ Darknet::display_usage();			}

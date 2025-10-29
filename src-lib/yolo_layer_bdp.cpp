@@ -928,8 +928,8 @@ Darknet::Layer make_yolo_layer_bdp(int batch, int w, int h, int n, int total, in
 	l.backward = backward_yolo_layer_bdp; // Use BDP-specific backward function for 6-parameter loss
 
 #ifdef DARKNET_GPU
-	l.forward_gpu = forward_yolo_layer_gpu;  // TODO: Implement BDP GPU version if needed
-	l.backward_gpu = backward_yolo_layer_gpu;
+	l.forward_gpu = forward_yolo_layer_bdp_gpu;   // BDP-specific GPU forward pass
+	l.backward_gpu = backward_yolo_layer_bdp_gpu; // BDP-specific GPU backward pass
 	l.output_gpu = cuda_make_array(l.output, batch * l.outputs);
 	l.output_avg_gpu = cuda_make_array(l.output, batch * l.outputs);
 	l.delta_gpu = cuda_make_array(l.delta, batch * l.outputs);
@@ -2415,26 +2415,33 @@ void forward_yolo_layer_bdp(Darknet::Layer & l, Darknet::NetworkState state)
 
 	// No clamping note needed - let IoU loss be naturally high at start of training
 	const char* iou_note = "";
-	*cfg_and_state.output << std::fixed << std::setprecision(8)
-	                      << "BDP training: "
-	                      << "loss=" << loss_color(loss) << loss << reset_color()
-	                      << " iou_loss=" << loss_color(iou_loss) << iou_loss << reset_color() << iou_note
-	                      << " fp_loss=" << loss_color(avg_fp_loss) << avg_fp_loss << reset_color()
-	                      << " class_loss=" << loss_color(classification_loss) << classification_loss << reset_color()
-	                      << " count=" << count
-	                      << " avg_iou=" << (tot_iou / count)
-	                      << std::endl;
 
-	if (should_always_print) {
-		*cfg_and_state.output << "   [ALERT] Abnormal loss values detected: "
-		                      << "loss=" << (std::isnan(loss) ? "NaN" : std::isinf(loss) ? "Inf" : std::abs(loss) < 1e-4f ? "~0" : ">15")
-		                      << " iou_loss=" << (std::isnan(iou_loss) ? "NaN" : std::isinf(iou_loss) ? "Inf" : std::abs(iou_loss) < 1e-4f ? "~0" : ">15")
-		                      << " fp_loss=" << (std::isnan(avg_fp_loss) ? "NaN" : std::isinf(avg_fp_loss) ? "Inf" : std::abs(avg_fp_loss) < 1e-4f ? "~0" : ">15")
-		                      << " class_loss=" << (std::isnan(classification_loss) ? "NaN" : std::isinf(classification_loss) ? "Inf" : std::abs(classification_loss) < 1e-4f ? "~0" : ">15")
+	// WHY: Print BDP training loss once per iteration (not per head) to track training progress
+	// Uses static variable to track last printed iteration and avoid duplicate output from multiple YOLO heads
+	int iteration_num_for_nan = get_current_iteration(state.net);
+	static int last_printed_iter = -1;
+	if (iteration_num_for_nan != last_printed_iter) {
+		last_printed_iter = iteration_num_for_nan;
+		*cfg_and_state.output << std::fixed << std::setprecision(8)
+		                      << "BDP training: "
+		                      << "loss=" << loss_color(loss) << loss << reset_color()
+		                      << " iou_loss=" << loss_color(iou_loss) << iou_loss << reset_color() << iou_note
+		                      << " fp_loss=" << loss_color(avg_fp_loss) << avg_fp_loss << reset_color()
+		                      << " class_loss=" << loss_color(classification_loss) << classification_loss << reset_color()
+		                      << " count=" << count
+		                      << " avg_iou=" << (tot_iou / count)
 		                      << std::endl;
 	}
 
-	int iteration_num_for_nan = get_current_iteration(state.net);
+	// WHY: Keep abnormal loss alerts commented out to reduce console clutter during training
+	// if (should_always_print) {
+	// 	*cfg_and_state.output << "   [ALERT] Abnormal loss values detected: "
+	// 	                      << "loss=" << (std::isnan(loss) ? "NaN" : std::isinf(loss) ? "Inf" : std::abs(loss) < 1e-4f ? "~0" : ">15")
+	// 	                      << " iou_loss=" << (std::isnan(iou_loss) ? "NaN" : std::isinf(iou_loss) ? "Inf" : std::abs(iou_loss) < 1e-4f ? "~0" : ">15")
+	// 	                      << " fp_loss=" << (std::isnan(avg_fp_loss) ? "NaN" : std::isinf(avg_fp_loss) ? "Inf" : std::abs(avg_fp_loss) < 1e-4f ? "~0" : ">15")
+	// 	                      << " class_loss=" << (std::isnan(classification_loss) ? "NaN" : std::isinf(classification_loss) ? "Inf" : std::abs(classification_loss) < 1e-4f ? "~0" : ">15")
+	// 	                      << std::endl;
+	// }
 	find_nan_in_output(l, iteration_num_for_nan);
 }
 
@@ -2874,3 +2881,116 @@ void find_nan_in_output(const Darknet::Layer &l, const int epoch)
         }
     }
 }
+#ifdef DARKNET_GPU
+
+/// @brief GPU forward pass for BDP YOLO layer
+/// WHY: Enables GPU acceleration for BDP-based oriented bounding box detection
+/// HOW: Copies input to output on GPU, applies activations, then calls CPU forward for loss computation
+void forward_yolo_layer_bdp_gpu(Darknet::Layer & l, Darknet::NetworkState state)
+{
+	TAT(TATPARMS);
+
+	// Copy embedding output if present (for tracking/re-identification)
+	if (l.embedding_output)
+	{
+		Darknet::Layer & le = state.net.layers[l.embedding_layer_id];
+		cuda_pull_array_async(le.output_gpu, l.embedding_output, le.batch*le.outputs);
+	}
+
+	// Copy input to output on GPU (simple_copy_ongpu is faster than copy_ongpu)
+	simple_copy_ongpu(l.batch*l.inputs, state.input, l.output_gpu);
+
+	// Apply activation functions to output on GPU for each batch and anchor
+	for (int b = 0; b < l.batch; ++b)
+	{
+		for (int n = 0; n < l.n; ++n)
+		{
+			// Get index for first bounding box parameter (x,y,w,h,fx,fy)
+			int bbox_index = yolo_entry_index_bdp(l, b, n*l.w*l.h, 0);
+
+			// Apply logistic activation to x,y coordinates (sigmoid for [0,1] range)
+			// WHY: Constrains center coordinates to grid cell bounds
+			if (l.new_coords)
+			{
+				// New coords mode: don't activate bbox parameters
+			}
+			else
+			{
+				// Standard mode: activate x,y with sigmoid
+				activate_array_ongpu(l.output_gpu + bbox_index, 2 * l.w*l.h, LOGISTIC);
+
+				// Apply logistic activation to objectness and class probabilities
+				// WHY: Converts raw outputs to probabilities in [0,1] range
+				int obj_index = yolo_entry_index_bdp(l, b, n*l.w*l.h, 6);
+				activate_array_ongpu(l.output_gpu + obj_index, (1 + l.classes)*l.w*l.h, LOGISTIC);
+			}
+
+			// Apply scaling to x,y coordinates if scale_x_y != 1
+			// WHY: Allows predictions slightly outside grid cell for better accuracy
+			if (l.scale_x_y != 1)
+			{
+				scal_add_ongpu(2 * l.w*l.h, l.scale_x_y, -0.5*(l.scale_x_y - 1), l.output_gpu + bbox_index, 1);
+			}
+		}
+	}
+
+	// If not training or forward-only mode, just pull results and return
+	if (!state.train || l.onlyforward)
+	{
+		// Apply exponential moving average if configured
+		if (l.mean_alpha && l.output_avg_gpu)
+		{
+			mean_array_gpu(l.output_gpu, l.batch*l.outputs, l.mean_alpha, l.output_avg_gpu);
+		}
+		// Pull output from GPU to CPU asynchronously
+		cuda_pull_array_async(l.output_gpu, l.output, l.batch * l.outputs);
+		CHECK_CUDA(cudaPeekAtLastError());
+		return;
+	}
+
+	// Training mode: pull data to CPU and compute loss using CPU forward pass
+	// WHY: Loss computation for BDP involves complex geometry calculations best done on CPU
+	float *in_cpu = (float *)xcalloc(l.batch*l.inputs, sizeof(float));
+	cuda_pull_array(l.output_gpu, l.output, l.batch*l.outputs);
+	memcpy(in_cpu, l.output, l.batch * l.outputs * sizeof(float));
+
+	float * truth_cpu = nullptr;
+	if (state.truth)
+	{
+		int num_truth = l.batch * l.truths;
+		truth_cpu = (float *)xcalloc(num_truth, sizeof(float));
+		cuda_pull_array(state.truth, truth_cpu, num_truth);
+	}
+
+	// Create CPU state for loss computation
+	Darknet::NetworkState cpu_state = state;
+	cpu_state.truth = truth_cpu;
+	cpu_state.input = in_cpu;
+
+	// Call CPU forward pass to compute loss and gradients
+	forward_yolo_layer_bdp(l, cpu_state);
+
+	// Push computed gradients back to GPU
+	cuda_push_array(l.delta_gpu, l.delta, l.batch * l.outputs);
+
+	// Clean up CPU buffers
+	free(in_cpu);
+	if (cpu_state.truth)
+	{
+		free(cpu_state.truth);
+	}
+}
+
+/// @brief GPU backward pass for BDP YOLO layer
+/// WHY: Propagates gradients back through the network on GPU
+/// HOW: Applies gradients from delta_gpu to previous layer's delta with loss scaling
+void backward_yolo_layer_bdp_gpu(Darknet::Layer & l, Darknet::NetworkState state)
+{
+	TAT(TATPARMS);
+
+	// Accumulate gradients: state.delta += loss_scale * delta_normalizer * l.delta_gpu
+	// WHY: Adds this layer's gradients to the previous layer's delta for backpropagation
+	axpy_ongpu(l.batch*l.inputs, state.net.loss_scale * l.delta_normalizer, l.delta_gpu, 1, state.delta, 1);
+}
+
+#endif

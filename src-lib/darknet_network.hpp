@@ -235,6 +235,16 @@ namespace Darknet
 			int current_subdivision;
 			int try_fix_nan;
 
+			/// @{ Validation/mAP calculation parameters that must be specified in [net] section of .cfg file
+			/// WHY: These thresholds control validation behavior and must be configurable per-dataset
+			/// detection threshold for validation (typically 0.25)
+			float validation_thresh;
+			/// IoU threshold for mAP@X calculation (typically 0.5 for mAP@0.5)
+			float validation_iou_thresh;
+			/// NMS threshold for removing duplicate detections during validation (typically 0.45)
+			float validation_nms_thresh;
+			/// @}
+
 			int gpu_index;
 			Darknet::Tree *hierarchy;
 

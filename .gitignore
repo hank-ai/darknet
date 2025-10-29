@@ -16,4 +16,7 @@ __pycache__/
 
 # Visual Studio C++ generated binary of .rc file
 *.aps
+*.jpg
 CLAUDE.md
+annotate/
+data/

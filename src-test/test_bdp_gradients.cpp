@@ -6,6 +6,10 @@
 // BDP GRADIENT TESTING RATIONALE
 // ============================================================================
 //
+// NOTE: These tests are compatible with BOTH finite-difference and GWD
+// implementations of dx_box_riou(). They test gradient PROPERTIES (finite,
+// non-zero, correct direction) rather than exact numerical values.
+//
 // PURPOSE: Validate that delta_yolo_box_bdp() correctly computes gradients for
 // 6-parameter oriented bounding boxes during training.
 //
