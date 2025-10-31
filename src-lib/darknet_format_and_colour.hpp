@@ -63,6 +63,17 @@ namespace Darknet
 			const float & specificity,
 			const float & false_pos_rate);
 
+	std::string format_map_ap_row_values(
+			const int class_id,
+			std::string name,
+			const float &average_precision, // 0..1
+			const int &tp,
+			const int &fp,
+			const int &fn,
+			const int &gt,
+			const float &diag_avg_iou // 0..1 (diagnostic)
+	);
+
 	std::string format_layer_summary(
 			const size_t idx,
 			const Darknet::CfgSection & section,
