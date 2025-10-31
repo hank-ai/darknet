@@ -203,12 +203,11 @@ IF (DARKNET_DETECTED_CPU_ONLY)
 	ENDIF ()
 
 	IF (DARKNET_TRY_OPENBLAS)
-
 		IF (APPLE)
 			# APPLE devices need a hint to find the brew installation.  On top of which, on some distrios (and again APPLE)
 			# the package is called OpenBLAS, while on other distros it is called OpenBLAS64.  We need to search for both.
 			FIND_PACKAGE (OpenBLAS NAMES OpenBLAS64 OpenBLAS QUIET HINTS "/opt/homebrew/opt/openblas/lib/cmake/openblas")
-			
+
 			IF (OpenBLAS_FOUND)
 				LIST (APPEND DARKNET_LINK_LIBS ${OpenBLAS_LIBRARIES})
 				INCLUDE_DIRECTORIES (${OpenBLAS_INCLUDE_DIRS})
@@ -219,7 +218,7 @@ IF (DARKNET_DETECTED_CPU_ONLY)
 		ELSE() # Win32, vcpkg and Linux
 			SET(BLA_VENDOR OpenBLAS)
 			SET(BLA_SIZEOF_INTEGER 8) # force 64 bit
-			find_package(BLAS)
+			FIND_PACKAGE (BLAS)
 
 			IF (BLAS_FOUND)
 				MESSAGE (STATUS "Found OpenBLAS")
