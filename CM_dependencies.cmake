@@ -192,7 +192,6 @@ FIND_PACKAGE (Threads REQUIRED)
 MESSAGE (STATUS "Found Threads ${Threads_VERSION}")
 LIST (APPEND DARKNET_LINK_LIBS Threads::Threads)
 
-
 # ============================================================
 # == OpenBLAS (Basic Linear Algebra Subprograms)			==
 # == This is only used when Darknet is built for CPU-only.	==
@@ -204,28 +203,38 @@ IF (DARKNET_DETECTED_CPU_ONLY)
 	ENDIF ()
 
 	IF (DARKNET_TRY_OPENBLAS)
-		# APPLE devices need a hint to find the brew installation.  On top of which, on some distrios (and again APPLE)
-		# the package is called OpenBLAS, while on other distros it is called OpenBLAS64.  We need to search for both.
-		FIND_PACKAGE (OpenBLAS NAMES OpenBLAS64 OpenBLAS QUIET HINTS "/opt/homebrew/opt/openblas/lib/cmake/openblas")
-		IF (OpenBLAS_FOUND)
-			MESSAGE (STATUS "Found OpenBLAS ${OpenBLAS_VERSION}")
-			INCLUDE_DIRECTORIES (${OpenBLAS_INCLUDE_DIRS})
-			IF (WIN32)
-				LIST (APPEND DARKNET_LINK_LIBS OpenBLAS::OpenBLAS)		# Win32 and vcpkg
+
+		IF (APPLE)
+			# APPLE devices need a hint to find the brew installation.  On top of which, on some distrios (and again APPLE)
+			# the package is called OpenBLAS, while on other distros it is called OpenBLAS64.  We need to search for both.
+			FIND_PACKAGE (OpenBLAS NAMES OpenBLAS64 OpenBLAS QUIET HINTS "/opt/homebrew/opt/openblas/lib/cmake/openblas")
+			
+			IF (OpenBLAS_FOUND)
+				LIST (APPEND DARKNET_LINK_LIBS ${OpenBLAS_LIBRARIES})
+				INCLUDE_DIRECTORIES (${OpenBLAS_INCLUDE_DIRS})
+				ADD_COMPILE_DEFINITIONS (DARKNET_USE_OPENBLAS)
 			ELSE ()
-				LIST (APPEND DARKNET_LINK_LIBS ${OpenBLAS_LIBRARIES})	# Linux
-			ENDIF ()
-			ADD_COMPILE_DEFINITIONS (DARKNET_USE_OPENBLAS)
-		ELSE ()
-			MESSAGE (WARNING "OpenBLAS not found. Building Darknet for CPU-only without support for OpenBLAS.")
-		ENDIF ()
+				MESSAGE (WARNING "Apple OpenBLAS not found. Building Darknet for CPU-only without support for OpenBLAS.")
+			ENDIF()
+		ELSE() # Win32, vcpkg and Linux
+			SET(BLA_VENDOR OpenBLAS)
+			SET(BLA_SIZEOF_INTEGER 8) # force 64 bit
+			find_package(BLAS)
+
+			IF (BLAS_FOUND)
+				MESSAGE (STATUS "Found OpenBLAS")
+				LIST (APPEND DARKNET_LINK_LIBS BLAS::BLAS)
+				ADD_COMPILE_DEFINITIONS (DARKNET_USE_OPENBLAS)
+			ELSE ()
+				MESSAGE (WARNING "OpenBLAS not found. Building Darknet for CPU-only without support for OpenBLAS.")
+			ENDIF()
+		ENDIF()
 	ELSE ()
 		MESSAGE (WARNING "OpenBLAS is disabled. Building Darknet for CPU-only without support for OpenBLAS.")
 	ENDIF ()
 ELSE ()
 	MESSAGE (STATUS "Skipping OpenBLAS since we have a GPU.")
 ENDIF ()
-
 
 # ============
 # == OpenCV ==
@@ -258,7 +267,6 @@ ELSE ()
 		ADD_COMPILE_OPTIONS (${OpenMP_CXX_FLAGS})
 	ENDIF()
 ENDIF ()
-
 
 # ===============
 # == AVX & SSE ==
