@@ -47,6 +47,8 @@ namespace Darknet
 	std::string format_in_colour(const size_t & st, const EColour & colour, const size_t & len);
 	std::string format_in_colour(const float & f, const EColour & colour, const size_t & len);
 	std::string format_in_colour(const float & f, const size_t & len, const bool inverted = false);
+	std::string format_in_colour(const int & i, const size_t & len);
+	std::string format_percentage(const int & i);
 
 	std::string format_map_confusion_matrix_values(
 			const int class_id,
@@ -68,11 +70,11 @@ namespace Darknet
 			std::string name,
 			const float &average_precision, // 0..1
 			const int &tp,
+			const int &tn,
 			const int &fp,
 			const int &fn,
 			const int &gt,
-			const float &diag_avg_iou // 0..1 (diagnostic)
-	);
+			const float &diag_avg_iou); // 0..1 (diagnostic)
 
 	std::string format_layer_summary(
 			const size_t idx,

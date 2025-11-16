@@ -265,7 +265,7 @@ typedef enum
 typedef struct load_args {
 	int threads;
 	char **paths;
-	char *path;
+	const char *path;
 	int n; ///< number of images, or batch size?
 	int m; ///< maximum number of images?
 	int h;
