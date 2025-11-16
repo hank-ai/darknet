@@ -7,7 +7,7 @@
 #include "darknet_internal.hpp"
 
 
-box_label *read_boxes(char *filename, int *n);
+box_label *read_boxes(const char *filename, int *n);
 list *get_paths(const char *filename);
 
 data get_data_part(data d, int part, int total);
