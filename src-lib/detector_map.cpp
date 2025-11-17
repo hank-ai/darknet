@@ -63,6 +63,17 @@ namespace
 		/// All of the predictions across the entire dataset.  Obviously, this can grow to be quite big.
 		std::vector<BoxProbability> box_probabilities;
 
+		/** When the loading threads are faster than the prediction thread, we need to insert some pauses in between image
+		 * loading.  These pauses will increase or decrease in length to accomodate for faster computers, faster drives,
+		 * image sizes, resizing needs, etc.  Range will be from 5 to 150 milliseconds.
+		 */
+		std::atomic<int> length_of_loading_pause_in_milliseconds = 5;
+
+		/** When the prediction thread is faster than the loading thread, we need to decrease the pause length for loading
+		 * and increase the pause length between predictions.  Range will be from 5 to 150 milliseconds.
+		 */
+		std::atomic<int> length_of_prediction_pause_in_milliseconds = 5;
+
 		/// The total number of classes in this neural network.
 		size_t number_of_classes = 0;
 
@@ -154,13 +165,18 @@ namespace
 				{
 					if (cfg_and_state.is_trace)
 					{
-						*cfg_and_state.output << "=> pause image loading since map already contains " << shared_info.work_ready_for_predictions.size() << " items" << std::endl;
+						*cfg_and_state.output << "=> pause image loading for " << shared_info.length_of_loading_pause_in_milliseconds << " milliseconds since map already contains " << shared_info.work_ready_for_predictions.size() << " items" << std::endl;
 					}
 					while (shared_info.work_ready_for_predictions.size() >= shared_info.max_work_queue_size and cfg_and_state.must_immediately_exit == false)
 					{
 						shared_info.count_loading_paused ++;
-						std::this_thread::sleep_for(std::chrono::milliseconds(5));
+						std::this_thread::sleep_for(std::chrono::milliseconds(shared_info.length_of_loading_pause_in_milliseconds));
 					}
+
+					// increase the length of time we pause since images are loading faster than we can process them
+					shared_info.length_of_loading_pause_in_milliseconds = std::clamp(shared_info.length_of_loading_pause_in_milliseconds * 2, 5, 150);
+					// decrease the length of time the prediction thread sleeps
+					shared_info.length_of_prediction_pause_in_milliseconds = std::clamp(shared_info.length_of_prediction_pause_in_milliseconds / 2, 5, 150);
 				}
 
 				shared_info.count_load_performed ++;
@@ -232,9 +248,15 @@ const float nms = 0.45f; // TODO
 
 						if (cfg_and_state.is_trace)
 						{
-							*cfg_and_state.output << "=> prediction thread is starved" << std::endl;
+							*cfg_and_state.output << "=> prediction thread is starved, pausing for " << shared_info.length_of_prediction_pause_in_milliseconds << " milliseconds" << std::endl;
 						}
-						std::this_thread::sleep_for(std::chrono::milliseconds(5));
+						std::this_thread::sleep_for(std::chrono::milliseconds(shared_info.length_of_prediction_pause_in_milliseconds));
+
+						// loading is too slow, try and make it more responsive
+						shared_info.length_of_loading_pause_in_milliseconds = std::clamp(shared_info.length_of_loading_pause_in_milliseconds / 2, 5, 150);
+						// at the same time, increase the length of prediction pauses
+						shared_info.length_of_prediction_pause_in_milliseconds = std::clamp(shared_info.length_of_prediction_pause_in_milliseconds * 2, 5, 150);
+
 						continue;
 					}
 
@@ -318,11 +340,12 @@ const float nms = 0.45f; // TODO
 					{
 						shared_info.count_analyze_starved ++;
 
+						const int time_to_pause_in_milliseconds = std::max(shared_info.length_of_loading_pause_in_milliseconds, shared_info.length_of_prediction_pause_in_milliseconds);
 						if (cfg_and_state.is_trace)
 						{
-							*cfg_and_state.output << "=> calculation thread is starved" << std::endl;
+							*cfg_and_state.output << "=> calculation thread is starved, pausing for " << time_to_pause_in_milliseconds << " milliseconds" << std::endl;
 						}
-						std::this_thread::sleep_for(std::chrono::milliseconds(5));
+						std::this_thread::sleep_for(std::chrono::milliseconds(time_to_pause_in_milliseconds));
 						continue;
 					}
 
@@ -466,8 +489,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	TAT(TATPARMS);
 
-	const auto timestamp_start = std::chrono::high_resolution_clock::now();
-
 	*cfg_and_state.output << "Calculating mAP (mean average precision)..." << std::endl;
 
 	SharedInfo shared_info;
@@ -567,6 +588,8 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		<< "-> " << shared_info.number_of_loading_threads_to_start << " loading thread" << (shared_info.number_of_loading_threads_to_start == 1 ? "" : "s")
 		<< " with a total work queue size of " << shared_info.max_work_queue_size << " images" << std::endl;
 
+	const auto timestamp_start = std::chrono::high_resolution_clock::now();
+
 	/* ************************************************************************* */
 	/* START THE THREADS THAT LOAD, PREDICT, AND RUNS THE NECESSARY CALCULATIONS */
 	/* ************************************************************************* */
@@ -579,7 +602,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	}
 
 	// give the loading threads time to load some images before we start the other threads
-	std::this_thread::sleep_for(std::chrono::milliseconds(100));
+	std::this_thread::sleep_for(std::chrono::milliseconds(50));
 	all_threads.emplace_back(detector_map_prediction_thread,	std::ref(shared_info));
 	all_threads.emplace_back(detector_map_calculations_thread,	std::ref(shared_info));
 
@@ -588,7 +611,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	/* ******************************* */
 
 	size_t previous_count_analyze	= 0;
-	auto previous_timestamp			= std::chrono::high_resolution_clock::now();
+	auto previous_timestamp			= timestamp_start;
 
 	bool done = false;
 	while (cfg_and_state.must_immediately_exit == false and not done)
@@ -614,8 +637,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		const int loading_percentage	= std::round(100.0f * shared_info.count_load_performed		/ shared_info.total_number_of_validation_images);
 		const int predicting_percentage	= std::round(100.0f * shared_info.count_predict_performed	/ shared_info.total_number_of_validation_images);
 		const int analyzing_percentage	= std::round(100.0f * shared_info.count_analyze_performed	/ shared_info.total_number_of_validation_images);
-
-		const bool show_details = (done or cfg_and_state.is_verbose or shared_info.count_predict_starved > 10);
+		const bool show_details			= (done or cfg_and_state.is_verbose or shared_info.count_predict_starved > 10);
 
 		std::stringstream ss;
 		ss	<< "\r"
@@ -625,7 +647,8 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 		if (show_details)
 		{
-			ss << ", paused=" << shared_info.count_loading_paused;
+			ss	<< ", pause="	<< shared_info.count_loading_paused
+				<< ", time="	<< shared_info.length_of_loading_pause_in_milliseconds << " ms";
 		}
 
 		ss	<< "), predicting #" << Darknet::in_colour(Darknet::EColour::kBrightWhite, int(shared_info.count_predict_performed))
@@ -634,7 +657,8 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		if (show_details)
 		{
 			ss	<< ", work="	<< shared_info.work_ready_for_predictions.size() << "+" << shared_info.count_predict_internal
-				<< ", starved="	<< shared_info.count_predict_starved;
+				<< ", starve="	<< shared_info.count_predict_starved
+				<< ", time="	<< shared_info.length_of_prediction_pause_in_milliseconds << " ms";
 		}
 
 		ss	<< "), analyzing #" << Darknet::in_colour(Darknet::EColour::kBrightWhite, int(shared_info.count_analyze_performed))
@@ -643,9 +667,13 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		if (show_details)
 		{
 			ss	<< ", work="	<< shared_info.work_ready_for_calculations.size() << "+" << shared_info.count_analyze_internal
-				<< ", starved="	<< shared_info.count_analyze_starved;
+				<< ", starve="	<< shared_info.count_analyze_starved;
 		}
-		ss	<< ") ";
+		ss	<< ")  "; // intentional trailing whitespace in case some fields (like "work") shrink
+		if (cfg_and_state.is_verbose)
+		{
+			ss << std::endl;
+		}
 
 		*cfg_and_state.output << ss.str() << std::flush;
 	}
