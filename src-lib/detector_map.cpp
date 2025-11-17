@@ -376,7 +376,7 @@ const float nms = 0.45f; // TODO
 								const auto & ground_truth = work.ground_truth_labels[j];
 								if (ground_truth.id != bp.class_id)
 								{
-									return;
+									continue;
 								}
 
 								// the classes match, so now figure out the IoU between the prediction and the ground truth
@@ -660,8 +660,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	/* THREADS ARE DONE, PRINT THE RESULTS */
 	/* *********************************** */
 
-	const auto timestamp_end = std::chrono::high_resolution_clock::now();
-	*cfg_and_state.output << "Total detection time: " << Darknet::format_duration_string(timestamp_end - timestamp_start, 3, Darknet::EFormatDuration::kTrim) << std::endl;
 
 
 
@@ -981,7 +979,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 //	free(tp_for_thresh_per_class);
 //	free(fp_for_thresh_per_class);
 
-//	const auto timestamp_end = std::chrono::high_resolution_clock::now();
+	const auto timestamp_end = std::chrono::high_resolution_clock::now();
 
 	*cfg_and_state.output
 		<< "Total detection time: " << Darknet::format_duration_string(timestamp_end - timestamp_start, 1, Darknet::EFormatDuration::kTrim) << std::endl
