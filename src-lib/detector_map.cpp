@@ -99,8 +99,9 @@ namespace
 		 * counter for that specific class.
 		 */
 		std::map<int, size_t> ground_truth_counts;
-		/// counts of GT per class
-//		std::vector<int> truth_classes_count;
+
+		/// Similar to @ref ground_truth_counts but for predictions.
+		std::map<int, size_t> prediction_counts;
 
 		/// Work is placed here once it has *finished* being loaded and prior to predictions.  @see @ref work_ready_for_predictions_mutex
 		std::map<std::string, WorkUnit> work_ready_for_predictions;
@@ -396,6 +397,8 @@ namespace
 								continue;
 							}
 
+							shared_info.prediction_counts[class_id] ++;
+
 							BoxProbability bp;
 							bp.bb			= prediction.bbox;
 							bp.probability	= probability;
@@ -543,6 +546,8 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		calculate_binary_weights(&shared_info.net);
 		Darknet::load_names(&shared_info.net, option_find_str(options, "names", "unknown.names"));
 	}
+	free_list_contents_kvp(options);
+	free_list(options);
 
 	// split the validation images into multiple sets, where each one will be given to a different thread to load from disk
 	shared_info.validation_image_filenames.resize(shared_info.number_of_loading_threads_to_start);
@@ -608,6 +613,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		shared_info.tp_for_thresh_per_class	[class_idx] = 0;
 		shared_info.fp_for_thresh_per_class	[class_idx] = 0;
 		shared_info.ground_truth_counts		[class_idx] = 0;
+		shared_info.prediction_counts		[class_idx] = 0;
 	}
 
 	*cfg_and_state.output
@@ -764,12 +770,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	*cfg_and_state.output << "detections_count=" << shared_info.box_probabilities.size() << ", unique_truth_count=" << shared_info.unique_truth_count << std::endl;
 
-	int* detection_per_class_count = (int*)xcalloc(shared_info.number_of_classes, sizeof(int));
-	for (int j = 0; j < shared_info.box_probabilities.size(); ++j)
-	{
-		detection_per_class_count[shared_info.box_probabilities[j].class_id]++;
-	}
-
 	int *truth_flags = (int*)xcalloc(std::max(1, shared_info.unique_truth_count), sizeof(int));
 
 	// Accumulate PR for each rank
@@ -821,12 +821,12 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			pr[i][rank].precision	= (tp + fp) > 0 ? (double)tp / (double)(tp + fp) : 0.0;
 			pr[i][rank].recall		= (tp + fn) > 0 ? (double)tp / (double)(tp + fn) : 0.0;
 
-			if (rank == (shared_info.box_probabilities.size() - 1) and detection_per_class_count[i] != (tp + fp))
+			if (rank == (shared_info.box_probabilities.size() - 1) and shared_info.prediction_counts[i] != (tp + fp))
 			{
 				// check for last rank
 				*cfg_and_state.output
 					<< "class_id="		<< i
-					<< ", detections="	<< detection_per_class_count[i]
+					<< ", detections="	<< shared_info.prediction_counts[i]
 					<< ", tp+fp="		<< tp + fp
 					<< ", tp="			<< tp
 					<< ", fp="			<< fp
@@ -940,8 +940,8 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 				shared_info.net.details->class_names[class_idx],	// name
 				(float)avg_precision,			// AP
 				tp_final,						// TP
-				fp_final,						// FP
 				tn_final,						// TN
+				fp_final,						// FP
 				fn_final,						// FN
 				gt_i,							// GT
 				diag_avg_iou_at_thresh)			// diag IoU
@@ -981,6 +981,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		<< "-> for conf_thresh="	<< shared_info.thresh_calc_avg_iou
 		<< ", TP="					<< shared_info.tp_for_thresh
 		<< ", FP="					<< shared_info.fp_for_thresh
+//		<< ", TN="					<< shared_info.tn_for_thresh
 		<< ", FN="					<< shared_info.unique_truth_count - shared_info.tp_for_thresh
 		<< ", average IoU="			<< shared_info.avg_iou * 100.0f << "%"
 		<< ""						<< std::endl
@@ -1006,9 +1007,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		free(pr[i]);
 	}
 	free(pr);
-	free(detection_per_class_count);
-	free_list_contents_kvp(options);
-	free_list(options);
 
 	const auto timestamp_end = std::chrono::high_resolution_clock::now();
 
