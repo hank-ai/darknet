@@ -47,10 +47,11 @@ namespace
 		/// A copy of the last YOLO layer in the network.
 		Darknet::Layer output_layer;
 
-		float iou_threshold			= 0.25f;	///< user-selected IoU threshold; e.g., see command-line parm "-iou_thresh 0.25"
-		float detection_threshold	= 0.5f;		///< user-selected threshold; e.g., see command-line parm "-thresh 0.5"
+		float iou_threshold			= 0.5f;		///< user-selected IoU threshold; e.g., see command-line parm "-iou_thresh 0.5"
+		float thresh_calc_avg_iou	= 0.25f; 	///< @todo what is this?  e.g., see command-line parm "-thresh 0.25"
+		float detection_threshold	= 0.005f;	///< detection threshold
+		float nms					= 0.45f;
 		float avg_iou				= 0.0f;
-		float thresh_calc_avg_iou	= 0.0f; 	///< @todo what is this?
 		int tp_for_thresh			= 0;		///< diagnostic TP at thresh_calc_avg_iou (across all classes)
 		int fp_for_thresh			= 0;		///< diagnostic FP at thresh_calc_avg_iou (across all classes)
 		int unique_truth_count		= 0;		///< @todo what is this?
@@ -244,8 +245,6 @@ namespace
 		{
 			cfg_and_state.set_thread_name("map prediction thread");
 
-const float nms = 0.45f; // TODO
-
 			std::map<std::string, WorkUnit> work_to_do;
 			while (shared_info.count_predict_performed < shared_info.total_number_of_validation_images and cfg_and_state.must_immediately_exit == false)
 			{
@@ -293,22 +292,22 @@ const float nms = 0.45f; // TODO
 					const float hierarchy_threshold = 0.5f;
 					if (shared_info.net.letter_box == LETTERBOX_DATA)
 					{
-						work.predictions = get_network_boxes(&shared_info.net, work.img.w, work.img.h, shared_info.net.details->detection_threshold, hierarchy_threshold, 0, 1, &work.number_of_predictions, shared_info.net.letter_box);
+						work.predictions = get_network_boxes(&shared_info.net, work.img.w, work.img.h, shared_info.detection_threshold, hierarchy_threshold, 0, 1, &work.number_of_predictions, shared_info.net.letter_box);
 					}
 					else
 					{
-						work.predictions = get_network_boxes(&shared_info.net, 1, 1, shared_info.net.details->detection_threshold, hierarchy_threshold, 0, 0, &work.number_of_predictions, shared_info.net.letter_box);
+						work.predictions = get_network_boxes(&shared_info.net, 1, 1, shared_info.detection_threshold, hierarchy_threshold, 0, 0, &work.number_of_predictions, shared_info.net.letter_box);
 					}
 
-					if (nms)
+					if (shared_info.nms)
 					{
 						if (shared_info.output_layer.nms_kind == DEFAULT_NMS)
 						{
-							do_nms_sort(work.predictions, work.number_of_predictions, shared_info.output_layer.classes, nms);
+							do_nms_sort(work.predictions, work.number_of_predictions, shared_info.output_layer.classes, shared_info.nms);
 						}
 						else
 						{
-							diounms_sort(work.predictions, work.number_of_predictions, shared_info.output_layer.classes, nms, shared_info.output_layer.nms_kind, shared_info.output_layer.beta_nms);
+							diounms_sort(work.predictions, work.number_of_predictions, shared_info.output_layer.classes, shared_info.nms, shared_info.output_layer.nms_kind, shared_info.output_layer.beta_nms);
 						}
 					}
 
@@ -506,7 +505,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	TAT(TATPARMS);
 
-	*cfg_and_state.output << "Calculating mAP (mean average precision) with detection threshold " << thresh_calc_avg_iou << " and IoU threshold " << iou_thresh << "." << std::endl;
+	*cfg_and_state.output << "Calculating mAP (mean average precision) with threshold " << thresh_calc_avg_iou << " and IoU threshold " << iou_thresh << "." << std::endl;
 
 	SharedInfo shared_info;
 
@@ -583,8 +582,10 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		}
 	}
 
+	shared_info.nms					= 0.45f;
 	shared_info.iou_threshold		= iou_thresh;
-	shared_info.detection_threshold	= thresh_calc_avg_iou;
+	shared_info.detection_threshold	= 0.005f;
+	shared_info.thresh_calc_avg_iou	= thresh_calc_avg_iou;
 	shared_info.number_of_classes	= shared_info.output_layer.classes;
 
 	shared_info.avg_iou_per_class		.reserve(shared_info.number_of_classes);
@@ -913,11 +914,11 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			*cfg_and_state.output
 				<< std::endl
 				<< std::endl
-				<< " AP=average precision, TP=true positive, FP=false positive,"				<< std::endl
-				<< " TN=true negative, FN=false negative, GT=ground truth count"				<< std::endl
-				<< ""																			<< std::endl
-				<< "  Id Name                        AP     TP     FP     FN     GT  AvgIoU"	<< std::endl
-				<< "  -- -------------------- --------- ------ ------ ------ ------ -------"	<< std::endl;
+				<< " AP=average precision, TP=true positive, FP=false positive,"					<< std::endl
+				<< " TN=true negative, FN=false negative, GT=ground truth count"					<< std::endl
+				<< ""																				<< std::endl
+				<< "  Id Name                       AP      TP      FP      FN      GT  AvgIoU"	<< std::endl
+				<< "  -- -------------------- -------- ------- ------- ------- ------- -------"	<< std::endl;
 		}
 
 		// Colored row
@@ -959,19 +960,19 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	}
 
 	*cfg_and_state.output
-		<< ""					<< std::endl
-		<< "-> for conf_thresh="	<< shared_info.detection_threshold
-		<< ", precision="		<< cur_precision
-		<< ", recall="			<< cur_recall
-		<< ", F1 score="		<< f1_score
-		<< ""					<< std::endl
-		<< "-> for conf_thresh="	<< shared_info.detection_threshold
-		<< ", TP="				<< shared_info.tp_for_thresh
-		<< ", FP="				<< shared_info.fp_for_thresh
-		<< ", FN="				<< shared_info.unique_truth_count - shared_info.tp_for_thresh
-		<< ", average IoU="		<< shared_info.avg_iou * 100.0f << "%"
-		<< ""					<< std::endl
-		<< "-> IoU threshold="	<< shared_info.iou_threshold * 100.0f << "%, ";
+		<< ""						<< std::endl
+		<< "-> for conf_thresh="	<< shared_info.thresh_calc_avg_iou
+		<< ", precision="			<< cur_precision
+		<< ", recall="				<< cur_recall
+		<< ", F1 score="			<< f1_score
+		<< ""						<< std::endl
+		<< "-> for conf_thresh="	<< shared_info.thresh_calc_avg_iou
+		<< ", TP="					<< shared_info.tp_for_thresh
+		<< ", FP="					<< shared_info.fp_for_thresh
+		<< ", FN="					<< shared_info.unique_truth_count - shared_info.tp_for_thresh
+		<< ", average IoU="			<< shared_info.avg_iou * 100.0f << "%"
+		<< ""						<< std::endl
+		<< "-> IoU threshold="		<< shared_info.iou_threshold * 100.0f << "%, ";
 	if (map_points)
 	{
 		*cfg_and_state.output << "used " << map_points << " recall points" << std::endl;
@@ -987,28 +988,13 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		<< Darknet::format_map_accuracy(mean_average_precision)
 		<< std::endl;
 
+	// free memory
 	for (int i = 0; i < shared_info.number_of_classes; ++i)
 	{
 		free(pr[i]);
 	}
 	free(pr);
-//	free(detections);
-//	free(truth_classes_count);
 	free(detection_per_class_count);
-//	free(paths);
-//	free(paths_dif);
-//	free_list_contents(plist);
-//	free_list(plist);
-//	if (plist_dif)
-//	{
-//		free_list_contents(plist_dif);
-//		free_list(plist_dif);
-//	}
-//	free(avg_iou_per_class);
-//	free(tp_for_thresh_per_class);
-//	free(fp_for_thresh_per_class);
-
-	// free memory
 	free_list_contents_kvp(options);
 	free_list(options);
 
