@@ -287,12 +287,14 @@ namespace
 					}
 
 					network_predict(shared_info.net, work.img.data);
+					const int image_width	= work.img.w;
+					const int image_height	= work.img.h;
 					Darknet::free_image(work.img);
 
 					const float hierarchy_threshold = 0.5f;
 					if (shared_info.net.letter_box == LETTERBOX_DATA)
 					{
-						work.predictions = get_network_boxes(&shared_info.net, work.img.w, work.img.h, shared_info.detection_threshold, hierarchy_threshold, 0, 1, &work.number_of_predictions, shared_info.net.letter_box);
+						work.predictions = get_network_boxes(&shared_info.net, image_width, image_height, shared_info.detection_threshold, hierarchy_threshold, 0, 1, &work.number_of_predictions, shared_info.net.letter_box);
 					}
 					else
 					{
@@ -378,7 +380,7 @@ namespace
 						*cfg_and_state.output << "-> " << shared_info.count_analyze_performed << ": performing calculations with " << fn << std::endl;
 					}
 
-					const int checkpoint_detections_count = work.number_of_predictions;
+					const size_t checkpoint_box_probabilities = shared_info.box_probabilities.size();
 
 					// go through all the predictions in this image, and try to match each one to a ground truth
 					for (size_t idx = 0; idx < work.number_of_predictions; idx ++)
@@ -436,12 +438,23 @@ namespace
 							if (probability > shared_info.thresh_calc_avg_iou)
 							{
 								bool found = false;
-								for (int z = checkpoint_detections_count; z < work.number_of_predictions - 1; ++z)
+
+								/* Mirror the old logic: only compare against detections from this image, i.e., those added since
+								 * checkpoint_box_probabilities.
+								 * shared_info.box_probabilities.size() is the *current* global count.  We stop at size() - 1 to avoid
+								 * comparing the detection to itself.
+								 */
+								const size_t current_count = shared_info.box_probabilities.size();
+
+								if (current_count > checkpoint_box_probabilities)
 								{
-									if (shared_info.box_probabilities[z].unique_truth_index == truth_index)
+									for (size_t z = checkpoint_box_probabilities; z < current_count - 1; ++z)
 									{
-										found = true;
-										break;
+										if (shared_info.box_probabilities[z].unique_truth_index == truth_index)
+										{
+											found = true;
+											break;
+										}
 									}
 								}
 
@@ -566,8 +579,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	{
 		Darknet::display_warning_msg("Warning: there seems to be very few validation images (num=" + std::to_string(shared_info.total_number_of_validation_images) + ", batch=" + std::to_string(actual_batch_size) + ")\n");
 	}
-
-	float mean_average_precision = 0.0f;
 
 	shared_info.output_layer = shared_info.net.layers[shared_info.net.n - 1];
 	for (int k = 0; k < shared_info.net.n; ++k)
@@ -726,13 +737,11 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	// - qsort() with function took:	576286 nanoseconds
 	// - std::sort() with lambda took:	414231 nanoseconds
 	//
-#if 1
 	std::sort(/** @todo try this again in 2026? std::execution::par_unseq,*/ shared_info.box_probabilities.begin(), shared_info.box_probabilities.end(),
 			[](const BoxProbability & lhs, const BoxProbability & rhs)
 			{
 				return lhs.probability > rhs.probability;
 			});
-#endif
 
 	struct pr_t
 	{
@@ -778,6 +787,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 				pr[class_id][rank].tp = pr[class_id][rank - 1].tp;
 				pr[class_id][rank].fp = pr[class_id][rank - 1].fp;
 				pr[class_id][rank].tn = pr[class_id][rank - 1].tn;
+				pr[class_id][rank].fn = pr[class_id][rank - 1].fn;
 			}
 		}
 
@@ -827,7 +837,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	free(truth_flags);
 
-//	double mean_average_precision = 0.0;
+	double mean_average_precision = 0.0;
 
 	// ---- Per-class AP + reporting (no TN/accuracy/specificity) ----
 	for (int class_idx = 0; class_idx < shared_info.number_of_classes; ++class_idx)
@@ -896,11 +906,13 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		int tp_final = 0;
 		int fp_final = 0;
 		int tn_final = 0;
+//		int fn_final = 0;
 		if (shared_info.box_probabilities.size() > 0)
 		{
 			tp_final = pr[class_idx][shared_info.box_probabilities.size() - 1].tp;
 			fp_final = pr[class_idx][shared_info.box_probabilities.size() - 1].fp;
 			tn_final = pr[class_idx][shared_info.box_probabilities.size() - 1].tn;
+//			fn_final = pr[class_idx][shared_info.box_probabilities.size() - 1].fn;
 		}
 		const int fn_final = std::max(0, gt_i - tp_final);
 
@@ -914,11 +926,11 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			*cfg_and_state.output
 				<< std::endl
 				<< std::endl
-				<< " AP=average precision, TP=true positive, FP=false positive,"					<< std::endl
-				<< " TN=true negative, FN=false negative, GT=ground truth count"					<< std::endl
-				<< ""																				<< std::endl
-				<< "  Id Name                       AP      TP      FP      FN      GT  AvgIoU"	<< std::endl
-				<< "  -- -------------------- -------- ------- ------- ------- ------- -------"	<< std::endl;
+				<< " AP=average precision, TP=true positive, FP=false positive,"						<< std::endl
+				<< " TN=true negative, FN=false negative, GT=ground truth count"						<< std::endl
+				<< ""																					<< std::endl
+				<< "  Id Name                       AP      TP      FP      TN      FN      GT  AvgIoU"	<< std::endl
+				<< "  -- -------------------- -------- ------- ------- ------- ------- ------- -------"	<< std::endl;
 		}
 
 		// Colored row
@@ -928,8 +940,8 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 				shared_info.net.details->class_names[class_idx],	// name
 				(float)avg_precision,			// AP
 				tp_final,						// TP
-				tn_final,						// TN
 				fp_final,						// FP
+				tn_final,						// TN
 				fn_final,						// FN
 				gt_i,							// GT
 				diag_avg_iou_at_thresh)			// diag IoU

@@ -70,8 +70,8 @@ namespace Darknet
 			std::string name,
 			const float &average_precision, // 0..1
 			const int &tp,
-			const int &tn,
 			const int &fp,
+			const int &tn,
 			const int &fn,
 			const int &gt,
 			const float &diag_avg_iou); // 0..1 (diagnostic)

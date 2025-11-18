@@ -273,6 +273,8 @@ std::string Darknet::format_map_confusion_matrix_values(
 {
 	TAT(TATPARMS);
 
+	/// @todo This function appears to be unused?  May have been replaced by format_map_ap_row_values()
+
 	if (name.length() > 16)
 	{
 		name.erase(15);
@@ -304,8 +306,8 @@ std::string Darknet::format_map_ap_row_values(
 	std::string name,
 	const float &average_precision, // 0..1
 	const int &tp,
-	const int &tn,
 	const int &fp,
+	const int &tn,
 	const int &fn,
 	const int &gt,
 	const float &diag_avg_iou // 0..1
@@ -321,8 +323,9 @@ std::string Darknet::format_map_ap_row_values(
 
 #if 0
 	// spacing looks like this; see validate_detector_map()
-	"  Id         Name                AP      TP      FP      FN      GT  AvgIoU"
-	"  -- -------------------- --------- ------- ------- ------- ------- -------"
+	"  Id Name                       AP      TP      FP      TN      FN      GT  AvgIoU"
+	"  -- -------------------- -------- ------- ------- ------- ------- ------- -------"
+
 #endif
 
 	// Note: format_in_colour(x,len) auto-colours by value.
@@ -334,8 +337,8 @@ std::string Darknet::format_map_ap_row_values(
 		format_in_colour(name		, EColour::kBrightWhite	, 20) + " " +
 		format_in_colour(100.0f * average_precision			, 8	) + " " + // <- 8 so "100.0000" fits
 		format_in_colour(tp			, EColour::kNormal		, 7	) + " " +
-//		format_in_colour(tn			, EColour::kNormal		, 7	) + " " +
 		format_in_colour(fp			, EColour::kNormal		, 7	) + " " +
+		format_in_colour(tn			, EColour::kNormal		, 7	) + " " +
 		format_in_colour(fn			, EColour::kNormal		, 7	) + " " +
 		format_in_colour(gt			, EColour::kNormal		, 7	) + " " +
 		format_in_colour(100.0f * diag_avg_iou				, 6);
