@@ -215,7 +215,8 @@ namespace
 					{
 						darknet_fatal_error(DARKNET_LOC, "invalid ground truth: class id #%d at line #%d in %s", ground_truth.id, j+1, fn.string().c_str());
 					}
-					shared_info.ground_truth_counts[ground_truth.id] ++;
+					// NOTE: do NOT update shared_info.ground_truth_counts here.
+					// This function runs on multiple loading threads and would race.
 				}
 
 				std::lock_guard lock(shared_info.work_ready_for_predictions_mutex);
@@ -477,6 +478,13 @@ namespace
 						}
 					}
 
+					// Accumulate per-class ground truth counts on the single calculations thread.
+					for (int j = 0; j < work.number_of_ground_truth_labels; ++j)
+					{
+						const auto &ground_truth = work.ground_truth_labels[j];
+						shared_info.ground_truth_counts[ground_truth.id]++; // now thread-safe
+					}
+
 					shared_info.unique_truth_count += work.number_of_ground_truth_labels;
 					free(work.ground_truth_labels);
 					work.ground_truth_labels = nullptr;
@@ -604,9 +612,9 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	shared_info.thresh_calc_avg_iou	= thresh_calc_avg_iou;
 	shared_info.number_of_classes	= shared_info.output_layer.classes;
 
-	shared_info.avg_iou_per_class		.reserve(shared_info.number_of_classes);
-	shared_info.tp_for_thresh_per_class	.reserve(shared_info.number_of_classes);
-	shared_info.fp_for_thresh_per_class	.reserve(shared_info.number_of_classes);
+	shared_info.avg_iou_per_class       .resize(shared_info.number_of_classes);
+	shared_info.tp_for_thresh_per_class .resize(shared_info.number_of_classes);
+	shared_info.fp_for_thresh_per_class .resize(shared_info.number_of_classes);
 	for (int class_idx = 0; class_idx < shared_info.number_of_classes; class_idx ++)
 	{
 		shared_info.avg_iou_per_class		[class_idx] = 0.0f;
