@@ -286,17 +286,35 @@ namespace
 						*cfg_and_state.output << "-> " << shared_info.count_predict_performed << ": predicting with " << fn << std::endl;
 					}
 
+					// Run prediction using the resized network image
 					network_predict(shared_info.net, work.img.data);
+
+					// Capture the dims before freeing the image
+					const int im_w = work.img.w;
+					const int im_h = work.img.h;
+
 					Darknet::free_image(work.img);
 
 					const float hierarchy_threshold = 0.5f;
 					if (shared_info.net.letter_box == LETTERBOX_DATA)
 					{
-						work.predictions = get_network_boxes(&shared_info.net, work.img.w, work.img.h, shared_info.detection_threshold, hierarchy_threshold, 0, 1, &work.number_of_predictions, shared_info.net.letter_box);
+						work.predictions = get_network_boxes(&shared_info.net,
+															 im_w, im_h,
+															 shared_info.detection_threshold,
+															 hierarchy_threshold,
+															 0, 1,
+															 &work.number_of_predictions,
+															 shared_info.net.letter_box);
 					}
 					else
 					{
-						work.predictions = get_network_boxes(&shared_info.net, 1, 1, shared_info.detection_threshold, hierarchy_threshold, 0, 0, &work.number_of_predictions, shared_info.net.letter_box);
+						work.predictions = get_network_boxes(&shared_info.net,
+															 1, 1,
+															 shared_info.detection_threshold,
+															 hierarchy_threshold,
+															 0, 0,
+															 &work.number_of_predictions,
+															 shared_info.net.letter_box);
 					}
 
 					if (shared_info.nms)
@@ -378,7 +396,7 @@ namespace
 						*cfg_and_state.output << "-> " << shared_info.count_analyze_performed << ": performing calculations with " << fn << std::endl;
 					}
 
-					const int checkpoint_detections_count = work.number_of_predictions;
+					const size_t checkpoint_box_probabilities = shared_info.box_probabilities.size();
 
 					// go through all the predictions in this image, and try to match each one to a ground truth
 					for (size_t idx = 0; idx < work.number_of_predictions; idx ++)
@@ -436,12 +454,22 @@ namespace
 							if (probability > shared_info.thresh_calc_avg_iou)
 							{
 								bool found = false;
-								for (int z = checkpoint_detections_count; z < work.number_of_predictions - 1; ++z)
+
+								// Mirror the old logic: only compare against detections from this image,
+								// i.e., those added since checkpoint_box_probabilities.
+								//
+								// shared_info.box_probabilities.size() is the *current* global count.
+								// We stop at size() - 1 to avoid comparing the detection to itself.
+								const size_t current_count = shared_info.box_probabilities.size();
+								if (current_count > checkpoint_box_probabilities)
 								{
-									if (shared_info.box_probabilities[z].unique_truth_index == truth_index)
+									for (size_t z = checkpoint_box_probabilities; z < current_count - 1; ++z)
 									{
-										found = true;
-										break;
+										if (shared_info.box_probabilities[z].unique_truth_index == truth_index)
+										{
+											found = true;
+											break;
+										}
 									}
 								}
 
@@ -588,15 +616,16 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	shared_info.thresh_calc_avg_iou	= thresh_calc_avg_iou;
 	shared_info.number_of_classes	= shared_info.output_layer.classes;
 
-	shared_info.avg_iou_per_class		.reserve(shared_info.number_of_classes);
-	shared_info.tp_for_thresh_per_class	.reserve(shared_info.number_of_classes);
-	shared_info.fp_for_thresh_per_class	.reserve(shared_info.number_of_classes);
-	for (int class_idx = 0; class_idx < shared_info.number_of_classes; class_idx ++)
+	// Properly size the vectors (reserve changes capacity, not size)
+	shared_info.avg_iou_per_class.assign(shared_info.number_of_classes, 0.0f);
+	shared_info.tp_for_thresh_per_class.assign(shared_info.number_of_classes, 0);
+	shared_info.fp_for_thresh_per_class.assign(shared_info.number_of_classes, 0);
+
+	// Make sure GT counts are reset for each class
+	shared_info.ground_truth_counts.clear();
+	for (int class_idx = 0; class_idx < shared_info.number_of_classes; ++class_idx)
 	{
-		shared_info.avg_iou_per_class		[class_idx] = 0.0f;
-		shared_info.tp_for_thresh_per_class	[class_idx] = 0;
-		shared_info.fp_for_thresh_per_class	[class_idx] = 0;
-		shared_info.ground_truth_counts		[class_idx] = 0;
+		shared_info.ground_truth_counts[class_idx] = 0;
 	}
 
 	*cfg_and_state.output
