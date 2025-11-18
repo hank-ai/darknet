@@ -386,6 +386,8 @@ void Darknet::display_usage()
 		<< ""																						<< std::endl
 		<< "  Check the mAP% results:"																<< std::endl
 		<< YELLOW("    darknet detector map cars.data cars.cfg cars_best.weights")					<< std::endl
+		<< "  Check the mAP% with either specific IoU or detection thresholds:"						<< std::endl
+		<< YELLOW("    darknet detector map cars.data cars.cfg cars_best.weights -iou_thresh 0.2 -thresh 0.75") << std::endl
 		<< ""																						<< std::endl
 		<< "  Apply the neural network to an image and save the results to disk:"					<< std::endl
 		<< YELLOW("    darknet detector test -dont_show cars.data cars.cfg cars_best.weights image1.jpg") << std::endl

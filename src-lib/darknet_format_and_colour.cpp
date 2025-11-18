@@ -321,8 +321,8 @@ std::string Darknet::format_map_ap_row_values(
 
 #if 0
 	// spacing looks like this; see validate_detector_map()
-	"  Id         Name             AP      TP     TN     FP     FN     GT   AvgIoU@conf(%)"
-	"  -- -------------------- --------- ------ ------ ------ ------ ------ --------------"
+	"  Id         Name             AP      TP     FP     FN     GT    AvgIoU"
+	"  -- -------------------- --------- ------ ------ ------ ------ -------"
 #endif
 
 	// Note: format_in_colour(x,len) auto-colours by value.
@@ -334,11 +334,11 @@ std::string Darknet::format_map_ap_row_values(
 		format_in_colour(name		, EColour::kBrightWhite	, 20) + " " +
 		format_in_colour(100.0f * average_precision			, 9	) + " " + // <- 9 so "100.0000" fits
 		format_in_colour(tp			, EColour::kNormal		, 6	) + " " +
-		format_in_colour(tn			, EColour::kNormal		, 6	) + " " +
+//		format_in_colour(tn			, EColour::kNormal		, 6	) + " " +
 		format_in_colour(fp			, EColour::kNormal		, 6	) + " " +
 		format_in_colour(fn			, EColour::kNormal		, 6	) + " " +
 		format_in_colour(gt			, EColour::kNormal		, 6	) + " " +
-		format_in_colour(100.0f * diag_avg_iou				, 14);
+		format_in_colour(100.0f * diag_avg_iou				, 6);
 }
 
 

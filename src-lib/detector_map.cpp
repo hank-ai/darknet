@@ -47,18 +47,17 @@ namespace
 		/// A copy of the last YOLO layer in the network.
 		Darknet::Layer output_layer;
 
-		float iou_thresh = 0.5f;
-		float avg_iou = 0.0f;
-		float thresh_calc_avg_iou = 0.0f; ///< @todo what is this?
-		int tp_for_thresh = 0;	// diagnostic TP at thresh_calc_avg_iou (across all classes)
-		int fp_for_thresh = 0;	// diagnostic FP at thresh_calc_avg_iou (across all classes)
-		int unique_truth_count = 0; /// @todo what is this?
+		float iou_threshold			= 0.25f;	///< user-selected IoU threshold; e.g., see command-line parm "-iou_thresh 0.25"
+		float detection_threshold	= 0.5f;		///< user-selected threshold; e.g., see command-line parm "-thresh 0.5"
+		float avg_iou				= 0.0f;
+		float thresh_calc_avg_iou	= 0.0f; 	///< @todo what is this?
+		int tp_for_thresh			= 0;		///< diagnostic TP at thresh_calc_avg_iou (across all classes)
+		int fp_for_thresh			= 0;		///< diagnostic FP at thresh_calc_avg_iou (across all classes)
+		int unique_truth_count		= 0;		///< @todo what is this?
+
 		std::vector<float> avg_iou_per_class;
 		std::vector<int> tp_for_thresh_per_class;
 		std::vector<int> fp_for_thresh_per_class;
-
-		/// counts of GT per class
-		std::vector<int> truth_classes_count;
 
 		/// All of the predictions across the entire dataset.  Obviously, this can grow to be quite big.
 		std::vector<BoxProbability> box_probabilities;
@@ -99,6 +98,8 @@ namespace
 		 * counter for that specific class.
 		 */
 		std::map<int, size_t> ground_truth_counts;
+		/// counts of GT per class
+//		std::vector<int> truth_classes_count;
 
 		/// Work is placed here once it has *finished* being loaded and prior to predictions.  @see @ref work_ready_for_predictions_mutex
 		std::map<std::string, WorkUnit> work_ready_for_predictions;
@@ -137,6 +138,10 @@ namespace
 		std::atomic<size_t> count_analyze_starved	= 0;
 	};
 
+
+	/* ************************ */
+	/* LOAD LOAD LOAD LOAD LOAD */
+	/* ************************ */
 
 	/// Load images and ground truth annotations.  @note This is called on a secondary thread!
 	void detector_map_loading_thread(const size_t loading_thread_id, SharedInfo & shared_info)
@@ -225,6 +230,10 @@ namespace
 		return;
 	}
 
+
+	/* *************************************** */
+	/* PREDICT PREDICT PREDICT PREDICT PREDICT */
+	/* *************************************** */
 
 	/// Get Darknet predictions for each image.  @note This is called on a secondary thread!
 	void detector_map_prediction_thread(SharedInfo & shared_info)
@@ -322,6 +331,10 @@ const float nms = 0.45f; // TODO
 	}
 
 
+	/* ******************************************** */
+	/* ANALYSIS ANALYSIS ANALYSIS ANALYSIS ANALYSIS */
+	/* ******************************************** */
+
 	/// Run mAP calculations for each image.  @note This is called on a secondary thread!
 	void detector_map_calculations_thread(SharedInfo & shared_info)
 	{
@@ -406,7 +419,7 @@ const float nms = 0.45f; // TODO
 
 								const Darknet::Box box = {ground_truth.x, ground_truth.y, ground_truth.w, ground_truth.h};
 								const float current_iou = box_iou(prediction.bbox, box);
-								if (current_iou > shared_info.iou_thresh and current_iou > best_iou)
+								if (current_iou > shared_info.iou_threshold and current_iou > best_iou)
 								{
 									best_iou = current_iou;
 									truth_index = shared_info.unique_truth_count + j;
@@ -474,6 +487,10 @@ const float nms = 0.45f; // TODO
 }
 
 
+/* ******************** */
+/* DETECTOR MAP COMMAND */
+/* ******************** */
+
 float validate_detector_map(const char * datacfg, const char * cfgfile, const char * weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network * existing_net)
 {
 	/* This function is called in 2 situations:
@@ -489,7 +506,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	TAT(TATPARMS);
 
-	*cfg_and_state.output << "Calculating mAP (mean average precision)..." << std::endl;
+	*cfg_and_state.output << "Calculating mAP (mean average precision) with detection threshold " << thresh_calc_avg_iou << " and IoU threshold " << iou_thresh << "." << std::endl;
 
 	SharedInfo shared_info;
 
@@ -566,20 +583,19 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		}
 	}
 
-	shared_info.thresh_calc_avg_iou = thresh_calc_avg_iou; ///< @todo what is this?
-	shared_info.number_of_classes = shared_info.output_layer.classes;
-	shared_info.iou_thresh = iou_thresh;
+	shared_info.iou_threshold		= iou_thresh;
+	shared_info.detection_threshold	= thresh_calc_avg_iou;
+	shared_info.number_of_classes	= shared_info.output_layer.classes;
 
 	shared_info.avg_iou_per_class		.reserve(shared_info.number_of_classes);
 	shared_info.tp_for_thresh_per_class	.reserve(shared_info.number_of_classes);
 	shared_info.fp_for_thresh_per_class	.reserve(shared_info.number_of_classes);
-	shared_info.truth_classes_count		.reserve(shared_info.number_of_classes);
-	for (int i = 0; i < shared_info.number_of_classes; i++)
+	for (int class_idx = 0; class_idx < shared_info.number_of_classes; class_idx ++)
 	{
-		shared_info.avg_iou_per_class[i] = 0.0f;
-		shared_info.tp_for_thresh_per_class[i] = 0;
-		shared_info.fp_for_thresh_per_class[i] = 0;
-		shared_info.truth_classes_count[i] = 0;
+		shared_info.avg_iou_per_class		[class_idx] = 0.0f;
+		shared_info.tp_for_thresh_per_class	[class_idx] = 0;
+		shared_info.fp_for_thresh_per_class	[class_idx] = 0;
+		shared_info.ground_truth_counts		[class_idx] = 0;
 	}
 
 	*cfg_and_state.output
@@ -688,22 +704,9 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	/* THREADS ARE DONE, PRINT THE RESULTS */
 	/* *********************************** */
 
-
-
-
-
-
-
-
-
-
-
-
-
-
 	if ((shared_info.tp_for_thresh + shared_info.fp_for_thresh) > 0)
 	{
-		shared_info.avg_iou = shared_info.avg_iou / (shared_info.tp_for_thresh + shared_info.fp_for_thresh);
+		shared_info.avg_iou /= (shared_info.tp_for_thresh + shared_info.fp_for_thresh);
 	}
 
 	for (int class_id = 0; class_id < shared_info.number_of_classes; class_id ++)
@@ -722,11 +725,13 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	// - qsort() with function took:	576286 nanoseconds
 	// - std::sort() with lambda took:	414231 nanoseconds
 	//
+#if 1
 	std::sort(/** @todo try this again in 2026? std::execution::par_unseq,*/ shared_info.box_probabilities.begin(), shared_info.box_probabilities.end(),
 			[](const BoxProbability & lhs, const BoxProbability & rhs)
 			{
 				return lhs.probability > rhs.probability;
 			});
+#endif
 
 	struct pr_t
 	{
@@ -800,7 +805,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			const int tp = pr[i][rank].tp;
 			const int fp = pr[i][rank].fp;
 //			const int tn = pr[i][rank].tn;
-			const int fn = shared_info.truth_classes_count[i] - tp; // remaining GT are false negatives
+			const int fn = shared_info.ground_truth_counts[i] - tp; // remaining GT are false negatives
 			pr[i][rank].fn = fn;
 			pr[i][rank].precision	= (tp + fp) > 0 ? (double)tp / (double)(tp + fp) : 0.0;
 			pr[i][rank].recall		= (tp + fn) > 0 ? (double)tp / (double)(tp + fn) : 0.0;
@@ -824,7 +829,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 //	double mean_average_precision = 0.0;
 
 	// ---- Per-class AP + reporting (no TN/accuracy/specificity) ----
-	for (int i = 0; i < shared_info.number_of_classes; ++i)
+	for (int class_idx = 0; class_idx < shared_info.number_of_classes; ++class_idx)
 	{
 		double avg_precision = 0.0;
 
@@ -834,25 +839,25 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		// ImageNet - uses Area-Under-Curve on PR-chart.
 
 		// correct mAP calculation: ImageNet, PascalVOC 2010-2012
-		const int gt_i = shared_info.truth_classes_count[i];
+		const int gt_i = shared_info.ground_truth_counts[class_idx];
 
 		if (shared_info.box_probabilities.empty())
 		{
 			// No detections at all -> AP remains 0 (unless you prefer to skip classes with gt_i==0)
 		}
-		else if (map_points == 0)
+		else if (map_points == 0) // this is the default functionality, map_points == 0
 		{
 			// VOC2010 / AUC of the precision envelope
-			double last_recall = pr[i][shared_info.box_probabilities.size() - 1].recall;
-			double last_precision = pr[i][shared_info.box_probabilities.size() - 1].precision;
+			double last_recall = pr[class_idx][shared_info.box_probabilities.size() - 1].recall;
+			double last_precision = pr[class_idx][shared_info.box_probabilities.size() - 1].precision;
 			for (int rank = shared_info.box_probabilities.size() - 2; rank >= 0; --rank)
 			{
-				double delta_recall = last_recall - pr[i][rank].recall;
-				last_recall = pr[i][rank].recall;
+				double delta_recall = last_recall - pr[class_idx][rank].recall;
+				last_recall = pr[class_idx][rank].recall;
 
-				if (pr[i][rank].precision > last_precision)
+				if (pr[class_idx][rank].precision > last_precision)
 				{
-					last_precision = pr[i][rank].precision;
+					last_precision = pr[class_idx][rank].precision;
 				}
 
 				avg_precision += delta_recall * last_precision;
@@ -875,10 +880,10 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 				double cur_precision = 0.0;
 				for (int rank = 0; rank < shared_info.box_probabilities.size(); ++rank)
 				{
-					if (pr[i][rank].recall >= cur_recall and
-						pr[i][rank].precision > cur_precision)
+					if (pr[class_idx][rank].recall		>= cur_recall and
+						pr[class_idx][rank].precision	> cur_precision)
 					{
-						cur_precision = pr[i][rank].precision;
+						cur_precision = pr[class_idx][rank].precision;
 					}
 				}
 				avg_precision += cur_precision;
@@ -892,38 +897,34 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		int tn_final = 0;
 		if (shared_info.box_probabilities.size() > 0)
 		{
-			tp_final = pr[i][shared_info.box_probabilities.size() - 1].tp;
-			fp_final = pr[i][shared_info.box_probabilities.size() - 1].fp;
-			tn_final = pr[i][shared_info.box_probabilities.size() - 1].tn;
+			tp_final = pr[class_idx][shared_info.box_probabilities.size() - 1].tp;
+			fp_final = pr[class_idx][shared_info.box_probabilities.size() - 1].fp;
+			tn_final = pr[class_idx][shared_info.box_probabilities.size() - 1].tn;
 		}
 		const int fn_final = std::max(0, gt_i - tp_final);
 
 		// Optional diagnostic IoU at the chosen conf threshold
-		const float diag_avg_iou_at_thresh = (shared_info.tp_for_thresh_per_class[i] + shared_info.fp_for_thresh_per_class[i]) > 0 ? (shared_info.avg_iou_per_class[i]) : 0.0f;
+		const float diag_avg_iou_at_thresh = (shared_info.tp_for_thresh_per_class[class_idx] + shared_info.fp_for_thresh_per_class[class_idx]) > 0 ? (shared_info.avg_iou_per_class[class_idx]) : 0.0f;
 
 		// Header (once)
-		if (i == 0)
+		if (class_idx == 0)
 		{
 			// if you change the spacing make sure to update Darknet::format_map_ap_row_values()
 			*cfg_and_state.output
 				<< std::endl
 				<< std::endl
-				<< "-> AP: average precision per class"														<< std::endl
-				<< "-> TP: true positive: correctly identified an object"									<< std::endl
-				<< "-> TN: true negative: correctly identified the abscence of an object"					<< std::endl
-				<< "-> FP: false positive: incorrect identification"										<< std::endl
-				<< "-> FN: false negative: missed identifying an object"									<< std::endl
-				<< "-> GT: ground truth count per class"													<< std::endl
-				<< ""																						<< std::endl
-				<< "  Id         Name             AP      TP     TN     FP     FN     GT   AvgIoU@conf(%)"	<< std::endl
-				<< "  -- -------------------- --------- ------ ------ ------ ------ ------ --------------"	<< std::endl;
+				<< " AP=average precision, TP=true positive, FP=false positive,"				<< std::endl
+				<< " TN=true negative, FN=false negative, GT=ground truth count"				<< std::endl
+				<< ""																			<< std::endl
+				<< "  Id Name                        AP     TP     FP     FN     GT  AvgIoU"	<< std::endl
+				<< "  -- -------------------- --------- ------ ------ ------ ------ -------"	<< std::endl;
 		}
 
 		// Colored row
 		*cfg_and_state.output
 			<< Darknet::format_map_ap_row_values(
-				i,								// class_id
-				shared_info.net.details->class_names[i],	// name
+				class_idx,								// class_id
+				shared_info.net.details->class_names[class_idx],	// name
 				(float)avg_precision,			// AP
 				tp_final,						// TP
 				tn_final,						// TN
@@ -934,7 +935,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			<< std::endl;
 
 		// send the result of this class to the C++ side of things so we can include it the right chart
-		Darknet::update_accuracy_in_new_charts(i, (float)avg_precision);
+		Darknet::update_accuracy_in_new_charts(class_idx, (float)avg_precision);
 
 		mean_average_precision += avg_precision;
 	}
@@ -959,19 +960,18 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	*cfg_and_state.output
 		<< ""					<< std::endl
-		<< "for conf_thresh="	<< thresh_calc_avg_iou
+		<< "-> for conf_thresh="	<< shared_info.detection_threshold
 		<< ", precision="		<< cur_precision
 		<< ", recall="			<< cur_recall
 		<< ", F1 score="		<< f1_score
 		<< ""					<< std::endl
-		<< "for conf_thresh="	<< thresh_calc_avg_iou
+		<< "-> for conf_thresh="	<< shared_info.detection_threshold
 		<< ", TP="				<< shared_info.tp_for_thresh
 		<< ", FP="				<< shared_info.fp_for_thresh
 		<< ", FN="				<< shared_info.unique_truth_count - shared_info.tp_for_thresh
 		<< ", average IoU="		<< shared_info.avg_iou * 100.0f << "%"
 		<< ""					<< std::endl
-		<< "IoU threshold="		<< iou_thresh * 100.0f << "%, ";
-
+		<< "-> IoU threshold="	<< shared_info.iou_threshold * 100.0f << "%, ";
 	if (map_points)
 	{
 		*cfg_and_state.output << "used " << map_points << " recall points" << std::endl;
@@ -983,9 +983,10 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	mean_average_precision = (shared_info.number_of_classes > 0) ? (mean_average_precision / shared_info.number_of_classes) : 0.0;
 	*cfg_and_state.output
-		<< "mean average precision (mAP@" << std::setprecision(2) << iou_thresh << ")="
+		<< "-> mean average precision (mAP@" << std::setprecision(2) << iou_thresh << ")="
 		<< Darknet::format_map_accuracy(mean_average_precision)
 		<< std::endl;
+
 	for (int i = 0; i < shared_info.number_of_classes; ++i)
 	{
 		free(pr[i]);
@@ -1007,18 +1008,13 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 //	free(tp_for_thresh_per_class);
 //	free(fp_for_thresh_per_class);
 
-	const auto timestamp_end = std::chrono::high_resolution_clock::now();
-
-	*cfg_and_state.output
-		<< "Total detection time: " << Darknet::format_duration_string(timestamp_end - timestamp_start, 1, Darknet::EFormatDuration::kTrim) << std::endl
-		<< "Set -points flag:"															<< std::endl
-		<< " '-points 101' for MSCOCO"													<< std::endl
-		<< " '-points 11' for PascalVOC 2007 (uncomment 'difficult' in voc.data)"		<< std::endl
-		<< " '-points 0' (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset"	<< std::endl;
-
 	// free memory
 	free_list_contents_kvp(options);
 	free_list(options);
+
+	const auto timestamp_end = std::chrono::high_resolution_clock::now();
+
+	*cfg_and_state.output << "mAP calculations took a total of " << Darknet::format_duration_string(timestamp_end - timestamp_start, 1, Darknet::EFormatDuration::kTrim) << "." << std::endl;
 
 	if (existing_net)
 	{

@@ -39,7 +39,7 @@ namespace Darknet
 	/// Format the loss combined with ANSI colours.
 	std::string format_loss(const double & loss);
 
-	/// Format the mAP% accuracy with ANSI colours.
+	/// Format the mAP% accuracy with ANSI colours.  Value should be between @p 0.0 and @p 1.0 as it will be multiplied by 100 prior to display.
 	std::string format_map_accuracy(const float & accuracy);
 
 	std::string format_in_colour(const std::string & str, const EColour & colour, const int & len);

@@ -53,7 +53,7 @@ std::string Darknet::format_map_accuracy(const float & accuracy)
 		return in_colour(colour, "none");
 	}
 
-	if (accuracy < 0.5f || std::isfinite(accuracy) == false)
+	if (accuracy < 0.5f or std::isfinite(accuracy) == false)
 	{
 		colour = EColour::kBrightRed;
 	}
