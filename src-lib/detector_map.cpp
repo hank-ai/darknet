@@ -115,6 +115,10 @@ namespace
 		/// Must lock prior to modifying the STL container @ref work_ready_for_calculations.
 		std::mutex work_ready_for_calculations_mutex;
 
+		/// Thread-safe counts of pending work in each map
+		std::atomic<size_t> work_ready_for_predictions_count{0};
+		std::atomic<size_t> work_ready_for_calculations_count{0};
+
 		/// The total number of images which have been loaded from disk.
 		std::atomic<size_t> count_load_performed	= 0;
 
@@ -168,16 +172,22 @@ namespace
 			{
 				std::filesystem::path fn = *iter;
 
-				if (shared_info.work_ready_for_predictions.size() >= shared_info.max_work_queue_size)
+				if (shared_info.work_ready_for_predictions_count >= shared_info.max_work_queue_size)
 				{
 					if (cfg_and_state.is_trace)
 					{
-						*cfg_and_state.output << "=> pause image loading for " << shared_info.length_of_loading_pause_in_milliseconds << " milliseconds since map already contains " << shared_info.work_ready_for_predictions.size() << " items" << std::endl;
+						*cfg_and_state.output
+							<< "=> pause image loading for "
+							<< shared_info.length_of_loading_pause_in_milliseconds
+							<< " milliseconds since map already contains "
+							<< shared_info.work_ready_for_predictions_count
+							<< " items" << std::endl;
 					}
-					while (shared_info.work_ready_for_predictions.size() >= shared_info.max_work_queue_size and cfg_and_state.must_immediately_exit == false)
+					while (shared_info.work_ready_for_predictions_count >= shared_info.max_work_queue_size and cfg_and_state.must_immediately_exit == false)
 					{
-						shared_info.count_loading_paused ++;
-						std::this_thread::sleep_for(std::chrono::milliseconds(shared_info.length_of_loading_pause_in_milliseconds));
+						shared_info.count_loading_paused++;
+						std::this_thread::sleep_for(
+							std::chrono::milliseconds(shared_info.length_of_loading_pause_in_milliseconds));
 					}
 
 					// increase the length of time we pause since images are loading faster than we can process them
@@ -219,8 +229,11 @@ namespace
 					// This function runs on multiple loading threads and would race.
 				}
 
-				std::lock_guard lock(shared_info.work_ready_for_predictions_mutex);
-				shared_info.work_ready_for_predictions[*iter] = work;
+				{
+					std::lock_guard lock(shared_info.work_ready_for_predictions_mutex);
+					shared_info.work_ready_for_predictions[*iter] = work;
+					shared_info.work_ready_for_predictions_count++;
+				}
 			}
 
 			cfg_and_state.del_thread_name();
@@ -252,7 +265,7 @@ namespace
 			{
 				if (work_to_do.empty())
 				{
-					if (shared_info.work_ready_for_predictions.empty())
+					if (shared_info.work_ready_for_predictions_count == 0)
 					{
 						shared_info.count_predict_starved ++;
 
@@ -272,11 +285,17 @@ namespace
 
 					if (cfg_and_state.is_trace)
 					{
-						*cfg_and_state.output << "=> swapping in " << shared_info.work_ready_for_predictions.size() << " new work units for predictions thread" << std::endl;
+						*cfg_and_state.output << "=> swapping in " << shared_info.work_ready_for_predictions_count
+											  << " new work units for predictions thread" << std::endl;
 					}
 
-					std::lock_guard lock(shared_info.work_ready_for_predictions_mutex);
-					shared_info.work_ready_for_predictions.swap(work_to_do);
+					size_t moved = 0;
+					{
+						std::lock_guard lock(shared_info.work_ready_for_predictions_mutex);
+						moved = shared_info.work_ready_for_predictions.size();	 // how many we’re taking
+						shared_info.work_ready_for_predictions.swap(work_to_do); // move them into local map
+						shared_info.work_ready_for_predictions_count -= moved;	 // queue size shrinks by moved
+					}
 					shared_info.count_predict_internal = work_to_do.size();
 				}
 
@@ -315,9 +334,12 @@ namespace
 						}
 					}
 
-					std::lock_guard lock(shared_info.work_ready_for_calculations_mutex);
-					shared_info.work_ready_for_calculations[fn] = work;
-					shared_info.count_predict_internal --;
+					{
+						std::lock_guard lock(shared_info.work_ready_for_calculations_mutex);
+						shared_info.work_ready_for_calculations[fn] = work;
+						shared_info.work_ready_for_calculations_count++;
+					}
+					shared_info.count_predict_internal--;
 				}
 				work_to_do.clear();
 				shared_info.count_predict_internal = 0;
@@ -352,7 +374,7 @@ namespace
 			{
 				if (work_to_do.empty())
 				{
-					if (shared_info.work_ready_for_calculations.empty())
+					if (shared_info.work_ready_for_calculations_count == 0)
 					{
 						shared_info.count_analyze_starved ++;
 
@@ -367,10 +389,16 @@ namespace
 
 					if (cfg_and_state.is_trace)
 					{
-						*cfg_and_state.output << "=> swapping in " << shared_info.work_ready_for_calculations.size() << " new work units for calculations thread" << std::endl;
+						*cfg_and_state.output << "=> swapping in " << shared_info.work_ready_for_calculations_count
+											  << " new work units for calculations thread" << std::endl;
 					}
-					std::lock_guard lock(shared_info.work_ready_for_calculations_mutex);
-					shared_info.work_ready_for_calculations.swap(work_to_do);
+					size_t moved = 0;
+					{
+						std::lock_guard lock(shared_info.work_ready_for_calculations_mutex);
+						moved = shared_info.work_ready_for_calculations.size();
+						shared_info.work_ready_for_calculations.swap(work_to_do);
+						shared_info.work_ready_for_calculations_count -= moved;
+					}
 					shared_info.count_analyze_internal = work_to_do.size();
 				}
 
@@ -682,36 +710,43 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		const bool show_details			= (done or cfg_and_state.is_verbose or shared_info.count_predict_starved > 10);
 
 		std::stringstream ss;
-		ss	<< "\r"
-			<< "-> " << images_per_second << " images/sec: "
-			<< "loading #" << Darknet::in_colour(Darknet::EColour::kBrightWhite, int(shared_info.count_load_performed))
-			<< " (" << Darknet::format_percentage(loading_percentage);
+		ss << "\r"
+		   << "-> " << images_per_second << " images/sec: "
+		   << "loading #" << Darknet::in_colour(Darknet::EColour::kBrightWhite, int(shared_info.count_load_performed))
+		   << " (" << Darknet::format_percentage(loading_percentage);
 
 		if (show_details)
 		{
-			ss	<< ", pause="	<< shared_info.count_loading_paused
-				<< ", time="	<< shared_info.length_of_loading_pause_in_milliseconds << " ms";
+			ss << ", pause=" << shared_info.count_loading_paused
+			   << ", time=" << shared_info.length_of_loading_pause_in_milliseconds << " ms";
 		}
 
-		ss	<< "), predicting #" << Darknet::in_colour(Darknet::EColour::kBrightWhite, int(shared_info.count_predict_performed))
-			<< " (" << Darknet::format_percentage(predicting_percentage);
+		ss << "), predicting #"
+		   << Darknet::in_colour(Darknet::EColour::kBrightWhite,
+								 int(shared_info.count_predict_performed))
+		   << " (" << Darknet::format_percentage(predicting_percentage);
 
 		if (show_details)
 		{
-			ss	<< ", work="	<< shared_info.work_ready_for_predictions.size() << "+" << shared_info.count_predict_internal
-				<< ", starve="	<< shared_info.count_predict_starved
-				<< ", time="	<< shared_info.length_of_prediction_pause_in_milliseconds << " ms";
+			ss << ", work=" << shared_info.work_ready_for_predictions_count << "+"
+			   << shared_info.count_predict_internal
+			   << ", starve=" << shared_info.count_predict_starved
+			   << ", time=" << shared_info.length_of_prediction_pause_in_milliseconds << " ms";
 		}
 
-		ss	<< "), analyzing #" << Darknet::in_colour(Darknet::EColour::kBrightWhite, int(shared_info.count_analyze_performed))
-			<< " (" << Darknet::format_percentage(analyzing_percentage);
+		ss << "), analyzing #"
+		   << Darknet::in_colour(Darknet::EColour::kBrightWhite,
+								 int(shared_info.count_analyze_performed))
+		   << " (" << Darknet::format_percentage(analyzing_percentage);
 
 		if (show_details)
 		{
-			ss	<< ", work="	<< shared_info.work_ready_for_calculations.size() << "+" << shared_info.count_analyze_internal
-				<< ", starve="	<< shared_info.count_analyze_starved;
+			ss << ", work=" << shared_info.work_ready_for_calculations_count << "+"
+			   << shared_info.count_analyze_internal
+			   << ", starve=" << shared_info.count_analyze_starved;
 		}
-		ss	<< ")  "; // intentional trailing whitespace in case some fields (like "work") shrink
+
+		ss << ")  ";
 		if (cfg_and_state.is_verbose)
 		{
 			ss << std::endl;
