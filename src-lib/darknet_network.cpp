@@ -1269,6 +1269,7 @@ detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh,
 	// With V3 Jazz, we now create a "cache" list to track objects in the output array.
 
 	Darknet::Output_Object_Cache cache;
+	cache.reserve(250); // reserve 250 spaces in the cache to start (most YOLO networks don't have 250 objects per image!)
 	Darknet::Detection * dets = make_network_boxes_v3(net, thresh, num, cache);
 	fill_network_boxes_v3(net, w, h, thresh, hier, map, relative, dets, letter, cache);
 #endif

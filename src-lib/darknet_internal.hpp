@@ -78,7 +78,7 @@ namespace Darknet
 		int i;				///< The entry index into the W x H output array for the given YOLO layer.
 		int obj_index;		///< The index into the YOLO output array -- as obtained from @ref yolo_entry_index() -- which is used to get the objectness value.  E.g., a value of @p "l.output[obj_index] == 0.999f" would indicate that there is an object at this location.
 	};
-	using Output_Object_Cache = std::list<Output_Object>;
+	using Output_Object_Cache = std::vector<Output_Object>;
 
 	class CfgLine;
 	class CfgSection;
