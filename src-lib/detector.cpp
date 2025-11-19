@@ -241,6 +241,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 	Darknet::Network & net = nets[0];
 
+	const std::string disabled = Darknet::format_in_colour("DISABLED", Darknet::EColour::kBrightRed, 0);
 	if (calc_map)
 	{
 		net_map.details->class_names = net.details->class_names;
@@ -593,7 +594,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			<< ", avg loss=" << Darknet::format_loss(avg_loss)
 			<< ", last=" << Darknet::format_map_accuracy(mean_average_precision)
 			<< ", best=" << Darknet::format_map_accuracy(best_map)
-			<< ", next=" << next_map_calc
+			<< ", mAP=" << (calc_map ? std::to_string(next_map_calc) : disabled)
 			<< ", rate=" << std::setprecision(8) << get_current_rate(net) << std::setprecision(2)
 			<< ", load " << args.n << "=" << Darknet::format_duration_string(time_to_load_images, 1)
 			<< ", train=" << Darknet::format_duration_string(train_duration, 1)
