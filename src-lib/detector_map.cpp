@@ -619,14 +619,11 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	shared_info.thresh_calc_avg_iou	= thresh_calc_avg_iou;
 	shared_info.number_of_classes	= shared_info.output_layer.classes;
 
-	shared_info.avg_iou_per_class		.reserve(shared_info.number_of_classes);
-	shared_info.tp_for_thresh_per_class	.reserve(shared_info.number_of_classes);
-	shared_info.fp_for_thresh_per_class	.reserve(shared_info.number_of_classes);
+	shared_info.avg_iou_per_class		.resize(shared_info.number_of_classes, 0.0f);
+	shared_info.tp_for_thresh_per_class	.resize(shared_info.number_of_classes, 0);
+	shared_info.fp_for_thresh_per_class	.resize(shared_info.number_of_classes, 0);
 	for (int class_idx = 0; class_idx < shared_info.number_of_classes and cfg_and_state.must_immediately_exit == false; class_idx ++)
 	{
-		shared_info.avg_iou_per_class		[class_idx] = 0.0f;
-		shared_info.tp_for_thresh_per_class	[class_idx] = 0;
-		shared_info.fp_for_thresh_per_class	[class_idx] = 0;
 		shared_info.ground_truth_counts		[class_idx] = 0;
 		shared_info.prediction_counts		[class_idx] = 0;
 	}
