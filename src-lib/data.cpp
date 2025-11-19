@@ -51,6 +51,16 @@ namespace
 
 		return out;
 	}
+
+	static inline std::mt19937 & get_rnd_engine()
+	{
+		TAT(TATPARMS);
+
+		// we must have 1 per thread of these (use random_device to seed the engine)
+		static thread_local std::mt19937 rnd_engine(std::random_device{}());
+
+		return rnd_engine;
+	}
 }
 
 
@@ -305,7 +315,7 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 	float lowest_w = 1.F / net_w;
 	float lowest_h = 1.F / net_h;
 
-	std::random_shuffle(boxes, boxes + count);
+	std::shuffle(boxes, boxes + count, get_rnd_engine());
 
 	correct_boxes(boxes, count, dx, dy, sx, sy, flip);
 	if (count > num_boxes)
