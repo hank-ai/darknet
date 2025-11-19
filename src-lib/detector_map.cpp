@@ -8,7 +8,7 @@ namespace
 	/* ********************* */
 	/* PROBABILITY STRUCTURE */
 	/* ********************* */
-	/// BoxProbability is used to match probabilities to ground truth.
+	/// BoxProbability is used to match probabilities to ground truth.  This happens in the "analysis" thread.
 	struct BoxProbability
 	{
 		Darknet::Box bb				= {0.0f, 0.0f, 0.0f, 0.0f}; ///< bounding box
@@ -27,7 +27,7 @@ namespace
 		// image resized to the network dimensions
 		Darknet::Image img = {0};
 
-		// result of calling Darknet's predict()
+		// results of calling Darknet's predict()
 		Darknet::Detection * predictions = nullptr;
 		int number_of_predictions = 0;
 
@@ -36,9 +36,8 @@ namespace
 		int number_of_ground_truth_labels = 0;
 	};
 
-
 	/** Information which needs to be shared between threads.  Group it together in a structure and only share 1 struct
-	 * instead of many individual fields.
+	 * instead of many individual fields passed around between threads.
 	 */
 	struct SharedInfo
 	{
@@ -60,19 +59,26 @@ namespace
 		std::vector<int> tp_for_thresh_per_class;
 		std::vector<int> fp_for_thresh_per_class;
 
-		/// All of the predictions across the entire dataset.  Obviously, this can grow to be quite big.
+		/** All of the predictions across the entire dataset.  Obviously, this can grow to be quite big.  But this happens in
+		 * the analysis thread, which is not the bottleneck, so we can ignore trying to apply performance optimizations.
+		 */
 		std::vector<BoxProbability> box_probabilities;
 
 		/** When the loading threads are faster than the prediction thread, we need to insert some pauses in between image
 		 * loading.  These pauses will increase or decrease in length to accomodate for faster computers, faster drives,
 		 * image sizes, resizing needs, etc.  Range will be from 5 to 150 milliseconds.
+		 * @see @ref max_sleep_time_in_milliseconds
 		 */
 		std::atomic<int> length_of_loading_pause_in_milliseconds = 5;
 
 		/** When the prediction thread is faster than the loading thread, we need to decrease the pause length for loading
 		 * and increase the pause length between predictions.  Range will be from 5 to 150 milliseconds.
+		 * @see @ref max_sleep_time_in_milliseconds
 		 */
 		std::atomic<int> length_of_prediction_pause_in_milliseconds = 5;
+
+		/// The maximum amount of time a thread will sleep when it is starved or needs to pause.
+		const int max_sleep_time_in_milliseconds = 150;
 
 		/// The total number of classes in this neural network.
 		size_t number_of_classes = 0;
@@ -145,12 +151,18 @@ namespace
 	/* LOAD LOAD LOAD LOAD LOAD */
 	/* ************************ */
 
-	/// Load images and ground truth annotations.  @note This is called on a secondary thread!
+	/** Load images.  Try and do the least amount of work possible here since the loading threads are important to
+	 * keeping the prediction thread fed.  @note This is called on a secondary thread!
+	 */
 	void detector_map_loading_thread(const size_t loading_thread_id, SharedInfo & shared_info)
 	{
-		// THIS IS CALLED ON A SECONDARY THREAD!
-		//
-		// Multiple instances of this may exist at the same time, since we typically have 2 or more loading threads.
+		/* THIS IS CALLED ON A SECONDARY THREAD!
+		 *
+		 * Multiple instances of this may exist at the same time, since we typically have 2 or more loading threads.
+		 *
+		 * [[[*** BEWARE! ***]]]  There may be multiple copies of the loading thread running.  Only values in WorkUnit may be
+		 * modified.  Values in other places, like SharedInfo, can only be modified with mutex protection or with std::atomic.
+		 */
 
 		try
 		{
@@ -166,10 +178,13 @@ namespace
 
 			for (auto iter = shared_info.validation_image_filenames[loading_thread_id].begin(); iter != shared_info.validation_image_filenames[loading_thread_id].end() and cfg_and_state.must_immediately_exit == false; iter ++)
 			{
-				std::filesystem::path fn = *iter;
-
 				if (shared_info.work_ready_for_predictions.size() >= shared_info.max_work_queue_size)
 				{
+					// increase the length of time we pause since images are loading faster than we can process them
+					shared_info.length_of_loading_pause_in_milliseconds = std::clamp(shared_info.length_of_loading_pause_in_milliseconds * 2, 5, shared_info.max_sleep_time_in_milliseconds);
+					// decrease the length of time the prediction thread sleeps
+					shared_info.length_of_prediction_pause_in_milliseconds = std::clamp(shared_info.length_of_prediction_pause_in_milliseconds / 2, 5, shared_info.max_sleep_time_in_milliseconds);
+
 					if (cfg_and_state.is_trace)
 					{
 						*cfg_and_state.output << "=> pause image loading for " << shared_info.length_of_loading_pause_in_milliseconds << " milliseconds since map already contains " << shared_info.work_ready_for_predictions.size() << " items" << std::endl;
@@ -179,14 +194,10 @@ namespace
 						shared_info.count_loading_paused ++;
 						std::this_thread::sleep_for(std::chrono::milliseconds(shared_info.length_of_loading_pause_in_milliseconds));
 					}
-
-					// increase the length of time we pause since images are loading faster than we can process them
-					shared_info.length_of_loading_pause_in_milliseconds = std::clamp(shared_info.length_of_loading_pause_in_milliseconds * 2, 5, 150);
-					// decrease the length of time the prediction thread sleeps
-					shared_info.length_of_prediction_pause_in_milliseconds = std::clamp(shared_info.length_of_prediction_pause_in_milliseconds / 2, 5, 150);
 				}
 
 				shared_info.count_load_performed ++;
+				std::filesystem::path fn = *iter;
 				if (cfg_and_state.is_trace)
 				{
 					*cfg_and_state.output << "-> " << shared_info.count_load_performed << ": loading " << fn.string() << std::endl;
@@ -198,25 +209,8 @@ namespace
 				args.path = iter->c_str();
 				args.im = &image_buffer;
 				args.resized = &work.img;
-				Darknet::load_single_image_data(args);
+				Darknet::load_single_image_data(args); /// @todo 2025-11-18 follow this function to see what can be optimized
 				Darknet::free_image(image_buffer);
-
-				// now load the ground truth annotations for this image
-				fn.replace_extension(".txt");
-				work.ground_truth_labels = read_boxes(fn.string().c_str(), &work.number_of_ground_truth_labels);
-				if (cfg_and_state.is_trace)
-				{
-					*cfg_and_state.output << "-> " << shared_info.count_load_performed << ": loading " << fn.string() << " (" << work.number_of_ground_truth_labels << " ground truth labels)" << std::endl;
-				}
-				for (int j = 0; j < work.number_of_ground_truth_labels; ++j)
-				{
-					const auto & ground_truth = work.ground_truth_labels[j];
-					if (ground_truth.id < 0 or ground_truth.id >= shared_info.number_of_classes)
-					{
-						darknet_fatal_error(DARKNET_LOC, "invalid ground truth: class id #%d at line #%d in %s", ground_truth.id, j+1, fn.string().c_str());
-					}
-					shared_info.ground_truth_counts[ground_truth.id] ++;
-				}
 
 				std::lock_guard lock(shared_info.work_ready_for_predictions_mutex);
 				shared_info.work_ready_for_predictions[*iter] = work;
@@ -253,18 +247,18 @@ namespace
 				{
 					if (shared_info.work_ready_for_predictions.empty())
 					{
-						shared_info.count_predict_starved ++;
+						// loading is too slow, try and make it more responsive
+						shared_info.length_of_loading_pause_in_milliseconds = std::clamp(shared_info.length_of_loading_pause_in_milliseconds / 2, 5, shared_info.max_sleep_time_in_milliseconds);
+						// at the same time, increase the length of prediction pauses
+						shared_info.length_of_prediction_pause_in_milliseconds = std::clamp(shared_info.length_of_prediction_pause_in_milliseconds * 2, 5, shared_info.max_sleep_time_in_milliseconds);
 
 						if (cfg_and_state.is_trace)
 						{
 							*cfg_and_state.output << "=> prediction thread is starved, pausing for " << shared_info.length_of_prediction_pause_in_milliseconds << " milliseconds" << std::endl;
 						}
-						std::this_thread::sleep_for(std::chrono::milliseconds(shared_info.length_of_prediction_pause_in_milliseconds));
 
-						// loading is too slow, try and make it more responsive
-						shared_info.length_of_loading_pause_in_milliseconds = std::clamp(shared_info.length_of_loading_pause_in_milliseconds / 2, 5, 150);
-						// at the same time, increase the length of prediction pauses
-						shared_info.length_of_prediction_pause_in_milliseconds = std::clamp(shared_info.length_of_prediction_pause_in_milliseconds * 2, 5, 150);
+						shared_info.count_predict_starved ++;
+						std::this_thread::sleep_for(std::chrono::milliseconds(shared_info.length_of_prediction_pause_in_milliseconds));
 
 						continue;
 					}
@@ -281,6 +275,11 @@ namespace
 
 				for (auto & [fn, work] : work_to_do)
 				{
+					if (cfg_and_state.must_immediately_exit)
+					{
+						break;
+					}
+
 					shared_info.count_predict_performed ++;
 					if (cfg_and_state.is_trace)
 					{
@@ -293,7 +292,7 @@ namespace
 					Darknet::free_image(work.img);
 
 					const float hierarchy_threshold = 0.5f;
-					if (shared_info.net.letter_box == LETTERBOX_DATA)
+					if (shared_info.net.letter_box == LETTERBOX_DATA) /// @todo we should eventually get rid of letterbox
 					{
 						work.predictions = get_network_boxes(&shared_info.net, image_width, image_height, shared_info.detection_threshold, hierarchy_threshold, 0, 1, &work.number_of_predictions, shared_info.net.letter_box);
 					}
@@ -337,7 +336,7 @@ namespace
 	/* ANALYSIS ANALYSIS ANALYSIS ANALYSIS ANALYSIS */
 	/* ******************************************** */
 
-	/// Run mAP calculations for each image.  @note This is called on a secondary thread!
+	/// Run mAP calculations for each image.  Ground truth annotations are also loaded here to reduce the tasks done by the image loading thread.  @note This is called on a secondary thread!
 	void detector_map_calculations_thread(SharedInfo & shared_info)
 	{
 		// THIS IS CALLED ON A SECONDARY THREAD!
@@ -375,20 +374,44 @@ namespace
 
 				for (auto & [fn, work] : work_to_do)
 				{
+					if (cfg_and_state.must_immediately_exit)
+					{
+						break;
+					}
+
 					shared_info.count_analyze_performed ++;
 					if (cfg_and_state.is_trace)
 					{
 						*cfg_and_state.output << "-> " << shared_info.count_analyze_performed << ": performing calculations with " << fn << std::endl;
 					}
 
+					// load the ground truth annotations for this image
+					const auto ground_truth_fn = std::filesystem::path(fn).replace_extension(".txt");
+					work.ground_truth_labels = read_boxes(ground_truth_fn.string().c_str(), &work.number_of_ground_truth_labels);
+					if (cfg_and_state.is_trace)
+					{
+						*cfg_and_state.output << "-> " << shared_info.count_load_performed << ": loading " << ground_truth_fn.string() << " (" << work.number_of_ground_truth_labels << " ground truth labels)" << std::endl;
+					}
+					for (int j = 0; j < work.number_of_ground_truth_labels and cfg_and_state.must_immediately_exit == false; ++j)
+					{
+						const auto & ground_truth = work.ground_truth_labels[j];
+						if (ground_truth.id < 0 or ground_truth.id >= shared_info.number_of_classes)
+						{
+							darknet_fatal_error(DARKNET_LOC, "invalid ground truth: class id #%d at line #%d in %s", ground_truth.id, j+1, ground_truth_fn.string().c_str());
+						}
+
+						// get an accurate count of ground truths for every class in the neural network
+						shared_info.ground_truth_counts[ground_truth.id] ++;
+					}
+
 					const size_t checkpoint_box_probabilities = shared_info.box_probabilities.size();
 
 					// go through all the predictions in this image, and try to match each one to a ground truth
-					for (size_t idx = 0; idx < work.number_of_predictions; idx ++)
+					for (size_t idx = 0; idx < work.number_of_predictions and cfg_and_state.must_immediately_exit == false; idx ++)
 					{
 						const auto & prediction = work.predictions[idx];
 
-						for (int class_id = 0; class_id < shared_info.number_of_classes; class_id ++)
+						for (int class_id = 0; class_id < shared_info.number_of_classes and cfg_and_state.must_immediately_exit == false; class_id ++)
 						{
 							const float probability = prediction.prob[class_id];
 							if (probability <= 0.0f)
@@ -411,9 +434,10 @@ namespace
 
 							int truth_index = -1;
 							float best_iou = 0.0f;
-							for (int j = 0; j < work.number_of_ground_truth_labels; j++)
+							for (int j = 0; j < work.number_of_ground_truth_labels and cfg_and_state.must_immediately_exit == false; j++)
 							{
 								const auto & ground_truth = work.ground_truth_labels[j];
+
 								if (ground_truth.id != bp.class_id)
 								{
 									continue;
@@ -451,7 +475,7 @@ namespace
 
 								if (current_count > checkpoint_box_probabilities)
 								{
-									for (size_t z = checkpoint_box_probabilities; z < current_count - 1; ++z)
+									for (size_t z = checkpoint_box_probabilities; z < current_count - 1 and cfg_and_state.must_immediately_exit == false; ++z)
 									{
 										if (shared_info.box_probabilities[z].unique_truth_index == truth_index)
 										{
@@ -555,7 +579,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	{
 		std::ifstream ifs(validation_filename);
 		std::string line;
-		while (std::getline(ifs, line) and cfg_and_state.must_immediately_exit == false and shared_info.total_number_of_validation_images < 991000)
+		while (std::getline(ifs, line) and cfg_and_state.must_immediately_exit == false)
 		{
 			std::filesystem::path path = line;
 			if (std::filesystem::exists(path) == false)
@@ -586,7 +610,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	}
 
 	shared_info.output_layer = shared_info.net.layers[shared_info.net.n - 1];
-	for (int k = 0; k < shared_info.net.n; ++k)
+	for (int k = 0; k < shared_info.net.n and cfg_and_state.must_immediately_exit == false; ++k)
 	{
 		Darknet::Layer & lk = shared_info.net.layers[k];
 		if (lk.type == Darknet::ELayerType::YOLO			or
@@ -607,7 +631,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	shared_info.avg_iou_per_class		.reserve(shared_info.number_of_classes);
 	shared_info.tp_for_thresh_per_class	.reserve(shared_info.number_of_classes);
 	shared_info.fp_for_thresh_per_class	.reserve(shared_info.number_of_classes);
-	for (int class_idx = 0; class_idx < shared_info.number_of_classes; class_idx ++)
+	for (int class_idx = 0; class_idx < shared_info.number_of_classes and cfg_and_state.must_immediately_exit == false; class_idx ++)
 	{
 		shared_info.avg_iou_per_class		[class_idx] = 0.0f;
 		shared_info.tp_for_thresh_per_class	[class_idx] = 0;
@@ -629,7 +653,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	/* ************************************************************************* */
 
 	Darknet::VThreads all_threads;
-	for (size_t idx = 0; idx < shared_info.number_of_loading_threads_to_start; idx ++)
+	for (size_t idx = 0; idx < shared_info.number_of_loading_threads_to_start and cfg_and_state.must_immediately_exit == false; idx ++)
 	{
 		*cfg_and_state.output << "-> starting loading thread #" << idx << " with " << shared_info.validation_image_filenames[idx].size() << " images" << std::endl;
 		all_threads.emplace_back(detector_map_loading_thread, idx, std::ref(shared_info));
@@ -727,12 +751,12 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		shared_info.avg_iou /= (shared_info.tp_for_thresh + shared_info.fp_for_thresh);
 	}
 
-	for (int class_id = 0; class_id < shared_info.number_of_classes; class_id ++)
+	for (int class_id = 0; class_id < shared_info.number_of_classes and cfg_and_state.must_immediately_exit == false; class_id ++)
 	{
 		const int denom = shared_info.tp_for_thresh_per_class[class_id] + shared_info.fp_for_thresh_per_class[class_id];
 		if (denom > 0)
 		{
-			shared_info.avg_iou_per_class[class_id] = shared_info.avg_iou_per_class[class_id] / denom;
+			shared_info.avg_iou_per_class[class_id] /= denom;
 		}
 	}
 
@@ -760,10 +784,13 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		int fn				= 0;
 	};
 
-	// for PR-curve
-	// Note this is a pointer-to-a-pointer.  We don't have just 1 of these per class, but these exist for every detections_count.
+	/* for the precision-recall (PR) curve
+	 *
+	 * Note this is a pointer-to-a-pointer.  We don't have just 1 of these per class, but these exist for every
+	 * prediction...which can be quite big depending on the dataset.
+	 */
 	pr_t** pr = (pr_t**)xcalloc(shared_info.number_of_classes, sizeof(pr_t*));
-	for (int i = 0; i < shared_info.number_of_classes; ++i)
+	for (int i = 0; i < shared_info.number_of_classes and cfg_and_state.must_immediately_exit == false; ++i)
 	{
 		pr[i] = (pr_t*)xcalloc(std::max(size_t(1), shared_info.box_probabilities.size()), sizeof(pr_t)); // allocate at least 1 to avoid nullptr deref
 	}
@@ -773,7 +800,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	int *truth_flags = (int*)xcalloc(std::max(1, shared_info.unique_truth_count), sizeof(int));
 
 	// Accumulate PR for each rank
-	for (int rank = 0; rank < shared_info.box_probabilities.size(); ++rank)
+	for (int rank = 0; rank < shared_info.box_probabilities.size() and cfg_and_state.must_immediately_exit == false; ++rank)
 	{
 		if (rank % 100 == 0)
 		{
@@ -782,7 +809,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 		if (rank > 0)
 		{
-			for (int class_id = 0; class_id < shared_info.number_of_classes; ++class_id)
+			for (int class_id = 0; class_id < shared_info.number_of_classes and cfg_and_state.must_immediately_exit == false; ++class_id)
 			{
 				pr[class_id][rank].tp = pr[class_id][rank - 1].tp;
 				pr[class_id][rank].fp = pr[class_id][rank - 1].fp;
@@ -811,7 +838,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			pr[d.class_id][rank].fp++;    // false-positive
 		}
 
-		for (int i = 0; i < shared_info.number_of_classes; ++i)
+		for (int i = 0; i < shared_info.number_of_classes and cfg_and_state.must_immediately_exit == false; ++i)
 		{
 			const int tp = pr[i][rank].tp;
 			const int fp = pr[i][rank].fp;
@@ -840,7 +867,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	double mean_average_precision = 0.0;
 
 	// ---- Per-class AP + reporting (no TN/accuracy/specificity) ----
-	for (int class_idx = 0; class_idx < shared_info.number_of_classes; ++class_idx)
+	for (int class_idx = 0; class_idx < shared_info.number_of_classes and cfg_and_state.must_immediately_exit == false; ++class_idx)
 	{
 		double avg_precision = 0.0;
 
@@ -861,7 +888,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			// VOC2010 / AUC of the precision envelope
 			double last_recall = pr[class_idx][shared_info.box_probabilities.size() - 1].recall;
 			double last_precision = pr[class_idx][shared_info.box_probabilities.size() - 1].precision;
-			for (int rank = shared_info.box_probabilities.size() - 2; rank >= 0; --rank)
+			for (int rank = shared_info.box_probabilities.size() - 2; rank >= 0 and cfg_and_state.must_immediately_exit == false; --rank)
 			{
 				double delta_recall = last_recall - pr[class_idx][rank].recall;
 				last_recall = pr[class_idx][rank].recall;
@@ -885,11 +912,11 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 				darknet_fatal_error(DARKNET_LOC, "map_points must be >= 2 (e.g., 11 or 101).");
 			}
 
-			for (int point = 0; point < map_points; ++point)
+			for (int point = 0; point < map_points and cfg_and_state.must_immediately_exit == false; ++point)
 			{
 				double cur_recall = (map_points == 1) ? 0.0 : (point * 1.0 / (map_points - 1));
 				double cur_precision = 0.0;
-				for (int rank = 0; rank < shared_info.box_probabilities.size(); ++rank)
+				for (int rank = 0; rank < shared_info.box_probabilities.size() and cfg_and_state.must_immediately_exit == false; ++rank)
 				{
 					if (pr[class_idx][rank].recall		>= cur_recall and
 						pr[class_idx][rank].precision	> cur_precision)
@@ -933,11 +960,10 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 				<< "  -- -------------------- -------- ------- ------- ------- ------- ------- -------"	<< std::endl;
 		}
 
-		// Colored row
 		*cfg_and_state.output
 			<< Darknet::format_map_ap_row_values(
-				class_idx,								// class_id
-				shared_info.net.details->class_names[class_idx],	// name
+				class_idx,						// class_id
+				shared_info.net.details->class_names[class_idx], // name
 				(float)avg_precision,			// AP
 				tp_final,						// TP
 				tn_final,						// TN
