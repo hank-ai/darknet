@@ -990,6 +990,7 @@ void Darknet::load_single_image_data(load_args args)
 		case IMAGE_DATA:
 		{
 			// 2024:  used in coco.cpp, detector.cpp, yolo.cpp
+			/// @todo 2025-11-19: Why not call Darknet::load_image() with the desired width/height?  Darknet::resize_image() is slower than OpenCV.
 			*(args.im) = Darknet::load_image(args.path, 0, 0, args.c);
 			*(args.resized) = Darknet::resize_image(*(args.im), args.w, args.h);
 			break;

@@ -168,13 +168,9 @@ namespace
 		{
 			cfg_and_state.set_thread_name("detector map image loading thread #" + std::to_string(loading_thread_id));
 
-			load_args args	= {0};
-			args.w			= shared_info.net.w;
-			args.h			= shared_info.net.h;
-			args.c			= shared_info.net.c;
-			args.type		= shared_info.net.letter_box ? LETTERBOX_DATA : IMAGE_DATA;
-
-			Darknet::Image image_buffer = {0};
+			const int w = shared_info.net.w;
+			const int h = shared_info.net.h;
+			const int c = shared_info.net.c;
 
 			for (auto iter = shared_info.validation_image_filenames[loading_thread_id].begin(); iter != shared_info.validation_image_filenames[loading_thread_id].end() and cfg_and_state.must_immediately_exit == false; iter ++)
 			{
@@ -203,14 +199,9 @@ namespace
 					*cfg_and_state.output << "-> " << shared_info.count_load_performed << ": loading " << fn.string() << std::endl;
 				}
 
-				WorkUnit work;
-
 				// load the image and resize it to match the network dimensions
-				args.path = iter->c_str();
-				args.im = &image_buffer;
-				args.resized = &work.img;
-				Darknet::load_single_image_data(args); /// @todo 2025-11-18 follow this function to see what can be optimized
-				Darknet::free_image(image_buffer);
+				WorkUnit work;
+				work.img = Darknet::load_image(iter->c_str(), w, h, c);
 
 				std::lock_guard lock(shared_info.work_ready_for_predictions_mutex);
 				shared_info.work_ready_for_predictions[*iter] = work;
