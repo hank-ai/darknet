@@ -1467,14 +1467,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(const size_t i
 	 *			This is an affine transform that “stretches” and “recenters” the sigmoid output,
 	 *			giving a bit of extra range outside the cell.
 	 */
-
-	const float variance = 0.05f;
+	const float variance	= 0.05f;
+	const auto const_1_050	= add_const_float_tensor(format_name(index, section.type), 1.0f + variance);
+	const auto const_0_025	= add_const_float_tensor(format_name(index, section.type), variance / 2.0f);
 
 	// multiply by 1.05
 	node = graph->add_node();
 	node->add_input(name); // input is the name of the previous node
 	name = format_name(index, section.type) + "_mul_tx_ty";
-	node->add_input(add_const_float_tensor(name, 1.0f + variance));
+	node->add_input(const_1_050);
 	node->add_output(name);
 	node->set_name(name);
 	node->set_op_type("Mul");
@@ -1488,7 +1489,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(const size_t i
 	node = graph->add_node();
 	node->add_input(name); // input is the name of the previous node
 	name = format_name(index, section.type) + "_sub_tx_ty";
-	node->add_input(add_const_float_tensor(name, variance / 2.0f));
+	node->add_input(const_0_025);
 	node->add_output(name);
 	node->set_name(name);
 	node->set_op_type("Sub");
