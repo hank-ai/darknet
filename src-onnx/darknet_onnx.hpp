@@ -38,8 +38,9 @@ namespace Darknet
 
 			ONNXExport & populate_input_output_dimensions(onnx::ValueInfoProto * proto, const std::string & name, const int v1, const int v2=-1, const int v3=-1, const int v4=-1, const size_t line_number=0);
 			ONNXExport & populate_graph_input_frame();
-			ONNXExport & populate_graph_output();
+			ONNXExport & populate_graph_YOLO_output();
 			ONNXExport & populate_graph_nodes();
+			ONNXExport & populate_graph_postprocess_boxes();
 
 			ONNXExport & add_node_conv			(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_shortcut		(const size_t index, Darknet::CfgSection & section);
@@ -52,6 +53,14 @@ namespace Darknet
 			ONNXExport & add_node_yolo			(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_resize		(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_bn			(const size_t index, Darknet::CfgSection & section);
+
+			// post-processing boxes
+
+			ONNXExport & postprocess_yolo_tx_ty	(const size_t index, Darknet::CfgSection & section);
+
+			ONNXExport & add_node_yolo_slice		(const size_t index, Darknet::CfgSection & section);
+			ONNXExport & add_node_concat_yolo_slices(const size_t index, Darknet::CfgSection & section, const int i1, const int i2, const int i3);
+			ONNXExport & add_node_yolo_0_4_8		(const size_t index, Darknet::CfgSection & section);
 
 			ONNXExport & populate_graph_initializer(const float * f, const size_t n, const size_t idx, const Darknet::Layer & l, const std::string & name, const bool simple = false);
 			ONNXExport & build_model();
@@ -80,7 +89,7 @@ namespace Darknet
 			/// The dimensions used in @ref populate_graph_input_frame().
 			std::string input_string;
 
-			/// The output nodes for this neural network.
+			/// The names of the output nodes for this neural network.
 			std::string output_string;
 
 			/// Keep track of the single most recent output name for each of the layers.
