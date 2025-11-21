@@ -1357,60 +1357,111 @@ std::string Darknet::ONNXExport::add_const_float_tensor(const std::string & stem
 }
 
 
-Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(const size_t index, Darknet::CfgSection & section)
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_split_and_concat(const size_t index, Darknet::CfgSection & section)
 {
 	const auto number_of_classes = section.find_int("classes");
 	const auto number_of_anchors = section.find_int("num") / 2;
-	Darknet::VStr outputs;
 
-	for (int anchor = 0; anchor < number_of_anchors; anchor ++) // normally there are 3 anchors per YOLO node
+	/* We'll use the LEGO project as an example, which has 5 classes.  So each anchor feature vector looks like this:
+	 *
+	 *		[ 0=tx, 1=ty, 2=tw, 3=th, 4=to, 5=class0, 6=class1, 7=class2, 8=class3, 9=class4 ]
+	 *
+	 * We need to split things as follows:
+	 *
+	 *		1) tx and ty are grouped together
+	 *		2) tw and th are grouped together
+	 *		3) objectness is processed by itself
+	 *		4) all class probabilities are grouped together
+	 *
+	 * So for each anchor we'll have a "Split" node.  That means with 3 anchors, we'll have 12 ONNX "Split" nodes.
+	 * (3 anchors * 4 things = 12 nodes)
+	 *
+	 * Once we're done splitting everything, then we concat the nodes back into 4 groups.  The final node names (and output
+	 * names) will look similar to this:
+	 *
+	 *		1) 37_yolo_concat_tx_ty
+	 *		2) 37_yolo_concat_tw_th
+	 *		3) 37_yolo_concat_obj
+	 *		4) 37_yolo_concat_probabilities
+	 */
+	struct Splits
 	{
-		/* We'll use the LEGO project as an example, which has 5 classes.  So each anchor feature vector looks like this:
-		 *
-		 *		[ 0=tx, 1=ty, 2=tw, 3=th, 4=to, 5=class0, 6=class1, 7=class2, 8=class3, 9=class4 ]
-		 *
-		 * Anchors uses 10 channels each:
-		 * - anchor 0 uses 0-9
-		 * - anchor 1 uses 10-19
-		 * - anchor 2 uses 20-29
-		 *
-		 * Indices 0..1:  tx,ty for anchor 0
-		 * Indices 10-11:  tx,ty for anchor 1
-		 * Indices 20-21:  tx,ty for anchor 2
-		 */
-		const int starts = anchor * (5 + number_of_classes); // 5 refers to the 5 fields always present:  tx, ty, tw, th, and objectness
-		const auto name = format_name(index, section.type) + "_slice_tx_ty_" + std::to_string(starts);
-		const auto doc_string = "post-processing: tx & ty [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + ", anchor=" + std::to_string(anchor) + ", classes=" + std::to_string(number_of_classes) + ", start=" + std::to_string(starts) + "]";
+		std::string name;
+		int start_index;
+		int end_index;
+	};
+	const std::vector<Splits> v =
+	{
+		{"tx_ty"		, 0, 2					},
+		{"tw_th"		, 2, 2					},
+		{"obj"			, 4, 1					},
+		{"probabilities", 5, number_of_classes	}
+	};
+	for (const auto & split : v)
+	{
+		Darknet::VStr outputs;
 
-		auto node = graph->add_node();
-		node->set_op_type("Slice");
-		node->set_doc_string(doc_string);
-		node->set_name(name);
-		node->add_output(name);
-		outputs.push_back(name);
+		for (int anchor = 0; anchor < number_of_anchors; anchor ++) // normally there are 3 anchors per YOLO node
+		{
+			const int starts	= split.start_index + anchor * (5 + number_of_classes); // 5 refers to the 5 fields always present:  tx, ty, tw, th, and objectness
+			const int ends		= split.end_index + starts;
+			const auto name		= format_name(index, section.type) + "_slice_" + split.name + "_" + std::to_string(starts);
+			const auto doc		= "post-processing: " + split.name + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + ", anchor=" + std::to_string(anchor) + ", classes=" + std::to_string(number_of_classes) + ", start=" + std::to_string(starts) + "]";
 
-		const std::map<std::string, int> initializers =
-		{
-			{name + "_1_starts"	, starts},
-			{name + "_2_ends"	, 2}, // 2 because one each for tx & ty
-			{name + "_3_axes"	, 1},
-			{name + "_4_steps"	, 1}
-		};
-		for (const auto & [key, val] : initializers)
-		{
-			onnx::TensorProto * initializer = graph->add_initializer();
-			initializer->set_data_type(onnx::TensorProto::INT32);
-			initializer->set_name(key);
-			initializer->set_doc_string(doc_string);
-			initializer->add_dims(1);
-			initializer->add_int32_data(val);
+			auto node = graph->add_node();
+			node->set_op_type("Slice");
+			node->set_doc_string(doc);
+			node->set_name(name);
+			node->add_output(name);
+			outputs.push_back(name);
+
+			const std::map<std::string, int> initializers =
+			{
+				{name + "_1_starts"	, starts},
+				{name + "_2_ends"	, ends},
+				{name + "_3_axes"	, 1},
+				{name + "_4_steps"	, 1}
+			};
+			for (const auto & [key, val] : initializers)
+			{
+				onnx::TensorProto * initializer = graph->add_initializer();
+				initializer->set_data_type(onnx::TensorProto::INT32);
+				initializer->set_name(key);
+				initializer->set_doc_string(doc);
+				initializer->add_dims(1);
+				initializer->add_int32_data(val);
+			}
+
+			node->add_input(most_recent_output_per_index[index - 1]);
+			node->add_input(name + "_1_starts"	);
+			node->add_input(name + "_2_ends"	);
+			node->add_input(name + "_3_axes"	);
+			node->add_input(name + "_4_steps"	);
+
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "=> " << node->name() << std::endl;
+			}
 		}
 
-		node->add_input(most_recent_output_per_index[index - 1]);
-		node->add_input(name + "_1_starts"	);
-		node->add_input(name + "_2_ends"	);
-		node->add_input(name + "_3_axes"	);
-		node->add_input(name + "_4_steps"	);
+		// now we re-combine all similar outputs from each anchor
+
+		const auto doc = "post-processing: " + split.name + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]";
+
+		auto name = format_name(index, section.type) + "_concat_" + split.name;
+		auto node = graph->add_node();
+		node->set_op_type("Concat");
+		node->set_name(name);
+		for (const auto & out : outputs)
+		{
+			node->add_input(out);
+		}
+		node->add_output(name);
+
+		auto attrib = node->add_attribute();
+		attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
+		attrib->set_i(1); // 1 == concat on channel axis
+		attrib->set_type(onnx::AttributeProto::INT);
 
 		if (cfg_and_state.is_verbose)
 		{
@@ -1418,44 +1469,29 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(const size_t i
 		}
 	}
 
-	// now we re-combine all 3 outputs to get:
-	//
-	//		[tx0, ty0, tx1, ty1, tx2, ty2]
+	return *this;
+}
 
-	const auto doc_string = "post-processing: tx & ty [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]";
 
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(const size_t index, Darknet::CfgSection & section)
+{
+	// This assumes that postprocess_yolo_split_and_concat() has already run, and we have the "concat_tx_ty" node ready to use.
 	auto name = format_name(index, section.type) + "_concat_tx_ty";
-	auto node = graph->add_node();
-	node->set_op_type("Concat");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	for (const auto & out : outputs)
-	{
-		node->add_input(out);
-	}
-	node->add_output(name);
-
-	auto attrib = node->add_attribute();
-	attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
-	attrib->set_i(1); // 1 == concat on channel axis
-	attrib->set_type(onnx::AttributeProto::INT);
 
 	// sigmoid brings the values into a range between zero and one
 
-	node = graph->add_node();
+	const auto doc_string = "post-processing: tx & ty [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]";
+	auto node = graph->add_node();
 	node->add_input(name); // input is the name of the previous node
 	name = format_name(index, section.type) + "_sigmoid_tx_ty";
 	node->set_op_type("Sigmoid");
 	node->set_doc_string(doc_string);
 	node->set_name(name);
+	node->add_output(name);
 	if (cfg_and_state.is_verbose)
 	{
 		*cfg_and_state.output << "=> " << node->name() << std::endl;
 	}
-	node->add_output(name);
 
 	/* ...but instead of [0, 1], we actually want [-0.025, 1.025].  So we need to scale up by 1.05,
 	 * and then subtract half to ensure the center points are still located at the right place.
@@ -1505,88 +1541,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(const size_t i
 
 Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tw_th(const size_t index, Darknet::CfgSection & section)
 {
-	// similar to postprocess_yolo_tx_ty() but tw and th follow the next indices
-
-	const auto number_of_classes = section.find_int("classes");
-	const auto number_of_anchors = section.find_int("num") / 2;
-	Darknet::VStr outputs;
-
-	for (int anchor = 0; anchor < number_of_anchors; anchor ++) // normally there are 3 anchors per YOLO node
-	{
-		/* We'll use the LEGO project as an example, which has 5 classes.  So each anchor feature vector looks like this:
-		 *
-		 *		[ 0=tx, 1=ty, 2=tw, 3=th, 4=to, 5=class0, 6=class1, 7=class2, 8=class3, 9=class4 ]
-		 *
-		 * What we're looking for here is tw and th in indices 2 and 3.
-		 */
-		const int starts = anchor * (5 + number_of_classes) + 2; // 5 refers to the 5 fields always present:  tx, ty, tw, th, and objectness
-		const auto name = format_name(index, section.type) + "_slice_tw_th_" + std::to_string(starts);
-		const auto doc_string = "post-processing: tw & th [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + ", anchor=" + std::to_string(anchor) + ", classes=" + std::to_string(number_of_classes) + ", start=" + std::to_string(starts) + "]";
-
-		auto node = graph->add_node();
-		node->set_op_type("Slice");
-		node->set_doc_string(doc_string);
-		node->set_name(name);
-		node->add_output(name);
-		outputs.push_back(name);
-
-		const std::map<std::string, int> initializers =
-		{
-			{name + "_1_starts"	, starts},
-			{name + "_2_ends"	, 2}, // 2 because one each for tw & th
-			{name + "_3_axes"	, 1},
-			{name + "_4_steps"	, 1}
-		};
-		for (const auto & [key, val] : initializers)
-		{
-			onnx::TensorProto * initializer = graph->add_initializer();
-			initializer->set_data_type(onnx::TensorProto::INT32);
-			initializer->set_name(key);
-			initializer->set_doc_string(doc_string);
-			initializer->add_dims(1);
-			initializer->add_int32_data(val);
-		}
-
-		node->add_input(most_recent_output_per_index[index - 1]);
-		node->add_input(name + "_1_starts"	);
-		node->add_input(name + "_2_ends"	);
-		node->add_input(name + "_3_axes"	);
-		node->add_input(name + "_4_steps"	);
-
-		if (cfg_and_state.is_verbose)
-		{
-			*cfg_and_state.output << "=> " << node->name() << std::endl;
-		}
-	}
-
-	// now we re-combine all 3 outputs to get:
-	//
-	//		[tw0, th0, tw1, th1, tw2, th2]
-
-	const auto doc_string = "post-processing: tw & th [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]";
-
+	// This assumes that postprocess_yolo_split_and_concat() has already run, and we have the "concat_tw_th" node ready to use.
 	auto name = format_name(index, section.type) + "_concat_tw_th";
-	auto node = graph->add_node();
-	node->set_op_type("Concat");
-	node->set_doc_string(doc_string);
-	node->set_name(name);
-	for (const auto & out : outputs)
-	{
-		node->add_input(out);
-	}
-	node->add_output(name);
-	auto attrib = node->add_attribute();
-	attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
-	attrib->set_i(1); // 1 == concat on channel axis
-	attrib->set_type(onnx::AttributeProto::INT);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
 
-	node = graph->add_node();
+	auto node = graph->add_node();
 	node->set_op_type("Exp");
-	node->set_doc_string(doc_string);
+	node->set_doc_string("post-processing: tw & th [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
 	node->add_input(name);
 	name = format_name(index, section.type) + "_exp_tw_th";
 	node->add_output(name);
@@ -1596,6 +1556,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tw_th(const size_t i
 		*cfg_and_state.output << "=> " << node->name() << std::endl;
 	}
 
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(const size_t index, Darknet::CfgSection & section)
+{
 	return *this;
 }
 
@@ -1615,9 +1581,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_postprocess_boxes()
 		auto & section = cfg.sections[idx];
 		if (section.type == Darknet::ELayerType::YOLO)
 		{
+			postprocess_yolo_split_and_concat(idx, section);
 			postprocess_yolo_tx_ty(idx, section);
 			postprocess_yolo_tw_th(idx, section);
-//			postprocess_yolo_to(idx, section);
+			postprocess_yolo_to(idx, section);
 //			postprocess_yolo_classes(idx, section);
 		}
 	}
