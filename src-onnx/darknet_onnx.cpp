@@ -1503,6 +1503,103 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(const size_t i
 }
 
 
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tw_th(const size_t index, Darknet::CfgSection & section)
+{
+	// similar to postprocess_yolo_tx_ty() but tw and th follow the next indices
+
+	const auto number_of_classes = section.find_int("classes");
+	const auto number_of_anchors = section.find_int("num") / 2;
+	Darknet::VStr outputs;
+
+	for (int anchor = 0; anchor < number_of_anchors; anchor ++) // normally there are 3 anchors per YOLO node
+	{
+		/* We'll use the LEGO project as an example, which has 5 classes.  So each anchor feature vector looks like this:
+		 *
+		 *		[ 0=tx, 1=ty, 2=tw, 3=th, 4=to, 5=class0, 6=class1, 7=class2, 8=class3, 9=class4 ]
+		 *
+		 * What we're looking for here is tw and th in indices 2 and 3.
+		 */
+		const int starts = anchor * (5 + number_of_classes) + 2; // 5 refers to the 5 fields always present:  tx, ty, tw, th, and objectness
+		const auto name = format_name(index, section.type) + "_slice_tw_th_" + std::to_string(starts);
+		const auto doc_string = "post-processing: tw & th [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + ", anchor=" + std::to_string(anchor) + ", classes=" + std::to_string(number_of_classes) + ", start=" + std::to_string(starts) + "]";
+
+		auto node = graph->add_node();
+		node->set_op_type("Slice");
+		node->set_doc_string(doc_string);
+		node->set_name(name);
+		node->add_output(name);
+		outputs.push_back(name);
+
+		const std::map<std::string, int> initializers =
+		{
+			{name + "_1_starts"	, starts},
+			{name + "_2_ends"	, 2}, // 2 because one each for tw & th
+			{name + "_3_axes"	, 1},
+			{name + "_4_steps"	, 1}
+		};
+		for (const auto & [key, val] : initializers)
+		{
+			onnx::TensorProto * initializer = graph->add_initializer();
+			initializer->set_data_type(onnx::TensorProto::INT32);
+			initializer->set_name(key);
+			initializer->set_doc_string(doc_string);
+			initializer->add_dims(1);
+			initializer->add_int32_data(val);
+		}
+
+		node->add_input(most_recent_output_per_index[index - 1]);
+		node->add_input(name + "_1_starts"	);
+		node->add_input(name + "_2_ends"	);
+		node->add_input(name + "_3_axes"	);
+		node->add_input(name + "_4_steps"	);
+
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "=> " << node->name() << std::endl;
+		}
+	}
+
+	// now we re-combine all 3 outputs to get:
+	//
+	//		[tw0, th0, tw1, th1, tw2, th2]
+
+	const auto doc_string = "post-processing: tw & th [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]";
+
+	auto name = format_name(index, section.type) + "_concat_tw_th";
+	auto node = graph->add_node();
+	node->set_op_type("Concat");
+	node->set_doc_string(doc_string);
+	node->set_name(name);
+	for (const auto & out : outputs)
+	{
+		node->add_input(out);
+	}
+	node->add_output(name);
+	auto attrib = node->add_attribute();
+	attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
+	attrib->set_i(1); // 1 == concat on channel axis
+	attrib->set_type(onnx::AttributeProto::INT);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
+
+	node = graph->add_node();
+	node->set_op_type("Exp");
+	node->set_doc_string(doc_string);
+	node->add_input(name);
+	name = format_name(index, section.type) + "_exp_tw_th";
+	node->add_output(name);
+	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
+
+	return *this;
+}
+
+
 Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_postprocess_boxes()
 {
 	TAT(TATPARMS);
@@ -1519,7 +1616,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_postprocess_boxes()
 		if (section.type == Darknet::ELayerType::YOLO)
 		{
 			postprocess_yolo_tx_ty(idx, section);
-//			postprocess_yolo_tw_th(idx, section);
+			postprocess_yolo_tw_th(idx, section);
 //			postprocess_yolo_to(idx, section);
 //			postprocess_yolo_classes(idx, section);
 		}

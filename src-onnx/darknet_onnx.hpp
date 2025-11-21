@@ -59,8 +59,9 @@ namespace Darknet
 
 			// post-processing boxes
 
-			std::string add_const_float_tensor(const std::string & stem, const float & f);
+			std::string add_const_float_tensor	(const std::string & stem, const float & f);
 			ONNXExport & postprocess_yolo_tx_ty	(const size_t index, Darknet::CfgSection & section);
+			ONNXExport & postprocess_yolo_tw_th	(const size_t index, Darknet::CfgSection & section);
 
 			/// Save the entire model as an .onnx file.
 			ONNXExport & save_output_file();
