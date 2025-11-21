@@ -54,16 +54,13 @@ namespace Darknet
 			ONNXExport & add_node_resize		(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_bn			(const size_t index, Darknet::CfgSection & section);
 
-			// post-processing boxes
-
-			ONNXExport & postprocess_yolo_tx_ty	(const size_t index, Darknet::CfgSection & section);
-
-			ONNXExport & add_node_yolo_slice		(const size_t index, Darknet::CfgSection & section);
-			ONNXExport & add_node_concat_yolo_slices(const size_t index, Darknet::CfgSection & section, const int i1, const int i2, const int i3);
-			ONNXExport & add_node_yolo_0_4_8		(const size_t index, Darknet::CfgSection & section);
-
 			ONNXExport & populate_graph_initializer(const float * f, const size_t n, const size_t idx, const Darknet::Layer & l, const std::string & name, const bool simple = false);
 			ONNXExport & build_model();
+
+			// post-processing boxes
+
+			std::string add_const_float_tensor(const std::string & stem, const float & f);
+			ONNXExport & postprocess_yolo_tx_ty	(const size_t index, Darknet::CfgSection & section);
 
 			/// Save the entire model as an .onnx file.
 			ONNXExport & save_output_file();

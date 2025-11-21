@@ -1330,6 +1330,33 @@ Darknet::ONNXExport & Darknet::ONNXExport::save_output_file()
 /* ********************* */
 
 
+std::string Darknet::ONNXExport::add_const_float_tensor(const std::string & stem, const float & f)
+{
+	std::stringstream ss;
+	ss << stem << "_constant_" << std::fixed << std::setprecision(3) << f;
+	const std::string name = ss.str();
+	const std::string doc_string = "constant single float tensor used by " + stem;
+
+	onnx::TensorProto tensor;
+	tensor.set_name(name);
+	tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+	tensor.add_float_data(f);
+	tensor.set_doc_string(doc_string);
+
+	auto node = graph->add_node();
+	node->set_name(name);
+	node->set_op_type("Constant");
+	node->add_output(name);
+	node->set_doc_string(doc_string);
+	auto attr = node->add_attribute();
+	attr->set_name("value");
+	attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+	*attr->mutable_t() = tensor;
+
+	return name;
+}
+
+
 Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(const size_t index, Darknet::CfgSection & section)
 {
 	const auto number_of_classes = section.find_int("classes");
@@ -1443,26 +1470,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(const size_t i
 
 	const float variance = 0.05f;
 
-	// create a constant for 1.05
-	onnx::TensorProto tensor_1_05;
-	tensor_1_05.set_name("constant_1_05");
-	tensor_1_05.set_data_type(onnx::TensorProto_DataType_FLOAT);
-	tensor_1_05.add_float_data(1.0f + variance);
-	const std::string constant_1_05 = format_name(index, section.type) + "_constant_1_05";
-	node = graph->add_node();
-	node->set_name(constant_1_05);
-	node->set_op_type("Constant");
-	node->add_output(constant_1_05);
-	auto attr_1_05 = node->add_attribute();
-	attr_1_05->set_name("value");
-	attr_1_05->set_type(onnx::AttributeProto_AttributeType_TENSOR);
-	*attr_1_05->mutable_t() = tensor_1_05;
-
 	// multiply by 1.05
 	node = graph->add_node();
 	node->add_input(name); // input is the name of the previous node
 	name = format_name(index, section.type) + "_mul_tx_ty";
-	node->add_input(constant_1_05);
+	node->add_input(add_const_float_tensor(name, 1.0f + variance));
 	node->add_output(name);
 	node->set_name(name);
 	node->set_op_type("Mul");
@@ -1472,26 +1484,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(const size_t i
 		*cfg_and_state.output << "=> " << node->name() << std::endl;
 	}
 
-	// create a constant for 0.025
-	onnx::TensorProto tensor_0_025;
-	tensor_0_025.set_name("constant_0_025");
-	tensor_0_025.set_data_type(onnx::TensorProto_DataType_FLOAT);
-	tensor_0_025.add_float_data(variance / 2.0f);
-	const std::string constant_0_025 = format_name(index, section.type) + "_constant_0_025";
-	node = graph->add_node();
-	node->set_name(constant_0_025);
-	node->set_op_type("Constant");
-	node->add_output(constant_0_025);
-	auto attr_0_025 = node->add_attribute();
-	attr_0_025->set_name("value");
-	attr_0_025->set_type(onnx::AttributeProto_AttributeType_TENSOR);
-	*attr_0_025->mutable_t() = tensor_0_025;
-
 	// shift by -0.025
 	node = graph->add_node();
 	node->add_input(name); // input is the name of the previous node
 	name = format_name(index, section.type) + "_sub_tx_ty";
-	node->add_input(constant_0_025);
+	node->add_input(add_const_float_tensor(name, variance / 2.0f));
 	node->add_output(name);
 	node->set_name(name);
 	node->set_op_type("Sub");
