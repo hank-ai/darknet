@@ -1357,10 +1357,45 @@ std::string Darknet::ONNXExport::add_const_float_tensor(const std::string & stem
 }
 
 
+std::string Darknet::ONNXExport::add_const_ints_tensor(const std::string & stem, const std::vector<int> & v)
+{
+	std::stringstream ss;
+	ss << stem << "_constant";
+	for (const auto & i : v)
+	{
+		ss << "_" << i;
+	}
+	const std::string name = ss.str();
+	const std::string doc_string = "constant int tensor used by " + stem;
+
+	onnx::TensorProto tensor;
+	tensor.set_name(name);
+	tensor.set_data_type(onnx::TensorProto_DataType_INT64);
+	tensor.add_dims(v.size());
+	for (const auto & i : v)
+	{
+		tensor.add_int64_data(i);
+	}
+	tensor.set_doc_string(doc_string);
+
+	auto node = graph->add_node();
+	node->set_name(name);
+	node->set_op_type("Constant");
+	node->add_output(name);
+	node->set_doc_string(doc_string);
+	auto attr = node->add_attribute();
+	attr->set_name("value");
+	attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+	*attr->mutable_t() = tensor;
+
+	return name;
+}
+
+
 Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_split_and_concat(const size_t index, Darknet::CfgSection & section)
 {
-	const auto number_of_classes = section.find_int("classes");
-	const auto number_of_anchors = section.find_int("num") / 2;
+	const int number_of_classes = section.find_int("classes");
+	const int number_of_anchors = section.find_int_array("mask").size(); // not a typo...the masks determines which anchors are used
 
 	/* We'll use the LEGO project as an example, which has 5 classes.  So each anchor feature vector looks like this:
 	 *
@@ -1562,6 +1597,56 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tw_th(const size_t i
 
 Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(const size_t index, Darknet::CfgSection & section)
 {
+	// This assumes that postprocess_yolo_split_and_concat() has already run, and we have the "concat_to" node ready to use.
+
+	const auto & l					= cfg.net.layers[index];
+	auto name						= format_name(index, section.type) + "_reshape_obj_pre";
+	const int number_of_anchors		= section.find_int_array("mask").size(); // not a typo...the masks determines which anchors are used
+	const int size					= number_of_anchors * l.w * l.h;
+	std::vector<int> v				= {1, size};
+	auto reshape_size_pre			= add_const_ints_tensor(name, v);
+	const auto doc_string			= "post-processing: to [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]";
+
+	auto node = graph->add_node();
+	node->set_op_type("Reshape");
+	node->set_doc_string(doc_string);
+	node->add_input(format_name(index, section.type) + "_concat_obj");
+	node->add_input(reshape_size_pre);
+	node->add_output(name);
+	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
+
+	node = graph->add_node();
+	node->add_input(name); // input is the name of the previous node
+	name = format_name(index, section.type) + "_sigmoid_obj";
+	node->set_op_type("Sigmoid");
+	node->set_doc_string(doc_string);
+	node->set_name(name);
+	node->add_output(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
+
+	name					= format_name(index, section.type) + "_reshape_obj_post";
+	v.push_back(1);
+	auto reshape_size_post	= add_const_ints_tensor(name, v);
+
+	node = graph->add_node();
+	node->set_op_type("Reshape");
+	node->set_doc_string(doc_string);
+	node->add_input(format_name(index, section.type) + "_sigmoid_obj");
+	node->add_input(reshape_size_post);
+	node->add_output(name);
+	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
+
 	return *this;
 }
 

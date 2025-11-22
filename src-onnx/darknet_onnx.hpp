@@ -60,6 +60,7 @@ namespace Darknet
 			// post-processing boxes
 
 			std::string add_const_float_tensor	(const std::string & stem, const float & f);
+			std::string add_const_ints_tensor	(const std::string & stem, const std::vector<int> & v);
 			ONNXExport & postprocess_yolo_split_and_concat(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & postprocess_yolo_tx_ty	(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & postprocess_yolo_tw_th	(const size_t index, Darknet::CfgSection & section);
