@@ -40,7 +40,7 @@ namespace Darknet
 			ONNXExport & populate_graph_input_frame();
 			ONNXExport & populate_graph_YOLO_output();
 			ONNXExport & populate_graph_nodes();
-			ONNXExport & populate_graph_postprocess_boxes();
+			ONNXExport & populate_graph_postprocess();
 
 			ONNXExport & add_node_conv			(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_shortcut		(const size_t index, Darknet::CfgSection & section);
@@ -65,6 +65,8 @@ namespace Darknet
 			ONNXExport & postprocess_yolo_tx_ty	(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & postprocess_yolo_tw_th	(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & postprocess_yolo_to	(const size_t index, Darknet::CfgSection & section);
+			ONNXExport & postprocess_yolo_class	(const size_t index, Darknet::CfgSection & section);
+			ONNXExport & postprocess_yolo_confs	();
 
 			/// Save the entire model as an .onnx file.
 			ONNXExport & save_output_file();

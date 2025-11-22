@@ -1292,7 +1292,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::build_model()
 
 	if (postprocess_boxes)
 	{
-		populate_graph_postprocess_boxes();
+		populate_graph_postprocess();
 	}
 	else
 	{
@@ -1417,7 +1417,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_split_and_concat(con
 	 *		1) 37_yolo_concat_tx_ty
 	 *		2) 37_yolo_concat_tw_th
 	 *		3) 37_yolo_concat_obj
-	 *		4) 37_yolo_concat_probabilities
+	 *		4) 37_yolo_concat_class
 	 */
 	struct Splits
 	{
@@ -1427,10 +1427,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_split_and_concat(con
 	};
 	const std::vector<Splits> v =
 	{
-		{"tx_ty"		, 0, 2					},
-		{"tw_th"		, 2, 2					},
-		{"obj"			, 4, 1					},
-		{"probabilities", 5, number_of_classes	}
+		{"tx_ty", 0, 2					},
+		{"tw_th", 2, 2					},
+		{"obj"	, 4, 1					},
+		{"class", 5, number_of_classes	}	// probability for each individual class
 	};
 	for (const auto & split : v)
 	{
@@ -1651,7 +1651,185 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(const size_t inde
 }
 
 
-Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_postprocess_boxes()
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_class(const size_t index, Darknet::CfgSection & section)
+{
+	// This assumes that postprocess_yolo_split_and_concat() has already run, and we have the "concat_class" node ready to use.
+
+	auto name					= format_name(index, section.type) + "_reshape_class_pre";
+	const auto & l				= cfg.net.layers[index];
+	const int number_of_classes	= section.find_int("classes");
+	const int number_of_anchors	= section.find_int_array("mask").size(); // not a typo...the masks determines which anchors are used
+	std::vector<int> v			= {1, number_of_anchors, number_of_classes, l.w * l.h};
+	const auto reshape_size_pre	= add_const_ints_tensor(name, v);
+	const auto doc_string		= "post-processing: class [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]";
+
+	auto node = graph->add_node();
+	node->set_op_type("Reshape");
+	node->set_doc_string(doc_string);
+	node->add_input(format_name(index, section.type) + "_concat_class");
+	node->add_input(reshape_size_pre);
+	node->add_output(name);
+	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
+
+	node = graph->add_node();
+	node->set_op_type("Transpose");
+	node->set_doc_string(doc_string);
+	node->add_input(name); // previous node name
+	name = format_name(index, section.type) + "_transpose_class";
+	node->add_output(name);
+	node->set_name(name);
+	auto attrib = node->add_attribute();
+	attrib->set_name("perm");
+	attrib->add_ints(0);
+	attrib->add_ints(1);
+	attrib->add_ints(3);
+	attrib->add_ints(2);
+	attrib->set_type(onnx::AttributeProto::INTS);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
+
+	name = format_name(index, section.type) + "_reshape_class_post";
+	v = {1, number_of_anchors * l.w * l.h, number_of_classes};
+	const auto reshape_size_post = add_const_ints_tensor(name, v);
+
+	node = graph->add_node();
+	node->set_op_type("Reshape");
+	node->set_doc_string(doc_string);
+	node->add_input(format_name(index, section.type) + "_transpose_class");
+	node->add_input(reshape_size_post);
+	node->add_output(name);
+	node->set_name(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
+
+	node = graph->add_node();
+	node->add_input(name); // input is the name of the previous node
+	name = format_name(index, section.type) + "_sigmoid_class";
+	node->set_op_type("Sigmoid");
+	node->set_doc_string(doc_string);
+	node->set_name(name);
+	node->add_output(name);
+	if (cfg_and_state.is_verbose)
+	{
+		*cfg_and_state.output << "=> " << node->name() << std::endl;
+	}
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs()
+{
+	// every YOLO layer has "classes" and "objectness" which are combined together to produce the final confidence values
+
+	Darknet::VStr v;
+
+	int number_of_classes		= 0;
+	int number_of_boxes			= 0;
+	int number_of_yolo_layers	= 0;
+
+	// start at 1 since we reference "idx - 1" below which would be a problem if idx was zero
+	// (and YOLO cannot be first layer anyway!)
+	for (int idx = 1; idx < cfg.net.n; idx ++)
+	{
+		auto & section = cfg.sections[idx];
+		if (section.type != Darknet::ELayerType::YOLO)
+		{
+			continue;
+		}
+
+		number_of_yolo_layers ++;
+		number_of_classes = section.find_int("classes");
+		const int number_of_masks = section.find_int_array("mask").size();
+		const auto & l = cfg.net.layers[idx - 1];
+		number_of_boxes += (l.w * l.h * number_of_masks);
+
+		// first combine the objectness with the classes
+		std::string name					= format_name(idx, section.type) + "_mul_confs";
+		const std::string classes_name		= format_name(idx, section.type) + "_sigmoid_class";
+		const std::string objectness_name	= format_name(idx, section.type) + "_reshape_obj_post";
+
+		auto node = graph->add_node();
+		node->set_op_type("Mul");
+		node->set_name(name);
+		node->add_input(classes_name);
+		node->add_input(objectness_name);
+		node->add_output(name);
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "=> " << node->name() << std::endl;
+		}
+
+		// remember this multiplication, because then we take those from *each* of the YOLO layers
+		v.push_back(name);
+	}
+
+	// this is where we concatenate all of the multiplications to create the final "confidence" output
+
+	std::string name = "concat_confs";
+	auto node = graph->add_node();
+	node->set_op_type("Concat");
+	node->set_name(name);
+	for (const auto & input : v)
+	{
+		node->add_input(input);
+	}
+	node->add_output("confs");
+	auto attrib = node->add_attribute();
+	attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
+	attrib->set_i(1); // 1 == concat on channel axis
+	attrib->set_type(onnx::AttributeProto::INT);
+
+	// this is one of the 2 outputs (also see "boxes")
+	//
+	// The middle value is the sum of prediction boxes across all YOLO layers.
+
+	std::stringstream ss;
+	ss << "Output of confidence values (objectness x probability) for all " << number_of_boxes << " prediction boxes";
+	if (number_of_classes < 2)
+	{
+		ss << ".";
+	}
+	else if (number_of_classes == 2)
+	{
+		ss << " and both classes.";
+	}
+	else
+	{
+		ss << " and " << number_of_classes << " classes.";
+	}
+
+	if (number_of_yolo_layers > 1)
+	{
+		ss << " This output is a combination of ";
+		if (number_of_yolo_layers == 2)
+		{
+			ss << " both YOLO layers.";
+		}
+		else
+		{
+			ss << " all " << number_of_yolo_layers << " layers.";
+		}
+	}
+
+	auto output = graph->add_output();
+	populate_input_output_dimensions(output, "confs", 1, number_of_boxes, number_of_classes);
+	output->set_doc_string(ss.str());
+	output_string += "[\"confs\"] ";
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_postprocess()
 {
 	TAT(TATPARMS);
 
@@ -1670,9 +1848,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_postprocess_boxes()
 			postprocess_yolo_tx_ty(idx, section);
 			postprocess_yolo_tw_th(idx, section);
 			postprocess_yolo_to(idx, section);
-//			postprocess_yolo_classes(idx, section);
+			postprocess_yolo_class(idx, section);
 		}
 	}
+
+	// every objectness and class chain are combined together to get the confidence values
+	postprocess_yolo_confs();
 
 	return *this;
 }
