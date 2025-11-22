@@ -67,6 +67,7 @@ namespace Darknet
 			ONNXExport & postprocess_yolo_to	(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & postprocess_yolo_class	(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & postprocess_yolo_confs	();
+			ONNXExport & postprocess_yolo_boxes	();
 
 			/// Save the entire model as an .onnx file.
 			ONNXExport & save_output_file();

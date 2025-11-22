@@ -1612,7 +1612,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(const size_t inde
 	const int size					= number_of_anchors * l.w * l.h;
 	std::vector<int> v				= {1, size};
 	auto reshape_size_pre			= add_const_ints_tensor(name, v);
-	const auto doc_string			= "post-processing: to [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]";
+	const auto doc_string			= "post-processing: objectness [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]";
 
 	auto node = graph->add_node();
 	node->set_op_type("Reshape");
@@ -1764,7 +1764,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs()
 		const std::string classes_name		= format_name(idx, section.type) + "_sigmoid_class";
 		const std::string objectness_name	= format_name(idx, section.type) + "_reshape_obj_post";
 
+		const auto doc = "post-processing: confs [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(idx) + "]";
+
 		auto node = graph->add_node();
+		node->set_doc_string(doc);
 		node->set_op_type("Mul");
 		node->set_name(name);
 		node->add_input(classes_name);
@@ -1830,7 +1833,156 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs()
 	auto output = graph->add_output();
 	populate_input_output_dimensions(output, "confs", 1, number_of_boxes, number_of_classes);
 	output->set_doc_string(ss.str());
+	node->set_doc_string(ss.str());
+
 	output_string += "[\"confs\"] ";
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes()
+{
+	for (int idx = 1; idx < cfg.net.n; idx ++)
+	{
+		auto & section = cfg.sections[idx];
+		if (section.type != Darknet::ELayerType::YOLO)
+		{
+			continue;
+		}
+
+		// we found a YOLO layer
+
+		Darknet::VStr outputs;
+		const auto & l = cfg.net.layers[idx];
+		const auto doc = "post-processing: boxes [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(idx) + "]";
+
+		// ...why 6?  Where does this magic value come from?
+		for (int i = 0; i < 6; i ++)
+		{
+			const std::string slice_name = format_name(idx, section.type) + "_slice_" + std::to_string(i) + "_tx_ty";
+			auto node = graph->add_node();
+			node->set_op_type("Slice");
+			node->set_doc_string(doc);
+			node->set_name(slice_name);
+			node->add_output(slice_name);
+			node->add_input(format_name(idx, section.type) + "_sub_tx_ty");
+
+			const std::map<std::string, int> initializers =
+			{
+				{slice_name + "_1_starts"	, i},
+				{slice_name + "_2_ends"		, i + 1},
+				{slice_name + "_3_axes"		, 1},
+				{slice_name + "_4_steps"	, 1}
+			};
+			for (const auto & [key, val] : initializers)
+			{
+				onnx::TensorProto * initializer = graph->add_initializer();
+				initializer->set_data_type(onnx::TensorProto::INT32);
+				initializer->set_name(key);
+				initializer->set_doc_string(doc);
+				initializer->add_dims(1);
+				initializer->add_int32_data(val);
+				node->add_input(key);
+			}
+
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "=> " << node->name() << std::endl;
+			}
+
+			const std::string const_name = format_name(idx, section.type) + "_const_" + std::to_string(i) + "_tx_ty";
+
+			onnx::TensorProto tensor;
+			tensor.set_name(const_name);
+			tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+			tensor.add_dims(1);
+			tensor.add_dims(1);
+			tensor.add_dims(l.h);
+			tensor.add_dims(l.w);
+			for (int h = 0; h < l.h; h ++)
+			{
+				for (int w = 0; w < l.w; w ++)
+				{
+					tensor.add_float_data(w);
+				}
+			}
+			tensor.set_doc_string(doc);
+
+			node = graph->add_node();
+			node->set_name(const_name);
+			node->set_op_type("Constant");
+			node->add_output(const_name);
+			node->set_doc_string(doc);
+			auto attr = node->add_attribute();
+			attr->set_name("value");
+			attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+			*attr->mutable_t() = tensor;
+
+			const std::string add_name = format_name(idx, section.type) + "_add_" + std::to_string(i) + "_tx_ty";
+			node = graph->add_node();
+			node->set_op_type("Add");
+			node->set_doc_string(doc);
+			node->add_input(slice_name);
+			node->add_input(const_name);
+			node->set_name(add_name);
+			node->add_output(add_name);
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "=> " << node->name() << std::endl;
+			}
+
+			outputs.push_back(add_name);
+		}
+
+		const std::string concat_name = format_name(idx, section.type) + "_tx_ty";
+		auto node = graph->add_node();
+		node->set_op_type("Concat");
+		node->set_name(concat_name);
+		node->set_doc_string(doc);
+		for (const auto & input : outputs)
+		{
+			node->add_input(input);
+		}
+		node->add_output(concat_name);
+		auto attrib = node->add_attribute();
+		attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
+		attrib->set_i(1); // 1 == concat on channel axis
+		attrib->set_type(onnx::AttributeProto::INT);
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "=> " << node->name() << std::endl;
+		}
+
+		const std::string const_name = format_name(idx, section.type) + "_const_tx_ty";
+		onnx::TensorProto tensor;
+		tensor.set_name(const_name);
+		tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+		tensor.add_float_data(l.w);
+		tensor.set_doc_string(doc);
+		node = graph->add_node();
+		node->set_name(const_name);
+		node->set_op_type("Constant");
+		node->add_output(const_name);
+		node->set_doc_string(doc);
+		auto attr = node->add_attribute();
+		attr->set_name("value");
+		attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+		*attr->mutable_t() = tensor;
+
+		const std::string div_name = format_name(idx, section.type) + "_div_tx_ty";
+		node = graph->add_node();
+		node->set_op_type("Div");
+		node->set_doc_string(doc);
+		node->add_input(concat_name);
+		node->add_input(const_name);
+		node->set_name(div_name);
+		node->add_output(div_name);
+		if (cfg_and_state.is_verbose)
+		{
+			*cfg_and_state.output << "=> " << node->name() << std::endl;
+		}
+	}
 
 	return *this;
 }
@@ -1859,8 +2011,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_postprocess()
 		}
 	}
 
-	// every objectness and class chain are combined together to get the confidence values
+	// every objectness and class chains are combined together to get the confidence values "confs"
 	postprocess_yolo_confs();
+
+	// last thing we need to do is deal with "boxes"
+	postprocess_yolo_boxes();
 
 	return *this;
 }
