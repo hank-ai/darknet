@@ -418,7 +418,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 
 	populate_input_output_dimensions(input, "frame", b, c, h, w, cfg.network_section.line_number);
 
-	input->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.network_section.line_number) + " [w=" + std::to_string(w) + ", h=" + std::to_string(h) + ", c=" + std::to_string(c) + "]");
+	input->set_doc_string(
+		cfg_fn.filename().string() +
+		" line #"	+ std::to_string(cfg.network_section.line_number) +
+		" [b=1,"
+		" c="		+ std::to_string(c) + ","
+		" h="		+ std::to_string(h) + ","
+		" w="		+ std::to_string(w) + "]"
+		);
 
 	input_string =
 		"[\"frame\""
