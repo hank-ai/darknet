@@ -1843,6 +1843,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs()
 
 Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes()
 {
+	// ...why 6?  Where does this magic value come from?
+	const int magic_6 = 6;
+
 	for (int idx = 1; idx < cfg.net.n; idx ++)
 	{
 		auto & section = cfg.sections[idx];
@@ -1857,8 +1860,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes()
 		const auto & l = cfg.net.layers[idx];
 		const auto doc = "post-processing: boxes [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(idx) + "]";
 
-		// ...why 6?  Where does this magic value come from?
-		for (int i = 0; i < 6; i ++)
+		// first we deal with tx_ty...
+		for (int i = 0; i < magic_6; i ++)
 		{
 			const std::string slice_name = format_name(idx, section.type) + "_slice_" + std::to_string(i) + "_tx_ty";
 			auto node = graph->add_node();
@@ -1935,52 +1938,152 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes()
 			outputs.push_back(add_name);
 		}
 
-		const std::string concat_name = format_name(idx, section.type) + "_tx_ty";
-		auto node = graph->add_node();
-		node->set_op_type("Concat");
-		node->set_name(concat_name);
-		node->set_doc_string(doc);
-		for (const auto & input : outputs)
+		// then we deal with tw_th...
+
+		const auto masks	= section.find_int_array("mask");		// e.g., "3, 4, 5"
+		const auto anchors	= section.find_float_array("anchors");	// e.g., "8, 8, 10, 10, 15, 12, 41, 41, 48, 47, 73, 70"
+		// So with that example, the values of interest to this YOLO head are "41, 41, 48, 47, 73, 70"
+
+		if (masks.size() * 2 != magic_6)
 		{
-			node->add_input(input);
-		}
-		node->add_output(concat_name);
-		auto attrib = node->add_attribute();
-		attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
-		attrib->set_i(1); // 1 == concat on channel axis
-		attrib->set_type(onnx::AttributeProto::INT);
-		if (cfg_and_state.is_verbose)
-		{
-			*cfg_and_state.output << "=> " << node->name() << std::endl;
+			throw std::runtime_error(format_name(idx, section.type) + ": the ONNX export tool expected 6 values (3 masks) per YOLO head, not " + std::to_string(masks.size()));
 		}
 
-		const std::string const_name = format_name(idx, section.type) + "_const_tx_ty";
-		onnx::TensorProto tensor;
-		tensor.set_name(const_name);
-		tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
-		tensor.add_float_data(l.w);
-		tensor.set_doc_string(doc);
-		node = graph->add_node();
-		node->set_name(const_name);
-		node->set_op_type("Constant");
-		node->add_output(const_name);
-		node->set_doc_string(doc);
-		auto attr = node->add_attribute();
-		attr->set_name("value");
-		attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
-		*attr->mutable_t() = tensor;
-
-		const std::string div_name = format_name(idx, section.type) + "_div_tx_ty";
-		node = graph->add_node();
-		node->set_op_type("Div");
-		node->set_doc_string(doc);
-		node->add_input(concat_name);
-		node->add_input(const_name);
-		node->set_name(div_name);
-		node->add_output(div_name);
-		if (cfg_and_state.is_verbose)
+		Darknet::VFloat multiplier;
+		for (const auto & mask : masks)
 		{
-			*cfg_and_state.output << "=> " << node->name() << std::endl;
+			multiplier.push_back(anchors[mask * 2 + 0] / 32.0f);
+			multiplier.push_back(anchors[mask * 2 + 1] / 32.0f);
+		}
+
+		for (int i = 0; i < magic_6; i ++)
+		{
+			const std::string slice_name = format_name(idx, section.type) + "_slice_" + std::to_string(i) + "_tw_th";
+			auto node = graph->add_node();
+			node->set_op_type("Slice");
+			node->set_doc_string(doc);
+			node->set_name(slice_name);
+			node->add_output(slice_name);
+			node->add_input(format_name(idx, section.type) + "_exp_tw_th");
+
+			const std::map<std::string, int> initializers =
+			{
+				{slice_name + "_1_starts"	, i},
+				{slice_name + "_2_ends"		, i + 1},
+				{slice_name + "_3_axes"		, 1},
+				{slice_name + "_4_steps"	, 1}
+			};
+			for (const auto & [key, val] : initializers)
+			{
+				onnx::TensorProto * initializer = graph->add_initializer();
+				initializer->set_data_type(onnx::TensorProto::INT32);
+				initializer->set_name(key);
+				initializer->set_doc_string(doc);
+				initializer->add_dims(1);
+				initializer->add_int32_data(val);
+				node->add_input(key);
+			}
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "=> " << node->name() << std::endl;
+			}
+
+			const std::string const_name = format_name(idx, section.type) + "_const_" + std::to_string(i) + "_tw_th";
+
+			onnx::TensorProto tensor;
+			tensor.set_name(const_name);
+			tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+			tensor.add_float_data(multiplier[i]);
+			tensor.set_doc_string(doc);
+
+			node = graph->add_node();
+			node->set_name(const_name);
+			node->set_op_type("Constant");
+			node->add_output(const_name);
+			node->set_doc_string(doc);
+			auto attr = node->add_attribute();
+			attr->set_name("value");
+			attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+			*attr->mutable_t() = tensor;
+
+			const std::string mul_name = format_name(idx, section.type) + "_mul_" + std::to_string(i) + "_tw_th";
+			node = graph->add_node();
+			node->set_op_type("Mul");
+			node->set_doc_string(doc);
+			node->add_input(slice_name);
+			node->add_input(const_name);
+			node->set_name(mul_name);
+			node->add_output(mul_name);
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "=> " << node->name() << std::endl;
+			}
+
+			outputs.push_back(mul_name);
+		}
+
+		// now make 2 groups, each with 6 inputs, one for even and another for odd
+		for (const std::string name : {"even", "odd"})
+		{
+			std::string concat_name	= format_name(idx, section.type) + "_tx_tw_"		+ name;
+			std::string const_name	= format_name(idx, section.type) + "_const_tx_tw_"	+ name;
+			std::string div_name	= format_name(idx, section.type) + "_div_tx_tw_"	+ name;
+			int divider = l.w;
+			if (name == "odd")
+			{
+				concat_name	= format_name(idx, section.type) + "_ty_th_"		+ name;
+				const_name	= format_name(idx, section.type) + "_const_ty_th_"	+ name;
+				div_name	= format_name(idx, section.type) + "_div_ty_th_"	+ name;
+				divider = l.h;
+			}
+
+			auto node = graph->add_node();
+			node->set_op_type("Concat");
+			node->set_name(concat_name);
+			node->set_doc_string(doc);
+
+			// only take every 2nd output, based on whether or not we're starting with "even" (zero) or "odd" (one)
+			for (size_t i = (name == "even" ? 0 : 1); i < outputs.size(); i += 2)
+			{
+				node->add_input(outputs[i]);
+			}
+
+			node->add_output(concat_name);
+			auto attrib = node->add_attribute();
+			attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
+			attrib->set_i(1); // 1 == concat on channel axis
+			attrib->set_type(onnx::AttributeProto::INT);
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "=> " << node->name() << std::endl;
+			}
+
+			onnx::TensorProto tensor;
+			tensor.set_name(const_name);
+			tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+			tensor.add_float_data(divider);
+			tensor.set_doc_string(doc);
+			node = graph->add_node();
+			node->set_name(const_name);
+			node->set_op_type("Constant");
+			node->add_output(const_name);
+			node->set_doc_string(doc);
+			auto attr = node->add_attribute();
+			attr->set_name("value");
+			attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+			*attr->mutable_t() = tensor;
+
+			node = graph->add_node();
+			node->set_op_type("Div");
+			node->set_doc_string(doc);
+			node->add_input(concat_name);
+			node->add_input(const_name);
+			node->set_name(div_name);
+			node->add_output(div_name);
+			if (cfg_and_state.is_verbose)
+			{
+				*cfg_and_state.output << "=> " << node->name() << std::endl;
+			}
 		}
 	}
 
