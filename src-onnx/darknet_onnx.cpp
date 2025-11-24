@@ -3,6 +3,7 @@
  */
 
 #include "darknet_onnx.hpp"
+#include "darknet_node.hpp"
 
 
 /** @file
@@ -335,6 +336,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	graph->set_name(cfg_fn.stem().string());
 	model.set_allocated_graph(graph);
 
+	Node::graph = graph;
+	Node::cfg_filename = cfg_fn.filename().string();
+
 	return *this;
 }
 
@@ -452,10 +456,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_YOLO_output()
 		if (section.type == Darknet::ELayerType::YOLO)
 		{
 			auto output = graph->add_output();
-			populate_input_output_dimensions(output, format_name(idx, l), 1, l.c, l.h, l.w, section.line_number);
-
+			populate_input_output_dimensions(output, Node::get_output_for_layer_index(idx), 1, l.c, l.h, l.w, section.line_number);
 			output->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(idx) + "]");
-
 			output_string += "[\"" + output->name() + "\"] ";
 		}
 	}
@@ -559,21 +561,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type);
-
-	auto node = graph->add_node();
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_op_type("Conv");
-	node->add_input(most_recent_output_per_index[index - 1]);
-	node->add_input(name + "_weights");
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
-
 	const int dilation		= 1;
 	const int stride		= section.find_int("stride"	, 2);
 	const int kernel_size	= section.find_int("size"	, 3);
@@ -587,41 +574,20 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 		return i;
 	}();
 
-	auto attrib = node->add_attribute();
-	attrib->set_name("pads");
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("dilations");
-	attrib->add_ints(dilation);
-	attrib->add_ints(dilation);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("group");
-	attrib->set_i(1); // default for group is already "1"
-	attrib->set_type(onnx::AttributeProto::INT);
-
-	attrib = node->add_attribute();
-	attrib->set_name("kernel_shape");
-	attrib->add_ints(kernel_size);
-	attrib->add_ints(kernel_size);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("strides");
-	attrib->add_ints(stride);
-	attrib->add_ints(stride);
-	attrib->set_type(onnx::AttributeProto::INTS);
+	Node node(section);
+	node.type("Conv")
+		.add_input(-1)
+		.add_input("_weights")
+		.add_attribute_INT("group"			, 1							)
+		.add_attribute_INTS("pads"			, {pad, pad, pad, pad}		)
+		.add_attribute_INTS("dilations"		, {dilation, dilation}		)
+		.add_attribute_INTS("kernel_shape"	, {kernel_size, kernel_size})
+		.add_attribute_INTS("strides"		, {stride, stride}			);
 
 	const auto & l = cfg.net.layers[index];
 
 	// loosely based on load_convolutional_weights()
-	populate_graph_initializer(l.weights, l.nweights, index, l, "weights");
+	populate_graph_initializer(l.weights, l.nweights, l, node.name + "_weights");
 
 	if (section.find_int("batch_normalize", 0) and not fuse_batchnorm)
 	{
@@ -631,8 +597,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 	else
 	{
 		// bias must be added in only 1 place -- either in BN, or here in the Conv if BN isn't used
-		node->add_input(name + "_bias");
-		populate_graph_initializer(l.biases, l.n, index, l, "bias");
+		node.add_input("_bias");
+		populate_graph_initializer(l.biases, l.n, l, node.name + "_bias");
 	}
 
 	check_activation(index, section);
@@ -645,31 +611,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_shortcut(const size_t index,
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type);
-
-	auto node = graph->add_node();
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_op_type("Add");
-	node->add_input(most_recent_output_per_index[index - 1]);
-
-	int layer_to_add = section.find_int("from");
-	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
-	if (layer_to_add < 0)
-	{
-		layer_to_add += index;
-	}
-	node->add_input(most_recent_output_per_index[layer_to_add]);
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
+	Node node(section);
+	node.type("Add").add_input(index - 1).add_input(section.find_int("from"));
 
 #if 0 /// @todo V5: unused?  Do we have weights for shortcuts?
 	const auto & l = cfg.net.layers[index];
-	populate_graph_initializer(l.weights, l.nweights, index, l, "weights");
+	populate_graph_initializer(l.weights, l.nweights, l, node.name + "_weights");
 #endif
 
 	check_activation(index, section);
@@ -713,37 +660,23 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type) + "_activation";
+	const std::string previous_output = Node::get_output_for_layer_index(index);
 
-	auto node = graph->add_node();
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->add_input(most_recent_output_per_index[index]);
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
+	Node node(section, "_activation");
+	node.add_input(previous_output);
 
 	const auto & activation = cfg.net.layers[index].activation;
 	if (activation == LEAKY)
 	{
-		node->set_op_type("LeakyRelu");
-
-		// with Darknet, alpha is hard-coded to be 0.1f
-		auto attrib = node->add_attribute();
-		attrib->set_name("alpha");
-		attrib->set_f(0.1f);
-		attrib->set_type(onnx::AttributeProto::FLOAT);
+		node.type("LeakyRelu").add_attribute_FLOAT("alpha", 0.1f); // with Darknet, alpha is hard-coded to be 0.1f
 	}
 	else if (activation == LOGISTIC)
 	{
-		node->set_op_type("Sigmoid");
+		node.type("Sigmoid");
 	}
 	else if (activation == RELU)
 	{
-		node->set_op_type("Relu");
+		node.type("Relu");
 	}
 	else if (activation == MISH)
 	{
@@ -756,10 +689,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 			opset->set_version(18);
 			opset_version = 18;
 
-			*cfg_and_state.output << "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "The use of \"mish\" in \"" + name + "\" requires the opset version to be increased to " + std::to_string(opset->version()) + ".") << std::endl;
+			*cfg_and_state.output << "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "The use of \"mish\" in \"" + node.name + "\" requires the opset version to be increased to " + std::to_string(opset->version()) + ".") << std::endl;
 		}
 
-		node->set_op_type("Mish");
+		node.type("Mish");
 
 		// if we need to support this in an earlier version of the ONNX opset, then we'd need to split it out into 4 nodes:
 		//
@@ -781,14 +714,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_identity(const size_t 
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type) + "_identity";
-
-	// if we get here, then we should have no "groups" or "group_id"
-	if (section.exists("groups") or section.exists("group_id"))
-	{
-		throw std::runtime_error(name + ": layer should not have 'groups' or 'group_id'");
-	}
-
 	/** @todo verify what ChatGPT has to say about this:
 	 *
 	 * Many Darknet-to-ONNX converters mistakenly convert single-layer route layers into Split or Slice nodes due to:
@@ -806,25 +731,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_identity(const size_t 
 	 * It simply passes the input through to the output unchanged.
 	 */
 
-	auto node = graph->add_node();
-	node->set_op_type("Identity");
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
+	Node node(section, "_identity");
+	node.type("Identity").add_input(section.find_int("layers"));
 
-	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
-	int layer_referenced = section.find_int("layers");
-	if (layer_referenced < 0)
+	// if we get here, then we should have no "groups" or "group_id"
+	if (section.exists("groups") or section.exists("group_id"))
 	{
-		layer_referenced += index;
+		throw std::runtime_error(node.name + ": layer should not have 'groups' or 'group_id'");
 	}
-	node->add_input(most_recent_output_per_index[layer_referenced]);
-
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
 
 	return *this;
 }
@@ -834,41 +748,29 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_slice(const size_t ind
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type) + "_slice";
-
-#if 0 // no longer using "Constant", for now we're back to using initializers
-	if (opset_version < 12)
-	{
-		throw std::runtime_error("op type \"Constant\" required for node " + name + " needs opset >= 12, but opset is currently set to " + std::to_string(opset_version) + ".");
-	}
-#endif
+	Node node(section, "_slice");
 
 	const int groups	= section.find_int("groups"		, 1);
 	const int group_id	= section.find_int("group_id"	, 0);
 	if (groups == 1 and cfg_and_state.is_verbose)
 	{
-		*cfg_and_state.output << name << ": splitting into 1 group is the same as a NO-OP.  This node could be eliminated." << std::endl;
+		*cfg_and_state.output << node.name << ": splitting into 1 group is the same as a NO-OP.  This node could be eliminated." << std::endl;
 	}
 	if (groups < 1)
 	{
-		throw std::invalid_argument(name + ": invalid number of groups (" + std::to_string(groups) + ")");
+		throw std::invalid_argument(node.name + ": invalid number of groups (" + std::to_string(groups) + ")");
 	}
 	if (group_id < 0 or group_id >= groups)
 	{
-		throw std::invalid_argument(name + ": invalid group number (" + std::to_string(group_id) + ")");
+		throw std::invalid_argument(node.name + ": invalid group number (" + std::to_string(group_id) + ")");
 	}
 
-	const auto doc_string =
-		cfg_fn.filename().string() +
-		" line #" + std::to_string(section.line_number) +
-		" [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]"
+	node.doc_append(
 		" groups="		+ std::to_string(groups) +
-		" group_id="	+ std::to_string(group_id);
+		" group_id="	+ std::to_string(group_id));
 
 	// this is a slice, so we'll always have a *single* layer, not an array of ints like on concat nodes
 	int layer_to_slice = section.find_int("layers");
-
-	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
 	if (layer_to_slice < 0)
 	{
 		layer_to_slice += index;
@@ -890,53 +792,27 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_slice(const size_t ind
 
 	const std::map<std::string, int> constants =
 	{
-		{name + "_1_starts"	, starts},
-		{name + "_2_ends"	, ends},
-		{name + "_3_axes"	, 1},
-		{name + "_4_steps"	, 1}
+		{node.name + "_1_starts", starts},
+		{node.name + "_2_ends"	, ends},
+		{node.name + "_3_axes"	, 1},
+		{node.name + "_4_steps"	, 1}
 	};
 	for (const auto & [key, val] : constants)
 	{
-		/** @todo 2025-09-09:  I believe this is valid (to use contant nodes) but it appears some tools aren't expecting it,
-		 * so for now let's go back to using initializers until I better understand how this is supposed to be working.
-		 */
-		#if 0
-			auto node = graph->add_node();
-			node->set_op_type("Constant");
-			node->set_doc_string(doc_string);
-			node->set_name(key);
-			node->add_output(key);
-			auto attrib = node->add_attribute();
-			attrib->set_name("value_int");
-			attrib->set_type(onnx::AttributeProto::INT);
-			attrib->set_i(val);
-		#else
-			onnx::TensorProto * initializer = graph->add_initializer();
-			initializer->set_data_type(onnx::TensorProto::INT32);
-			initializer->set_name(key);
-			initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[index].line_number) + " [" + Darknet::to_string(l.type) + ", layer #" + std::to_string(index) + ", " + key + "=" + std::to_string(val) + "]");
-			initializer->add_dims(1);
-			initializer->add_int32_data(val);
-		#endif
+		onnx::TensorProto * initializer = graph->add_initializer();
+		initializer->set_name(key);
+		initializer->set_doc_string(node.node->doc_string());
+		initializer->set_data_type(onnx::TensorProto::INT32);
+		initializer->add_dims(1);
+		initializer->add_int32_data(val);
 	}
 
-	auto node = graph->add_node();
-	node->set_op_type("Slice");
-	node->set_doc_string(doc_string);
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-
-	node->add_input(most_recent_output_per_index[layer_to_slice]);
-	node->add_input(name + "_1_starts"	);
-	node->add_input(name + "_2_ends"	);
-	node->add_input(name + "_3_axes"	);
-	node->add_input(name + "_4_steps"	);
-
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
+	node.type("Slice")
+		.add_input(layer_to_slice)
+		.add_input("_1_starts"	)
+		.add_input("_2_ends"	)
+		.add_input("_3_axes"	)
+		.add_input("_4_steps"	);
 
 	return *this;
 }
@@ -946,35 +822,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_concat(const size_t in
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type) + "_concat";
-
-	auto node = graph->add_node();
-	node->set_op_type("Concat");
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
+	Node node(section, "_concat");
+	node.type("Concat").add_attribute_INT("axis", 1); // axis 1 == concat on channel axis
 
 	// get the layers we're combining to use as our input
 	for (int idx : section.find_int_array("layers"))
 	{
-		// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
-		if (idx < 0)
-		{
-			idx += index;
-		}
-
-		node->add_input(most_recent_output_per_index[idx]);
+		node.add_input(idx);
 	}
-
-	auto attrib = node->add_attribute();
-	attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
-	attrib->set_i(1); // 1 == concat on channel axis
-	attrib->set_type(onnx::AttributeProto::INT);
 
 	return *this;
 }
@@ -983,20 +838,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_concat(const size_t in
 Darknet::ONNXExport & Darknet::ONNXExport::add_node_maxpool(const size_t index, Darknet::CfgSection & section)
 {
 	TAT(TATPARMS);
-
-	const auto name = format_name(index, section.type);
-
-	auto node = graph->add_node();
-	node->set_op_type("MaxPool");
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->add_input(most_recent_output_per_index[index - 1]);
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
 
 	const int dilation		= 1;
 	const int stride		= section.find_int("stride"	, 2);
@@ -1011,31 +852,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_maxpool(const size_t index, 
 		return i;
 	}();
 
-	auto attrib = node->add_attribute();
-	attrib->set_name("pads");
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("kernel_shape");
-	attrib->add_ints(kernel_size);
-	attrib->add_ints(kernel_size);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("dilations");
-	attrib->add_ints(dilation);
-	attrib->add_ints(dilation);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("strides");
-	attrib->add_ints(stride);
-	attrib->add_ints(stride);
-	attrib->set_type(onnx::AttributeProto::INTS);
+	Node node(section);
+	node.type("MaxPool").add_input(index - 1)//.add_input("_weights")
+		.add_attribute_INTS("pads"			, {pad, pad, pad, pad}		)
+		.add_attribute_INTS("dilations"		, {dilation, dilation}		)
+		.add_attribute_INTS("kernel_shape"	, {kernel_size, kernel_size})
+		.add_attribute_INTS("strides"		, {stride, stride}			);
 
 	return *this;
 }
@@ -1051,21 +873,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_yolo(const size_t index, Dar
 		return *this;
 	}
 
-	const auto name = format_name(index, section.type); // e.g., "30_yolo" and "37_yolo"
-
-	auto node = graph->add_node();
-	node->set_op_type("Identity"); //"YOLO");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->add_input(most_recent_output_per_index[index - 1]);
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
-
-#if 1
-	const auto strip_spaces = [](const std::string & s) -> std::string
+	const auto strip_spaces =
+			[](const std::string & s) -> std::string
 			{
 				std::string out;
 				for (const auto & c : s)
@@ -1078,40 +887,16 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_yolo(const size_t index, Dar
 				return out;
 			};
 
-	node->set_doc_string(
-		cfg_fn.filename().string() +
-		" line #" + std::to_string(section.line_number) +
-		" [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]"
-		" anchors="	+ strip_spaces(section.find_str("anchors"	)) +
-		" mask="	+ strip_spaces(section.find_str("mask"		)) +
-		" classes="	+ strip_spaces(section.find_str("classes"	)));
-#else
+	static size_t yolo_counter = 0;
 
-	// These are non-standard attributes.
-	// They cannot be added as it breaks any validation checks that users attempt to run on the .onnx output file.
-	// This is also why this node was changed to be "Identity" instead of using a custom "YOLO" node type.
-
-	auto attrib = node->add_attribute();
-	attrib->set_name("anchors");
-	attrib->set_type(onnx::AttributeProto::FLOATS);
-	for (const float & anchor : section.find_float_array("anchors"))
-	{
-		attrib->add_floats(anchor);
-	}
-
-	attrib = node->add_attribute();
-	attrib->set_name("mask");
-	attrib->set_type(onnx::AttributeProto::INTS);
-	for (const int & mask : section.find_int_array("mask"))
-	{
-		attrib->add_ints(mask);
-	}
-
-	attrib = node->add_attribute();
-	attrib->set_name("classes");
-	attrib->set_type(onnx::AttributeProto::INT);
-	attrib->set_i(section.find_int("classes"));
-#endif
+	Node node(section);
+	node.type("Identity")
+		.add_input(-1)
+		.set_output("yolo_" + std::to_string(yolo_counter ++))
+		.doc_append(
+			" classes="	+ strip_spaces(section.find_str("classes"	)) +
+			" mask="	+ strip_spaces(section.find_str("mask"		)) +
+			" anchors="	+ strip_spaces(section.find_str("anchors"	)));
 
 	return *this;
 }
@@ -1121,55 +906,26 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, D
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type);
-
 	if (opset_version < 10)
 	{
-		throw std::runtime_error("op type \"Resize\" required for node " + name + " needs opset >= 10, but opset is currently set to " + std::to_string(opset_version) + ".");
+		throw std::runtime_error("op type \"Resize\" required for node " + section.name + " needs opset >= 10, but opset is currently set to " + std::to_string(opset_version) + ".");
 	}
 
-	auto node = graph->add_node();
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_op_type("Resize"); // this requires opset v10 or newer (prior to v10, it was called "Upsample")
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->add_input(most_recent_output_per_index[index - 1]);
-	node->add_input(name + "_roi"); // (unused)
-	node->add_input(name + "_scales");
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
-
-	auto attrib = node->add_attribute();
-	attrib->set_name("mode");
-	attrib->set_type(onnx::AttributeProto::STRING);
-	attrib->set_s("nearest"); // "nearest" or "linear" or "cubic"
-
-	attrib = node->add_attribute();
-	attrib->set_name("nearest_mode");
-	attrib->set_type(onnx::AttributeProto::STRING);
-	attrib->set_s("round_prefer_floor"); // "round_prefer_floor" or "round_prefer_ceil", or "floor", or "ceil"
-
-	attrib = node->add_attribute();
-	attrib->set_name("antialias");
-	attrib->set_type(onnx::AttributeProto::INT);
-	attrib->set_i(0); // 0=disable antialias
-
-	attrib = node->add_attribute();
-	attrib->set_name("coordinate_transformation_mode");
-	attrib->set_type(onnx::AttributeProto::STRING);
-	attrib->set_s("asymmetric");
+	Node node(section);
+	node.type("Resize").add_input(-1).add_input("_roi").add_input("_scales")
+		.add_attribute_STR("mode", "nearest")
+		.add_attribute_STR("nearest_mode", "round_prefer_floor")
+		.add_attribute_INT("antialias", 0) // 0=disable antialias
+		.add_attribute_STR("coordinate_transformation_mode", "asymmetric");
 
 	const float stride = section.find_float("stride", 2.0f);
 	float f[4] = {1.0f, 1.0f, stride, stride};
 
 	const auto & l = cfg.net.layers[index];
-	populate_graph_initializer(f, 4, index, l, "scales", true);
+	populate_graph_initializer(f, 4, l, node.name + "_scales", true);
 
 	// even though the RoI isn't used, we still need to provide a dummy (empty) tensor
-	populate_graph_initializer(nullptr, 0, index, l, "roi", true);
+	populate_graph_initializer(nullptr, 0, l, node.name + "_roi", true);
 
 	return *this;
 }
@@ -1179,62 +935,46 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_bn(const size_t index, Darkn
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type) + "_bn";
+	const std::string previous_output = Node::get_output_for_layer_index(index);
 
-	auto node = graph->add_node();
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_op_type("BatchNormalization");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->add_input(most_recent_output_per_index[index]);
-	node->add_input(name + "_scale");
-	node->add_input(name + "_bias");
-	node->add_input(name + "_mean");
-	node->add_input(name + "_variance");
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
-
-	auto attrib = node->add_attribute();
-	attrib->set_name("epsilon");
-	attrib->set_type(onnx::AttributeProto::FLOAT);
-	attrib->set_f(0.00001f);
-
-	attrib = node->add_attribute();
-	attrib->set_name("momentum");
-	attrib->set_type(onnx::AttributeProto::FLOAT);
-	attrib->set_f(0.99f);
+	Node node(section, "_bn");
+	node.type("BatchNormalization")
+		.add_input(previous_output)
+		.add_input("_bn_scale"		)
+		.add_input("_bn_bias"		)
+		.add_input("_bn_mean"		)
+		.add_input("_bn_variance"	)
+		.add_attribute_FLOAT("epsilon", 0.00001f)
+		.add_attribute_FLOAT("momentum", 0.99f);
 
 	const auto & l = cfg.net.layers[index];
 
-	populate_graph_initializer(l.biases				, l.n, index, l, "bn_bias"		); // note this one also exists in "Conv" when BN is disabled
-	populate_graph_initializer(l.scales				, l.n, index, l, "bn_scale"		);
-	populate_graph_initializer(l.rolling_mean		, l.n, index, l, "bn_mean"		);
-	populate_graph_initializer(l.rolling_variance	, l.n, index, l, "bn_variance"	);
+	populate_graph_initializer(l.biases				, l.n, l, node.name + "_bn_bias"		); // note this one also exists in "Conv" when BN is disabled
+	populate_graph_initializer(l.scales				, l.n, l, node.name + "_bn_scale"		);
+	populate_graph_initializer(l.rolling_mean		, l.n, l, node.name + "_bn_mean"		);
+	populate_graph_initializer(l.rolling_variance	, l.n, l, node.name + "_bn_variance"	);
 
 	return *this;
 }
 
 
-Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const float * f, const size_t n, const size_t idx, const Darknet::Layer & l, const std::string & name, const bool simple)
+Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const float * f, const size_t n, const Darknet::Layer & l, const std::string & name, const bool simple)
 {
 	TAT(TATPARMS);
 
 	if (cfg_and_state.is_trace and (f == nullptr or n == 0))
 	{
-		*cfg_and_state.output << "   " << format_weights(idx, l, name) << ": f=" << (void*)f << " n=" << n << std::endl;
+		*cfg_and_state.output << "   " << name << ": f=" << (void*)f << " n=" << n << std::endl;
 	}
 	else if (cfg_and_state.is_verbose)
 	{
-		*cfg_and_state.output << "-> " << format_weights(idx, l, name) << ": exporting " << n << " " << name << std::endl;
+		*cfg_and_state.output << "-> " << name << ": exporting " << n << " " << name << std::endl;
 	}
 
 	onnx::TensorProto * initializer = graph->add_initializer();
 	initializer->set_data_type(onnx::TensorProto::FLOAT);
-	initializer->set_name(format_weights(idx, l, name));
-	initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[idx].line_number) + " [" + Darknet::to_string(l.type) + ", layer #" + std::to_string(idx) + ", " + std::to_string(n) + " x " + name + "]");
+	initializer->set_name(name);
+//	initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[idx].line_number) + " [" + Darknet::to_string(l.type) + ", layer #" + std::to_string(idx) + ", " + std::to_string(n) + " x " + name + "]");
 
 	/** @todo V5 2025-08-13:  This is black magic!  I actually have no idea how the DIMS work.  I saw some example
 	 * Darknet/YOLO weights converted to ONNX and attempted to figure out the patern.  While this seems to work for
@@ -1275,7 +1015,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 			initializer->add_float_data(f[i]);
 		}
 
-		// get the last part of the name to use as a key; for example, "002_conv_weights" returns a key of "weights"
+		// get the last part of the name to use as a key; for example, "N6_L2_conv_weights" returns a key of "weights"
 		std::string key = name;
 		auto pos = key.rfind("_");
 		if (pos != std::string::npos)
@@ -1325,7 +1065,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::save_output_file()
 	*cfg_and_state.output
 		<< "-> onnx saved to ........ " << Darknet::in_colour(Darknet::EColour::kBrightCyan, onnx_fn.string()) << " "
 		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(std::filesystem::file_size(onnx_fn)) + "]")					<< std::endl
-		<< "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "This Darknet/YOLO ONNX Export Tool is experimental.")	<< std::endl
+//		<< "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "This Darknet/YOLO ONNX Export Tool is experimental.")	<< std::endl
 		<< "-> done!"																															<< std::endl;
 
 	return *this;

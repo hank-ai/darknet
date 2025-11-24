@@ -167,7 +167,8 @@ std::string Darknet::CfgLine::debug() const
 
 Darknet::CfgSection::CfgSection() :
 	type(ELayerType::BLANK),
-	line_number(0)
+	line_number(0),
+	index(0)
 {
 	TAT(TATPARMS);
 	return;
@@ -177,7 +178,8 @@ Darknet::CfgSection::CfgSection() :
 Darknet::CfgSection::CfgSection(const std::string & l, const size_t ln) :
 	type(Darknet::get_layer_type_from_name(l)),
 	name(l),
-	line_number(ln)
+	line_number(ln),
+	index(0)
 {
 	TAT(TATPARMS);
 
@@ -661,6 +663,12 @@ Darknet::CfgFile & Darknet::CfgFile::read()
 				s.lines[key] = CfgLine(line, total_lines, key, val);
 			}
 		}
+	}
+
+	// go back and number all of layers (sections)
+	for (size_t index = 0; index < sections.size(); index ++)
+	{
+		sections[index].index = index;
 	}
 
 	return *this;
