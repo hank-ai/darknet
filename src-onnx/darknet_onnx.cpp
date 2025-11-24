@@ -1580,7 +1580,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 	 */
 
 	int number_of_yolo_layers = 0;
-	int number_of_classes = 0;
 	int number_of_boxes = 0;
 
 	VStr results;
@@ -1601,7 +1600,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 		const std::string & rhs = v.at(number_of_yolo_layers * 2 + 1); // N165_L30_yolo_div_rhs
 		number_of_yolo_layers ++;
 		const auto & l = cfg.net.layers[idx];
-		number_of_classes = section.find_int("classes");
 		const int number_of_masks = section.find_int_array("mask").size();
 		const int size = number_of_masks * l.w * l.h;
 		number_of_boxes += size;
@@ -1609,7 +1607,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 
 		for (const auto & name : {lhs, rhs})
 		{
-			Node slice1(section, "_slice_x");
+			Node slice1(section, "_slice");
 			const std::map<std::string, int> constants1 =
 			{
 				{slice1.name + "_1_starts"	, 0},
@@ -1635,10 +1633,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 				.add_input("_4_steps"	);
 
 			const auto reshape1_const = Node(section, reshape_vector).output;
-			Node reshape1(section, "_reshape_x");
+			Node reshape1(section, "_reshape");
 			reshape1.type("Reshape").add_input(slice1.output).add_input(reshape1_const);
 
-			Node slice2(section, "_slice_w");
+			Node slice2(section, "_slice");
 			const std::map<std::string, int64_t> constants2 =
 			{
 				{slice2.name + "_1_starts"	, 3},
@@ -1664,11 +1662,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 			.add_input("_4_steps"	);
 
 			const auto reshape2_const = Node(section, reshape_vector).output;
-			Node reshape2(section, "_reshape_w");
+			Node reshape2(section, "_reshape");
 			reshape2.type("Reshape").add_input(slice2.output).add_input(reshape2_const);
 
 			Node const_half(section, 0.5f);
-			Node mul2(section, "_mul_w");
+			Node mul2(section, "_mul");
 			mul2.type("Mul").add_input(reshape2.output).add_input(const_half.output);
 
 			Node sub(section, "_sub");
@@ -1712,7 +1710,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 	// this is the 2nd output from the network (also see "confs")
 
 	std::stringstream ss;
-	ss << "Output of box coordinates for all " << number_of_boxes << " prediction boxes.";
+	ss << "Output of 4 box coordinates for all " << number_of_boxes << " prediction boxes.";
 	if (number_of_yolo_layers > 1)
 	{
 		ss << " This output is a combination of ";
@@ -1727,7 +1725,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 	}
 
 	auto output = graph->add_output();
-	populate_input_output_dimensions(output, "boxes", 1, number_of_boxes, number_of_classes);
+	populate_input_output_dimensions(output, "boxes", 1, number_of_boxes, 1, 4);
 	output->set_doc_string(ss.str());
 	node.doc(ss.str());
 
