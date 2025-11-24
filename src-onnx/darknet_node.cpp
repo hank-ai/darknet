@@ -49,6 +49,54 @@ Darknet::Node::Node(const Darknet::CfgSection & section, const std::string & app
 }
 
 
+Darknet::Node::Node(const Darknet::CfgSection & section, const float f) :
+	Node(section, "_constant")
+{
+	TAT(TATPARMS);
+
+	onnx::TensorProto tensor;
+	tensor.set_name(name);
+	tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+	tensor.add_float_data(f);
+	tensor.set_doc_string(node->doc_string());
+
+	type("Constant");
+
+	auto attr = node->add_attribute();
+	attr->set_name("value");
+	attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+	*attr->mutable_t() = tensor;
+
+	return;
+}
+
+
+Darknet::Node::Node(const Darknet::CfgSection & section, const Darknet::VInt & v) :
+	Node(section, "_constant")
+{
+	TAT(TATPARMS);
+
+	onnx::TensorProto tensor;
+	tensor.set_name(name);
+	tensor.set_data_type(onnx::TensorProto_DataType_INT64);
+	tensor.add_dims(v.size());
+	for (const auto & i : v)
+	{
+		tensor.add_int64_data(i);
+	}
+	tensor.set_doc_string(node->doc_string());
+
+	type("Constant");
+
+	auto attr = node->add_attribute();
+	attr->set_name("value");
+	attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+	*attr->mutable_t() = tensor;
+
+	return;
+}
+
+
 Darknet::Node::~Node()
 {
 	TAT(TATPARMS);
@@ -175,24 +223,25 @@ Darknet::Node & Darknet::Node::add_input(const std::string & input)
 }
 
 
-Darknet::Node & Darknet::Node::set_output(const std::string & output)
+Darknet::Node & Darknet::Node::set_output(const std::string & out)
 {
 	TAT(TATPARMS);
 
 	// as far as I know we only ever have 1 output per node, so clear any previous output name
 	node->clear_output();
 
-	if (output.empty())
+	if (out.empty())
 	{
-		std::string output_name = "N" + std::to_string(counter) + "_L" + std::to_string(layer_index) + "_output";
-		node->add_output(output_name);
-		output_per_layer_index[layer_index] = output_name;
+//		output = "N" + std::to_string(counter) + "_L" + std::to_string(layer_index) + "_output";
+		output = name + "_output";
 	}
 	else
 	{
-		node->add_output(output);
-		output_per_layer_index[layer_index] = output;
+		output = out;
 	}
+
+	node->add_output(output);
+	output_per_layer_index[layer_index] = output;
 
 	return *this;
 }

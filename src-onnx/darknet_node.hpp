@@ -23,7 +23,15 @@ namespace Darknet
 
 			/// Constructor.
 			Node(const std::string & n);
+
+			/// Constructor.
 			Node(const Darknet::CfgSection & section, const std::string & append = "");
+
+			/// Constructor for a single @p float constant.
+			Node(const Darknet::CfgSection & section, const float f);
+
+			/// Constructor for many @p int constants.
+			Node(const Darknet::CfgSection & section, const Darknet::VInt & v);
 
 			/// Destructor.
 			~Node();
@@ -39,7 +47,7 @@ namespace Darknet
 
 			Node & add_input(const std::string & input);
 
-			Node & set_output(const std::string & output = "");
+			Node & set_output(const std::string & out = "");
 
 			Node & add_attribute_INT(const std::string & key, const int val);
 			Node & add_attribute_INTS(const std::string & key, const Darknet::VInt & val);
@@ -50,6 +58,7 @@ namespace Darknet
 			size_t layer_index;
 			size_t counter;
 			std::string name;
+			std::string output;
 
 			static onnx::GraphProto * graph;
 			static std::string cfg_filename;

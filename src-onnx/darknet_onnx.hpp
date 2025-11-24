@@ -61,13 +61,16 @@ namespace Darknet
 
 			std::string add_const_float_tensor	(const std::string & stem, const float & f);
 			std::string add_const_ints_tensor	(const std::string & stem, const std::vector<int> & v);
-			ONNXExport & postprocess_yolo_split_and_concat(const size_t index, Darknet::CfgSection & section);
-			ONNXExport & postprocess_yolo_tx_ty	(const size_t index, Darknet::CfgSection & section);
-			ONNXExport & postprocess_yolo_tw_th	(const size_t index, Darknet::CfgSection & section);
-			ONNXExport & postprocess_yolo_to	(const size_t index, Darknet::CfgSection & section);
-			ONNXExport & postprocess_yolo_class	(const size_t index, Darknet::CfgSection & section);
-			ONNXExport & postprocess_yolo_confs	();
-			ONNXExport & postprocess_yolo_boxes	();
+
+			Darknet::VStr postprocess_yolo_slice_and_concat(Darknet::CfgSection & section);
+
+			ONNXExport & postprocess_yolo_tx_ty	(Darknet::CfgSection & section, const Darknet::VStr & v, VStr & output_names);
+			ONNXExport & postprocess_yolo_tw_th	(Darknet::CfgSection & section, const Darknet::VStr & v, VStr & output_names);
+			ONNXExport & postprocess_yolo_to	(Darknet::CfgSection & section, const Darknet::VStr & v, VStr & output_names);
+			ONNXExport & postprocess_yolo_class	(Darknet::CfgSection & section, const Darknet::VStr & v, VStr & output_names);
+
+			ONNXExport & postprocess_yolo_confs	(const Darknet::VStr & output_obj, const Darknet::VStr & output_class);
+			ONNXExport & postprocess_yolo_boxes	(const Darknet::VStr & output_tx_ty, const Darknet::VStr & output_tw_th);
 
 			/// Save the entire model as an .onnx file.
 			ONNXExport & save_output_file();
