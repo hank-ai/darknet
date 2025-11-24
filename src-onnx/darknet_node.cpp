@@ -233,7 +233,8 @@ Darknet::Node & Darknet::Node::set_output(const std::string & out)
 	if (out.empty())
 	{
 //		output = "N" + std::to_string(counter) + "_L" + std::to_string(layer_index) + "_output";
-		output = name + "_output";
+//		output = name + "_output";
+		output = name;
 	}
 	else
 	{

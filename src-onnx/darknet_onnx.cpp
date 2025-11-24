@@ -1208,12 +1208,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(Darknet::CfgSe
 		Node const_0_025(section, variance / 2.0f);
 
 		// multiply by 1.05
-		Node add(section, "_mul_tx_ty");
-		add.type("Mul").add_input(sigmoid.output).add_input(const_1_050.output);
+		Node mul(section, "_mul_tx_ty");
+		mul.type("Mul").add_input(sigmoid.output).add_input(const_1_050.output);
 
 		// shift by -0.025
 		Node sub(section, "_sub_tx_ty");
-		sub.type("Sub").add_input(add.output).add_input(const_0_025.output);
+		sub.type("Sub").add_input(mul.output).add_input(const_0_025.output);
 
 		output_names.push_back(sub.output);
 	}
@@ -1405,11 +1405,13 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs(const Darknet:
 }
 
 
-Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & output_tx_ty, const Darknet::VStr & output_tw_th)
+Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & output_tx_ty, const Darknet::VStr & output_tw_th)
 {
 	// ...why 6?  Where does this magic value come from?
 	const int magic_6			= 6;
 	int number_of_yolo_layers	= 0;
+
+	VStr results;
 
 	for (int idx = 1; idx < cfg.net.n; idx ++)
 	{
@@ -1534,27 +1536,21 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 			outputs.push_back(mul.output);
 		}
 
-		// now make 2 groups, each with 6 inputs, one for even and another for odd
-		for (const std::string name : {"even", "odd"})
+		// now make 2 groups, each with 6 inputs
+		for (const std::string name : {"lhs", "rhs"})
 		{
-			int divider = l.w;
-			if (name == "odd")
-			{
-				divider = l.h;
-			}
-
 			Node concat(section, "_concat_" + name);
 			concat.type("Concat").add_attribute_INT("axis", 1);
 
 			// only take every 2nd output, based on whether or not we're starting with "even" (zero) or "odd" (one)
-			for (size_t i = (name == "even" ? 0 : 1); i < outputs.size(); i += 2)
+			for (size_t i = (name == "lhs" ? 0 : 1); i < outputs.size(); i += 2)
 			{
 				concat.add_input(outputs[i]);
 			}
 
 			onnx::TensorProto tensor;
 			tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
-			tensor.add_float_data(divider);
+			tensor.add_float_data(name == "lhs" ? l.w : l.h);
 			Node constants(section, "_const_" + name);
 			constants.type("Constant");
 			auto attr = constants.node->add_attribute();
@@ -1562,10 +1558,180 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 			attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
 			*attr->mutable_t() = tensor;
 
-			Node div(section, "_mul_" + name);
+			Node div(section, "_div_" + name);
 			div.type("Div").add_input(concat.output).add_input(constants.output);
+
+			results.push_back(div.output);
 		}
 	}
+
+	return results;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & v)
+{
+	/* "v" should be set to the even-and-odd Div output, such as:
+	 *
+	 *		- N162_L30_yolo_div_lhs
+	 *		- N165_L30_yolo_div_rhs
+	 *		- N204_L37_yolo_div_lhs
+	 *		- N207_L37_yolo_div_rhs
+	 */
+
+	int number_of_yolo_layers = 0;
+	int number_of_classes = 0;
+	int number_of_boxes = 0;
+
+	VStr results;
+
+	for (int idx = 1; idx < cfg.net.n; idx ++)
+	{
+		auto & section = cfg.sections[idx];
+		if (section.type != Darknet::ELayerType::YOLO)
+		{
+			continue;
+		}
+
+		// we found a YOLO layer
+
+		VStr outputs_sub;
+		VStr outputs_add;
+		const std::string & lhs = v.at(number_of_yolo_layers * 2 + 0); // N162_L30_yolo_div_lhs
+		const std::string & rhs = v.at(number_of_yolo_layers * 2 + 1); // N165_L30_yolo_div_rhs
+		number_of_yolo_layers ++;
+		const auto & l = cfg.net.layers[idx];
+		number_of_classes = section.find_int("classes");
+		const int number_of_masks = section.find_int_array("mask").size();
+		const int size = number_of_masks * l.w * l.h;
+		number_of_boxes += size;
+		VInt reshape_vector = {1, size, 1};
+
+		for (const auto & name : {lhs, rhs})
+		{
+			Node slice1(section, "_slice_x");
+			const std::map<std::string, int> constants1 =
+			{
+				{slice1.name + "_1_starts"	, 0},
+				{slice1.name + "_2_ends"	, 3},
+				{slice1.name + "_3_axes"	, 1},
+				{slice1.name + "_4_steps"	, 1}
+			};
+			for (const auto & [key, val] : constants1)
+			{
+				onnx::TensorProto * initializer = graph->add_initializer();
+				initializer->set_name(key);
+				initializer->set_doc_string(slice1.node->doc_string());
+				initializer->set_data_type(onnx::TensorProto::INT32);
+				initializer->add_dims(1);
+				initializer->add_int32_data(val);
+			}
+			slice1
+				.type("Slice")
+				.add_input(name)
+				.add_input("_1_starts"	)
+				.add_input("_2_ends"	)
+				.add_input("_3_axes"	)
+				.add_input("_4_steps"	);
+
+			const auto reshape1_const = Node(section, reshape_vector).output;
+			Node reshape1(section, "_reshape_x");
+			reshape1.type("Reshape").add_input(slice1.output).add_input(reshape1_const);
+
+			Node slice2(section, "_slice_w");
+			const std::map<std::string, int64_t> constants2 =
+			{
+				{slice2.name + "_1_starts"	, 3},
+				{slice2.name + "_2_ends"	, std::numeric_limits<int64_t>::max()},
+				{slice2.name + "_3_axes"	, 1},
+				{slice2.name + "_4_steps"	, 1}
+			};
+			for (const auto & [key, val] : constants2)
+			{
+				onnx::TensorProto * initializer = graph->add_initializer();
+				initializer->set_name(key);
+				initializer->set_doc_string(slice1.node->doc_string());
+				initializer->set_data_type(onnx::TensorProto::INT64);
+				initializer->add_dims(1);
+				initializer->add_int64_data(val);
+			}
+			slice2
+			.type("Slice")
+			.add_input(name)
+			.add_input("_1_starts"	)
+			.add_input("_2_ends"	)
+			.add_input("_3_axes"	)
+			.add_input("_4_steps"	);
+
+			const auto reshape2_const = Node(section, reshape_vector).output;
+			Node reshape2(section, "_reshape_w");
+			reshape2.type("Reshape").add_input(slice2.output).add_input(reshape2_const);
+
+			Node const_half(section, 0.5f);
+			Node mul2(section, "_mul_w");
+			mul2.type("Mul").add_input(reshape2.output).add_input(const_half.output);
+
+			Node sub(section, "_sub");
+			sub.type("Sub").add_input(reshape1.output).add_input(mul2.output);
+
+			Node add(section, "_add");
+			add.type("Add").add_input(sub.output).add_input(reshape2.output);
+
+			outputs_sub.push_back(sub.output);
+			outputs_add.push_back(add.output);
+		}
+
+		Node concat(section, "_concat_boxes");
+		concat.type("Concat").add_attribute_INT("axis", 2); // 2 == concat on ...?
+		for (const auto & sub : outputs_sub)
+		{
+			concat.add_input(sub);
+		}
+		for (const auto & add : outputs_add)
+		{
+			concat.add_input(add);
+		}
+
+		reshape_vector.push_back(4);
+		const auto reshape_const = Node(section, reshape_vector).output;
+		Node reshape(section, "_reshape_boxes");
+		reshape.type("Reshape").add_input(concat.output).add_input(reshape_const);
+
+		results.push_back(reshape.output);
+	}
+
+	// last node -- output the final "boxes"
+
+	Node node("boxes");
+	node.type("Concat").set_output("boxes").add_attribute_INT("axis", 1); // 1 == concat on channel axis
+	for (const auto & input : results)
+	{
+		node.add_input(input);
+	}
+
+	// this is the 2nd output from the network (also see "confs")
+
+	std::stringstream ss;
+	ss << "Output of box coordinates for all " << number_of_boxes << " prediction boxes.";
+	if (number_of_yolo_layers > 1)
+	{
+		ss << " This output is a combination of ";
+		if (number_of_yolo_layers == 2)
+		{
+			ss << " both YOLO layers.";
+		}
+		else
+		{
+			ss << " all " << number_of_yolo_layers << " layers.";
+		}
+	}
+
+	auto output = graph->add_output();
+	populate_input_output_dimensions(output, "boxes", 1, number_of_boxes, number_of_classes);
+	output->set_doc_string(ss.str());
+	node.doc(ss.str());
+
+	output_string += "[\"boxes\"] ";
 
 	return *this;
 }
@@ -1616,7 +1782,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_postprocess()
 	postprocess_yolo_confs(output_obj, output_class);
 
 	// last thing we need to do is deal with "boxes"
-	postprocess_yolo_boxes(output_tx_ty, output_tw_th);
+	const auto results = postprocess_yolo_boxes(output_tx_ty, output_tw_th);
+	postprocess_yolo_boxes(results);
 
 	return *this;
 }
