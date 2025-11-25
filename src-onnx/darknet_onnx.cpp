@@ -692,14 +692,27 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_identity(const size_t 
 	 * It simply passes the input through to the output unchanged.
 	 */
 
-	Node node(section, "_identity");
-	node.type("Identity").add_input(section.find_int("layers"));
-
 	// if we get here, then we should have no "groups" or "group_id"
 	if (section.exists("groups") or section.exists("group_id"))
 	{
-		throw std::runtime_error(node.name + ": layer should not have 'groups' or 'group_id'");
+		throw std::runtime_error("route identity layer at line #" + std::to_string(section.line_number) + " should not have 'groups' or 'group_id'");
 	}
+
+#if 0
+	Node node(section, "_identity");
+	node.type("Identity").add_input(section.find_int("layers"));
+#else
+	// We don't need to create a node for this.  Simply take the output we need, and store a reference to it in the map
+	// as if a real node existed.  Then when the consumer goes to use it as input, they'll be grabbing the right output.
+
+	int route_index = section.find_int("layers");
+	if (route_index < 0)
+	{
+		route_index += section.index;
+	}
+	const std::string output = Node::get_output_for_layer_index(route_index);
+	Node::output_per_layer_index[section.index] = output;
+#endif
 
 	return *this;
 }
