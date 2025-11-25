@@ -85,8 +85,8 @@ namespace Darknet
 			/// Which opset version to use (10, 18, ...)?
 			int opset_version;
 
-			onnx::ModelProto	model;
-			onnx::GraphProto	* graph;
+			onnx::ModelProto model;
+			onnx::GraphProto * graph;
 
 			/// Whether or not we need to fuse batchnorm (`fuse` and `dontfuse` on the CLI).
 			bool fuse_batchnorm;
@@ -99,9 +99,6 @@ namespace Darknet
 
 			/// The names of the output nodes for this neural network.
 			std::string output_string;
-
-			/// Keep track of the single most recent output name for each of the layers.
-			std::map<int, std::string> most_recent_output_per_index; /// @todo remove this
 
 			/** The key is the last part of the string, and the value is the number of floats.
 			 * For example, for "000_conv_bias", we store the key as "bias".

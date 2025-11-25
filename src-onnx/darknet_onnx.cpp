@@ -39,29 +39,6 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
 
-	static std::string format_name(const size_t idx, const std::string & name)
-	{
-		TAT(TATPARMS);
-		std::stringstream ss;
-		ss << (idx) << "_" << name;
-		return ss.str();
-	}
-
-
-	static std::string format_name(const size_t idx, const Darknet::ELayerType & type)
-	{
-		TAT(TATPARMS);
-		return format_name(idx, Darknet::to_string(type));
-	}
-
-
-	static std::string format_name(const size_t idx, const Darknet::Layer & l)
-	{
-		TAT(TATPARMS);
-		return format_name(idx, Darknet::to_string(l.type));
-	}
-
-
 	static std::string ir_date_lookup(const int ir)
 	{
 		TAT(TATPARMS);
@@ -459,9 +436,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 
 	// https://github.com/onnx/onnx/blob/main/docs/Operators.md
 
-	// prime what we'll use as our first input name
-	most_recent_output_per_index[-1] = "frame";
-
 	for (size_t index = 0; index < cfg.sections.size(); index ++)
 	{
 		auto & section = cfg.sections[index];
@@ -505,7 +479,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 				}
 				else
 				{
-					throw std::invalid_argument(format_name(index, section.type) + " on line #" + std::to_string(section.line_number) + ": number of layers is not supported: " + std::to_string(number_of_layers));
+					throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": number of layers is not supported: " + std::to_string(number_of_layers));
 				}
 
 				break;
@@ -1484,7 +1458,7 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 
 		if (masks.size() * 2 != magic_6)
 		{
-			throw std::runtime_error(format_name(idx, section.type) + ": the ONNX export tool expected 6 values (3 masks) per YOLO head, not " + std::to_string(masks.size()));
+			throw std::runtime_error(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": the ONNX export tool expected 6 values (3 masks) per YOLO head, not " + std::to_string(masks.size()));
 		}
 
 		Darknet::VFloat multiplier;

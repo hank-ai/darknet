@@ -21,6 +21,10 @@ namespace Darknet
 	{
 		public:
 
+			Node() = delete;
+			Node(const Node & rhs) = delete;
+			Node & operator=(const Node & rhs) = delete;
+
 			/// Constructor.
 			Node(const std::string & n);
 
