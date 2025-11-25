@@ -85,13 +85,17 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* Added support for AMD GPUs using ROCm.
 		* Still need to add support for MIOpen.
 	* All `printf()` and `std::cout` calls have all been replaced so Darknet/YOLO logging messages can easily be redirected.
-* The latest release was in August 2025.  The `version` command now returns 5.x "Moonlit".
+* The next release was in August 2025.  The `version` command now returns 5.x "Moonlit".
 	* Move source code repo from github to [codeberg](https://codeberg.org/CCodeRun/darknet#table-of-contents).
 	* More performance optimizations.
 	* Use of OpenBLAS when building CPU-only versions of Darknet.
 	* Support for Profile-Guided Optimization.
 	* ONNX export functionality.  [experimental]
 	* JAVA language bindings.  [incomplete, in-progress]
+* The most recent release is v5.1, which continues the "Moonlit" name introduced in v5.0.
+	* Scheduled for release in December 2025.
+	* The ONNX export tool now includes the necessary nodes to export both "confs" and "boxes".
+	* The mAP function was re-written.
 
 # Pre-trained Weights
 
@@ -190,7 +194,7 @@ sudo apt-get install libopenblas64-0 libopenblas64-0-openmp libopenblas64-openmp
 ```
 
 > [!TIP]
-> If you would like to export your Darknet/YOLO `.weights` to ONNX format, see [the additional dependency you may need to install](README_ONNX.md).
+> If you would like to export your Darknet/YOLO `.weights` to ONNX format, see [the additional dependency you may need to install](README_ONNX.md) prior to building Darknet/YOLO.
 
 These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
 
@@ -566,7 +570,7 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 
 # Roadmap
 
-Last updated 2025-10-24:
+Last updated 2025-11-25:
 
 ## Completed
 
@@ -609,7 +613,8 @@ Last updated 2025-10-24:
 * [X] add support for OpenBLAS (CPU builds only)
 * [X] add support for Profile Guided Optimization
 * [X] move from github to codeberg
-* [X] onnx export **(experimental)**
+* [X] ONNX export tool
+* [X] re-write function that calculates mAP (mean average precision)
 
 ## Short-term goals
 

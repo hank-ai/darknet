@@ -803,18 +803,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_maxpool(const size_t index, 
 	const int dilation		= 1;
 	const int stride		= section.find_int("stride"	, 2);
 	const int kernel_size	= section.find_int("size"	, 3);
-	const int pad			= [&]() -> int
-	{
-		int i = 0;
-		if (section.find_int("pad", 0))
-		{
-			i = dilation * (kernel_size - 1) / 2;
-		}
-		return i;
-	}();
+	const int pad			= dilation * (kernel_size - 1) / 2;
 
 	Node node(section);
 	node.type("MaxPool").add_input(index - 1)//.add_input("_weights")
+		.add_attribute_INT("ceil_mode"		, 0							)
 		.add_attribute_INTS("pads"			, {pad, pad, pad, pad}		)
 		.add_attribute_INTS("dilations"		, {dilation, dilation}		)
 		.add_attribute_INTS("kernel_shape"	, {kernel_size, kernel_size})
@@ -999,10 +992,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::build_model()
 
 	if (postprocess_boxes)
 	{
+		// this outputs the full set of nodes, including "confs" and "boxes"
 		populate_graph_postprocess();
 	}
 	else
 	{
+		// this only outputs up to the YOLO nodes
 		populate_graph_YOLO_output();
 	}
 
