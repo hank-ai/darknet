@@ -22,6 +22,15 @@
  * fixed.
  *
  * Stephane Charette, 2025-08-18.
+ *
+ * Update:
+ *
+ * Post-processing for YOLO layers was added for Darknet v5.1.  ONNX is still a beast, but I'm feeling much more
+ * confident about the export tool than I was a few months ago.  I would no longer say "this code should not be
+ * trusted" but instead would caution readers and debuggers to not assume the code is doing the right thing in all
+ * cases since many assumptions have been made.  If you find a problem, please let me know or submit a PR.
+ *
+ * Stephane Charette, 2025-11-24.
  */
 
 
@@ -30,22 +39,11 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
 
-	/** Purely cosmetic zero-padding used when generating the ONNX node names.
-	 *
-	 * For example, with YOLOv4-tiny which has 37 layers then the length is set to @p 2 and the node names will be padded
-	 * like this:  @p 02_conv
-	 *
-	 * And with YOLOv4-full which has over 100 layers, then the length is set to @p 3 and the node names will be padded
-	 * like this:  @p 002_conv
-	 */
-	size_t padding_len = 2;
-
-
 	static std::string format_name(const size_t idx, const std::string & name)
 	{
 		TAT(TATPARMS);
 		std::stringstream ss;
-		ss << std::setfill('0') << std::setw(padding_len) << (idx) << "_" << name;
+		ss << (idx) << "_" << name;
 		return ss.str();
 	}
 
@@ -61,13 +59,6 @@ namespace
 	{
 		TAT(TATPARMS);
 		return format_name(idx, Darknet::to_string(l.type));
-	}
-
-
-	static std::string format_weights(const size_t idx, const Darknet::Layer & l, const std::string & name)
-	{
-		TAT(TATPARMS);
-		return format_name(idx, l) + "_" + name;
 	}
 
 
@@ -216,10 +207,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 	{
 		Darknet::set_verbose(original_verbose_flag);
 	}
-
-	// tiny and tiny-3L have less than 100 sections, so pad 2 characters,
-	// while yolo-full have over 100 sections, so pad 3 characters
-	padding_len = std::to_string(cfg.sections.size()).size();
 
 	return *this;
 }
@@ -1064,7 +1051,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::save_output_file()
 	*cfg_and_state.output
 		<< "-> onnx saved to ........ " << Darknet::in_colour(Darknet::EColour::kBrightCyan, onnx_fn.string()) << " "
 		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(std::filesystem::file_size(onnx_fn)) + "]")					<< std::endl
-		<< "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "This Darknet/YOLO ONNX Export Tool is experimental.")	<< std::endl
+//		<< "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "This Darknet/YOLO ONNX Export Tool is experimental.")	<< std::endl
 		<< "-> done!"																															<< std::endl;
 
 	return *this;
@@ -1464,7 +1451,16 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 			{
 				for (int w = 0; w < l.w; w ++)
 				{
-					tensor.add_float_data(w);
+					if (i % 2 == 0)
+					{
+						// X values
+						tensor.add_float_data(w);
+					}
+					else
+					{
+						// Y values
+						tensor.add_float_data(h);
+					}
 				}
 			}
 			Node constants(section, "_const_tx_ty");
