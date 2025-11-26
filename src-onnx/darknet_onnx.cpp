@@ -1460,9 +1460,12 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 
 		// then we deal with tw_th...
 
-		const auto masks	= section.find_int_array("mask");		// e.g., "3, 4, 5"
-		const auto anchors	= section.find_float_array("anchors");	// e.g., "8, 8, 10, 10, 15, 12, 41, 41, 48, 47, 73, 70"
-		// So with that example, the values of interest to this YOLO head are "41, 41, 48, 47, 73, 70"
+		const auto masks		= section.find_int_array("mask");		// e.g., "3, 4, 5"
+		const auto anchors		= section.find_float_array("anchors");	// e.g., "8, 8, 10, 10, 15, 12, 41, 41, 48, 47, 73, 70"
+		const float stride_x	= cfg.net.w / l.w;
+		const float stride_y	= cfg.net.h / l.h;
+
+		// So with that LEGO example, the values of interest to this YOLO head are "41, 41, 48, 47, 73, 70"  (width followed by height)
 
 		if (masks.size() * 2 != magic_6)
 		{
@@ -1472,8 +1475,8 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 		Darknet::VFloat multiplier;
 		for (const auto & mask : masks)
 		{
-			multiplier.push_back(anchors[mask * 2 + 0] / 32.0f);
-			multiplier.push_back(anchors[mask * 2 + 1] / 32.0f);
+			multiplier.push_back(anchors[mask * 2 + 0] / stride_x);
+			multiplier.push_back(anchors[mask * 2 + 1] / stride_y);
 		}
 
 		for (int i = 0; i < magic_6; i ++)
