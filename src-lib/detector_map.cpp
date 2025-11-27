@@ -943,9 +943,12 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 				<< " AP=average precision, TP=true positive, FP=false positive,"				<< std::endl
 				<< " TN=true negative, FN=false negative, GT=ground truth count"				<< std::endl
 				<< ""																			<< std::endl
-				<< "  Id Name                       AP      TP      FP      FN      GT  AvgIoU"	<< std::endl
-				<< "  -- -------------------- -------- ------- ------- ------- ------- -------"	<< std::endl;
+				<< "  Id Name                       AP      TP      FP      FN      GT      F1  AvgIoU"	<< std::endl
+				<< "  -- -------------------- -------- ------- ------- ------- ------- ------- -------"	<< std::endl;
 		}
+
+		// F1 = 2TP / (2TP + FP + FN)
+		const float f1 = (2.0f * tp_final) / (2.0f * tp_final + fp_final + fn_final);
 
 		*cfg_and_state.output
 			<< Darknet::format_map_ap_row_values(
@@ -957,6 +960,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 				fp_final,						// FP
 				fn_final,						// FN
 				gt_i,							// GT
+				f1,								// F1
 				diag_avg_iou_at_thresh)			// diag IoU
 			<< std::endl;
 

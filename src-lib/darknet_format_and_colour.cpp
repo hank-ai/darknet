@@ -259,13 +259,14 @@ std::string Darknet::format_percentage(const int & i)
 std::string Darknet::format_map_ap_row_values(
 	const int class_id,
 	std::string name,
-	const float &average_precision, // 0..1
-	const int &tp,
-	const int &tn, // not shown
-	const int &fp,
-	const int &fn,
-	const int &gt,
-	const float &diag_avg_iou // 0..1
+	const float & average_precision, // 0..1
+	const int & tp,
+	const int & tn, // not shown
+	const int & fp,
+	const int & fn,
+	const int & gt,
+	const float & f1,
+	const float & diag_avg_iou // 0..1
 	)
 {
 	TAT(TATPARMS);
@@ -278,8 +279,8 @@ std::string Darknet::format_map_ap_row_values(
 
 #if 0
 	// spacing looks like this; see validate_detector_map()
-	"  Id Name                       AP      TP      FP      FN      GT  AvgIoU"
-	"  -- -------------------- -------- ------- ------- ------- ------- -------"
+	"  Id Name                       AP      TP      FP      FN      GT      F1  AvgIoU"
+	"  -- -------------------- -------- ------- ------- ------- ------- ------- -------"
 
 #endif
 
@@ -296,6 +297,7 @@ std::string Darknet::format_map_ap_row_values(
 		format_in_colour(fp			, EColour::kNormal		, 7	) + " " +
 		format_in_colour(fn			, EColour::kNormal		, 7	) + " " +
 		format_in_colour(gt			, EColour::kNormal		, 7	) + " " +
+		format_in_colour(100.0f * f1						, 6 ) + " " +
 		format_in_colour(100.0f * diag_avg_iou				, 6);
 }
 

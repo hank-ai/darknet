@@ -50,30 +50,16 @@ namespace Darknet
 	std::string format_in_colour(const int & i, const size_t & len);
 	std::string format_percentage(const int & i);
 
-	std::string format_map_confusion_matrix_values(
-			const int class_id,
-			std::string name, // on purpose not by reference since we can end up modifying it
-			const float & average_precision,
-			const int & tp,
-			const int & fn,
-			const int & fp,
-			const int & tn,
-			const float & accuracy,
-			const float & error_rate,
-			const float & precision,
-			const float & recall,
-			const float & specificity,
-			const float & false_pos_rate);
-
 	std::string format_map_ap_row_values(
 			const int class_id,
 			std::string name,
-			const float &average_precision, // 0..1
-			const int &tp,
-			const int &fp,
-			const int &tn,
-			const int &fn,
-			const int &gt,
+			const float & average_precision, // 0..1
+			const int & tp,
+			const int & tn,
+			const int & fp,
+			const int & fn,
+			const int & gt,
+			const float & f1,
 			const float &diag_avg_iou); // 0..1 (diagnostic)
 
 	std::string format_layer_summary(
