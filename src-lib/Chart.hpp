@@ -41,6 +41,10 @@ class Chart final
 
 		Chart & update_loss(const int current_iteration, const float loss);
 
+		Chart & update_f1(const float f1);
+
+		Chart & update_f1(const int current_iteration, const float f1);
+
 		Chart & update_accuracy(const float accuracy);
 
 		Chart & update_accuracy(const int current_iteration, const float accuracy);
@@ -75,6 +79,12 @@ class Chart final
 
 		float previous_loss_iteration;
 		float previous_loss_value;
+
+		float previous_f1_shown;
+		float previous_f1_iteration;
+		float previous_f1_value;
+		float max_f1_value;
+		cv::Scalar f1_colour;
 
 		float previous_map_shown;
 		float previous_map_iteration;

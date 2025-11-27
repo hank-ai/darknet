@@ -261,6 +261,26 @@ void Darknet::update_loss_in_new_charts(const int current_iteration, const float
 }
 
 
+void Darknet::update_f1_in_new_charts(const int class_index, const float f1)
+{
+	TAT(TATPARMS);
+
+	if (training_chart.empty() == false)
+	{
+		if (class_index < 0)
+		{
+			training_chart.update_f1(f1);
+		}
+		else if (static_cast<size_t>(class_index) < more_charts.size())
+		{
+			more_charts[class_index].update_f1(f1);
+		}
+	}
+
+	return;
+}
+
+
 void Darknet::update_accuracy_in_new_charts(const int class_index, const float accuracy)
 {
 	TAT(TATPARMS);

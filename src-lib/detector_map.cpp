@@ -956,6 +956,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			<< std::endl;
 
 		// send the result of this class to the C++ side of things so we can include it the right chart
+		Darknet::update_f1_in_new_charts(class_idx, f1);
 		Darknet::update_accuracy_in_new_charts(class_idx, (float)avg_precision);
 
 		mean_average_precision += avg_precision;
@@ -1010,6 +1011,8 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		<< "-> mean average precision (mAP@" << std::setprecision(2) << iou_thresh << ")="
 		<< Darknet::format_map_accuracy(mean_average_precision)
 		<< std::endl;
+
+	Darknet::update_f1_in_new_charts(-1, f1_score);
 
 	// free memory
 	for (int i = 0; i < shared_info.number_of_classes; ++i)
