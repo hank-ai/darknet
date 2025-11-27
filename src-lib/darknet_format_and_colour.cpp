@@ -256,58 +256,13 @@ std::string Darknet::format_percentage(const int & i)
 }
 
 
-std::string Darknet::format_map_confusion_matrix_values(
-	const int class_id,
-	std::string name, // on purpose not by reference since we can end up modifying it
-	const float & average_precision,
-	const int & tp,
-	const int & fn,
-	const int & fp,
-	const int & tn,
-	const float & accuracy,
-	const float & error_rate,
-	const float & precision,
-	const float & recall,
-	const float & specificity,
-	const float & false_pos_rate)
-{
-	TAT(TATPARMS);
-
-	/// @todo This function appears to be unused?  May have been replaced by format_map_ap_row_values()
-
-	if (name.length() > 16)
-	{
-		name.erase(15);
-		name += "+";
-	}
-
-	const std::string output =
-		"  " +
-		format_in_colour(class_id, EColour::kNormal	, 2	) + " " +
-		format_in_colour(name, EColour::kBrightWhite, 16) + " " +
-		format_in_colour(100.0f * average_precision	, 12) + " " +
-		format_in_colour(tp, EColour::kNormal		, 6	) + " " +
-		format_in_colour(fn, EColour::kNormal		, 6	) + " " +
-		format_in_colour(fp, EColour::kNormal		, 6	) + " " +
-		format_in_colour(tn, EColour::kNormal		, 6	) + " " +
-		format_in_colour(accuracy					, 8	) + " " +
-		format_in_colour(error_rate					, 9, true) + " " +
-		format_in_colour(precision					, 9	) + " " +
-		format_in_colour(recall						, 6	) + " " +
-		format_in_colour(specificity				, 11) + " " +
-		format_in_colour(false_pos_rate				, 12, true);
-
-	return output;
-}
-
-
 std::string Darknet::format_map_ap_row_values(
 	const int class_id,
 	std::string name,
 	const float &average_precision, // 0..1
 	const int &tp,
+	const int &tn, // not shown
 	const int &fp,
-	const int &tn,
 	const int &fn,
 	const int &gt,
 	const float &diag_avg_iou // 0..1
@@ -323,8 +278,8 @@ std::string Darknet::format_map_ap_row_values(
 
 #if 0
 	// spacing looks like this; see validate_detector_map()
-	"  Id Name                       AP      TP      FP      TN      FN      GT  AvgIoU"
-	"  -- -------------------- -------- ------- ------- ------- ------- ------- -------"
+	"  Id Name                       AP      TP      FP      FN      GT  AvgIoU"
+	"  -- -------------------- -------- ------- ------- ------- ------- -------"
 
 #endif
 
@@ -337,8 +292,8 @@ std::string Darknet::format_map_ap_row_values(
 		format_in_colour(name		, EColour::kBrightWhite	, 20) + " " +
 		format_in_colour(100.0f * average_precision			, 8	) + " " + // <- 8 so "100.0000" fits
 		format_in_colour(tp			, EColour::kNormal		, 7	) + " " +
+//		format_in_colour(tn			, EColour::kNormal		, 7	) + " " +
 		format_in_colour(fp			, EColour::kNormal		, 7	) + " " +
-		format_in_colour(tn			, EColour::kNormal		, 7	) + " " +
 		format_in_colour(fn			, EColour::kNormal		, 7	) + " " +
 		format_in_colour(gt			, EColour::kNormal		, 7	) + " " +
 		format_in_colour(100.0f * diag_avg_iou				, 6);

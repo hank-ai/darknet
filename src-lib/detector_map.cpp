@@ -921,7 +921,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		int tp_final = 0;
 		int fp_final = 0;
 		int tn_final = 0;
-//		int fn_final = 0;
 		if (shared_info.box_probabilities.size() > 0)
 		{
 			tp_final = pr[class_idx][shared_info.box_probabilities.size() - 1].tp;
@@ -941,11 +940,11 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			*cfg_and_state.output
 				<< std::endl
 				<< std::endl
-				<< " AP=average precision, TP=true positive, FP=false positive,"						<< std::endl
-				<< " TN=true negative, FN=false negative, GT=ground truth count"						<< std::endl
-				<< ""																					<< std::endl
-				<< "  Id Name                       AP      TP      FP      TN      FN      GT  AvgIoU"	<< std::endl
-				<< "  -- -------------------- -------- ------- ------- ------- ------- ------- -------"	<< std::endl;
+				<< " AP=average precision, TP=true positive, FP=false positive,"				<< std::endl
+				<< " TN=true negative, FN=false negative, GT=ground truth count"				<< std::endl
+				<< ""																			<< std::endl
+				<< "  Id Name                       AP      TP      FP      FN      GT  AvgIoU"	<< std::endl
+				<< "  -- -------------------- -------- ------- ------- ------- ------- -------"	<< std::endl;
 		}
 
 		*cfg_and_state.output
