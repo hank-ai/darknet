@@ -271,34 +271,41 @@ std::string Darknet::format_map_ap_row_values(
 {
 	TAT(TATPARMS);
 
+	std::stringstream ss;
+
+	// header is only shown once before the very first class
+	if (class_id == 0)
+	{
+		ss	<< std::endl << std::endl
+			<< " AP=average precision, TP=true positive, TN=true negative,"								<< std::endl
+			<< " FP=false positive, FN=false negative, GT=ground truth count"							<< std::endl
+			<< ""																						<< std::endl
+			<< "  Id Name                       AP      TP      FP      FN      GT       F1   AvgIoU"	<< std::endl
+			<< "  -- -------------------- -------- ------- ------- ------- ------- -------- --------"	<< std::endl;
+	}
+
 	if (name.length() > 20)
 	{
 		name.erase(19);
 		name += "+";
 	}
 
-#if 0
-	// spacing looks like this; see validate_detector_map()
-	"  Id Name                       AP      TP      FP      FN      GT      F1  AvgIoU"
-	"  -- -------------------- -------- ------- ------- ------- ------- ------- -------"
-
-#endif
-
 	// Note: format_in_colour(x,len) auto-colours by value.
 	// It also treats values >1 as percentages (divides by 100 for scale),
 	// so we pass AP*100 and IoU*100 to show nicely as percents with colour.
-	return
-		"  " +
-		format_in_colour(class_id	, EColour::kNormal		, 2	) + " " +
-		format_in_colour(name		, EColour::kBrightWhite	, 20) + " " +
-		format_in_colour(100.0f * average_precision			, 8	) + " " + // <- 8 so "100.0000" fits
-		format_in_colour(tp			, EColour::kNormal		, 7	) + " " +
-//		format_in_colour(tn			, EColour::kNormal		, 7	) + " " +
-		format_in_colour(fp			, EColour::kNormal		, 7	) + " " +
-		format_in_colour(fn			, EColour::kNormal		, 7	) + " " +
-		format_in_colour(gt			, EColour::kNormal		, 7	) + " " +
-		format_in_colour(100.0f * f1						, 6 ) + " " +
-		format_in_colour(100.0f * diag_avg_iou				, 6);
+	ss	<< "  "
+		<< format_in_colour(class_id	, EColour::kNormal		, 2	) + " "
+		<< format_in_colour(name		, EColour::kBrightWhite	, 20) + " "
+		<< format_in_colour(100.0f * average_precision			, 8	) + " " // <- 8 so "100.0000" fits
+		<< format_in_colour(tp			, EColour::kNormal		, 7	) + " "
+//		<< format_in_colour(tn			, EColour::kNormal		, 7	) + " "
+		<< format_in_colour(fp			, EColour::kNormal		, 7	) + " "
+		<< format_in_colour(fn			, EColour::kNormal		, 7	) + " "
+		<< format_in_colour(gt			, EColour::kNormal		, 7	) + " "
+		<< format_in_colour(100.0f * f1							, 8 ) + " "
+		<< format_in_colour(100.0f * diag_avg_iou				, 8);
+
+	return ss.str();
 }
 
 

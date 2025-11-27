@@ -917,51 +917,42 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			avg_precision = avg_precision / map_points;
 		}
 
-		// Final (threshold-free) counts at last rank
-		int tp_final = 0;
-		int fp_final = 0;
-		int tn_final = 0;
-		if (shared_info.box_probabilities.size() > 0)
+		// ---- Per-class stats at the SAME conf_thresh as global F1 ----
+		const int tp = shared_info.tp_for_thresh_per_class[class_idx];
+		const int fp = shared_info.fp_for_thresh_per_class[class_idx];
+		const int fn = std::max(0, gt_i - tp);
+
+		const float diag_avg_iou_at_thresh = (shared_info.tp_for_thresh_per_class[class_idx] + shared_info.fp_for_thresh_per_class[class_idx]) > 0 ? shared_info.avg_iou_per_class[class_idx] : 0.0f;
+
+		float precision	= 0.0f;
+		float recall	= 0.0f;
+		float f1		= 0.0f;
+
+		if (tp + fp > 0)
 		{
-			tp_final = pr[class_idx][shared_info.box_probabilities.size() - 1].tp;
-			fp_final = pr[class_idx][shared_info.box_probabilities.size() - 1].fp;
-			tn_final = pr[class_idx][shared_info.box_probabilities.size() - 1].tn;
-//			fn_final = pr[class_idx][shared_info.box_probabilities.size() - 1].fn;
+			precision = static_cast<float>(tp) / static_cast<float>(tp + fp);
 		}
-		const int fn_final = std::max(0, gt_i - tp_final);
-
-		// Optional diagnostic IoU at the chosen conf threshold
-		const float diag_avg_iou_at_thresh = (shared_info.tp_for_thresh_per_class[class_idx] + shared_info.fp_for_thresh_per_class[class_idx]) > 0 ? (shared_info.avg_iou_per_class[class_idx]) : 0.0f;
-
-		// Header (once)
-		if (class_idx == 0)
+		if (gt_i > 0)
 		{
-			// if you change the spacing make sure to update Darknet::format_map_ap_row_values()
-			*cfg_and_state.output
-				<< std::endl
-				<< std::endl
-				<< " AP=average precision, TP=true positive, FP=false positive,"				<< std::endl
-				<< " TN=true negative, FN=false negative, GT=ground truth count"				<< std::endl
-				<< ""																			<< std::endl
-				<< "  Id Name                       AP      TP      FP      FN      GT      F1  AvgIoU"	<< std::endl
-				<< "  -- -------------------- -------- ------- ------- ------- ------- ------- -------"	<< std::endl;
+			recall = static_cast<float>(tp) / static_cast<float>(gt_i);
 		}
-
-		// F1 = 2TP / (2TP + FP + FN)
-		const float f1 = (2.0f * tp_final) / (2.0f * tp_final + fp_final + fn_final);
+		if (precision + recall > 0.0f)
+		{
+			f1 = 2.0f * precision * recall / (precision + recall);
+		}
 
 		*cfg_and_state.output
 			<< Darknet::format_map_ap_row_values(
-				class_idx,						// class_id
-				shared_info.net.details->class_names[class_idx], // name
-				(float)avg_precision,			// AP
-				tp_final,						// TP
-				tn_final,						// TN
-				fp_final,						// FP
-				fn_final,						// FN
-				gt_i,							// GT
-				f1,								// F1
-				diag_avg_iou_at_thresh)			// diag IoU
+				class_idx,											// class_id
+				shared_info.net.details->class_names[class_idx],	// name
+				static_cast<float>(avg_precision),					// AP (threshold-free)
+				tp,													// TP @ conf_thresh
+				0,													// TN (not shown)
+				fp,													// FP @ conf_thresh
+				fn,													// FN @ conf_thresh
+				gt_i,												// GT
+				f1,													// F1 @ conf_thresh
+				diag_avg_iou_at_thresh)								// diag IoU @ conf_thresh
 			<< std::endl;
 
 		// send the result of this class to the C++ side of things so we can include it the right chart
@@ -971,7 +962,10 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	}
 
 	// Diagnostic summary (guard divisions)
-	float cur_precision = 0.f, cur_recall = 0.f, f1_score = 0.f;
+	float cur_precision	= 0.0f;
+	float cur_recall	= 0.0f;
+	float f1_score		= 0.0f;
+
 	const int det_denom = shared_info.tp_for_thresh + shared_info.fp_for_thresh;
 	if (det_denom > 0)
 	{
@@ -998,7 +992,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		<< "-> for conf_thresh="	<< shared_info.thresh_calc_avg_iou
 		<< ", TP="					<< shared_info.tp_for_thresh
 		<< ", FP="					<< shared_info.fp_for_thresh
-//		<< ", TN="					<< shared_info.tn_for_thresh
 		<< ", FN="					<< shared_info.unique_truth_count - shared_info.tp_for_thresh
 		<< ", average IoU="			<< shared_info.avg_iou * 100.0f << "%"
 		<< ""						<< std::endl
