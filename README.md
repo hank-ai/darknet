@@ -188,13 +188,10 @@ If you don't want to use Darknet/YOLO from within WSL, then skip ahead to the [W
 > * Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
 
 > [!TIP]
-> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  This only makes a difference on CPU-only builds:
+> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  These libraries are only used on CPU-only builds:
 ```sh
 sudo apt-get install libopenblas64-0 libopenblas64-0-openmp libopenblas64-openmp-dev
 ```
-
-> [!TIP]
-> In the following section, the two dependencies related to `protobuf` are optional.  They are used to build the ONNX export tool.
 
 The following instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
 
@@ -313,7 +310,7 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 > * Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
 
 > [!TIP]
-> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  This only makes a difference on CPU-only builds:
+> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  These libraries are only used on CPU-only builds:
 ```sh
 .\vcpkg.exe install openblas:x64-windows
 ```
