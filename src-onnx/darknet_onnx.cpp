@@ -1057,6 +1057,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::save_output_file()
 
 Darknet::VStr Darknet::ONNXExport::postprocess_yolo_slice_and_concat(Darknet::CfgSection & section)
 {
+	TAT(TATPARMS);
+
 	const int number_of_classes	= section.find_int("classes");
 	const int number_of_masks	= section.find_int_array("mask").size();
 	if (number_of_masks != 3)
@@ -1158,6 +1160,8 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_slice_and_concat(Darknet::Cf
 
 Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(Darknet::CfgSection & section, const Darknet::VStr & v, Darknet::VStr & output_names)
 {
+	TAT(TATPARMS);
+
 	// This assumes that postprocess_yolo_slice_and_concat() has already run, and we have the "concat_tx_ty" node ready to use.
 
 	for (const auto & name : v)
@@ -1203,6 +1207,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(Darknet::CfgSe
 
 Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tw_th(Darknet::CfgSection & section, const Darknet::VStr & v, Darknet::VStr & output_names)
 {
+	TAT(TATPARMS);
+
 	// This assumes that postprocess_yolo_slice_and_concat() has already run, and we have the "concat_tw_th" node ready to use.
 
 	for (const auto & name : v)
@@ -1224,6 +1230,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tw_th(Darknet::CfgSe
 
 Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(Darknet::CfgSection & section, const Darknet::VStr & v, Darknet::VStr & output_names)
 {
+	TAT(TATPARMS);
+
 	// This assumes that postprocess_yolo_slice_and_concat() has already run, and we have the "concat_obj" node ready to use.
 
 	const auto & l					= cfg.net.layers[section.index];
@@ -1259,6 +1267,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(Darknet::CfgSecti
 
 Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_class(Darknet::CfgSection & section, const Darknet::VStr & v, Darknet::VStr & output_names)
 {
+	TAT(TATPARMS);
+
 	// This assumes that postprocess_yolo_slice_and_concat() has already run, and we have the "concat_class" node ready to use.
 
 	const auto & l					= cfg.net.layers[section.index];
@@ -1297,6 +1307,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_class(Darknet::CfgSe
 
 Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs(const Darknet::VStr & output_obj, const Darknet::VStr & output_class)
 {
+	TAT(TATPARMS);
+
 	// every YOLO layer has "classes" and "objectness" which are combined together to produce the final confidence values
 
 	Darknet::VStr v;
@@ -1386,6 +1398,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs(const Darknet:
 
 Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & output_tx_ty, const Darknet::VStr & output_tw_th)
 {
+	TAT(TATPARMS);
+
 	// ...why 6?  Where does this magic value come from?
 	const int magic_6			= 6;
 	int number_of_yolo_layers	= 0;
@@ -1562,6 +1576,8 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 
 Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & v)
 {
+	TAT(TATPARMS);
+
 	/* "v" should be set to the even-and-odd Div output, such as:
 	 *
 	 *		- N162_L30_yolo_div_lhs

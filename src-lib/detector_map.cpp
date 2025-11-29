@@ -156,6 +156,8 @@ namespace
 	 */
 	void detector_map_loading_thread(const size_t loading_thread_id, SharedInfo & shared_info)
 	{
+		TAT(TATPARMS);
+
 		/* THIS IS CALLED ON A SECONDARY THREAD!
 		 *
 		 * Multiple instances of this may exist at the same time, since we typically have 2 or more loading threads.
@@ -225,6 +227,8 @@ namespace
 	/// Get Darknet predictions for each image.  @note This is called on a secondary thread!
 	void detector_map_prediction_thread(SharedInfo & shared_info)
 	{
+		TAT(TATPARMS);
+
 		// THIS IS CALLED ON A SECONDARY THREAD!
 
 		try
@@ -330,6 +334,8 @@ namespace
 	/// Run mAP calculations for each image.  Ground truth annotations are also loaded here to reduce the tasks done by the image loading thread.  @note This is called on a secondary thread!
 	void detector_map_calculations_thread(SharedInfo & shared_info)
 	{
+		TAT(TATPARMS);
+
 		// THIS IS CALLED ON A SECONDARY THREAD!
 
 		try
@@ -523,6 +529,8 @@ namespace
 
 float validate_detector_map(const char * datacfg, const char * cfgfile, const char * weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network * existing_net)
 {
+	TAT(TATPARMS);
+
 	/* This function is called in 2 situations:
 	 *
 	 *		1) During training every once in a while to calculate mAP%
@@ -533,8 +541,6 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	 *
 	 * This re-write of validate_detector_map() was introduced in v5.1.  The previous function was deleted.
 	 */
-
-	TAT(TATPARMS);
 
 	*cfg_and_state.output << "Calculating mAP (mean average precision) with threshold " << thresh_calc_avg_iou << " and IoU threshold " << iou_thresh << "." << std::endl;
 

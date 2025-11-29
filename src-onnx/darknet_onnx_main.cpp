@@ -21,6 +21,8 @@
 
 int main(int argc, char * argv[])
 {
+	TAT(TATPARMS);
+
 	int rc = 1;
 
 	try

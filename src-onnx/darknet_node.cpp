@@ -156,6 +156,8 @@ Darknet::Node & Darknet::Node::doc(const Darknet::CfgSection & section)
 
 Darknet::Node & Darknet::Node::doc_append(const std::string & str)
 {
+	TAT(TATPARMS);
+
 	std::string doc_string = node->doc_string();
 	doc_string += str;
 
@@ -325,6 +327,8 @@ Darknet::Node & Darknet::Node::add_attribute_FLOAT(const std::string & key, cons
 
 std::string Darknet::Node::get_output_for_layer_index(const int idx)
 {
+	TAT(TATPARMS);
+
 	if (output_per_layer_index.count(idx) == 0)
 	{
 		throw std::runtime_error("cannot find output for layer #" + std::to_string(idx));
