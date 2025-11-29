@@ -1022,6 +1022,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::save_output_file()
 {
 	TAT(TATPARMS);
 
+#if 0
+	// onnx::ModelProto::SerializeToOstream() is not available with older versions of Protocol Buffers, such as when using Ubuntu 20.04.
 	std::ofstream ofs(onnx_fn, std::ios::binary);
 	const bool success = model.SerializeToOstream(&ofs);
 	if (not success)
@@ -1029,6 +1031,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::save_output_file()
 		throw std::runtime_error("failed to save ONNX output file " + onnx_fn.string());
 	}
 	ofs.close();
+#else
+	const std::string str = model.SerializeAsString();
+	if (str.empty())
+	{
+		throw std::runtime_error("failed to serialize ONNX output to " + onnx_fn.string());
+	}
+	std::ofstream(onnx_fn, std::ios::binary) << str;
+#endif
 
 	*cfg_and_state.output
 		<< "-> onnx saved to ........ " << Darknet::in_colour(Darknet::EColour::kBrightCyan, onnx_fn.string()) << " "
