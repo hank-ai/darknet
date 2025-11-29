@@ -194,12 +194,12 @@ sudo apt-get install libopenblas64-0 libopenblas64-0-openmp libopenblas64-openmp
 ```
 
 > [!TIP]
-> If you would like to export your Darknet/YOLO `.weights` to ONNX format, see [the additional dependency you may need to install](README_ONNX.md) prior to building Darknet/YOLO.
+> In the following section, the two dependencies related to `protobuf` are optional.  They are used to build the ONNX export tool.
 
-These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
+The following instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
 
 ```sh
-sudo apt-get install build-essential git libopencv-dev cmake
+sudo apt-get install build-essential git libopencv-dev cmake libprotobuf-dev protobuf-compiler
 mkdir ~/src
 cd ~/src
 git clone https://codeberg.org/CCodeRun/darknet.git
@@ -300,7 +300,7 @@ cd vcpkg
 bootstrap-vcpkg.bat
 .\vcpkg.exe integrate install
 .\vcpkg.exe integrate powershell
-.\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows
+.\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows protobuf:x64-windows
 ```
 
 Be patient at this last step as it can take a long time to run.  It needs to download and build many things.

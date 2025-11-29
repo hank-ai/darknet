@@ -1,7 +1,11 @@
+THIS FILE IS FOR DARKNET/YOLO SOFTWARE DEVELOPERS!
+Normal users of Darknet/YOLO can safely ignore this file.
+---------------------------------------------------------
+
 The onnx.proto3.pb.* source files are generated from the onnx.proto3 file which exists in the official ONNX repo.
 Normally, users of Darknet/YOLO do not need to worry about this as the .proto3 file is also checked into the
-Darknet/YOLO repo for convenience, and the process of calling the Protocol Buffer compiler is now automatically
-handled in the CMake file.
+Darknet/YOLO repo for convenience, and as of Darknet v5.1 the process of calling the Protocol Buffer compiler is now
+automatically handled in the CMake file.
 
 It is documented here for future Darknet/YOLO developers when a new version of the ONNX .proto3 file is released.
 
