@@ -16,10 +16,10 @@ ADD_CUSTOM_COMMAND(
 	COMMENT "Generating Protocol Buffer output files for ONNX...")
 ADD_CUSTOM_TARGET (darknet_generated_proto DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/onnx.proto3.pb.cc ${CMAKE_CURRENT_SOURCE_DIR}/onnx.proto3.pb.h)
 
-FILE (GLOB SRC_ONNX *.cpp *.cc)
+FILE (GLOB SRC_ONNX *.cpp) # note the first time this runs the .cc file hasn't been created yet
 LIST (SORT SRC_ONNX)
 
-ADD_EXECUTABLE (darknet_onnx_export ${SRC_ONNX})
+ADD_EXECUTABLE (darknet_onnx_export ${SRC_ONNX} onnx.proto3.pb.cc)
 ADD_DEPENDENCIES (darknet_onnx_export darknet_generated_proto)
 TARGET_LINK_LIBRARIES (darknet_onnx_export PRIVATE darknet ${DARKNET_LINK_LIBS} protobuf::libprotobuf)
 INSTALL (TARGETS darknet_onnx_export DESTINATION bin)
