@@ -46,7 +46,9 @@ namespace
 		switch (ir)
 		{
 			// check these dates, they came from ChatGPT
-			case 3:		return "Aug 2017";
+			case 1:		return "Oct 2017";
+			case 2:		return "Oct 2017";
+			case 3:		return "Nov 2017";
 			case 4:		return "Jan 2019";
 			case 5:		return "Mar 2019";
 			case 6:		return "Sep 2019";
@@ -67,7 +69,10 @@ namespace
 		switch (ops)
 		{
 			// check these dates, they came from ChatGPT
-			case 8:		return "Apr 2018";
+			case 5:		return "Dec 2017";
+			case 6:		return "Mar 2018";
+			case 7:		return "May 2018";
+			case 8:		return "Sep 2018";
 			case 9:		return "Dec 2018";
 			case 10:	return "Apr 2019";
 			case 11:	return "Sep 2019";
@@ -93,16 +98,7 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 	cfg_fn(cfg_filename),
 	weights_fn(weights_filename),
 	onnx_fn(onnx_filename),
-	opset_version(18),	// - Upsample is until v9 (Mar 2019)
-						// - Resize begins at v10 (May 2019)
-						// - Constant (with value_int) begins at v12
-						// - Mish (used in YOLOv4-full) begins at v18 (Dec 2022)
-						//
-						// Technically, we could use v10 for YOLOv4-tiny and YOLOv4-tiny-3L,
-						// and only fall back to v18 when YOLOv4 (full) is used, but at this
-						// point it is easier to settle on a single ONNX version to support.
-						//
-						// Also see initialize_model() where the IR version is set.
+	opset_version(1), // see initialize_model()
 	graph(nullptr),
 	fuse_batchnorm(true),
 	postprocess_boxes(true)
@@ -124,7 +120,7 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 		ofs << std::endl;
 	}
 
-	// delete the .onnx file to ensure we have write access
+	// delete the output .onnx file to ensure we have write access
 	std::error_code ec;
 	const bool success = std::filesystem::remove(onnx_fn, ec);
 	if (not success)
@@ -253,12 +249,51 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 {
 	TAT(TATPARMS);
 
+	/* Quickly look through the configuration to see which ONNX opset we should be using:
+	 *
+	 *		Default:
+	 *			- opset 5, Dec 2017
+	 *
+	 *		YOLOv4-tiny and YOLOv4-tiny-3L:
+	 *			- [upsample] needs "Resize" introduced in opset 10
+	 *
+	 *		YOLOv4-full:
+	 *			- MISH activation needs opset 18 introduced in December 2022
+	 */
+	opset_version = 5;
+	for (const auto & section : cfg.sections)
+	{
+		if (section.type == Darknet::ELayerType::UPSAMPLE)
+		{
+			// "Resize" needs at least opset 10
+			if (opset_version < 10)
+			{
+				Darknet::display_warning_msg("Opset 10 needed due to [upsample] at line #" + std::to_string(section.line_number) + ".\n");
+				opset_version = 10;
+			}
+		}
+
+		for (const auto & [key, line] : section.lines)
+		{
+			if (key == "activation" and line.val == "mish")
+			{
+				// "Mish" needs at least opset 18
+				if (opset_version < 18)
+				{
+					Darknet::display_warning_msg("Opset 18 needed due to \"mish\" at line #" + std::to_string(line.line_number) + ".\n");
+					opset_version = 18;
+				}
+			}
+		}
+	}
+
 	// IR = Intermediate Representation, related to versioning
 	// https://github.com/onnx/onnx/blob/main/docs/IR.md
 	// https://github.com/onnx/onnx/blob/main/docs/Versioning.md
 	// 2019_9_19 aka "6" is the last version prior to introducing training
+	model.set_ir_version(onnx::Version::IR_VERSION_2019_3_18);	// == 5
 //	model.set_ir_version(onnx::Version::IR_VERSION_2019_9_19);	// == 6
-	model.set_ir_version(onnx::Version::IR_VERSION_2023_5_5);	// == 9 (Mish was introduced in Dec 2022)
+//	model.set_ir_version(onnx::Version::IR_VERSION_2023_5_5);	// == 9 (Mish was introduced in Dec 2022)
 //	model.set_ir_version(onnx::Version::IR_VERSION_2025_05_12); // == 11
 
 	// The name of the framework or tool used to generate this model.
@@ -294,7 +329,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 
 	auto opset = model.add_opset_import();
 	opset->set_domain(""); // empty string means use the default ONNX domain
-	opset->set_version(opset_version); // "Upsample" is only supported up to v9, and "Resize" requires a minimum of v10.  MISH requires v18.
+	opset->set_version(opset_version);
 
 	graph = new onnx::GraphProto();
 	graph->set_name(cfg_fn.stem().string());
@@ -646,11 +681,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 		// note that "Mish" as an operator was only introduced in opset 18+
 		if (opset_version < 18)
 		{
-			auto opset = model.mutable_opset_import(0);
-			opset->set_version(18);
-			opset_version = 18;
-
-			*cfg_and_state.output << "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "The use of \"mish\" in \"" + node.name + "\" requires the opset version to be increased to " + std::to_string(opset->version()) + ".") << std::endl;
+			throw std::runtime_error("op type \"Mish\" required for node " + section.name + " needs opset >= 18, but opset is currently set to " + std::to_string(opset_version) + ".");
 		}
 
 		node.type("Mish");
@@ -879,19 +910,36 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, D
 	}
 
 	Node node(section);
-	node.type("Resize").add_input(-1).add_input("_roi").add_input("_scales")
-		.add_attribute_STR("mode"							, "nearest"				)
-		.add_attribute_STR("nearest_mode"					, "round_prefer_floor"	)
-		.add_attribute_INT("antialias"						, 0						) // 0=disable antialias
-		.add_attribute_STR("coordinate_transformation_mode"	, "asymmetric"			);
+	node.type("Resize");
+
+	// at opset 10, Resize only takes 2 inputs; roi wasn't added until opset 11
+	if (opset_version < 11)
+	{
+		node.add_input(-1).add_input("_scales").add_attribute_STR("mode", "nearest"); // introduced in opset 10
+	}
+	else
+	{
+		node.add_input(-1).add_input("_roi").add_input("_scales")
+			.add_attribute_STR("mode"							, "nearest"				) // introduced in opset 10
+			.add_attribute_STR("nearest_mode"					, "round_prefer_floor"	) // introduced in opset 11
+			.add_attribute_STR("coordinate_transformation_mode"	, "asymmetric"			); // introduced in opset 11
+	}
+
+	if (opset_version >= 18)
+	{
+		node.add_attribute_INT("antialias", 0); // 0=disable antialias -- introduced in opset 18
+	}
 
 	const auto & l = cfg.net.layers[index];
 	const float stride = section.find_float("stride", 2.0f);
 	float f[4] = {1.0f, 1.0f, stride, stride};
 	populate_graph_initializer(f, 4, l, node.name + "_scales", true);
 
-	// even though the RoI isn't used, we still need to provide a dummy (empty) tensor
-	populate_graph_initializer(nullptr, 0, l, node.name + "_roi", true);
+	if (opset_version >= 11)
+	{
+		// even though the RoI isn't used, we still need to provide a dummy (empty) tensor
+		populate_graph_initializer(nullptr, 0, l, node.name + "_roi", true);
+	}
 
 	return *this;
 }
