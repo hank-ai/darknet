@@ -931,7 +931,7 @@ int num_detections_batch(Darknet::Network * net, float thresh, int batch)
 }
 
 
-detection * make_network_boxes(DarknetNetworkPtr ptr, float thresh, int * num)
+DarknetDetection * make_network_boxes(DarknetNetworkPtr ptr, float thresh, int * num)
 {
 	TAT(TATPARMS);
 
@@ -1247,7 +1247,7 @@ void fill_network_boxes_batch(Darknet::Network * net, int w, int h, float thresh
 }
 
 
-detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter)
+DarknetDetection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int *map, int relative, int *num, int letter)
 {
 	TAT(TATPARMS);
 
@@ -1278,7 +1278,7 @@ detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh,
 }
 
 
-void free_detections(detection * dets, int n)
+void free_detections(DarknetDetection * dets, int n)
 {
 	TAT(TATPARMS);
 

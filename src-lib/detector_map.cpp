@@ -268,6 +268,8 @@ namespace
 					shared_info.count_predict_internal = work_to_do.size();
 				}
 
+				// the image prediction work starts here!
+
 				for (auto & [fn, work] : work_to_do)
 				{
 					if (cfg_and_state.must_immediately_exit)
@@ -304,6 +306,7 @@ namespace
 						}
 						else
 						{
+							// normal codepath is here
 							diounms_sort(work.predictions, work.number_of_predictions, shared_info.output_layer.classes, shared_info.nms, shared_info.output_layer.nms_kind, shared_info.output_layer.beta_nms);
 						}
 					}

@@ -218,24 +218,29 @@ namespace
 
 	static inline void sort_box_detections(Darknet::Detection * dets, const int total)
 	{
-		TAT(TATPARMS);
+		TAT_REVIEWED(TATPARMS, "2025-12-02");
 
-		if (total > 1)
+		if (total <= 1)
 		{
-			// We want to sort from high probability to low probability.  The default sort behaviour would be to
-			// sort from low to high.  We reverse the sort order by comparing RHS to LHS instead of LHS to RHS.
-
-			std::sort(/** @todo try this again in 2026? std::execution::par_unseq,*/ dets, dets + total,
-					[](const Darknet::Detection & lhs, const Darknet::Detection & rhs) -> bool
-					{
-						if (rhs.sort_class < 0)
-						{
-							return rhs.objectness < lhs.objectness;
-						}
-
-						return rhs.prob[rhs.sort_class] < lhs.prob[rhs.sort_class];
-					});
+			return;
 		}
+
+		// precompute the scores to use during sorting
+		for (int i = 0; i < total; i ++)
+		{
+			dets[i].sort_score = dets[i].prob[dets[i].sort_class];
+		}
+
+		// We want to sort from high probability to low probability.  The default sort behaviour would be to
+		// sort from low to high.  We reverse the sort order by comparing RHS to LHS instead of LHS to RHS.
+
+		std::sort(/** @todo try this again in 2026? std::execution::par_unseq,*/ dets, dets + total,
+				[](const Darknet::Detection & lhs, const Darknet::Detection & rhs) -> bool
+				{
+					return rhs.sort_score < lhs.sort_score;
+				});
+
+		return;
 	}
 
 } // anonymous namespace
@@ -878,7 +883,7 @@ void do_nms_sort_v2(Darknet::Box *boxes, float **probs, int total, int classes, 
 }
 
 
-void do_nms_obj(detection *dets, int total, int classes, float thresh)
+void do_nms_obj(DarknetDetection *dets, int total, int classes, float thresh)
 {
 	TAT(TATPARMS);
 	// this is a "C" function call
@@ -931,12 +936,13 @@ void do_nms_obj(detection *dets, int total, int classes, float thresh)
 }
 
 
-void do_nms_sort(detection * dets, int total, int classes, float thresh)
+void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh)
 {
 	TAT(TATPARMS);
 	// this is a "C" function call
 	// this is called from everywhere
 
+	// move all items with zero objectness to the end of the array
 	int k = total - 1;
 	for (int i = 0; i <= k; ++i)
 	{
@@ -947,6 +953,8 @@ void do_nms_sort(detection * dets, int total, int classes, float thresh)
 			--i;
 		}
 	}
+
+	// reset the size "total" to exclude the zero objectness
 	total = k + 1;
 
 	for (k = 0; k < classes; ++k)
@@ -964,12 +972,16 @@ void do_nms_sort(detection * dets, int total, int classes, float thresh)
 			{
 				continue;
 			}
-			Darknet::Box a = dets[i].bbox;
+
+			const Darknet::Box & a = dets[i].bbox;
+
 			for (int j = i + 1; j < total; ++j)
 			{
-				Darknet::Box b = dets[j].bbox;
+				const Darknet::Box & b = dets[j].bbox;
+
 				if (box_iou(a, b) > thresh)
 				{
+					// suppress "j" and keep "i"
 					dets[j].prob[k] = 0.0f;
 				}
 			}
@@ -1020,12 +1032,14 @@ void do_nms(Darknet::Box *boxes, float **probs, int total, int classes, float th
 
 // https://github.com/Zzh-tju/DIoU-darknet
 // https://arxiv.org/abs/1911.08287
-void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1)
+void diounms_sort(DarknetDetection *dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1)
 {
-	TAT(TATPARMS);
+	TAT_REVIEWED(TATPARMS, "2025-12-02");
+
 	// this is a "C" call
 	// this is called from several locations
 
+	// Remove items where the objectness score is exactly zero.  This moves them to the bottom of the array.
 	int k = total - 1;
 	for (int i = 0; i <= k; ++i)
 	{
@@ -1036,10 +1050,11 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 			--i;
 		}
 	}
+
+	// re-calculate the number of non-zero items since all zero items are now moved to the end of the array
 	total = k + 1;
 
-//	*cfg_and_state.output << "diounms total is " << total << std::endl;
-
+	// for each class perform NMS
 	for (k = 0; k < classes; ++k)
 	{
 		for (int i = 0; i < total; ++i)
@@ -1047,36 +1062,61 @@ void diounms_sort(detection *dets, int total, int classes, float thresh, NMS_KIN
 			dets[i].sort_class = k;
 		}
 
+		// sort items in descending order based on probability, meaning the "best" (highest probability) class is now first
 		sort_box_detections(dets, total);
 
+		// perform NMS
 		for (int i = 0; i < total; ++i)
 		{
 			if (dets[i].prob[k] == 0)
 			{
+				// probability is zero so skip
 				continue;
 			}
-			Darknet::Box a = dets[i].bbox;
+
+			// for each detection, compare it with all the later ones (i + 1)
+			// remember that "i" will always have higher probability than "j" since they were sorted above
+			const Darknet::Box & a = dets[i].bbox;
+
 			for (int j = i + 1; j < total; ++j)
 			{
-				Darknet::Box b = dets[j].bbox;
-				if (box_iou(a, b) > thresh && nms_kind == CORNERS_NMS)
+				const Darknet::Box & b = dets[j].bbox;
+				switch (nms_kind)
 				{
-					dets[j].prob[k] = 0;
-				}
-				else if (box_diou(a, b) > thresh && nms_kind == GREEDY_NMS)
-				{
-					dets[j].prob[k] = 0;
-				}
-				else
-				{
-					if (box_diounms(a, b, beta1) > thresh && nms_kind == DIOU_NMS)
+					case DEFAULT_NMS: // original YOLO NMS
+					case CORNERS_NMS:
 					{
-						dets[j].prob[k] = 0;
+						if (box_iou(a, b) > thresh)
+						{
+							// suppress "j" and keep "i"
+							dets[j].prob[k] = 0;
+						}
+						break;
+					}
+					case GREEDY_NMS: // greedy NMS (distance-based IoU)
+					{
+						if (box_diou(a, b) > thresh)
+						{
+							// suppress "j" and keep "i"
+							dets[j].prob[k] = 0;
+						}
+						break;
+					}
+					case DIOU_NMS: // full DIoU-NMS
+					{
+						if (box_diounms(a, b, beta1) > thresh)
+						{
+							// suppress "j" and keep "i"
+							dets[j].prob[k] = 0;
+						}
+						break;
 					}
 				}
 			}
 		}
 	}
+
+	return;
 }
 
 
