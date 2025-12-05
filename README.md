@@ -93,9 +93,10 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* ONNX export functionality.  [experimental]
 	* JAVA language bindings.  [incomplete, in-progress]
 * The most recent release is v5.1, which continues the "Moonlit" name introduced in v5.0.
-	* Scheduled for release in December 2025.
+	* Released in December 2025.
 	* The ONNX export tool now includes the necessary nodes to export both "confs" and "boxes".
 	* The mAP function was re-written.
+	* Small number of new performance optimizations.
 
 # Pre-trained Weights
 
@@ -161,6 +162,9 @@ Select one of the following build types:
 > Beware if you are following old tutorials with more complicated build steps, or build steps that don't seem to match what is in this readme.  The new build steps started in August 2023.
 
 Software developers are encouraged to visit https://darknetcv.ai/ to get information on the internals of the Darknet/YOLO object detection framework.
+
+> [!IMPORTANT]
+> An important change was made in Darknet v5.1 to one of the prediction structures.  If you have software that includes `darknet.h` or `darknet.hpp` you'll want to recompile your application to prevent segfaults.
 
 ## Google Colab
 
@@ -310,13 +314,13 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 > * Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
 
 > [!TIP]
+> Adding the vcpkg `bin` directory to the environment variable `PATH` will prevent later problems.  The directory you'll want to add is `C:/src/vcpkg/installed/x64-windows/bin/`.
+
+> [!TIP]
 > If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  These libraries are only used on CPU-only builds:
 ```sh
 .\vcpkg.exe install openblas:x64-windows
 ```
-
-> [!TIP]
-> If you would like to export your Darknet/YOLO `.weights` to ONNX format, see [the additional dependency you may need to install](README_ONNX.md).
 
 Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies.  Make sure you continue to use the **Developer Command Prompt** as described above when you run these commands:
 
@@ -349,8 +353,11 @@ Installing the NSIS installation package will:
 * Install the neccesary Darknet `.dll`, `.lib` and header files to use `darknet.dll` from another application.
 * Install the template `.cfg` files.
 
-> [!TIP]
+> [!IMPORTANT]
 > Make sure to update your `PATH` to include `C:/Program Files/Darknet/bin` (or wherever you chose to install it).  Once you update `PATH` you'll need to restart your command prompt.
+
+> [!TIP]
+> If you encounter an error about some missing Protocol Buffer DLL files such as `libprotobuf.dll` and `abseil_dll.dll` when running the ONNX export tool, it probably means you forgot to update your `PATH` or restart the command prompt.  The missing DLLs can be found in `C:/src/vcpkg/installed/x64-windows/bin/`.
 
 You are now done!  Once the installation wizard has finished and `PATH` has been updated, run this command to test:  `darknet.exe version`.
 
