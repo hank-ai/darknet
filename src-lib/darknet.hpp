@@ -38,6 +38,7 @@ namespace Darknet
 	/// @{ Convenient simple types used in the Darknet/YOLO C++ API.  @since 2024-07-14
 	using MStr			= std::map<std::string, std::string>;
 	using MStrInt		= std::map<std::string, int>;
+	using MIdStr		= std::map<size_t, std::string>;
 	using SStr			= std::set<std::string>;
 	using SInt			= std::set<int>;
 	using VFloat		= std::vector<float>;

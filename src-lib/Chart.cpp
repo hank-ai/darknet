@@ -19,11 +19,17 @@ Chart::Chart()
 	previous_loss_iteration = 0.0f;
 	previous_loss_value = -1.0f;
 
+	previous_f1_shown = 0.0f;
+	previous_f1_iteration = 0.0f;
+	previous_f1_value = 0.0f;
+	max_f1_value = 0.0f;
+
 	previous_map_shown = 0.0f;
 	previous_map_iteration = 0.0f;
 	previous_map_value = -1.0f;
 	max_map_value = 0.0f;
 	map_colour = CV_RGB(200, 0, 0);
+	f1_colour = CV_RGB(64, 64, 64);
 
 	started_timestamp = std::chrono::high_resolution_clock::now();
 
@@ -195,15 +201,6 @@ Chart & Chart::initialize()
 	// RIGHT axis
 	cv::putText(mat, "mAP%", cv::Point(grid_offset_in_pixels + grid_size.width + 5, 50), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, cv::LINE_AA);
 
-	txt = "Iteration";
-	text_size = cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, 1, nullptr);
-	cv::putText(mat, txt, cv::Point((mat.cols - text_size.width) / 2, mat.rows - 25), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
-
-	// filename (or title?) in the bottom center
-	txt = title;
-	text_size = cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, 1, nullptr);
-	cv::putText(mat, txt, cv::Point((mat.cols - text_size.width) / 2, mat.rows - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
-
 	return *this;
 }
 
@@ -235,6 +232,65 @@ Chart & Chart::update_loss(const int current_iteration, const float loss)
 
 	previous_loss_iteration = current_iteration;
 	previous_loss_value = loss;
+
+	return *this;
+}
+
+
+Chart & Chart::update_f1(const float f1)
+{
+	TAT(TATPARMS);
+
+	// this is called prior to update_loss() where the iteration is recorded, so we must add 1
+	const int iteration_guess = 1 + static_cast<int>(std::max(previous_loss_iteration, previous_map_iteration));
+
+	return update_f1(iteration_guess, f1);
+}
+
+
+Chart & Chart::update_f1(const int current_iteration, const float f1)
+{
+	TAT(TATPARMS);
+
+	/// @note This is called only when a new F1 value has been calculated, typically every 1000 iterations.
+
+	cv::Mat grid = mat(grid_rect);
+	const cv::Size grid_size = grid.size();
+
+	// draw the black F1 line
+	if (current_iteration > 0.0f && f1 >= 0.0f)
+	{
+		if (previous_f1_iteration <= 0.0f && previous_f1_value <= 0.0f)
+		{
+			// this is the very first F1 entry, so "inherit" the current F1 values
+			previous_f1_iteration = current_iteration;
+			previous_f1_value = f1;
+		}
+
+		cv::Point p1(std::round(grid_size.width * previous_f1_iteration / max_batches), std::round(grid_size.height * (1.0f - previous_f1_value)));
+		cv::Point p2(std::max(1.0f, std::round(grid_size.width * current_iteration / max_batches)), std::round(grid_size.height * (1.0f - f1)));
+		cv::line(grid, p1, p2, f1_colour, 1, cv::LINE_AA);
+		cv::Rect r(p2.x - 2, p2.y - 2, 4, 4);
+		cv::rectangle(grid, r, f1_colour, 2);
+
+		// decide if the F1 value has changed enough that we need to re-label it on the chart
+		if ((std::fabs(previous_f1_value - f1) > 0.1) ||
+			(f1 > max_f1_value) ||
+			(current_iteration - previous_f1_shown) >= max_batches / 10.0f)
+		{
+			previous_f1_shown = current_iteration;
+			max_f1_value = std::max(max_f1_value, f1);
+
+			const std::string txt = std::to_string(static_cast<int>(std::round(100.0f * f1)));
+			p2.x -= 30;
+			p2.y += 15;
+			cv::putText(grid, txt, p2, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(255, 255, 255), 3, cv::LINE_AA);
+			cv::putText(grid, txt, p2, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, f1_colour, 1, cv::LINE_AA);
+		}
+	}
+
+	previous_f1_iteration = current_iteration;
+	previous_f1_value = f1;
 
 	return *this;
 }
@@ -307,6 +363,21 @@ Chart & Chart::update_bottom_text(const std::string & time_remaining)
 	const cv::Size grid_size = grid_rect.size();
 	cv::Size text_size;
 
+	// first thing we do is completely clear the bottom of the chart
+	cv::Point p1(0, grid_size.height + 20);
+	cv::Point p2(mat.cols, mat.rows);
+	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED);
+
+	std::string txt = "Iteration";
+	text_size = cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, 1, nullptr);
+	cv::putText(mat, txt, cv::Point((mat.cols - text_size.width) / 2, mat.rows - 25), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 0), 1, cv::LINE_AA);
+
+	// filename (or title?) in the bottom center
+	txt = title;
+	text_size = cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, 1, nullptr);
+	cv::putText(mat, txt, cv::Point((mat.cols - text_size.width) / 2, mat.rows - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
+
+
 	// blue LOSS=...
 	std::stringstream ss;
 	ss << "loss=";
@@ -318,11 +389,7 @@ Chart & Chart::update_bottom_text(const std::string & time_remaining)
 	{
 		ss << std::fixed << std::setprecision(4) << previous_loss_value;
 	}
-	cv::Point p1(15, grid_size.height + 20);
-	cv::Point p2(p1.x + 150, p1.y + 20);
-	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // clear out previous text
-	p1.y += 15;
-	cv::putText(mat, ss.str(), p1, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 200), 1, cv::LINE_AA);
+	cv::putText(mat, ss.str(), {15, grid_size.height + 35}, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(0, 0, 200), 1, cv::LINE_AA);
 
 	// red MAP%=...
 	ss = std::stringstream();
@@ -340,24 +407,17 @@ Chart & Chart::update_bottom_text(const std::string & time_remaining)
 			ss << ", best=" << max_map_value;
 		}
 	}
-	p1 = cv::Point(150, grid_size.height + 20);
-	p2 = cv::Point(p1.x + 250, p1.y + 20);
-	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // clear out previous text
-	p1.y += 15;
-	cv::putText(mat, ss.str(), p1, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, cv::LINE_AA);
+	cv::putText(mat, ss.str(), {150, grid_size.height + 35}, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.7, CV_RGB(200, 0, 0), 1, cv::LINE_AA);
 
 	// grey ITERATION #...
 	const int current_iteration = static_cast<int>(std::max(previous_loss_iteration, previous_map_iteration));
-	std::string txt = "iteration #"
-	+ std::to_string(current_iteration)
-	+ " of "
-	+ std::to_string(static_cast<int>(max_batches))
-	+ " ("
-	+ std::to_string(static_cast<int>(std::round(100.0f * current_iteration / max_batches)))
-	+ "%)";
-	p1 = cv::Point(mat.cols - 250, mat.rows - 20);
-	p2 = cv::Point(mat.cols, p1.y + 20);
-	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // clear out previous text
+	txt = "iteration #"
+		+ std::to_string(current_iteration)
+		+ " of "
+		+ std::to_string(static_cast<int>(max_batches))
+		+ " ("
+		+ std::to_string(static_cast<int>(std::round(100.0f * current_iteration / max_batches)))
+		+ "%)";
 	text_size = cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, 1, nullptr);
 	cv::putText(mat, txt, cv::Point(mat.cols - text_size.width - 5, mat.rows - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
 
@@ -368,21 +428,19 @@ Chart & Chart::update_bottom_text(const std::string & time_remaining)
 		// instead of the time remaining, show the amount of time that has elapsed
 		txt = "time elapsed=" + Darknet::format_duration_string(std::chrono::high_resolution_clock::now() - started_timestamp, 1);
 	}
-	p1 = cv::Point(mat.cols - 250, grid_size.height + 20);
-	p2 = cv::Point(mat.cols, p1.y + 20);
-	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // clear out previous text
 	text_size = cv::getTextSize(txt, cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, 1, nullptr);
-	cv::putText(mat, txt, cv::Point(mat.cols - text_size.width - 5, p1.y + 15), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
+	cv::putText(mat, txt, cv::Point(mat.cols - text_size.width - 5, grid_size.height + 35), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
 
 	// draw the timestamp in the lower left
 	const std::time_t current_time = std::time(nullptr);
 	std::tm * tm = std::localtime(&current_time);
 	char buffer[100];
 	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", tm);
-	p1 = cv::Point(15, mat.rows - 20);
-	p2 = cv::Point(p1.x + 210, p1.y + 20);
-	cv::rectangle(mat, p1, p2, CV_RGB(255, 255, 255), cv::FILLED); // fill it with white to clear out the previous text
 	cv::putText(mat, buffer, cv::Point(15, mat.rows - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, CV_RGB(128, 128, 128), 1, cv::LINE_AA);
+
+	// draw the F1 score
+	std::string text = "F1=" + std::to_string(previous_f1_value);
+	cv::putText(mat, text, cv::Point(225, mat.rows - 10), cv::FONT_HERSHEY_COMPLEX_SMALL, 0.6, f1_colour, 1, cv::LINE_AA);
 
 	return *this;
 }

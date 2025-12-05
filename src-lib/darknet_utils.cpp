@@ -53,7 +53,7 @@ std::string Darknet::format_map_accuracy(const float & accuracy)
 		return in_colour(colour, "none");
 	}
 
-	if (accuracy < 0.5f || std::isfinite(accuracy) == false)
+	if (accuracy < 0.5f or std::isfinite(accuracy) == false)
 	{
 		colour = EColour::kBrightRed;
 	}
@@ -254,6 +254,26 @@ void Darknet::update_loss_in_new_charts(const int current_iteration, const float
 		for (auto & chart : more_charts)
 		{
 			chart.update_save_and_display(current_iteration, loss, time_remaining, true);
+		}
+	}
+
+	return;
+}
+
+
+void Darknet::update_f1_in_new_charts(const int class_index, const float f1)
+{
+	TAT(TATPARMS);
+
+	if (training_chart.empty() == false)
+	{
+		if (class_index < 0)
+		{
+			training_chart.update_f1(f1);
+		}
+		else if (static_cast<size_t>(class_index) < more_charts.size())
+		{
+			more_charts[class_index].update_f1(f1);
 		}
 	}
 

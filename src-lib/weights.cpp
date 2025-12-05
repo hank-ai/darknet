@@ -765,6 +765,8 @@ void Darknet::load_names(Darknet::NetworkPtr ptr, const std::filesystem::path & 
 		darknet_fatal_error(DARKNET_LOC, "mismatch between number of classes in %s and the number of lines in %s", net->details->cfg_path.string().c_str(), net->details->names_path.string().c_str());
 	}
 
+	assign_default_class_colours(net);
+
 	return;
 }
 
@@ -790,7 +792,8 @@ void Darknet::assign_default_class_colours(Darknet::Network * net)
 
 	const auto number_of_classes = net->layers[net->n - 1].classes;
 
-	if (net->details->class_names.empty())
+	const bool class_names_are_blank = net->details->class_names.empty();
+	if (class_names_are_blank)
 	{
 		// we may not have the network names available, so create fake labels we can use
 		net->details->class_names.reserve(number_of_classes);
@@ -825,13 +828,31 @@ void Darknet::assign_default_class_colours(Darknet::Network * net)
 		net->details->class_colours.push_back(background);
 		net->details->text_colours.push_back(foreground);
 
-		if (cfg_and_state.is_verbose)
+		if (cfg_and_state.is_verbose and not class_names_are_blank)
 		{
-			*cfg_and_state.output << "-> class #" << i << " will use colour 0x"
+			std::string colour_start	= "";
+			std::string colour_end		= "";
+			if (cfg_and_state.colour_is_enabled)
+			{
+				// use 32-bit colour to show the actual class colour
+				colour_start	= "\033[0;38;2;" + std::to_string(r) + ";" + std::to_string(g) + ";" + std::to_string(b) + "m";
+				colour_end		= "\033[0m";
+			}
+
+			*cfg_and_state.output
+				<< "-> class #" << i << " will use colour "
+				<< colour_start
+				<< "0x"
 				<< std::setw(2) << std::setfill('0') << std::hex << r
 				<< std::setw(2) << std::setfill('0') << std::hex << g
 				<< std::setw(2) << std::setfill('0') << std::hex << b
-				<< std::setw(1) << std::setfill(' ') << std::dec << std::endl;
+				<< std::setw(0) << std::setfill(' ') << std::dec
+				<< colour_end
+				<< " = "
+				<< colour_start
+				<< net->details->class_names.at(i)
+				<< colour_end
+				<< std::endl;
 		}
 	}
 

@@ -182,46 +182,130 @@ std::string Darknet::format_in_colour(const float & f, const size_t & len, const
 }
 
 
-std::string Darknet::format_map_confusion_matrix_values(
-	const int class_id,
-	std::string name, // on purpose not by reference since we can end up modifying it
-	const float & average_precision,
-	const int & tp,
-	const int & fn,
-	const int & fp,
-	const int & tn,
-	const float & accuracy,
-	const float & error_rate,
-	const float & precision,
-	const float & recall,
-	const float & specificity,
-	const float & false_pos_rate)
+std::string Darknet::format_in_colour(const int & i, const size_t & len)
 {
 	TAT(TATPARMS);
 
-	if (name.length() > 16)
+	EColour colour = EColour::kNormal;
+		 if (i >= 90)	colour = EColour::kBrightWhite;
+	else if (i >= 75)	colour = EColour::kBrightGreen;
+	else if (i >= 60)	colour = EColour::kBrightCyan;
+	else if (i >= 45)	colour = EColour::kBrightBlue;
+	else if (i >= 30)	colour = EColour::kBrightMagenta;
+	else if (i >= 15)	colour = EColour::kRed;
+	else				colour = EColour::kBrightRed;
+
+	return format_in_colour(i, colour, len);
+}
+
+
+std::string Darknet::format_percentage(const int & i)
+{
+	TAT(TATPARMS);
+
+	const std::string str = std::to_string(i) + "%";
+
+	if (cfg_and_state.colour_is_enabled == false)
 	{
-		name.erase(15);
+		return str;
+	}
+
+	/*				RED		GREEN	BLUE
+	 *				---		-----	----
+	 *	0%			255		0		0
+	 *	33%			0		0		255
+	 *	66%			0		255		0
+	 *	100%		255		255		255
+	 */
+	int r = 255;
+	int g = 0;
+	int b = 0;
+
+	if (i > 0 and i <= 33)
+	{
+		// reduce the amount of red
+		r = std::round(255.0f * ((33.0f - i) / 33.0f));
+		g = 0;
+		b = std::round(255.0f * (i / 33.0f));
+	}
+	else if (i > 33 and i <= 66)
+	{
+		// zero red, decrease blue, increase green
+		r = 0;
+		g = std::round(255.0f * ((i - 33.0f) / 33.0f));
+		b = std::round(255.0f * ((66.0f - i) / 33.0f));
+	}
+	else if (i > 66)
+	{
+		// increase all colours until we get pure white
+		r = std::round(255.0f * ((i - 66.0f) / 33.0f));
+		g = 255;
+		b = std::round(255.0f * ((i - 66.0f) / 33.0f));
+	}
+
+	std::stringstream ss;
+	ss	<< "\033[0;38;2" // 24-bit colour
+		<< ";" << std::clamp(r, 0, 255)
+		<< ";" << std::clamp(g, 0, 255)
+		<< ";" << std::clamp(b, 0, 255)
+		<< "m"
+		<< str
+		<< "\033[0m";
+
+	return ss.str();
+}
+
+
+std::string Darknet::format_map_ap_row_values(
+	const int class_id,
+	std::string name,
+	const float & average_precision, // 0..1
+	const int & tp,
+	const int & tn, // not shown
+	const int & fp,
+	const int & fn,
+	const int & gt,
+	const float & f1,
+	const float & diag_avg_iou // 0..1
+	)
+{
+	TAT(TATPARMS);
+
+	std::stringstream ss;
+
+	// header is only shown once before the very first class
+	if (class_id == 0)
+	{
+		ss	<< std::endl << std::endl
+			<< " AP=average precision, TP=true positive, TN=true negative,"								<< std::endl
+			<< " FP=false positive, FN=false negative, GT=ground truth count"							<< std::endl
+			<< ""																						<< std::endl
+			<< "  Id Name                       AP      TP      FP      FN      GT       F1   AvgIoU"	<< std::endl
+			<< "  -- -------------------- -------- ------- ------- ------- ------- -------- --------"	<< std::endl;
+	}
+
+	if (name.length() > 20)
+	{
+		name.erase(19);
 		name += "+";
 	}
 
-	const std::string output =
-		"  " +
-		format_in_colour(class_id, EColour::kNormal	, 2	) + " " +
-		format_in_colour(name, EColour::kBrightWhite, 16) + " " +
-		format_in_colour(100.0f * average_precision	, 12) + " " +
-		format_in_colour(tp, EColour::kNormal		, 6	) + " " +
-		format_in_colour(fn, EColour::kNormal		, 6	) + " " +
-		format_in_colour(fp, EColour::kNormal		, 6	) + " " +
-		format_in_colour(tn, EColour::kNormal		, 6	) + " " +
-		format_in_colour(accuracy					, 8	) + " " +
-		format_in_colour(error_rate					, 9, true) + " " +
-		format_in_colour(precision					, 9	) + " " +
-		format_in_colour(recall						, 6	) + " " +
-		format_in_colour(specificity				, 11) + " " +
-		format_in_colour(false_pos_rate				, 12, true);
+	// Note: format_in_colour(x,len) auto-colours by value.
+	// It also treats values >1 as percentages (divides by 100 for scale),
+	// so we pass AP*100 and IoU*100 to show nicely as percents with colour.
+	ss	<< "  "
+		<< format_in_colour(class_id	, EColour::kNormal		, 2	) + " "
+		<< format_in_colour(name		, EColour::kBrightWhite	, 20) + " "
+		<< format_in_colour(100.0f * average_precision			, 8	) + " " // <- 8 so "100.0000" fits
+		<< format_in_colour(tp			, EColour::kNormal		, 7	) + " "
+//		<< format_in_colour(tn			, EColour::kNormal		, 7	) + " "
+		<< format_in_colour(fp			, EColour::kNormal		, 7	) + " "
+		<< format_in_colour(fn			, EColour::kNormal		, 7	) + " "
+		<< format_in_colour(gt			, EColour::kNormal		, 7	) + " "
+		<< format_in_colour(100.0f * f1							, 8 ) + " "
+		<< format_in_colour(100.0f * diag_avg_iou				, 8);
 
-	return output;
+	return ss.str();
 }
 
 

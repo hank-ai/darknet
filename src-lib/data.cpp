@@ -1,8 +1,6 @@
 #include "data.hpp"
 #include "darknet_internal.hpp"
 
-#define NUMCHARS 37
-
 
 namespace
 {
@@ -52,6 +50,16 @@ namespace
 		}
 
 		return out;
+	}
+
+	static inline std::mt19937 & get_rnd_engine()
+	{
+		TAT(TATPARMS);
+
+		// we must have 1 per thread of these (use random_device to seed the engine)
+		static thread_local std::mt19937 rnd_engine(std::random_device{}());
+
+		return rnd_engine;
 	}
 }
 
@@ -156,57 +164,86 @@ char **get_random_paths(char **paths, int n, int m)
 }
 
 
-box_label *read_boxes(char *filename, int *n)
+box_label *read_boxes(const char *filename, int *n)
 {
 	TAT(TATPARMS);
 
-	box_label* boxes = (box_label*)xcalloc(1, sizeof(box_label));
-	FILE *file = fopen(filename, "r");
-	if (!file)
+	if (filename == nullptr or filename[0] == '\0')
+	{
+		darknet_fatal_error(DARKNET_LOC, "failed to open annotation file \"\" (no filename given)");
+	}
+
+	if (n == nullptr)
+	{
+		darknet_fatal_error(DARKNET_LOC, "invalid \"n\" pointer while processing annotation file \"%s\"", filename);
+	}
+	*n = 0;
+
+	std::FILE *file = std::fopen(filename, "r");
+	if (not file)
 	{
 		darknet_fatal_error(DARKNET_LOC, "failed to open annotation file \"%s\"", filename);
 	}
 
-	const int max_obj_img = 4000;// 30000;
-	const int img_hash = (custom_hash(filename) % max_obj_img)*max_obj_img;
-	float x, y, h, w;
-	int id;
-	int count = 0;
-	while(fscanf(file, "%d %f %f %f %f", &id, &x, &y, &w, &h) == 5)
+	const int max_obj_img	= 4000;// 30000;
+	const int img_hash		= (custom_hash(filename) % max_obj_img) * max_obj_img;
+	float x					= 0.0f;
+	float y					= 0.0f;
+	float w					= 0.0f;
+	float h					= 0.0f;
+	int id					= 0;
+	int line_counter		= 0;
+	box_label * boxes		= nullptr;
+
+	while (std::fscanf(file, "%d %f %f %f %f", &id, &x, &y, &w, &h) == 5)
 	{
 //		*cfg_and_state.output << "x=" << x << " y=" << y << " w=" << w << " h=" << h << std::endl;
 
-		boxes = (box_label*)xrealloc(boxes, (count + 1) * sizeof(box_label));
-		boxes[count].track_id = count + img_hash;
-		boxes[count].id = id;
-		boxes[count].x = x;
-		boxes[count].y = y;
-		boxes[count].h = h;
-		boxes[count].w = w;
-		boxes[count].left   = x - w / 2.0f;
-		boxes[count].right  = x + w / 2.0f;
-		boxes[count].top    = y - h / 2.0f;
-		boxes[count].bottom = y + h / 2.0f;
-		++count;
+		boxes = reinterpret_cast<box_label*>(xrealloc(boxes, (line_counter + 1) * sizeof(box_label)));
+		box_label & box	= boxes[line_counter];
+		box.track_id	= line_counter + img_hash;
+		box.id			= id;
+		box.x			= std::clamp(x				, 0.0f, 1.0f);
+		box.y			= std::clamp(y				, 0.0f, 1.0f);
+		box.h			= std::clamp(h				, 0.0f, 1.0f);
+		box.w			= std::clamp(w				, 0.0f, 1.0f);
+		box.left		= std::clamp(x - w / 2.0f	, 0.0f, 1.0f);
+		box.right		= std::clamp(x + w / 2.0f	, 0.0f, 1.0f);
+		box.top			= std::clamp(y - h / 2.0f	, 0.0f, 1.0f);
+		box.bottom		= std::clamp(y + h / 2.0f	, 0.0f, 1.0f);
+
+		if (id < 0) // no simple way to get the maximum number of classes at this point in the code
+		{
+			darknet_fatal_error(DARKNET_LOC, "invalid class id in \"%s\" (line #%d, id=%d)", filename, line_counter + 1, id);
+		}
+
+		if (box.left	<	0.0f or
+			box.right	>	1.0f or
+			box.top		<	0.0f or
+			box.bottom	>	1.0f or
+			box.w		<=	0.0f or
+			box.h		<=	0.0f)
+		{
+			darknet_fatal_error(DARKNET_LOC, "invalid coordinate in \"%s\" (line #%d, cx=%f, cy=%f, width=%f, height=%f, left=%f, right=%f, top=%f, bottom=%f)",
+					filename,
+					line_counter + 1,
+					box.x,
+					box.y,
+					box.h,
+					box.w,
+					box.left,
+					box.right,
+					box.top,
+					box.bottom);
+		}
+
+		++line_counter;
 	}
 
-	fclose(file);
-	*n = count;
+	std::fclose(file);
+	*n = line_counter;
 
 	return boxes;
-}
-
-
-void randomize_boxes(box_label *b, int n)
-{
-	TAT(TATPARMS);
-
-	int i;
-	for(i = 0; i < n; ++i)
-	{
-		const auto index = rand_uint(0, n - 1);
-		std::swap(b[i], b[index]);
-	}
 }
 
 
@@ -277,7 +314,9 @@ int fill_truth_detection(const char *path, int num_boxes, int truth_size, float 
 	int min_w_h = 0;
 	float lowest_w = 1.F / net_w;
 	float lowest_h = 1.F / net_h;
-	randomize_boxes(boxes, count);
+
+	std::shuffle(boxes, boxes + count, get_rnd_engine());
+
 	correct_boxes(boxes, count, dx, dy, sx, sy, flip);
 	if (count > num_boxes)
 	{
@@ -951,6 +990,7 @@ void Darknet::load_single_image_data(load_args args)
 		case IMAGE_DATA:
 		{
 			// 2024:  used in coco.cpp, detector.cpp, yolo.cpp
+			/// @todo 2025-11-19: Why not call Darknet::load_image() with the desired width/height?  Darknet::resize_image() is slower than OpenCV.
 			*(args.im) = Darknet::load_image(args.path, 0, 0, args.c);
 			*(args.resized) = Darknet::resize_image(*(args.im), args.w, args.h);
 			break;

@@ -27,9 +27,6 @@ namespace Darknet
 			/// Destructor.
 			~ONNXExport();
 
-			/// Callback function that Protocol Buffers calls to log messages.
-			static void log_handler(google::protobuf::LogLevel level, const char * filename, int line, const std::string & message);
-
 			/// Use Darknet to load the neural network.
 			ONNXExport & load_network();
 
@@ -41,8 +38,9 @@ namespace Darknet
 
 			ONNXExport & populate_input_output_dimensions(onnx::ValueInfoProto * proto, const std::string & name, const int v1, const int v2=-1, const int v3=-1, const int v4=-1, const size_t line_number=0);
 			ONNXExport & populate_graph_input_frame();
-			ONNXExport & populate_graph_output();
+			ONNXExport & populate_graph_YOLO_output();
 			ONNXExport & populate_graph_nodes();
+			ONNXExport & populate_graph_postprocess();
 
 			ONNXExport & add_node_conv			(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_shortcut		(const size_t index, Darknet::CfgSection & section);
@@ -56,8 +54,24 @@ namespace Darknet
 			ONNXExport & add_node_resize		(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_bn			(const size_t index, Darknet::CfgSection & section);
 
-			ONNXExport & populate_graph_initializer(const float * f, const size_t n, const size_t idx, const Darknet::Layer & l, const std::string & name, const bool simple = false);
+			ONNXExport & populate_graph_initializer(const float * f, const size_t n, const Darknet::Layer & l, const std::string & name, const bool simple = false);
 			ONNXExport & build_model();
+
+			// post-processing boxes
+
+			std::string add_const_float_tensor	(const std::string & stem, const float & f);
+			std::string add_const_ints_tensor	(const std::string & stem, const std::vector<int> & v);
+
+			Darknet::VStr postprocess_yolo_slice_and_concat(Darknet::CfgSection & section);
+
+			ONNXExport & postprocess_yolo_tx_ty	(Darknet::CfgSection & section, const Darknet::VStr & v, VStr & output_names);
+			ONNXExport & postprocess_yolo_tw_th	(Darknet::CfgSection & section, const Darknet::VStr & v, VStr & output_names);
+			ONNXExport & postprocess_yolo_to	(Darknet::CfgSection & section, const Darknet::VStr & v, VStr & output_names);
+			ONNXExport & postprocess_yolo_class	(Darknet::CfgSection & section, const Darknet::VStr & v, VStr & output_names);
+
+			ONNXExport & postprocess_yolo_confs	(const Darknet::VStr & output_obj, const Darknet::VStr & output_class);
+			Darknet::VStr postprocess_yolo_boxes(const Darknet::VStr & output_tx_ty, const Darknet::VStr & output_tw_th);
+			ONNXExport & postprocess_yolo_boxes(const Darknet::VStr & v);
 
 			/// Save the entire model as an .onnx file.
 			ONNXExport & save_output_file();
@@ -71,20 +85,20 @@ namespace Darknet
 			/// Which opset version to use (10, 18, ...)?
 			int opset_version;
 
-			onnx::ModelProto	model;
-			onnx::GraphProto	* graph;
+			onnx::ModelProto model;
+			onnx::GraphProto * graph;
 
 			/// Whether or not we need to fuse batchnorm (`fuse` and `dontfuse` on the CLI).
 			bool fuse_batchnorm;
 
+			/// Whether or not we need to output the post-processing nodes to deal with boxes.
+			bool postprocess_boxes;
+
 			/// The dimensions used in @ref populate_graph_input_frame().
 			std::string input_string;
 
-			/// The output nodes for this neural network.
+			/// The names of the output nodes for this neural network.
 			std::string output_string;
-
-			/// Keep track of the single most recent output name for each of the layers.
-			std::map<int, std::string> most_recent_output_per_index;
 
 			/** The key is the last part of the string, and the value is the number of floats.
 			 * For example, for "000_conv_bias", we store the key as "bias".

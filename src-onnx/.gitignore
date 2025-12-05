@@ -1,1 +1,2 @@
-onnx.proto3
+onnx.proto3.pb.cc
+onnx.proto3.pb.h

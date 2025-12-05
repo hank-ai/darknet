@@ -114,6 +114,7 @@ namespace Darknet
 			std::string	name;			///< The name of the section (so we don't have to keep looking up the type).
 			size_t		line_number;	///< Line number where this section starts.
 			CfgLines	lines;			///< All of the non-empty lines within a section.
+			size_t		index;			///< The index of the layer within the network.
 	};
 	using CfgSections = std::vector<CfgSection>;
 

@@ -39,7 +39,7 @@ namespace Darknet
 	/// Format the loss combined with ANSI colours.
 	std::string format_loss(const double & loss);
 
-	/// Format the mAP% accuracy with ANSI colours.
+	/// Format the mAP% accuracy with ANSI colours.  Value should be between @p 0.0 and @p 1.0 as it will be multiplied by 100 prior to display.
 	std::string format_map_accuracy(const float & accuracy);
 
 	std::string format_in_colour(const std::string & str, const EColour & colour, const int & len);
@@ -47,21 +47,20 @@ namespace Darknet
 	std::string format_in_colour(const size_t & st, const EColour & colour, const size_t & len);
 	std::string format_in_colour(const float & f, const EColour & colour, const size_t & len);
 	std::string format_in_colour(const float & f, const size_t & len, const bool inverted = false);
+	std::string format_in_colour(const int & i, const size_t & len);
+	std::string format_percentage(const int & i);
 
-	std::string format_map_confusion_matrix_values(
+	std::string format_map_ap_row_values(
 			const int class_id,
-			std::string name, // on purpose not by reference since we can end up modifying it
-			const float & average_precision,
+			std::string name,
+			const float & average_precision, // 0..1
 			const int & tp,
-			const int & fn,
-			const int & fp,
 			const int & tn,
-			const float & accuracy,
-			const float & error_rate,
-			const float & precision,
-			const float & recall,
-			const float & specificity,
-			const float & false_pos_rate);
+			const int & fp,
+			const int & fn,
+			const int & gt,
+			const float & f1,
+			const float &diag_avg_iou); // 0..1 (diagnostic)
 
 	std::string format_layer_summary(
 			const size_t idx,

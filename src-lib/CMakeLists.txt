@@ -46,6 +46,10 @@ LIST (SORT LIBSRC)
 # ==
 MESSAGE(STATUS "Setting up DARKNET OBJ")
 ADD_LIBRARY(darknetobjlib OBJECT ${LIBSRC})
+IF (Protobuf_FOUND)
+	# force the protocol buffer compiler to run if it hasn't yet
+	ADD_DEPENDENCIES (darknetobjlib darknet_generated_proto)
+ENDIF ()
 IF (DARKNET_USE_CUDA OR DARKNET_USE_ROCM)
 	SET_TARGET_PROPERTIES (darknetobjlib PROPERTIES CUDA_ARCHITECTURES "${DARKNET_CUDA_ARCHITECTURES}")
 	SET_TARGET_PROPERTIES (darknetobjlib PROPERTIES CUDA_SEPARABLE_COMPILATION OFF)

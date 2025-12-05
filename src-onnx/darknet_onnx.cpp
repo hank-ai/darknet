@@ -3,6 +3,7 @@
  */
 
 #include "darknet_onnx.hpp"
+#include "darknet_node.hpp"
 
 
 /** @file
@@ -21,53 +22,21 @@
  * fixed.
  *
  * Stephane Charette, 2025-08-18.
+ *
+ * Update:
+ *
+ * Post-processing for YOLO layers was added for Darknet v5.1.  ONNX is still a beast, but I'm feeling much more
+ * confident about the export tool than I was a few months ago.  I would no longer say "this code should not be
+ * trusted" but instead would caution readers and debuggers to not assume the code is doing the right thing in all
+ * cases since many assumptions have been made.  If you find a problem, please let me know or submit a PR.
+ *
+ * Stephane Charette, 2025-11-24.
  */
 
 
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
-
-
-	/** Purely cosmetic zero-padding used when generating the ONNX node names.
-	 *
-	 * For example, with YOLOv4-tiny which has 37 layers then the length is set to @p 2 and the node names will be padded
-	 * like this:  @p 02_conv
-	 *
-	 * And with YOLOv4-full which has over 100 layers, then the length is set to @p 3 and the node names will be padded
-	 * like this:  @p 002_conv
-	 */
-	size_t padding_len = 2;
-
-
-	static std::string format_name(const size_t idx, const std::string & name)
-	{
-		TAT(TATPARMS);
-		std::stringstream ss;
-		ss << std::setfill('0') << std::setw(padding_len) << (idx) << "_" << name;
-		return ss.str();
-	}
-
-
-	static std::string format_name(const size_t idx, const Darknet::ELayerType & type)
-	{
-		TAT(TATPARMS);
-		return format_name(idx, Darknet::to_string(type));
-	}
-
-
-	static std::string format_name(const size_t idx, const Darknet::Layer & l)
-	{
-		TAT(TATPARMS);
-		return format_name(idx, Darknet::to_string(l.type));
-	}
-
-
-	static std::string format_weights(const size_t idx, const Darknet::Layer & l, const std::string & name)
-	{
-		TAT(TATPARMS);
-		return format_name(idx, l) + "_" + name;
-	}
 
 
 	static std::string ir_date_lookup(const int ir)
@@ -77,7 +46,9 @@ namespace
 		switch (ir)
 		{
 			// check these dates, they came from ChatGPT
-			case 3:		return "Aug 2017";
+			case 1:		return "Oct 2017";
+			case 2:		return "Oct 2017";
+			case 3:		return "Nov 2017";
 			case 4:		return "Jan 2019";
 			case 5:		return "Mar 2019";
 			case 6:		return "Sep 2019";
@@ -98,7 +69,10 @@ namespace
 		switch (ops)
 		{
 			// check these dates, they came from ChatGPT
-			case 8:		return "Apr 2018";
+			case 5:		return "Dec 2017";
+			case 6:		return "Mar 2018";
+			case 7:		return "May 2018";
+			case 8:		return "Sep 2018";
 			case 9:		return "Dec 2018";
 			case 10:	return "Apr 2019";
 			case 11:	return "Sep 2019";
@@ -120,43 +94,14 @@ namespace
 }
 
 
-void Darknet::ONNXExport::log_handler(google::protobuf::LogLevel level, const char * filename, int line, const std::string & message)
-{
-	TAT(TATPARMS);
-
-	*cfg_and_state.output << "Protocol buffer error detected:"
-		<< " level="	<< level
-		<< " fn="		<< filename
-		<< " line="		<< line
-		<< " msg="		<< message
-		<< std::endl;
-
-	if (level == google::protobuf::LOGLEVEL_ERROR or
-		level == google::protobuf::LOGLEVEL_FATAL)
-	{
-		throw std::runtime_error("cannot continue due to unexpected protocol buffer error: " + message);
-	}
-
-	return;
-}
-
-
 Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, const std::filesystem::path & weights_filename, const std::filesystem::path & onnx_filename) :
 	cfg_fn(cfg_filename),
 	weights_fn(weights_filename),
 	onnx_fn(onnx_filename),
-	opset_version(18),	// - Upsample is until v9 (Mar 2019)
-						// - Resize begins at v10 (May 2019)
-						// - Constant (with value_int) begins at v12
-						// - Mish (used in YOLOv4-full) begins at v18 (Dec 2022)
-						//
-						// Technically, we could use v10 for YOLOv4-tiny and YOLOv4-tiny-3L,
-						// and only fall back to v18 when YOLOv4 (full) is used, but at this
-						// point it is easier to settle on a single ONNX version to support.
-						//
-						// Also see initialize_model() where the IR version is set.
+	opset_version(1), // see initialize_model()
 	graph(nullptr),
-	fuse_batchnorm(true)
+	fuse_batchnorm(true),
+	postprocess_boxes(true)
 {
 	TAT(TATPARMS);
 	*cfg_and_state.output											<< std::endl
@@ -165,8 +110,6 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 		<< "-> weights .............. " << weights_fn	.string()	<< std::endl
 		<< "-> onnx output .......... " << onnx_fn		.string()	<< std::endl
 		;
-
-	google::protobuf::SetLogHandler(&Darknet::ONNXExport::log_handler);
 
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 
@@ -177,7 +120,7 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 		ofs << std::endl;
 	}
 
-	// delete the .onnx file to ensure we have write access
+	// delete the output .onnx file to ensure we have write access
 	std::error_code ec;
 	const bool success = std::filesystem::remove(onnx_fn, ec);
 	if (not success)
@@ -227,15 +170,16 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 		calculate_binary_weights(&cfg.net);
 	}
 
+	if (cfg_and_state.is_set("noboxes"))
+	{
+		postprocess_boxes = false;
+	}
+
 	// restore the verbose flag
 	if (not original_verbose_flag)
 	{
 		Darknet::set_verbose(original_verbose_flag);
 	}
-
-	// tiny and tiny-3L have less than 100 sections, so pad 2 characters,
-	// while yolo-full have over 100 sections, so pad 3 characters
-	padding_len = std::to_string(cfg.sections.size()).size();
 
 	return *this;
 }
@@ -257,7 +201,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		<< "-> producer version ..... " << model.producer_version() << " "		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, "[built " __DATE__ "]") << std::endl
 		<< "-> model version ........ " << model.model_version()				<< std::endl
 		<< "-> batchnorm fused ...... " << (fuse_batchnorm		? "yes" : "no")	<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fuse or -dontfuse]") << std::endl
-//		<< "-> has graph ............ " << (model.has_graph()	? "yes" : "no")	<< std::endl
+		<< "-> post-process boxes ... " << (postprocess_boxes	? "yes" : "no")	<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -boxes or -noboxes]") << std::endl
+		<< "-> has graph ............ " << (model.has_graph()	? "yes" : "no")	<< std::endl
+		<< "-> graph name ........... " << graph->name()						<< std::endl
 		<< "-> graph input size ..... " << graph->input_size()	<< " "			<< Darknet::in_colour(Darknet::EColour::kDarkGrey, input_string)	<< std::endl
 		<< "-> graph output size .... " << graph->output_size()	<< " "			<< Darknet::in_colour(Darknet::EColour::kDarkGrey, output_string)	<< std::endl
 		<< "-> graph node size ...... " << graph->node_size()					<< std::endl
@@ -292,7 +238,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 			str.insert(pos, ",");
 		}
 
-		*cfg_and_state.output << " " << sizeof(float) << " x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(sizeof(float) * val) + "]") << std::endl;
+		*cfg_and_state.output << " " << sizeof(float) << " bytes x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(sizeof(float) * val) + "]") << std::endl;
 	}
 
 	return *this;
@@ -303,12 +249,51 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 {
 	TAT(TATPARMS);
 
+	/* Quickly look through the configuration to see which ONNX opset we should be using:
+	 *
+	 *		Default:
+	 *			- opset 5, Dec 2017
+	 *
+	 *		YOLOv4-tiny and YOLOv4-tiny-3L:
+	 *			- [upsample] needs "Resize" introduced in opset 10
+	 *
+	 *		YOLOv4-full:
+	 *			- MISH activation needs opset 18 introduced in December 2022
+	 */
+	opset_version = 5;
+	for (const auto & section : cfg.sections)
+	{
+		if (section.type == Darknet::ELayerType::UPSAMPLE)
+		{
+			// "Resize" needs at least opset 10
+			if (opset_version < 10)
+			{
+				Darknet::display_warning_msg("Opset 10 needed due to [upsample] at line #" + std::to_string(section.line_number) + ".\n");
+				opset_version = 10;
+			}
+		}
+
+		for (const auto & [key, line] : section.lines)
+		{
+			if (key == "activation" and line.val == "mish")
+			{
+				// "Mish" needs at least opset 18
+				if (opset_version < 18)
+				{
+					Darknet::display_warning_msg("Opset 18 needed due to \"mish\" at line #" + std::to_string(line.line_number) + ".\n");
+					opset_version = 18;
+				}
+			}
+		}
+	}
+
 	// IR = Intermediate Representation, related to versioning
 	// https://github.com/onnx/onnx/blob/main/docs/IR.md
 	// https://github.com/onnx/onnx/blob/main/docs/Versioning.md
 	// 2019_9_19 aka "6" is the last version prior to introducing training
+	model.set_ir_version(onnx::Version::IR_VERSION_2019_3_18);	// == 5
 //	model.set_ir_version(onnx::Version::IR_VERSION_2019_9_19);	// == 6
-	model.set_ir_version(onnx::Version::IR_VERSION_2023_5_5);	// == 9 (Mish was introduced in Dec 2022)
+//	model.set_ir_version(onnx::Version::IR_VERSION_2023_5_5);	// == 9 (Mish was introduced in Dec 2022)
 //	model.set_ir_version(onnx::Version::IR_VERSION_2025_05_12); // == 11
 
 	// The name of the framework or tool used to generate this model.
@@ -326,14 +311,17 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	model.set_model_version(1);
 
 	// A human-readable documentation for this attribute. Markdown is allowed.
+	const size_t number_of_classes = cfg.net.details->class_names.size();
 	std::time_t tt = std::time(nullptr);
 	char buffer[50];
 	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", std::localtime(&tt));
 	model.set_doc_string(
 		"ONNX generated from Darknet/YOLO neural network " +
 		cfg_fn.filename().string() +
-		" (" + std::to_string(cfg.sections.size()) + " layers)"
-		" and " +
+		" (" +
+		std::to_string(number_of_classes) + " class" + (number_of_classes == 1 ? "" : "es") + ", " +
+		std::to_string(cfg.sections.size()) + " layers" +
+		") and " +
 		weights_fn.filename().string() +
 		" (" + size_to_IEC_string(std::filesystem::file_size(weights_fn)) + ")"
 		" on " +
@@ -341,11 +329,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 
 	auto opset = model.add_opset_import();
 	opset->set_domain(""); // empty string means use the default ONNX domain
-	opset->set_version(opset_version); // "Upsample" is only supported up to v9, and "Resize" requires a minimum of v10.  MISH requires v18.
+	opset->set_version(opset_version);
 
 	graph = new onnx::GraphProto();
-	graph->set_name(weights_fn.stem().string());
+	graph->set_name(cfg_fn.stem().string());
 	model.set_allocated_graph(graph);
+
+	Node::graph = graph;
+	Node::cfg_filename = cfg_fn.filename().string();
 
 	return *this;
 }
@@ -430,10 +421,18 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 
 	populate_input_output_dimensions(input, "frame", b, c, h, w, cfg.network_section.line_number);
 
-	input->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.network_section.line_number) + " [w=" + std::to_string(w) + ", h=" + std::to_string(h) + ", c=" + std::to_string(c) + "]");
+	input->set_doc_string(
+		cfg_fn.filename().string() +
+		" line #"	+ std::to_string(cfg.network_section.line_number) +
+		" [b=1,"
+		" c="		+ std::to_string(c) + ","
+		" h="		+ std::to_string(h) + ","
+		" w="		+ std::to_string(w) + "]"
+		);
 
 	input_string =
-		"[B=" + std::to_string(b) +
+		"[\"frame\""
+		" B=" + std::to_string(b) +
 		" C=" + std::to_string(c) +
 		" H=" + std::to_string(h) +
 		" W=" + std::to_string(w) +
@@ -443,7 +442,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 }
 
 
-Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_output()
+Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_YOLO_output()
 {
 	TAT(TATPARMS);
 
@@ -456,11 +455,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_output()
 		if (section.type == Darknet::ELayerType::YOLO)
 		{
 			auto output = graph->add_output();
-			populate_input_output_dimensions(output, format_name(idx, l), 1, l.c, l.h, l.w, section.line_number);
-
+			populate_input_output_dimensions(output, Node::get_output_for_layer_index(idx), 1, l.c, l.h, l.w, section.line_number);
 			output->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(idx) + "]");
-
-			output_string += "[" + output->name() + "] ";
+			output_string += "[\"" + output->name() + "\"] ";
 		}
 	}
 
@@ -473,9 +470,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 	TAT(TATPARMS);
 
 	// https://github.com/onnx/onnx/blob/main/docs/Operators.md
-
-	// prime what we'll use as our first input name
-	most_recent_output_per_index[-1] = "frame";
 
 	for (size_t index = 0; index < cfg.sections.size(); index ++)
 	{
@@ -520,7 +514,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 				}
 				else
 				{
-					throw std::invalid_argument(format_name(index, section.type) + " on line #" + std::to_string(section.line_number) + ": number of layers is not supported: " + std::to_string(number_of_layers));
+					throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": number of layers is not supported: " + std::to_string(number_of_layers));
 				}
 
 				break;
@@ -563,21 +557,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type);
-
-	auto node = graph->add_node();
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_op_type("Conv");
-	node->add_input(most_recent_output_per_index[index - 1]);
-	node->add_input(name + "_weights");
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
-
 	const int dilation		= 1;
 	const int stride		= section.find_int("stride"	, 2);
 	const int kernel_size	= section.find_int("size"	, 3);
@@ -591,41 +570,20 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 		return i;
 	}();
 
-	auto attrib = node->add_attribute();
-	attrib->set_name("pads");
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("dilations");
-	attrib->add_ints(dilation);
-	attrib->add_ints(dilation);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("group");
-	attrib->set_i(1); // default for group is already "1"
-	attrib->set_type(onnx::AttributeProto::INT);
-
-	attrib = node->add_attribute();
-	attrib->set_name("kernel_shape");
-	attrib->add_ints(kernel_size);
-	attrib->add_ints(kernel_size);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("strides");
-	attrib->add_ints(stride);
-	attrib->add_ints(stride);
-	attrib->set_type(onnx::AttributeProto::INTS);
+	Node node(section);
+	node.type("Conv")
+		.add_input(-1)
+		.add_input("_weights")
+		.add_attribute_INT("group"			, 1							)
+		.add_attribute_INTS("pads"			, {pad, pad, pad, pad}		)
+		.add_attribute_INTS("dilations"		, {dilation, dilation}		)
+		.add_attribute_INTS("kernel_shape"	, {kernel_size, kernel_size})
+		.add_attribute_INTS("strides"		, {stride, stride}			);
 
 	const auto & l = cfg.net.layers[index];
 
 	// loosely based on load_convolutional_weights()
-	populate_graph_initializer(l.weights, l.nweights, index, l, "weights");
+	populate_graph_initializer(l.weights, l.nweights, l, node.name + "_weights");
 
 	if (section.find_int("batch_normalize", 0) and not fuse_batchnorm)
 	{
@@ -635,8 +593,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 	else
 	{
 		// bias must be added in only 1 place -- either in BN, or here in the Conv if BN isn't used
-		node->add_input(name + "_bias");
-		populate_graph_initializer(l.biases, l.n, index, l, "bias");
+		node.add_input("_bias");
+		populate_graph_initializer(l.biases, l.n, l, node.name + "_bias");
 	}
 
 	check_activation(index, section);
@@ -649,31 +607,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_shortcut(const size_t index,
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type);
-
-	auto node = graph->add_node();
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_op_type("Add");
-	node->add_input(most_recent_output_per_index[index - 1]);
-
-	int layer_to_add = section.find_int("from");
-	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
-	if (layer_to_add < 0)
-	{
-		layer_to_add += index;
-	}
-	node->add_input(most_recent_output_per_index[layer_to_add]);
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
+	Node node(section);
+	node.type("Add").add_input(index - 1).add_input(section.find_int("from"));
 
 #if 0 /// @todo V5: unused?  Do we have weights for shortcuts?
 	const auto & l = cfg.net.layers[index];
-	populate_graph_initializer(l.weights, l.nweights, index, l, "weights");
+	populate_graph_initializer(l.weights, l.nweights, l, node.name + "_weights");
 #endif
 
 	check_activation(index, section);
@@ -717,37 +656,23 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type) + "_activation";
+	const std::string previous_output = Node::get_output_for_layer_index(index);
 
-	auto node = graph->add_node();
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->add_input(most_recent_output_per_index[index]);
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
+	Node node(section, "_activation");
+	node.add_input(previous_output);
 
 	const auto & activation = cfg.net.layers[index].activation;
 	if (activation == LEAKY)
 	{
-		node->set_op_type("LeakyRelu");
-
-		// with Darknet, alpha is hard-coded to be 0.1f
-		auto attrib = node->add_attribute();
-		attrib->set_name("alpha");
-		attrib->set_f(0.1f);
-		attrib->set_type(onnx::AttributeProto::FLOAT);
+		node.type("LeakyRelu").add_attribute_FLOAT("alpha", 0.1f); // with Darknet, alpha is hard-coded to be 0.1f
 	}
 	else if (activation == LOGISTIC)
 	{
-		node->set_op_type("Sigmoid");
+		node.type("Sigmoid");
 	}
 	else if (activation == RELU)
 	{
-		node->set_op_type("Relu");
+		node.type("Relu");
 	}
 	else if (activation == MISH)
 	{
@@ -756,14 +681,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 		// note that "Mish" as an operator was only introduced in opset 18+
 		if (opset_version < 18)
 		{
-			auto opset = model.mutable_opset_import(0);
-			opset->set_version(18);
-			opset_version = 18;
-
-			*cfg_and_state.output << "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "The use of \"mish\" in \"" + name + "\" requires the opset version to be increased to " + std::to_string(opset->version()) + ".") << std::endl;
+			throw std::runtime_error("op type \"Mish\" required for node " + section.name + " needs opset >= 18, but opset is currently set to " + std::to_string(opset_version) + ".");
 		}
 
-		node->set_op_type("Mish");
+		node.type("Mish");
 
 		// if we need to support this in an earlier version of the ONNX opset, then we'd need to split it out into 4 nodes:
 		//
@@ -785,14 +706,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_identity(const size_t 
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type) + "_identity";
-
-	// if we get here, then we should have no "groups" or "group_id"
-	if (section.exists("groups") or section.exists("group_id"))
-	{
-		throw std::runtime_error(name + ": layer should not have 'groups' or 'group_id'");
-	}
-
 	/** @todo verify what ChatGPT has to say about this:
 	 *
 	 * Many Darknet-to-ONNX converters mistakenly convert single-layer route layers into Split or Slice nodes due to:
@@ -810,25 +723,27 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_identity(const size_t 
 	 * It simply passes the input through to the output unchanged.
 	 */
 
-	auto node = graph->add_node();
-	node->set_op_type("Identity");
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
+	// if we get here, then we should have no "groups" or "group_id"
+	if (section.exists("groups") or section.exists("group_id"))
 	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
+		throw std::runtime_error("route identity layer at line #" + std::to_string(section.line_number) + " should not have 'groups' or 'group_id'");
 	}
 
-	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
-	int layer_referenced = section.find_int("layers");
-	if (layer_referenced < 0)
-	{
-		layer_referenced += index;
-	}
-	node->add_input(most_recent_output_per_index[layer_referenced]);
+#if 0
+	Node node(section, "_identity");
+	node.type("Identity").add_input(section.find_int("layers"));
+#else
+	// We don't need to create a node for this.  Simply take the output we need, and store a reference to it in the map
+	// as if a real node existed.  Then when the consumer goes to use it as input, they'll be grabbing the right output.
 
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
+	int route_index = section.find_int("layers");
+	if (route_index < 0)
+	{
+		route_index += section.index;
+	}
+	const std::string output = Node::get_output_for_layer_index(route_index);
+	Node::output_per_layer_index[section.index] = output;
+#endif
 
 	return *this;
 }
@@ -838,39 +753,29 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_slice(const size_t ind
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type) + "_slice";
-
-	if (opset_version < 12)
-	{
-		throw std::runtime_error("op type \"Constant\" required for node " + name + " needs opset >= 12, but opset is currently set to " + std::to_string(opset_version) + ".");
-	}
+	Node node(section, "_slice");
 
 	const int groups	= section.find_int("groups"		, 1);
 	const int group_id	= section.find_int("group_id"	, 0);
 	if (groups == 1 and cfg_and_state.is_verbose)
 	{
-		*cfg_and_state.output << name << ": splitting into 1 group is the same as a NO-OP.  This node could be eliminated." << std::endl;
+		*cfg_and_state.output << node.name << ": splitting into 1 group is the same as a NO-OP.  This node could be eliminated." << std::endl;
 	}
 	if (groups < 1)
 	{
-		throw std::invalid_argument(name + ": invalid number of groups (" + std::to_string(groups) + ")");
+		throw std::invalid_argument(node.name + ": invalid number of groups (" + std::to_string(groups) + ")");
 	}
 	if (group_id < 0 or group_id >= groups)
 	{
-		throw std::invalid_argument(name + ": invalid group number (" + std::to_string(group_id) + ")");
+		throw std::invalid_argument(node.name + ": invalid group number (" + std::to_string(group_id) + ")");
 	}
 
-	const auto doc_string =
-		cfg_fn.filename().string() +
-		" line #" + std::to_string(section.line_number) +
-		" [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]"
+	node.doc_append(
 		" groups="		+ std::to_string(groups) +
-		" group_id="	+ std::to_string(group_id);
+		" group_id="	+ std::to_string(group_id));
 
 	// this is a slice, so we'll always have a *single* layer, not an array of ints like on concat nodes
 	int layer_to_slice = section.find_int("layers");
-
-	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
 	if (layer_to_slice < 0)
 	{
 		layer_to_slice += index;
@@ -892,53 +797,27 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_slice(const size_t ind
 
 	const std::map<std::string, int> constants =
 	{
-		{name + "_1_starts"	, starts},
-		{name + "_2_ends"	, ends},
-		{name + "_3_axes"	, 1},
-		{name + "_4_steps"	, 1}
+		{node.name + "_1_starts", starts},
+		{node.name + "_2_ends"	, ends},
+		{node.name + "_3_axes"	, 1},
+		{node.name + "_4_steps"	, 1}
 	};
 	for (const auto & [key, val] : constants)
 	{
-		/** @todo 2025-09-09:  I believe this is valid (to use contant nodes) but it appears some tools aren't expecting it,
-		 * so for now let's go back to using initializers until I better understand how this is supposed to be working.
-		 */
-		#if 0
-			auto node = graph->add_node();
-			node->set_op_type("Constant");
-			node->set_doc_string(doc_string);
-			node->set_name(key);
-			node->add_output(key);
-			auto attrib = node->add_attribute();
-			attrib->set_name("value_int");
-			attrib->set_type(onnx::AttributeProto::INT);
-			attrib->set_i(val);
-		#else
-			onnx::TensorProto * initializer = graph->add_initializer();
-			initializer->set_data_type(onnx::TensorProto::INT32);
-			initializer->set_name(key);
-			initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[index].line_number) + " [" + Darknet::to_string(l.type) + ", layer #" + std::to_string(index) + ", " + key + "=" + std::to_string(val) + "]");
-			initializer->add_dims(1);
-			initializer->add_int32_data(val);
-		#endif
+		onnx::TensorProto * initializer = graph->add_initializer();
+		initializer->set_name(key);
+		initializer->set_doc_string(node.node->doc_string());
+		initializer->set_data_type(onnx::TensorProto::INT32);
+		initializer->add_dims(1);
+		initializer->add_int32_data(val);
 	}
 
-	auto node = graph->add_node();
-	node->set_op_type("Slice");
-	node->set_doc_string(doc_string);
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-
-	node->add_input(most_recent_output_per_index[layer_to_slice]);
-	node->add_input(name + "_1_starts"	);
-	node->add_input(name + "_2_ends"	);
-	node->add_input(name + "_3_axes"	);
-	node->add_input(name + "_4_steps"	);
-
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
+	node.type("Slice")
+		.add_input(layer_to_slice)
+		.add_input("_1_starts"	)
+		.add_input("_2_ends"	)
+		.add_input("_3_axes"	)
+		.add_input("_4_steps"	);
 
 	return *this;
 }
@@ -948,35 +827,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_route_concat(const size_t in
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type) + "_concat";
-
-	auto node = graph->add_node();
-	node->set_op_type("Concat");
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
+	Node node(section, "_concat");
+	node.type("Concat").add_attribute_INT("axis", 1); // axis 1 == concat on channel axis
 
 	// get the layers we're combining to use as our input
 	for (int idx : section.find_int_array("layers"))
 	{
-		// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
-		if (idx < 0)
-		{
-			idx += index;
-		}
-
-		node->add_input(most_recent_output_per_index[idx]);
+		node.add_input(idx);
 	}
-
-	auto attrib = node->add_attribute();
-	attrib->set_name("axis"); // "Which axis to split on" https://github.com/onnx/onnx/blob/main/docs/Changelog.md#attributes-88
-	attrib->set_i(1); // 1 == concat on channel axis
-	attrib->set_type(onnx::AttributeProto::INT);
 
 	return *this;
 }
@@ -986,58 +844,18 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_maxpool(const size_t index, 
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type);
-
-	auto node = graph->add_node();
-	node->set_op_type("MaxPool");
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->add_input(most_recent_output_per_index[index - 1]);
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
-
 	const int dilation		= 1;
 	const int stride		= section.find_int("stride"	, 2);
 	const int kernel_size	= section.find_int("size"	, 3);
-	const int pad			= [&]() -> int
-	{
-		int i = 0;
-		if (section.find_int("pad", 0))
-		{
-			i = dilation * (kernel_size - 1) / 2;
-		}
-		return i;
-	}();
+	const int pad			= dilation * (kernel_size - 1) / 2;
 
-	auto attrib = node->add_attribute();
-	attrib->set_name("pads");
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->add_ints(pad);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("kernel_shape");
-	attrib->add_ints(kernel_size);
-	attrib->add_ints(kernel_size);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("dilations");
-	attrib->add_ints(dilation);
-	attrib->add_ints(dilation);
-	attrib->set_type(onnx::AttributeProto::INTS);
-
-	attrib = node->add_attribute();
-	attrib->set_name("strides");
-	attrib->add_ints(stride);
-	attrib->add_ints(stride);
-	attrib->set_type(onnx::AttributeProto::INTS);
+	Node node(section);
+	node.type("MaxPool").add_input(index - 1)//.add_input("_weights")
+		.add_attribute_INT("ceil_mode"		, 0							)
+		.add_attribute_INTS("pads"			, {pad, pad, pad, pad}		)
+		.add_attribute_INTS("dilations"		, {dilation, dilation}		)
+		.add_attribute_INTS("kernel_shape"	, {kernel_size, kernel_size})
+		.add_attribute_INTS("strides"		, {stride, stride}			);
 
 	return *this;
 }
@@ -1047,55 +865,36 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_yolo(const size_t index, Dar
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type);
-
-	auto node = graph->add_node();
-	node->set_op_type("Identity"); //"YOLO");
-//	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
+	if (postprocess_boxes)
 	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->add_input(most_recent_output_per_index[index - 1]);
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
-
-#if 1
-	node->set_doc_string(
-		cfg_fn.filename().string() +
-		" line #" + std::to_string(section.line_number) +
-		" [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]"
-		" anchors="	+ section.find_str("anchors") +
-		" mask="	+ section.find_str("mask"	) +
-		" classes="	+ section.find_str("classes"));
-#else
-
-	// These are non-standard attributes.
-	// They cannot be added as it breaks any validation checks that users attempt to run on the .onnx output file.
-	// This is also why this node was changed to be "Identity" instead of using a custom "YOLO" node type.
-
-	auto attrib = node->add_attribute();
-	attrib->set_name("anchors");
-	attrib->set_type(onnx::AttributeProto::FLOATS);
-	for (const float & anchor : section.find_float_array("anchors"))
-	{
-		attrib->add_floats(anchor);
+		// don't bother to output the YOLO layers since we're going to output the full post-processing of boxes instead
+		return *this;
 	}
 
-	attrib = node->add_attribute();
-	attrib->set_name("mask");
-	attrib->set_type(onnx::AttributeProto::INTS);
-	for (const int & mask : section.find_int_array("mask"))
-	{
-		attrib->add_ints(mask);
-	}
+	const auto strip_spaces =
+			[](const std::string & s) -> std::string
+			{
+				std::string out;
+				for (const auto & c : s)
+				{
+					if (not std::isspace(c))
+					{
+						out += c;
+					}
+				}
+				return out;
+			};
 
-	attrib = node->add_attribute();
-	attrib->set_name("classes");
-	attrib->set_type(onnx::AttributeProto::INT);
-	attrib->set_i(section.find_int("classes"));
-#endif
+	static size_t yolo_counter = 0;
+
+	Node node(section);
+	node.type("Identity")
+		.add_input(-1)
+		.set_output("yolo_" + std::to_string(yolo_counter ++))
+		.doc_append(
+			" classes="	+ strip_spaces(section.find_str("classes"	)) +
+			" mask="	+ strip_spaces(section.find_str("mask"		)) +
+			" anchors="	+ strip_spaces(section.find_str("anchors"	)));
 
 	return *this;
 }
@@ -1105,55 +904,42 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_resize(const size_t index, D
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type);
-
 	if (opset_version < 10)
 	{
-		throw std::runtime_error("op type \"Resize\" required for node " + name + " needs opset >= 10, but opset is currently set to " + std::to_string(opset_version) + ".");
+		throw std::runtime_error("op type \"Resize\" required for node " + section.name + " needs opset >= 10, but opset is currently set to " + std::to_string(opset_version) + ".");
 	}
 
-	auto node = graph->add_node();
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_op_type("Resize"); // this requires opset v10 or newer (prior to v10, it was called "Upsample")
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
+	Node node(section);
+	node.type("Resize");
+
+	// at opset 10, Resize only takes 2 inputs; roi wasn't added until opset 11
+	if (opset_version < 11)
 	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
+		node.add_input(-1).add_input("_scales").add_attribute_STR("mode", "nearest"); // introduced in opset 10
 	}
-	node->add_input(most_recent_output_per_index[index - 1]);
-	node->add_input(name + "_roi"); // (unused)
-	node->add_input(name + "_scales");
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
+	else
+	{
+		node.add_input(-1).add_input("_roi").add_input("_scales")
+			.add_attribute_STR("mode"							, "nearest"				) // introduced in opset 10
+			.add_attribute_STR("nearest_mode"					, "round_prefer_floor"	) // introduced in opset 11
+			.add_attribute_STR("coordinate_transformation_mode"	, "asymmetric"			); // introduced in opset 11
+	}
 
-	auto attrib = node->add_attribute();
-	attrib->set_name("mode");
-	attrib->set_type(onnx::AttributeProto::STRING);
-	attrib->set_s("nearest"); // "nearest" or "linear" or "cubic"
-
-	attrib = node->add_attribute();
-	attrib->set_name("nearest_mode");
-	attrib->set_type(onnx::AttributeProto::STRING);
-	attrib->set_s("round_prefer_floor"); // "round_prefer_floor" or "round_prefer_ceil", or "floor", or "ceil"
-
-	attrib = node->add_attribute();
-	attrib->set_name("antialias");
-	attrib->set_type(onnx::AttributeProto::INT);
-	attrib->set_i(0); // 0=disable antialias
-
-	attrib = node->add_attribute();
-	attrib->set_name("coordinate_transformation_mode");
-	attrib->set_type(onnx::AttributeProto::STRING);
-	attrib->set_s("asymmetric");
-
-	const float stride = section.find_float("stride", 2.0f);
-	float f[4] = {1.0f, 1.0f, stride, stride};
+	if (opset_version >= 18)
+	{
+		node.add_attribute_INT("antialias", 0); // 0=disable antialias -- introduced in opset 18
+	}
 
 	const auto & l = cfg.net.layers[index];
-	populate_graph_initializer(f, 4, index, l, "scales", true);
+	const float stride = section.find_float("stride", 2.0f);
+	float f[4] = {1.0f, 1.0f, stride, stride};
+	populate_graph_initializer(f, 4, l, node.name + "_scales", true);
 
-	// even though the RoI isn't used, we still need to provide a dummy (empty) tensor
-	populate_graph_initializer(nullptr, 0, index, l, "roi", true);
+	if (opset_version >= 11)
+	{
+		// even though the RoI isn't used, we still need to provide a dummy (empty) tensor
+		populate_graph_initializer(nullptr, 0, l, node.name + "_roi", true);
+	}
 
 	return *this;
 }
@@ -1163,62 +949,46 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_bn(const size_t index, Darkn
 {
 	TAT(TATPARMS);
 
-	const auto name = format_name(index, section.type) + "_bn";
+	const std::string previous_output = Node::get_output_for_layer_index(index);
 
-	auto node = graph->add_node();
-	node->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(index) + "]");
-	node->set_op_type("BatchNormalization");
-	node->set_name(name);
-	if (cfg_and_state.is_verbose)
-	{
-		*cfg_and_state.output << "=> " << node->name() << std::endl;
-	}
-	node->add_input(most_recent_output_per_index[index]);
-	node->add_input(name + "_scale");
-	node->add_input(name + "_bias");
-	node->add_input(name + "_mean");
-	node->add_input(name + "_variance");
-	node->add_output(name);
-	most_recent_output_per_index[index] = name;
-
-	auto attrib = node->add_attribute();
-	attrib->set_name("epsilon");
-	attrib->set_type(onnx::AttributeProto::FLOAT);
-	attrib->set_f(0.00001f);
-
-	attrib = node->add_attribute();
-	attrib->set_name("momentum");
-	attrib->set_type(onnx::AttributeProto::FLOAT);
-	attrib->set_f(0.99f);
+	Node node(section, "_bn");
+	node.type("BatchNormalization")
+		.add_input(previous_output)
+		.add_input("_bn_scale"		)
+		.add_input("_bn_bias"		)
+		.add_input("_bn_mean"		)
+		.add_input("_bn_variance"	)
+		.add_attribute_FLOAT("epsilon", 0.00001f)
+		.add_attribute_FLOAT("momentum", 0.99f);
 
 	const auto & l = cfg.net.layers[index];
 
-	populate_graph_initializer(l.biases				, l.n, index, l, "bn_bias"		); // note this one also exists in "Conv" when BN is disabled
-	populate_graph_initializer(l.scales				, l.n, index, l, "bn_scale"		);
-	populate_graph_initializer(l.rolling_mean		, l.n, index, l, "bn_mean"		);
-	populate_graph_initializer(l.rolling_variance	, l.n, index, l, "bn_variance"	);
+	populate_graph_initializer(l.biases				, l.n, l, node.name + "_bn_bias"		); // note this one also exists in "Conv" when BN is disabled
+	populate_graph_initializer(l.scales				, l.n, l, node.name + "_bn_scale"		);
+	populate_graph_initializer(l.rolling_mean		, l.n, l, node.name + "_bn_mean"		);
+	populate_graph_initializer(l.rolling_variance	, l.n, l, node.name + "_bn_variance"	);
 
 	return *this;
 }
 
 
-Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const float * f, const size_t n, const size_t idx, const Darknet::Layer & l, const std::string & name, const bool simple)
+Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const float * f, const size_t n, const Darknet::Layer & l, const std::string & name, const bool simple)
 {
 	TAT(TATPARMS);
 
 	if (cfg_and_state.is_trace and (f == nullptr or n == 0))
 	{
-		*cfg_and_state.output << "   " << format_weights(idx, l, name) << ": f=" << (void*)f << " n=" << n << std::endl;
+		*cfg_and_state.output << "   " << name << ": f=" << (void*)f << " n=" << n << std::endl;
 	}
 	else if (cfg_and_state.is_verbose)
 	{
-		*cfg_and_state.output << "-> " << format_weights(idx, l, name) << ": exporting " << n << " " << name << std::endl;
+		*cfg_and_state.output << "-> " << name << ": exporting " << n << " " << name << std::endl;
 	}
 
 	onnx::TensorProto * initializer = graph->add_initializer();
 	initializer->set_data_type(onnx::TensorProto::FLOAT);
-	initializer->set_name(format_weights(idx, l, name));
-	initializer->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(cfg.sections[idx].line_number) + " [" + Darknet::to_string(l.type) + ", layer #" + std::to_string(idx) + ", " + std::to_string(n) + " x " + name + "]");
+	initializer->set_name(name);
+	initializer->set_doc_string("initializer for " + Darknet::to_string(l.type) + ", " + std::to_string(n) + " x " + name + "]");
 
 	/** @todo V5 2025-08-13:  This is black magic!  I actually have no idea how the DIMS work.  I saw some example
 	 * Darknet/YOLO weights converted to ONNX and attempted to figure out the patern.  While this seems to work for
@@ -1253,18 +1023,13 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 			}
 		}
 
-		#if 0
-			// important assumption:  pointer must be to little-endian float32
-			initializer->set_raw_data(f, n * sizeof(float));
-		#else
-			// no need to worry about ARM and big/little endian byte order with this method
-			for (size_t i = 0; i < n; i ++)
-			{
-				initializer->add_float_data(f[i]);
-			}
-		#endif
+		// no need to worry about ARM and big/little endian byte order with this method
+		for (size_t i = 0; i < n; i ++)
+		{
+			initializer->add_float_data(f[i]);
+		}
 
-		// get the last part of the name to use as a key; for example, "002_conv_weights" returns a key of "weights"
+		// get the last part of the name to use as a key; for example, "N6_L2_conv_weights" returns a key of "weights"
 		std::string key = name;
 		auto pos = key.rfind("_");
 		if (pos != std::string::npos)
@@ -1284,8 +1049,18 @@ Darknet::ONNXExport & Darknet::ONNXExport::build_model()
 	TAT(TATPARMS);
 
 	populate_graph_input_frame();
-	populate_graph_output();
 	populate_graph_nodes();
+
+	if (postprocess_boxes)
+	{
+		// this outputs the full set of nodes, including "confs" and "boxes"
+		populate_graph_postprocess();
+	}
+	else
+	{
+		// this only outputs up to the YOLO nodes
+		populate_graph_YOLO_output();
+	}
 
 	return *this;
 }
@@ -1295,6 +1070,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::save_output_file()
 {
 	TAT(TATPARMS);
 
+#if 0
+	// onnx::ModelProto::SerializeToOstream() is not available with older versions of Protocol Buffers, such as when using Ubuntu 20.04.
 	std::ofstream ofs(onnx_fn, std::ios::binary);
 	const bool success = model.SerializeToOstream(&ofs);
 	if (not success)
@@ -1302,12 +1079,764 @@ Darknet::ONNXExport & Darknet::ONNXExport::save_output_file()
 		throw std::runtime_error("failed to save ONNX output file " + onnx_fn.string());
 	}
 	ofs.close();
+#else
+	const std::string str = model.SerializeAsString();
+	if (str.empty())
+	{
+		throw std::runtime_error("failed to serialize ONNX output to " + onnx_fn.string());
+	}
+	std::ofstream(onnx_fn, std::ios::binary) << str;
+#endif
 
 	*cfg_and_state.output
 		<< "-> onnx saved to ........ " << Darknet::in_colour(Darknet::EColour::kBrightCyan, onnx_fn.string()) << " "
 		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(std::filesystem::file_size(onnx_fn)) + "]")					<< std::endl
-		<< "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "This Darknet/YOLO ONNX Export Tool is experimental.")	<< std::endl
+//		<< "-> WARNING .............. " << Darknet::in_colour(Darknet::EColour::kYellow, "This Darknet/YOLO ONNX Export Tool is experimental.")	<< std::endl
 		<< "-> done!"																															<< std::endl;
+
+	return *this;
+}
+
+
+/* ********************* */
+/* POST-PROCESSING BOXES */
+/* ********************* */
+
+
+Darknet::VStr Darknet::ONNXExport::postprocess_yolo_slice_and_concat(Darknet::CfgSection & section)
+{
+	TAT(TATPARMS);
+
+	const int number_of_classes	= section.find_int("classes");
+	const int number_of_masks	= section.find_int_array("mask").size();
+	if (number_of_masks != 3)
+	{
+		throw std::runtime_error("line #" + std::to_string(section.line_number) + ": the ONNX export tool expected 3 masks per YOLO head, not " + std::to_string(number_of_masks));
+	}
+
+	/* We'll use the LEGO project as an example, which has 5 classes.  So each anchor feature vector looks like this:
+	 *
+	 *		[ 0=tx, 1=ty, 2=tw, 3=th, 4=to, 5=class0, 6=class1, 7=class2, 8=class3, 9=class4 ]
+	 *
+	 * We need to split things as follows:
+	 *
+	 *		1) tx and ty are grouped together
+	 *		2) tw and th are grouped together
+	 *		3) objectness is processed by itself
+	 *		4) all class probabilities are grouped together
+	 *
+	 * So for each anchor we'll have a "Split" node.  That means with 3 anchors, we'll have 12 ONNX "Split" nodes.
+	 * (3 anchors * 4 things = 12 nodes)
+	 *
+	 * Once we're done splitting everything, then we concat the nodes back into 4 groups.  The final node names (and output
+	 * names) will look similar to this:
+	 *
+	 *		1) 37_yolo_concat_tx_ty
+	 *		2) 37_yolo_concat_tw_th
+	 *		3) 37_yolo_concat_obj
+	 *		4) 37_yolo_concat_class
+	 */
+	struct Splits
+	{
+		std::string name;
+		int start_index;
+		int end_index;
+	};
+	const std::vector<Splits> v =
+	{
+		{"tx_ty", 0, 2					},
+		{"tw_th", 2, 2					},
+		{"obj"	, 4, 1					},
+		{"class", 5, number_of_classes	}	// probability for each individual class
+	};
+
+	Darknet::VStr results;
+
+	for (const auto & split : v)
+	{
+		Darknet::VStr outputs;
+
+		for (int mask = 0; mask < number_of_masks; mask ++)
+		{
+			const int starts	= split.start_index + mask * (5 + number_of_classes); // 5 refers to the 5 fields always present:  tx, ty, tw, th, and objectness
+			const int ends		= split.end_index + starts;
+			const auto doc		= "post-processing: " + split.name + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(section.index) + ", mask=" + std::to_string(mask) + ", classes=" + std::to_string(number_of_classes) + ", start=" + std::to_string(starts) + "]";
+
+			Node node(section, "_slice_" + std::to_string(starts));
+			node.type("Slice").doc_append(" mask=" + std::to_string(mask) + ", classes=" + std::to_string(number_of_classes) + ", start=" + std::to_string(starts));
+			outputs.push_back(node.output);
+
+			const std::map<std::string, int> initializers =
+			{
+				{node.name + "_1_starts", starts},
+				{node.name + "_2_ends"	, ends	},
+				{node.name + "_3_axes"	, 1		},
+				{node.name + "_4_steps"	, 1		}
+			};
+			for (const auto & [key, val] : initializers)
+			{
+				onnx::TensorProto * initializer = graph->add_initializer();
+				initializer->set_data_type(onnx::TensorProto::INT32);
+				initializer->set_name(key);
+				initializer->set_doc_string(doc);
+				initializer->add_dims(1);
+				initializer->add_int32_data(val);
+			}
+
+			node.add_input(-1)
+				.add_input("_1_starts"	)
+				.add_input("_2_ends"	)
+				.add_input("_3_axes"	)
+				.add_input("_4_steps"	);
+		}
+
+		// now we re-combine all similar outputs from each anchor
+
+		Node node(section, "_concat_" + split.name);
+		node.type("Concat").add_attribute_INT("axis", 1); // 1 == concat on channel axis
+		for (const auto & out : outputs)
+		{
+			node.add_input(out);
+		}
+
+		results.push_back(node.output);
+	}
+
+	return results;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(Darknet::CfgSection & section, const Darknet::VStr & v, Darknet::VStr & output_names)
+{
+	TAT(TATPARMS);
+
+	// This assumes that postprocess_yolo_slice_and_concat() has already run, and we have the "concat_tx_ty" node ready to use.
+
+	for (const auto & name : v)
+	{
+		if (name.find("_concat_tx_ty") == std::string::npos)
+		{
+			continue;
+		}
+
+		// sigmoid brings the values into a range between zero and one
+
+		Node sigmoid(section, "_sigmoid_tx_ty");
+		sigmoid.type("Sigmoid").add_input(name);
+
+		/* ...but instead of [0, 1], we actually want [-0.025, 1.025].  So we need to scale up by 1.05,
+		* and then subtract half to ensure the center points are still located at the right place.
+		*
+		*			normalized_offset = sigmoid(tx) * 1.05 - 0.025
+		*
+		* ChatGPT says:
+		*
+		*			This is an affine transform that “stretches” and “recenters” the sigmoid output,
+		*			giving a bit of extra range outside the cell.
+		*/
+		const float variance = 0.05f;
+		Node const_1_050(section, 1.0f + variance);
+		Node const_0_025(section, variance / 2.0f);
+
+		// multiply by 1.05
+		Node mul(section, "_mul_tx_ty");
+		mul.type("Mul").add_input(sigmoid.output).add_input(const_1_050.output);
+
+		// shift by -0.025
+		Node sub(section, "_sub_tx_ty");
+		sub.type("Sub").add_input(mul.output).add_input(const_0_025.output);
+
+		output_names.push_back(sub.output);
+	}
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tw_th(Darknet::CfgSection & section, const Darknet::VStr & v, Darknet::VStr & output_names)
+{
+	TAT(TATPARMS);
+
+	// This assumes that postprocess_yolo_slice_and_concat() has already run, and we have the "concat_tw_th" node ready to use.
+
+	for (const auto & name : v)
+	{
+		if (name.find("_concat_tw_th") == std::string::npos)
+		{
+			continue;
+		}
+
+		Node node(section, "_exp_tw_th");
+		node.type("Exp").add_input(name);
+
+		output_names.push_back(node.output);
+	}
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(Darknet::CfgSection & section, const Darknet::VStr & v, Darknet::VStr & output_names)
+{
+	TAT(TATPARMS);
+
+	// This assumes that postprocess_yolo_slice_and_concat() has already run, and we have the "concat_obj" node ready to use.
+
+	const auto & l					= cfg.net.layers[section.index];
+	const int number_of_masks		= section.find_int_array("mask").size();
+	const int size					= number_of_masks * l.w * l.h;
+	VInt reshape_vector				= {1, size};
+
+	for (const auto & name : v)
+	{
+		if (name.find("_concat_obj") == std::string::npos)
+		{
+			continue;
+		}
+
+		const auto reshape_const_1 = Node(section, reshape_vector).output;
+		Node reshape1(section, "_reshape_obj");
+		reshape1.type("Reshape").add_input(name).add_input(reshape_const_1);
+
+		Node sigmoid(section, "_sigmoid_obj");
+		sigmoid.type("Sigmoid").add_input(reshape1.output);
+
+		reshape_vector.push_back(1);
+		const auto reshape_const_2 = Node(section, reshape_vector).output;
+		Node reshape2(section, "_reshape_obj");
+		reshape2.type("Reshape").add_input(sigmoid.output).add_input(reshape_const_2);
+
+		output_names.push_back(reshape2.output);
+	}
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_class(Darknet::CfgSection & section, const Darknet::VStr & v, Darknet::VStr & output_names)
+{
+	TAT(TATPARMS);
+
+	// This assumes that postprocess_yolo_slice_and_concat() has already run, and we have the "concat_class" node ready to use.
+
+	const auto & l					= cfg.net.layers[section.index];
+	const int number_of_classes		= section.find_int("classes");
+	const int number_of_masks		= section.find_int_array("mask").size();
+	VInt reshape_vector				= {1, number_of_masks, number_of_classes, l.w * l.h};
+
+	for (const auto & name : v)
+	{
+		if (name.find("_concat_class") == std::string::npos)
+		{
+			continue;
+		}
+
+		const auto const_shape_1 = Node(section, reshape_vector).output;
+		Node reshape1(section, "_reshape_class");
+		reshape1.type("Reshape").add_input(name).add_input(const_shape_1);
+
+		Node transpose(section, "_transpose_class");
+		transpose.type("Transpose").add_input(reshape1.output).add_attribute_INTS("perm", {0, 1, 3, 2});
+
+		reshape_vector = {1, number_of_masks * l.w * l.h, number_of_classes};
+		const auto const_shape_2 = Node(section, reshape_vector).output;
+		Node reshape2(section, "_reshape_class");
+		reshape2.type("Reshape").add_input(transpose.output).add_input(const_shape_2);
+
+		Node sigmoid(section, "_sigmoid_class");
+		sigmoid.type("Sigmoid").add_input(reshape2.output);
+
+		output_names.push_back(sigmoid.output);
+	}
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs(const Darknet::VStr & output_obj, const Darknet::VStr & output_class)
+{
+	TAT(TATPARMS);
+
+	// every YOLO layer has "classes" and "objectness" which are combined together to produce the final confidence values
+
+	Darknet::VStr v;
+
+	int number_of_classes		= 0;
+	int number_of_boxes			= 0;
+	int number_of_yolo_layers	= 0;
+
+	// start at 1 since we reference "idx - 1" below which would be a problem if idx was zero
+	// (and YOLO cannot be first layer anyway!)
+	for (int idx = 1; idx < cfg.net.n; idx ++)
+	{
+		auto & section = cfg.sections[idx];
+		if (section.type != Darknet::ELayerType::YOLO)
+		{
+			continue;
+		}
+
+		const std::string & classes_name	= output_class	.at(number_of_yolo_layers);
+		const std::string & objectness_name	= output_obj	.at(number_of_yolo_layers);
+		number_of_yolo_layers ++;
+
+		number_of_classes = section.find_int("classes");
+		const int number_of_masks = section.find_int_array("mask").size();
+		const auto & l = cfg.net.layers[idx - 1];
+		number_of_boxes += (l.w * l.h * number_of_masks);
+
+		// first combine the objectness with the classes
+		Node node(section, "_mul_confs");
+		node.type("Mul").add_input(classes_name).add_input(objectness_name);
+
+		// remember this multiplication, because then we take those from *each* of the YOLO layers
+		v.push_back(node.output);
+	}
+
+	// this is where we concatenate all of the multiplications to create the final "confidence" output
+
+	Node node("confs");
+	node.type("Concat").set_output("confs").add_attribute_INT("axis", 1); // 1 == concat on channel axis
+	for (const auto & input : v)
+	{
+		node.add_input(input);
+	}
+
+	// this is one of the 2 outputs (also see "boxes")
+	//
+	// The middle value is the sum of prediction boxes across all YOLO layers.
+
+	std::stringstream ss;
+	ss << "Output of confidence values (objectness x probability) for all " << number_of_boxes << " prediction boxes";
+	if (number_of_classes < 2)
+	{
+		ss << ".";
+	}
+	else if (number_of_classes == 2)
+	{
+		ss << " and both classes.";
+	}
+	else
+	{
+		ss << " and " << number_of_classes << " classes.";
+	}
+
+	if (number_of_yolo_layers > 1)
+	{
+		ss << " This output is a combination of ";
+		if (number_of_yolo_layers == 2)
+		{
+			ss << " both YOLO layers.";
+		}
+		else
+		{
+			ss << " all " << number_of_yolo_layers << " layers.";
+		}
+	}
+
+	auto output = graph->add_output();
+	populate_input_output_dimensions(output, "confs", 1, number_of_boxes, number_of_classes);
+	output->set_doc_string(ss.str());
+	node.doc(ss.str());
+
+	output_string += "[\"confs\"] ";
+
+	return *this;
+}
+
+
+Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & output_tx_ty, const Darknet::VStr & output_tw_th)
+{
+	TAT(TATPARMS);
+
+	// ...why 6?  Where does this magic value come from?
+	const int magic_6			= 6;
+	int number_of_yolo_layers	= 0;
+
+	VStr results;
+
+	for (int idx = 1; idx < cfg.net.n; idx ++)
+	{
+		auto & section = cfg.sections[idx];
+		if (section.type != Darknet::ELayerType::YOLO)
+		{
+			continue;
+		}
+
+		// we found a YOLO layer
+
+		const std::string & tx_ty_name = output_tx_ty.at(number_of_yolo_layers);
+		const std::string & tw_th_name = output_tw_th.at(number_of_yolo_layers);
+		number_of_yolo_layers ++;
+
+		Darknet::VStr outputs;
+		const auto & l = cfg.net.layers[idx];
+
+		// first we deal with tx_ty...
+
+		for (int i = 0; i < magic_6; i ++)
+		{
+			Node slice(section, "_slice_" + std::to_string(i) + "_tx_ty");
+			slice.type("Slice").add_input(tx_ty_name);
+
+			const std::map<std::string, int> initializers =
+			{
+				{slice.name + "_1_starts"	, i},
+				{slice.name + "_2_ends"		, i + 1},
+				{slice.name + "_3_axes"		, 1},
+				{slice.name + "_4_steps"	, 1}
+			};
+			for (const auto & [key, val] : initializers)
+			{
+				onnx::TensorProto * initializer = graph->add_initializer();
+				initializer->set_data_type(onnx::TensorProto::INT32);
+				initializer->set_name(key);
+				initializer->add_dims(1);
+				initializer->add_int32_data(val);
+				slice.add_input(key);
+			}
+
+			onnx::TensorProto tensor;
+			tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+			tensor.add_dims(1);
+			tensor.add_dims(1);
+			tensor.add_dims(l.h);
+			tensor.add_dims(l.w);
+			for (int h = 0; h < l.h; h ++)
+			{
+				for (int w = 0; w < l.w; w ++)
+				{
+					if (i % 2 == 0)
+					{
+						// X values
+						tensor.add_float_data(w);
+					}
+					else
+					{
+						// Y values
+						tensor.add_float_data(h);
+					}
+				}
+			}
+			Node constants(section, "_const_tx_ty");
+			constants.type("Constant");
+			auto attr = constants.node->add_attribute();
+			attr->set_name("value");
+			attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+			*attr->mutable_t() = tensor;
+
+			Node add(section, "_add_" + std::to_string(i) + "_tx_ty");
+			add.type("Add").add_input(slice.output).add_input(constants.output);
+
+			outputs.push_back(add.output);
+		}
+
+		// then we deal with tw_th...
+
+		const auto masks		= section.find_int_array("mask");		// e.g., "3, 4, 5"
+		const auto anchors		= section.find_float_array("anchors");	// e.g., "8, 8, 10, 10, 15, 12, 41, 41, 48, 47, 73, 70"
+		const float stride_x	= cfg.net.w / l.w;
+		const float stride_y	= cfg.net.h / l.h;
+
+		// So with that LEGO example, the values of interest to this YOLO head are "41, 41, 48, 47, 73, 70"  (width followed by height)
+
+		if (masks.size() * 2 != magic_6)
+		{
+			throw std::runtime_error(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": the ONNX export tool expected 6 values (3 masks) per YOLO head, not " + std::to_string(masks.size()));
+		}
+
+		Darknet::VFloat multiplier;
+		for (const auto & mask : masks)
+		{
+			multiplier.push_back(anchors[mask * 2 + 0] / stride_x);
+			multiplier.push_back(anchors[mask * 2 + 1] / stride_y);
+		}
+
+		for (int i = 0; i < magic_6; i ++)
+		{
+			Node slice(section, "_slice_" + std::to_string(i) + "_tw_th");
+			slice.type("Slice").add_input(tw_th_name);
+
+			const std::map<std::string, int> initializers =
+			{
+				{slice.name + "_1_starts"	, i},
+				{slice.name + "_2_ends"		, i + 1},
+				{slice.name + "_3_axes"		, 1},
+				{slice.name + "_4_steps"	, 1}
+			};
+			for (const auto & [key, val] : initializers)
+			{
+				onnx::TensorProto * initializer = graph->add_initializer();
+				initializer->set_data_type(onnx::TensorProto::INT32);
+				initializer->set_name(key);
+				initializer->add_dims(1);
+				initializer->add_int32_data(val);
+				slice.add_input(key);
+			}
+
+			onnx::TensorProto tensor;
+			tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+			tensor.add_float_data(multiplier[i]);
+			Node constants(section, "_const_" + std::to_string(i) + "_tw_th");
+			constants.type("Constant");
+			auto attr = constants.node->add_attribute();
+			attr->set_name("value");
+			attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+			*attr->mutable_t() = tensor;
+
+			Node mul(section, "_mul_" + std::to_string(i) + "_tw_th");
+			mul.type("Mul").add_input(slice.output).add_input(constants.output);
+
+			outputs.push_back(mul.output);
+		}
+
+		// now make 2 groups, each with 6 inputs
+		for (const std::string name : {"lhs", "rhs"})
+		{
+			Node concat(section, "_concat_" + name);
+			concat.type("Concat").add_attribute_INT("axis", 1);
+
+			// only take every 2nd output, based on whether or not we're starting with "even" (zero) or "odd" (one)
+			for (size_t i = (name == "lhs" ? 0 : 1); i < outputs.size(); i += 2)
+			{
+				concat.add_input(outputs[i]);
+			}
+
+			onnx::TensorProto tensor;
+			tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+			tensor.add_float_data(name == "lhs" ? l.w : l.h);
+			Node constants(section, "_const_" + name);
+			constants.type("Constant");
+			auto attr = constants.node->add_attribute();
+			attr->set_name("value");
+			attr->set_type(onnx::AttributeProto_AttributeType_TENSOR);
+			*attr->mutable_t() = tensor;
+
+			Node div(section, "_div_" + name);
+			div.type("Div").add_input(concat.output).add_input(constants.output);
+
+			results.push_back(div.output);
+		}
+	}
+
+	return results;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & v)
+{
+	TAT(TATPARMS);
+
+	/* "v" should be set to the even-and-odd Div output, such as:
+	 *
+	 *		- N162_L30_yolo_div_lhs
+	 *		- N165_L30_yolo_div_rhs
+	 *		- N204_L37_yolo_div_lhs
+	 *		- N207_L37_yolo_div_rhs
+	 */
+
+	int number_of_yolo_layers = 0;
+	int number_of_boxes = 0;
+
+	VStr results;
+
+	for (int idx = 1; idx < cfg.net.n; idx ++)
+	{
+		auto & section = cfg.sections[idx];
+		if (section.type != Darknet::ELayerType::YOLO)
+		{
+			continue;
+		}
+
+		// we found a YOLO layer
+
+		VStr outputs_sub;
+		VStr outputs_add;
+		const std::string & lhs = v.at(number_of_yolo_layers * 2 + 0); // N162_L30_yolo_div_lhs
+		const std::string & rhs = v.at(number_of_yolo_layers * 2 + 1); // N165_L30_yolo_div_rhs
+		number_of_yolo_layers ++;
+		const auto & l = cfg.net.layers[idx];
+		const int number_of_masks = section.find_int_array("mask").size();
+		const int size = number_of_masks * l.w * l.h;
+		number_of_boxes += size;
+		VInt reshape_vector = {1, size, 1};
+
+		for (const auto & name : {lhs, rhs})
+		{
+			Node slice1(section, "_slice");
+			const std::map<std::string, int> constants1 =
+			{
+				{slice1.name + "_1_starts"	, 0},
+				{slice1.name + "_2_ends"	, 3},
+				{slice1.name + "_3_axes"	, 1},
+				{slice1.name + "_4_steps"	, 1}
+			};
+			for (const auto & [key, val] : constants1)
+			{
+				onnx::TensorProto * initializer = graph->add_initializer();
+				initializer->set_name(key);
+				initializer->set_doc_string(slice1.node->doc_string());
+				initializer->set_data_type(onnx::TensorProto::INT32);
+				initializer->add_dims(1);
+				initializer->add_int32_data(val);
+			}
+			slice1
+				.type("Slice")
+				.add_input(name)
+				.add_input("_1_starts"	)
+				.add_input("_2_ends"	)
+				.add_input("_3_axes"	)
+				.add_input("_4_steps"	);
+
+			const auto reshape1_const = Node(section, reshape_vector).output;
+			Node reshape1(section, "_reshape");
+			reshape1.type("Reshape").add_input(slice1.output).add_input(reshape1_const);
+
+			Node slice2(section, "_slice");
+			const std::map<std::string, int64_t> constants2 =
+			{
+				{slice2.name + "_1_starts"	, 3},
+				{slice2.name + "_2_ends"	, std::numeric_limits<int64_t>::max()},
+				{slice2.name + "_3_axes"	, 1},
+				{slice2.name + "_4_steps"	, 1}
+			};
+			for (const auto & [key, val] : constants2)
+			{
+				onnx::TensorProto * initializer = graph->add_initializer();
+				initializer->set_name(key);
+				initializer->set_doc_string(slice1.node->doc_string());
+				initializer->set_data_type(onnx::TensorProto::INT64);
+				initializer->add_dims(1);
+				initializer->add_int64_data(val);
+			}
+			slice2
+			.type("Slice")
+			.add_input(name)
+			.add_input("_1_starts"	)
+			.add_input("_2_ends"	)
+			.add_input("_3_axes"	)
+			.add_input("_4_steps"	);
+
+			const auto reshape2_const = Node(section, reshape_vector).output;
+			Node reshape2(section, "_reshape");
+			reshape2.type("Reshape").add_input(slice2.output).add_input(reshape2_const);
+
+			Node const_half(section, 0.5f);
+			Node mul2(section, "_mul");
+			mul2.type("Mul").add_input(reshape2.output).add_input(const_half.output);
+
+			Node sub(section, "_sub");
+			sub.type("Sub").add_input(reshape1.output).add_input(mul2.output);
+
+			Node add(section, "_add");
+			add.type("Add").add_input(sub.output).add_input(reshape2.output);
+
+			outputs_sub.push_back(sub.output);
+			outputs_add.push_back(add.output);
+		}
+
+		Node concat(section, "_concat_boxes");
+		concat.type("Concat").add_attribute_INT("axis", 2); // 2 == concat on ...?
+		for (const auto & sub : outputs_sub)
+		{
+			concat.add_input(sub);
+		}
+		for (const auto & add : outputs_add)
+		{
+			concat.add_input(add);
+		}
+
+		reshape_vector.push_back(4);
+		const auto reshape_const = Node(section, reshape_vector).output;
+		Node reshape(section, "_reshape_boxes");
+		reshape.type("Reshape").add_input(concat.output).add_input(reshape_const);
+
+		results.push_back(reshape.output);
+	}
+
+	// last node -- output the final "boxes"
+
+	Node node("boxes");
+	node.type("Concat").set_output("boxes").add_attribute_INT("axis", 1); // 1 == concat on channel axis
+	for (const auto & input : results)
+	{
+		node.add_input(input);
+	}
+
+	// this is the 2nd output from the network (also see "confs")
+
+	std::stringstream ss;
+	ss << "Output of 4 box coordinates for all " << number_of_boxes << " prediction boxes.";
+	if (number_of_yolo_layers > 1)
+	{
+		ss << " This output is a combination of ";
+		if (number_of_yolo_layers == 2)
+		{
+			ss << " both YOLO layers.";
+		}
+		else
+		{
+			ss << " all " << number_of_yolo_layers << " layers.";
+		}
+	}
+
+	auto output = graph->add_output();
+	populate_input_output_dimensions(output, "boxes", 1, number_of_boxes, 1, 4);
+	output->set_doc_string(ss.str());
+	node.doc(ss.str());
+
+	output_string += "[\"boxes\"] ";
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_postprocess()
+{
+	TAT(TATPARMS);
+
+	if (not postprocess_boxes)
+	{
+		// ...how did we get here if we're not doing the post-processing of boxes?
+		throw std::runtime_error("post-processing of boxes is disabled");
+	}
+
+	VStr output_tx_ty;
+	VStr output_tw_th;
+	VStr output_obj;
+	VStr output_class;
+
+	for (int idx = 0; idx < cfg.net.n; idx ++)
+	{
+		auto & section = cfg.sections[idx];
+		if (section.type == Darknet::ELayerType::YOLO)
+		{
+			const auto results = postprocess_yolo_slice_and_concat(section);
+			postprocess_yolo_tx_ty	(section, results, output_tx_ty	);
+			postprocess_yolo_tw_th	(section, results, output_tw_th	);
+			postprocess_yolo_to		(section, results, output_obj	);
+			postprocess_yolo_class	(section, results, output_class	);
+		}
+	}
+
+	// every output vector should have exactly the same number of items, which should match the number of YOLO heads in the network
+	if (output_tx_ty.size() != output_tw_th.size() or
+		output_tx_ty.size() != output_obj.size() or
+		output_tx_ty.size() != output_class.size())
+	{
+		throw std::runtime_error("output vectors don't match"
+			" (tx+ty="	+ std::to_string(output_tx_ty.size()) +
+			", tw+th="	+ std::to_string(output_tw_th.size()) +
+			", obj="	+ std::to_string(output_obj.size()) +
+			", class="	+ std::to_string(output_class.size()) +
+			")");
+	}
+
+	// every objectness and class chains are combined together to get the confidence values "confs"
+	postprocess_yolo_confs(output_obj, output_class);
+
+	// last thing we need to do is deal with "boxes"
+	const auto results = postprocess_yolo_boxes(output_tx_ty, output_tw_th);
+	postprocess_yolo_boxes(results);
 
 	return *this;
 }

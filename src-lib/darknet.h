@@ -111,6 +111,7 @@ typedef struct DarknetDetection
 	float *mask;
 	float objectness;
 	int sort_class;
+	float sort_score; ///< used temporarily during NMS sorting @since 2025-12-02
 	float *uc; ///< Gaussian_YOLOv3 - tx,ty,tw,th uncertainty
 	int points; ///< bit-0 - center, bit-1 - top-left-corner, bit-2 - bottom-right-corner
 	float *embeddings;  ///< embeddings for tracking
@@ -195,7 +196,9 @@ typedef enum
 /// Bounding box used with normalized coordinates (between 0.0 and 1.0).
 typedef struct DarknetBox box;
 
-/// Everything %Darknet knows about a specific detection.
+/** Everything %Darknet knows about a specific detection.  Do not use this name anymore.
+ * Instead, use @ref DarknetDetection or @ref Darknet::Detection.
+ */
 typedef struct DarknetDetection detection;
 
 /// Darknet-style image (vector of floats).
@@ -257,10 +260,10 @@ float * network_predict_image(DarknetNetworkPtr ptr, const DarknetImage im);
  * @see @ref Darknet::predict()
  * @see @ref free_detections()
  */
-detection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int * map, int relative, int * num, int letter);
+DarknetDetection * get_network_boxes(DarknetNetworkPtr ptr, int w, int h, float thresh, float hier, int * map, int relative, int * num, int letter);
 
 /// This is part of the original @p C API.  Do not use in new code.
-void free_detections(detection * dets, int n);
+void free_detections(DarknetDetection * dets, int n);
 
 /** This is part of the original @p C API.  Make an empty image with the given dimensions.  The data pointer will be
  * @p nullptr.
@@ -287,13 +290,13 @@ DarknetImage make_image(int w, int h, int c);
 void free_image(DarknetImage image);
 
 /// This is part of the original @p C API.  Non Maxima Suppression.  See @ref Darknet::predict() for example code that calls this function.
-void do_nms_sort(detection * dets, int total, int classes, float thresh);
+void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh);
 
 /// This is part of the original @p C API.  Non Maxima Suppression.
-void do_nms_obj(detection * dets, int total, int classes, float thresh);
+void do_nms_obj(DarknetDetection * dets, int total, int classes, float thresh);
 
 /// This is part of the original @p C API.  Non Maxima Suppression.
-void diounms_sort(detection * dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1);
+void diounms_sort(DarknetDetection * dets, int total, int classes, float thresh, NMS_KIND nms_kind, float beta1);
 
 /// This is part of the original @p C API.  Convert from data pointer to a %Darknet image.  Used by the Python API and other language wrappers.
 void copy_image_from_bytes(DarknetImage im, char *pdata);
@@ -302,7 +305,7 @@ void copy_image_from_bytes(DarknetImage im, char *pdata);
 void cuda_set_device(int n);
 
 /// This is part of the original @p C API.  @see @ref get_network_boxes()  @see @ref make_network_boxes_v3()
-detection * make_network_boxes(DarknetNetworkPtr ptr, float thresh, int * num);
+DarknetDetection * make_network_boxes(DarknetNetworkPtr ptr, float thresh, int * num);
 
 /// This is part of the original @p C API.
 void free_ptrs(void **ptrs, int n);

@@ -241,6 +241,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 	Darknet::Network & net = nets[0];
 
+	const std::string disabled = Darknet::format_in_colour("DISABLED", Darknet::EColour::kBrightRed, 0);
 	if (calc_map)
 	{
 		net_map.details->class_names = net.details->class_names;
@@ -348,7 +349,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	args.contrastive = net.contrastive;
 	args.contrastive_jit_flip = net.contrastive_jit_flip;
 	args.contrastive_color = net.contrastive_color;
-	if (dont_show && show_imgs)
+	if (dont_show and show_imgs)
 	{
 		show_imgs = 2;
 	}
@@ -360,7 +361,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 	prime_training_images_cache(plist);
 
-	if (net.contrastive && args.threads > net.batch/2)
+	if (net.contrastive and args.threads > net.batch/2)
 	{
 		args.threads = net.batch / 2;
 	}
@@ -421,7 +422,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 		// yolov3-tiny, yolov3-tiny-3l, yolov3, and yolov4 all use "random=1"
 		// yolov4-tiny and yolov4-tiny-3l both use "random=0"
-		if (l.random && count++ % 10 == 0)
+		if (l.random and count++ % 10 == 0)
 		{
 			float rand_coef = 1.4;
 			if (l.random != 1.0)
@@ -431,7 +432,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			float random_val = rand_scale(rand_coef);    // *x or /x
 			int dim_w = roundl(random_val*init_w / net.resize_step + 1) * net.resize_step;
 			int dim_h = roundl(random_val*init_h / net.resize_step + 1) * net.resize_step;
-			if (random_val < 1 && (dim_w > init_w || dim_h > init_h))
+			if (random_val < 1 and (dim_w > init_w or dim_h > init_h))
 			{
 				dim_w = init_w, dim_h = init_h;
 			}
@@ -440,7 +441,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			int max_dim_h = roundl(rand_coef*init_h / net.resize_step + 1) * net.resize_step;
 
 			// at the beginning (check if enough memory) and at the end (calc rolling mean/variance)
-			if (avg_loss < 0.0f || get_current_iteration(net) > net.max_batches - 100)
+			if (avg_loss < 0.0f or get_current_iteration(net) > net.max_batches - 100)
 			{
 				dim_w = max_dim_w;
 				dim_h = max_dim_h;
@@ -522,7 +523,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		loss = train_network(net, train); // CPU-only
 #endif
 
-		if (avg_loss < 0.0f || avg_loss != avg_loss)
+		if (avg_loss < 0.0f or avg_loss != avg_loss)
 		{
 			avg_loss = loss;    // if(-inf or nan)
 		}
@@ -555,7 +556,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		// updating the console titlebar requires some ANSI/VT100 escape codes, so only do this if colour is also enabled
 		if (cfg_and_state.colour_is_enabled)
 		{
-			if (std::isfinite(mean_average_precision) && mean_average_precision > 0.0f)
+			if (std::isfinite(mean_average_precision) and mean_average_precision > 0.0f)
 			{
 				*cfg_and_state.output
 					<< "\033]2;"
@@ -593,7 +594,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			<< ", avg loss=" << Darknet::format_loss(avg_loss)
 			<< ", last=" << Darknet::format_map_accuracy(mean_average_precision)
 			<< ", best=" << Darknet::format_map_accuracy(best_map)
-			<< ", next=" << next_map_calc
+			<< ", mAP=" << (calc_map ? std::to_string(next_map_calc) : disabled)
 			<< ", rate=" << std::setprecision(8) << get_current_rate(net) << std::setprecision(2)
 			<< ", load " << args.n << "=" << Darknet::format_duration_string(time_to_load_images, 1)
 			<< ", train=" << Darknet::format_duration_string(train_duration, 1)
@@ -603,7 +604,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			<< std::endl;
 
 		// This is where we decide if we have to do the mAP% calculations.
-		if (calc_map && (iteration >= next_map_calc || iteration == net.max_batches))
+		if (calc_map and (iteration >= next_map_calc or iteration == net.max_batches))
 		{
 			if (l.random)
 			{
@@ -675,7 +676,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		// this is where we draw the chart while training
 		Darknet::update_loss_in_new_charts(iteration, avg_loss, time_remaining, dont_show);
 
-		if (iteration >= iter_save + how_often_we_save_weights || (iteration % how_often_we_save_weights) == 0)
+		if (iteration >= iter_save + how_often_we_save_weights or (iteration % how_often_we_save_weights) == 0)
 		{
 			iter_save = iteration;
 #ifdef DARKNET_GPU
@@ -686,7 +687,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			save_weights(net, buff);
 		}
 
-		if (iteration >= (iter_save_last + 100) || (iteration % 100 == 0 && iteration > 1))
+		if (iteration >= (iter_save_last + 100) or (iteration % 100 == 0 and iteration > 1))
 		{
 			iter_save_last = iteration;
 #ifdef DARKNET_GPU
@@ -696,7 +697,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			sprintf(buff, "%s/%s_last.weights", backup_directory, base);
 			save_weights(net, buff);
 
-			if (net.ema_alpha && is_ema_initialized(net))
+			if (net.ema_alpha and is_ema_initialized(net))
 			{
 				sprintf(buff, "%s/%s_ema.weights", backup_directory, base);
 				save_weights_upto(net, buff, net.n, 1);
@@ -1138,14 +1139,14 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, const cha
 	for (i = nthreads; i < m + nthreads; i += nthreads)
 	{
 		*cfg_and_state.output << i << std::endl;
-		for (t = 0; t < nthreads && i + t - nthreads < m; ++t)
+		for (t = 0; t < nthreads and i + t - nthreads < m; ++t)
 		{
 			thr[t].join();
 			cfg_and_state.del_thread_name(thr[t]);
 			val[t] = buf[t];
 			val_resized[t] = buf_resized[t];
 		}
-		for (t = 0; t < nthreads && i + t < m; ++t)
+		for (t = 0; t < nthreads and i + t < m; ++t)
 		{
 			args.path = paths[i + t];
 			args.im = &buf[t];
@@ -1153,7 +1154,7 @@ void validate_detector(char *datacfg, char *cfgfile, char *weightfile, const cha
 			thr[t] = std::thread(Darknet::load_single_image_data, args);
 			cfg_and_state.set_thread_name(thr.back(), "validate loading thread #" + std::to_string(t));
 		}
-		for (t = 0; t < nthreads && i + t - nthreads < m; ++t)
+		for (t = 0; t < nthreads and i + t - nthreads < m; ++t)
 		{
 			char *path = paths[i + t - nthreads];
 			const char *id = basecfg(path);
@@ -1305,7 +1306,7 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 			for (k = 0; k < nboxes; ++k)
 			{
 				float iou = box_iou(dets[k].bbox, t);
-				if (dets[k].objectness > thresh && iou > best_iou)
+				if (dets[k].objectness > thresh and iou > best_iou)
 				{
 					best_iou = iou;
 				}
@@ -1331,631 +1332,6 @@ void validate_detector_recall(char *datacfg, char *cfgfile, char *weightfile)
 	}
 }
 
-
-float validate_detector_map(const char * datacfg, const char * cfgfile, const char * weightfile, float thresh_calc_avg_iou, const float iou_thresh, const int map_points, int letter_box, Darknet::Network * existing_net)
-{
-	TAT(TATPARMS);
-
-	// Example command that calls this function:
-	//
-	//			darknet detector map cars.data cars.cfg cars_best.weights
-
-	struct box_prob
-	{
-		Darknet::Box b;			// bounding box
-		float p;				// probability
-		int class_id;
-		int image_index;		// ?
-		int truth_flag;			// ?
-		int unique_truth_index;	// ?
-	};
-
-	list *options = read_data_cfg(datacfg);
-	const char *valid_images = option_find_str(options, "valid", nullptr);
-	const char *difficult_valid_images = option_find_str(options, "difficult", NULL);
-	FILE* reinforcement_fd = NULL;
-
-	Darknet::Network net;
-	if (existing_net)
-	{
-		const char *train_images = option_find_str(options, "train", nullptr);
-		valid_images = option_find_str(options, "valid", train_images);
-		net = *existing_net;
-		free_network_recurrent_state(*existing_net);
-	}
-	else
-	{
-		net = parse_network_cfg_custom(cfgfile, 1, 1);    // set batch=1
-		if (weightfile)
-		{
-			load_weights(&net, weightfile);
-		}
-		//set_batch_network(&net, 1);
-		fuse_conv_batchnorm(net);
-		calculate_binary_weights(&net);
-		Darknet::load_names(&net, option_find_str(options, "names", "unknown.names"));
-	}
-
-	*cfg_and_state.output << "Calculating mAP (mean average precision)..." << std::endl;
-
-	list *plist = get_paths(valid_images);
-	char **paths = (char **)list_to_array(plist);
-
-	const int actual_batch_size = net.batch * net.subdivisions;
-	if (plist->size == 0)
-	{
-		darknet_fatal_error(DARKNET_LOC, "no validation images available (verify %s)", valid_images);
-	}
-	if (plist->size < actual_batch_size)
-	{
-		Darknet::display_warning_msg("Warning: there seems to be very few validation images (num=" + std::to_string(plist->size) + ", batch=" + std::to_string(actual_batch_size) + ")\n");
-	}
-
-	list *plist_dif = NULL;
-	char **paths_dif = NULL;
-	if (difficult_valid_images)
-	{
-		plist_dif = get_paths(difficult_valid_images);
-		paths_dif = (char **)list_to_array(plist_dif);
-	}
-
-	Darknet::Layer l = net.layers[net.n - 1];
-	for (int k = 0; k < net.n; ++k)
-	{
-		Darknet::Layer & lk = net.layers[k];
-		if (lk.type == Darknet::ELayerType::YOLO or
-			lk.type == Darknet::ELayerType::GAUSSIAN_YOLO or
-			lk.type == Darknet::ELayerType::REGION)
-		{
-			l = lk;
-			*cfg_and_state.output << "Detection layer #" << k << " is type " << static_cast<int>(l.type) << " (" << Darknet::to_string(l.type) << ")" << std::endl;
-		}
-	}
-	int classes = l.classes;
-
-	const int number_of_validation_images = plist->size;
-	const float thresh = 0.005f;
-	const float nms = 0.45f;
-
-	int nthreads = 4; /// @todo how many cores do we have available?
-	if (number_of_validation_images < nthreads)
-	{
-		nthreads = number_of_validation_images;
-	}
-	*cfg_and_state.output << "using " << nthreads << " threads to load " << number_of_validation_images << " validation images for mAP% calculations" << std::endl;
-
-	Darknet::Image* val = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
-	Darknet::Image* val_resized = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
-	Darknet::Image* buf = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
-	Darknet::Image* buf_resized = (Darknet::Image*)xcalloc(nthreads, sizeof(Darknet::Image));
-
-	load_args args = { 0 };
-	args.w = net.w;
-	args.h = net.h;
-	args.c = net.c;
-	letter_box = net.letter_box;
-	if (letter_box)
-	{
-		args.type = LETTERBOX_DATA;
-	}
-	else
-	{
-		args.type = IMAGE_DATA;
-	}
-
-	//const float thresh_calc_avg_iou = 0.24;
-	float avg_iou = 0;
-	int tp_for_thresh = 0;
-	int fp_for_thresh = 0;
-
-	box_prob* detections = (box_prob*)xcalloc(1, sizeof(box_prob));
-	int detections_count = 0;
-	int unique_truth_count = 0;
-
-	/// @todo I think this is TP + FN (where the object actually exists, and we either found it, or missed it)
-	int* truth_classes_count = (int*)xcalloc(classes, sizeof(int));
-
-	// For multi-class precision and recall computation
-	float *avg_iou_per_class = (float*)xcalloc(classes, sizeof(float));
-	int *tp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
-	int *fp_for_thresh_per_class = (int*)xcalloc(classes, sizeof(int));
-
-	Darknet::VThreads thr;
-	thr.reserve(nthreads);
-	for (int t = 0; t < nthreads; ++t)
-	{
-		args.path = paths[t];
-		args.im = &buf[t];
-		args.resized = &buf_resized[t];
-		thr.emplace_back(Darknet::load_single_image_data, args);
-		cfg_and_state.set_thread_name(thr.back(), "map loading thread #" + std::to_string(t));
-	}
-	time_t start = std::time(nullptr);
-	for (int i = nthreads; i < number_of_validation_images + nthreads; i += nthreads)
-	{
-		const int percentage = std::round(100.0f * (i - nthreads) / number_of_validation_images);
-		*cfg_and_state.output << "\rprocessing #" << (i - nthreads) << " (" << percentage << "%) " << std::flush;
-
-		// wait until the 4 threads have finished loading in their image
-		for (int t = 0; t < nthreads && (i + t - nthreads) < number_of_validation_images; ++t)
-		{
-			thr[t].join();
-			cfg_and_state.del_thread_name(thr[t]);
-			val[t] = buf[t];
-			val_resized[t] = buf_resized[t];
-		}
-
-		// load the next set of images while we run predict()
-		for (int t = 0; t < nthreads && (i + t) < number_of_validation_images; ++t)
-		{
-			args.path = paths[i + t];
-			args.im = &buf[t];
-			args.resized = &buf_resized[t];
-			thr[t] = std::thread(Darknet::load_single_image_data, args);
-			cfg_and_state.set_thread_name(thr[t], "map loading thread #" + std::to_string(t));
-		}
-
-		// predict using the 4 (or sometimes less than 4) images we just loaded
-		for (int t = 0; t < nthreads && i + t - nthreads < number_of_validation_images; ++t)
-		{
-			const int image_index = i + t - nthreads;
-			char *path = paths[image_index];
-			const char *id = basecfg(path);
-			float *X = val_resized[t].data;
-			network_predict(net, X); /// @todo would we save anything if net was passed in by reference?
-
-			int nboxes = 0;
-			float hier_thresh = 0;
-			Darknet::Detection * dets;
-			if (args.type == LETTERBOX_DATA)
-			{
-				dets = get_network_boxes(&net, val[t].w, val[t].h, thresh, hier_thresh, 0, 1, &nboxes, letter_box);
-			}
-			else
-			{
-				dets = get_network_boxes(&net, 1, 1, thresh, hier_thresh, 0, 0, &nboxes, letter_box);
-			}
-			if (nms)
-			{
-				if (l.nms_kind == DEFAULT_NMS)
-				{
-					do_nms_sort(dets, nboxes, l.classes, nms);
-				}
-				else
-				{
-					diounms_sort(dets, nboxes, l.classes, nms, l.nms_kind, l.beta_nms);
-				}
-			}
-
-			char labelpath[4096];
-			replace_image_to_label(path, labelpath);
-			int num_labels = 0;
-			box_label *truth = read_boxes(labelpath, &num_labels);
-			for (int j = 0; j < num_labels; ++j)
-			{
-				truth_classes_count[truth[j].id]++;
-			}
-
-			// difficult
-			box_label *truth_dif = NULL;
-			int num_labels_dif = 0;
-			if (paths_dif)
-			{
-				char *path_dif = paths_dif[image_index];
-
-				char labelpath_dif[4096];
-				replace_image_to_label(path_dif, labelpath_dif);
-
-				truth_dif = read_boxes(labelpath_dif, &num_labels_dif);
-			}
-
-			const int checkpoint_detections_count = detections_count;
-
-			for (int idx = 0; idx < nboxes; ++idx)
-			{
-				for (int class_id = 0; class_id < classes; ++class_id)
-				{
-					float prob = dets[idx].prob[class_id];
-					if (prob > 0.0f)
-					{
-						detections_count++;
-						detections = (box_prob*)xrealloc(detections, detections_count * sizeof(box_prob));
-						detections[detections_count - 1].b = dets[idx].bbox;
-						detections[detections_count - 1].p = prob;
-						detections[detections_count - 1].image_index = image_index;
-						detections[detections_count - 1].class_id = class_id;
-						detections[detections_count - 1].truth_flag = 0;
-						detections[detections_count - 1].unique_truth_index = -1;
-
-						int truth_index = -1;
-						float max_iou = 0;
-						for (int j = 0; j < num_labels; ++j)
-						{
-							Darknet::Box box = { truth[j].x, truth[j].y, truth[j].w, truth[j].h };
-							float current_iou = box_iou(dets[idx].bbox, box);
-							if (current_iou > iou_thresh && class_id == truth[j].id)
-							{
-								if (current_iou > max_iou)
-								{
-									max_iou = current_iou;
-									truth_index = unique_truth_count + j;
-								}
-							}
-						}
-
-						// best IoU
-						if (truth_index > -1)
-						{
-							detections[detections_count - 1].truth_flag = 1;
-							detections[detections_count - 1].unique_truth_index = truth_index;
-						}
-						else
-						{
-							// if object is difficult then remove detection
-							for (int j = 0; j < num_labels_dif; ++j)
-							{
-								Darknet::Box box = { truth_dif[j].x, truth_dif[j].y, truth_dif[j].w, truth_dif[j].h };
-								float current_iou = box_iou(dets[idx].bbox, box);
-								if (current_iou > iou_thresh && class_id == truth_dif[j].id)
-								{
-									--detections_count;
-									break;
-								}
-							}
-						}
-
-						// calc avg IoU, true-positives, false-positives for required Threshold
-						if (prob > thresh_calc_avg_iou)
-						{
-							int found = 0;
-							for (int z = checkpoint_detections_count; z < detections_count - 1; ++z)
-							{
-								if (detections[z].unique_truth_index == truth_index)
-								{
-									found = 1;
-									break;
-								}
-							}
-
-							if (truth_index > -1 && found == 0)
-							{
-								avg_iou += max_iou;
-								++tp_for_thresh;
-								avg_iou_per_class[class_id] += max_iou;
-								tp_for_thresh_per_class[class_id]++;
-							}
-							else
-							{
-								fp_for_thresh++;
-								fp_for_thresh_per_class[class_id]++;
-							}
-						}
-					}
-				}
-			}
-
-			unique_truth_count += num_labels;
-
-			free_detections(dets, nboxes);
-			free(truth);
-			free(truth_dif);
-			free((void*)id);
-			Darknet::free_image(val[t]);
-			Darknet::free_image(val_resized[t]);
-		}
-	}
-
-	if ((tp_for_thresh + fp_for_thresh) > 0)
-	{
-		avg_iou = avg_iou / (tp_for_thresh + fp_for_thresh);
-	}
-
-	for (int class_id = 0; class_id < classes; class_id++)
-	{
-		if ((tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id]) > 0)
-		{
-			avg_iou_per_class[class_id] = avg_iou_per_class[class_id] / (tp_for_thresh_per_class[class_id] + fp_for_thresh_per_class[class_id]);
-		}
-	}
-
-	// Sort the array from high probability to low probability.
-	//
-	// With a test of 7125 entries in the array:
-	//
-	// - qsort() with function took:	576286 nanoseconds
-	// - std::sort() with lambda took:	414231 nanoseconds
-	//
-	std::sort(/** @todo try this again in 2026? std::execution::par_unseq,*/ detections, detections + detections_count,
-			[](const box_prob & lhs, const box_prob & rhs)
-			{
-				return lhs.p > rhs.p;
-			});
-
-	struct pr_t
-	{
-		double prob;
-		double precision;
-		double recall;
-		int tp;
-		int fp;
-		int fn;
-	};
-
-	// for PR-curve
-	// Note this is a pointer-to-a-pointer.  We don't have just 1 of these per class, but these exist for every detections_count.
-	pr_t** pr = (pr_t**)xcalloc(classes, sizeof(pr_t*));
-	for (int i = 0; i < classes; ++i)
-	{
-		pr[i] = (pr_t*)xcalloc(detections_count, sizeof(pr_t));
-	}
-
-	*cfg_and_state.output << "detections_count=" << detections_count << ", unique_truth_count=" << unique_truth_count << std::endl;
-
-	int* detection_per_class_count = (int*)xcalloc(classes, sizeof(int));
-	for (int j = 0; j < detections_count; ++j)
-	{
-		detection_per_class_count[detections[j].class_id]++;
-	}
-
-	int* truth_flags = (int*)xcalloc(unique_truth_count, sizeof(int));
-
-	for (int rank = 0; rank < detections_count; ++rank)
-	{
-		if (rank % 100 == 0)
-		{
-			*cfg_and_state.output << "\rrank=" << rank << " of ranks=" << detections_count << std::flush;
-		}
-
-		if (rank > 0)
-		{
-			for (int class_id = 0; class_id < classes; ++class_id)
-			{
-				pr[class_id][rank].tp = pr[class_id][rank - 1].tp;
-				pr[class_id][rank].fp = pr[class_id][rank - 1].fp;
-			}
-		}
-
-		box_prob d = detections[rank];
-		pr[d.class_id][rank].prob = d.p;
-
-		if (d.truth_flag == 1)
-		{
-			if (truth_flags[d.unique_truth_index] == 0)
-			{
-				truth_flags[d.unique_truth_index] = 1;
-				pr[d.class_id][rank].tp++;    // true-positive
-			} else
-			{
-				pr[d.class_id][rank].fp++;
-			}
-		}
-		else
-		{
-			pr[d.class_id][rank].fp++;    // false-positive
-		}
-
-		for (int i = 0; i < classes; ++i)
-		{
-			const int tp = pr[i][rank].tp;
-			const int fp = pr[i][rank].fp;
-			const int fn = truth_classes_count[i] - tp;    // false-negative = objects - true-positive
-			pr[i][rank].fn = fn;
-
-			if ((tp + fp) > 0)
-			{
-				pr[i][rank].precision = (double)tp / (double)(tp + fp);
-			}
-			else
-			{
-				pr[i][rank].precision = 0;
-			}
-
-			if ((tp + fn) > 0)
-			{
-				pr[i][rank].recall = (double)tp / (double)(tp + fn);
-			}
-			else
-			{
-				pr[i][rank].recall = 0;
-			}
-
-			if (rank == (detections_count - 1) && detection_per_class_count[i] != (tp + fp))
-			{
-				// check for last rank
-				*cfg_and_state.output
-					<< "class_id="		<< i
-					<< ", detections="	<< detection_per_class_count[i]
-					<< ", tp+fp="		<< tp + fp
-					<< ", tp="			<< tp
-					<< ", fp="			<< fp
-					<< std::endl;
-			}
-		}
-	}
-
-	free(truth_flags);
-
-	double mean_average_precision = 0.0;
-
-	for (int i = 0; i < classes; ++i)
-	{
-		double avg_precision = 0.0;
-
-		// MS COCO - uses 101-Recall-points on PR-chart.
-		// PascalVOC2007 - uses 11-Recall-points on PR-chart.
-		// PascalVOC2010-2012 - uses Area-Under-Curve on PR-chart.
-		// ImageNet - uses Area-Under-Curve on PR-chart.
-
-		// correct mAP calculation: ImageNet, PascalVOC 2010-2012
-		if (map_points == 0)
-		{
-			double last_recall = pr[i][detections_count - 1].recall;
-			double last_precision = pr[i][detections_count - 1].precision;
-			for (int rank = detections_count - 2; rank >= 0; --rank)
-			{
-				double delta_recall = last_recall - pr[i][rank].recall;
-				last_recall = pr[i][rank].recall;
-
-				if (pr[i][rank].precision > last_precision)
-				{
-					last_precision = pr[i][rank].precision;
-				}
-
-				avg_precision += delta_recall * last_precision;
-			}
-			//add remaining area of PR curve when recall isn't 0 at rank-1
-			double delta_recall = last_recall - 0;
-			avg_precision += delta_recall * last_precision;
-		}
-		// MSCOCO - 101 Recall-points, PascalVOC - 11 Recall-points
-		else
-		{
-			int point;
-			for (point = 0; point < map_points; ++point)
-			{
-				double cur_recall = point * 1.0 / (map_points-1);
-				double cur_precision = 0;
-				//double cur_prob = 0;
-				for (int rank = 0; rank < detections_count; ++rank)
-				{
-					if (pr[i][rank].recall >= cur_recall)
-					{
-						// > or >=
-						if (pr[i][rank].precision > cur_precision)
-						{
-							cur_precision = pr[i][rank].precision;
-							//cur_prob = pr[i][rank].prob;
-						}
-					}
-				}
-
-				avg_precision += cur_precision;
-			}
-			avg_precision = avg_precision / map_points;
-		}
-
-		// Accuracy:							all correct		/ all		= (TP + TN)	/ (TP + TN + FP + FN)
-		// Misclassification (error rate):		all incorrect	/ all		= (FP + FN)	/ (TP + TN + FP + FN)
-		// Precision:							TP / predicted positives	= TP		/ (TP + FP)
-		// Sensitivity aka recall:				TP / all positives			= TP		/ (TP + FN)
-		// Specificity (true negative rate):	TN / all negatives			= TN		/ (TN + FP)
-		// False positive rate:					FP / all negatives			= FP		/ (TN + FP)
-
-		const int all_detections = detection_per_class_count[i];
-		const int tp = tp_for_thresh_per_class[i];
-		const int fn = truth_classes_count[i] - tp;
-		const int fp = fp_for_thresh_per_class[i];
-		const int tn = all_detections - tp - fn - fp;
-		const float accuracy		= static_cast<float>(tp + tn)	/ static_cast<float>(all_detections);
-		const float error_rate		= static_cast<float>(fp + fn)	/ static_cast<float>(all_detections);
-		const float precision		= static_cast<float>(tp)		/ static_cast<float>(tp + fp);
-		const float recall			= static_cast<float>(tp)		/ static_cast<float>(tp + fn);
-		const float specificity		= static_cast<float>(tn)		/ static_cast<float>(tn + fp);
-		const float false_pos_rate	= static_cast<float>(fp)		/ static_cast<float>(tn + fp);
-
-		if (i == 0)
-		{
-			*cfg_and_state.output
-				<< std::endl
-				<< std::endl
-				<< "  Id Name             AvgPrecision     TP     FN     FP     TN Accuracy ErrorRate Precision Recall Specificity FalsePosRate" << std::endl
-				<< "  -- ----             ------------ ------ ------ ------ ------ -------- --------- --------- ------ ----------- ------------" << std::endl;
-		}
-
-		*cfg_and_state.output << Darknet::format_map_confusion_matrix_values(i, net.details->class_names[i], avg_precision, tp, fn, fp, tn, accuracy, error_rate, precision, recall, specificity, false_pos_rate) << std::endl;
-
-		// send the result of this class to the C++ side of things so we can include it the right chart
-		Darknet::update_accuracy_in_new_charts(i, avg_precision);
-
-		mean_average_precision += avg_precision;
-	}
-
-	const float cur_precision = (float)tp_for_thresh / ((float)tp_for_thresh + (float)fp_for_thresh);
-	const float cur_recall = (float)tp_for_thresh / ((float)tp_for_thresh + (float)(unique_truth_count - tp_for_thresh));
-	const float f1_score = 2.F * cur_precision * cur_recall / (cur_precision + cur_recall);
-
-	*cfg_and_state.output
-		<< std::endl
-		<< "for conf_thresh=" << thresh_calc_avg_iou
-		<< ", precision=" << cur_precision
-		<< ", recall=" << cur_recall
-		<< ", F1 score=" << f1_score
-		<< std::endl
-		<< "for conf_thresh="	<< thresh_calc_avg_iou
-		<< ", TP="				<< tp_for_thresh
-		<< ", FP="				<< fp_for_thresh
-		<< ", FN="				<< unique_truth_count - tp_for_thresh
-		<< ", average IoU="		<< avg_iou * 100.0f << "%"
-		<< std::endl
-		<< "IoU threshold="		<< iou_thresh * 100.0f << "%, ";
-
-	if (map_points)
-	{
-		*cfg_and_state.output << "used " << map_points << " recall points" << std::endl;
-	}
-	else
-	{
-		*cfg_and_state.output << "used area-under-curve for each unique recall" << std::endl;
-	}
-
-	mean_average_precision = mean_average_precision / classes;
-	*cfg_and_state.output
-		<< "mean average precision (mAP@" << std::setprecision(2) << iou_thresh << ")="
-		<< Darknet::format_map_accuracy(mean_average_precision)
-		<< std::endl;
-	for (int i = 0; i < classes; ++i)
-	{
-		free(pr[i]);
-	}
-	free(pr);
-	free(detections);
-	free(truth_classes_count);
-	free(detection_per_class_count);
-	free(paths);
-	free(paths_dif);
-	free_list_contents(plist);
-	free_list(plist);
-	if (plist_dif)
-	{
-		free_list_contents(plist_dif);
-		free_list(plist_dif);
-	}
-	free(avg_iou_per_class);
-	free(tp_for_thresh_per_class);
-	free(fp_for_thresh_per_class);
-
-	*cfg_and_state.output
-		<< "Total detection time: " << (int)(time(0) - start) << " seconds"				<< std::endl
-		<< "Set -points flag:"															<< std::endl
-		<< " '-points 101' for MSCOCO"													<< std::endl
-		<< " '-points 11' for PascalVOC 2007 (uncomment 'difficult' in voc.data)"		<< std::endl
-		<< " '-points 0' (AUC) for ImageNet, PascalVOC 2010-2012, your custom dataset"	<< std::endl;
-
-	if (reinforcement_fd != NULL)
-	{
-		fclose(reinforcement_fd);
-	}
-
-	// free memory
-	free_list_contents_kvp(options);
-	free_list(options);
-
-	if (existing_net)
-	{
-		restore_network_recurrent_state(*existing_net);
-	}
-	else
-	{
-		free_network(net);
-	}
-
-	free(val);
-	free(val_resized);
-	free(buf);
-	free(buf_resized);
-
-	return mean_average_precision;
-}
 
 typedef struct {
 	float w, h;
@@ -2011,13 +1387,13 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 		<< ", height="			<< height
 		<< std::endl;
 
-	if (width < 32 || height < 32 || num_of_clusters <= 0)
+	if (width < 32 or height < 32 or num_of_clusters <= 0)
 	{
 		*cfg_and_state.output << std::endl << "Usage example: darknet detector calc_anchors animals.data -num_of_clusters 6 -width 320 -height 256" << std::endl;
 		darknet_fatal_error(DARKNET_LOC, "missing or invalid parameter required to recalculate YOLO anchors");
 	}
 
-	if ((width % 32) || (height % 32))
+	if ((width % 32) or (height % 32))
 	{
 		darknet_fatal_error(DARKNET_LOC, "cannot recalculate anchors due to invalid network dimensions (must be divisible by 32)");
 	}
@@ -2049,8 +1425,8 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 		char *buff = (char*)xcalloc(6144, sizeof(char));
 		for (j = 0; j < num_labels; ++j)
 		{
-			if (truth[j].x > 1 || truth[j].x <= 0 || truth[j].y > 1 || truth[j].y <= 0 ||
-				truth[j].w > 1 || truth[j].w <= 0 || truth[j].h > 1 || truth[j].h <= 0)
+			if (truth[j].x > 1 or truth[j].x <= 0 or truth[j].y > 1 or truth[j].y <= 0 or
+				truth[j].w > 1 or truth[j].w <= 0 or truth[j].h > 1 or truth[j].h <= 0)
 			{
 				darknet_fatal_error(DARKNET_LOC, "invalid annotation coordinates or size (x=%f, y=%f, w=%f, h=%f) for class #%d in %s line #%d",
 						truth[j].x, truth[j].y, truth[j].w, truth[j].h, truth[j].id, labelpath, j+1);
@@ -2126,7 +1502,7 @@ void calc_anchors(char *datacfg, int num_of_clusters, int width, int height, int
 
 		float anchor_w = anchors_data.centers.vals[cluster_idx][0]; //centers->data.fl[cluster_idx * 2];
 		float anchor_h = anchors_data.centers.vals[cluster_idx][1]; //centers->data.fl[cluster_idx * 2 + 1];
-		if (best_iou > 1.0f || best_iou < 0.0f)
+		if (best_iou > 1.0f or best_iou < 0.0f)
 		{
 			darknet_fatal_error(DARKNET_LOC, "wrong label: i=%d, box_w=%f, box_h=%f, anchor_w=%f, anchor_h=%f, iou=%f", i, box_w, box_h, anchor_w, anchor_h, best_iou);
 		}
@@ -2354,7 +1730,7 @@ void test_detector(const char *datacfg, const char *cfgfile, const char *weightf
 				float prob = 0;
 				for (int j = 0; j < l.classes; ++j)
 				{
-					if (dets[i].prob[j] > thresh && dets[i].prob[j] > prob)
+					if (dets[i].prob[j] > thresh and dets[i].prob[j] > prob)
 					{
 						prob = dets[i].prob[j];
 						class_id = j;
@@ -2499,7 +1875,7 @@ void run_detector(int argc, char **argv)
 	}
 
 	/// @todo why only do this if ngpus > 1?  Is this a bug?  Should it be zero?
-	if (gpus && gpu_list && ngpus > 1)
+	if (gpus and gpu_list and ngpus > 1)
 	{
 		free(gpus);
 	}

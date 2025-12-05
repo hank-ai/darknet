@@ -68,6 +68,7 @@ try:
     print(f"Producer name ........ {model.producer_name}")
     print(f"Producer version ..... {model.producer_version}")
     print(f"Model version ........ {model.model_version}")
+    print(f"Graph name ........... {model.graph.name}")
     print(f"Graph input size ..... {len(model.graph.input)}")
     print(f"Graph output size .... {len(model.graph.output)}")
     print(f"Graph node size ...... {len(model.graph.node)}")
@@ -99,7 +100,7 @@ try:
                 elif attrib.type == onnx.AttributeProto.INTS:
                     print(f"{attrib.ints} ", end="")
                 elif attrib.type == onnx.AttributeProto.STRING:
-                    print(f"{attrib.s.decode('utf-8')} ", end="")
+                    print(f"\"{attrib.s.decode('utf-8')}\" ", end="")
                 elif attrib.type == onnx.AttributeProto.TENSOR:
                     print(f"{onnx.numpy_helper.to_array(attrib.t)} (TENSOR) ", end="")
                 else:

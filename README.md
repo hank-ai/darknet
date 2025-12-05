@@ -85,13 +85,17 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* Added support for AMD GPUs using ROCm.
 		* Still need to add support for MIOpen.
 	* All `printf()` and `std::cout` calls have all been replaced so Darknet/YOLO logging messages can easily be redirected.
-* The latest release was in August 2025.  The `version` command now returns 5.x "Moonlit".
+* The next release was in August 2025.  The `version` command now returns 5.x "Moonlit".
 	* Move source code repo from github to [codeberg](https://codeberg.org/CCodeRun/darknet#table-of-contents).
 	* More performance optimizations.
 	* Use of OpenBLAS when building CPU-only versions of Darknet.
 	* Support for Profile-Guided Optimization.
 	* ONNX export functionality.  [experimental]
 	* JAVA language bindings.  [incomplete, in-progress]
+* The most recent release is v5.1, which continues the "Moonlit" name introduced in v5.0.
+	* Scheduled for release in December 2025.
+	* The ONNX export tool now includes the necessary nodes to export both "confs" and "boxes".
+	* The mAP function was re-written.
 
 # Pre-trained Weights
 
@@ -184,18 +188,15 @@ If you don't want to use Darknet/YOLO from within WSL, then skip ahead to the [W
 > * Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
 
 > [!TIP]
-> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  This only makes a difference on CPU-only builds:
+> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  These libraries are only used on CPU-only builds:
 ```sh
 sudo apt-get install libopenblas64-0 libopenblas64-0-openmp libopenblas64-openmp-dev
 ```
 
-> [!TIP]
-> If you would like to export your Darknet/YOLO `.weights` to ONNX format, see [the additional dependency you may need to install](README_ONNX.md).
-
-These instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
+The following instructions assume (but do not require!) a system running Ubuntu 22.04.  Adapt as necessary if you're using a different Linux distribution.
 
 ```sh
-sudo apt-get install build-essential git libopencv-dev cmake
+sudo apt-get install build-essential git libopencv-dev cmake libprotobuf-dev protobuf-compiler
 mkdir ~/src
 cd ~/src
 git clone https://codeberg.org/CCodeRun/darknet.git
@@ -296,7 +297,7 @@ cd vcpkg
 bootstrap-vcpkg.bat
 .\vcpkg.exe integrate install
 .\vcpkg.exe integrate powershell
-.\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows
+.\vcpkg.exe install opencv[contrib,dnn,freetype,jpeg,openmp,png,webp,world]:x64-windows protobuf:x64-windows
 ```
 
 Be patient at this last step as it can take a long time to run.  It needs to download and build many things.
@@ -309,7 +310,7 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 > * Depending on which GPU you have, please read the [NVIDIA GPU Readme](README_GPU_NVIDIA_CUDA.md) or the [AMD GPU Readme](README_GPU_AMD_ROCM.md).
 
 > [!TIP]
-> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  This only makes a difference on CPU-only builds:
+> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  These libraries are only used on CPU-only builds:
 ```sh
 .\vcpkg.exe install openblas:x64-windows
 ```
@@ -560,12 +561,13 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 * [Python bindings for Darknet/YOLO](src-python/) (in the Darknet/YOLO repo)
 * [Java bindings for Darknet/YOLO](https://github.com/stephanecharette/DarknetJava)  [incomplete, in-progress]
 * [Delphi bindings for Darknet/YOLO](https://github.com/hansvas/Darknet4Delphi)
+* [C# bindings for Darknet/YOLO](https://github.com/libormasek/DarknetCSharp)
 * [Darknet2Any](https://github.com/jredmondson/darknet2any/)
 * If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/MQw32W9Cqr).
 
 # Roadmap
 
-Last updated 2025-08-27:
+Last updated 2025-11-25:
 
 ## Completed
 
@@ -608,7 +610,8 @@ Last updated 2025-08-27:
 * [X] add support for OpenBLAS (CPU builds only)
 * [X] add support for Profile Guided Optimization
 * [X] move from github to codeberg
-* [X] onnx export **(experimental)**
+* [X] ONNX export tool
+* [X] re-write function that calculates mAP (mean average precision)
 
 ## Short-term goals
 

@@ -24,6 +24,7 @@ namespace Darknet
 	/// Update the new C++ charts with the given loss and mAP% accuracy value.  This is called at every iteration.  @see @ref Chart
 	void update_loss_in_new_charts(const int current_iteration, const float loss, const std::string & time_remaining, const bool dont_show);
 
+	void update_f1_in_new_charts(const int class_idx, const float f1);
 	void update_accuracy_in_new_charts(const int class_index, const float accuracy);
 
 	std::string get_command_output(const std::string & cmd);
