@@ -357,6 +357,24 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 		args[iter->name] = args_and_parms;
 	}
 
+	if (args.count("fp16") > 0 and
+		args.count("fp32") > 0)
+	{
+		darknet_fatal_error(DARKNET_LOC, "conflicting parameters \"fp16\" and \"fp32\" have both been specified");
+	}
+
+	if (args.count("fuse") > 0 and
+		args.count("dontfuse") > 0)
+	{
+		darknet_fatal_error(DARKNET_LOC, "conflicting parameters \"fuse\" and \"dontfuse\" have both been specified");
+	}
+
+	if (args.count("boxes") > 0 and
+		args.count("noboxes") > 0)
+	{
+		darknet_fatal_error(DARKNET_LOC, "conflicting parameters \"boxes\" and \"noboxes\" have both been specified");
+	}
+
 	if (args.count("verbose"		) > 0 or
 		args.count("show_details"	) > 0) // old Darknet had "-show_details", which I didn't know about when I created "--verbose"
 	{

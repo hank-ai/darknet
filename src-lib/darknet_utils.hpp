@@ -30,4 +30,7 @@ namespace Darknet
 	std::string get_command_output(const std::string & cmd);
 
 	void cfg_layers();
+
+	/// Convert fp32 to fp16 (IEEE 754) without having to rely on CUDA (which is not available in CPU-only builds).
+	std::uint16_t convert_to_fp16(const float f);
 }

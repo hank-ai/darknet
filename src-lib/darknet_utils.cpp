@@ -663,3 +663,32 @@ void Darknet::cfg_layers()
 
 	return;
 }
+
+
+std::uint16_t Darknet::convert_to_fp16(const float f)
+{
+	std::uint32_t bits;
+	std::memcpy(&bits, &f, sizeof(bits));
+
+	std::uint32_t	sign		= ((bits >> 31) & 0x01);
+	std::int32_t	exponent	= ((bits >> 23) & 0xff) - 127;
+	std::uint32_t	mantissa	= bits & 0x7fffff;
+	std::uint16_t	out			= 0;
+
+	if (exponent > 15) // overflow (inf)
+	{
+		out = (sign << 15) | (0x1f << 10);
+	}
+	else if (exponent > -15) // normal FP16
+	{
+		exponent += 15;
+		mantissa >>= 13;
+		out = (sign << 15) | (exponent << 10) | mantissa;
+	}
+	else // underflow (zero)
+	{
+		out = (sign << 15);
+	}
+
+	return out;
+}

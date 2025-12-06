@@ -32,7 +32,7 @@ namespace Darknet
 			Node(const Darknet::CfgSection & section, const std::string & append = "");
 
 			/// Constructor for a single @p float constant.
-			Node(const Darknet::CfgSection & section, const float f);
+			Node(const Darknet::CfgSection & section, const float f, const size_t bit_size = 32);
 
 			/// Constructor for many @p int constants.
 			Node(const Darknet::CfgSection & section, const Darknet::VInt & v);

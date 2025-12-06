@@ -100,6 +100,7 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 	onnx_fn(onnx_filename),
 	opset_version(1), // see initialize_model()
 	graph(nullptr),
+	bit_size(32),
 	fuse_batchnorm(true),
 	postprocess_boxes(true)
 {
@@ -175,6 +176,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 		postprocess_boxes = false;
 	}
 
+	if (cfg_and_state.is_set("fp32"))
+	{
+		bit_size = 32;
+	}
+	if (cfg_and_state.is_set("fp16"))
+	{
+		bit_size = 16;
+	}
+
 	// restore the verbose flag
 	if (not original_verbose_flag)
 	{
@@ -219,7 +229,22 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		}
 		*cfg_and_state.output << opset.version() << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + ops_date_lookup(opset.version()) + "]") << " ";
 	}
-	*cfg_and_state.output << std::endl;
+
+	const auto colour = (bit_size < 32 ? Darknet::EColour::kBrightWhite : Darknet::EColour::kNormal);
+	*cfg_and_state.output << std::endl
+		<< "-> exported bit size .... "
+		<< Darknet::in_colour(colour, std::to_string(bit_size) + "-bit floats")
+		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fp16 or -fp32]")
+		<< std::endl;
+
+	const std::set<std::string> exports_that_use_16_bit_floats =
+	{
+		"bias",
+		"mean",
+		"scale", // but not "scales"!
+		"variance",
+		"weights"
+	};
 
 	for (const auto & [key, val] : number_of_floats_exported)
 	{
@@ -227,6 +252,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		if (key.size() < 12)
 		{
 			*cfg_and_state.output << std::string(12 - key.size(), '.');
+		}
+
+		size_t float_size = sizeof(float);
+		if (bit_size == 16 and exports_that_use_16_bit_floats.count(key))
+		{
+			float_size /= 2;
 		}
 
 		// add a comma every 3rd digit to make it easier to read
@@ -238,7 +269,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 			str.insert(pos, ",");
 		}
 
-		*cfg_and_state.output << " " << sizeof(float) << " bytes x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(sizeof(float) * val) + "]") << std::endl;
+		*cfg_and_state.output << " " << float_size << " bytes x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(float_size * val) + "]") << std::endl;
 	}
 
 	return *this;
@@ -248,6 +279,13 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 {
 	TAT(TATPARMS);
+
+	if (bit_size != 32 and
+		bit_size != 16)
+	{
+		// eventually I'd like to support INT8 quantization as well, but for now all we have is FP16 and FP32
+		throw std::runtime_error("FP16 and FP32 are supported, but bit size is currently set to " + std::to_string(bit_size) + " which is not supported");
+	}
 
 	/* Quickly look through the configuration to see which ONNX opset we should be using:
 	 *
@@ -372,7 +410,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx
 
 	auto tensor_type = new onnx::TypeProto_Tensor();
 	type->set_allocated_tensor_type(tensor_type);
-	tensor_type->set_elem_type(onnx::TensorProto::FLOAT);
+
+	if (bit_size == 32)
+	{
+		tensor_type->set_elem_type(onnx::TensorProto::FLOAT);
+	}
+	else
+	{
+		tensor_type->set_elem_type(onnx::TensorProto::FLOAT16);
+	}
 
 	auto shape = new onnx::TensorShapeProto();
 	tensor_type->set_allocated_shape(shape);
@@ -982,11 +1028,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 	}
 	else if (cfg_and_state.is_verbose)
 	{
-		*cfg_and_state.output << "-> " << name << ": exporting " << n << " " << name << std::endl;
+		*cfg_and_state.output << "-> " << name << ": exporting " << n << " " << name << "                " << std::endl;
 	}
 
 	onnx::TensorProto * initializer = graph->add_initializer();
-	initializer->set_data_type(onnx::TensorProto::FLOAT);
 	initializer->set_name(name);
 	initializer->set_doc_string("initializer for " + Darknet::to_string(l.type) + ", " + std::to_string(n) + " x " + name + "]");
 
@@ -996,6 +1041,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 	 * I can implement it correctly!
 	 */
 
+	bool must_convert = false;
+
 	if (f == nullptr or n == 0)
 	{
 		initializer->add_dims(0);
@@ -1004,17 +1051,22 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 	{
 		if (simple)
 		{
+			// for example, "scales" from Resize nodes uses this
 			initializer->add_dims(n);
 		}
 		else
 		{
+			// must be dealing with weights, bias, scale, etc.
+			if (bit_size < 32)
+			{
+				must_convert = true;
+			}
+
 			// "l.n" is always the first dimension
 			initializer->add_dims(l.n);
 
 			if (n > l.n and not simple)
 			{
-				// must be dealing with weights
-
 				const int div = std::max(1, l.size); // prevent division-by-zero
 
 				initializer->add_dims(n / l.n / div / div);
@@ -1023,10 +1075,27 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 			}
 		}
 
-		// no need to worry about ARM and big/little endian byte order with this method
-		for (size_t i = 0; i < n; i ++)
+		if (must_convert)
 		{
-			initializer->add_float_data(f[i]);
+			initializer->set_data_type(onnx::TensorProto::FLOAT16);
+
+			std::vector<std::uint16_t> v;
+			v.reserve(n);
+			for (size_t i = 0; i < n; i ++)
+			{
+				v.push_back(Darknet::convert_to_fp16(f[i]));
+			}
+			initializer->set_raw_data(v.data(), v.size() * sizeof(std::uint16_t));
+		}
+		else
+		{
+			initializer->set_data_type(onnx::TensorProto::FLOAT);
+
+			// no need to worry about ARM and big/little endian byte order with this method
+			for (size_t i = 0; i < n; i ++)
+			{
+				initializer->add_float_data(f[i]);
+			}
 		}
 
 		// get the last part of the name to use as a key; for example, "N6_L2_conv_weights" returns a key of "weights"
@@ -1235,8 +1304,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(Darknet::CfgSe
 		*			giving a bit of extra range outside the cell.
 		*/
 		const float variance = 0.05f;
-		Node const_1_050(section, 1.0f + variance);
-		Node const_0_025(section, variance / 2.0f);
+		Node const_1_050(section, 1.0f + variance, bit_size);
+		Node const_0_025(section, variance / 2.0f, bit_size);
 
 		// multiply by 1.05
 		Node mul(section, "_mul_tx_ty");
@@ -1496,11 +1565,15 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 			}
 
 			onnx::TensorProto tensor;
-			tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+			tensor.set_data_type(bit_size == 32 ? onnx::TensorProto_DataType_FLOAT : onnx::TensorProto_DataType_FLOAT16);
 			tensor.add_dims(1);
 			tensor.add_dims(1);
 			tensor.add_dims(l.h);
 			tensor.add_dims(l.w);
+
+			// the vector only gets used when dealing with FP16
+			std::vector<std::uint16_t> v;
+
 			for (int h = 0; h < l.h; h ++)
 			{
 				for (int w = 0; w < l.w; w ++)
@@ -1508,15 +1581,34 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 					if (i % 2 == 0)
 					{
 						// X values
-						tensor.add_float_data(w);
+						if (bit_size == 32)
+						{
+							tensor.add_float_data(w);
+						}
+						else
+						{
+							v.push_back(Darknet::convert_to_fp16(w));
+						}
 					}
 					else
 					{
 						// Y values
-						tensor.add_float_data(h);
+						if (bit_size == 32)
+						{
+							tensor.add_float_data(h);
+						}
+						else
+						{
+							v.push_back(Darknet::convert_to_fp16(h));
+						}
 					}
 				}
 			}
+			if (not v.empty())
+			{
+				tensor.set_raw_data(v.data(), v.size() * sizeof(std::uint16_t));
+			}
+
 			Node constants(section, "_const_tx_ty");
 			constants.type("Constant");
 			auto attr = constants.node->add_attribute();
@@ -1574,8 +1666,18 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 			}
 
 			onnx::TensorProto tensor;
-			tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
-			tensor.add_float_data(multiplier[i]);
+			if (bit_size < 32)
+			{
+				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT16);
+				std::vector<std::uint16_t> v;
+				v.push_back(Darknet::convert_to_fp16(multiplier[i]));
+				tensor.set_raw_data(v.data(), v.size() * sizeof(std::uint16_t));
+			}
+			else
+			{
+				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+				tensor.add_float_data(multiplier[i]);
+			}
 			Node constants(section, "_const_" + std::to_string(i) + "_tw_th");
 			constants.type("Constant");
 			auto attr = constants.node->add_attribute();
@@ -1602,8 +1704,19 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 			}
 
 			onnx::TensorProto tensor;
-			tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
-			tensor.add_float_data(name == "lhs" ? l.w : l.h);
+			const float f = (name == "lhs" ? l.w : l.h);
+			if (bit_size == 32)
+			{
+				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+				tensor.add_float_data(f);
+			}
+			else
+			{
+				std::vector<std::uint16_t> v;
+				v.push_back(Darknet::convert_to_fp16(f));
+				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT16);
+				tensor.set_raw_data(v.data(), v.size() * sizeof(std::uint16_t));
+			}
 			Node constants(section, "_const_" + name);
 			constants.type("Constant");
 			auto attr = constants.node->add_attribute();
@@ -1720,7 +1833,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 			Node reshape2(section, "_reshape");
 			reshape2.type("Reshape").add_input(slice2.output).add_input(reshape2_const);
 
-			Node const_half(section, 0.5f);
+			Node const_half(section, 0.5f, bit_size);
 			Node mul2(section, "_mul");
 			mul2.type("Mul").add_input(reshape2.output).add_input(const_half.output);
 

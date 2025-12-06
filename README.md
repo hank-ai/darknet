@@ -489,6 +489,9 @@ darknet detector calc_anchors animals.data -num_of_clusters 6 -width 320 -height
 	* V3+:  `darknet_02_display_annotated_images --heatmaps cars images/*.jpg`
 	* V3+:  `darknet_03_display_videos --heatmaps cars videos/*.m4v`
 
+* ONNX export:
+	* `darknet_onnx_export cars.cfg`
+
 ## Training
 
 Quick links to relevant sections of the Darknet/YOLO FAQ:
@@ -574,7 +577,7 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 
 # Roadmap
 
-Last updated 2025-11-25:
+Last updated 2025-12-06:
 
 ## Completed
 
@@ -619,6 +622,7 @@ Last updated 2025-11-25:
 * [X] move from github to codeberg
 * [X] ONNX export tool
 * [X] re-write function that calculates mAP (mean average precision)
+* [X] support both FP32 and FP16 with the ONNX export tool
 
 ## Short-term goals
 
@@ -636,6 +640,7 @@ Last updated 2025-11-25:
 * [ ] fix support for 1-channel greyscale images
 * [ ] add support for N-channel images where N > 3 (e.g., images with an additional depth or thermal channel)
 * [ ] on-going code cleanup **(in progress)**
+* [ ] add support for 8-bit quantization in the ONNX export tool
 
 ## Long-term goals
 

@@ -88,6 +88,9 @@ namespace Darknet
 			onnx::ModelProto model;
 			onnx::GraphProto * graph;
 
+			/// Number of bits to use -- 32, 16, and eventually 8.
+			size_t bit_size;
+
 			/// Whether or not we need to fuse batchnorm (`fuse` and `dontfuse` on the CLI).
 			bool fuse_batchnorm;
 

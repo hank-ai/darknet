@@ -33,6 +33,8 @@ draw = ImageDraw.Draw(img)
 W_img, H_img = img.size
 _, _, H, W = input_shape
 img_resized = img.resize((W, H))
+
+# convert to either "float16" or "float32"; if darknet_onnx_export is called with -fp16, then the input image needs to be "float16"
 img_np = np.array(img_resized).astype("float32") / 255.0
 img_np = np.transpose(img_np, (2, 0, 1))  # (3, H, W)
 img_np = np.expand_dims(img_np, axis=0)

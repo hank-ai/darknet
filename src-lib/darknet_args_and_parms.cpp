@@ -152,10 +152,12 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("colour"		, "color"							, "Enable colour output in the console.  This is the default."),
 		ArgsAndParms("nocolour"		, "nocolor"							, "Disable colour output in the console."),
 
-		ArgsAndParms("fuse"			, ArgsAndParms::EType::kParameter	, "Fuse batch normalization (scales, rolling mean, rolling variance) into weights and biases.  This is the default for inference."),
+		ArgsAndParms("fuse"			, ArgsAndParms::EType::kParameter	, "Fuse batch normalization (scales, rolling mean, rolling variance) into weights and biases.  This is the default for inference and ONNX export."),
 		ArgsAndParms("dontfuse"		, "nofuse"							, "Don't fuse batch normlization and weights/biases.  This is the default when training."),
 		ArgsAndParms("boxes"		, ArgsAndParms::EType::kParameter	, "Output the necessary ONNX nodes to handle post-processing and generate \"boxes\".  This is the default."),
 		ArgsAndParms("noboxes"		, ArgsAndParms::EType::kParameter	, "Do not output ONNX nodes for post-processing.  ONNX ends with \"yolo\" nodes."),
+		ArgsAndParms("fp16"			, ArgsAndParms::EType::kParameter	, "Convert to FP16 (16-bit floats) when saving the ONNX file."),
+		ArgsAndParms("fp32"			, ArgsAndParms::EType::kParameter	, "Use FP32 (32-bit floats) when saving the ONNX file.  This is the default."),
 
 		// I originally didn't know about "show_details" when I implemented "verbose".
 		ArgsAndParms("verbose"		, "show_details"					, "Logs more verbose messages."),
@@ -433,7 +435,9 @@ void Darknet::display_usage()
 		<< "  Export Darknet/YOLO configuration and weights to a ONNX file:"						<< std::endl
 		<< YELLOW("    darknet_onnx_export cars")													<< std::endl
 		<< YELLOW("    darknet_onnx_export -dontfuse -trace cars.cfg cars.weights cars.names")		<< std::endl
-		<< "  This requires the Google ProtoBuffer tools be installed when building Darknet."		<< std::endl
+		<< "  Export Darknet/YOLO configuration and weights, but use 16-bit floats instead:"		<< std::endl
+		<< YELLOW("    darknet_onnx_export cars -fp16")												<< std::endl
+		<< "  ONNX export tool requires Google ProtoBuffer to be installed when building Darknet."	<< std::endl
 		<< ""																						<< std::endl
 		<< "  Redirect console output to a file (this also turns off colour output):"				<< std::endl
 		<< YELLOW("    darknet -log /some/path/filename.log ...")									<< std::endl

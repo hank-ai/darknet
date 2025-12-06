@@ -49,16 +49,30 @@ Darknet::Node::Node(const Darknet::CfgSection & section, const std::string & app
 }
 
 
-Darknet::Node::Node(const Darknet::CfgSection & section, const float f) :
+Darknet::Node::Node(const Darknet::CfgSection & section, const float f, const size_t bit_size) :
 	Node(section, "_constant")
 {
 	TAT(TATPARMS);
 
 	onnx::TensorProto tensor;
 	tensor.set_name(name);
-	tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
-	tensor.add_float_data(f);
 	tensor.set_doc_string(node->doc_string());
+	if (bit_size == 32)
+	{
+		tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+		tensor.add_float_data(f);
+	}
+	else if (bit_size == 16)
+	{
+		std::vector<std::uint16_t> v;
+		v.push_back(Darknet::convert_to_fp16(f));
+		tensor.set_data_type(onnx::TensorProto_DataType_FLOAT16);
+		tensor.set_raw_data(v.data(), v.size() * sizeof(std::uint16_t));
+	}
+	else
+	{
+		throw std::invalid_argument(name + ": cannot add float=" + std::to_string(f) + " with unsupported size_bits=" + std::to_string(bit_size));
+	}
 
 	type("Constant");
 
