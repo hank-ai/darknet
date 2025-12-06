@@ -31,6 +31,9 @@ namespace Darknet
 
 	void cfg_layers();
 
-	/// Convert fp32 to fp16 (IEEE 754) without having to rely on CUDA (which is not available in CPU-only builds).
+	/** Convert a single fp32 to fp16 without having to rely on CUDA (which is not available in CPU-only builds).
+	 * @note The converted type is @p std::float16_t (IEEE 754) not @p std::bfloat16_t (brain float).
+	 * @since 2025-12-06
+	 */
 	std::uint16_t convert_to_fp16(const float f);
 }

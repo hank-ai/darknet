@@ -667,6 +667,20 @@ void Darknet::cfg_layers()
 
 std::uint16_t Darknet::convert_to_fp16(const float f)
 {
+	/** C++17 does not support 16-bit floats.  This was only introduced in C++23.  So our 16-bit floats will be stored
+	 * in @p uint16_t variables.  This works well with ONNX which only supports FP16 as "raw" bytes.  Note the following:
+	 *
+	 * Name						| Size		| Sign	| Exponent	| Mantissa	| Notes
+	 * -------------------------|-----------|-------|-----------|-----------|------
+	 * @p float					| 32 bits	| 1 bit	| 8 bits	| 23 bits	| IEEE 754 float
+	 * @p float16_t (C++23)		| 16 bits	| 1 bit	| 5 bits	| 10 bits	| IEEE 754 16-bit float
+	 * @p bfloat16_t (C++23)	| 16 bits	| 1 bit	| 8 bits	| 7 bits	| "brain float"
+	 *
+	 * ONNX can work with both @p float16_t and "brain float" @p bfloat16_t.  Use @p onnx::TensorProto::FLOAT16 or
+	 * @p onnx::TensorProto::BFLOAT16 as necessary.  This function performs the conversion using IEEE 754 @p float16_t,
+	 * aka @p onnx::TensorProto::FLOAT16.
+	 */
+
 	std::uint32_t bits;
 	std::memcpy(&bits, &f, sizeof(bits));
 
