@@ -1046,6 +1046,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 	if (f == nullptr or n == 0)
 	{
 		initializer->add_dims(0);
+		initializer->set_data_type(onnx::TensorProto::FLOAT);
 	}
 	else
 	{
@@ -1053,7 +1054,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 		{
 			// for example, "scales" from Resize nodes uses this
 			initializer->add_dims(n);
-			initializer->set_data_type(onnx::TensorProto::FLOAT);
 		}
 		else
 		{
