@@ -4,8 +4,8 @@
 #error "The Darknet/YOLO project requires a C++ compiler."
 #endif
 
-#if defined(_MSC_VER) && _MSC_VER < 1900
-#define inline __inline
+#ifdef WIN32
+#pragma warning(disable: 4141)
 #endif
 
 #if defined(DEBUG) && !defined(_CRTDBG_MAP_ALLOC)
