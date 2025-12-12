@@ -357,22 +357,23 @@ Darknet::CfgAndState & Darknet::CfgAndState::process_arguments(const VStr & v, D
 		args[iter->name] = args_and_parms;
 	}
 
-	if (args.count("fp16") > 0 and
-		args.count("fp32") > 0)
+	if (args.count("fp32") +
+		args.count("fp16") +
+		args.count("int8") > 1)
 	{
-		darknet_fatal_error(DARKNET_LOC, "conflicting parameters \"fp16\" and \"fp32\" have both been specified");
+		darknet_fatal_error(DARKNET_LOC, "conflicting parameters \"int8\", \"fp16\", and \"fp32\" are mutually exclusive and cannot be combined");
 	}
 
-	if (args.count("fuse") > 0 and
-		args.count("dontfuse") > 0)
+	if (args.count("fuse") +
+		args.count("dontfuse") > 1)
 	{
-		darknet_fatal_error(DARKNET_LOC, "conflicting parameters \"fuse\" and \"dontfuse\" have both been specified");
+		darknet_fatal_error(DARKNET_LOC, "conflicting parameters \"fuse\" and \"dontfuse\" are mutually exclusive and cannot be combined");
 	}
 
-	if (args.count("boxes") > 0 and
-		args.count("noboxes") > 0)
+	if (args.count("boxes") +
+		args.count("noboxes") > 1)
 	{
-		darknet_fatal_error(DARKNET_LOC, "conflicting parameters \"boxes\" and \"noboxes\" have both been specified");
+		darknet_fatal_error(DARKNET_LOC, "conflicting parameters \"boxes\" and \"noboxes\" are mutually exclusive and cannot be combined");
 	}
 
 	if (args.count("verbose"		) > 0 or

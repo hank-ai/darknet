@@ -57,7 +57,7 @@ Darknet::Node::Node(const Darknet::CfgSection & section, const float f, const si
 	onnx::TensorProto tensor;
 	tensor.set_name(name);
 	tensor.set_doc_string(node->doc_string());
-	if (bit_size == 32)
+	if (bit_size == 32 or bit_size == 8)
 	{
 		tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
 		tensor.add_float_data(f);

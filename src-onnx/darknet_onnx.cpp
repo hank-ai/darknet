@@ -184,6 +184,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 	{
 		bit_size = 16;
 	}
+	if (cfg_and_state.is_set("int8"))
+	{
+		bit_size = 8;
+	}
 
 	// restore the verbose flag
 	if (not original_verbose_flag)
@@ -231,11 +235,21 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 	}
 
 	const auto colour = (bit_size < 32 ? Darknet::EColour::kBrightWhite : Darknet::EColour::kNormal);
-	*cfg_and_state.output << std::endl
-		<< "-> exported bit size .... "
-		<< Darknet::in_colour(colour, std::to_string(bit_size) + "-bit floats")
-		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fp16 or -fp32]")
-		<< std::endl;
+	*cfg_and_state.output << std::endl << "-> exported bit size .... ";
+	if (bit_size == 8)
+	{
+		*cfg_and_state.output << Darknet::in_colour(colour, "8-bit int quantization (Q/DQ)");
+	}
+	else if (bit_size == 16)
+	{
+		*cfg_and_state.output << Darknet::in_colour(colour, "16-bit (half-size) floats");
+	}
+	else
+	{
+		*cfg_and_state.output << Darknet::in_colour(colour, "32-bit floats");
+	}
+//	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
+	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fp16 or -fp32]") << std::endl;
 
 	const std::set<std::string> exports_that_use_16_bit_floats =
 	{
@@ -281,10 +295,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	TAT(TATPARMS);
 
 	if (bit_size != 32 and
-		bit_size != 16)
+		bit_size != 16 )//and
+//		bit_size != 8)
 	{
-		// eventually I'd like to support INT8 quantization as well, but for now all we have is FP16 and FP32
-		throw std::runtime_error("FP16 and FP32 are supported, but bit size is currently set to " + std::to_string(bit_size) + " which is not supported");
+		throw std::runtime_error("INT8, FP16, and FP32 are supported, but bit size is currently set to " + std::to_string(bit_size) + " which is not supported");
 	}
 
 	/* Quickly look through the configuration to see which ONNX opset we should be using:
@@ -301,12 +315,18 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	opset_version = 5;
 	for (const auto & section : cfg.sections)
 	{
+		if (bit_size == 8 and opset_version < 13)
+		{
+			Darknet::display_warning_msg("Setting opset to 13 due to INT8 quantization.\n");
+			opset_version = 13;
+		}
+
 		if (section.type == Darknet::ELayerType::UPSAMPLE)
 		{
 			// "Resize" needs at least opset 10
 			if (opset_version < 10)
 			{
-				Darknet::display_warning_msg("Opset 10 needed due to [upsample] at line #" + std::to_string(section.line_number) + ".\n");
+				Darknet::display_warning_msg("Setting opset to 10 due to [upsample] at line #" + std::to_string(section.line_number) + ".\n");
 				opset_version = 10;
 			}
 		}
@@ -318,7 +338,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 				// "Mish" needs at least opset 18
 				if (opset_version < 18)
 				{
-					Darknet::display_warning_msg("Opset 18 needed due to \"mish\" at line #" + std::to_string(line.line_number) + ".\n");
+					Darknet::display_warning_msg("Setting opset to 18 due to \"mish\" at line #" + std::to_string(line.line_number) + ".\n");
 					opset_version = 18;
 				}
 			}
@@ -503,7 +523,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_YOLO_output()
 			auto output = graph->add_output();
 			populate_input_output_dimensions(output, Node::get_output_for_layer_index(idx), 1, l.c, l.h, l.w, section.line_number);
 			output->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(idx) + "]");
-			output_string += "[\"" + output->name() + "\"] ";
+			output_string += "[\"" + output->name() + "\" B=1 C=" + std::to_string(l.c) + " H=" + std::to_string(l.h) + " W=" + std::to_string(l.w) + "] ";
 		}
 	}
 
@@ -1107,7 +1127,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 			key.erase(0, pos + 1);
 		}
 		number_of_floats_exported[key] += n;
-//		std::cout << "==> name=" << name << ", key[" << key << "]=" << number_of_floats_exported[key] << std::endl;
 	}
 
 	return *this;
@@ -1508,7 +1527,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs(const Darknet:
 	output->set_doc_string(ss.str());
 	node.doc(ss.str());
 
-	output_string += "[\"confs\"] ";
+	output_string += "[\"confs\" B=1 C=" + std::to_string(number_of_boxes) + " H=" + std::to_string(number_of_classes) + "] ";
 
 	return *this;
 }
@@ -1898,7 +1917,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 	output->set_doc_string(ss.str());
 	node.doc(ss.str());
 
-	output_string += "[\"boxes\"] ";
+	output_string += "[\"boxes\" B=1 C=" + std::to_string(number_of_boxes) + " H=1 W=4] ";
 
 	return *this;
 }
