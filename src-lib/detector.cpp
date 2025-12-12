@@ -150,14 +150,15 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	#ifndef DARKNET_GPU
 	*cfg_and_state.output << std::endl;
 	Darknet::display_warning_msg("THIS VERSION OF DARKNET WAS NOT BUILT TO RUN ON A GPU!");
-	*cfg_and_state.output																	<< std::endl
-		<< ""																				<< std::endl
-		<< "While you can attempt to train a network using your CPU, it is not"				<< std::endl
-		<< "recommended.  The output will not be the same as if you use a GPU,"				<< std::endl
-		<< "and it will take much longer to train with this CPU-only version of"			<< std::endl
-		<< "Darknet.  Are you certain you want to proceed with training on a CPU?"			<< std::endl
-		<< ""																				<< std::endl
-		<< "Type \"yes\" to begin training, or anything else to quit:  "					<< std::flush;
+	*cfg_and_state.output															<< std::endl
+		<< ""																		<< std::endl
+		<< "While you can attempt to train a network using your CPU, it is not"		<< std::endl
+		<< "recommended, and the output is highly unlikely to work.  Additionally,"	<< std::endl
+		<< "training with a CPU versus a GPU would take an extremely long time."	<< std::endl
+		<< ""																		<< std::endl
+		<< "Are you certain you want to proceed with training on a CPU?"			<< std::endl
+		<< ""																		<< std::endl
+		<< "Type \"yes\" to begin training, or anything else to quit:  "			<< std::flush;
 
 	std::string prompt;
 	std::cin >> prompt;
