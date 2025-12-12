@@ -1053,6 +1053,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 		{
 			// for example, "scales" from Resize nodes uses this
 			initializer->add_dims(n);
+			initializer->set_data_type(onnx::TensorProto::FLOAT);
 		}
 		else
 		{
