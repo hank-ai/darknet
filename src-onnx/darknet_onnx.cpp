@@ -248,8 +248,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 	{
 		*cfg_and_state.output << Darknet::in_colour(colour, "32-bit floats");
 	}
-//	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
-	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fp16 or -fp32]") << std::endl;
+	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
+//	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fp16 or -fp32]") << std::endl;
 
 	const std::set<std::string> exports_that_use_16_bit_floats =
 	{
@@ -295,13 +295,13 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	TAT(TATPARMS);
 
 	if (bit_size != 32 and
-		bit_size != 16 )//and
-//		bit_size != 8)
+		bit_size != 16 and
+		bit_size != 8)
 	{
 		throw std::runtime_error("INT8, FP16, and FP32 are supported, but bit size is currently set to " + std::to_string(bit_size) + " which is not supported");
 	}
 
-	/* Quickly look through the configuration to see which ONNX opset we should be using:
+	/* Quickly look through the configuration to see which ONNX opset (and IR) we should be using:
 	 *
 	 *		Default:
 	 *			- opset 5, Dec 2017
@@ -312,13 +312,24 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	 *		YOLOv4-full:
 	 *			- MISH activation needs opset 18 introduced in December 2022
 	 */
+	auto ir_version = onnx::Version::IR_VERSION_2019_3_18; // == 5 (most compatible)
 	opset_version = 5;
 	for (const auto & section : cfg.sections)
 	{
 		if (bit_size == 8 and opset_version < 13)
 		{
-			Darknet::display_warning_msg("Setting opset to 13 due to INT8 quantization.\n");
+			Darknet::display_warning_msg("Increasing opset to 13 due to INT8 quantization.\n");
 			opset_version = 13;
+		}
+		if (bit_size == 8 and ir_version < onnx::Version::IR_VERSION_2019_9_19)
+		{
+			Darknet::display_warning_msg("Increasing IR to 6 due to INT8 quantization.\n");
+			ir_version = onnx::Version::IR_VERSION_2019_9_19; // == 6
+		}
+		if (bit_size == 16 and ir_version < onnx::Version::IR_VERSION_2019_9_19)
+		{
+			Darknet::display_warning_msg("Increasing IR to 6 due to FP16.\n");
+			ir_version = onnx::Version::IR_VERSION_2019_9_19; // == 6
 		}
 
 		if (section.type == Darknet::ELayerType::UPSAMPLE)
@@ -326,7 +337,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 			// "Resize" needs at least opset 10
 			if (opset_version < 10)
 			{
-				Darknet::display_warning_msg("Setting opset to 10 due to [upsample] at line #" + std::to_string(section.line_number) + ".\n");
+				Darknet::display_warning_msg("Increasing opset to 10 due to [upsample] at line #" + std::to_string(section.line_number) + ".\n");
 				opset_version = 10;
 			}
 		}
@@ -349,10 +360,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	// https://github.com/onnx/onnx/blob/main/docs/IR.md
 	// https://github.com/onnx/onnx/blob/main/docs/Versioning.md
 	// 2019_9_19 aka "6" is the last version prior to introducing training
-	model.set_ir_version(onnx::Version::IR_VERSION_2019_3_18);	// == 5
-//	model.set_ir_version(onnx::Version::IR_VERSION_2019_9_19);	// == 6
+	model.set_ir_version(ir_version);
+//	model.set_ir_version(onnx::Version::IR_VERSION_2019_3_18);	// == 5 (most compatible)
+//	model.set_ir_version(onnx::Version::IR_VERSION_2019_9_19);	// == 6 (required for INT8)
 //	model.set_ir_version(onnx::Version::IR_VERSION_2023_5_5);	// == 9 (Mish was introduced in Dec 2022)
-//	model.set_ir_version(onnx::Version::IR_VERSION_2025_05_12); // == 11
 
 	// The name of the framework or tool used to generate this model.
 	model.set_producer_name("Darknet/YOLO ONNX Export Tool");

@@ -156,7 +156,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("dontfuse"		, "nofuse"							, "Don't fuse batch normlization and weights/biases.  This is the default when training."),
 		ArgsAndParms("boxes"		, ArgsAndParms::EType::kParameter	, "Output the necessary ONNX nodes to handle post-processing and generate \"boxes\".  This is the default."),
 		ArgsAndParms("noboxes"		, ArgsAndParms::EType::kParameter	, "Do not output ONNX nodes for post-processing.  ONNX ends with \"yolo\" nodes."),
-//		ArgsAndParms("int8"			, ArgsAndParms::EType::kParameter	, "Convert to INT8 (8-bit quantization) when saving the ONNX file."),
+		ArgsAndParms("int8"			, ArgsAndParms::EType::kParameter	, "Convert to INT8 (8-bit quantization) when saving the ONNX file."),
 		ArgsAndParms("fp16"			, ArgsAndParms::EType::kParameter	, "Convert to FP16 (16-bit floats) when saving the ONNX file."),
 		ArgsAndParms("fp32"			, ArgsAndParms::EType::kParameter	, "Use FP32 (32-bit floats) when saving the ONNX file.  This is the default."),
 
