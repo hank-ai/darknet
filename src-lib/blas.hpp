@@ -13,7 +13,7 @@
 
 
 #ifdef DARKNET_USE_OPENBLAS
-	#include <cblas-openblas64.h>
+	#include <openblas/cblas.h>
 
 	/// SAXPY constant times a vector plus a vector.  Uses unrolled loops for increments equal to one.
 	#define axpy_cpu	cblas_saxpy
