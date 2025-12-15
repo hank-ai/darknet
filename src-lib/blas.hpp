@@ -13,7 +13,13 @@
 
 
 #ifdef DARKNET_USE_OPENBLAS
-	#include <cblas-openblas64.h>
+
+	// why is OpenBLAS so difficult to use consistently across different platforms?
+	#ifdef WIN32
+		#include <openblas/cblas.h>
+	#else
+		#include <cblas-openblas64.h>
+	#endif
 
 	/// SAXPY constant times a vector plus a vector.  Uses unrolled loops for increments equal to one.
 	#define axpy_cpu	cblas_saxpy

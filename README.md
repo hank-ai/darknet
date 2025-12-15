@@ -319,7 +319,7 @@ Be patient at this last step as it can take a long time to run.  It needs to dow
 > [!TIP]
 > If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance.  These libraries are only used on CPU-only builds:
 ```sh
-.\vcpkg.exe install openblas:x64-windows
+.\vcpkg.exe install openblas[core,threads]:x64-windows
 ```
 
 Once all of the previous steps have finished successfully, you need to clone Darknet and build it.  During this step we also need to tell CMake where vcpkg is located so it can find OpenCV and other dependencies.  Make sure you continue to use the **Developer Command Prompt** as described above when you run these commands:
