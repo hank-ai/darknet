@@ -234,22 +234,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		*cfg_and_state.output << opset.version() << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + ops_date_lookup(opset.version()) + "]") << " ";
 	}
 
-	const auto colour = (bit_size < 32 ? Darknet::EColour::kBrightWhite : Darknet::EColour::kNormal);
-	*cfg_and_state.output << std::endl << "-> exported bit size .... ";
-	if (bit_size == 8)
-	{
-		*cfg_and_state.output << Darknet::in_colour(colour, "8-bit int quantization (Q/DQ)");
-	}
-	else if (bit_size == 16)
-	{
-		*cfg_and_state.output << Darknet::in_colour(colour, "16-bit (half-size) floats");
-	}
-	else
-	{
-		*cfg_and_state.output << Darknet::in_colour(colour, "32-bit floats");
-	}
-	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
-//	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fp16 or -fp32]") << std::endl;
+	*cfg_and_state.output
+		<< std::endl
+		<< "-> exported bit size .... "
+		<< Darknet::in_colour(Darknet::EColour::kBrightWhite,
+			bit_size == 8	?	"8-bit int quantization (Q/DQ)"	:
+			bit_size == 16	?	"16-bit (half-size) floats"		:
+			bit_size == 32	?	"32-bit floats"					:
+								"unknown (error!)"				)
+		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
 
 	const std::set<std::string> exports_that_use_16_bit_floats =
 	{
@@ -332,14 +325,18 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 			ir_version = onnx::Version::IR_VERSION_2019_9_19; // == 6
 		}
 
-		if (section.type == Darknet::ELayerType::UPSAMPLE)
+		if (section.type == Darknet::ELayerType::ROUTE and opset_version < 10)
+		{
+			// "Slice" needs at least opset 10
+			Darknet::display_warning_msg("Increasing opset to 10 due to [route] at line #" + std::to_string(section.line_number) + ".\n");
+			opset_version = 10;
+		}
+
+		if (section.type == Darknet::ELayerType::UPSAMPLE and opset_version < 10)
 		{
 			// "Resize" needs at least opset 10
-			if (opset_version < 10)
-			{
-				Darknet::display_warning_msg("Increasing opset to 10 due to [upsample] at line #" + std::to_string(section.line_number) + ".\n");
-				opset_version = 10;
-			}
+			Darknet::display_warning_msg("Increasing opset to 10 due to [upsample] at line #" + std::to_string(section.line_number) + ".\n");
+			opset_version = 10;
 		}
 
 		for (const auto & [key, line] : section.lines)
@@ -385,7 +382,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	char buffer[50];
 	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", std::localtime(&tt));
 	model.set_doc_string(
-		"ONNX generated from Darknet/YOLO neural network " +
+		"ONNX generated from Darknet/YOLO " +
 		cfg_fn.filename().string() +
 		" (" +
 		std::to_string(number_of_classes) + " class" + (number_of_classes == 1 ? "" : "es") + ", " +
@@ -485,6 +482,46 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx
 }
 
 
+Darknet::ONNXExport & Darknet::ONNXExport::int8_QDQ(onnx::ValueInfoProto * input)
+{
+	TAT(TATPARMS);
+
+	if (bit_size == 8 and input)
+	{
+		auto output = Node::output_per_layer_index[-1]; // normally this would be "frame"
+		Node n1("frame_quantize_linear");
+		n1.type("QuantizeLinear").add_input(output).add_initializer_input("scale", 0.003921568859368563f).add_initializer_input("zero_point", -128);
+
+		output = n1.output;
+		Node n2("frame_dequantize_linear");
+		n2.type("DequantizeLinear").add_input(output).add_initializer_input("scale", 0.123f).add_initializer_input("zero_point", -128);
+
+		Node::output_per_layer_index[-1] = n2.output;
+	}
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::int8_QDQ(Node & node)
+{
+	TAT(TATPARMS);
+
+	if (bit_size == 8)
+	{
+		const auto & section = cfg.sections[node.layer_index];
+
+		Node n1(section, "_quantize_linear");
+		n1.type("QuantizeLinear").add_input(node.output).add_initializer_input("scale", 0.003921568859368563f).add_initializer_input("zero_point", -128);
+
+		Node n2(section, "_dequantize_linear");
+		n2.type("DequantizeLinear").add_input(n1.output).add_initializer_input("scale", 0.123f).add_initializer_input("zero_point", -128);
+	}
+
+	return *this;
+}
+
+
 Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 {
 	TAT(TATPARMS);
@@ -497,6 +534,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 	const int w = cfg.net.w;
 
 	populate_input_output_dimensions(input, "frame", b, c, h, w, cfg.network_section.line_number);
+
+	Node::output_per_layer_index[-1] = "frame";
 
 	input->set_doc_string(
 		cfg_fn.filename().string() +
@@ -514,6 +553,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 		" H=" + std::to_string(h) +
 		" W=" + std::to_string(w) +
 		"]";
+
+	int8_QDQ(input);
 
 	return *this;
 }
@@ -674,6 +715,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 		populate_graph_initializer(l.biases, l.n, l, node.name + "_bias");
 	}
 
+	int8_QDQ(node);
+
 	check_activation(index, section);
 
 	return *this;
@@ -774,6 +817,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 	{
 		throw std::invalid_argument("activation type " + std::to_string(activation) + " in " + cfg_fn.string() + ":" + std::to_string(section.line_number) + " is unexpected");
 	}
+
+	int8_QDQ(node);
 
 	return *this;
 }

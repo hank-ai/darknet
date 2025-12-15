@@ -193,11 +193,13 @@ Darknet::Node & Darknet::Node::add_input(int idx)
 {
 	TAT(TATPARMS);
 
+#if 0
 	if (idx == -1 and layer_index == 0)
 	{
 		// special case for the very first node in the graph which needs to take input from "frame"
 		return add_input("frame");
 	}
+#endif
 
 	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
 	if (idx < 0)
@@ -236,6 +238,46 @@ Darknet::Node & Darknet::Node::add_input(const std::string & input)
 	}
 
 	return *this;
+}
+
+
+Darknet::Node & Darknet::Node::add_initializer_input(const std::string & input, const float f)
+{
+	const auto n = name + "_" + input;
+
+	onnx::TensorProto * initializer = graph->add_initializer();
+	initializer->set_data_type(onnx::TensorProto::FLOAT);
+	initializer->set_name(n);
+//	initializer->add_dims(1);
+	initializer->add_float_data(f);
+
+	const auto doc_string = node->doc_string();
+	if (not doc_string.empty())
+	{
+		initializer->set_doc_string(doc_string);
+	}
+
+	return add_input(n);
+}
+
+
+Darknet::Node & Darknet::Node::add_initializer_input(const std::string & input, const int i)
+{
+	const auto n = name + "_" + input;
+
+	onnx::TensorProto * initializer = graph->add_initializer();
+	initializer->set_data_type(onnx::TensorProto::INT32);
+	initializer->set_name(n);
+//	initializer->add_dims(1);
+	initializer->add_int32_data(i);
+
+	const auto doc_string = node->doc_string();
+	if (not doc_string.empty())
+	{
+		initializer->set_doc_string(doc_string);
+	}
+
+	return add_input(n);
 }
 
 

@@ -21,9 +21,9 @@ namespace Darknet
 	{
 		public:
 
-			Node() = delete;
-			Node(const Node & rhs) = delete;
-			Node & operator=(const Node & rhs) = delete;
+			Node()								= delete;
+			Node(const Node & rhs)				= delete;
+			Node & operator=(const Node & rhs)	= delete;
 
 			/// Constructor.
 			Node(const std::string & n);
@@ -50,6 +50,9 @@ namespace Darknet
 			Node & add_input(int idx);
 
 			Node & add_input(const std::string & input);
+
+			Node & add_initializer_input(const std::string & input, const float f);
+			Node & add_initializer_input(const std::string & input, const int i);
 
 			Node & set_output(const std::string & out = "");
 
