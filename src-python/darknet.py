@@ -39,6 +39,7 @@ class DETECTION(Structure):
                 ("mask", POINTER(c_float)), # Mask for this detection
                 ("objectness", c_float),   # Objectness score
                 ("sort_class", c_int),     # Sorted class index
+                ("sort_score", c_float),   # Sort Score, used by NMS since 2025-12-02
                 ("uc", POINTER(c_float)),  # Uncertainty
                 ("points", c_int),         # Number of points
                 ("embeddings", POINTER(c_float)),  # Embeddings
