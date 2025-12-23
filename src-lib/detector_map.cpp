@@ -600,7 +600,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 
 	if (shared_info.total_number_of_validation_images == 0)
 	{
-		darknet_fatal_error(DARKNET_LOC, "no validation images available (verify %s)", validation_filename);
+		darknet_fatal_error(DARKNET_LOC, "no validation images available (verify %s)", validation_filename.c_str());
 	}
 
 	const size_t actual_batch_size = shared_info.net.batch * shared_info.net.subdivisions;
