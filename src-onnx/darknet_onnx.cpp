@@ -279,6 +279,26 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		*cfg_and_state.output << " " << float_size << " bytes x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(float_size * val) + "]") << std::endl;
 	}
 
+	for (const auto & [key, val] : number_of_int8_exported)
+	{
+		*cfg_and_state.output << "-> exported " << key << " ";
+		if (key.size() < 12)
+		{
+			*cfg_and_state.output << std::string(12 - key.size(), '.');
+		}
+
+		// add a comma every 3rd digit to make it easier to read
+		std::string str = std::to_string(val);
+		size_t pos = str.size();
+		while (pos > 3)
+		{
+			pos -= 3;
+			str.insert(pos, ",");
+		}
+
+		*cfg_and_state.output << " 1 byte x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(val) + "]") << std::endl;
+	}
+
 	return *this;
 }
 
@@ -304,8 +324,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	 *
 	 *		YOLOv4-full:
 	 *			- MISH activation needs opset 18 introduced in December 2022
+	 *
+	 * IR = Intermediate Representation, related to versioning
+	 * https://github.com/onnx/onnx/blob/main/docs/IR.md
+	 * https://github.com/onnx/onnx/blob/main/docs/Versioning.md
+	 * 2019_9_19 aka "6" is the last version prior to introducing training
 	 */
 	auto ir_version = onnx::Version::IR_VERSION_2019_3_18; // == 5 (most compatible)
+//					= onnx::Version::IR_VERSION_2019_9_19; // == 6 (required for INT8 or FP16)
 	opset_version = 5;
 	for (const auto & section : cfg.sections)
 	{
@@ -353,14 +379,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 		}
 	}
 
-	// IR = Intermediate Representation, related to versioning
-	// https://github.com/onnx/onnx/blob/main/docs/IR.md
-	// https://github.com/onnx/onnx/blob/main/docs/Versioning.md
-	// 2019_9_19 aka "6" is the last version prior to introducing training
 	model.set_ir_version(ir_version);
-//	model.set_ir_version(onnx::Version::IR_VERSION_2019_3_18);	// == 5 (most compatible)
-//	model.set_ir_version(onnx::Version::IR_VERSION_2019_9_19);	// == 6 (required for INT8)
-//	model.set_ir_version(onnx::Version::IR_VERSION_2023_5_5);	// == 9 (Mish was introduced in Dec 2022)
 
 	// The name of the framework or tool used to generate this model.
 	model.set_producer_name("Darknet/YOLO ONNX Export Tool");
@@ -439,13 +458,13 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx
 	auto tensor_type = new onnx::TypeProto_Tensor();
 	type->set_allocated_tensor_type(tensor_type);
 
-	if (bit_size == 32)
+	if (bit_size == 16)
 	{
-		tensor_type->set_elem_type(onnx::TensorProto::FLOAT);
+		tensor_type->set_elem_type(onnx::TensorProto::FLOAT16);
 	}
 	else
 	{
-		tensor_type->set_elem_type(onnx::TensorProto::FLOAT16);
+		tensor_type->set_elem_type(onnx::TensorProto::FLOAT);
 	}
 
 	auto shape = new onnx::TensorShapeProto();
@@ -516,6 +535,122 @@ Darknet::ONNXExport & Darknet::ONNXExport::int8_QDQ(Node & node)
 
 		Node n2(section, "_dequantize_linear");
 		n2.type("DequantizeLinear").add_input(n1.output).add_initializer_input("scale", 0.123f).add_initializer_input("zero_point", -128);
+	}
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::int8_QDQ_weights(const Darknet::Layer & l, const float * f, const size_t n, const std::string & name)
+{
+	TAT(TATPARMS);
+
+	if (bit_size == 8)
+	{
+		Node node(name);
+		node.type("DequantizeLinear")
+			.add_input(name + "_x")
+			.add_input(name + "_scale")
+			.add_input(name + "_zero")
+			.doc("int8 Q/DQ for " + name)
+			.add_attribute_INT("axis", 0);
+
+		// first we have to deal with the weights
+
+		std::vector<std::int8_t> weights;
+		weights.reserve(n);
+
+		std::vector<float> scales;
+		scales.reserve(l.n);
+
+		std::vector<std::int8_t> zero_point;
+		zero_point.reserve(l.n);
+
+		/* Dims for the floats are:  [M, C, H, W]
+		 *
+		 * Where:
+		 *
+		 *		M = number of output channels
+		 *		C = number of input channels
+		 *		H = kernel height
+		 *		W = kernel width
+		 *
+		 * This is fixed in the ONNX spec.  And is the same layout used by Darknet.
+		 */
+		const size_t div						= std::max(1, l.size); // prevent division-by-zero
+		const size_t number_of_output_channels	= l.n;
+		const size_t number_of_input_channels	= n / l.n / div / div;
+		const size_t kernel_height				= div;
+		const size_t kernel_width				= div;
+		const size_t weights_per_output_channel	= number_of_input_channels * kernel_height * kernel_width;
+
+		// we want per-output channel quantization, not total tensor quantization, so we need to quantize over l.n
+		for (size_t output_channel = 0; output_channel < number_of_output_channels; output_channel ++)
+		{
+			float max_abs = 0.0f;
+			for (size_t idx = 0; idx < weights_per_output_channel; idx ++)
+			{
+				const float w = f[output_channel * weights_per_output_channel + idx];
+				max_abs = std::max(max_abs, std::abs(w));
+			}
+
+			if (max_abs == 0.0f)
+			{
+				// prevent divide-by-zero since we'll be dividing each weight by "scale"
+				max_abs = 1e-8f;
+			}
+
+			const float scale = max_abs / 127.0f;
+			scales.push_back(scale);
+			zero_point.push_back(0);
+
+			for (size_t idx = 0; idx < weights_per_output_channel; idx ++)
+			{
+				const float w = f[output_channel * weights_per_output_channel + idx];
+				int q = std::round(w / scale);
+				q = std::clamp(q, -127, 127);
+				weights.push_back(q);
+			}
+		}
+
+		onnx::TensorProto * initializer = graph->add_initializer();
+		initializer->set_name(name + "_x");
+		initializer->set_doc_string("initializer for " + Darknet::to_string(l.type) + ", " + std::to_string(n) + " x " + name);
+		initializer->add_dims(l.n);
+		initializer->add_dims(n / l.n / div / div);
+		initializer->add_dims(div);
+		initializer->add_dims(div);
+		initializer->set_data_type(onnx::TensorProto::INT8);
+		initializer->set_raw_data(weights.data(), weights.size() * sizeof(std::int8_t));
+
+		// next comes the scale
+
+		initializer = graph->add_initializer();
+		initializer->set_name(name + "_scale");
+		initializer->set_doc_string("initializer for " + Darknet::to_string(l.type));
+		initializer->add_dims(l.n);
+		initializer->set_data_type(onnx::TensorProto::FLOAT);
+		initializer->set_raw_data(scales.data(), scales.size() * sizeof(float));
+
+		// and finally the zero point
+
+		initializer = graph->add_initializer();
+		initializer->set_name(name + "_zero");
+		initializer->set_doc_string("initializer for " + Darknet::to_string(l.type));
+		initializer->add_dims(l.n);
+		initializer->set_data_type(onnx::TensorProto::INT8);
+		initializer->set_raw_data(zero_point.data(), zero_point.size() * sizeof(std::int8_t));
+
+		// get the last part of the name to use as a key; for example, "N6_L2_conv_weights" returns a key of "weights"
+		std::string key = name;
+		auto pos = key.rfind("_");
+		if (pos != std::string::npos)
+		{
+			key.erase(0, pos + 1);
+		}
+		number_of_int8_exported[key]	+= weights		.size();
+		number_of_int8_exported[key]	+= zero_point	.size();
+		number_of_floats_exported[key]	+= scales		.size();
 	}
 
 	return *this;
@@ -1107,6 +1242,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 		*cfg_and_state.output << "-> " << name << ": exporting " << n << " " << name << "                " << std::endl;
 	}
 
+	if (bit_size == 8 and f and n > 0 and not simple)
+	{
+		return int8_QDQ_weights(l, f, n, name);
+	}
+
 	onnx::TensorProto * initializer = graph->add_initializer();
 	initializer->set_name(name);
 	initializer->set_doc_string("initializer for " + Darknet::to_string(l.type) + ", " + std::to_string(n) + " x " + name + "]");
@@ -1134,7 +1274,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 		else
 		{
 			// must be dealing with weights, bias, scale, etc.
-			if (bit_size < 32)
+			if (bit_size == 16)
 			{
 				must_convert = true;
 			}
@@ -1641,7 +1781,7 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 			}
 
 			onnx::TensorProto tensor;
-			tensor.set_data_type(bit_size == 32 ? onnx::TensorProto_DataType_FLOAT : onnx::TensorProto_DataType_FLOAT16);
+			tensor.set_data_type(bit_size == 16 ? onnx::TensorProto_DataType_FLOAT16 : onnx::TensorProto_DataType_FLOAT);
 			tensor.add_dims(1);
 			tensor.add_dims(1);
 			tensor.add_dims(l.h);
@@ -1657,25 +1797,25 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 					if (i % 2 == 0)
 					{
 						// X values
-						if (bit_size == 32)
+						if (bit_size == 16)
 						{
-							tensor.add_float_data(w);
+							v.push_back(Darknet::convert_to_fp16(w));
 						}
 						else
 						{
-							v.push_back(Darknet::convert_to_fp16(w));
+							tensor.add_float_data(w);
 						}
 					}
 					else
 					{
 						// Y values
-						if (bit_size == 32)
+						if (bit_size == 16)
 						{
-							tensor.add_float_data(h);
+							v.push_back(Darknet::convert_to_fp16(h));
 						}
 						else
 						{
-							v.push_back(Darknet::convert_to_fp16(h));
+							tensor.add_float_data(h);
 						}
 					}
 				}
@@ -1742,11 +1882,11 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 			}
 
 			onnx::TensorProto tensor;
-			if (bit_size < 32)
+			if (bit_size == 16)
 			{
-				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT16);
 				std::vector<std::uint16_t> v;
 				v.push_back(Darknet::convert_to_fp16(multiplier[i]));
+				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT16);
 				tensor.set_raw_data(v.data(), v.size() * sizeof(std::uint16_t));
 			}
 			else
@@ -1781,17 +1921,17 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 
 			onnx::TensorProto tensor;
 			const float f = (name == "lhs" ? l.w : l.h);
-			if (bit_size == 32)
-			{
-				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
-				tensor.add_float_data(f);
-			}
-			else
+			if (bit_size == 16)
 			{
 				std::vector<std::uint16_t> v;
 				v.push_back(Darknet::convert_to_fp16(f));
 				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT16);
 				tensor.set_raw_data(v.data(), v.size() * sizeof(std::uint16_t));
+			}
+			else
+			{
+				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+				tensor.add_float_data(f);
 			}
 			Node constants(section, "_const_" + name);
 			constants.type("Constant");

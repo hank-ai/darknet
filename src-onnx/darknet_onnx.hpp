@@ -40,6 +40,7 @@ namespace Darknet
 
 			ONNXExport & int8_QDQ(onnx::ValueInfoProto * input);
 			ONNXExport & int8_QDQ(Node & node);
+			ONNXExport & int8_QDQ_weights(const Darknet::Layer & l, const float * f, const size_t n, const std::string & name);
 
 			ONNXExport & populate_input_output_dimensions(onnx::ValueInfoProto * proto, const std::string & name, const int v1, const int v2=-1, const int v3=-1, const int v4=-1, const size_t line_number=0);
 			ONNXExport & populate_graph_input_frame();
@@ -112,5 +113,9 @@ namespace Darknet
 			 * For example, for "000_conv_bias", we store the key as "bias".
 			 */
 			std::map<std::string, size_t> number_of_floats_exported;
+
+			/// Similar to @ref number_of_floats_exported but used with INT8.
+			std::map<std::string, size_t> number_of_int8_exported;
+
 	};
 }

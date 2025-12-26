@@ -57,12 +57,7 @@ Darknet::Node::Node(const Darknet::CfgSection & section, const float f, const si
 	onnx::TensorProto tensor;
 	tensor.set_name(name);
 	tensor.set_doc_string(node->doc_string());
-	if (bit_size == 32 or bit_size == 8)
-	{
-		tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
-		tensor.add_float_data(f);
-	}
-	else if (bit_size == 16)
+	if (bit_size == 16)
 	{
 		std::vector<std::uint16_t> v;
 		v.push_back(Darknet::convert_to_fp16(f));
@@ -71,7 +66,8 @@ Darknet::Node::Node(const Darknet::CfgSection & section, const float f, const si
 	}
 	else
 	{
-		throw std::invalid_argument(name + ": cannot add float=" + std::to_string(f) + " with unsupported size_bits=" + std::to_string(bit_size));
+		tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
+		tensor.add_float_data(f);
 	}
 
 	type("Constant");
@@ -128,7 +124,16 @@ Darknet::Node & Darknet::Node::init(const std::string & n)
 		node = graph->add_node();
 	}
 
-	name = "N" + std::to_string(counter) + "_" + n;
+	if (n.size() > 0 and n[0] == 'N')
+	{
+		// if the name already starts with "N" then simply re-use that name
+		name = n;
+	}
+	else
+	{
+		name = "N" + std::to_string(counter) + "_" + n;
+	}
+
 	node->set_name(name);
 	set_output();
 	doc(name);
@@ -243,6 +248,8 @@ Darknet::Node & Darknet::Node::add_input(const std::string & input)
 
 Darknet::Node & Darknet::Node::add_initializer_input(const std::string & input, const float f)
 {
+	TAT(TATPARMS);
+
 	const auto n = name + "_" + input;
 
 	onnx::TensorProto * initializer = graph->add_initializer();
@@ -263,6 +270,8 @@ Darknet::Node & Darknet::Node::add_initializer_input(const std::string & input, 
 
 Darknet::Node & Darknet::Node::add_initializer_input(const std::string & input, const int i)
 {
+	TAT(TATPARMS);
+
 	const auto n = name + "_" + input;
 
 	onnx::TensorProto * initializer = graph->add_initializer();
