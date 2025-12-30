@@ -22,52 +22,50 @@ namespace
 }
 
 
-void prime_training_images_cache_thread(Darknet::VStr v)
+void prime_training_images_cache_thread(Darknet::VStr v, const int width, const int height, const int channels) // intentionally not by reference
 {
 	TAT(TATPARMS);
 
 	// this runs on a secondary thread started by prime_training_images_cache()
 
-	for (auto & fn : v)
+	while (	prime_loading_threads_must_exit		== false and
+			cfg_and_state.must_immediately_exit	== false)
 	{
-		if (prime_loading_threads_must_exit)
+		for (auto fn : v) // not by reference since we modify the extension to get the .txt filename
 		{
-			break;
-		}
+			if (prime_loading_threads_must_exit or cfg_and_state.must_immediately_exit)
+			{
+				break;
+			}
 
-		cv::Mat mat;
-		try
-		{
-			prime_image_counter ++; // increment the counter *prior* to loading the image in case imread() throws an exception
-			mat = cv::imread(fn);
-		}
-		catch (...)
-		{
-			// do nothing, we'll display a warning
-		}
+			prime_image_counter ++;
+			Darknet::Image img = Darknet::load_image(fn.c_str(), width, height, channels);
 
-		if (mat.empty() or mat.cols < 32 or mat.rows < 32)
-		{
-			Darknet::display_warning_msg("unexpected error while loading image " + fn + "\n");
-		}
+			if (img.data == nullptr or img.w != width or img.h != height or img.c != channels)
+			{
+				Darknet::display_warning_msg("unexpected error while loading image " + fn + "\n");
+			}
 
-		// now read the .txt file that goes with this image
-		const size_t pos = fn.rfind(".");
-		if (pos != std::string::npos)
-		{
-			fn.erase(pos);
-		}
-		fn += ".txt";
+			Darknet::free_image(img);
 
-		std::ifstream ifs(fn);
-		if (ifs.good())
-		{
-			std::string line;
-			ifs >> line;
-		}
-		else
-		{
-			Darknet::display_warning_msg("unexpected error while reading annotations from " + fn + "\n");
+			// now read the .txt file that goes with this image
+			const size_t pos = fn.rfind(".");
+			if (pos != std::string::npos)
+			{
+				fn.erase(pos);
+			}
+			fn += ".txt";
+
+			std::ifstream ifs(fn);
+			if (ifs.good())
+			{
+				std::string line;
+				ifs >> line;
+			}
+			else
+			{
+				Darknet::display_warning_msg("unexpected error while reading annotations from " + fn + "\n");
+			}
 		}
 	}
 
@@ -75,7 +73,7 @@ void prime_training_images_cache_thread(Darknet::VStr v)
 }
 
 
-void prime_training_images_cache(list * image_filenames)
+void prime_training_images_cache(list * image_filenames, const int width, const int height, const int channels)
 {
 	TAT(TATPARMS);
 
@@ -87,7 +85,7 @@ void prime_training_images_cache(list * image_filenames)
 		const size_t n = std::max(2U, std::thread::hardware_concurrency());
 		const int to_load = std::ceil(image_filenames->size / static_cast<float>(n));
 
-		*cfg_and_state.output << "Using " << n << " threads to prime loading " << image_filenames->size << " images." << std::endl;
+		*cfg_and_state.output << "Using " << n << " threads to prime loading " << image_filenames->size << " images into cache (w=" << width << ", h=" << height << ", c=" << channels << ")." << std::endl;
 
 		Darknet::VThreads threads;
 		threads.reserve(n);
@@ -107,36 +105,51 @@ void prime_training_images_cache(list * image_filenames)
 			}
 
 			// start a thread to load all the images in the vector
-			threads.emplace_back(prime_training_images_cache_thread, v);
+			threads.emplace_back(prime_training_images_cache_thread, v, width, height, channels);
 		}
 
 		auto t2 = t1;
-		const auto time_limit = t1 + std::chrono::seconds(60);
-		size_t recent = 0;
-		while (recent < image_filenames->size)
+		const auto time_limit = t1 + std::chrono::seconds(30);
+		while (cfg_and_state.must_immediately_exit == false)
 		{
 			std::this_thread::sleep_for(std::chrono::milliseconds(333));
-			recent = prime_image_counter;
+			const size_t recent = prime_image_counter.load();
 			const int percentage = std::round(100.0f * recent / image_filenames->size);
 			t2 = std::chrono::high_resolution_clock::now();
 
-			*cfg_and_state.output << "\r-> loading image " << recent << "/" << image_filenames->size << " (" << percentage << "%) in " << Darknet::format_duration_string(t2 - t1) << "         " << std::flush;
+			*cfg_and_state.output << "\r-> loading image #" << recent << " (" << percentage << "%) in " << Darknet::format_duration_string(t2 - t1) << "      " << std::flush;
 
 			if (t2 > time_limit)
 			{
-				*cfg_and_state.output << std::endl << "-> time limit reached";
+				*cfg_and_state.output << std::endl << "-> exit from image cache prime; time limit reached";
+				break;
+			}
+
+			if (recent >= image_filenames->size * 2)
+			{
+				*cfg_and_state.output << std::endl << "-> exit from image cache prime; every image loaded at least twice";
 				break;
 			}
 		}
 
 		prime_loading_threads_must_exit = true;
-		*cfg_and_state.output << std::endl << "-> loaded " << recent << " images in " << Darknet::format_duration_string(t2 - t1) << std::endl;
-
+		t2 = std::chrono::high_resolution_clock::now();
 		for (auto & t : threads)
 		{
 			t.join();
 		}
-		*cfg_and_state.output << "-> done with the " << threads.size() << " image prime threads" << std::endl;
+
+		const size_t nanoseconds				= std::chrono::duration_cast<std::chrono::nanoseconds>(t2 - t1).count();
+		const size_t load_time_for_1_image		= std::round(1.00f * nanoseconds / prime_image_counter);
+		const size_t load_time_for_64_images	= std::round(64.0f * nanoseconds / prime_image_counter);
+
+		*cfg_and_state.output
+			<< std::endl
+			<< "-> loaded a total of "		<< prime_image_counter << " images (" << (int)std::round(100.0f * prime_image_counter / image_filenames->size) << "%)"
+			<< " in "						<< Darknet::format_duration_string(t2 - t1)														<< std::endl
+			<< "-> image loading time: "	<< Darknet::format_duration_string(std::chrono::nanoseconds(load_time_for_1_image	))
+			<< " (64="						<< Darknet::format_duration_string(std::chrono::nanoseconds(load_time_for_64_images	)) << ")"	<< std::endl
+			<< "-> done with the "			<< threads.size() << " image cache prime threads"												<< std::endl;
 	}
 
 	return;
@@ -360,7 +373,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	// This is where we draw the initial blank chart.  That chart is then updated by update_train_loss_chart() at every iteration.
 	Darknet::initialize_new_charts(net);
 
-	prime_training_images_cache(plist);
+	prime_training_images_cache(plist, net.w, net.h, net.c);
 
 	if (net.contrastive and args.threads > net.batch/2)
 	{
