@@ -312,7 +312,7 @@ void Darknet::show_version_info()
 	*cfg_and_state.output << " [" << Darknet::in_colour(Darknet::EColour::kBrightCyan, "PGO ENABLED!") << "]";
 	#endif
 
-	*cfg_and_state.output << std::endl;
+	*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" __DATE__ "]") << std::endl;
 
 	#if DARKNET_GPU_ROCM
 		Darknet::show_rocm_info();
