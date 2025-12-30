@@ -46,6 +46,11 @@ cv::Mat load_rgb_mat_image(const std::string & filename, int channels)
 		darknet_fatal_error(DARKNET_LOC, "cannot load an image without a filename");
 	}
 
+	if (not std::filesystem::exists(filename))
+	{
+		darknet_fatal_error(DARKNET_LOC, "image filename does not exist: \"%s\"", filename.c_str());
+	}
+
 	auto flag = cv::IMREAD_UNCHANGED;
 
 	if (channels == 1)
