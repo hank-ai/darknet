@@ -1,5 +1,5 @@
 /* Darknet/YOLO:  https://codeberg.org/CCodeRun/darknet
- * Copyright 2025 Stephane Charette
+ * Copyright 2025-2026 Stephane Charette
  */
 
 #pragma once

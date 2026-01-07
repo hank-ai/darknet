@@ -578,7 +578,7 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 
 # Roadmap
 
-Last updated 2025-12-06:
+Last updated 2026-01-07:
 
 ## Completed
 
