@@ -114,7 +114,6 @@ namespace
 		id<MTLDevice> device = nil;
 		id<MTLCommandQueue> queue = nil;
 		bool ready = false;
-		bool initialized = false;
 		id<MTLBuffer> bufferA = nil;
 		id<MTLBuffer> bufferB = nil;
 		id<MTLBuffer> bufferC = nil;
@@ -131,9 +130,9 @@ namespace
 	MpsContext & get_mps_context()
 	{
 		static MpsContext ctx;
-		if (!ctx.initialized)
+		static std::once_flag once;
+		std::call_once(once, [&]()
 		{
-			ctx.initialized = true;
 			@autoreleasepool
 			{
 				ctx.device = MTLCreateSystemDefaultDevice();
@@ -143,7 +142,7 @@ namespace
 					ctx.ready = (ctx.queue != nil);
 				}
 			}
-		}
+		});
 		return ctx;
 	}
 

@@ -3,6 +3,7 @@
 #ifdef DARKNET_USE_MPS
 
 #import <Metal/Metal.h>
+#import <CoreFoundation/CoreFoundation.h>
 
 #include <mutex>
 #include <unordered_map>
@@ -33,10 +34,82 @@ namespace
 
 	thread_local MetalThreadContext thread_ctx;
 
+	struct ObjcStrong
+	{
+		id obj = nil;
+
+		ObjcStrong() = default;
+
+		explicit ObjcStrong(id value) : obj(value)
+		{
+			retain();
+		}
+
+		ObjcStrong(const ObjcStrong & other) : obj(other.obj)
+		{
+			retain();
+		}
+
+		ObjcStrong(ObjcStrong && other) noexcept : obj(other.obj)
+		{
+			other.obj = nil;
+		}
+
+		ObjcStrong & operator=(const ObjcStrong & other)
+		{
+			if (this != &other)
+			{
+				release();
+				obj = other.obj;
+				retain();
+			}
+			return *this;
+		}
+
+		ObjcStrong & operator=(ObjcStrong && other) noexcept
+		{
+			if (this != &other)
+			{
+				release();
+				obj = other.obj;
+				other.obj = nil;
+			}
+			return *this;
+		}
+
+		~ObjcStrong()
+		{
+			release();
+		}
+
+		id get() const
+		{
+			return obj;
+		}
+
+	private:
+		void retain()
+		{
+			if (obj)
+			{
+				CFRetain((__bridge CFTypeRef)obj);
+			}
+		}
+
+		void release()
+		{
+			if (obj)
+			{
+				CFRelease((__bridge CFTypeRef)obj);
+				obj = nil;
+			}
+		}
+	};
+
 	struct MetalKernelCache
 	{
 		id<MTLLibrary> library = nil;
-		std::unordered_map<std::string, id<MTLComputePipelineState>> pipelines;
+		std::unordered_map<std::string, ObjcStrong> pipelines;
 		std::mutex mutex;
 		bool failed = false;
 	};
@@ -1169,11 +1242,11 @@ kernel void buffer_scale(device float *data [[buffer(0)]],
 
 		auto & cache = get_kernel_cache();
 		std::scoped_lock lock(cache.mutex);
-		auto it = cache.pipelines.find(kernel_name);
-		if (it != cache.pipelines.end())
-		{
-			return it->second;
-		}
+	auto it = cache.pipelines.find(kernel_name);
+	if (it != cache.pipelines.end())
+	{
+		return (id<MTLComputePipelineState>)it->second.get();
+	}
 		if (!ensure_library(device, cache))
 		{
 			return nil;
@@ -1185,8 +1258,8 @@ kernel void buffer_scale(device float *data [[buffer(0)]],
 			return nil;
 		}
 		NSError *error = nil;
-		id<MTLComputePipelineState> pipeline = [device newComputePipelineStateWithFunction:fn error:&error];
-		if (!pipeline)
+	id<MTLComputePipelineState> pipeline = [device newComputePipelineStateWithFunction:fn error:&error];
+	if (!pipeline)
 		{
 			if (error)
 			{
@@ -1195,9 +1268,9 @@ kernel void buffer_scale(device float *data [[buffer(0)]],
 			}
 			return nil;
 		}
-		cache.pipelines.emplace(kernel_name, pipeline);
-		return pipeline;
-	}
+	cache.pipelines.emplace(kernel_name, ObjcStrong(pipeline));
+	return pipeline;
+}
 
 	bool begin_dispatch(id<MTLCommandBuffer> & command_buffer, bool & auto_commit, void *external_buffer)
 	{
@@ -1293,6 +1366,7 @@ void metal_end_frame()
 		return;
 	}
 	[thread_ctx.command_buffer commit];
+	[thread_ctx.command_buffer waitUntilCompleted];
 	thread_ctx.command_buffer = nil;
 	thread_ctx.owns_command_buffer = false;
 }
@@ -1424,6 +1498,14 @@ bool metal_dispatch_1d(const char *kernel_name,
 		end_dispatch(command_buffer, auto_commit);
 		return false;
 	}
+	const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
+	if (threads_per_group > max_threads)
+	{
+		std::fprintf(stderr, "[Metal] threadgroup too large for %s (%zu > %lu)\n",
+			kernel_name, threads_per_group, static_cast<unsigned long>(max_threads));
+		end_dispatch(command_buffer, auto_commit);
+		return false;
+	}
 
 	id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
 	if (!encoder)
@@ -1499,6 +1581,15 @@ bool metal_dispatch_2d(const char *kernel_name,
 	id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
 	if (!pipeline)
 	{
+		end_dispatch(command_buffer, auto_commit);
+		return false;
+	}
+	const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
+	const size_t group_threads = threads_per_group_x * threads_per_group_y;
+	if (threads_per_group_x == 0 || threads_per_group_y == 0 || group_threads > max_threads)
+	{
+		std::fprintf(stderr, "[Metal] threadgroup too large for %s (%zu > %lu)\n",
+			kernel_name, group_threads, static_cast<unsigned long>(max_threads));
 		end_dispatch(command_buffer, auto_commit);
 		return false;
 	}
