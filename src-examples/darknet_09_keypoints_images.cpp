@@ -1,5 +1,5 @@
 /* Darknet/YOLO:  https://codeberg.org/CCodeRun/darknet
- * Copyright 2024-2025 Stephane Charette
+ * Copyright 2024-2026 Stephane Charette
  */
 
 #include "darknet.hpp"

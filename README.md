@@ -97,6 +97,7 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* The ONNX export tool now includes the necessary nodes to export both "confs" and "boxes".
 	* The mAP function was re-written.
 	* Small number of new performance optimizations.
+* In development for release in 2026 is v6.0, named "Winston".
 
 # Pre-trained Weights
 
@@ -577,7 +578,7 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 
 # Roadmap
 
-Last updated 2025-12-06:
+Last updated 2026-01-07:
 
 ## Completed
 

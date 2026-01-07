@@ -1,5 +1,5 @@
 /* Darknet/YOLO:  https://codeberg.org/CCodeRun/darknet
- * Copyright 2024-2025 Stephane Charette
+ * Copyright 2024-2026 Stephane Charette
  */
 
 #pragma once
@@ -51,8 +51,9 @@
  *	- v3 is named "Jazz", significant optimizations for both training and inference, Stephane Charette, 2024.
  *	- v4 is named "Slate", add support for AMD GPU via ROCm, Stephane Charette, 2025.
  *	- v5 is named "Moonlit", more optimizations + ONNX export, Stephane Charette, 2025
+ *	- v6 is named "Winston", more optimizations + ONNX export, Stephane Charette, 2026
  */
-#define DARKNET_VERSION_KEYWORD "Moonlit"
+#define DARKNET_VERSION_KEYWORD "Winston"
 
 /// Name of the git branch.  This is normally @p "master".
 #define DARKNET_BRANCH_NAME "${DARKNET_BRANCH_NAME}"
