@@ -22,6 +22,7 @@
  * fixed.
  *
  * Stephane Charette, 2025-08-18.
+ * ------------------------------
  *
  * Update:
  *
@@ -31,6 +32,16 @@
  * cases since many assumptions have been made.  If you find a problem, please let me know or submit a PR.
  *
  * Stephane Charette, 2025-11-24.
+ * ------------------------------
+ *
+ * Update:
+ *
+ * Having successfully added support for FP16 last month, I'm now attempting to add INT8 quantization, and I'm back to
+ * feeling like this is a random mess which may or may not work depending on which day of the week it happens to be...
+ * The lack of any sort of documentation for how INT8 Q/DQ is supposed to function certainly does not help.
+ *
+ * Stephane Charette, 2026-01-06.
+ * ------------------------------
  */
 
 
@@ -531,7 +542,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::int8_QDQ(Node & node)
 		const auto & section = cfg.sections[node.layer_index];
 
 		Node n1(section, "_quantize_linear");
-		n1.type("QuantizeLinear").add_input(node.output).add_initializer_input("scale", 0.003921568859368563f).add_initializer_input("zero_point", -128);
+		n1.type("QuantizeLinear").add_input(node.output).add_initializer_input("scale", 0.123f).add_initializer_input("zero_point", -128);
 
 		Node n2(section, "_dequantize_linear");
 		n2.type("DequantizeLinear").add_input(n1.output).add_initializer_input("scale", 0.123f).add_initializer_input("zero_point", -128);
@@ -541,117 +552,153 @@ Darknet::ONNXExport & Darknet::ONNXExport::int8_QDQ(Node & node)
 }
 
 
+/* I hate doing this...but turns out we need the weights when dealing with bias, which I hadn't realized when I started working on INT8.
+ * So keep a copy of the most recent weights and scales so they can be referenced easily when we deal with the bias.
+ */
+std::vector<float> int8_qdq_weights;
+std::vector<float> int8_qdq_scales;
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::int8_QDQ_bias(const Darknet::Layer & l, const float * f, const size_t n, const std::string & name)
+{
+	TAT(TATPARMS);
+
+	if (bit_size != 8)
+	{
+		return *this;
+	}
+
+	if (int8_qdq_scales.size() != n)
+	{
+		throw std::invalid_argument(name + ": bias contains " + std::to_string(n) + " values, but scales contains " + std::to_string(int8_qdq_scales.size()) + " values");
+	}
+
+	std::vector<std::int32_t> bias;
+	bias.reserve(n);
+
+	std::vector<float> scales;
+	bias.reserve(n);
+
+	std::vector<std::int32_t> zero_point;
+	zero_point.reserve(n);
+
+	for (size_t idx = 0; idx < n; idx ++)
+	{
+		zero_point.push_back(0);
+
+//		bias.push_back(int8_qdq_scales[idx] *
+	}
+
+	Node node(name);
+	node.type("DequantizeLinear")
+		.doc("int8 Q/DQ bias for " + name)
+		.add_attribute_INT("axis", 0)
+		.add_initializer_input("x"		, bias		)
+		.add_initializer_input("scale"	, scales	)
+		.add_initializer_input("zero"	, zero_point);
+
+	int8_qdq_weights.clear();
+	int8_qdq_scales.clear();
+
+	return *this;
+}
+
+
 Darknet::ONNXExport & Darknet::ONNXExport::int8_QDQ_weights(const Darknet::Layer & l, const float * f, const size_t n, const std::string & name)
 {
 	TAT(TATPARMS);
 
-	if (bit_size == 8)
+	if (bit_size != 8)
 	{
-		Node node(name);
-		node.type("DequantizeLinear")
-			.add_input(name + "_x")
-			.add_input(name + "_scale")
-			.add_input(name + "_zero")
-			.doc("int8 Q/DQ for " + name)
-			.add_attribute_INT("axis", 0);
-
-		// first we have to deal with the weights
-
-		std::vector<std::int8_t> weights;
-		weights.reserve(n);
-
-		std::vector<float> scales;
-		scales.reserve(l.n);
-
-		std::vector<std::int8_t> zero_point;
-		zero_point.reserve(l.n);
-
-		/* Dims for the floats are:  [M, C, H, W]
-		 *
-		 * Where:
-		 *
-		 *		M = number of output channels
-		 *		C = number of input channels
-		 *		H = kernel height
-		 *		W = kernel width
-		 *
-		 * This is fixed in the ONNX spec.  And is the same layout used by Darknet.
-		 */
-		const size_t div						= std::max(1, l.size); // prevent division-by-zero
-		const size_t number_of_output_channels	= l.n;
-		const size_t number_of_input_channels	= n / l.n / div / div;
-		const size_t kernel_height				= div;
-		const size_t kernel_width				= div;
-		const size_t weights_per_output_channel	= number_of_input_channels * kernel_height * kernel_width;
-
-		// we want per-output channel quantization, not total tensor quantization, so we need to quantize over l.n
-		for (size_t output_channel = 0; output_channel < number_of_output_channels; output_channel ++)
-		{
-			float max_abs = 0.0f;
-			for (size_t idx = 0; idx < weights_per_output_channel; idx ++)
-			{
-				const float w = f[output_channel * weights_per_output_channel + idx];
-				max_abs = std::max(max_abs, std::abs(w));
-			}
-
-			if (max_abs == 0.0f)
-			{
-				// prevent divide-by-zero since we'll be dividing each weight by "scale"
-				max_abs = 1e-8f;
-			}
-
-			const float scale = max_abs / 127.0f;
-			scales.push_back(scale);
-			zero_point.push_back(0);
-
-			for (size_t idx = 0; idx < weights_per_output_channel; idx ++)
-			{
-				const float w = f[output_channel * weights_per_output_channel + idx];
-				int q = std::round(w / scale);
-				q = std::clamp(q, -127, 127);
-				weights.push_back(q);
-			}
-		}
-
-		onnx::TensorProto * initializer = graph->add_initializer();
-		initializer->set_name(name + "_x");
-		initializer->set_doc_string("initializer for " + Darknet::to_string(l.type) + ", " + std::to_string(n) + " x " + name);
-		initializer->add_dims(l.n);
-		initializer->add_dims(n / l.n / div / div);
-		initializer->add_dims(div);
-		initializer->add_dims(div);
-		initializer->set_data_type(onnx::TensorProto::INT8);
-		initializer->set_raw_data(weights.data(), weights.size() * sizeof(std::int8_t));
-
-		// next comes the scale
-
-		initializer = graph->add_initializer();
-		initializer->set_name(name + "_scale");
-		initializer->set_doc_string("initializer for " + Darknet::to_string(l.type));
-		initializer->add_dims(l.n);
-		initializer->set_data_type(onnx::TensorProto::FLOAT);
-		initializer->set_raw_data(scales.data(), scales.size() * sizeof(float));
-
-		// and finally the zero point
-
-		initializer = graph->add_initializer();
-		initializer->set_name(name + "_zero");
-		initializer->set_doc_string("initializer for " + Darknet::to_string(l.type));
-		initializer->add_dims(l.n);
-		initializer->set_data_type(onnx::TensorProto::INT8);
-		initializer->set_raw_data(zero_point.data(), zero_point.size() * sizeof(std::int8_t));
-
-		// get the last part of the name to use as a key; for example, "N6_L2_conv_weights" returns a key of "weights"
-		std::string key = name;
-		auto pos = key.rfind("_");
-		if (pos != std::string::npos)
-		{
-			key.erase(0, pos + 1);
-		}
-		number_of_int8_exported[key]	+= weights		.size();
-		number_of_int8_exported[key]	+= zero_point	.size();
-		number_of_floats_exported[key]	+= scales		.size();
+		return *this;
 	}
+
+	int8_qdq_weights.clear();
+	int8_qdq_weights.reserve(n);
+
+	int8_qdq_scales.clear();
+	int8_qdq_scales.reserve(l.n);
+
+	std::vector<std::int8_t> weights;
+	weights.reserve(n);
+
+	std::vector<std::int8_t> zero_point;
+	zero_point.reserve(l.n);
+
+	/* Dims for the floats are:  [M, C, H, W]
+	 *
+	 * Where:
+	 *
+	 *		M = number of output channels
+	 *		C = number of input channels
+	 *		H = kernel height
+	 *		W = kernel width
+	 *
+	 * This is fixed in the ONNX spec.  And is the same layout used by Darknet.
+	 */
+	const size_t div						= std::max(1, l.size); // prevent division-by-zero
+	const size_t number_of_output_channels	= l.n;
+	const size_t number_of_input_channels	= n / l.n / div / div;
+	const size_t kernel_height				= div;
+	const size_t kernel_width				= div;
+	const size_t weights_per_output_channel	= number_of_input_channels * kernel_height * kernel_width;
+
+	const std::vector<size_t> dims =
+	{
+		number_of_output_channels,
+		number_of_input_channels,
+		kernel_height,
+		kernel_width
+	};
+
+	// we want per-output channel quantization, not total tensor quantization, so we need to quantize over l.n
+	for (size_t output_channel = 0; output_channel < number_of_output_channels; output_channel ++)
+	{
+		float max_abs = 0.0f;
+		for (size_t idx = 0; idx < weights_per_output_channel; idx ++)
+		{
+			const float w = f[output_channel * weights_per_output_channel + idx];
+			max_abs = std::max(max_abs, std::abs(w));
+		}
+
+		if (max_abs == 0.0f)
+		{
+			// prevent divide-by-zero since we'll be dividing each weight by "scale"
+			max_abs = 1e-8f;
+		}
+
+		const float scale = max_abs / 127.0f;
+		int8_qdq_scales.push_back(scale);
+		zero_point.push_back(0);
+
+		for (size_t idx = 0; idx < weights_per_output_channel; idx ++)
+		{
+			const float w = f[output_channel * weights_per_output_channel + idx];
+			int q = std::round(w / scale);
+			q = std::clamp(q, -127, 127);
+			weights.push_back(q);
+			int8_qdq_weights.push_back(w); // keep a copy of the original weights since we'll need it when we deal with the bias
+		}
+	}
+
+	Node node(name);
+	node.type("DequantizeLinear")
+		.doc("int8 Q/DQ weights for " + name)
+		.add_attribute_INT("axis", 0)
+		.add_initializer_input("x"		, weights, dims		)
+		.add_initializer_input("scale"	, int8_qdq_scales	)
+		.add_initializer_input("zero"	, zero_point		);
+
+	// get the last part of the name to use as a key; for example, "N6_L2_conv_weights" returns a key of "weights"
+	std::string key = name;
+	auto pos = key.rfind("_");
+	if (pos != std::string::npos)
+	{
+		key.erase(0, pos + 1);
+	}
+	number_of_int8_exported		[key] += weights			.size();
+	number_of_int8_exported		[key] += zero_point			.size();
+	number_of_floats_exported	[key] += int8_qdq_scales	.size();
 
 	return *this;
 }
@@ -1244,7 +1291,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 
 	if (bit_size == 8 and f and n > 0 and not simple)
 	{
-		return int8_QDQ_weights(l, f, n, name);
+		if (name.find("bias") != std::string::npos)
+		{
+			return int8_QDQ_bias(l, f, n, name);
+		}
+		else if (name.find("weights") != std::string::npos)
+		{
+			return int8_QDQ_weights(l, f, n, name);
+		}
 	}
 
 	onnx::TensorProto * initializer = graph->add_initializer();

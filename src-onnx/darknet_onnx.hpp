@@ -40,6 +40,7 @@ namespace Darknet
 
 			ONNXExport & int8_QDQ(onnx::ValueInfoProto * input);
 			ONNXExport & int8_QDQ(Node & node);
+			ONNXExport & int8_QDQ_bias(const Darknet::Layer & l, const float * f, const size_t n, const std::string & name);
 			ONNXExport & int8_QDQ_weights(const Darknet::Layer & l, const float * f, const size_t n, const std::string & name);
 
 			ONNXExport & populate_input_output_dimensions(onnx::ValueInfoProto * proto, const std::string & name, const int v1, const int v2=-1, const int v3=-1, const int v4=-1, const size_t line_number=0);

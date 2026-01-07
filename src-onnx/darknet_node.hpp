@@ -54,6 +54,10 @@ namespace Darknet
 			Node & add_initializer_input(const std::string & input, const float f);
 			Node & add_initializer_input(const std::string & input, const int i);
 
+			Node & add_initializer_input(const std::string & input, const std::vector<float>		& f, const std::vector<size_t> & dims = {});
+			Node & add_initializer_input(const std::string & input, const std::vector<std::int8_t>	& i, const std::vector<size_t> & dims = {});
+			Node & add_initializer_input(const std::string & input, const std::vector<std::int32_t>	& i, const std::vector<size_t> & dims = {});
+
 			Node & set_output(const std::string & out = "");
 
 			Node & add_attribute_INT(const std::string & key, const int val);

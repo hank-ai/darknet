@@ -261,7 +261,7 @@ Darknet::Node & Darknet::Node::add_initializer_input(const std::string & input, 
 	const auto doc_string = node->doc_string();
 	if (not doc_string.empty())
 	{
-		initializer->set_doc_string(doc_string);
+		initializer->set_doc_string("float initializer for " + doc_string);
 	}
 
 	return add_input(n);
@@ -283,7 +283,121 @@ Darknet::Node & Darknet::Node::add_initializer_input(const std::string & input, 
 	const auto doc_string = node->doc_string();
 	if (not doc_string.empty())
 	{
-		initializer->set_doc_string(doc_string);
+		initializer->set_doc_string("integer initializer for " + doc_string);
+	}
+
+	return add_input(n);
+}
+
+
+Darknet::Node & Darknet::Node::add_initializer_input(const std::string & input, const std::vector<float> & f, const std::vector<size_t> & dims)
+{
+	TAT(TATPARMS);
+
+	const auto n = name + "_" + input;
+
+	if (f.empty())
+	{
+		throw std::invalid_argument("float initializer for " + n + " is empty");
+	}
+
+	onnx::TensorProto * initializer = graph->add_initializer();
+	initializer->set_data_type(onnx::TensorProto::FLOAT);
+	initializer->set_name(n);
+	initializer->set_raw_data(f.data(), f.size() * sizeof(float));
+
+	const auto doc_string = node->doc_string();
+	if (not doc_string.empty())
+	{
+		initializer->set_doc_string("float initializer for " + doc_string);
+	}
+
+	if (dims.empty())
+	{
+		initializer->add_dims(f.size());
+	}
+	else
+	{
+		for (const auto d : dims)
+		{
+			initializer->add_dims(d);
+		}
+	}
+
+	return add_input(n);
+}
+
+
+Darknet::Node & Darknet::Node::add_initializer_input(const std::string & input, const std::vector<std::int8_t> & i, const std::vector<size_t> & dims)
+{
+	TAT(TATPARMS);
+
+	const auto n = name + "_" + input;
+
+	if (i.empty())
+	{
+		throw std::invalid_argument("int8 initializer for " + n + " is empty");
+	}
+
+	onnx::TensorProto * initializer = graph->add_initializer();
+	initializer->set_data_type(onnx::TensorProto::INT8);
+	initializer->set_name(n);
+	initializer->set_raw_data(i.data(), i.size() * sizeof(std::int8_t));
+
+	const auto doc_string = node->doc_string();
+	if (not doc_string.empty())
+	{
+		initializer->set_doc_string("int8 initializer for " + doc_string);
+	}
+
+	if (dims.empty())
+	{
+		initializer->add_dims(i.size());
+	}
+	else
+	{
+		for (const auto d : dims)
+		{
+			initializer->add_dims(d);
+		}
+	}
+
+	return add_input(n);
+}
+
+
+Darknet::Node & Darknet::Node::add_initializer_input(const std::string & input, const std::vector<std::int32_t>	& i, const std::vector<size_t> & dims)
+{
+	TAT(TATPARMS);
+
+	const auto n = name + "_" + input;
+
+	if (i.empty())
+	{
+		throw std::invalid_argument("int32 initializer for " + n + " is empty");
+	}
+
+	onnx::TensorProto * initializer = graph->add_initializer();
+	initializer->set_data_type(onnx::TensorProto::INT32);
+	initializer->set_name(n);
+	initializer->set_raw_data(i.data(), i.size() * sizeof(std::int32_t));
+
+	const auto doc_string = node->doc_string();
+	if (not doc_string.empty())
+	{
+		initializer->set_doc_string("int32 initializer for " + doc_string);
+	}
+
+	if (dims.empty())
+	{
+		initializer->add_dims(i.size());
+	}
+	else
+	{
+		for (const auto d : dims)
+		{
+			initializer->add_dims(d);
+		}
 	}
 
 	return add_input(n);
