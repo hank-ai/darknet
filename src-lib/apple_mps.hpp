@@ -69,6 +69,11 @@ bool mps_maxpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 bool mps_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason);
 /**
+ * \brief Try to execute global avgpool forward using MPS.
+ */
+bool mps_global_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+	const float *input, float *output, bool defer_readback, const char **reason);
+/**
  * \brief Try to execute shortcut add using MPS.
  */
 bool mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *prev, const Darknet::Layer *from,
@@ -88,6 +93,11 @@ bool mps_upsample_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
  */
 bool mps_reorg_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason);
+/**
+ * \brief Try to execute connected layer forward using MPS (batchnorm/activation).
+ */
+bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+	const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason);
 /**
  * \brief Try to execute softmax on GPU.
  */
@@ -126,6 +136,12 @@ static inline bool mps_avgpool_forward(const Darknet::Layer & l, const float *in
 	return mps_avgpool_forward(l, nullptr, input, output, false, nullptr);
 }
 
+static inline bool mps_global_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+	const float *input, float *output, const char **reason)
+{
+	return mps_global_avgpool_forward(l, prev, input, output, false, reason);
+}
+
 static inline bool mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *from,
 	const float *input, float *output, const char **reason)
 {
@@ -148,6 +164,12 @@ static inline bool mps_reorg_forward(const Darknet::Layer & l, const Darknet::La
 	const float *input, float *output, const char **reason)
 {
 	return mps_reorg_forward(l, prev, input, output, false, reason);
+}
+
+static inline bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+	const float *input, float *output, const char **reason)
+{
+	return mps_connected_forward(l, prev, input, output, false, nullptr, reason);
 }
 
 
@@ -221,6 +243,12 @@ static inline bool mps_avgpool_forward(const Darknet::Layer &, const Darknet::La
 	return false;
 }
 
+static inline bool mps_global_avgpool_forward(const Darknet::Layer &, const Darknet::Layer *,
+	const float *, float *, bool, const char **)
+{
+	return false;
+}
+
 static inline bool mps_shortcut_forward(const Darknet::Layer &, const Darknet::Layer *,
 	const Darknet::Layer *, const float *, float *, bool, bool *, const char **)
 {
@@ -241,6 +269,12 @@ static inline bool mps_upsample_forward(const Darknet::Layer &, const Darknet::L
 
 static inline bool mps_reorg_forward(const Darknet::Layer &, const Darknet::Layer *,
 	const float *, float *, bool, const char **)
+{
+	return false;
+}
+
+static inline bool mps_connected_forward(const Darknet::Layer &, const Darknet::Layer *,
+	const float *, float *, bool, bool *, const char **)
 {
 	return false;
 }

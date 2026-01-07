@@ -1,4 +1,5 @@
 #include "darknet_internal.hpp"
+#include "apple_mps.hpp"
 
 
 namespace
@@ -51,6 +52,22 @@ void resize_avgpool_layer(Darknet::Layer * l, int w, int h)
 void forward_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
+
+#ifdef DARKNET_USE_MPS
+	/** \brief MPS global avgpool fast path for inference; falls back to CPU if unsupported. */
+	if (!state.train)
+	{
+		const Darknet::Layer *prev = mps_prev_layer(state);
+		bool defer_readback = mps_should_defer_readback(state);
+		if (mps_global_avgpool_forward(l, prev, state.input, l.output, defer_readback, nullptr))
+		{
+			mps_coverage_record(l, true);
+			return;
+		}
+		mps_coverage_record(l, false);
+		mps_flush_deferred_output(prev);
+	}
+#endif
 
 	for (int b = 0; b < l.batch; ++b)
 	{

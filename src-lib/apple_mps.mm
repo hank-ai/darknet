@@ -2,6 +2,7 @@
 #include "darknet_layers.hpp"
 #include "apple_mps.hpp"
 #include "metal_backend.hpp"
+#include "gemm.hpp"
 
 #ifdef DARKNET_USE_MPS
 
@@ -249,6 +250,41 @@ namespace
 		int output_batch = 0;
 	};
 
+	struct MpsGlobalAvgPoolCache
+	{
+		MPSCNNPoolingAverage *pool = nil;
+		int kernel_w = 0;
+		int kernel_h = 0;
+		int stride_x = 0;
+		int stride_y = 0;
+		MPSImage *input_image = nil;
+		MPSImage *output_image = nil;
+		int input_w = 0;
+		int input_h = 0;
+		int input_c = 0;
+		int input_batch = 0;
+		int output_w = 0;
+		int output_h = 0;
+		int output_c = 0;
+		int output_batch = 0;
+	};
+
+	struct MpsConnectedCache
+	{
+		MPSCNNBatchNormalization *batchnorm = nil;
+		MpsBatchNormDataSource *batchnorm_source = nil;
+		MPSCNNNeuron *neuron = nil;
+		ACTIVATION activation = LINEAR;
+		float leaky_alpha = 0.0f;
+		bool batch_normalize = false;
+		int outputs = 0;
+		MPSImage *output_image = nil;
+		int output_w = 0;
+		int output_h = 0;
+		int output_c = 0;
+		int output_batch = 0;
+	};
+
 	struct MpsAddCache
 	{
 		MPSCNNAdd *add = nil;
@@ -373,6 +409,18 @@ namespace
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsPoolCache>> & get_mps_pool_cache()
 	{
 		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsPoolCache>> cache;
+		return cache;
+	}
+
+	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsGlobalAvgPoolCache>> & get_mps_global_avgpool_cache()
+	{
+		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsGlobalAvgPoolCache>> cache;
+		return cache;
+	}
+
+	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsConnectedCache>> & get_mps_connected_cache()
+	{
+		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsConnectedCache>> cache;
 		return cache;
 	}
 
@@ -559,6 +607,8 @@ namespace
 
 	void reset_conv_images(MpsConvCache & cache);
 	void reset_pool_images(MpsPoolCache & cache);
+	void reset_global_avgpool_images(MpsGlobalAvgPoolCache & cache);
+	void reset_connected_images(MpsConnectedCache & cache);
 	void reset_add_images(MpsAddCache & cache);
 	void reset_route_images(MpsRouteCache & cache);
 	void reset_upsample_images(MpsUpsampleCache & cache);
@@ -611,6 +661,29 @@ namespace
 		cache.input_h = 0;
 		cache.input_c = 0;
 		cache.input_batch = 0;
+		cache.output_w = 0;
+		cache.output_h = 0;
+		cache.output_c = 0;
+		cache.output_batch = 0;
+	}
+
+	void reset_global_avgpool_images(MpsGlobalAvgPoolCache & cache)
+	{
+		cache.input_image = nil;
+		cache.output_image = nil;
+		cache.input_w = 0;
+		cache.input_h = 0;
+		cache.input_c = 0;
+		cache.input_batch = 0;
+		cache.output_w = 0;
+		cache.output_h = 0;
+		cache.output_c = 0;
+		cache.output_batch = 0;
+	}
+
+	void reset_connected_images(MpsConnectedCache & cache)
+	{
+		cache.output_image = nil;
 		cache.output_w = 0;
 		cache.output_h = 0;
 		cache.output_c = 0;
@@ -1240,6 +1313,39 @@ namespace
 		}
 	}
 
+	bool mps_activation_supported(ACTIVATION activation)
+	{
+		switch (activation)
+		{
+			case LINEAR:
+			case RELU:
+			case LEAKY:
+			case SWISH:
+			case MISH:
+			case HARD_MISH:
+			case LOGISTIC:
+			case LOGGY:
+			case TANH:
+			case RELU6:
+			case ELU:
+			case SELU:
+			case GELU:
+			case RELIE:
+			case RAMP:
+			case HARDTAN:
+			case LHTAN:
+			case PLSE:
+			case STAIR:
+			case REVLEAKY:
+			case NORM_CHAN:
+			case NORM_CHAN_SOFTMAX:
+			case NORM_CHAN_SOFTMAX_MAXVAL:
+				return true;
+			default:
+				return false;
+		}
+	}
+
 	bool build_conv_cache(MpsConvCache & cache, const Darknet::Layer & l, id<MTLDevice> device)
 	{
 		if (!device)
@@ -1537,6 +1643,201 @@ namespace
 		return (need_input ? (cache.input_image != nil) : true) && cache.output_image;
 	}
 
+	bool cache_matches_global_avgpool(const MpsGlobalAvgPoolCache & cache, const Darknet::Layer & l)
+	{
+		return cache.pool &&
+			cache.kernel_w == l.w &&
+			cache.kernel_h == l.h &&
+			cache.stride_x == l.w &&
+			cache.stride_y == l.h;
+	}
+
+	bool build_global_avgpool_cache(MpsGlobalAvgPoolCache & cache, const Darknet::Layer & l, id<MTLDevice> device)
+	{
+		if (!device)
+		{
+			return false;
+		}
+
+		if (l.w <= 0 || l.h <= 0)
+		{
+			return false;
+		}
+
+		cache.pool = [[MPSCNNPoolingAverage alloc] initWithDevice:device
+			kernelWidth:l.w
+			kernelHeight:l.h
+			strideInPixelsX:l.w
+			strideInPixelsY:l.h];
+
+		if (!cache.pool)
+		{
+			return false;
+		}
+
+		cache.pool.edgeMode = MPSImageEdgeModeZero;
+		const MPSOffset mps_offset = { l.w / 2, l.h / 2, 0 };
+		cache.pool.offset = mps_offset;
+
+		cache.kernel_w = l.w;
+		cache.kernel_h = l.h;
+		cache.stride_x = l.w;
+		cache.stride_y = l.h;
+		reset_global_avgpool_images(cache);
+
+		return true;
+	}
+
+	bool ensure_global_avgpool_images(MpsGlobalAvgPoolCache & cache, const Darknet::Layer & l, id<MTLDevice> device, bool need_input)
+	{
+		if (!device)
+		{
+			return false;
+		}
+
+		const int batch = l.batch;
+		const int in_w = l.w;
+		const int in_h = l.h;
+		const int in_c = l.c;
+		const int out_w = l.out_w;
+		const int out_h = l.out_h;
+		const int out_c = l.out_c;
+
+		if (need_input)
+		{
+			if (!cache.input_image ||
+				cache.input_w != in_w ||
+				cache.input_h != in_h ||
+				cache.input_c != in_c ||
+				cache.input_batch != batch)
+			{
+				MPSImageDescriptor *input_desc = [MPSImageDescriptor imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatFloat32
+					width:static_cast<NSUInteger>(in_w)
+					height:static_cast<NSUInteger>(in_h)
+					featureChannels:static_cast<NSUInteger>(in_c)
+					numberOfImages:static_cast<NSUInteger>(batch)
+					usage:MTLTextureUsageShaderRead];
+				cache.input_image = [[MPSImage alloc] initWithDevice:device imageDescriptor:input_desc];
+				cache.input_w = in_w;
+				cache.input_h = in_h;
+				cache.input_c = in_c;
+				cache.input_batch = batch;
+			}
+		}
+		else
+		{
+			cache.input_image = nil;
+			cache.input_w = 0;
+			cache.input_h = 0;
+			cache.input_c = 0;
+			cache.input_batch = 0;
+		}
+
+		if (!cache.output_image ||
+			cache.output_w != out_w ||
+			cache.output_h != out_h ||
+			cache.output_c != out_c ||
+			cache.output_batch != batch)
+		{
+			MPSImageDescriptor *output_desc = [MPSImageDescriptor imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatFloat32
+				width:static_cast<NSUInteger>(out_w)
+				height:static_cast<NSUInteger>(out_h)
+				featureChannels:static_cast<NSUInteger>(out_c)
+				numberOfImages:static_cast<NSUInteger>(batch)
+				usage:(MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite)];
+			cache.output_image = [[MPSImage alloc] initWithDevice:device imageDescriptor:output_desc];
+			cache.output_w = out_w;
+			cache.output_h = out_h;
+			cache.output_c = out_c;
+			cache.output_batch = batch;
+		}
+
+		return (need_input ? (cache.input_image != nil) : true) && cache.output_image;
+	}
+
+	bool cache_matches_connected(const MpsConnectedCache & cache, const Darknet::Layer & l)
+	{
+		return cache.outputs == l.outputs &&
+			cache.batch_normalize == (l.batch_normalize != 0) &&
+			cache.activation == l.activation;
+	}
+
+	bool build_connected_cache(MpsConnectedCache & cache, const Darknet::Layer & l, id<MTLDevice> device)
+	{
+		if (!device)
+		{
+			return false;
+		}
+
+		cache.batchnorm = nil;
+		cache.batchnorm_source = nil;
+		cache.neuron = nil;
+		cache.leaky_alpha = 0.0f;
+
+		if (l.batch_normalize)
+		{
+			if (!l.scales || !l.biases || !l.rolling_mean || !l.rolling_variance)
+			{
+				return false;
+			}
+			cache.batchnorm_source = [[MpsBatchNormDataSource alloc] initWithChannels:static_cast<NSUInteger>(l.outputs)
+				gamma:l.scales
+				beta:l.biases
+				mean:l.rolling_mean
+				variance:l.rolling_variance
+				epsilon:0.00001f];
+			cache.batchnorm = [[MPSCNNBatchNormalization alloc] initWithDevice:device
+				dataSource:cache.batchnorm_source];
+			if (!cache.batchnorm)
+			{
+				return false;
+			}
+		}
+
+		cache.neuron = build_neuron(l.activation, device, &cache.leaky_alpha);
+
+		cache.outputs = l.outputs;
+		cache.batch_normalize = (l.batch_normalize != 0);
+		cache.activation = l.activation;
+		reset_connected_images(cache);
+
+		return true;
+	}
+
+	bool ensure_connected_images(MpsConnectedCache & cache, const Darknet::Layer & l, id<MTLDevice> device)
+	{
+		if (!device)
+		{
+			return false;
+		}
+
+		const int batch = l.batch;
+		const int out_c = l.outputs;
+		const int out_w = l.out_w;
+		const int out_h = l.out_h;
+
+		if (!cache.output_image ||
+			cache.output_w != out_w ||
+			cache.output_h != out_h ||
+			cache.output_c != out_c ||
+			cache.output_batch != batch)
+		{
+			MPSImageDescriptor *output_desc = [MPSImageDescriptor imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatFloat32
+				width:static_cast<NSUInteger>(out_w)
+				height:static_cast<NSUInteger>(out_h)
+				featureChannels:static_cast<NSUInteger>(out_c)
+				numberOfImages:static_cast<NSUInteger>(batch)
+				usage:(MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite)];
+			cache.output_image = [[MPSImage alloc] initWithDevice:device imageDescriptor:output_desc];
+			cache.output_w = out_w;
+			cache.output_h = out_h;
+			cache.output_c = out_c;
+			cache.output_batch = batch;
+		}
+
+		return cache.output_image != nil;
+	}
+
 	MPSImage *get_cached_output_image(const Darknet::Layer *layer, int w, int h, int c, int batch)
 	{
 		if (!layer)
@@ -1564,6 +1865,21 @@ namespace
 		if (pool_it != pool_map.end() && pool_it->second)
 		{
 			const auto & cache = *pool_it->second;
+			if (cache.output_image &&
+				cache.output_w == w &&
+				cache.output_h == h &&
+				cache.output_c == c &&
+				cache.output_batch == batch)
+			{
+				return cache.output_image;
+			}
+		}
+
+		auto & global_pool_map = get_mps_global_avgpool_cache();
+		auto global_pool_it = global_pool_map.find(layer);
+		if (global_pool_it != global_pool_map.end() && global_pool_it->second)
+		{
+			const auto & cache = *global_pool_it->second;
 			if (cache.output_image &&
 				cache.output_w == w &&
 				cache.output_h == h &&
@@ -1624,6 +1940,21 @@ namespace
 	if (reorg_it != reorg_map.end() && reorg_it->second)
 	{
 		const auto & cache = *reorg_it->second;
+		if (cache.output_image &&
+			cache.output_w == w &&
+			cache.output_h == h &&
+			cache.output_c == c &&
+			cache.output_batch == batch)
+		{
+			return cache.output_image;
+		}
+	}
+
+	auto & connected_map = get_mps_connected_cache();
+	auto connected_it = connected_map.find(layer);
+	if (connected_it != connected_map.end() && connected_it->second)
+	{
+		const auto & cache = *connected_it->second;
 		if (cache.output_image &&
 			cache.output_w == w &&
 			cache.output_h == h &&
@@ -1862,6 +2193,18 @@ bool mps_layer_can_run(const Darknet::Layer & l, bool train)
 			}
 			return true;
 		}
+		case Darknet::ELayerType::AVGPOOL:
+		{
+			if (l.w <= 0 || l.h <= 0 || l.c <= 0 || l.batch <= 0)
+			{
+				return false;
+			}
+			if (l.out_w != 1 || l.out_h != 1)
+			{
+				return false;
+			}
+			return true;
+		}
 		case Darknet::ELayerType::SHORTCUT:
 		{
 			if (l.n != 1 || l.nweights != 0 || !l.input_sizes)
@@ -1910,6 +2253,26 @@ bool mps_layer_can_run(const Darknet::Layer & l, bool train)
 				{
 					return false;
 				}
+			}
+			return true;
+		}
+		case Darknet::ELayerType::CONNECTED:
+		{
+			if (l.inputs <= 0 || l.outputs <= 0 || l.batch <= 0)
+			{
+				return false;
+			}
+			if (!l.batch_normalize && l.activation == LINEAR)
+			{
+				return false;
+			}
+			if (!l.batch_normalize && !mps_activation_supported(l.activation))
+			{
+				return false;
+			}
+			if (l.batch_normalize && (!l.scales || !l.biases || !l.rolling_mean || !l.rolling_variance))
+			{
+				return false;
 			}
 			return true;
 		}
@@ -2463,6 +2826,135 @@ bool mps_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	return true;
 }
 
+bool mps_global_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+	const float *input, float *output, bool defer_readback, const char **reason)
+{
+	auto & ctx = get_mps_context();
+	auto & deferred = get_mps_deferred_layers();
+	deferred.erase(&l);
+	if (!ctx.ready)
+	{
+		if (reason) *reason = "MPS not available";
+		return false;
+	}
+
+	if (l.w <= 0 || l.h <= 0)
+	{
+		if (reason) *reason = "invalid avgpool size";
+		return false;
+	}
+
+	if (l.c <= 0 || l.batch <= 0)
+	{
+		if (reason) *reason = "invalid channel/batch";
+		return false;
+	}
+
+	if (l.out_w != 1 || l.out_h != 1)
+	{
+		if (reason) *reason = "not global avgpool";
+		return false;
+	}
+
+	if (!input || !output)
+	{
+		if (reason) *reason = "null input/output";
+		return false;
+	}
+
+	auto & cache_map = get_mps_global_avgpool_cache();
+	auto & cache_ptr = cache_map[&l];
+	if (!cache_ptr)
+	{
+		cache_ptr = std::make_unique<MpsGlobalAvgPoolCache>();
+	}
+	auto & cache = *cache_ptr;
+	if (!cache_matches_global_avgpool(cache, l))
+	{
+		if (!build_global_avgpool_cache(cache, l, ctx.device))
+		{
+			if (reason) *reason = "failed to build global avgpool";
+			return false;
+		}
+	}
+
+	@autoreleasepool
+	{
+		MPSImage *input_image = nil;
+		bool need_input = true;
+		if (prev && input == prev->output)
+		{
+			input_image = get_cached_output_image(prev, l.w, l.h, l.c, l.batch);
+			if (input_image)
+			{
+				need_input = false;
+			}
+		}
+
+		if (!ensure_global_avgpool_images(cache, l, ctx.device, need_input))
+		{
+			if (reason) *reason = "failed to allocate global avgpool images";
+			return false;
+		}
+
+		if (!input_image)
+		{
+			input_image = cache.input_image;
+		}
+		MPSImage *output_image = cache.output_image;
+
+		const NSUInteger batch = static_cast<NSUInteger>(l.batch);
+		const NSUInteger in_channels = static_cast<NSUInteger>(l.c);
+		const NSUInteger in_w = static_cast<NSUInteger>(l.w);
+		const NSUInteger in_h = static_cast<NSUInteger>(l.h);
+
+		const NSUInteger input_bytes_per_row = in_w * sizeof(float);
+		const MTLRegion in_region = MTLRegionMake2D(0, 0, in_w, in_h);
+
+		MPSImageReadWriteParams in_params = {};
+		in_params.featureChannelOffset = 0;
+		in_params.numberOfFeatureChannelsToReadWrite = in_channels;
+
+		if (input_image == cache.input_image)
+		{
+			for (NSUInteger b = 0; b < batch; ++b)
+			{
+				const float *input_ptr = input + b * (l.c * l.h * l.w);
+				[input_image writeBytes:input_ptr
+					dataLayout:MPSDataLayoutFeatureChannelsxHeightxWidth
+					bytesPerRow:input_bytes_per_row
+					region:in_region
+					featureChannelInfo:in_params
+					imageIndex:b];
+			}
+		}
+
+		id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
+		if (!command_buffer)
+		{
+			if (reason) *reason = "failed to create command buffer";
+			return false;
+		}
+
+		[cache.pool encodeToCommandBuffer:command_buffer sourceImage:input_image destinationImage:output_image];
+		[command_buffer commit];
+		track_mps_command_buffer(command_buffer);
+
+		if (!defer_readback)
+		{
+			wait_mps_command_buffer_if_needed();
+			read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
+		}
+		else
+		{
+			deferred.insert(&l);
+		}
+	}
+
+	if (reason) *reason = "ok";
+	return true;
+}
+
 bool mps_reorg_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason)
 {
@@ -2600,6 +3092,170 @@ bool mps_reorg_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	}
 
 	if (reason) *reason = "ok";
+	return true;
+}
+
+bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+	const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason)
+{
+	auto & ctx = get_mps_context();
+	auto & deferred = get_mps_deferred_layers();
+	deferred.erase(&l);
+	if (!ctx.ready)
+	{
+		if (reason) *reason = "MPS not available";
+		return false;
+	}
+
+	if (!input || !output)
+	{
+		if (reason) *reason = "null input/output";
+		return false;
+	}
+
+	if (l.inputs <= 0 || l.outputs <= 0 || l.batch <= 0)
+	{
+		if (reason) *reason = "invalid connected size";
+		return false;
+	}
+
+	const bool needs_batchnorm = (l.batch_normalize != 0);
+	const bool needs_activation = (l.activation != LINEAR);
+	const bool activation_supported = mps_activation_supported(l.activation);
+	if (!needs_batchnorm && !needs_activation)
+	{
+		if (reason) *reason = "no MPS work";
+		return false;
+	}
+	if (!needs_batchnorm && needs_activation && !activation_supported)
+	{
+		if (reason) *reason = "activation not supported";
+		return false;
+	}
+
+	if (prev && input == prev->output)
+	{
+		mps_flush_deferred_output(prev);
+	}
+
+	fill_cpu(l.outputs*l.batch, 0, output, 1);
+	const int m = l.batch;
+	const int k = l.inputs;
+	const int n = l.outputs;
+	gemm_cpu(0, 1, m, n, k, 1, const_cast<float *>(input), k, l.weights, k, 1, output, n);
+
+	if (!needs_batchnorm)
+	{
+		for (int i = 0; i < l.batch; ++i)
+		{
+			axpy_cpu(l.outputs, 1, l.biases, 1, output + i*l.outputs, 1);
+		}
+	}
+
+	auto & cache_map = get_mps_connected_cache();
+	auto & cache_ptr = cache_map[&l];
+	if (!cache_ptr)
+	{
+		cache_ptr = std::make_unique<MpsConnectedCache>();
+	}
+	auto & cache = *cache_ptr;
+	if (!cache_matches_connected(cache, l))
+	{
+		if (!build_connected_cache(cache, l, ctx.device))
+		{
+			if (reason) *reason = "failed to build connected cache";
+			return false;
+		}
+	}
+
+	@autoreleasepool
+	{
+		if (!ensure_connected_images(cache, l, ctx.device))
+		{
+			if (reason) *reason = "failed to allocate connected images";
+			return false;
+		}
+
+		MPSImage *output_image = cache.output_image;
+		const NSUInteger batch = static_cast<NSUInteger>(l.batch);
+		const NSUInteger out_channels = static_cast<NSUInteger>(l.outputs);
+		const NSUInteger out_w = static_cast<NSUInteger>(l.out_w);
+		const NSUInteger out_h = static_cast<NSUInteger>(l.out_h);
+		const NSUInteger output_bytes_per_row = out_w * sizeof(float);
+		const MTLRegion out_region = MTLRegionMake2D(0, 0, out_w, out_h);
+
+		MPSImageReadWriteParams out_params = {};
+		out_params.featureChannelOffset = 0;
+		out_params.numberOfFeatureChannelsToReadWrite = out_channels;
+
+		for (NSUInteger b = 0; b < batch; ++b)
+		{
+			const float *output_ptr = output + b * l.outputs;
+			[output_image writeBytes:output_ptr
+				dataLayout:MPSDataLayoutFeatureChannelsxHeightxWidth
+				bytesPerRow:output_bytes_per_row
+				region:out_region
+				featureChannelInfo:out_params
+				imageIndex:b];
+		}
+
+		id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
+		if (!command_buffer)
+		{
+			if (reason) *reason = "failed to create command buffer";
+			return false;
+		}
+
+		if (cache.batchnorm)
+		{
+			[cache.batchnorm encodeToCommandBuffer:command_buffer sourceImage:output_image destinationImage:output_image];
+		}
+
+		bool activation_done = false;
+		const char *status = "ok";
+		if (cache.neuron)
+		{
+			[cache.neuron encodeToCommandBuffer:command_buffer sourceImage:output_image destinationImage:output_image];
+			activation_done = true;
+		}
+		else if (l.activation == LINEAR)
+		{
+			activation_done = true;
+		}
+		else
+		{
+			if (encode_mps_activation(command_buffer, output_image, l.activation, nullptr))
+			{
+				activation_done = true;
+			}
+			else
+			{
+				status = "activation fallback";
+			}
+		}
+
+		[command_buffer commit];
+		track_mps_command_buffer(command_buffer);
+
+		const bool should_defer = defer_readback && activation_done;
+		if (!should_defer)
+		{
+			wait_mps_command_buffer_if_needed();
+			read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
+		}
+		else
+		{
+			deferred.insert(&l);
+		}
+
+		if (activation_applied)
+		{
+			*activation_applied = activation_done;
+		}
+
+		if (reason) *reason = status;
+	}
+
 	return true;
 }
 
