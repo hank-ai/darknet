@@ -711,6 +711,103 @@ kernel void revleaky_kernel(texture2d_array<float, access::read_write> tex [[tex
 	tex.write(v, uint2(gid.xy), gid.z);
 }
 
+kernel void normalize_channels_kernel(texture2d_array<float, access::read_write> tex [[texture(0)]],
+	constant uint &channels [[buffer(0)]],
+	constant uint &slices_per_image [[buffer(1)]],
+	uint3 gid [[thread_position_in_grid]])
+{
+	if (gid.x >= tex.get_width() || gid.y >= tex.get_height() || gid.z >= tex.get_array_size())
+	{
+		return;
+	}
+	if (channels == 0 || slices_per_image == 0)
+	{
+		return;
+	}
+	const uint image_index = gid.z / slices_per_image;
+	const uint slice = gid.z - image_index * slices_per_image;
+	const uint base_channel = slice * 4;
+	float sum = 0.0001f;
+	for (uint s = 0; s < slices_per_image; ++s)
+	{
+		const uint slice_id = image_index * slices_per_image + s;
+		if (slice_id >= tex.get_array_size())
+		{
+			break;
+		}
+		float4 v = tex.read(uint2(gid.xy), slice_id);
+		const uint channel_base = s * 4;
+		if (channel_base + 0 < channels && v.x > 0.0f) sum += v.x;
+		if (channel_base + 1 < channels && v.y > 0.0f) sum += v.y;
+		if (channel_base + 2 < channels && v.z > 0.0f) sum += v.z;
+		if (channel_base + 3 < channels && v.w > 0.0f) sum += v.w;
+	}
+	float4 v = tex.read(uint2(gid.xy), gid.z);
+	v.x = (base_channel + 0 < channels && v.x > 0.0f) ? (v.x / sum) : 0.0f;
+	v.y = (base_channel + 1 < channels && v.y > 0.0f) ? (v.y / sum) : 0.0f;
+	v.z = (base_channel + 2 < channels && v.z > 0.0f) ? (v.z / sum) : 0.0f;
+	v.w = (base_channel + 3 < channels && v.w > 0.0f) ? (v.w / sum) : 0.0f;
+	tex.write(v, uint2(gid.xy), gid.z);
+}
+
+kernel void normalize_channels_softmax_kernel(texture2d_array<float, access::read_write> tex [[texture(0)]],
+	constant uint &channels [[buffer(0)]],
+	constant uint &slices_per_image [[buffer(1)]],
+	constant uint &use_max_val [[buffer(2)]],
+	uint3 gid [[thread_position_in_grid]])
+{
+	if (gid.x >= tex.get_width() || gid.y >= tex.get_height() || gid.z >= tex.get_array_size())
+	{
+		return;
+	}
+	if (channels == 0 || slices_per_image == 0)
+	{
+		return;
+	}
+	const uint image_index = gid.z / slices_per_image;
+	const uint slice = gid.z - image_index * slices_per_image;
+	const uint base_channel = slice * 4;
+	float max_val = use_max_val ? -INFINITY : 0.0f;
+	if (use_max_val)
+	{
+		for (uint s = 0; s < slices_per_image; ++s)
+		{
+			const uint slice_id = image_index * slices_per_image + s;
+			if (slice_id >= tex.get_array_size())
+			{
+				break;
+			}
+			float4 v = tex.read(uint2(gid.xy), slice_id);
+			const uint channel_base = s * 4;
+			if (channel_base + 0 < channels) max_val = max(max_val, v.x);
+			if (channel_base + 1 < channels) max_val = max(max_val, v.y);
+			if (channel_base + 2 < channels) max_val = max(max_val, v.z);
+			if (channel_base + 3 < channels) max_val = max(max_val, v.w);
+		}
+	}
+	float sum = 0.0001f;
+	for (uint s = 0; s < slices_per_image; ++s)
+	{
+		const uint slice_id = image_index * slices_per_image + s;
+		if (slice_id >= tex.get_array_size())
+		{
+			break;
+		}
+		float4 v = tex.read(uint2(gid.xy), slice_id);
+		const uint channel_base = s * 4;
+		if (channel_base + 0 < channels) sum += exp(v.x - max_val);
+		if (channel_base + 1 < channels) sum += exp(v.y - max_val);
+		if (channel_base + 2 < channels) sum += exp(v.z - max_val);
+		if (channel_base + 3 < channels) sum += exp(v.w - max_val);
+	}
+	float4 v = tex.read(uint2(gid.xy), gid.z);
+	v.x = (base_channel + 0 < channels) ? exp(v.x - max_val) / sum : 0.0f;
+	v.y = (base_channel + 1 < channels) ? exp(v.y - max_val) / sum : 0.0f;
+	v.z = (base_channel + 2 < channels) ? exp(v.z - max_val) / sum : 0.0f;
+	v.w = (base_channel + 3 < channels) ? exp(v.w - max_val) / sum : 0.0f;
+	tex.write(v, uint2(gid.xy), gid.z);
+}
+
 kernel void route_clear_kernel(texture2d_array<float, access::read_write> out_tex [[texture(0)]],
 	uint3 gid [[thread_position_in_grid]])
 {

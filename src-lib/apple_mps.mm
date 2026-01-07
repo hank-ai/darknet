@@ -978,6 +978,11 @@ namespace
 		}
 
 		const char *kernel_name = nullptr;
+		uint32_t channels = 0;
+		uint32_t slices_per_image = 0;
+		uint32_t use_max_val = 0;
+		MetalDispatchBytes bytes[3] = {};
+		size_t bytes_count = 0;
 		switch (activation)
 		{
 			case SWISH: kernel_name = "swish_kernel"; break;
@@ -997,6 +1002,34 @@ namespace
 			case PLSE: kernel_name = "plse_kernel"; break;
 			case STAIR: kernel_name = "stair_kernel"; break;
 			case REVLEAKY: kernel_name = "revleaky_kernel"; break;
+			case NORM_CHAN:
+				kernel_name = "normalize_channels_kernel";
+				channels = static_cast<uint32_t>(image.featureChannels);
+				slices_per_image = (channels + 3u) / 4u;
+				bytes[0] = { &channels, sizeof(channels) };
+				bytes[1] = { &slices_per_image, sizeof(slices_per_image) };
+				bytes_count = 2;
+				break;
+			case NORM_CHAN_SOFTMAX:
+				kernel_name = "normalize_channels_softmax_kernel";
+				use_max_val = 0;
+				channels = static_cast<uint32_t>(image.featureChannels);
+				slices_per_image = (channels + 3u) / 4u;
+				bytes[0] = { &channels, sizeof(channels) };
+				bytes[1] = { &slices_per_image, sizeof(slices_per_image) };
+				bytes[2] = { &use_max_val, sizeof(use_max_val) };
+				bytes_count = 3;
+				break;
+			case NORM_CHAN_SOFTMAX_MAXVAL:
+				kernel_name = "normalize_channels_softmax_kernel";
+				use_max_val = 1;
+				channels = static_cast<uint32_t>(image.featureChannels);
+				slices_per_image = (channels + 3u) / 4u;
+				bytes[0] = { &channels, sizeof(channels) };
+				bytes[1] = { &slices_per_image, sizeof(slices_per_image) };
+				bytes[2] = { &use_max_val, sizeof(use_max_val) };
+				bytes_count = 3;
+				break;
 			default:
 				if (reason) *reason = "activation not supported";
 				return false;
@@ -1009,13 +1042,19 @@ namespace
 			return false;
 		}
 
+		if ((bytes_count > 0) && (channels == 0 || slices_per_image == 0))
+		{
+			if (reason) *reason = "activation not supported";
+			return false;
+		}
+
 		MetalDispatchTexture textures[] = { { (__bridge void *)texture } };
 		if (!metal_dispatch_texture_kernel(kernel_name,
 				(__bridge void *)texture,
 				8, 8,
 				textures, 1,
 				nullptr, 0,
-				nullptr, 0,
+				bytes_count > 0 ? bytes : nullptr, bytes_count,
 				(__bridge void *)command_buffer))
 		{
 			if (reason) *reason = "failed to dispatch activation kernel";
