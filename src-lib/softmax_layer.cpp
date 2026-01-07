@@ -1,5 +1,4 @@
 #include "darknet_internal.hpp"
-#include "apple_mps.hpp"
 
 
 namespace
@@ -62,7 +61,7 @@ void forward_softmax_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	TAT(TATPARMS);
 
 #ifdef DARKNET_USE_MPS
-	if (!state.train)
+	if (not state.train)
 	{
 		const Darknet::Layer *prev = mps_prev_layer(state);
 		if (mps_softmax_forward(l, prev, state.input, l.output, nullptr))

@@ -1,9 +1,6 @@
 #include "gemm.hpp"
 #include "darknet_internal.hpp"
-	/** \brief MPS shortcut-add fast path for inference; falls back to CPU if unsupported. */
-#ifdef DARKNET_USE_MPS
-#include "apple_mps.hpp"
-#endif
+
 
 Darknet::Layer make_shortcut_layer(int batch, int n, int *input_layers, int* input_sizes, int w, int h, int c,
 	float **layers_output, float **layers_delta, float **layers_output_gpu, float **layers_delta_gpu, WEIGHTS_TYPE_T weights_type, WEIGHTS_NORMALIZATION_T weights_normalization,
@@ -176,7 +173,7 @@ void forward_shortcut_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	TAT(TATPARMS);
 
 #ifdef DARKNET_USE_MPS
-	if (!state.train && l.nweights == 0 && l.n == 1 && l.input_sizes && l.input_sizes[0] == l.outputs)
+	if (not state.train and l.nweights == 0 and l.n == 1 and l.input_sizes and l.input_sizes[0] == l.outputs)
 	{
 		const Darknet::Layer *prev = mps_prev_layer(state);
 		const Darknet::Layer *from = &state.net.layers[l.index];
@@ -197,9 +194,7 @@ void forward_shortcut_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		mps_flush_deferred_output(prev);
 		mps_flush_deferred_output(from);
 	}
-#endif
 
-#ifdef DARKNET_USE_MPS
 	for (int i = 0; i < l.n; ++i)
 	{
 		int index = l.input_layers[i];

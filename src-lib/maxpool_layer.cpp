@@ -1,6 +1,5 @@
 #include "gemm.hpp"
 #include "darknet_internal.hpp"
-#include "apple_mps.hpp"
 
 namespace
 {
@@ -305,9 +304,9 @@ void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	/** \brief MPS maxpool fast path for inference; falls back to CPU if unsupported. */
+	/// @brief MPS maxpool fast path for inference; falls back to CPU if unsupported.
 #ifdef DARKNET_USE_MPS
-	if (!state.train && !l.maxpool_depth && !l.antialiasing)
+	if (not state.train and not l.maxpool_depth and not l.antialiasing)
 	{
 		const Darknet::Layer *prev = mps_prev_layer(state);
 		bool defer_readback = mps_should_defer_readback(state);
@@ -438,9 +437,9 @@ void forward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state
 {
 	TAT(TATPARMS);
 
-	/** \brief MPS avgpool fast path for inference; falls back to CPU if unsupported. */
+	/// @brief MPS avgpool fast path for inference; falls back to CPU if unsupported.
 #ifdef DARKNET_USE_MPS
-	if (!state.train && !l.antialiasing)
+	if (not state.train and not l.antialiasing)
 	{
 		const Darknet::Layer *prev = mps_prev_layer(state);
 		bool defer_readback = mps_should_defer_readback(state);

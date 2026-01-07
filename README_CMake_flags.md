@@ -35,7 +35,7 @@ The AMD GPU that should be used when compiling ROCm source files.  This needs to
 
 ### Apple GPU (Metal/MPS)
 
-Attempt to discover if the system has Apple Metal/MPS available.  The default is `ON` on macOS.
+Attempt to discover if the system has Apple MPS available.  The default is `ON` on MacOS.
 
 	cmake -DDARKNET_TRY_MPS=ON ...
 	cmake -DDARKNET_TRY_MPS=OFF ...

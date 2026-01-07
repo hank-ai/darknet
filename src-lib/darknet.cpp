@@ -1,5 +1,4 @@
 #include "darknet_internal.hpp"
-#include "apple_mps.hpp"
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN

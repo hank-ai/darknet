@@ -1,6 +1,5 @@
 #include "darknet_internal.hpp"
 #include "gemm.hpp"
-#include "apple_mps.hpp"
 
 
 namespace
@@ -184,8 +183,8 @@ void forward_connected_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	TAT(TATPARMS);
 
 #ifdef DARKNET_USE_MPS
-	/** \brief MPS connected-layer fast path for batchnorm/activation; falls back to CPU if unsupported. */
-	if (!state.train)
+	/// @brief MPS connected-layer fast path for batchnorm/activation; falls back to CPU if unsupported.
+	if (not state.train)
 	{
 		const Darknet::Layer *prev = mps_prev_layer(state);
 		bool defer_readback = mps_should_defer_readback(state);
@@ -193,7 +192,7 @@ void forward_connected_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		if (mps_connected_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, nullptr))
 		{
 			mps_coverage_record(l, true);
-			if (!activation_applied)
+			if (not activation_applied)
 			{
 				activate_array(l.output, l.outputs*l.batch, l.activation);
 			}

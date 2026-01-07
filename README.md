@@ -11,7 +11,7 @@
 	* [Google Colab](#google-colab)
 	* [WSL](#wsl)
 	* [Linux CMake Method](#linux-cmake-method)
-	* [macOS CMake Method](#macos-cmake-method)
+	* [MacOS CMake Method](#macos-cmake-method)
 	* [Windows CMake Method](#windows-cmake-method)
 	* [Docker](#docker)
 * [Using Darknet](#using-darknet)
@@ -157,7 +157,7 @@ Select one of the following build types:
 * [Google Colab](#google-colab)
 * [WSL](#wsl)
 * [Linux](#linux-cmake-method)
-* [macOS](#macos-cmake-method)
+* [MacOS](#macos-cmake-method)
 * [Windows](#windows-cmake-method)
 * [Docker](#docker)
 
@@ -260,7 +260,7 @@ You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run t
 > [!CAUTION]
 > **If you don't have `/usr/bin/darknet`** then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file as described above.
 
-## macOS CMake Method
+## MacOS CMake Method
 
 > [!IMPORTANT]
 > Apple GPU acceleration (MPS) is recommended on Apple Silicon. Intel Macs may work depending on GPU, but are untested. Currently, only inference is supported, training is still disabled.
@@ -294,27 +294,29 @@ Clone Darknet and build it (MPS is enabled by default on Apple Silicon):
 ```sh
 git clone https://codeberg.org/CCodeRun/darknet.git
 cd darknet
-cmake -S . -B build
-cmake --build build
+mkdir build
+cd build
+cmake ..
+make -j4
+make package
 ```
 
 If you want a CPU-only build without MPS:
 
 ```sh
-cmake -S . -B build_cpu -DDARKNET_TRY_MPS=OFF -DDARKNET_TRY_OPENBLAS=ON
-cmake --build build_cpu
+git clone https://codeberg.org/CCodeRun/darknet.git
+cd darknet
+mkdir build
+cd build
+cmake -DDARKNET_TRY_MPS=OFF -DDARKNET_TRY_OPENBLAS=ON ..
+make -j4
+make package
 ```
 
 To test the build:
 
 ```sh
-./build/src-cli/darknet version
-```
-
-Optional: build a macOS DMG package:
-
-```sh
-cmake --build build --target package
+src-cli/darknet --version
 ```
 
 ## Windows CMake Method
@@ -683,6 +685,7 @@ Last updated 2026-01-07:
 * [X] ONNX export tool
 * [X] re-write function that calculates mAP (mean average precision)
 * [X] support both FP32 and FP16 with the ONNX export tool
+* [X] support for MacOS MPS (Metal Performance Shaders), inference only
 
 ## Short-term goals
 
@@ -700,7 +703,7 @@ Last updated 2026-01-07:
 * [ ] fix support for 1-channel greyscale images
 * [ ] add support for N-channel images where N > 3 (e.g., images with an additional depth or thermal channel)
 * [ ] on-going code cleanup **(in progress)**
-* [ ] add support for 8-bit quantization in the ONNX export tool
+* [X] add support for 8-bit quantization in the ONNX export tool **(in progress)**
 
 ## Long-term goals
 

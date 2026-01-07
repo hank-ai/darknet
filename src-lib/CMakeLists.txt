@@ -12,11 +12,13 @@ CONFIGURE_FILE (${CMAKE_CURRENT_SOURCE_DIR}/darknet_version.h.in ${CMAKE_CURRENT
 FILE (GLOB LIBSRC *.cpp)
 LIST (REMOVE_ITEM LIBSRC yolo_v2_class.cpp)
 
+# TODO denizz check that this works as expected now that I've moved the files into an apple-specific directory
 IF (DARKNET_USE_MPS)
-	LIST (APPEND LIBSRC apple_mps.mm)
-	LIST (APPEND LIBSRC metal_backend.mm)
-	SET_SOURCE_FILES_PROPERTIES (apple_mps.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
-	SET_SOURCE_FILES_PROPERTIES (metal_backend.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+	INCLUDE_DIRECTORIES (apple)
+	LIST (APPEND LIBSRC apple/apple_mps.mm)
+	LIST (APPEND LIBSRC apple/metal_backend.mm)
+	SET_SOURCE_FILES_PROPERTIES (apple/apple_mps.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
+	SET_SOURCE_FILES_PROPERTIES (apple/metal_backend.mm PROPERTIES COMPILE_FLAGS "-fobjc-arc")
 ENDIF ()
 
 IF (COMPILER_IS_GNU_OR_CLANG)

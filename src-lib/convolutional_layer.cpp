@@ -2,12 +2,6 @@
 #include "col2im.hpp"
 #include "gemm.hpp"
 #include "darknet_internal.hpp"
-	/** \brief MPS fast path for inference; falls back to CPU if unsupported. */
-#ifdef DARKNET_USE_MPS
-#include "apple_mps.hpp"
-#endif
-
-#include <cstdlib>
 
 namespace
 {
@@ -1447,7 +1441,7 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 	int out_w = convolutional_out_width(l);
 
 #ifdef DARKNET_USE_MPS
-	if (!state.train && !l.binary && !l.xnor)
+	if (not state.train and not l.binary and not l.xnor)
 	{
 		const Darknet::Layer *prev = mps_prev_layer(state);
 		bool defer_readback = mps_should_defer_readback(state);
@@ -1456,7 +1450,7 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 		{
 			mps_coverage_record(l, true);
 
-			if (!activation_applied)
+			if (not activation_applied)
 			{
 				if (l.activation == SWISH) activate_array_swish(l.output, l.outputs*l.batch, l.activation_input, l.output);
 				else if (l.activation == MISH) activate_array_mish(l.output, l.outputs*l.batch, l.activation_input, l.output);

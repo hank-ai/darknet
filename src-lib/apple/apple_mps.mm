@@ -9,6 +9,7 @@
 #import <Metal/Metal.h>
 #import <MetalPerformanceShaders/MetalPerformanceShaders.h>
 
+/// @todo denizz Why are all these needed?  Aren't they already in darknet_internal.hpp?
 #include <cstring>
 #include <cstdlib>
 #include <unordered_map>
@@ -4659,6 +4660,7 @@ void Darknet::show_mps_info()
 
 	*cfg_and_state.output << std::endl;
 
+	#error "denizz please remove calls to getenv()"
 	const char *self_test = std::getenv("DARKNET_METAL_SELF_TEST");
 	if (self_test && self_test[0] == '1')
 	{

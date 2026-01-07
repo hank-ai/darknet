@@ -1,7 +1,4 @@
 #include "darknet_internal.hpp"
-#ifdef DARKNET_USE_MPS
-#include "apple_mps.hpp"
-#endif
 
 
 namespace
@@ -249,7 +246,7 @@ void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 		if (i > 0)
 		{
 			Darknet::Layer & prev = net.layers[i - 1];
-			if (mps_is_output_deferred(&prev) && !mps_layer_can_run(l, state.train))
+			if (mps_is_output_deferred(&prev) and not mps_layer_can_run(l, state.train))
 			{
 				mps_flush_output_if_needed(&prev, prev.output);
 			}

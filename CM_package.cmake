@@ -10,38 +10,38 @@ SET (CPACK_PACKAGE_DESCRIPTION "Darknet/YOLO Object Detection Framework")
 SET (CPACK_PACKAGE_CONTACT "Stephane Charette <stephanecharette@gmail.com>")
 SET (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 
-# Clean the install prefix before packaging, for local macOS builds only.
-OPTION (DARKNET_CLEAN_INSTALL_PREFIX "Remove bin/include/lib under /opt/lib/darknet before packaging" OFF)
-IF (APPLE AND DARKNET_CLEAN_INSTALL_PREFIX)
-	SET (CPACK_PRE_INSTALL_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/clean_install_prefix.cmake")
-ENDIF ()
+IF (APPLE)
+	# TODO denizz Should the next 5 lines be deleted?  It doesn't seem to exist.
+	# Clean the install prefix before packaging, for local macOS builds only.
+#	OPTION (DARKNET_CLEAN_INSTALL_PREFIX "Remove bin/include/lib under /opt/lib/darknet before packaging" OFF)
+#	IF (DARKNET_CLEAN_INSTALL_PREFIX)
+#		SET (CPACK_PRE_INSTALL_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/clean_install_prefix.cmake")
+#	ENDIF ()
 
-# You need to pick one package file type, and comment out the other.
-# On Ubuntu, you'd typically use DEB files.  If you are on using a Linux
-# distro that uses RPM files such as Centos or OpenSUSE then you'd likely
-# want to use RPM.
-#
-# And if using Windows, then NSIS is the only option supported by CPack.
-#
-IF (UNIX)
+	SET (CPACK_GENERATOR "DragNDrop")
+	SET (CPACK_DMG_FORMAT "UDZO")
+	SET (CPACK_DMG_BACKGROUND_IMAGE "${CMAKE_CURRENT_SOURCE_DIR}/artwork/hankai_darknet.png")
+
+	# Bundle OpenCV dylibs for macOS packages so binaries keep working after Homebrew updates.
+	IF (DARKNET_OPENCV_LIB_FILES)
+		INSTALL (FILES ${DARKNET_OPENCV_LIB_FILES} DESTINATION lib)
+	ENDIF ()
+
+ELSEIF (UNIX)
+
+	# You need to pick one package file type, and comment out the other.
+	# On Ubuntu, you'd typically use DEB files.  If you are on using a Linux
+	# distro that uses RPM files such as Centos or OpenSUSE then you'd likely
+	# want to use RPM.
 	SET (CPACK_GENERATOR "DEB")
 #	SET (CPACK_GENERATOR "RPM")
 
 	SET (CPACK_DEBIAN_PACKAGE_SHLIBDEPS "ON")
-ENDIF ()
 
-IF (APPLE)
-	SET (CPACK_GENERATOR "DragNDrop")
-	SET (CPACK_DMG_FORMAT "UDZO")
-	SET (CPACK_DMG_BACKGROUND_IMAGE "${CMAKE_CURRENT_SOURCE_DIR}/artwork/hankai_darknet.png")
-ENDIF ()
+ELSEIF (WIN32)
 
-# Bundle OpenCV dylibs for macOS packages so binaries keep working after Homebrew updates.
-IF (APPLE AND DARKNET_OPENCV_LIB_FILES)
-	INSTALL (FILES ${DARKNET_OPENCV_LIB_FILES} DESTINATION lib)
-ENDIF ()
+	# And if using Windows, then NSIS is the only option supported by CPack.
 
-IF (WIN32)
 	SET (CPACK_PACKAGE_INSTALL_DIRECTORY "Darknet") # C:/Program Files/Darknet/...
 	SET (CPACK_NSIS_MUI_ICON "${CMAKE_SOURCE_DIR}/src-cli/windows/darknet_logo_blue.ico")
 	SET (CPACK_NSIS_MUI_UNIICON "${CMAKE_SOURCE_DIR}/src-cli/windows/darknet_logo_blue.ico")

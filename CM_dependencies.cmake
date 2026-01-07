@@ -276,6 +276,7 @@ MESSAGE (STATUS "Found OpenCV ${OpenCV_VERSION}")
 INCLUDE_DIRECTORIES (${OpenCV_INCLUDE_DIRS})
 LIST (APPEND DARKNET_LINK_LIBS ${OpenCV_LIBS})
 IF (APPLE)
+	# TODO denizz are you certain all of this is necessary?  People build Darknet on Mac all the time without all of this being required.
 	SET (DARKNET_OPENCV_LIB_FILES "")
 	SET (DARKNET_OPENCV_RPATHS "")
 	IF (OpenCV_LIBRARY_DIRS)
@@ -365,12 +366,7 @@ ENDIF ()
 # == Protocol Buffer (ONNX export) ==
 # ===================================
 IF (NOT DEFINED DARKNET_TRY_ONNX)
-	IF (DARKNET_USE_MPS)
-		# ONNX export is not required for MPS inference builds and can break due to protobuf version mismatches.
-		SET (DARKNET_TRY_ONNX False)
-	ELSE ()
-		SET (DARKNET_TRY_ONNX True)
-	ENDIF ()
+	SET (DARKNET_TRY_ONNX True)
 ENDIF ()
 IF (DARKNET_TRY_ONNX)
 	FIND_PACKAGE (Protobuf QUIET)

@@ -6,10 +6,6 @@
 
 #include "activations.hpp"
 
-#ifdef DARKNET_USE_MPS
-#include "apple_mps.hpp"
-#endif
-
 
 void convolution_2d(int w, int h, int ksize, int n, int c, int pad, int stride, float *weights, float *input, float *output, float *mean);
 
@@ -95,6 +91,7 @@ static inline void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 {
 	TAT(TATPARMS);
 #ifdef DARKNET_USE_MPS
+	/// @todo denizz Does this call make sense?  This is when the user has chosen OpenBLAS.
 	if (mps_gemm(TA, TB, M, N, K, ALPHA, A, lda, B, ldb, BETA, C, ldc))
 	{
 		return;

@@ -16,11 +16,12 @@
 #include <cassert>
 #include <cfloat>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <ctime>
 #include <ciso646>
+
 
 // C++ headers
 #include <chrono>
@@ -28,11 +29,15 @@
 #include <deque>
 // #include <execution> => "error: identifier __builtin_ia32_sttilecfg is undefined" due to GCC 13.x and some versions of nvcc 12.x
 #include <fstream>
+#include <limits>
 #include <list>
 #include <mutex>
 #include <optional>
 #include <random>
 #include <regex>
+#include <unordered_map>
+#include <vector>
+
 
 // 3rd-party lib headers
 #include <opencv2/opencv.hpp>
@@ -55,6 +60,10 @@
 #include "darknet.h"					// the old C header
 #include "darknet.hpp"					// the new C++ header
 #include "darknet_version.h"			// version macros
+
+#ifdef DARKNET_USE_MPS
+#include "apple_mps.hpp"
+#endif
 
 
 namespace Darknet

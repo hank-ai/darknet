@@ -1,9 +1,4 @@
 #include "darknet_internal.hpp"
-#include "apple_mps.hpp"
-
-#include <vector>
-#include <cmath>
-#include <cstring>
 
 namespace
 {
@@ -940,8 +935,11 @@ void do_nms_obj(DarknetDetection *dets, int total, int classes, float thresh)
 	}
 }
 
+
 static void do_nms_sort_cpu(DarknetDetection * dets, int total, int classes, float thresh)
 {
+	TAT(TATPARMS);
+
 	for (int k = 0; k < classes; ++k)
 	{
 		for (int i = 0; i < total; ++i)
@@ -974,8 +972,8 @@ static void do_nms_sort_cpu(DarknetDetection * dets, int total, int classes, flo
 }
 
 
-/** \ingroup mps_postproc
- *  \brief Apply NMS; uses GPU NMS when DARKNET_MPS_POSTPROC is enabled on MPS builds.
+/** @ingroup mps_postproc
+ *  @brief Apply NMS; uses GPU NMS when DARKNET_MPS_POSTPROC is enabled on MPS builds.
  */
 void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh)
 {
@@ -998,12 +996,18 @@ void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh)
 	// reset the size "total" to exclude the zero objectness
 	total = k + 1;
 
+/// @todo denizz The next hundred lines or so needs some cleanup to make it easier to maintain, especially for people without a Mac.
+
 #ifdef DARKNET_USE_MPS
+	#error "Needs review before merge."
+	/// @todo We definitely should not be reading values from the environment.  Is there a reason why this needs to be dynamically enabled/disabled at runtime?
 	bool compare_gpu = false;
 	std::vector<DarknetDetection> dets_copy;
+	/// @todo Note this already exists.  See VFloat in darknet.hpp.
 	std::vector<float> probs_copy;
 	const char *postproc_env = std::getenv("DARKNET_MPS_POSTPROC");
 	const bool postproc_enabled = (postproc_env && postproc_env[0] != '\0' && postproc_env[0] != '0');
+	/// @todo Get rid of strncmp() -- let's discuss whether this is required and if so, how to have this functionality.
 	if (postproc_env && (postproc_env[0] == '2' || std::strncmp(postproc_env, "compare", 7) == 0))
 	{
 		compare_gpu = true;
@@ -1020,7 +1024,7 @@ void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh)
 		}
 	}
 #endif
-
+	/// @todo why #endif DARKNET_USE_MPS and then immediately start a new one?
 #ifdef DARKNET_USE_MPS
 	{
 		if (postproc_enabled)
@@ -1034,6 +1038,7 @@ void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh)
 			}
 
 			bool gpu_ok = true;
+			/// @todo prefer using the modern "not", "or", and "and" over !, || and &&
 			for (int k = 0; k < classes && gpu_ok; ++k)
 			{
 				for (int i = 0; i < total; ++i)
@@ -1066,6 +1071,7 @@ void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh)
 
 			if (gpu_ok)
 			{
+/// @todo aren't we already in a DARKNET_USE_MPS block?
 #ifdef DARKNET_USE_MPS
 				if (compare_gpu)
 				{

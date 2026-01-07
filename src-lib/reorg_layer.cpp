@@ -1,5 +1,4 @@
 #include "darknet_internal.hpp"
-#include "apple_mps.hpp"
 
 
 namespace
@@ -98,7 +97,7 @@ void forward_reorg_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	TAT(TATPARMS);
 
 #ifdef DARKNET_USE_MPS
-	if (!state.train && !l.reverse)
+	if (not state.train and not l.reverse)
 	{
 		const Darknet::Layer *prev = mps_prev_layer(state);
 		bool defer_readback = mps_should_defer_readback(state);

@@ -1,8 +1,5 @@
 #include "darknet_internal.hpp"
-	/** \brief MPS upsample fast path for inference; falls back to CPU if unsupported. */
-#ifdef DARKNET_USE_MPS
-#include "apple_mps.hpp"
-#endif
+
 
 Darknet::Layer make_upsample_layer(int batch, int w, int h, int c, int stride)
 {
@@ -78,7 +75,7 @@ void forward_upsample_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	TAT(TATPARMS);
 
 #ifdef DARKNET_USE_MPS
-	if (!state.train && !l.reverse)
+	if (not state.train and not l.reverse)
 	{
 		const Darknet::Layer *prev = mps_prev_layer(state);
 		bool defer_readback = mps_should_defer_readback(state);
