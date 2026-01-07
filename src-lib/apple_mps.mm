@@ -184,7 +184,7 @@ namespace
 		return mutex;
 	}
 
-	bool ensure_buffer(id<MTLBuffer> & buffer, size_t & current_bytes, size_t required_bytes, id<MTLDevice> device)
+	bool ensure_buffer(__strong id<MTLBuffer> & buffer, size_t & current_bytes, size_t required_bytes, id<MTLDevice> device)
 	{
 		if (required_bytes == 0)
 		{

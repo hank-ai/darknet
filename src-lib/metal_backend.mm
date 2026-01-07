@@ -1272,7 +1272,7 @@ kernel void buffer_scale(device float *data [[buffer(0)]],
 	return pipeline;
 }
 
-	bool begin_dispatch(id<MTLCommandBuffer> & command_buffer, bool & auto_commit, void *external_buffer)
+	bool begin_dispatch(__strong id<MTLCommandBuffer> & command_buffer, bool & auto_commit, void *external_buffer)
 	{
 		auto_commit = false;
 		if (external_buffer)
