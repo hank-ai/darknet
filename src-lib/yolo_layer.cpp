@@ -12,6 +12,12 @@ namespace
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
 
 #ifdef DARKNET_USE_MPS
+	/** \defgroup mps_postproc MPS Post-Processing
+	 *  \brief GPU YOLO decode/candidate/NMS helpers.
+	 *  \ingroup mps_backend
+	 *  @{
+	 */
+	/** \brief Returns true when GPU YOLO post-processing is enabled via DARKNET_MPS_POSTPROC. */
 	static inline bool mps_postproc_enabled()
 	{
 		const char *env = std::getenv("DARKNET_MPS_POSTPROC");
@@ -101,6 +107,8 @@ namespace
 		count = found;
 		return cache.indices.data();
 	}
+
+	/** @} */
 #endif
 
 

@@ -2,6 +2,7 @@
 #include "col2im.hpp"
 #include "gemm.hpp"
 #include "darknet_internal.hpp"
+	/** \brief MPS fast path for inference; falls back to CPU if unsupported. */
 #ifdef DARKNET_USE_MPS
 #include "apple_mps.hpp"
 #endif

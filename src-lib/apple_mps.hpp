@@ -3,10 +3,26 @@
 #include <cstddef>
 #include <cstdint>
 
+/**
+ * \file apple_mps.hpp
+ * \brief Apple MPS/Metal inference entry points (optional at runtime).
+ */
+
 #ifdef DARKNET_USE_MPS
 
+/** \defgroup mps_backend Apple MPS Backend
+ *  \brief MPS/Metal inference entry points and helpers.
+ *  @{
+ */
+
+/**
+ * \brief Returns true if MPS is available and initialized.
+ */
 bool mps_is_available();
 
+/**
+ * \brief Try to execute GEMM using MPS. Returns true if MPS handled the op.
+ */
 bool mps_gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 	float *A, int lda,
 	float *B, int ldb,
@@ -22,6 +38,13 @@ namespace Darknet
 
 struct DarknetDetection;
 
+/**
+ * \brief Try to execute convolution forward using MPS.
+ *
+ * \param defer_readback If true, output may remain on GPU for a subsequent MPS layer.
+ * \param activation_applied Set to true if MPS applied the activation.
+ * \param reason Optional fallback reason string when returning false.
+ */
 bool mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason);
 
@@ -45,22 +68,52 @@ bool mps_maxpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason);
 bool mps_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason);
+/**
+ * \brief Try to execute shortcut add using MPS.
+ */
 bool mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *prev, const Darknet::Layer *from,
 	const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason);
+/**
+ * \brief Try to concatenate route inputs using MPS.
+ */
 bool mps_route_forward(const Darknet::Layer & l, const Darknet::Network & net,
 	float *output, bool defer_readback, const char **reason);
+/**
+ * \brief Try to upsample using a Metal kernel on GPU.
+ */
 bool mps_upsample_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason);
+/**
+ * \brief Try to execute reorg using a Metal kernel on GPU.
+ */
 bool mps_reorg_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason);
+/**
+ * \brief Try to execute softmax on GPU.
+ */
 bool mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, const char **reason);
+/**
+ * \brief Apply YOLO activation on GPU for the layer output.
+ */
 bool mps_yolo_activate(const Darknet::Layer & l, const float *input, float *output, const char **reason);
+/**
+ * \brief Decode YOLO boxes on GPU (post-processing).
+ */
 bool mps_yolo_decode_boxes(const Darknet::Layer & l, const float *input, int netw, int neth, float *boxes, const char **reason);
+/**
+ * \brief Collect YOLO candidates on GPU (post-processing).
+ */
 bool mps_yolo_collect_candidates(const Darknet::Layer & l, const float *input, float thresh,
 	uint32_t *indices, uint32_t max_candidates, uint32_t *count, const char **reason);
+/**
+ * \brief Apply GPU NMS suppression on sorted candidate order.
+ */
 bool mps_nms_suppress(const Darknet::Box *boxes, float *scores, const uint32_t *order,
 	uint32_t order_count, uint32_t total, float thresh, const char **reason);
+/**
+ * \brief Run GPU NMS sort in-place for detections.
+ */
 bool mps_nms_sort(DarknetDetection *dets, int total, int classes, float thresh, const char **reason);
 
 static inline bool mps_maxpool_forward(const Darknet::Layer & l, const float *input, float *output)
@@ -104,6 +157,9 @@ void mps_flush_output_if_needed(const Darknet::Layer *layer, float *output);
 const Darknet::Layer *mps_prev_layer(const Darknet::NetworkState &state);
 bool mps_should_defer_readback(const Darknet::NetworkState &state);
 void mps_flush_deferred_output(const Darknet::Layer *layer);
+/**
+ * \brief Enable/record/report per-layer MPS coverage (set DARKNET_MPS_COVERAGE=1).
+ */
 bool mps_coverage_enabled();
 void mps_coverage_record(const Darknet::Layer & l, bool used_mps);
 void mps_coverage_report();
@@ -113,6 +169,7 @@ namespace Darknet
 	void show_mps_info();
 }
 
+/** @} */
 #else
 
 static inline bool mps_is_available()

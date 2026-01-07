@@ -418,24 +418,28 @@ namespace
 		return cache;
 	}
 
+	/** \brief Thread-local cache for YOLO box decode buffers. \ingroup mps_postproc */
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsYoloDecodeCache>> & get_mps_yolo_decode_cache()
 	{
 		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsYoloDecodeCache>> cache;
 		return cache;
 	}
 
+	/** \brief Thread-local cache for YOLO candidate indices. \ingroup mps_postproc */
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsYoloCandidatesCache>> & get_mps_yolo_candidates_cache()
 	{
 		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsYoloCandidatesCache>> cache;
 		return cache;
 	}
 
+	/** \brief Thread-local cache for GPU NMS buffers. \ingroup mps_postproc */
 	MpsNmsCache & get_mps_nms_cache()
 	{
 		thread_local MpsNmsCache cache;
 		return cache;
 	}
 
+	/** \brief Tracks layers with deferred readback to reduce CPU syncs. \ingroup mps_backend */
 	std::unordered_set<const Darknet::Layer *> & get_mps_deferred_layers()
 	{
 		thread_local std::unordered_set<const Darknet::Layer *> deferred;
@@ -448,6 +452,7 @@ namespace
 		int cpu = 0;
 	};
 
+	/** \brief Aggregates per-layer MPS vs CPU usage when DARKNET_MPS_COVERAGE=1. \ingroup mps_backend */
 	struct MpsCoverageState
 	{
 		std::mutex mutex;

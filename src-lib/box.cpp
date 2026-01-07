@@ -974,6 +974,9 @@ static void do_nms_sort_cpu(DarknetDetection * dets, int total, int classes, flo
 }
 
 
+/** \ingroup mps_postproc
+ *  \brief Apply NMS; uses GPU NMS when DARKNET_MPS_POSTPROC is enabled on MPS builds.
+ */
 void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh)
 {
 	TAT(TATPARMS);

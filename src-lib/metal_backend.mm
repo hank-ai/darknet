@@ -13,6 +13,7 @@
 
 namespace
 {
+	/** \brief Global Metal device/queue shared across threads. \ingroup metal_backend */
 	struct MetalContext
 	{
 		id<MTLDevice> device = nil;
@@ -26,6 +27,7 @@ namespace
 		return ctx;
 	}
 
+	/** \brief Thread-local command buffer state for batched dispatch. \ingroup metal_backend */
 	struct MetalThreadContext
 	{
 		id<MTLCommandBuffer> command_buffer = nil;
@@ -106,6 +108,7 @@ namespace
 		}
 	};
 
+	/** \brief Thread-safe cache of the Metal library and pipeline states. \ingroup metal_backend */
 	struct MetalKernelCache
 	{
 		id<MTLLibrary> library = nil;
@@ -1272,6 +1275,7 @@ kernel void buffer_scale(device float *data [[buffer(0)]],
 	return pipeline;
 }
 
+	/** \brief Acquire a command buffer for a dispatch, auto-committing if created here. */
 	bool begin_dispatch(__strong id<MTLCommandBuffer> & command_buffer, bool & auto_commit, void *external_buffer)
 	{
 		auto_commit = false;
@@ -1295,6 +1299,7 @@ kernel void buffer_scale(device float *data [[buffer(0)]],
 		return true;
 	}
 
+	/** \brief Commit/wait if this dispatch created the command buffer. */
 	void end_dispatch(id<MTLCommandBuffer> command_buffer, bool auto_commit)
 	{
 		if (!auto_commit)
@@ -1343,6 +1348,7 @@ void metal_shutdown()
 	ctx.device = nil;
 }
 
+/** \brief Begin a thread-local command buffer to batch multiple dispatches. */
 void metal_begin_frame()
 {
 	if (!metal_is_available())
@@ -1359,6 +1365,7 @@ void metal_begin_frame()
 	thread_ctx.owns_command_buffer = true;
 }
 
+/** \brief Commit and wait for the thread-local command buffer. */
 void metal_end_frame()
 {
 	if (!thread_ctx.command_buffer || !thread_ctx.owns_command_buffer)
@@ -1371,6 +1378,7 @@ void metal_end_frame()
 	thread_ctx.owns_command_buffer = false;
 }
 
+/** \brief Commit and wait for outstanding thread-local work, if any. */
 void metal_flush()
 {
 	if (!thread_ctx.command_buffer || !thread_ctx.owns_command_buffer)

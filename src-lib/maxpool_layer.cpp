@@ -305,6 +305,7 @@ void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
+	/** \brief MPS maxpool fast path for inference; falls back to CPU if unsupported. */
 #ifdef DARKNET_USE_MPS
 	if (!state.train && !l.maxpool_depth && !l.antialiasing)
 	{
@@ -437,6 +438,7 @@ void forward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state
 {
 	TAT(TATPARMS);
 
+	/** \brief MPS avgpool fast path for inference; falls back to CPU if unsupported. */
 #ifdef DARKNET_USE_MPS
 	if (!state.train && !l.antialiasing)
 	{

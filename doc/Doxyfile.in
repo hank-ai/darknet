@@ -2438,7 +2438,8 @@ PREDEFINED             = OPENCV:=1 \
                          OPENMP:=1 \
                          GPU:=1 \
                          CUDNN:=1 \
-                         CUDNN_HALF:=1
+                         CUDNN_HALF:=1 \
+                         DARKNET_USE_MPS:=1
 
 # If the MACRO_EXPANSION and EXPAND_ONLY_PREDEF tags are set to YES then this
 # tag can be used to specify a list of macro names that should be expanded. The

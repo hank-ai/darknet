@@ -1,5 +1,6 @@
 #include "gemm.hpp"
 #include "darknet_internal.hpp"
+	/** \brief MPS shortcut-add fast path for inference; falls back to CPU if unsupported. */
 #ifdef DARKNET_USE_MPS
 #include "apple_mps.hpp"
 #endif
