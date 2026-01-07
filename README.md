@@ -263,7 +263,7 @@ You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run t
 ## macOS CMake Method
 
 > [!IMPORTANT]
-> Apple GPU acceleration (MPS) requires Apple Silicon (M-series).  Intel Macs will build a CPU-only version.
+> Apple GPU acceleration (MPS) is recommended on Apple Silicon. Intel Macs may work depending on GPU, but are untested. Currently, only inference is supported, training is still disabled.
 
 Install Xcode Command Line Tools, then install Homebrew (recommended):
 
@@ -289,7 +289,7 @@ brew install cmake opencv
 brew install openblas
 ```
 
-Clone Darknet and build it (MPS is enabled by default on Apple Sillicon):
+Clone Darknet and build it (MPS is enabled by default on Apple Silicon):
 
 ```sh
 git clone https://codeberg.org/CCodeRun/darknet.git

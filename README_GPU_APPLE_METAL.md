@@ -3,7 +3,7 @@
 This build uses Metal Performance Shaders (MPS) to accelerate GEMM and convolution forward paths on macOS. It does not enable the CUDA/ROCm GPU backend.
 
 ## Requirements
-- macOS 13+ on Apple Silicon (M1/M2/M3/M4)
+- macOS 13+ (Apple Silicon recommended; Intel Macs may work depending on GPU, but are untested)
 - Xcode Command Line Tools
 - CMake 3.24+
 
