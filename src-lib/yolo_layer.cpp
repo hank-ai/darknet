@@ -1,8 +1,107 @@
 #include "darknet_internal.hpp"
+#include "apple_mps.hpp"
+
+#include <unordered_map>
+#include <vector>
+#include <cstdint>
+#include <cstdlib>
+#include <limits>
 
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
+
+#ifdef DARKNET_USE_MPS
+	static inline bool mps_postproc_enabled()
+	{
+		const char *env = std::getenv("DARKNET_MPS_POSTPROC");
+		return (env && env[0] != '\0' && env[0] != '0');
+	}
+
+	struct MpsYoloBoxesCache
+	{
+		std::vector<Darknet::Box> boxes;
+	};
+
+	static thread_local std::unordered_map<const Darknet::Layer *, MpsYoloBoxesCache> mps_yolo_boxes_cache;
+
+	struct MpsYoloCandidatesCache
+	{
+		std::vector<uint32_t> indices;
+	};
+
+	static thread_local std::unordered_map<const Darknet::Layer *, MpsYoloCandidatesCache> mps_yolo_candidates_cache;
+
+	static const Darknet::Box * get_mps_yolo_boxes(const Darknet::Layer & l, int netw, int neth)
+	{
+		if (!mps_postproc_enabled())
+		{
+			return nullptr;
+		}
+
+		const size_t count = static_cast<size_t>(l.batch) * static_cast<size_t>(l.w) *
+			static_cast<size_t>(l.h) * static_cast<size_t>(l.n);
+		if (count == 0)
+		{
+			return nullptr;
+		}
+
+		auto & cache = mps_yolo_boxes_cache[&l];
+		if (cache.boxes.size() != count)
+		{
+			cache.boxes.assign(count, Darknet::Box{});
+		}
+
+		if (!mps_yolo_decode_boxes(l, l.output, netw, neth,
+				reinterpret_cast<float *>(cache.boxes.data()), nullptr))
+		{
+			return nullptr;
+		}
+
+		return cache.boxes.data();
+	}
+
+	static const uint32_t * get_mps_yolo_candidates(const Darknet::Layer & l, float thresh, uint32_t & count)
+	{
+		if (!mps_postproc_enabled())
+		{
+			return nullptr;
+		}
+
+		const size_t total = static_cast<size_t>(l.batch) * static_cast<size_t>(l.w) *
+			static_cast<size_t>(l.h) * static_cast<size_t>(l.n);
+		if (total == 0 || total > static_cast<size_t>(std::numeric_limits<uint32_t>::max()))
+		{
+			return nullptr;
+		}
+
+		uint32_t max_candidates = static_cast<uint32_t>(total);
+		const char *topk_env = std::getenv("DARKNET_MPS_POSTPROC_TOPK");
+		if (topk_env && topk_env[0] != '\0')
+		{
+			const unsigned long topk = std::strtoul(topk_env, nullptr, 10);
+			if (topk > 0 && topk < max_candidates)
+			{
+				max_candidates = static_cast<uint32_t>(topk);
+			}
+		}
+
+		auto & cache = mps_yolo_candidates_cache[&l];
+		if (cache.indices.size() < max_candidates)
+		{
+			cache.indices.resize(max_candidates);
+		}
+
+		uint32_t found = 0;
+		if (!mps_yolo_collect_candidates(l, l.output, thresh, cache.indices.data(), max_candidates, &found, nullptr))
+		{
+			return nullptr;
+		}
+
+		count = found;
+		return cache.indices.data();
+	}
+#endif
 
 
 	struct train_yolo_args
@@ -821,6 +920,19 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 
 	memcpy(l.output, state.input, l.outputs * l.batch * sizeof(float));
 
+#ifdef DARKNET_USE_MPS
+	if (!state.train)
+	{
+		if (mps_postproc_enabled())
+		{
+			if (mps_yolo_activate(l, l.output, l.output, nullptr))
+			{
+				return;
+			}
+		}
+	}
+#endif
+
 #ifndef DARKNET_GPU
 	for (int b = 0; b < l.batch; ++b)
 	{
@@ -1257,6 +1369,32 @@ int yolo_num_detections_v3(Darknet::Network * net, const int index, const float 
 
 	const Darknet::Layer & l = net->layers[index];
 
+#ifdef DARKNET_USE_MPS
+	{
+		uint32_t candidate_count = 0;
+		const uint32_t * candidates = get_mps_yolo_candidates(l, thresh, candidate_count);
+		if (candidates)
+		{
+			const int wh = l.w * l.h;
+			for (uint32_t idx = 0; idx < candidate_count; ++idx)
+			{
+				const uint32_t loc = candidates[idx];
+				const int n = static_cast<int>(loc / wh);
+				const int i = static_cast<int>(loc % wh);
+				const int obj_index = yolo_entry_index(l, 0, n * wh + i, 4);
+
+				Darknet::Output_Object oo;
+				oo.layer_index = index;
+				oo.n = n;
+				oo.i = i;
+				oo.obj_index = obj_index;
+				cache.push_back(oo);
+			}
+			return static_cast<int>(candidate_count);
+		}
+	}
+#endif
+
 	#pragma omp for schedule(dynamic, 8)
 	for (int n = 0; n < l.n; ++n)
 	{
@@ -1353,6 +1491,8 @@ int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int n
 	TAT(TATPARMS);
 
 	int count = 0;
+	const Darknet::Layer * last_layer = nullptr;
+	const Darknet::Box * mps_boxes = nullptr;
 
 	for (const auto & oo : cache)
 	{
@@ -1362,6 +1502,13 @@ int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int n
 
 		const Darknet::Layer & l = net->layers[oo.layer_index];
 		const float * predictions = l.output;
+#ifdef DARKNET_USE_MPS
+		if (last_layer != &l)
+		{
+			last_layer = &l;
+			mps_boxes = get_mps_yolo_boxes(l, netw, neth);
+		}
+#endif
 
 		const int row			= i / l.w;
 		const int col			= i % l.w;
@@ -1369,7 +1516,15 @@ int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int n
 
 		const int box_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 0);
 
-		dets[count].bbox		= get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w * l.h, l.new_coords);
+		if (mps_boxes)
+		{
+			dets[count].bbox = mps_boxes[n * l.w * l.h + i];
+		}
+		else
+		{
+			dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row,
+				l.w, l.h, netw, neth, l.w * l.h, l.new_coords);
+		}
 		dets[count].objectness	= objectness;
 		dets[count].classes		= l.classes;
 

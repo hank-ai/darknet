@@ -1,5 +1,6 @@
 #include "gemm.hpp"
 #include "darknet_internal.hpp"
+#include "apple_mps.hpp"
 
 namespace
 {
@@ -304,6 +305,21 @@ void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
+#ifdef DARKNET_USE_MPS
+	if (!state.train && !l.maxpool_depth && !l.antialiasing)
+	{
+		const Darknet::Layer *prev = mps_prev_layer(state);
+		bool defer_readback = mps_should_defer_readback(state);
+		if (mps_maxpool_forward(l, prev, state.input, l.output, defer_readback, nullptr))
+		{
+			mps_coverage_record(l, true);
+			return;
+		}
+		mps_coverage_record(l, false);
+		mps_flush_deferred_output(prev);
+	}
+#endif
+
 	if (l.maxpool_depth)
 	{
 		for (int b = 0; b < l.batch; ++b)
@@ -420,6 +436,21 @@ void backward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 void forward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
+
+#ifdef DARKNET_USE_MPS
+	if (!state.train && !l.antialiasing)
+	{
+		const Darknet::Layer *prev = mps_prev_layer(state);
+		bool defer_readback = mps_should_defer_readback(state);
+		if (mps_avgpool_forward(l, prev, state.input, l.output, defer_readback, nullptr))
+		{
+			mps_coverage_record(l, true);
+			return;
+		}
+		mps_coverage_record(l, false);
+		mps_flush_deferred_output(prev);
+	}
+#endif
 
 	int b, i, j, k, m, n;
 	int w_offset = -l.pad / 2;

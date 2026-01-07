@@ -5,6 +5,12 @@
 #include "darknet.hpp"
 #include "darknet_image.hpp"
 
+#include <atomic>
+#include <cctype>
+#include <cstdlib>
+#include <cstring>
+#include <iomanip>
+#include <sstream>
 #include <set>
 #include <thread>
 
@@ -69,6 +75,64 @@ size_t				predict_thread_starved	= 0;
 size_t				output_thread_starved	= 0;
 size_t				waiting_for_threads		= 0;
 size_t				expected_next_index		= 0; ///< keep track of which frame has been written to disk
+std::string			bench_label;
+std::string			bench_suffix;
+bool				bench_overlay_enabled	= false;
+
+std::string sanitize_label(const std::string & input)
+{
+	std::string output;
+	output.reserve(input.size());
+
+	char last = '\0';
+	for (const unsigned char ch : input)
+	{
+		if (std::isalnum(ch))
+		{
+			output.push_back(static_cast<char>(std::tolower(ch)));
+			last = output.back();
+		}
+		else if (!output.empty() && last != '_')
+		{
+			output.push_back('_');
+			last = '_';
+		}
+	}
+
+	while (!output.empty() && output.back() == '_')
+	{
+		output.pop_back();
+	}
+
+	return output;
+}
+
+static void default_bench_label_and_suffix(std::string & label, std::string & suffix)
+{
+#ifdef DARKNET_USE_MPS
+	const char *postproc_env = std::getenv("DARKNET_MPS_POSTPROC");
+	const bool postproc_on = (postproc_env && postproc_env[0] != '\0' && postproc_env[0] != '0');
+	const bool compare_on = (postproc_env && (postproc_env[0] == '2' || std::strncmp(postproc_env, "compare", 7) == 0));
+	if (postproc_on)
+	{
+		label = compare_on ? "GPU - Apple MPS (postproc compare)" : "GPU - Apple MPS (postproc)";
+		suffix = compare_on ? "mps_postproc_compare" : "mps_postproc";
+	}
+	else
+	{
+		label = "GPU - Apple MPS";
+		suffix = "mps";
+	}
+#else
+#ifdef DARKNET_USE_OPENBLAS
+	label = "CPU - OpenBLAS";
+	suffix = "openblas";
+#else
+	label = "CPU - no OpenBLAS";
+	suffix = "cpu_only";
+#endif
+#endif
+}
 
 
 void resize_thread()
@@ -154,6 +218,7 @@ void detection_thread(size_t & total_objects_found)
 
 			frame.predictions = Darknet::predict(net, frame.img, frame.mat.size());
 			Darknet::annotate(net, frame.predictions, frame.mat);
+			Darknet::free_image(frame.img); // release resized RGB buffer once inference is complete
 
 			total_objects_found += frame.predictions.size();
 
@@ -181,6 +246,8 @@ void output_thread(cv::VideoWriter & out)
 	try
 	{
 		expected_next_index = 0;
+		size_t frames_written = 0;
+		const auto output_start = std::chrono::high_resolution_clock::now();
 
 		while (all_threads_must_exit == false)
 		{
@@ -212,8 +279,29 @@ void output_thread(cv::VideoWriter & out)
 				frames_waiting_for_output.erase(iter);
 			}
 
+			if (bench_overlay_enabled)
+			{
+				const auto now = std::chrono::high_resolution_clock::now();
+				const std::chrono::duration<double> elapsed = now - output_start;
+				const double fps = (elapsed.count() > 0.0) ? (static_cast<double>(frames_written + 1) / elapsed.count()) : 0.0;
+
+				std::ostringstream oss;
+				oss << std::fixed << std::setprecision(2) << fps;
+
+				const cv::Point title_pos(12, 28);
+				const cv::Point fps_pos(12, 54);
+				const int font = cv::FONT_HERSHEY_SIMPLEX;
+				const double scale = 0.6;
+				const int thickness = 1;
+				const cv::Scalar colour(0, 255, 0);
+
+				cv::putText(frame.mat, bench_label, title_pos, font, scale, colour, thickness, cv::LINE_AA);
+				cv::putText(frame.mat, "FPS: " + oss.str(), fps_pos, font, scale, colour, thickness, cv::LINE_AA);
+			}
+
 			out.write(frame.mat);
 			expected_next_index ++;
+			frames_written ++;
 
 			const auto timestamp_end = std::chrono::high_resolution_clock::now();
 			output_work_duration += timestamp_end - timestamp_begin;
@@ -246,6 +334,31 @@ int main(int argc, char * argv[])
 		Darknet::network_dimensions(net, network_width, network_height, network_channels);
 		network_dimensions = cv::Size(network_width, network_height);
 
+		default_bench_label_and_suffix(bench_label, bench_suffix);
+		bench_overlay_enabled = !bench_label.empty();
+
+		if (const char * env_label = std::getenv("DARKNET_BENCH_LABEL"))
+		{
+			bench_label = env_label;
+			bench_overlay_enabled = !bench_label.empty();
+		}
+
+		if (const char * env_suffix = std::getenv("DARKNET_BENCH_SUFFIX"))
+		{
+			bench_suffix = env_suffix;
+		}
+		else if (bench_suffix.empty() && !bench_label.empty())
+		{
+			bench_suffix = sanitize_label(bench_label);
+		}
+
+		std::string config_stem = "config";
+		const auto config_path = Darknet::get_config_filename(parms);
+		if (!config_path.empty())
+		{
+			config_stem = config_path.stem().string();
+		}
+
 		std::vector<std::thread> threads;
 
 		for (const auto & parm : parms)
@@ -268,7 +381,23 @@ int main(int argc, char * argv[])
 			cap >> mat;
 			cap.set(cv::CAP_PROP_POS_FRAMES, 0.0);
 
-			const std::string output_filename		= std::filesystem::path(parm.string).stem().string() + "_output.m4v";
+			std::string output_filename			= std::filesystem::path(parm.string).stem().string();
+			output_filename += "_" + config_stem;
+			if (!bench_suffix.empty())
+			{
+				output_filename += "_" + bench_suffix;
+			}
+			else
+			{
+				output_filename += "_output";
+			}
+			output_filename += ".m4v";
+			std::filesystem::path output_dir		= std::filesystem::path(parm.string).parent_path();
+			if (output_dir.empty())
+			{
+				output_dir = std::filesystem::current_path();
+			}
+			const std::string output_path			= (output_dir / output_filename).string();
 			const size_t video_width				= mat.cols;
 			const size_t video_height				= mat.rows;
 			const size_t video_channels				= mat.channels();
@@ -292,10 +421,10 @@ int main(int argc, char * argv[])
 			waiting_for_threads		= 0;
 			expected_next_index		= 0;
 
-			cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), fps, cv::Size(video_width, video_height));
+			cv::VideoWriter out(output_path, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), fps, cv::Size(video_width, video_height));
 			if (not out.isOpened())
 			{
-				std::cout << "Failed to open the output video file " << output_filename << std::endl;
+				std::cout << "Failed to open the output video file " << output_path << std::endl;
 				continue;
 			}
 
@@ -327,7 +456,7 @@ int main(int argc, char * argv[])
 				<< "-> input video frame count .. " << video_frames_count							<< std::endl
 				<< "-> input video frame rate ... " << fps << " FPS"								<< std::endl
 				<< "-> input video length ....... " << Darknet::format_duration_string(std::chrono::milliseconds(video_length_milliseconds)) << std::endl
-				<< "-> output filename .......... " << output_filename								<< std::endl;
+				<< "-> output filename .......... " << output_path									<< std::endl;
 
 			const auto timestamp_when_video_started = std::chrono::high_resolution_clock::now();
 

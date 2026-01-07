@@ -2381,6 +2381,13 @@ void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 {
 	TAT(TATPARMS);
 
+#ifdef DARKNET_USE_MPS
+	if (mps_gemm(TA, TB, M, N, K, ALPHA, A, lda, B, ldb, BETA, C, ldc))
+	{
+		return;
+	}
+#endif
+
 	if (BETA != 1)
 	{
 		for(int i = 0; i < M; ++i)

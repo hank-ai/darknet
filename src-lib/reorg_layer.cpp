@@ -1,4 +1,5 @@
 #include "darknet_internal.hpp"
+#include "apple_mps.hpp"
 
 
 namespace
@@ -95,6 +96,21 @@ void resize_reorg_layer(Darknet::Layer *l, int w, int h)
 void forward_reorg_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
+
+#ifdef DARKNET_USE_MPS
+	if (!state.train && !l.reverse)
+	{
+		const Darknet::Layer *prev = mps_prev_layer(state);
+		bool defer_readback = mps_should_defer_readback(state);
+		if (mps_reorg_forward(l, prev, state.input, l.output, defer_readback, nullptr))
+		{
+			mps_coverage_record(l, true);
+			return;
+		}
+		mps_coverage_record(l, false);
+		mps_flush_deferred_output(prev);
+	}
+#endif
 
 	if (l.reverse) {
 		reorg_cpu(state.input, l.out_w, l.out_h, l.out_c, l.batch, l.stride, 1, l.output);

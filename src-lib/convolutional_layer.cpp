@@ -2,11 +2,15 @@
 #include "col2im.hpp"
 #include "gemm.hpp"
 #include "darknet_internal.hpp"
+#ifdef DARKNET_USE_MPS
+#include "apple_mps.hpp"
+#endif
+
+#include <cstdlib>
 
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
-
 
 	inline void binarize_cpu(float *input, int n, float *binary)
 	{
@@ -1440,6 +1444,50 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 
 	int out_h = convolutional_out_height(l);
 	int out_w = convolutional_out_width(l);
+
+#ifdef DARKNET_USE_MPS
+	if (!state.train && !l.binary && !l.xnor)
+	{
+		const Darknet::Layer *prev = mps_prev_layer(state);
+		bool defer_readback = mps_should_defer_readback(state);
+		bool activation_applied = false;
+		if (mps_convolution_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, nullptr))
+		{
+			mps_coverage_record(l, true);
+
+			if (!activation_applied)
+			{
+				if (l.activation == SWISH) activate_array_swish(l.output, l.outputs*l.batch, l.activation_input, l.output);
+				else if (l.activation == MISH) activate_array_mish(l.output, l.outputs*l.batch, l.activation_input, l.output);
+				else if (l.activation == HARD_MISH) activate_array_hard_mish(l.output, l.outputs*l.batch, l.activation_input, l.output);
+				else if (l.activation == NORM_CHAN) activate_array_normalize_channels(l.output, l.outputs*l.batch, l.batch, l.out_c, l.out_w*l.out_h, l.output);
+				else if (l.activation == NORM_CHAN_SOFTMAX) activate_array_normalize_channels_softmax(l.output, l.outputs*l.batch, l.batch, l.out_c, l.out_w*l.out_h, l.output, 0);
+				else if (l.activation == NORM_CHAN_SOFTMAX_MAXVAL) activate_array_normalize_channels_softmax(l.output, l.outputs*l.batch, l.batch, l.out_c, l.out_w*l.out_h, l.output, 1);
+				else activate_array_cpu_custom(l.output, l.outputs*l.batch, l.activation);
+			}
+
+			if (l.assisted_excitation && state.train)
+			{
+				assisted_excitation_forward(l, state);
+			}
+
+			if (l.antialiasing)
+			{
+				Darknet::NetworkState s = { 0 };
+				s.train = state.train;
+				s.workspace = state.workspace;
+				s.net = state.net;
+				s.input = l.output;
+				forward_convolutional_layer(*(l.input_layer), s);
+				memcpy(l.output, l.input_layer->output, l.input_layer->outputs * l.input_layer->batch * sizeof(float));
+			}
+
+			return;
+		}
+		mps_flush_deferred_output(prev);
+		mps_coverage_record(l, false);
+	}
+#endif
 
 	fill_cpu(l.outputs*l.batch, 0, l.output, 1);
 
