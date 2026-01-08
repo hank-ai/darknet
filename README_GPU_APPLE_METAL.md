@@ -42,11 +42,3 @@ If you prefer to call CPack directly, use the build config file:
 `cpack --config build/CPackConfig.cmake -G DragNDrop`.
 
 The MacOS package bundles the OpenCV dylibs used at build time. If you update OpenCV via Homebrew, reinstall or rebuild to refresh the bundled libraries.
-
-## Cleaning Install Prefix (Optional)
-TODO denizz I don't think this is true, can you verify?
-If you package from `/opt/lib/darknet` and want to wipe `bin/`, `include/`, and `lib/` before each package build, enable:
-
-```
-cmake -S . -B build -DDARKNET_TRY_MPS=ON -DDARKNET_CLEAN_INSTALL_PREFIX=ON
-```

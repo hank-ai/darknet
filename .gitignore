@@ -17,6 +17,7 @@ __pycache__/
 *.kdev4
 
 *.weights
+WORKREVIEW.md
 
 # Visual Studio C++ generated binary of .rc file
 *.aps

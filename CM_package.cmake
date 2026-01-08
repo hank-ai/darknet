@@ -11,13 +11,6 @@ SET (CPACK_PACKAGE_CONTACT "Stephane Charette <stephanecharette@gmail.com>")
 SET (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 
 IF (APPLE)
-	# TODO denizz Should the next 5 lines be deleted?  It doesn't seem to exist.
-	# Clean the install prefix before packaging, for local macOS builds only.
-#	OPTION (DARKNET_CLEAN_INSTALL_PREFIX "Remove bin/include/lib under /opt/lib/darknet before packaging" OFF)
-#	IF (DARKNET_CLEAN_INSTALL_PREFIX)
-#		SET (CPACK_PRE_INSTALL_SCRIPT "${CMAKE_CURRENT_SOURCE_DIR}/clean_install_prefix.cmake")
-#	ENDIF ()
-
 	SET (CPACK_GENERATOR "DragNDrop")
 	SET (CPACK_DMG_FORMAT "UDZO")
 	SET (CPACK_DMG_BACKGROUND_IMAGE "${CMAKE_CURRENT_SOURCE_DIR}/artwork/hankai_darknet.png")
