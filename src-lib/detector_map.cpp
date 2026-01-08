@@ -121,6 +121,9 @@ namespace
 		/// Must lock prior to modifying the STL container @ref work_ready_for_calculations.
 		std::mutex work_ready_for_calculations_mutex;
 
+		/// Set by the control thread to indicate if processing is done, or if threads need to exit early.
+		std::atomic<bool> done = false;
+
 		/// The total number of images which have been loaded from disk.
 		std::atomic<size_t> count_load_performed	= 0;
 
@@ -174,7 +177,7 @@ namespace
 			const int h = shared_info.net.h;
 			const int c = shared_info.net.c;
 
-			for (auto iter = shared_info.validation_image_filenames[loading_thread_id].begin(); iter != shared_info.validation_image_filenames[loading_thread_id].end() and cfg_and_state.must_immediately_exit == false; iter ++)
+			for (auto iter = shared_info.validation_image_filenames[loading_thread_id].begin(); iter != shared_info.validation_image_filenames[loading_thread_id].end() and cfg_and_state.must_immediately_exit == false and shared_info.done == false; iter ++)
 			{
 				if (shared_info.work_ready_for_predictions.size() >= shared_info.max_work_queue_size)
 				{
@@ -213,6 +216,7 @@ namespace
 		}
 		catch (const std::exception & e)
 		{
+			shared_info.done = true;
 			darknet_fatal_error(DARKNET_LOC, "exception caught while loading images for map: %s", e.what());
 		}
 
@@ -236,7 +240,7 @@ namespace
 			cfg_and_state.set_thread_name("map prediction thread");
 
 			std::map<std::string, WorkUnit> work_to_do;
-			while (shared_info.count_predict_performed < shared_info.total_number_of_validation_images and cfg_and_state.must_immediately_exit == false)
+			while (shared_info.count_predict_performed < shared_info.total_number_of_validation_images and cfg_and_state.must_immediately_exit == false and shared_info.done == false)
 			{
 				if (work_to_do.empty())
 				{
@@ -323,6 +327,7 @@ namespace
 		}
 		catch (const std::exception & e)
 		{
+			shared_info.done = true;
 			darknet_fatal_error(DARKNET_LOC, "exception caught while obtaining predictions for map: %s", e.what());
 		}
 
@@ -346,7 +351,7 @@ namespace
 			cfg_and_state.set_thread_name("map calculations thread");
 
 			std::map<std::string, WorkUnit> work_to_do;
-			while (shared_info.count_analyze_performed < shared_info.total_number_of_validation_images and cfg_and_state.must_immediately_exit == false)
+			while (shared_info.count_analyze_performed < shared_info.total_number_of_validation_images and cfg_and_state.must_immediately_exit == false and shared_info.done == false)
 			{
 				if (work_to_do.empty())
 				{
@@ -518,6 +523,7 @@ namespace
 		}
 		catch (const std::exception & e)
 		{
+			shared_info.done = true;
 			darknet_fatal_error(DARKNET_LOC, "exception caught while calculating results for map: %s", e.what());
 		}
 
@@ -665,11 +671,11 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 	/* WAIT UNTIL ALL THREADS ARE DONE */
 	/* ******************************* */
 
+	size_t no_change_detected		= 0;
 	size_t previous_count_analyze	= 0;
 	auto previous_timestamp			= timestamp_start;
 
-	bool done = false;
-	while (cfg_and_state.must_immediately_exit == false and not done)
+	while (cfg_and_state.must_immediately_exit == false and not shared_info.done)
 	{
 		std::this_thread::sleep_for(std::chrono::milliseconds(750));
 
@@ -677,8 +683,31 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 			shared_info.count_predict_performed	>= shared_info.total_number_of_validation_images and
 			shared_info.count_analyze_performed	>= shared_info.total_number_of_validation_images)
 		{
-			done = true;
+			shared_info.done = true;
+		}
 
+		if (previous_count_analyze != shared_info.count_analyze_performed)
+		{
+			no_change_detected = 0;
+		}
+		else
+		{
+			no_change_detected ++;
+
+			if (no_change_detected == 8) // @ 7.5 milliseconds, this means 6 seconds with nothing changed
+			{
+				Darknet::display_warning_msg("\nLoading or processing images seems to have stalled.\n");
+				*cfg_and_state.output << "(Perhaps re-run with --trace to help determine the cause?)" << std::endl;
+			}
+			if (no_change_detected > 16) // @ 7.5 milliseconds, this means 12 seconds with nothing changed
+			{
+				Darknet::display_warning_msg("\nExiting loop early since loading and processing images seems to have stalled.\n");
+				shared_info.done = true;
+			}
+		}
+
+		if (shared_info.done)
+		{
 			// show the "full" stats since this will be the last time through the loop
 			previous_count_analyze	= 0;
 			previous_timestamp		= timestamp_start;
@@ -692,7 +721,7 @@ float validate_detector_map(const char * datacfg, const char * cfgfile, const ch
 		const int loading_percentage	= std::round(100.0f * shared_info.count_load_performed		/ shared_info.total_number_of_validation_images);
 		const int predicting_percentage	= std::round(100.0f * shared_info.count_predict_performed	/ shared_info.total_number_of_validation_images);
 		const int analyzing_percentage	= std::round(100.0f * shared_info.count_analyze_performed	/ shared_info.total_number_of_validation_images);
-		const bool show_details			= (done or cfg_and_state.is_verbose or shared_info.count_predict_starved > 10);
+		const bool show_details			= (shared_info.done or cfg_and_state.is_verbose or shared_info.count_predict_starved > 10);
 
 		std::stringstream ss;
 		ss	<< "\r"
