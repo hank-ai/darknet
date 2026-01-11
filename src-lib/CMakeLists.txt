@@ -12,7 +12,6 @@ CONFIGURE_FILE (${CMAKE_CURRENT_SOURCE_DIR}/darknet_version.h.in ${CMAKE_CURRENT
 FILE (GLOB LIBSRC *.cpp)
 LIST (REMOVE_ITEM LIBSRC yolo_v2_class.cpp)
 
-# TODO denizz check that this works as expected now that I've moved the files into an apple-specific directory
 IF (DARKNET_USE_MPS)
 	INCLUDE_DIRECTORIES (apple)
 	LIST (APPEND LIBSRC apple/apple_mps.mm)

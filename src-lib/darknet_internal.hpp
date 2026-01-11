@@ -62,7 +62,7 @@
 #include "darknet_version.h"			// version macros
 
 #ifdef DARKNET_USE_MPS
-#include "apple_mps.hpp"
+#include "apple/apple_mps.hpp"
 #endif
 
 

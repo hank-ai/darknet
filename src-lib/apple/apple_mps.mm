@@ -9,17 +9,9 @@
 #import <Metal/Metal.h>
 #import <MetalPerformanceShaders/MetalPerformanceShaders.h>
 
-/// @todo denizz Why are all these needed?  Aren't they already in darknet_internal.hpp?
 #include <cstring>
-#include <cstdlib>
-#include <unordered_map>
-#include <unordered_set>
 #include <memory>
-#include <vector>
-#include <string>
-#include <algorithm>
-#include <mutex>
-#include <limits>
+#include <unordered_set>
 
 @interface MpsBatchNormDataSource : NSObject <MPSCNNBatchNormalizationDataSource>
 {
@@ -3887,14 +3879,6 @@ void Darknet::show_mps_info()
 
 	*cfg_and_state.output << std::endl;
 
-	#error "denizz please remove calls to getenv()"
-	const char *self_test = std::getenv("DARKNET_METAL_SELF_TEST");
-	if (self_test && self_test[0] == '1')
-	{
-		const bool ok = metal_self_test();
-		*cfg_and_state.output << "Metal backend self-test: "
-			<< (ok ? "OK" : "FAILED") << std::endl;
-	}
 }
 
 #endif // DARKNET_USE_MPS
