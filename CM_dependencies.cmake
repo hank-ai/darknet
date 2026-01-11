@@ -275,38 +275,6 @@ FIND_PACKAGE (OpenCV REQUIRED)
 MESSAGE (STATUS "Found OpenCV ${OpenCV_VERSION}")
 INCLUDE_DIRECTORIES (${OpenCV_INCLUDE_DIRS})
 LIST (APPEND DARKNET_LINK_LIBS ${OpenCV_LIBS})
-CMAKE_DEPENDENT_OPTION (DARKNET_BUNDLE_OPENCV "Bundle OpenCV dylibs into the macOS package and set install rpaths" ON "APPLE" OFF)
-IF (APPLE AND DARKNET_BUNDLE_OPENCV)
-	# TODO denizz: This is only needed for packaging (DMG) to bundle OpenCV dylibs and add install rpaths.
-	#             Regular local builds work without this, but packaged apps can break after Homebrew updates if we skip it.
-	SET (DARKNET_OPENCV_LIB_FILES "")
-	SET (DARKNET_OPENCV_RPATHS "")
-	IF (OpenCV_LIBRARY_DIRS)
-		LIST (APPEND DARKNET_OPENCV_RPATHS ${OpenCV_LIBRARY_DIRS})
-	ENDIF ()
-	FOREACH (lib ${OpenCV_LIBS})
-		IF (IS_ABSOLUTE "${lib}")
-			GET_FILENAME_COMPONENT (lib_dir "${lib}" DIRECTORY)
-			LIST (APPEND DARKNET_OPENCV_LIB_FILES "${lib}")
-			LIST (APPEND DARKNET_OPENCV_RPATHS "${lib_dir}")
-		ELSEIF (OpenCV_LIBRARY_DIRS)
-			FIND_LIBRARY (opencv_lib_${lib} NAMES ${lib} PATHS ${OpenCV_LIBRARY_DIRS} NO_DEFAULT_PATH)
-			IF (opencv_lib_${lib})
-				LIST (APPEND DARKNET_OPENCV_LIB_FILES "${opencv_lib_${lib}}")
-				GET_FILENAME_COMPONENT (lib_dir "${opencv_lib_${lib}}" DIRECTORY)
-				LIST (APPEND DARKNET_OPENCV_RPATHS "${lib_dir}")
-			ENDIF ()
-		ENDIF ()
-	ENDFOREACH ()
-	LIST (REMOVE_DUPLICATES DARKNET_OPENCV_LIB_FILES)
-	LIST (REMOVE_DUPLICATES DARKNET_OPENCV_RPATHS)
-	IF (DARKNET_OPENCV_RPATHS)
-		LIST (APPEND CMAKE_INSTALL_RPATH ${DARKNET_OPENCV_RPATHS})
-	ENDIF ()
-	# Also search the install lib dir for packaged dylibs.
-	LIST (APPEND CMAKE_INSTALL_RPATH "@loader_path/../lib")
-ENDIF ()
-
 
 # ============
 # == OpenMP ==
