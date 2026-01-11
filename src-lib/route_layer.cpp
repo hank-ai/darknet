@@ -1,5 +1,6 @@
 #include "darknet_internal.hpp"
 
+
 Darknet::Layer make_route_layer(int batch, int n, int *input_layers, int *input_sizes, int groups, int group_id)
 {
 	TAT(TATPARMS);
@@ -85,10 +86,24 @@ void forward_route_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
+#ifdef DARKNET_USE_MPS
+	if (not state.train)
+	{
+		bool defer_readback = mps_should_defer_readback(state);
+		if (mps_route_forward(l, state.net, l.output, defer_readback, nullptr))
+		{
+			return;
+		}
+	}
+#endif
+
 	int offset = 0;
 	for (int i = 0; i < l.n; ++i)
 	{
 		int index = l.input_layers[i];
+#ifdef DARKNET_USE_MPS
+		mps_flush_deferred_output(&state.net.layers[index]);
+#endif
 		float *input = state.net.layers[index].output;
 		int input_size = l.input_sizes[i];
 		int part_input_size = input_size / l.groups;

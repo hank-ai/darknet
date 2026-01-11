@@ -139,10 +139,36 @@ ELSE ()
 ENDIF ()
 
 
+# =====================
+# == Apple Metal/MPS ==
+# =====================
+IF (APPLE)
+	CMAKE_DEPENDENT_OPTION (DARKNET_TRY_MPS "Attempt to find Apple Metal/MPS support" ON "" ON)
+	IF (DARKNET_TRY_MPS)
+		FIND_LIBRARY (APPLE_METAL Metal)
+		FIND_LIBRARY (APPLE_MPS MetalPerformanceShaders)
+		FIND_LIBRARY (APPLE_FOUNDATION Foundation)
+		IF (APPLE_METAL AND APPLE_MPS AND APPLE_FOUNDATION)
+			MESSAGE (STATUS "Apple Metal/MPS detected. Darknet will use MPS for inference acceleration.")
+			SET (DARKNET_USE_MPS ON)
+			SET (CMAKE_OBJCXX_STANDARD 17)
+			SET (CMAKE_OBJCXX_STANDARD_REQUIRED ON)
+			ENABLE_LANGUAGE (OBJCXX)
+			ADD_COMPILE_DEFINITIONS (DARKNET_USE_MPS)
+			LIST (APPEND DARKNET_LINK_LIBS ${APPLE_METAL} ${APPLE_MPS} ${APPLE_FOUNDATION})
+		ELSE ()
+			MESSAGE (WARNING "Apple Metal/MPS not found.")
+		ENDIF ()
+	ELSE ()
+		MESSAGE (WARNING "Apple Metal/MPS support is disabled.")
+	ENDIF ()
+ENDIF ()
+
+
 # ==============
 # == CPU-only ==
 # ==============
-IF (NOT DARKNET_USE_CUDA AND NOT DARKNET_USE_ROCM)
+IF (NOT DARKNET_USE_CUDA AND NOT DARKNET_USE_ROCM AND NOT DARKNET_USE_MPS)
 	SET (DARKNET_DETECTED_CPU_ONLY TRUE)
 	MESSAGE (WARNING "Neither NVIDIA CUDA nor AMD ROCm detected.  Darknet will be CPU-only.")
 ENDIF ()
@@ -249,7 +275,6 @@ FIND_PACKAGE (OpenCV REQUIRED)
 MESSAGE (STATUS "Found OpenCV ${OpenCV_VERSION}")
 INCLUDE_DIRECTORIES (${OpenCV_INCLUDE_DIRS})
 LIST (APPEND DARKNET_LINK_LIBS ${OpenCV_LIBS})
-
 
 # ============
 # == OpenMP ==

@@ -33,6 +33,13 @@ The AMD GPU that should be used when compiling ROCm source files.  This needs to
 
 	cmake -DCMAKE_HIP_ARCHITECTURES=gfx1101 ...
 
+### Apple GPU (Metal/MPS)
+
+Attempt to discover if the system has Apple MPS available.  The default is `ON` on MacOS.
+
+	cmake -DDARKNET_TRY_MPS=ON ...
+	cmake -DDARKNET_TRY_MPS=OFF ...
+
 ### Other Optimizations
 
 Some older computers don't have the full SSE and AVX implementation.  This results in a "illegal instruction" trap when running Darknet/YOLO.  (See the [FAQ](https://www.ccoderun.ca/programming/yolo_faq/#illegal_instruction).)  On those older computers, you'll need to disable SSE and AVX.  The default is `ON`.

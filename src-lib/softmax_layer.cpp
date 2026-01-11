@@ -60,6 +60,18 @@ void forward_softmax_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
+#ifdef DARKNET_USE_MPS
+	if (not state.train)
+	{
+		const Darknet::Layer *prev = mps_prev_layer(state);
+		if (mps_softmax_forward(l, prev, state.input, l.output, nullptr))
+		{
+			return;
+		}
+		mps_flush_deferred_output(prev);
+	}
+#endif
+
 	if(l.softmax_tree){
 		int i;
 		int count = 0;
