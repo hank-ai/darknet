@@ -20,7 +20,11 @@
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <ciso646>
+#if __has_include(<version>)
+#  include <version>
+#else
+#  include <ciso646>
+#endif
 
 // C++ headers
 #include <chrono>
