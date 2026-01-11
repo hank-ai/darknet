@@ -1,6 +1,5 @@
 #include "darknet_internal.hpp"
 
-
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
@@ -1370,9 +1369,7 @@ int get_yolo_detections_v3(Darknet::Network * net, int w, int h, int netw, int n
 
 		const int box_index = yolo_entry_index(l, 0, n * l.w * l.h + i, 0);
 
-		{
-			dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w * l.h, l.new_coords);
-		}
+		dets[count].bbox = get_yolo_box(predictions, l.biases, l.mask[n], box_index, col, row, l.w, l.h, netw, neth, l.w * l.h, l.new_coords);
 		dets[count].objectness	= objectness;
 		dets[count].classes		= l.classes;
 

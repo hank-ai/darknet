@@ -15,11 +15,6 @@ IF (APPLE)
 	SET (CPACK_DMG_FORMAT "UDZO")
 	SET (CPACK_DMG_BACKGROUND_IMAGE "${CMAKE_CURRENT_SOURCE_DIR}/artwork/hankai_darknet.png")
 
-	# Bundle OpenCV dylibs for macOS packages so binaries keep working after Homebrew updates.
-	IF (DARKNET_OPENCV_LIB_FILES)
-		INSTALL (FILES ${DARKNET_OPENCV_LIB_FILES} DESTINATION lib)
-	ENDIF ()
-
 ELSEIF (UNIX)
 
 	# You need to pick one package file type, and comment out the other.

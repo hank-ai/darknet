@@ -936,11 +936,28 @@ void do_nms_obj(DarknetDetection *dets, int total, int classes, float thresh)
 }
 
 
-static void do_nms_sort_cpu(DarknetDetection * dets, int total, int classes, float thresh)
+void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh)
 {
 	TAT(TATPARMS);
+	// this is a "C" function call
+	// this is called from everywhere
 
-	for (int k = 0; k < classes; ++k)
+	// move all items with zero objectness to the end of the array
+	int k = total - 1;
+	for (int i = 0; i <= k; ++i)
+	{
+		if (dets[i].objectness == 0)
+		{
+			std::swap(dets[i], dets[k]);
+			--k;
+			--i;
+		}
+	}
+
+	// reset the size "total" to exclude the zero objectness
+	total = k + 1;
+
+	for (k = 0; k < classes; ++k)
 	{
 		for (int i = 0; i < total; ++i)
 		{
@@ -964,35 +981,12 @@ static void do_nms_sort_cpu(DarknetDetection * dets, int total, int classes, flo
 
 				if (box_iou(a, b) > thresh)
 				{
+					// suppress "j" and keep "i"
 					dets[j].prob[k] = 0.0f;
 				}
 			}
 		}
 	}
-}
-
-void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh)
-{
-	TAT(TATPARMS);
-	// this is a "C" function call
-	// this is called from everywhere
-
-	// move all items with zero objectness to the end of the array
-	int k = total - 1;
-	for (int i = 0; i <= k; ++i)
-	{
-		if (dets[i].objectness == 0)
-		{
-			std::swap(dets[i], dets[k]);
-			--k;
-			--i;
-		}
-	}
-
-	// reset the size "total" to exclude the zero objectness
-	total = k + 1;
-
-	do_nms_sort_cpu(dets, total, classes, thresh);
 
 	return;
 }
