@@ -275,8 +275,10 @@ FIND_PACKAGE (OpenCV REQUIRED)
 MESSAGE (STATUS "Found OpenCV ${OpenCV_VERSION}")
 INCLUDE_DIRECTORIES (${OpenCV_INCLUDE_DIRS})
 LIST (APPEND DARKNET_LINK_LIBS ${OpenCV_LIBS})
-IF (APPLE)
-	# TODO denizz are you certain all of this is necessary?  People build Darknet on Mac all the time without all of this being required.
+CMAKE_DEPENDENT_OPTION (DARKNET_BUNDLE_OPENCV "Bundle OpenCV dylibs into the macOS package and set install rpaths" ON "APPLE" OFF)
+IF (APPLE AND DARKNET_BUNDLE_OPENCV)
+	# TODO denizz: This is only needed for packaging (DMG) to bundle OpenCV dylibs and add install rpaths.
+	#             Regular local builds work without this, but packaged apps can break after Homebrew updates if we skip it.
 	SET (DARKNET_OPENCV_LIB_FILES "")
 	SET (DARKNET_OPENCV_RPATHS "")
 	IF (OpenCV_LIBRARY_DIRS)
