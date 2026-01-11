@@ -90,13 +90,6 @@ static inline void gemm_cpu(int TA, int TB, int M, int N, int K, float ALPHA,
 	float *C, int ldc)
 {
 	TAT(TATPARMS);
-#ifdef DARKNET_USE_MPS
-	/// @todo denizz Does this call make sense?  This is when the user has chosen OpenBLAS.
-	if (mps_gemm(TA, TB, M, N, K, ALPHA, A, lda, B, ldb, BETA, C, ldc))
-	{
-		return;
-	}
-#endif
 	// redirect the gemm() call to OpenBLAS
 	cblas_sgemm(
 		CblasRowMajor,
