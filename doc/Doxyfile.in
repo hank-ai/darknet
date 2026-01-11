@@ -2434,9 +2434,16 @@ INCLUDE_FILE_PATTERNS  =
 # recursively expanded use the := operator instead of the = operator.
 # This tag requires that the tag ENABLE_PREPROCESSING is set to YES.
 
-PREDEFINED             = OPENCV:=1 \
-                         OPENMP:=1 \
-                         GPU:=1 \
+PREDEFINED             = DARKNET_USE_ROCM:=1 \
+                         DARKNET_GPU_ROCM:=1 \
+                         DARKNET_PROFILE_GEN:=1 \
+                         DARKNET_PROFILE_USE:=1 \
+                         DARKNET_GPU_CUDA:=1 \
+                         DARKNET_GPU:=1 \
+                         DARKNET_USE_OPENBLAS:=1 \
+                         DARKNET_OPENMP:=1 \
+                         DARKNET_TIMING_AND_TRACKING_ENABLED:=1 \
+                         DARKNET_HAS_PROTOBUF:=1 \
                          CUDNN:=1 \
                          CUDNN_HALF:=1
 
