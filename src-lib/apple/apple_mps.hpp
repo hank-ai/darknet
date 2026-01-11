@@ -103,28 +103,6 @@ bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
  */
 bool mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, const char **reason);
-/**
- * \brief Apply YOLO activation on GPU for the layer output.
- */
-bool mps_yolo_activate(const Darknet::Layer & l, const float *input, float *output, const char **reason);
-/**
- * \brief Decode YOLO boxes on GPU (post-processing).
- */
-bool mps_yolo_decode_boxes(const Darknet::Layer & l, const float *input, int netw, int neth, float *boxes, const char **reason);
-/**
- * \brief Collect YOLO candidates on GPU (post-processing).
- */
-bool mps_yolo_collect_candidates(const Darknet::Layer & l, const float *input, float thresh,
-	uint32_t *indices, uint32_t max_candidates, uint32_t *count, const char **reason);
-/**
- * \brief Apply GPU NMS suppression on sorted candidate order.
- */
-bool mps_nms_suppress(const Darknet::Box *boxes, float *scores, const uint32_t *order,
-	uint32_t order_count, uint32_t total, float thresh, const char **reason);
-/**
- * \brief Run GPU NMS sort in-place for detections.
- */
-bool mps_nms_sort(DarknetDetection *dets, int total, int classes, float thresh, const char **reason);
 
 static inline bool mps_maxpool_forward(const Darknet::Layer & l, const float *input, float *output)
 {
@@ -274,33 +252,6 @@ static inline bool mps_connected_forward(const Darknet::Layer &, const Darknet::
 
 static inline bool mps_softmax_forward(const Darknet::Layer &, const Darknet::Layer *,
 	const float *, float *, const char **)
-{
-	return false;
-}
-
-static inline bool mps_yolo_activate(const Darknet::Layer &, const float *, float *, const char **)
-{
-	return false;
-}
-
-static inline bool mps_yolo_decode_boxes(const Darknet::Layer &, const float *, int, int, float *, const char **)
-{
-	return false;
-}
-
-static inline bool mps_yolo_collect_candidates(const Darknet::Layer &, const float *, float,
-	uint32_t *, uint32_t, uint32_t *, const char **)
-{
-	return false;
-}
-
-static inline bool mps_nms_sort(DarknetDetection *, int, int, float, const char **)
-{
-	return false;
-}
-
-static inline bool mps_nms_suppress(const Darknet::Box *, float *, const uint32_t *,
-	uint32_t, uint32_t, float, const char **)
 {
 	return false;
 }

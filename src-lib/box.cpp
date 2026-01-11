@@ -971,10 +971,6 @@ static void do_nms_sort_cpu(DarknetDetection * dets, int total, int classes, flo
 	}
 }
 
-
-/** @ingroup mps_postproc
- *  @brief Apply NMS; uses GPU NMS when DARKNET_MPS_POSTPROC is enabled on MPS builds.
- */
 void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh)
 {
 	TAT(TATPARMS);
@@ -995,122 +991,6 @@ void do_nms_sort(DarknetDetection * dets, int total, int classes, float thresh)
 
 	// reset the size "total" to exclude the zero objectness
 	total = k + 1;
-
-/// @todo denizz The next hundred lines or so needs some cleanup to make it easier to maintain, especially for people without a Mac.
-
-#ifdef DARKNET_USE_MPS
-	#error "Needs review before merge."
-	/// @todo We definitely should not be reading values from the environment.  Is there a reason why this needs to be dynamically enabled/disabled at runtime?
-	bool compare_gpu = false;
-	std::vector<DarknetDetection> dets_copy;
-	/// @todo Note this already exists.  See VFloat in darknet.hpp.
-	std::vector<float> probs_copy;
-	const char *postproc_env = std::getenv("DARKNET_MPS_POSTPROC");
-	const bool postproc_enabled = (postproc_env && postproc_env[0] != '\0' && postproc_env[0] != '0');
-	/// @todo Get rid of strncmp() -- let's discuss whether this is required and if so, how to have this functionality.
-	if (postproc_env && (postproc_env[0] == '2' || std::strncmp(postproc_env, "compare", 7) == 0))
-	{
-		compare_gpu = true;
-		dets_copy.resize(static_cast<size_t>(total));
-		probs_copy.assign(static_cast<size_t>(total) * static_cast<size_t>(classes), 0.0f);
-		for (int i = 0; i < total; ++i)
-		{
-			dets_copy[i] = dets[i];
-			dets_copy[i].prob = probs_copy.data() + static_cast<size_t>(i) * static_cast<size_t>(classes);
-			if (dets[i].prob)
-			{
-				std::memcpy(dets_copy[i].prob, dets[i].prob, sizeof(float) * static_cast<size_t>(classes));
-			}
-		}
-	}
-#endif
-	/// @todo why #endif DARKNET_USE_MPS and then immediately start a new one?
-#ifdef DARKNET_USE_MPS
-	{
-		if (postproc_enabled)
-		{
-			std::vector<Darknet::Box> boxes(static_cast<size_t>(total));
-			std::vector<float> scores(static_cast<size_t>(total));
-			std::vector<uint32_t> order(static_cast<size_t>(total));
-			for (int i = 0; i < total; ++i)
-			{
-				order[static_cast<size_t>(i)] = static_cast<uint32_t>(i);
-			}
-
-			bool gpu_ok = true;
-			/// @todo prefer using the modern "not", "or", and "and" over !, || and &&
-			for (int k = 0; k < classes && gpu_ok; ++k)
-			{
-				for (int i = 0; i < total; ++i)
-				{
-					dets[i].sort_class = k;
-				}
-				sort_box_detections(dets, total);
-
-				for (int i = 0; i < total; ++i)
-				{
-					boxes[static_cast<size_t>(i)] = dets[i].bbox;
-					scores[static_cast<size_t>(i)] = dets[i].prob ? dets[i].prob[k] : 0.0f;
-				}
-
-				if (!mps_nms_suppress(boxes.data(), scores.data(), order.data(),
-						static_cast<uint32_t>(total), static_cast<uint32_t>(total), thresh, nullptr))
-				{
-					gpu_ok = false;
-					break;
-				}
-
-				for (int i = 0; i < total; ++i)
-				{
-					if (dets[i].prob)
-					{
-						dets[i].prob[k] = scores[static_cast<size_t>(i)];
-					}
-				}
-			}
-
-			if (gpu_ok)
-			{
-/// @todo aren't we already in a DARKNET_USE_MPS block?
-#ifdef DARKNET_USE_MPS
-				if (compare_gpu)
-				{
-					int mismatches = 0;
-					float max_diff = 0.0f;
-					do_nms_sort_cpu(dets_copy.data(), total, classes, thresh);
-					for (int i = 0; i < total; ++i)
-					{
-						for (int k = 0; k < classes; ++k)
-						{
-							const float cpu_val = dets_copy[i].prob ? dets_copy[i].prob[k] : 0.0f;
-							const float gpu_val = dets[i].prob ? dets[i].prob[k] : 0.0f;
-							const float diff = std::fabs(cpu_val - gpu_val);
-							if (diff > 1e-5f)
-							{
-								if (++mismatches <= 5)
-								{
-									*cfg_and_state.output << "NMS compare mismatch idx=" << i
-										<< " class=" << k << " cpu=" << cpu_val << " gpu=" << gpu_val << std::endl;
-								}
-								if (diff > max_diff)
-								{
-									max_diff = diff;
-								}
-							}
-						}
-					}
-					if (mismatches > 0)
-					{
-						*cfg_and_state.output << "NMS compare total mismatches=" << mismatches
-							<< " max_diff=" << max_diff << std::endl;
-					}
-				}
-#endif
-				return;
-			}
-		}
-	}
-#endif
 
 	do_nms_sort_cpu(dets, total, classes, thresh);
 

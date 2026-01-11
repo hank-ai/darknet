@@ -22,8 +22,6 @@ make -j4
 - ReLU/leaky/linear run on GPU; normalize_channels and some edge cases still fall back to CPU.
 - Consecutive MPS layers reuse cached MPS outputs as inputs to reduce CPU→GPU copies.
 - Grouped convolution is supported when the local MPS API exposes grouped conv; otherwise it falls back to CPU. Dilation falls back to CPU if unsupported by MPS.
-TODO denizz fix this next line once environment variable changes are complete
-- YOLO post-processing can run on GPU with `DARKNET_MPS_POSTPROC=1` (decode + candidate filter + NMS). Use `DARKNET_MPS_POSTPROC=2` or `DARKNET_MPS_POSTPROC=compare` to compare GPU vs CPU NMS.
 - MPSGraph is not currently supported in this build.
 - Training is not targeted in this milestone.
 
