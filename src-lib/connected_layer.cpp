@@ -191,14 +191,12 @@ void forward_connected_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		bool activation_applied = false;
 		if (mps_connected_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, nullptr))
 		{
-			mps_coverage_record(l, true);
 			if (not activation_applied)
 			{
 				activate_array(l.output, l.outputs*l.batch, l.activation);
 			}
 			return;
 		}
-		mps_coverage_record(l, false);
 		mps_flush_deferred_output(prev);
 	}
 #endif

@@ -312,10 +312,8 @@ void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		bool defer_readback = mps_should_defer_readback(state);
 		if (mps_maxpool_forward(l, prev, state.input, l.output, defer_readback, nullptr))
 		{
-			mps_coverage_record(l, true);
 			return;
 		}
-		mps_coverage_record(l, false);
 		mps_flush_deferred_output(prev);
 	}
 #endif
@@ -445,10 +443,8 @@ void forward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state
 		bool defer_readback = mps_should_defer_readback(state);
 		if (mps_avgpool_forward(l, prev, state.input, l.output, defer_readback, nullptr))
 		{
-			mps_coverage_record(l, true);
 			return;
 		}
-		mps_coverage_record(l, false);
 		mps_flush_deferred_output(prev);
 	}
 #endif

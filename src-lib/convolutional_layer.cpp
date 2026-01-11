@@ -1448,8 +1448,6 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 		bool activation_applied = false;
 		if (mps_convolution_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, nullptr))
 		{
-			mps_coverage_record(l, true);
-
 			if (not activation_applied)
 			{
 				if (l.activation == SWISH) activate_array_swish(l.output, l.outputs*l.batch, l.activation_input, l.output);
@@ -1480,7 +1478,6 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 			return;
 		}
 		mps_flush_deferred_output(prev);
-		mps_coverage_record(l, false);
 	}
 #endif
 

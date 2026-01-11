@@ -495,117 +495,6 @@ namespace
 		return deferred;
 	}
 
-	struct MpsCoverageCounters
-	{
-		int mps = 0;
-		int cpu = 0;
-	};
-
-	/** \brief Aggregates per-layer MPS vs CPU usage when DARKNET_MPS_COVERAGE=1. \ingroup mps_backend */
-	struct MpsCoverageState
-	{
-		std::mutex mutex;
-		std::unordered_set<const Darknet::Layer *> seen;
-		std::unordered_map<int, MpsCoverageCounters> counters;
-		bool registered = false;
-	};
-
-	MpsCoverageState & get_mps_coverage_state()
-	{
-		static MpsCoverageState state;
-		return state;
-	}
-
-	void mps_coverage_report_impl();
-
-	bool mps_coverage_enabled_impl()
-	{
-		static int enabled = -1;
-		if (enabled < 0)
-		{
-			const char *env = std::getenv("DARKNET_MPS_COVERAGE");
-			enabled = (env && *env) ? 1 : 0;
-		}
-		return enabled == 1;
-	}
-
-	void mps_coverage_record_impl(const Darknet::Layer & l, bool used_mps)
-	{
-		if (!mps_coverage_enabled_impl())
-		{
-			return;
-		}
-
-		auto & state = get_mps_coverage_state();
-		std::scoped_lock lock(state.mutex);
-		if (!state.seen.insert(&l).second)
-		{
-			return;
-		}
-
-		auto & counter = state.counters[static_cast<int>(l.type)];
-		if (used_mps)
-		{
-			counter.mps += 1;
-		}
-		else
-		{
-			counter.cpu += 1;
-		}
-
-		if (!state.registered)
-		{
-			state.registered = true;
-			std::atexit(mps_coverage_report_impl);
-		}
-	}
-
-	void mps_coverage_report_impl()
-	{
-		if (!mps_coverage_enabled_impl())
-		{
-			return;
-		}
-
-		auto & state = get_mps_coverage_state();
-		std::scoped_lock lock(state.mutex);
-		if (state.counters.empty())
-		{
-			return;
-		}
-
-		struct Entry
-		{
-			int type = 0;
-			MpsCoverageCounters counters;
-		};
-		std::vector<Entry> entries;
-		entries.reserve(state.counters.size());
-		for (const auto & it : state.counters)
-		{
-			entries.push_back({ it.first, it.second });
-		}
-		std::sort(entries.begin(), entries.end(), [](const Entry & a, const Entry & b)
-		{
-			return a.type < b.type;
-		});
-
-		auto & cfg_and_state = Darknet::CfgAndState::get();
-		*cfg_and_state.output << "MPS coverage summary (per layer):" << std::endl;
-		*cfg_and_state.output << "  layer_type | mps | cpu | coverage" << std::endl;
-		for (const auto & entry : entries)
-		{
-			const int total = entry.counters.mps + entry.counters.cpu;
-			const float coverage = total > 0 ? (100.0f * entry.counters.mps / total) : 0.0f;
-			const auto label = Darknet::to_string(static_cast<Darknet::ELayerType>(entry.type));
-			*cfg_and_state.output
-				<< "  " << label
-				<< " | " << entry.counters.mps
-				<< " | " << entry.counters.cpu
-				<< " | " << coverage << "%" << std::endl;
-		}
-	}
-
 	void reset_conv_images(MpsConvCache & cache);
 	void reset_pool_images(MpsPoolCache & cache);
 	void reset_global_avgpool_images(MpsGlobalAvgPoolCache & cache);
@@ -2000,21 +1889,6 @@ namespace
 
 		return true;
 	}
-}
-
-bool mps_coverage_enabled()
-{
-	return mps_coverage_enabled_impl();
-}
-
-void mps_coverage_record(const Darknet::Layer & l, bool used_mps)
-{
-	mps_coverage_record_impl(l, used_mps);
-}
-
-void mps_coverage_report()
-{
-	mps_coverage_report_impl();
 }
 
 bool mps_is_available()

@@ -92,10 +92,8 @@ void forward_route_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		bool defer_readback = mps_should_defer_readback(state);
 		if (mps_route_forward(l, state.net, l.output, defer_readback, nullptr))
 		{
-			mps_coverage_record(l, true);
 			return;
 		}
-		mps_coverage_record(l, false);
 	}
 #endif
 

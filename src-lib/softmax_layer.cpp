@@ -66,10 +66,8 @@ void forward_softmax_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		const Darknet::Layer *prev = mps_prev_layer(state);
 		if (mps_softmax_forward(l, prev, state.input, l.output, nullptr))
 		{
-			mps_coverage_record(l, true);
 			return;
 		}
-		mps_coverage_record(l, false);
 		mps_flush_deferred_output(prev);
 	}
 #endif

@@ -179,13 +179,6 @@ void mps_flush_output_if_needed(const Darknet::Layer *layer, float *output);
 const Darknet::Layer *mps_prev_layer(const Darknet::NetworkState &state);
 bool mps_should_defer_readback(const Darknet::NetworkState &state);
 void mps_flush_deferred_output(const Darknet::Layer *layer);
-/**
- * \brief Enable/record/report per-layer MPS coverage (set DARKNET_MPS_COVERAGE=1).
- */
-bool mps_coverage_enabled();
-void mps_coverage_record(const Darknet::Layer & l, bool used_mps);
-void mps_coverage_report();
-
 namespace Darknet
 {
 	void show_mps_info();
@@ -354,21 +347,6 @@ static inline bool mps_should_defer_readback(const Darknet::NetworkState &)
 }
 
 static inline void mps_flush_deferred_output(const Darknet::Layer *)
-{
-	return;
-}
-
-static inline bool mps_coverage_enabled()
-{
-	return false;
-}
-
-static inline void mps_coverage_record(const Darknet::Layer &, bool)
-{
-	return;
-}
-
-static inline void mps_coverage_report()
 {
 	return;
 }
