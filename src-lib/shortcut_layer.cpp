@@ -1,6 +1,7 @@
 #include "gemm.hpp"
 #include "darknet_internal.hpp"
 
+
 Darknet::Layer make_shortcut_layer(int batch, int n, int *input_layers, int* input_sizes, int w, int h, int c,
 	float **layers_output, float **layers_delta, float **layers_output_gpu, float **layers_delta_gpu, WEIGHTS_TYPE_T weights_type, WEIGHTS_NORMALIZATION_T weights_normalization,
 	ACTIVATION activation, int train)
@@ -170,6 +171,34 @@ void resize_shortcut_layer(Darknet::Layer *l, int w, int h, Darknet::Network * n
 void forward_shortcut_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
+
+#ifdef DARKNET_USE_MPS
+	if (not state.train and l.nweights == 0 and l.n == 1 and l.input_sizes and l.input_sizes[0] == l.outputs)
+	{
+		const Darknet::Layer *prev = mps_prev_layer(state);
+		const Darknet::Layer *from = &state.net.layers[l.index];
+		bool defer_readback = mps_should_defer_readback(state);
+		bool activation_applied = false;
+		if (mps_shortcut_forward(l, prev, from, state.input, l.output, defer_readback, &activation_applied, nullptr))
+		{
+			if (!activation_applied)
+			{
+				if (l.activation == SWISH) activate_array_swish(l.output, l.outputs*l.batch, l.activation_input, l.output);
+				else if (l.activation == MISH) activate_array_mish(l.output, l.outputs*l.batch, l.activation_input, l.output);
+				else activate_array_cpu_custom(l.output, l.outputs*l.batch, l.activation);
+			}
+			return;
+		}
+		mps_flush_deferred_output(prev);
+		mps_flush_deferred_output(from);
+	}
+
+	for (int i = 0; i < l.n; ++i)
+	{
+		int index = l.input_layers[i];
+		mps_flush_deferred_output(&state.net.layers[index]);
+	}
+#endif
 
 	int from_w = state.net.layers[l.index].w;
 	int from_h = state.net.layers[l.index].h;

@@ -2444,6 +2444,7 @@ PREDEFINED             = DARKNET_USE_ROCM:=1 \
                          DARKNET_OPENMP:=1 \
                          DARKNET_TIMING_AND_TRACKING_ENABLED:=1 \
                          DARKNET_HAS_PROTOBUF:=1 \
+                         DARKNET_USE_MPS:=1 \
                          CUDNN:=1 \
                          CUDNN_HALF:=1
 

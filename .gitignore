@@ -12,6 +12,8 @@ __pycache__/
 .vscode
 *.kdev4
 
+.DS_Store
+
 *.weights
 
 # Visual Studio C++ generated binary of .rc file
