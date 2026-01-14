@@ -1147,12 +1147,12 @@ Darknet::NetworkPtr Darknet::load_neural_network(const std::filesystem::path & c
 
 	if (cfg_filename.empty())
 	{
-		throw std::invalid_argument("cannot load a neural network without a configuration file (filename is blank)");
+		throw std::invalid_argument("cannot load a neural network without a configuration file (filename is blank or not specified)");
 	}
 
 	if (weights_filename.empty())
 	{
-		throw std::invalid_argument("cannot load a neural network without a weights file (filename is blank)");
+		throw std::invalid_argument("cannot load a neural network without a weights file (filename is blank or not specified)");
 	}
 
 	if (not std::filesystem::exists(cfg_filename))

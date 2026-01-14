@@ -37,10 +37,13 @@
  * Update:
  *
  * Having successfully added support for FP16 last month, I'm now attempting to add INT8 quantization, and I'm back to
- * feeling like this is a random mess which may or may not work depending on which day of the week it happens to be...
- * The lack of any sort of documentation for how INT8 Q/DQ is supposed to function certainly does not help.
+ * feeling like this is a random mess which may or may not work as expected.  The lack of any sort of documentation for
+ * how INT8 Q/DQ is supposed to function certainly does not help.
  *
- * Stephane Charette, 2026-01-06.
+ * I dedicate the Darknet/YOLO ONNX tool to my father, Michel Charette, who passed away in the middle of me writing this
+ * code.  He's the one who inspired me to get into programming in the early 1980s.  I miss you, Dad.
+ *
+ * Stephane Charette, 2026-01-13.
  * ------------------------------
  */
 
@@ -218,10 +221,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		<< "-> doc string ........... " << model.doc_string()					<< std::endl
 		<< "-> type name ............ " << model.GetTypeName()					<< std::endl
 		<< "-> domain ............... " << model.domain()						<< std::endl
-//		<< "-> metadata props size .. " << model.metadata_props_size()			<< std::endl
-//		<< "-> training info size ... " << model.training_info_size()			<< std::endl
-//		<< "-> functions size ....... " << model.functions_size()				<< std::endl
-//		<< "-> configuration size ... " << model.configuration_size()			<< std::endl
+#if 0 // all of these are always zero so don't bother showing
+		<< "-> metadata props size .. " << model.metadata_props_size()			<< std::endl
+		<< "-> training info size ... " << model.training_info_size()			<< std::endl
+		<< "-> functions size ....... " << model.functions_size()				<< std::endl
+		<< "-> configuration size ... " << model.configuration_size()			<< std::endl
+#endif
 		<< "-> producer name ........ " << model.producer_name()				<< std::endl
 		<< "-> producer version ..... " << model.producer_version() << " "		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, "[built " __DATE__ "]") << std::endl
 		<< "-> model version ........ " << model.model_version()				<< std::endl
@@ -255,59 +260,38 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 								"unknown (error!)"				)
 		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
 
-	const std::set<std::string> exports_that_use_16_bit_floats =
+	// display a summary of all of the 4-byte floats, half-size floats, and int8 values we exported into the .onnx
+	for (const auto & exported_values : {number_of_32_bit_floats_exported, number_of_16_bit_floats_exported, number_of_int8_exported})
 	{
-		"bias",
-		"mean",
-		"scale", // but not "scales"!
-		"variance",
-		"weights"
-	};
-
-	for (const auto & [key, val] : number_of_floats_exported)
-	{
-		*cfg_and_state.output << "-> exported " << key << " ";
-		if (key.size() < 12)
+		size_t exported_byte_size = sizeof(float);
+		if (exported_values == number_of_16_bit_floats_exported)
 		{
-			*cfg_and_state.output << std::string(12 - key.size(), '.');
+			exported_byte_size /= 2;
+		}
+		else if (exported_values == number_of_int8_exported)
+		{
+			exported_byte_size = 1;
 		}
 
-		size_t float_size = sizeof(float);
-		if (bit_size == 16 and exports_that_use_16_bit_floats.count(key))
+		for (const auto & [key, val] : exported_values)
 		{
-			float_size /= 2;
+			*cfg_and_state.output << "-> exported " << key << " ";
+			if (key.size() < 12)
+			{
+				*cfg_and_state.output << std::string(12 - key.size(), '.');
+			}
+
+			// add a comma every 3rd digit to make it easier to read
+			std::string str = std::to_string(val);
+			size_t pos = str.size();
+			while (pos > 3)
+			{
+				pos -= 3;
+				str.insert(pos, ",");
+			}
+
+			*cfg_and_state.output << " " << exported_byte_size << " byte" << (exported_byte_size == 1 ? "" : "s") << " x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(exported_byte_size * val) + "]") << std::endl;
 		}
-
-		// add a comma every 3rd digit to make it easier to read
-		std::string str = std::to_string(val);
-		size_t pos = str.size();
-		while (pos > 3)
-		{
-			pos -= 3;
-			str.insert(pos, ",");
-		}
-
-		*cfg_and_state.output << " " << float_size << " bytes x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(float_size * val) + "]") << std::endl;
-	}
-
-	for (const auto & [key, val] : number_of_int8_exported)
-	{
-		*cfg_and_state.output << "-> exported " << key << " ";
-		if (key.size() < 12)
-		{
-			*cfg_and_state.output << std::string(12 - key.size(), '.');
-		}
-
-		// add a comma every 3rd digit to make it easier to read
-		std::string str = std::to_string(val);
-		size_t pos = str.size();
-		while (pos > 3)
-		{
-			pos -= 3;
-			str.insert(pos, ",");
-		}
-
-		*cfg_and_state.output << " 1 byte x " << str << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + size_to_IEC_string(val) + "]") << std::endl;
 	}
 
 	return *this;
@@ -696,9 +680,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::int8_QDQ_weights(const Darknet::Layer
 	{
 		key.erase(0, pos + 1);
 	}
-	number_of_int8_exported		[key] += weights			.size();
-	number_of_int8_exported		[key] += zero_point			.size();
-	number_of_floats_exported	[key] += int8_qdq_scales	.size();
+	number_of_int8_exported			[key] += weights			.size();
+	number_of_int8_exported			[key] += zero_point			.size();
+	number_of_32_bit_floats_exported[key] += int8_qdq_scales	.size();
 
 	return *this;
 }
@@ -1346,6 +1330,14 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 			}
 		}
 
+		// get the last part of the name to use as a key; for example, "N6_L2_conv_weights" returns a key of "weights"
+		std::string key = name;
+		auto pos = key.rfind("_");
+		if (pos != std::string::npos)
+		{
+			key.erase(0, pos + 1);
+		}
+
 		if (must_convert)
 		{
 			initializer->set_data_type(onnx::TensorProto::FLOAT16);
@@ -1357,6 +1349,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 				v.push_back(Darknet::convert_to_fp16(f[i]));
 			}
 			initializer->set_raw_data(v.data(), v.size() * sizeof(std::uint16_t));
+			number_of_16_bit_floats_exported[key] += n;
 		}
 		else
 		{
@@ -1367,16 +1360,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 			{
 				initializer->add_float_data(f[i]);
 			}
+			number_of_32_bit_floats_exported[key] += n;
 		}
-
-		// get the last part of the name to use as a key; for example, "N6_L2_conv_weights" returns a key of "weights"
-		std::string key = name;
-		auto pos = key.rfind("_");
-		if (pos != std::string::npos)
-		{
-			key.erase(0, pos + 1);
-		}
-		number_of_floats_exported[key] += n;
 	}
 
 	return *this;

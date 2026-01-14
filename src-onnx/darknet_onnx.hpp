@@ -110,13 +110,12 @@ namespace Darknet
 			/// The names of the output nodes for this neural network.
 			std::string output_string;
 
-			/** The key is the last part of the string, and the value is the number of floats.
+			/** @{ The key is the last part of the string, and the value is the number of floats.
 			 * For example, for "000_conv_bias", we store the key as "bias".
 			 */
-			std::map<std::string, size_t> number_of_floats_exported;
-
-			/// Similar to @ref number_of_floats_exported but used with INT8.
+			std::map<std::string, size_t> number_of_32_bit_floats_exported;
+			std::map<std::string, size_t> number_of_16_bit_floats_exported;
 			std::map<std::string, size_t> number_of_int8_exported;
-
+			/// @}
 	};
 }
