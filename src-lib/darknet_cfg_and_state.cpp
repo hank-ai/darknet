@@ -1,4 +1,5 @@
 #include "darknet_internal.hpp"
+#include <locale>
 
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -95,6 +96,14 @@ Darknet::CfgAndState & Darknet::CfgAndState::reset()
 	// can move to the new C++11 objects and functions for dealing with random numbers.
 	std::srand(std::time(nullptr));
 	// ... also see the seeding that happens in get_rnd_engine()
+
+	/* Some European locales use comma instead of period in the formatting of floats:
+	 *
+	 *		0,123 vs 0.123
+	 *
+	 * so force the locale to use the standard "C" locale and (hopefully!) avoid any parsing issues.
+	 */
+	std::setlocale(LC_ALL, "C");
 
 	/* Default is to use std::cout for console output.  Do *NOT* call set_output_stream() from here,
 	 * since it will cause infinite recursion when it attempts to call CfgAndState::get().
