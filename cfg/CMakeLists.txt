@@ -3,8 +3,8 @@
 
 FILE (GLOB CFG *.cfg *.names)
 
-IF (UNIX)
-	INSTALL (FILES ${CFG} DESTINATION /opt/darknet/cfg/)
-ELSE ()
+if(${INSTALL_CFG_PREFIX} STREQUAL "")
 	INSTALL (FILES ${CFG} DESTINATION cfg/)
-ENDIF ()
+else()
+	INSTALL (FILES ${CFG} DESTINATION ${INSTALL_CFG_PREFIX}/cfg/)
+endif()
