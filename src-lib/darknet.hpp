@@ -14,7 +14,6 @@
  */
 
 #include <atomic>
-#include <ciso646>
 #include <filesystem>
 #include <iostream>
 #include <map>
@@ -24,6 +23,12 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#if __has_include(<version>)
+#  include <version>
+#else
+#  include <ciso646>
+#endif
 
 #include <opencv2/opencv.hpp>
 
