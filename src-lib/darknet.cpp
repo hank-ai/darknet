@@ -349,39 +349,66 @@ void Darknet::show_version_info()
 	#ifdef WIN32
 	*cfg_and_state.output << ", " << get_windows_version();
 	#else
-	const std::string lsb_release = "/etc/lsb-release";
-	if (std::filesystem::exists(lsb_release))
+	for (const auto & fn : {"/etc/lsb-release", "/etc/os-release"})
 	{
-		std::ifstream ifs(lsb_release);
-		if (ifs.good())
+		if (std::filesystem::exists(fn))
 		{
-			std::string id;
-			std::string release;
-
-			std::string line;
-			while (std::getline(ifs, line))
+			std::ifstream ifs(fn);
+			if (ifs.good())
 			{
-				// for example, the line could be "DISTRIB_ID=Ubuntu"
+				std::string id;
+				std::string release;
 
-				const size_t pos = line.find("=");
-				if (pos == std::string::npos)
+				std::string line;
+				while (std::getline(ifs, line))
 				{
-					continue;
+					// for example, the line could be:	DISTRIB_ID=Ubuntu
+					// or on Debian:					VERSION_ID="11"
+
+					const size_t pos = line.find("=");
+					if (pos == std::string::npos)
+					{
+						continue;
+					}
+					std::string key = line.substr(0, pos);
+					std::string val = line.substr(pos + 1);
+
+					if (val.size() > 1 and val[0] == '\"' and val[val.length() - 1] == '\"')
+					{
+						// strip both leading and trailing double quotes from the value
+						val = val.substr(1, val.size() - 2);
+					}
+
+					if (key == "DISTRIB_ID"			or	// e.g., DISTRIB_ID=Ubuntu
+						key == "NAME"				or	// e.g., NAME="Debian GNU/Linux"
+						key == "ID")					// e.g., ID=debian
+					{
+						if (id.size() < val.size())
+						{
+							id = val;
+						}
+					}
+					if (key == "DISTRIB_RELEASE"	or	// e.g., DISTRIB_RELEASE=24.04
+						key == "VERSION_ID"			or	// e.g., VERSION_ID="24.04"
+						key == "VERSION")				// e.g., VERSION="11 (bullseye)"
+					{
+						if (release.size() < val.size())
+						{
+							release = val;
+						}
+					}
 				}
-				const std::string key = line.substr(0, pos);
-				const std::string val = line.substr(pos + 1);
 
-				if (key == "DISTRIB_ID")		id = val;
-				if (key == "DISTRIB_RELEASE")	release = val;
-			}
-
-			if (not id.empty())
-			{
-				*cfg_and_state.output << ", " << id;
-
-				if (not release.empty())
+				if (not id.empty())
 				{
-					*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightWhite, release);
+					*cfg_and_state.output << ", " << id;
+
+					if (not release.empty())
+					{
+						*cfg_and_state.output << " " << Darknet::in_colour(Darknet::EColour::kBrightWhite, release);
+					}
+
+					break;
 				}
 			}
 		}
@@ -394,7 +421,7 @@ void Darknet::show_version_info()
 		const std::string output = Darknet::trim(Darknet::get_command_output(detect_virt));
 		if (not output.empty() and output != "none")
 		{
-			*cfg_and_state.output << ", " << output;
+			*cfg_and_state.output << " [" << output << "]";
 		}
 	}
 
