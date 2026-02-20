@@ -49,7 +49,7 @@ int main(int argc, char * argv[])
 				continue;
 			}
 
-			const std::string output_filename		= std::filesystem::path(parm.string).stem().string() + "_keypoints.m4v";
+			const std::string output_filename		= std::filesystem::path(parm.string).stem().string() + "_keypoints.mp4";
 			const size_t video_width				= cap.get(cv::CAP_PROP_FRAME_WIDTH);
 			const size_t video_height				= cap.get(cv::CAP_PROP_FRAME_HEIGHT);
 			const size_t video_frames_count			= cap.get(cv::CAP_PROP_FRAME_COUNT);
@@ -68,7 +68,7 @@ int main(int argc, char * argv[])
 				<< "-> input video length ....... " << video_length_milliseconds << " milliseconds"	<< std::endl
 				<< "-> output filename .......... " << output_filename								<< std::endl;
 
-			cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), fps, cv::Size(video_width, video_height));
+			cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('a', 'v', 'c', '1'), fps, cv::Size(video_width, video_height));
 			if (not out.isOpened())
 			{
 				std::cout << "Failed to open the output video file " << output_filename << std::endl;

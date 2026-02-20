@@ -58,7 +58,7 @@ int main(int argc, char * argv[])
 			const size_t video_width				= mat.cols;
 			const size_t video_height				= mat.rows;
 			const size_t video_channels				= mat.channels();
-			const size_t video_frames_count			= cap.get(cv::CAP_PROP_FRAME_COUNT);
+			const size_t video_frames_count			= std::max(0.0, cap.get(cv::CAP_PROP_FRAME_COUNT)); // can be -1 when unknown, such as .mjpeg files
 			const double fps						= cap.get(cv::CAP_PROP_FPS);
 			const size_t fps_rounded				= std::round(fps);
 			const size_t nanoseconds_per_frame		= std::round(1000000000.0 / fps);
@@ -68,7 +68,7 @@ int main(int argc, char * argv[])
 			std::cout
 				<< "-> neural network size ...... " << network_width	<< " x " << network_height	<< " x " << network_channels	<< std::endl
 				<< "-> video dimensions ......... " << video_width		<< " x " << video_height	<< " x " << video_channels		<< std::endl
-				<< "-> frame count .............. " << video_frames_count						<< std::endl
+				<< "-> frame count .............. " << (video_frames_count == 0 ? "unknown" : std::to_string(video_frames_count))	<< std::endl
 				<< "-> frame rate ............... " << fps << " FPS"							<< std::endl
 				<< "-> each frame lasts ......... " << nanoseconds_per_frame << " nanoseconds"	<< std::endl
 				<< "-> estimated video length ... " << Darknet::format_duration_string(std::chrono::milliseconds(video_length_milliseconds)) << std::endl;
@@ -125,7 +125,7 @@ int main(int argc, char * argv[])
 
 				if (frame_counter % fps_rounded == 0)
 				{
-					const int percentage = std::round(100.0f * frame_counter / video_frames_count);
+					const int percentage = (video_frames_count == 0 ? 0 : std::round(100.0f * frame_counter / video_frames_count));
 					std::cout
 						<< "-> frame #" << frame_counter << "/" << video_frames_count
 						<< " (" << percentage << "%)\r"

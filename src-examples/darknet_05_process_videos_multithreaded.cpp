@@ -268,11 +268,11 @@ int main(int argc, char * argv[])
 			cap >> mat;
 			cap.set(cv::CAP_PROP_POS_FRAMES, 0.0);
 
-			const std::string output_filename		= std::filesystem::path(parm.string).stem().string() + "_output.m4v";
+			const std::string output_filename		= std::filesystem::path(parm.string).stem().string() + "_output.mp4";
 			const size_t video_width				= mat.cols;
 			const size_t video_height				= mat.rows;
 			const size_t video_channels				= mat.channels();
-			const size_t video_frames_count			= cap.get(cv::CAP_PROP_FRAME_COUNT);
+			const size_t video_frames_count			= std::max(0.0, cap.get(cv::CAP_PROP_FRAME_COUNT)); // mjpeg files for example return -1 for this value
 			const double fps						= cap.get(cv::CAP_PROP_FPS);
 			const size_t fps_rounded				= std::round(fps);
 			const size_t nanoseconds_per_frame		= std::round(1000000000.0 / fps);
@@ -292,7 +292,31 @@ int main(int argc, char * argv[])
 			waiting_for_threads		= 0;
 			expected_next_index		= 0;
 
-			cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), fps, cv::Size(video_width, video_height));
+			/** @note This gets complicated.  There are many fourcc values (codecs) and many container types (file extensions).
+			 * No single value will work for absolutely everyone.  Some of the common ones are:
+			 *
+			 * @li @p MJPG .avi -> simple, widely supported, creates large files
+			 * @li @p XVID .avi -> generic, widely used, creates large files
+			 * @li @p DIVX .avi -> similar to xvid
+			 * @li @p H264 .mp4 -> high efficiency, small files, requires ffmpeg?
+			 * @li @p X264 .mp4 -> high efficiency, small files, requires ffmpeg?
+			 * @li @p avc1 .mp4 -> high efficiency, small files, requires ffmpeg?
+			 * @li @p MP4V .mp4 -> common, large files, what Darknet/YOLO used up until v5.x
+			 * @li @p PIM1 .avi -> older, universal
+			 *
+			 * Darknet/YOLO used to create @p .m4v files with the fourcc value @p "mp4v".  Turns out that @p .m4v is an
+			 * Apple-specific extension.  In V6+, the file extension was changed to @p .mp4, and the fourcc was changed to
+			 * @p "avc1".  This creates much smaller video files than the previous setting.
+			 *
+			 * Also note that the higher the compression, the longer it takes to encode the video.  Remember to modify the
+			 * output filename above if you are trying different fourcc values.
+			 */
+
+//			cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), fps, cv::Size(video_width, video_height));
+//			cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('H', '2', '6', '4'), fps, cv::Size(video_width, video_height));
+//			cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('X', 'V', 'I', 'D'), fps, cv::Size(video_width, video_height));
+			cv::VideoWriter out(output_filename, cv::VideoWriter::fourcc('a', 'v', 'c', '1'), fps, cv::Size(video_width, video_height));
+
 			if (not out.isOpened())
 			{
 				std::cout << "Failed to open the output video file " << output_filename << std::endl;
@@ -324,7 +348,7 @@ int main(int argc, char * argv[])
 				<< "-> threads for this video ... " << threads.size() + 1 /* this thread */			<< std::endl
 				<< "-> neural network size ...... " << network_width	<< " x " << network_height	<< " x " << network_channels	<< std::endl
 				<< "-> input video dimensions ... " << video_width		<< " x " << video_height	<< " x " << video_channels		<< std::endl
-				<< "-> input video frame count .. " << video_frames_count							<< std::endl
+				<< "-> input video frame count .. " << (video_frames_count == 0 ? "unknown" : std::to_string(video_frames_count)) << std::endl
 				<< "-> input video frame rate ... " << fps << " FPS"								<< std::endl
 				<< "-> input video length ....... " << Darknet::format_duration_string(std::chrono::milliseconds(video_length_milliseconds)) << std::endl
 				<< "-> output filename .......... " << output_filename								<< std::endl;
@@ -353,7 +377,7 @@ int main(int argc, char * argv[])
 				frame_counter ++;
 				if (frame_counter % fps_rounded == 0)
 				{
-					const int percentage = std::round(100.0f * frame_counter / video_frames_count);
+					const int percentage = (video_frames_count == 0 ? 0 : std::round(100.0f * frame_counter / video_frames_count));
 					std::cout
 						<< "-> frame #" << frame_counter << "/" << video_frames_count
 						<< " (" << percentage << "%)\r"
@@ -391,6 +415,7 @@ int main(int argc, char * argv[])
 
 			std::cout
 				<< "-> total frames processed ... " << frame_counter											<< std::endl
+				<< "-> output video length ...... " << Darknet::format_duration_string(std::chrono::milliseconds((int)std::round(1000.0 * frame_counter / fps))) << std::endl
 				<< "-> time to process video .... " << Darknet::format_duration_string(processing_duration)		<< std::endl
 				<< "-> processed frame rate ..... " << final_fps << " FPS"										<< std::endl
 				<< "-> total objects found ...... " << total_objects_found										<< std::endl

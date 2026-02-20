@@ -162,7 +162,8 @@ int main(int argc, char * argv[])
 		if (SAVE_OUTPUT_VIDEO)
 		{
 			output_video_filename = "output.mp4";
-			out.open(output_video_filename, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), estimated_fps, mat.size());
+//			out.open(output_video_filename, cv::VideoWriter::fourcc('m', 'p', '4', 'v'), estimated_fps, mat.size());
+			out.open(output_video_filename, cv::VideoWriter::fourcc('a', 'v', 'c', '1'), estimated_fps, mat.size());
 		}
 
 		const size_t opencv_width				= cap.get(cv::CAP_PROP_FRAME_WIDTH);
