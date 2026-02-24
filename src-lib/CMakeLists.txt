@@ -54,7 +54,7 @@ LIST (SORT LIBSRC)
 # ==
 MESSAGE(STATUS "Setting up DARKNET OBJ")
 ADD_LIBRARY(darknetobjlib OBJECT ${LIBSRC})
-IF (Protobuf_FOUND)
+IF (DARKNET_TRY_ONNX AND Protobuf_FOUND)
 	# force the protocol buffer compiler to run if it hasn't yet
 	ADD_DEPENDENCIES (darknetobjlib darknet_generated_proto)
 ENDIF ()
