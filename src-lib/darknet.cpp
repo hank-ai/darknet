@@ -1,7 +1,7 @@
 #include "darknet_internal.hpp"
 
 #if DARKNET_HAS_PROTOBUF
-#include "../src-onnx/onnx.proto3.pb.h"
+#include "onnx.proto3.pb.h"
 #endif
 
 #ifdef WIN32
