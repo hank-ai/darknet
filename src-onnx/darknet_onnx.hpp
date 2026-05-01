@@ -12,6 +12,7 @@
  */
 
 #include "darknet_internal.hpp"
+#include "onnx.proto3.pb.h"
 
 
 namespace Darknet

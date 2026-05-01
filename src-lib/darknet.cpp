@@ -1,5 +1,9 @@
 #include "darknet_internal.hpp"
 
+#if DARKNET_HAS_PROTOBUF
+#include "onnx.proto3.pb.h"
+#endif
+
 #ifdef WIN32
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
