@@ -228,7 +228,19 @@ namespace
 		// precompute the scores to use during sorting
 		for (int i = 0; i < total; i ++)
 		{
-			dets[i].sort_score = dets[i].prob[dets[i].sort_class];
+			/* E-mail from Peter Ga on 2026-05-20 about regression here due to sort_score being set incorrectly when sort_class
+			 * is set to -1.  See do_nms_obj() for example.  Restoring previous logic broken by this commit from 2025-12-02:
+			 * https://codeberg.org/CCodeRun/darknet/commit/70f5b3c76a5c143b3da3282b8e2a0ce378071a83
+			 */
+			if (dets[i].sort_class < 0)
+			{
+				// class-agnostic NMS (suppress duplicates regardless of class label)
+				dets[i].sort_score = dets[i].objectness;
+			}
+			else
+			{
+				dets[i].sort_score = dets[i].prob[dets[i].sort_class];
+			}
 		}
 
 		// We want to sort from high probability to low probability.  The default sort behaviour would be to
