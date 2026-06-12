@@ -298,7 +298,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 		bit_size != 16 )//and
 //		bit_size != 8)
 	{
-		throw std::runtime_error("INT8, FP16, and FP32 are supported, but bit size is currently set to " + std::to_string(bit_size) + " which is not supported");
+//		throw std::runtime_error("INT8, FP16, and FP32 are supported, but bit size is currently set to " + std::to_string(bit_size) + " which is not supported");
+		throw std::runtime_error("FP16, and FP32 are supported, but bit size is currently set to " + std::to_string(bit_size) + " which is not supported");
 	}
 
 	/* Quickly look through the configuration to see which ONNX opset we should be using:
@@ -1514,11 +1515,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs(const Darknet:
 		ss << " This output is a combination of ";
 		if (number_of_yolo_layers == 2)
 		{
-			ss << " both YOLO layers.";
+			ss << "both YOLO layers.";
 		}
 		else
 		{
-			ss << " all " << number_of_yolo_layers << " layers.";
+			ss << "all " << number_of_yolo_layers << " YOLO layers.";
 		}
 	}
 
@@ -1904,11 +1905,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 		ss << " This output is a combination of ";
 		if (number_of_yolo_layers == 2)
 		{
-			ss << " both YOLO layers.";
+			ss << "both YOLO layers.";
 		}
 		else
 		{
-			ss << " all " << number_of_yolo_layers << " layers.";
+			ss << "all " << number_of_yolo_layers << " YOLO layers.";
 		}
 	}
 
