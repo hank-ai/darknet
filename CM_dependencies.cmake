@@ -254,24 +254,16 @@ LIST (APPEND DARKNET_LINK_LIBS ${OpenCV_LIBS})
 # ============
 # == OpenMP ==
 # ============
-FIND_PACKAGE (OpenMP QUIET) # optional
-IF (NOT OPENMP_FOUND)
+SET (DARKNET_USE_OPENMP OFF)
+FIND_PACKAGE (OpenMP COMPONENTS C CXX QUIET) # optional
+IF (NOT OpenMP_CXX_FOUND)
 	MESSAGE (WARNING "OpenMP not found. Building Darknet without support for OpenMP.")
 ELSEIF (DARKNET_USE_ROCM)
 	# TODO: This needs to be fixed.  What are we missing during the link process to make this work with clang++?
 	MESSAGE (WARNING "Skipping OpenMP due to ROCm.")
 ELSE ()
 	MESSAGE (STATUS "Found OpenMP ${OpenMP_VERSION}")
-	ADD_COMPILE_DEFINITIONS (DARKNET_OPENMP)
-	LIST (APPEND DARKNET_LINK_LIBS OpenMP::OpenMP_CXX OpenMP::OpenMP_C)
-	IF (WIN32)
-		ADD_COMPILE_OPTIONS (/openmp:experimental)
-	ELSE ()
-		ADD_COMPILE_DEFINITIONS (_GLIBCXX_PARALLEL)
-		ADD_COMPILE_OPTIONS (-fopenmp)
-		ADD_COMPILE_OPTIONS (${OpenMP_C_FLAGS})
-		ADD_COMPILE_OPTIONS (${OpenMP_CXX_FLAGS})
-	ENDIF()
+	SET (DARKNET_USE_OPENMP ON)
 ENDIF ()
 
 
@@ -317,8 +309,8 @@ IF (DARKNET_TRY_ONNX)
 	FIND_PACKAGE (Protobuf QUIET)
 	IF (Protobuf_FOUND)
 		MESSAGE (STATUS "Found protocol buffer (needed for ONNX export) ${Protobuf_VERSION}")
-		INCLUDE_DIRECTORIES (${Protobuf_INCLUDE_DIRS})
 		ADD_COMPILE_DEFINITIONS(DARKNET_HAS_PROTOBUF)
+		INCLUDE_DIRECTORIES (${Protobuf_INCLUDE_DIRS})
 	ELSE ()
 		MESSAGE (WARNING "Protocol buffer not found.  Skipping support for ONNX export.")
 	ENDIF ()

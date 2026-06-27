@@ -21,5 +21,7 @@ LIST (SORT SRC_ONNX)
 
 ADD_EXECUTABLE (darknet_onnx_export ${SRC_ONNX} onnx.proto3.pb.cc)
 ADD_DEPENDENCIES (darknet_onnx_export darknet_generated_proto)
+TARGET_INCLUDE_DIRECTORIES (darknet_onnx_export PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${Protobuf_INCLUDE_DIRS})
+TARGET_COMPILE_DEFINITIONS (darknet_onnx_export PRIVATE DARKNET_HAS_PROTOBUF)
 TARGET_LINK_LIBRARIES (darknet_onnx_export PRIVATE darknet ${DARKNET_LINK_LIBS} protobuf::libprotobuf)
 INSTALL (TARGETS darknet_onnx_export DESTINATION bin)
