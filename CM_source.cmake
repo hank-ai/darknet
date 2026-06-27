@@ -145,14 +145,13 @@ SET (BUILD_SHARED_LIBS TRUE)					# ADD_LIBRARY() will default to shared libs
 SET (CMAKE_ENABLE_EXPORTS TRUE)					# equivalent to -rdynamic (to get the backtrace when something goes wrong)
 SET (CMAKE_OPTIMIZE_DEPENDENCIES TRUE)			# some dependencies may be removed if they are not necessary to build the library
 SET (CMAKE_POSITION_INDEPENDENT_CODE TRUE)		# equivalent to -fpic (position independent code)
-
 INCLUDE_DIRECTORIES (src-cli)
 INCLUDE_DIRECTORIES (src-lib)
 INCLUDE_DIRECTORIES (src-other)
 
 IF (Protobuf_FOUND)
-	INCLUDE_DIRECTORIES (src-onnx)
-	ADD_SUBDIRECTORY (src-onnx)
+	INCLUDE_DIRECTORIES	(src-onnx)
+	ADD_SUBDIRECTORY	(src-onnx)
 ENDIF ()
 
 ADD_SUBDIRECTORY (doc)

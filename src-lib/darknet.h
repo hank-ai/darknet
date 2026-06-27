@@ -11,7 +11,7 @@
  * @li The new (V3, July 2024) Darknet/YOLO @p C API is at the top of the file.
  * @li The new (V3, July 2024) Darknet/YOLO @p C++ API is in @ref darknet.hpp.
  *
- * https://darknetcv.ai/api/api.html
+ * https://www.ccoderun.ca/darknet/api.html
  *
  * The old C V2 API did not have @p "darknet" in the function names nor the structures returned.  It defined things
  * like @p network and @p image in the global namespace, which can cause problems since those are common words.  By

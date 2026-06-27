@@ -5,7 +5,7 @@
 # For example, set the generator to "DEB" or "RPM" depending on the platform you are using.
 #
 SET (CPACK_PACKAGE_NAME "darknet")
-SET (CPACK_PACKAGE_HOMEPAGE_URL "https://darknetcv.ai/")
+SET (CPACK_PACKAGE_HOMEPAGE_URL "https://www.ccoderun.ca/darknet/")
 SET (CPACK_PACKAGE_DESCRIPTION "Darknet/YOLO Object Detection Framework")
 SET (CPACK_PACKAGE_CONTACT "Stephane Charette <stephanecharette@gmail.com>")
 SET (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
@@ -13,7 +13,7 @@ SET (CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
 IF (APPLE)
 	SET (CPACK_GENERATOR "DragNDrop")
 	SET (CPACK_DMG_FORMAT "UDZO")
-	SET (CPACK_DMG_BACKGROUND_IMAGE "${CMAKE_CURRENT_SOURCE_DIR}/artwork/hankai_darknet.png")
+	SET (CPACK_DMG_BACKGROUND_IMAGE "${CMAKE_CURRENT_SOURCE_DIR}/artwork/darknet_logo_banner.png")
 
 ELSEIF (UNIX)
 

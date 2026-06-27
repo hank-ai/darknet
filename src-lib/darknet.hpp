@@ -10,7 +10,7 @@
 
 /** @file
  * Include this file to get access to the new Darknet V3 C++ API.
- * https://darknetcv.ai/api/api.html
+ * https://www.ccoderun.ca/darknet/api.html
  */
 
 #include <atomic>

@@ -51,7 +51,7 @@
  *	- v3 is named "Jazz", significant optimizations for both training and inference, Stephane Charette, 2024.
  *	- v4 is named "Slate", add support for AMD GPU via ROCm, Stephane Charette, 2025.
  *	- v5 is named "Moonlit", more optimizations + ONNX export, Stephane Charette, 2025
- *	- v6 is named "Winston", additional Mac support, more optimizations, better ONNX export, Stephane Charette, 2026
+ *	- v6 is named "Winston", additional Mac support, more optimizations, code cleanup, Stephane Charette, 2026
  */
 #define DARKNET_VERSION_KEYWORD "Winston"
 
