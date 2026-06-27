@@ -24,7 +24,7 @@
 
 # Darknet Object Detection Framework and YOLO
 
-![darknet and hank.ai logos](artwork/darknet_and_hank_ai_logos.png)
+![darknet logo](artwork/darknet_logo_banner.png)
 
 Darknet is an open source neural network framework written in C, C++, and CUDA.
 
@@ -32,7 +32,7 @@ YOLO (You Only Look Once) is a state-of-the-art, real-time, object detection sys
 
 * 2025-08:  Darknet/YOLO repo has moved to **[Codeberg.org/CCodeRun/darknet/](https://codeberg.org/CCodeRun/darknet/)**
 	* All commits are automatically mirrored from Codeberg to the older Hank.ai GitHub repo.
-* See the **[Darknet/YOLO web site](https://darknetcv.ai/)**
+* See the **[Darknet/YOLO web site](https://www.ccoderun.ca/darknet/)**
 * Please read through the **[Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/)**
 * Join the **[Darknet/YOLO discord server](https://discord.gg/MQw32W9Cqr)**
 
@@ -78,9 +78,9 @@ Darknet/YOLO is known to work on Linux, Windows, and Mac.  See the [building ins
 	* Removed many old and unmaintained commands.
 		* You can always do a checkout of the previous `v2` branch if you need to run one of these commands.  Let us know so we can investigate adding back any missing commands.
 	* Many performance optimizations, both when training and during inference.
-	* Legacy C API was modified; applications that use the original Darknet API will need minor modifications:  https://darknetcv.ai/api/api.html
-	* New Darknet V3 C and C++ API to make it easier for developers to write applications that use Darknet/YOLO:  https://darknetcv.ai/api/api.html
-	* New apps and sample code in `src-examples`:  https://darknetcv.ai/api/files.html
+	* Legacy C API was modified; applications that use the original Darknet API will need minor modifications:  https://www.ccoderun.ca/darknet/api.html
+	* New Darknet V3 C and C++ API to make it easier for developers to write applications that use Darknet/YOLO:  https://www.ccoderun.ca/darknet/api.html
+	* New apps and sample code in `src-examples`:  https://www.ccoderun.ca/darknet/files.html
 * The next release was in early 2025.  The `version` command now returns 4.x "SLATE".
 	* Added support for AMD GPUs using ROCm.
 		* Still need to add support for MIOpen.
@@ -161,7 +161,7 @@ Select one of the following build types:
 > [!CAUTION]
 > Beware if you are following old tutorials with more complicated build steps, or build steps that don't seem to match what is in this readme.  The new build steps started in August 2023.
 
-Software developers are encouraged to visit https://darknetcv.ai/ to get information on the internals of the Darknet/YOLO object detection framework.
+Software developers are encouraged to visit https://www.ccoderun.ca/darknet/ to get information on the internals of the Darknet/YOLO object detection framework.
 
 > [!IMPORTANT]
 > An important change was made in Darknet v5.1 to one of the prediction structures.  If you have software that includes `darknet.h` or `darknet.hpp` you'll want to recompile your application to prevent segfaults.
@@ -566,8 +566,8 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 * For a robust alternative CLI to Darknet, to use image tiling, for object tracking in your videos, or for a robust C++ API that can easily be used in commercial applications, [see DarkHelp](https://codeberg.org/CCodeRun/DarkHelp#what-is-the-darkhelp-c-api).
 * See if [the Darknet/YOLO FAQ](https://www.ccoderun.ca/programming/darknet_faq/) can help answer your questions.
 * See the many tutorial and example videos on [Stéphane's YouTube channel](https://www.youtube.com/c/StephaneCharette/videos)
-* [C++ bindings for Darknet/YOLO](https://darknetcv.ai/api/api.html#apiv3_cpp) (in the Darknet/YOLO repo)
-* [C bindings for Darknet/YOLO](https://darknetcv.ai/api/api.html#apiv3_c) (in the Darknet/YOLO repo)
+* [C++ bindings for Darknet/YOLO](https://www.ccoderun.ca/darknet/api.html#apiv3_cpp) (in the Darknet/YOLO repo)
+* [C bindings for Darknet/YOLO](https://www.ccoderun.ca/darknet/api.html#apiv3_c) (in the Darknet/YOLO repo)
 * [Python bindings for Darknet/YOLO](src-python/) (in the Darknet/YOLO repo)
 * [Java bindings for Darknet/YOLO](https://github.com/stephanecharette/DarknetJava)  [incomplete, in-progress]
 * [Delphi bindings for Darknet/YOLO](https://github.com/hansvas/Darknet4Delphi)
@@ -575,9 +575,23 @@ darknet detector -gpus 0 -verbose -log output.log -map -dont_show train animals.
 * [Darknet2Any](https://github.com/jredmondson/darknet2any/)
 * If you have a support question or want to chat with other Darknet/YOLO users, [join the Darknet/YOLO discord server](https://discord.gg/MQw32W9Cqr).
 
+
+# Sponsors
+
+Thank you to both individual and corporate sponsors.  A special thanks to past corporate sponsors who helped fund the continued development of Darknet/YOLO.
+
+In alphabetical order, this includes:
+
+* [Detect-It](https://www.detect-it.ai/)
+* [Hank AI](https://hank.ai/)
+* [Koshee](https://koshee.ai/)
+* [Medius](https://www.medius.com/)
+* [Upplevelseinstitutet](https://upplevelseinstitutet.se/)
+
+
 # Roadmap
 
-Last updated 2025-12-06:
+Last updated 2026-06-27:
 
 ## Completed
 
@@ -626,7 +640,7 @@ Last updated 2025-12-06:
 
 ## Short-term goals
 
-* [ ] Java bindings **(in progress)**
+* [ ] Java bindings **(incomplete)**
 * [ ] look into old zed camera support
 * [ ] better and more consistent command line parsing **(in progress)**
 * [ ] add support for MIOpen

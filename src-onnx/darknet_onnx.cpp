@@ -362,7 +362,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 
 	// We use reverse domain names as name space indicators.
 	/// @todo We need a command-line parameter for this field.
-	model.set_domain("ai.darknetcv");
+	model.set_domain("ca.ccoderun.darknet");
 
 	// The version of the graph encoded.
 	/// @todo We need a command-line parameter for this field.
