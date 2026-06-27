@@ -18,6 +18,7 @@
 	* [CLI](#cli)
 	* [Training](#training)
 * [Other Tools and Links](#other-tools-and-links)
+* [Sponsors](#sponsors)
 * [Roadmap](#roadmap)
 	* [Short-term goals](#short-term-goals)
 	* [Mid-term goals](#mid-term-goals)
