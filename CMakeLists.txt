@@ -30,6 +30,14 @@ PROJECT (Darknet LANGUAGES C CXX VERSION ${DARKNET_VERSION_SHORT})
 INCLUDE (CheckLanguage)
 INCLUDE (CMakeDependentOption)
 
+if (UNIX)
+  set(_INSTALL_CFG_PREFIX "/opt/darknet/")
+else()
+  set(_INSTALL_CFG_PREFIX "")
+endif()
+set(INSTALL_CFG_PREFIX	 ${_INSTALL_CFG_PREFIX} CACHE PATH "Path where cfg files will be installed")
+
+
 INCLUDE (CM_misc.cmake)
 INCLUDE (CM_dependencies.cmake)
 INCLUDE (CM_source.cmake)
