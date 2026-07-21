@@ -1314,27 +1314,26 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(Darknet::CfgSe
 		Node sigmoid(section, "_sigmoid_tx_ty");
 		sigmoid.type("Sigmoid").add_input(name);
 
-		/* ...but instead of [0, 1], we actually want [-0.025, 1.025].  So we need to scale up by 1.05,
-		* and then subtract half to ensure the center points are still located at the right place.
-		*
-		*			normalized_offset = sigmoid(tx) * 1.05 - 0.025
-		*
-		* ChatGPT says:
-		*
-		*			This is an affine transform that “stretches” and “recenters” the sigmoid output,
-		*			giving a bit of extra range outside the cell.
-		*/
-		const float variance = 0.05f;
-		Node const_1_050(section, 1.0f + variance, bit_size);
-		Node const_0_025(section, variance / 2.0f, bit_size);
+		/* Darknet applies "scale_x_y" (default 1.0, see [yolo] section in the .cfg file) to stretch and
+		 * re-center the sigmoid output so the box centers are not restricted to the interior of the cell:
+		 *
+		 *			normalized_offset = sigmoid(tx) * scale_x_y - 0.5 * (scale_x_y - 1)
+		 *
+		 * See yolo_layer.cpp, scal_add_cpu() call with comment "scale x,y".  When scale_x_y == 1 (the
+		 * default when it isn't set in the .cfg file) this is the identity transform.
+		 */
+		const float scale_x_y	= section.find_float("scale_x_y", 1.0f);
+		const float variance	= scale_x_y - 1.0f;
+		Node const_scale(section, scale_x_y, bit_size);
+		Node const_offset(section, variance / 2.0f, bit_size);
 
-		// multiply by 1.05
+		// multiply by scale_x_y
 		Node mul(section, "_mul_tx_ty");
-		mul.type("Mul").add_input(sigmoid.output).add_input(const_1_050.output);
+		mul.type("Mul").add_input(sigmoid.output).add_input(const_scale.output);
 
-		// shift by -0.025
+		// shift by -0.5 * (scale_x_y - 1)
 		Node sub(section, "_sub_tx_ty");
-		sub.type("Sub").add_input(mul.output).add_input(const_0_025.output);
+		sub.type("Sub").add_input(mul.output).add_input(const_offset.output);
 
 		output_names.push_back(sub.output);
 	}
