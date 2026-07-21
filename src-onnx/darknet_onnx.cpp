@@ -700,6 +700,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::check_activation(const size_t index, 
 		case LEAKY:
 		case RELU:
 		case MISH:
+		case SWISH:
 		{
 			add_node_activation(index, section);
 			break;
@@ -759,6 +760,23 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_activation(const size_t inde
 		//		2) log(1+...)
 		//		3) tanh(...)
 		//		4) x * ...
+	}
+	else if (activation == SWISH)
+	{
+		// SWISH(x) = x * sigmoid(x), see activate_array_swish().  ONNX only gained a native "Swish"
+		// operator in opset 24 (Swish(x) = x * sigmoid(alpha*x), alpha defaults to 1.0, i.e. the same
+		// function), which is far newer than anything else this exporter requires.  Rather than forcing
+		// every model up to opset 24 just for this one activation, synthesize it manually the same way
+		// Mish's comment above suggests: as a small chain of existing, long-supported ops.
+		Node sigmoid(section, "_activation_sigmoid");
+		sigmoid.type("Sigmoid").add_input(previous_output);
+
+		// constructing "sigmoid" re-registered this layer's output in output_per_layer_index (every
+		// Node tied to this section does that as a side effect of its constructor); put it back so
+		// downstream nodes pick up "node" (the Mul below), the real final output of this layer.
+		node.set_output();
+
+		node.type("Mul").add_input(sigmoid.output);
 	}
 	else
 	{
@@ -1322,10 +1340,27 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(Darknet::CfgSe
 			continue;
 		}
 
-		// sigmoid brings the values into a range between zero and one
+		/* Sigmoid brings the values into a range between zero and one.  However, when "new_coords=1" is
+		 * set on the [yolo] section (used by YOLOv7 and other "scaled" YOLO variants), Darknet skips this
+		 * sigmoid in the YOLO layer entirely -- see the "if (l.new_coords)" block in forward_yolo_layer()
+		 * where the logistic activation call is commented out.  That's because for new_coords models the
+		 * preceding [convolutional] layer already has "activation=logistic" in the .cfg file, which sigmoids
+		 * *all* of tx,ty,tw,th,obj,classes uniformly (see add_node_activation()/check_activation()), so by
+		 * the time we get here the values are already in [0,1] and must not be sigmoided a second time.
+		 */
+		const bool new_coords = section.find_int("new_coords", 0) != 0;
 
-		Node sigmoid(section, "_sigmoid_tx_ty");
-		sigmoid.type("Sigmoid").add_input(name);
+		std::string sigmoid_output;
+		if (new_coords)
+		{
+			sigmoid_output = name;
+		}
+		else
+		{
+			Node sigmoid(section, "_sigmoid_tx_ty");
+			sigmoid.type("Sigmoid").add_input(name);
+			sigmoid_output = sigmoid.output;
+		}
 
 		/* Darknet applies "scale_x_y" (default 1.0, see [yolo] section in the .cfg file) to stretch and
 		 * re-center the sigmoid output so the box centers are not restricted to the interior of the cell:
@@ -1333,7 +1368,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(Darknet::CfgSe
 		 *			normalized_offset = sigmoid(tx) * scale_x_y - 0.5 * (scale_x_y - 1)
 		 *
 		 * See yolo_layer.cpp, scal_add_cpu() call with comment "scale x,y".  When scale_x_y == 1 (the
-		 * default when it isn't set in the .cfg file) this is the identity transform.
+		 * default when it isn't set in the .cfg file) this is the identity transform.  Note this call is
+		 * unconditional in Darknet -- it runs whether or not new_coords is set.
 		 */
 		const float scale_x_y	= section.find_float("scale_x_y", 1.0f);
 		const float variance	= scale_x_y - 1.0f;
@@ -1342,7 +1378,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tx_ty(Darknet::CfgSe
 
 		// multiply by scale_x_y
 		Node mul(section, "_mul_tx_ty");
-		mul.type("Mul").add_input(sigmoid.output).add_input(const_scale.output);
+		mul.type("Mul").add_input(sigmoid_output).add_input(const_scale.output);
 
 		// shift by -0.5 * (scale_x_y - 1)
 		Node sub(section, "_sub_tx_ty");
@@ -1361,6 +1397,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tw_th(Darknet::CfgSe
 
 	// This assumes that postprocess_yolo_slice_and_concat() has already run, and we have the "concat_tw_th" node ready to use.
 
+	/* Classic Darknet YOLO decodes w/h as "exp(tw) * anchor / net_dim".  But when "new_coords=1" is set
+	 * (YOLOv7 and other "scaled" YOLO variants), get_yolo_box() instead uses "tw * tw * 4 * anchor / net_dim",
+	 * where "tw" here is the already-sigmoided value coming straight out of the preceding [convolutional]
+	 * layer's "activation=logistic" (see postprocess_yolo_tx_ty() for the same new_coords reasoning).  The
+	 * anchor multiplication and net_dim normalization happen later in postprocess_yolo_boxes() and are the
+	 * same for both schemes, so only the "activation" applied to the raw tw/th value differs here.
+	 */
+	const bool new_coords = section.find_int("new_coords", 0) != 0;
+
 	for (const auto & name : v)
 	{
 		if (name.find("_concat_tw_th") == std::string::npos)
@@ -1368,10 +1413,24 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_tw_th(Darknet::CfgSe
 			continue;
 		}
 
-		Node node(section, "_exp_tw_th");
-		node.type("Exp").add_input(name);
+		if (new_coords)
+		{
+			Node squared(section, "_sq_tw_th");
+			squared.type("Mul").add_input(name).add_input(name);
 
-		output_names.push_back(node.output);
+			Node four(section, 4.0f, bit_size);
+			Node node(section, "_scale4_tw_th");
+			node.type("Mul").add_input(squared.output).add_input(four.output);
+
+			output_names.push_back(node.output);
+		}
+		else
+		{
+			Node node(section, "_exp_tw_th");
+			node.type("Exp").add_input(name);
+
+			output_names.push_back(node.output);
+		}
 	}
 
 	return *this;
@@ -1383,6 +1442,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(Darknet::CfgSecti
 	TAT(TATPARMS);
 
 	// This assumes that postprocess_yolo_slice_and_concat() has already run, and we have the "concat_obj" node ready to use.
+
+	// see postprocess_yolo_tx_ty() for why new_coords models must not be sigmoided a second time here
+	const bool new_coords			= section.find_int("new_coords", 0) != 0;
 
 	const auto & l					= cfg.net.layers[section.index];
 	const int number_of_masks		= section.find_int_array("mask").size();
@@ -1400,13 +1462,21 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(Darknet::CfgSecti
 		Node reshape1(section, "_reshape_obj");
 		reshape1.type("Reshape").add_input(name).add_input(reshape_const_1);
 
-		Node sigmoid(section, "_sigmoid_obj");
-		sigmoid.type("Sigmoid").add_input(reshape1.output);
+		const std::string activated_output = [&]() -> std::string
+		{
+			if (new_coords)
+			{
+				return reshape1.output;
+			}
+			Node sigmoid(section, "_sigmoid_obj");
+			sigmoid.type("Sigmoid").add_input(reshape1.output);
+			return sigmoid.output;
+		}();
 
 		reshape_vector.push_back(1);
 		const auto reshape_const_2 = Node(section, reshape_vector).output;
 		Node reshape2(section, "_reshape_obj");
-		reshape2.type("Reshape").add_input(sigmoid.output).add_input(reshape_const_2);
+		reshape2.type("Reshape").add_input(activated_output).add_input(reshape_const_2);
 
 		output_names.push_back(reshape2.output);
 	}
@@ -1420,6 +1490,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_class(Darknet::CfgSe
 	TAT(TATPARMS);
 
 	// This assumes that postprocess_yolo_slice_and_concat() has already run, and we have the "concat_class" node ready to use.
+
+	// see postprocess_yolo_tx_ty() for why new_coords models must not be sigmoided a second time here
+	const bool new_coords			= section.find_int("new_coords", 0) != 0;
 
 	const auto & l					= cfg.net.layers[section.index];
 	const int number_of_classes		= section.find_int("classes");
@@ -1445,10 +1518,17 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_class(Darknet::CfgSe
 		Node reshape2(section, "_reshape_class");
 		reshape2.type("Reshape").add_input(transpose.output).add_input(const_shape_2);
 
-		Node sigmoid(section, "_sigmoid_class");
-		sigmoid.type("Sigmoid").add_input(reshape2.output);
+		if (new_coords)
+		{
+			output_names.push_back(reshape2.output);
+		}
+		else
+		{
+			Node sigmoid(section, "_sigmoid_class");
+			sigmoid.type("Sigmoid").add_input(reshape2.output);
 
-		output_names.push_back(sigmoid.output);
+			output_names.push_back(sigmoid.output);
+		}
 	}
 
 	return *this;
