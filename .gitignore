@@ -15,6 +15,7 @@ __pycache__/
 .DS_Store
 
 *.weights
+*.onnx
 
 # Visual Studio C++ generated binary of .rc file
 *.aps
