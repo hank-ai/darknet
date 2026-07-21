@@ -912,17 +912,30 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_maxpool(const size_t index, 
 	TAT(TATPARMS);
 
 	const int dilation		= 1;
-	const int stride		= section.find_int("stride"	, 2);
-	const int kernel_size	= section.find_int("size"	, 3);
-	const int pad			= dilation * (kernel_size - 1) / 2;
+	const int stride		= section.find_int("stride"	, 1);
+	const int stride_x		= section.find_int("stride_x"	, stride);
+	const int stride_y		= section.find_int("stride_y"	, stride);
+	const int kernel_size	= section.find_int("size"		, stride);
+
+	/* Darknet's default padding for [maxpool] is "size - 1", not the "SAME"-style (size-1)/2 used for
+	 * convolutions (see parse_maxpool_section() in darknet_cfg.cpp).  The padding is then applied as
+	 * "-padding/2" on the top/left (integer division, so it truncates toward zero) with the remainder
+	 * implicitly appearing on the bottom/right (see forward_maxpool_layer(), "w_offset = -l.pad/2").  For
+	 * odd kernels this is symmetric, but for even kernels (e.g. size=2 with stride=1, used by the
+	 * Tiny YOLO configurations to preserve the spatial size of the last maxpool) it is NOT symmetric, and
+	 * using a symmetric pad here produces the wrong output size.
+	 */
+	const int pad_total		= section.find_int("padding", kernel_size - 1);
+	const int pad_begin		= pad_total / 2;
+	const int pad_end		= pad_total - pad_begin;
 
 	Node node(section);
 	node.type("MaxPool").add_input(index - 1)//.add_input("_weights")
-		.add_attribute_INT("ceil_mode"		, 0							)
-		.add_attribute_INTS("pads"			, {pad, pad, pad, pad}		)
-		.add_attribute_INTS("dilations"		, {dilation, dilation}		)
-		.add_attribute_INTS("kernel_shape"	, {kernel_size, kernel_size})
-		.add_attribute_INTS("strides"		, {stride, stride}			);
+		.add_attribute_INT("ceil_mode"		, 0											)
+		.add_attribute_INTS("pads"			, {pad_begin, pad_begin, pad_end, pad_end}	)
+		.add_attribute_INTS("dilations"		, {dilation, dilation}						)
+		.add_attribute_INTS("kernel_shape"	, {kernel_size, kernel_size}				)
+		.add_attribute_INTS("strides"		, {stride_y, stride_x}						);
 
 	return *this;
 }
