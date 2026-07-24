@@ -248,8 +248,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 	{
 		*cfg_and_state.output << Darknet::in_colour(colour, "32-bit floats");
 	}
-//	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
-	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fp16 or -fp32]") << std::endl;
+	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
 
 	const std::set<std::string> exports_that_use_16_bit_floats =
 	{
@@ -295,11 +294,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	TAT(TATPARMS);
 
 	if (bit_size != 32 and
-		bit_size != 16 )//and
-//		bit_size != 8)
+		bit_size != 16 and
+		bit_size != 8)
 	{
-//		throw std::runtime_error("INT8, FP16, and FP32 are supported, but bit size is currently set to " + std::to_string(bit_size) + " which is not supported");
-		throw std::runtime_error("FP16, and FP32 are supported, but bit size is currently set to " + std::to_string(bit_size) + " which is not supported");
+		throw std::runtime_error("INT8, FP16, and FP32 are supported, but bit size is currently set to " + std::to_string(bit_size) + " which is not supported");
 	}
 
 	/* Quickly look through the configuration to see which ONNX opset we should be using:
@@ -432,7 +430,10 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx
 	auto tensor_type = new onnx::TypeProto_Tensor();
 	type->set_allocated_tensor_type(tensor_type);
 
-	if (bit_size == 32)
+	// INT8 export uses Q/DQ around weights only.  All graph inputs, outputs,
+	// activations, and bias tensors remain FLOAT so the resulting model is
+	// valid on standard ONNX Runtime providers without calibration data.
+	if (bit_size == 32 or bit_size == 8)
 	{
 		tensor_type->set_elem_type(onnx::TensorProto::FLOAT);
 	}
@@ -1083,6 +1084,95 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 		*cfg_and_state.output << "-> " << name << ": exporting " << n << " " << name << "                " << std::endl;
 	}
 
+	/* Weight-only INT8 quantization.  ONNX Conv accepts a FLOAT weight input,
+	 * so store the weights as INT8 and insert DequantizeLinear immediately
+	 * before the Conv.  Per-output-channel symmetric quantization (axis=0)
+	 * preserves substantially more accuracy than a single scale per tensor.
+	 * Bias and activations intentionally stay FLOAT: their quantization needs
+	 * activation calibration and a bias scale derived from it.
+	 */
+	const bool is_weights = name.size() >= 8 and name.compare(name.size() - 8, 8, "_weights") == 0;
+	if (bit_size == 8 and is_weights and not simple and f != nullptr and n > 0)
+	{
+		if (l.n <= 0 or n % static_cast<size_t>(l.n) != 0)
+		{
+			throw std::runtime_error("cannot quantize " + name + ": invalid convolution weight dimensions");
+		}
+
+		const size_t output_channels = l.n;
+		const size_t values_per_channel = n / output_channels;
+		const size_t kernel_size = std::max(1, l.size);
+		if (values_per_channel % (kernel_size * kernel_size) != 0)
+		{
+			throw std::runtime_error("cannot quantize " + name + ": invalid convolution kernel dimensions");
+		}
+
+		std::vector<std::int8_t> weights;
+		std::vector<std::int8_t> zero_points(output_channels, 0);
+		std::vector<float> scales;
+		weights.reserve(n);
+		scales.reserve(output_channels);
+		for (size_t channel = 0; channel < output_channels; ++channel)
+		{
+			float max_abs = 0.0f;
+			for (size_t i = 0; i < values_per_channel; ++i)
+			{
+				max_abs = std::max(max_abs, std::abs(f[channel * values_per_channel + i]));
+			}
+			const float scale = std::max(max_abs / 127.0f, 1.0e-8f);
+			scales.push_back(scale);
+			for (size_t i = 0; i < values_per_channel; ++i)
+			{
+				const int quantized = std::clamp(static_cast<int>(std::round(f[channel * values_per_channel + i] / scale)), -127, 127);
+				weights.push_back(static_cast<std::int8_t>(quantized));
+			}
+		}
+
+		auto add_initializer = [this](const std::string & tensor_name, const int data_type, const void * data, const size_t bytes, const std::vector<size_t> & dims)
+		{
+			auto * initializer = graph->add_initializer();
+			initializer->set_name(tensor_name);
+			initializer->set_data_type(data_type);
+			initializer->set_raw_data(data, bytes);
+			for (const size_t dim : dims)
+			{
+				initializer->add_dims(dim);
+			}
+		};
+
+		const std::vector<size_t> weight_dims =
+		{
+			output_channels,
+			values_per_channel / (kernel_size * kernel_size),
+			kernel_size,
+			kernel_size
+		};
+		add_initializer(name + "_int8", onnx::TensorProto::INT8, weights.data(), weights.size() * sizeof(weights.front()), weight_dims);
+		add_initializer(name + "_scale", onnx::TensorProto::FLOAT, scales.data(), scales.size() * sizeof(scales.front()), {output_channels});
+		add_initializer(name + "_zero_point", onnx::TensorProto::INT8, zero_points.data(), zero_points.size() * sizeof(zero_points.front()), {output_channels});
+
+		/* populate_graph_initializer() is invoked after its Conv node is added.
+		 * Insert the producer before that Conv to keep the graph topologically
+		 * ordered, as required by ONNX checkers and runtimes.
+		 */
+		const int consumer_index = graph->node_size() - 1;
+		auto * dequantize = graph->add_node();
+		dequantize->set_name(name + "_dequantize");
+		dequantize->set_op_type("DequantizeLinear");
+		dequantize->add_input(name + "_int8");
+		dequantize->add_input(name + "_scale");
+		dequantize->add_input(name + "_zero_point");
+		dequantize->add_output(name);
+		auto * axis = dequantize->add_attribute();
+		axis->set_name("axis");
+		axis->set_type(onnx::AttributeProto::INT);
+		axis->set_i(0);
+		graph->mutable_node()->SwapElements(consumer_index, graph->node_size() - 1);
+
+		number_of_floats_exported["weights"] += n;
+		return *this;
+	}
+
 	onnx::TensorProto * initializer = graph->add_initializer();
 	initializer->set_name(name);
 	initializer->set_doc_string("initializer for " + Darknet::to_string(l.type) + ", " + std::to_string(n) + " x " + name + "]");
@@ -1110,7 +1200,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_initializer(const floa
 		else
 		{
 			// must be dealing with weights, bias, scale, etc.
-			if (bit_size < 32)
+			if (bit_size == 16)
 			{
 				must_convert = true;
 			}
@@ -1678,7 +1768,7 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 			}
 
 			onnx::TensorProto tensor;
-			tensor.set_data_type(bit_size == 32 ? onnx::TensorProto_DataType_FLOAT : onnx::TensorProto_DataType_FLOAT16);
+			tensor.set_data_type(bit_size == 16 ? onnx::TensorProto_DataType_FLOAT16 : onnx::TensorProto_DataType_FLOAT);
 			tensor.add_dims(1);
 			tensor.add_dims(1);
 			tensor.add_dims(l.h);
@@ -1694,7 +1784,7 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 					if (i % 2 == 0)
 					{
 						// X values
-						if (bit_size == 32)
+						if (bit_size != 16)
 						{
 							tensor.add_float_data(w);
 						}
@@ -1706,7 +1796,7 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 					else
 					{
 						// Y values
-						if (bit_size == 32)
+						if (bit_size != 16)
 						{
 							tensor.add_float_data(h);
 						}
@@ -1779,7 +1869,7 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 			}
 
 			onnx::TensorProto tensor;
-			if (bit_size < 32)
+			if (bit_size == 16)
 			{
 				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT16);
 				std::vector<std::uint16_t> v;
@@ -1818,7 +1908,7 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 
 			onnx::TensorProto tensor;
 			const float f = (name == "lhs" ? l.w : l.h);
-			if (bit_size == 32)
+			if (bit_size != 16)
 			{
 				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT);
 				tensor.add_float_data(f);
