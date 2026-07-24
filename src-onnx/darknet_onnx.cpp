@@ -198,10 +198,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 	{
 		bit_size = 16;
 	}
+#if 0 // not completed
 	if (cfg_and_state.is_set("int8"))
 	{
 		bit_size = 8;
 	}
+#endif
 
 	// restore the verbose flag
 	if (not original_verbose_flag)
@@ -258,7 +260,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 			bit_size == 16	?	"16-bit (half-size) floats"		:
 			bit_size == 32	?	"32-bit floats"					:
 								"unknown (error!)"				)
-		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
+//		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
+		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fp16 or -fp32]") << std::endl;
 
 	// display a summary of all of the 4-byte floats, half-size floats, and int8 values we exported into the .onnx
 	for (const auto & exported_values : {number_of_32_bit_floats_exported, number_of_16_bit_floats_exported, number_of_int8_exported})
