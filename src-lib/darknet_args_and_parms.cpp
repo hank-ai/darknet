@@ -438,7 +438,7 @@ void Darknet::display_usage()
 		<< YELLOW("    darknet_onnx_export -dontfuse -trace cars.cfg cars.weights cars.names")		<< std::endl
 		<< "  Export Darknet/YOLO configuration and weights, but use 16-bit floats instead:"		<< std::endl
 		<< YELLOW("    darknet_onnx_export cars -fp16")												<< std::endl
-		<< "  Export Darknet/YOLO configuration and weights with INT8 weight quantization:"	<< std::endl
+		<< "  Export Darknet/YOLO configuration and weights with INT8 weight quantization:"			<< std::endl
 		<< YELLOW("    darknet_onnx_export cars -int8")												<< std::endl
 		<< "  ONNX export tool requires Google ProtoBuffer to be installed when building Darknet."	<< std::endl
 		<< ""																						<< std::endl
