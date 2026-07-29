@@ -931,10 +931,20 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_maxpool(const size_t index, 
 	TAT(TATPARMS);
 
 	const int dilation		= 1;
-	const int stride		= section.find_int("stride"	, 1);
+	const int stride		= section.find_int("stride"		, 1);
 	const int stride_x		= section.find_int("stride_x"	, stride);
 	const int stride_y		= section.find_int("stride_y"	, stride);
 	const int kernel_size	= section.find_int("size"		, stride);
+
+	if (kernel_size < 1)
+	{
+		throw std::invalid_argument(cfg_fn.string() + ": maxpool on line #" + std::to_string(section.line_number) + " has invalid size=" + std::to_string(kernel_size));
+	}
+
+	if (stride < 1)
+	{
+		throw std::invalid_argument(cfg_fn.string() + ": maxpool on line #" + std::to_string(section.line_number) + " has invalid stride=" + std::to_string(stride));
+	}
 
 	/* Darknet's default padding for [maxpool] is "size - 1", not the "SAME"-style (size-1)/2 used for
 	 * convolutions (see parse_maxpool_section() in darknet_cfg.cpp).  The padding is then applied as
@@ -949,7 +959,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_maxpool(const size_t index, 
 	const int pad_end		= pad_total - pad_begin;
 
 	Node node(section);
-	node.type("MaxPool").add_input(index - 1)//.add_input("_weights")
+	node.type("MaxPool").add_input(index - 1)
 		.add_attribute_INT("ceil_mode"		, 0											)
 		.add_attribute_INTS("pads"			, {pad_begin, pad_begin, pad_end, pad_end}	)
 		.add_attribute_INTS("dilations"		, {dilation, dilation}						)
