@@ -120,7 +120,7 @@ void resize_shortcut_layer(Darknet::Layer *l, int w, int h, Darknet::Network * n
 	l->h = l->out_h = h;
 	l->outputs = w*h*l->out_c;
 	l->inputs = l->outputs;
-	if (l->train) l->delta = (float*)xrealloc(l->delta, l->outputs * l->batch * sizeof(float));
+	if (l->delta) l->delta = (float*)xrealloc(l->delta, l->outputs * l->batch * sizeof(float));
 	l->output = (float*)xrealloc(l->output, l->outputs * l->batch * sizeof(float));
 
 	int i;
@@ -139,7 +139,7 @@ void resize_shortcut_layer(Darknet::Layer *l, int w, int h, Darknet::Network * n
 	cuda_free(l->output_gpu);
 	l->output_gpu = cuda_make_array(l->output, l->outputs*l->batch);
 
-	if (l->train) {
+	if (l->delta_gpu) {
 		cuda_free(l->delta_gpu);
 		l->delta_gpu = cuda_make_array(l->delta, l->outputs*l->batch);
 	}

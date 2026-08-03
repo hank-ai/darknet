@@ -1168,15 +1168,14 @@ void resize_convolutional_layer(Darknet::Layer *l, int w, int h)
 
 
 	l->output = (float*)xrealloc(l->output, total_batch * l->outputs * sizeof(float));
-	if (l->train)
+	if (l->delta)
 	{
 		l->delta = (float*)xrealloc(l->delta, total_batch * l->outputs * sizeof(float));
-
-		if (l->batch_normalize)
-		{
-			l->x = (float*)xrealloc(l->x, total_batch * l->outputs * sizeof(float));
-			l->x_norm = (float*)xrealloc(l->x_norm, total_batch * l->outputs * sizeof(float));
-		}
+	}
+	if (l->train && l->batch_normalize)
+	{
+		l->x = (float*)xrealloc(l->x, total_batch * l->outputs * sizeof(float));
+		l->x_norm = (float*)xrealloc(l->x_norm, total_batch * l->outputs * sizeof(float));
 	}
 
 #if 0
@@ -1190,7 +1189,7 @@ void resize_convolutional_layer(Darknet::Layer *l, int w, int h)
 #ifdef DARKNET_GPU
 	if (old_w < w || old_h < h || l->dynamic_minibatch)
 	{
-		if (l->train)
+		if (l->delta_gpu)
 		{
 			cuda_free(l->delta_gpu);
 			l->delta_gpu = cuda_make_array(l->delta, total_batch*l->outputs);
