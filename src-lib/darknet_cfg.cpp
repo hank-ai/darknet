@@ -1005,11 +1005,6 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 
 		section.find_unused_lines();
 
-		if (l.stopbackward == 1)
-		{
-			*cfg_and_state.output << " ------- previous layers are frozen -------" << std::endl;
-		}
-
 		net.layers[idx] = l;
 		if (l.workspace_size > parms.workspace_size)
 		{
@@ -1060,6 +1055,11 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 					<< std::endl
 					<< "  # line    layer     filters   sz/rte/other    input              output       bflops" << std::endl;
 													// "size, stride, dilation, route, anchors, more...
+			}
+
+			if (idx > 0 && idx == parms.last_stop_backward)
+			{
+				*cfg_and_state.output << " ------- previous layers are frozen -------" << std::endl;
 			}
 
 			*cfg_and_state.output << format_layer_summary(idx, section, l) << std::endl;
