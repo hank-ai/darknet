@@ -1057,7 +1057,7 @@ Darknet::Network & Darknet::CfgFile::create_network(int batch, int time_steps)
 													// "size, stride, dilation, route, anchors, more...
 			}
 
-			if (idx > 0 && idx == parms.last_stop_backward)
+			if (idx > 0 and idx == parms.last_stop_backward)
 			{
 				*cfg_and_state.output << " ------- previous layers are frozen -------" << std::endl;
 			}
