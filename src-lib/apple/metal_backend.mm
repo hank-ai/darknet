@@ -1,4 +1,6 @@
 #include "metal_backend.hpp"
+#include "apple_backend.hpp"
+#include "apple_objc.hpp"
 
 #ifdef DARKNET_USE_MPS
 
@@ -9,15 +11,17 @@
 #include <unordered_map>
 #include <string>
 #include <cstring>
-#include <cstdio>
 
 namespace
 {
-	/** \brief Global Metal device/queue shared across threads. \ingroup metal_backend */
+	using Darknet::Apple::Detail::ObjcStrong;
+	using Darknet::Apple::Detail::objc_release_if_needed;
+
+	/// Non-owning references to the canonical device/queue shared across threads.
 	struct MetalContext
 	{
-		id<MTLDevice> device = nil;
-		id<MTLCommandQueue> queue = nil;
+		__unsafe_unretained id<MTLDevice> device = nil;
+		__unsafe_unretained id<MTLCommandQueue> queue = nil;
 		std::mutex mutex;
 	};
 
@@ -27,95 +31,48 @@ namespace
 		return ctx;
 	}
 
-	/** \brief Thread-local command buffer state for batched dispatch. \ingroup metal_backend */
+	/// Thread-local command buffer state for batched dispatch.
 	struct MetalThreadContext
 	{
 		id<MTLCommandBuffer> command_buffer = nil;
 		bool owns_command_buffer = false;
+		std::string error;
 	};
 
 	thread_local MetalThreadContext thread_ctx;
 
-	struct ObjcStrong
-	{
-		id obj = nil;
-
-		ObjcStrong() = default;
-
-		explicit ObjcStrong(id value) : obj(value)
-		{
-			retain();
-		}
-
-		ObjcStrong(const ObjcStrong & other) : obj(other.obj)
-		{
-			retain();
-		}
-
-		ObjcStrong(ObjcStrong && other) noexcept : obj(other.obj)
-		{
-			other.obj = nil;
-		}
-
-		ObjcStrong & operator=(const ObjcStrong & other)
-		{
-			if (this != &other)
-			{
-				release();
-				obj = other.obj;
-				retain();
-			}
-			return *this;
-		}
-
-		ObjcStrong & operator=(ObjcStrong && other) noexcept
-		{
-			if (this != &other)
-			{
-				release();
-				obj = other.obj;
-				other.obj = nil;
-			}
-			return *this;
-		}
-
-		~ObjcStrong()
-		{
-			release();
-		}
-
-		id get() const
-		{
-			return obj;
-		}
-
-	private:
-		void retain()
-		{
-			if (obj)
-			{
-				CFRetain((__bridge CFTypeRef)obj);
-			}
-		}
-
-		void release()
-		{
-			if (obj)
-			{
-				CFRelease((__bridge CFTypeRef)obj);
-				obj = nil;
-			}
-		}
-	};
-
-	/** \brief Thread-safe cache of the Metal library and pipeline states. \ingroup metal_backend */
+	/// Thread-safe cache of the Metal library and pipeline states.
 	struct MetalKernelCache
 	{
 		id<MTLLibrary> library = nil;
 		std::unordered_map<std::string, ObjcStrong> pipelines;
 		std::mutex mutex;
 		bool failed = false;
+		std::string error;
 	};
+
+	std::string ns_error_string(NSError *error)
+	{
+		if (!error)
+		{
+			return {};
+		}
+		NSString *description = error.localizedDescription;
+		const char *text = description.UTF8String;
+		return text ? text : "unknown Metal error";
+	}
+
+	bool command_buffer_succeeded(id<MTLCommandBuffer> command_buffer)
+	{
+		if (command_buffer && command_buffer.status == MTLCommandBufferStatusCompleted)
+		{
+			return true;
+		}
+		thread_ctx.error = command_buffer
+			? "Metal command buffer failed: " + ns_error_string(command_buffer.error)
+			: "Metal command buffer is unavailable";
+		return false;
+	}
 
 	MetalKernelCache & get_kernel_cache()
 	{
@@ -179,6 +136,28 @@ kernel void swish_kernel(texture2d_array<float, access::read_write> tex [[textur
 	tex.write(v, uint2(gid.xy), gid.z);
 }
 
+kernel void relu_kernel(texture2d_array<float, access::read_write> tex [[texture(0)]],
+	uint3 gid [[thread_position_in_grid]])
+{
+	if (gid.x >= tex.get_width() || gid.y >= tex.get_height() || gid.z >= tex.get_array_size())
+	{
+		return;
+	}
+	tex.write(max(tex.read(uint2(gid.xy), gid.z), 0.0f), uint2(gid.xy), gid.z);
+}
+
+kernel void leaky_kernel(texture2d_array<float, access::read_write> tex [[texture(0)]],
+	uint3 gid [[thread_position_in_grid]])
+{
+	if (gid.x >= tex.get_width() || gid.y >= tex.get_height() || gid.z >= tex.get_array_size())
+	{
+		return;
+	}
+	float4 v = tex.read(uint2(gid.xy), gid.z);
+	v = select(0.1f * v, v, v > 0.0f);
+	tex.write(v, uint2(gid.xy), gid.z);
+}
+
 kernel void mish_kernel(texture2d_array<float, access::read_write> tex [[texture(0)]],
 	uint3 gid [[thread_position_in_grid]])
 {
@@ -224,190 +203,6 @@ kernel void upsample_kernel(texture2d_array<float, access::read> in_tex [[textur
 	float4 v = in_tex.read(uint2(sx, sy), gid.z);
 	v *= scale;
 	out_tex.write(v, uint2(gid.xy), gid.z);
-}
-
-kernel void shortcut_weighted_kernel(texture2d_array<float, access::read> in_tex [[texture(0)]],
-	texture2d_array<float, access::read> add_tex [[texture(1)]],
-	texture2d_array<float, access::write> out_tex [[texture(2)]],
-	constant float &w_in [[buffer(0)]],
-	constant float &w_add [[buffer(1)]],
-	uint3 gid [[thread_position_in_grid]])
-{
-	if (gid.x >= out_tex.get_width() || gid.y >= out_tex.get_height() || gid.z >= out_tex.get_array_size())
-	{
-		return;
-	}
-	float4 a = in_tex.read(uint2(gid.xy), gid.z);
-	float4 b = add_tex.read(uint2(gid.xy), gid.z);
-	out_tex.write(a * w_in + b * w_add, uint2(gid.xy), gid.z);
-}
-
-kernel void shortcut_weighted_relu_kernel(texture2d_array<float, access::read> in_tex [[texture(0)]],
-	texture2d_array<float, access::read> add_tex [[texture(1)]],
-	texture2d_array<float, access::write> out_tex [[texture(2)]],
-	constant float &w_in [[buffer(0)]],
-	constant float &w_add [[buffer(1)]],
-	uint3 gid [[thread_position_in_grid]])
-{
-	if (gid.x >= out_tex.get_width() || gid.y >= out_tex.get_height() || gid.z >= out_tex.get_array_size())
-	{
-		return;
-	}
-	const float eps = 0.0001f;
-	const float w0 = max(w_in, 0.0f);
-	const float w1 = max(w_add, 0.0f);
-	const float sum = eps + w0 + w1;
-	float4 a = in_tex.read(uint2(gid.xy), gid.z);
-	float4 b = add_tex.read(uint2(gid.xy), gid.z);
-	out_tex.write(a * (w0 / sum) + b * (w1 / sum), uint2(gid.xy), gid.z);
-}
-
-kernel void shortcut_weighted_softmax_kernel(texture2d_array<float, access::read> in_tex [[texture(0)]],
-	texture2d_array<float, access::read> add_tex [[texture(1)]],
-	texture2d_array<float, access::write> out_tex [[texture(2)]],
-	constant float &w_in [[buffer(0)]],
-	constant float &w_add [[buffer(1)]],
-	uint3 gid [[thread_position_in_grid]])
-{
-	if (gid.x >= out_tex.get_width() || gid.y >= out_tex.get_height() || gid.z >= out_tex.get_array_size())
-	{
-		return;
-	}
-	const float eps = 0.0001f;
-	const float m = max(w_in, w_add);
-	const float e0 = exp(w_in - m);
-	const float e1 = exp(w_add - m);
-	const float sum = eps + e0 + e1;
-	float4 a = in_tex.read(uint2(gid.xy), gid.z);
-	float4 b = add_tex.read(uint2(gid.xy), gid.z);
-	out_tex.write(a * (e0 / sum) + b * (e1 / sum), uint2(gid.xy), gid.z);
-}
-
-kernel void shortcut_per_channel_kernel(texture2d_array<float, access::read> in_tex [[texture(0)]],
-	texture2d_array<float, access::read> add_tex [[texture(1)]],
-	texture2d_array<float, access::write> out_tex [[texture(2)]],
-	device const float *w_in [[buffer(0)]],
-	device const float *w_add [[buffer(1)]],
-	constant uint &channels [[buffer(2)]],
-	uint3 gid [[thread_position_in_grid]])
-{
-	if (gid.x >= out_tex.get_width() || gid.y >= out_tex.get_height() || gid.z >= out_tex.get_array_size())
-	{
-		return;
-	}
-	const uint base = gid.z * 4;
-	float4 a = in_tex.read(uint2(gid.xy), gid.z);
-	float4 b = add_tex.read(uint2(gid.xy), gid.z);
-	float4 out;
-	const uint c0 = base;
-	const uint c1 = base + 1;
-	const uint c2 = base + 2;
-	const uint c3 = base + 3;
-	const float w0 = (c0 < channels) ? w_in[c0] : 0.0f;
-	const float w1 = (c1 < channels) ? w_in[c1] : 0.0f;
-	const float w2 = (c2 < channels) ? w_in[c2] : 0.0f;
-	const float w3 = (c3 < channels) ? w_in[c3] : 0.0f;
-	const float wa0 = (c0 < channels) ? w_add[c0] : 0.0f;
-	const float wa1 = (c1 < channels) ? w_add[c1] : 0.0f;
-	const float wa2 = (c2 < channels) ? w_add[c2] : 0.0f;
-	const float wa3 = (c3 < channels) ? w_add[c3] : 0.0f;
-	out.x = a.x * w0 + b.x * wa0;
-	out.y = a.y * w1 + b.y * wa1;
-	out.z = a.z * w2 + b.z * wa2;
-	out.w = a.w * w3 + b.w * wa3;
-	out_tex.write(out, uint2(gid.xy), gid.z);
-}
-
-kernel void shortcut_per_channel_relu_kernel(texture2d_array<float, access::read> in_tex [[texture(0)]],
-	texture2d_array<float, access::read> add_tex [[texture(1)]],
-	texture2d_array<float, access::write> out_tex [[texture(2)]],
-	device const float *w_in [[buffer(0)]],
-	device const float *w_add [[buffer(1)]],
-	constant uint &channels [[buffer(2)]],
-	uint3 gid [[thread_position_in_grid]])
-{
-	if (gid.x >= out_tex.get_width() || gid.y >= out_tex.get_height() || gid.z >= out_tex.get_array_size())
-	{
-		return;
-	}
-	const float eps = 0.0001f;
-	const uint base = gid.z * 4;
-	float4 a = in_tex.read(uint2(gid.xy), gid.z);
-	float4 b = add_tex.read(uint2(gid.xy), gid.z);
-	float4 out;
-	const uint c0 = base;
-	const uint c1 = base + 1;
-	const uint c2 = base + 2;
-	const uint c3 = base + 3;
-	const float w0 = (c0 < channels) ? max(w_in[c0], 0.0f) : 0.0f;
-	const float w1 = (c1 < channels) ? max(w_in[c1], 0.0f) : 0.0f;
-	const float w2 = (c2 < channels) ? max(w_in[c2], 0.0f) : 0.0f;
-	const float w3 = (c3 < channels) ? max(w_in[c3], 0.0f) : 0.0f;
-	const float wa0 = (c0 < channels) ? max(w_add[c0], 0.0f) : 0.0f;
-	const float wa1 = (c1 < channels) ? max(w_add[c1], 0.0f) : 0.0f;
-	const float wa2 = (c2 < channels) ? max(w_add[c2], 0.0f) : 0.0f;
-	const float wa3 = (c3 < channels) ? max(w_add[c3], 0.0f) : 0.0f;
-	const float s0 = eps + w0 + wa0;
-	const float s1 = eps + w1 + wa1;
-	const float s2 = eps + w2 + wa2;
-	const float s3 = eps + w3 + wa3;
-	out.x = (s0 > 0.0f) ? (a.x * (w0 / s0) + b.x * (wa0 / s0)) : 0.0f;
-	out.y = (s1 > 0.0f) ? (a.y * (w1 / s1) + b.y * (wa1 / s1)) : 0.0f;
-	out.z = (s2 > 0.0f) ? (a.z * (w2 / s2) + b.z * (wa2 / s2)) : 0.0f;
-	out.w = (s3 > 0.0f) ? (a.w * (w3 / s3) + b.w * (wa3 / s3)) : 0.0f;
-	out_tex.write(out, uint2(gid.xy), gid.z);
-}
-
-kernel void shortcut_per_channel_softmax_kernel(texture2d_array<float, access::read> in_tex [[texture(0)]],
-	texture2d_array<float, access::read> add_tex [[texture(1)]],
-	texture2d_array<float, access::write> out_tex [[texture(2)]],
-	device const float *w_in [[buffer(0)]],
-	device const float *w_add [[buffer(1)]],
-	constant uint &channels [[buffer(2)]],
-	uint3 gid [[thread_position_in_grid]])
-{
-	if (gid.x >= out_tex.get_width() || gid.y >= out_tex.get_height() || gid.z >= out_tex.get_array_size())
-	{
-		return;
-	}
-	const float eps = 0.0001f;
-	const uint base = gid.z * 4;
-	float4 a = in_tex.read(uint2(gid.xy), gid.z);
-	float4 b = add_tex.read(uint2(gid.xy), gid.z);
-	float4 out;
-	const uint c0 = base;
-	const uint c1 = base + 1;
-	const uint c2 = base + 2;
-	const uint c3 = base + 3;
-	const float w0 = (c0 < channels) ? w_in[c0] : 0.0f;
-	const float w1 = (c1 < channels) ? w_in[c1] : 0.0f;
-	const float w2 = (c2 < channels) ? w_in[c2] : 0.0f;
-	const float w3 = (c3 < channels) ? w_in[c3] : 0.0f;
-	const float wa0 = (c0 < channels) ? w_add[c0] : 0.0f;
-	const float wa1 = (c1 < channels) ? w_add[c1] : 0.0f;
-	const float wa2 = (c2 < channels) ? w_add[c2] : 0.0f;
-	const float wa3 = (c3 < channels) ? w_add[c3] : 0.0f;
-	const float m0 = max(w0, wa0);
-	const float m1 = max(w1, wa1);
-	const float m2 = max(w2, wa2);
-	const float m3 = max(w3, wa3);
-	const float e0 = exp(w0 - m0);
-	const float e1 = exp(w1 - m1);
-	const float e2 = exp(w2 - m2);
-	const float e3 = exp(w3 - m3);
-	const float ea0 = exp(wa0 - m0);
-	const float ea1 = exp(wa1 - m1);
-	const float ea2 = exp(wa2 - m2);
-	const float ea3 = exp(wa3 - m3);
-	const float s0 = eps + e0 + ea0;
-	const float s1 = eps + e1 + ea1;
-	const float s2 = eps + e2 + ea2;
-	const float s3 = eps + e3 + ea3;
-	out.x = (s0 > 0.0f) ? (a.x * (e0 / s0) + b.x * (ea0 / s0)) : 0.0f;
-	out.y = (s1 > 0.0f) ? (a.y * (e1 / s1) + b.y * (ea1 / s1)) : 0.0f;
-	out.z = (s2 > 0.0f) ? (a.z * (e2 / s2) + b.z * (ea2 / s2)) : 0.0f;
-	out.w = (s3 > 0.0f) ? (a.w * (e3 / s3) + b.w * (ea3 / s3)) : 0.0f;
-	out_tex.write(out, uint2(gid.xy), gid.z);
 }
 
 inline float logistic_fn(float x)
@@ -726,7 +521,12 @@ kernel void normalize_channels_kernel(texture2d_array<float, access::read_write>
 	}
 	const uint image_index = gid.z / slices_per_image;
 	const uint slice = gid.z - image_index * slices_per_image;
-	const uint base_channel = slice * 4;
+	// Exactly one thread owns all slices for a pixel.  The previous one-thread-
+	// per-slice implementation raced by reading slices while peers overwrote them.
+	if (slice != 0u)
+	{
+		return;
+	}
 	float sum = 0.0001f;
 	for (uint s = 0; s < slices_per_image; ++s)
 	{
@@ -742,12 +542,21 @@ kernel void normalize_channels_kernel(texture2d_array<float, access::read_write>
 		if (channel_base + 2 < channels && v.z > 0.0f) sum += v.z;
 		if (channel_base + 3 < channels && v.w > 0.0f) sum += v.w;
 	}
-	float4 v = tex.read(uint2(gid.xy), gid.z);
-	v.x = (base_channel + 0 < channels && v.x > 0.0f) ? (v.x / sum) : 0.0f;
-	v.y = (base_channel + 1 < channels && v.y > 0.0f) ? (v.y / sum) : 0.0f;
-	v.z = (base_channel + 2 < channels && v.z > 0.0f) ? (v.z / sum) : 0.0f;
-	v.w = (base_channel + 3 < channels && v.w > 0.0f) ? (v.w / sum) : 0.0f;
-	tex.write(v, uint2(gid.xy), gid.z);
+	for (uint s = 0; s < slices_per_image; ++s)
+	{
+		const uint slice_id = image_index * slices_per_image + s;
+		if (slice_id >= tex.get_array_size())
+		{
+			break;
+		}
+		const uint base_channel = s * 4u;
+		float4 v = tex.read(uint2(gid.xy), slice_id);
+		v.x = (base_channel + 0u < channels && v.x > 0.0f) ? (v.x / sum) : 0.0f;
+		v.y = (base_channel + 1u < channels && v.y > 0.0f) ? (v.y / sum) : 0.0f;
+		v.z = (base_channel + 2u < channels && v.z > 0.0f) ? (v.z / sum) : 0.0f;
+		v.w = (base_channel + 3u < channels && v.w > 0.0f) ? (v.w / sum) : 0.0f;
+		tex.write(v, uint2(gid.xy), slice_id);
+	}
 }
 
 kernel void normalize_channels_softmax_kernel(texture2d_array<float, access::read_write> tex [[texture(0)]],
@@ -766,7 +575,10 @@ kernel void normalize_channels_softmax_kernel(texture2d_array<float, access::rea
 	}
 	const uint image_index = gid.z / slices_per_image;
 	const uint slice = gid.z - image_index * slices_per_image;
-	const uint base_channel = slice * 4;
+	if (slice != 0u)
+	{
+		return;
+	}
 	float max_val = use_max_val ? -INFINITY : 0.0f;
 	if (use_max_val)
 	{
@@ -800,12 +612,21 @@ kernel void normalize_channels_softmax_kernel(texture2d_array<float, access::rea
 		if (channel_base + 2 < channels) sum += exp(v.z - max_val);
 		if (channel_base + 3 < channels) sum += exp(v.w - max_val);
 	}
-	float4 v = tex.read(uint2(gid.xy), gid.z);
-	v.x = (base_channel + 0 < channels) ? exp(v.x - max_val) / sum : 0.0f;
-	v.y = (base_channel + 1 < channels) ? exp(v.y - max_val) / sum : 0.0f;
-	v.z = (base_channel + 2 < channels) ? exp(v.z - max_val) / sum : 0.0f;
-	v.w = (base_channel + 3 < channels) ? exp(v.w - max_val) / sum : 0.0f;
-	tex.write(v, uint2(gid.xy), gid.z);
+	for (uint s = 0; s < slices_per_image; ++s)
+	{
+		const uint slice_id = image_index * slices_per_image + s;
+		if (slice_id >= tex.get_array_size())
+		{
+			break;
+		}
+		const uint base_channel = s * 4u;
+		float4 v = tex.read(uint2(gid.xy), slice_id);
+		v.x = (base_channel + 0u < channels) ? exp(v.x - max_val) / sum : 0.0f;
+		v.y = (base_channel + 1u < channels) ? exp(v.y - max_val) / sum : 0.0f;
+		v.z = (base_channel + 2u < channels) ? exp(v.z - max_val) / sum : 0.0f;
+		v.w = (base_channel + 3u < channels) ? exp(v.w - max_val) / sum : 0.0f;
+		tex.write(v, uint2(gid.xy), slice_id);
+	}
 }
 
 kernel void route_clear_kernel(texture2d_array<float, access::read_write> out_tex [[texture(0)]],
@@ -1121,192 +942,857 @@ kernel void softmax_kernel(device const float *input [[buffer(0)]],
 	output[base + i * stride] = exp((val - max_val) / temp) / sum;
 }
 
-kernel void yolo_activate_kernel(device float *data [[buffer(0)]],
-	constant uint &entries [[buffer(1)]],
-	constant uint &wh [[buffer(2)]],
-	constant float &scale_x_y [[buffer(3)]],
-	constant float &bias [[buffer(4)]],
-	constant uint &new_coords [[buffer(5)]],
-	constant uint &total [[buffer(6)]],
+kernel void buffer_fill_float(device float *data [[buffer(0)]],
+	constant float &value [[buffer(1)]],
+	constant uint &total [[buffer(2)]],
 	uint gid [[thread_position_in_grid]])
 {
 	if (gid >= total)
 	{
 		return;
 	}
-	const uint entry = (wh > 0u) ? ((gid / wh) % entries) : 0u;
-	float v = data[gid];
-	if (new_coords == 0u)
-	{
-		if (entry == 0u || entry == 1u || entry >= 4u)
-		{
-			v = 1.0f / (1.0f + exp(-v));
-		}
-	}
-	if (entry == 0u || entry == 1u)
-	{
-		v = v * scale_x_y + bias;
-	}
-	data[gid] = v;
+	data[gid] = value;
 }
 
-kernel void yolo_decode_boxes_kernel(device const float *data [[buffer(0)]],
-	device float4 *boxes [[buffer(1)]],
-	device const float *biases [[buffer(2)]],
-	device const int *mask [[buffer(3)]],
-	constant uint &w [[buffer(4)]],
-	constant uint &h [[buffer(5)]],
-	constant uint &entries [[buffer(6)]],
-	constant uint &n [[buffer(7)]],
-	constant uint &batch [[buffer(8)]],
-	constant uint &outputs [[buffer(9)]],
-	constant uint &netw [[buffer(10)]],
-	constant uint &neth [[buffer(11)]],
-	constant uint &new_coords [[buffer(12)]],
+kernel void buffer_copy(device const float *src [[buffer(0)]],
+	device float *dst [[buffer(1)]],
+	constant uint &total [[buffer(2)]],
 	uint gid [[thread_position_in_grid]])
 {
-	const uint wh = w * h;
-	const uint total = wh * n * batch;
-	if (gid >= total || wh == 0u || n == 0u || w == 0u || h == 0u)
+	if (gid >= total)
 	{
 		return;
 	}
-	const uint loc = gid % wh;
-	const uint anchor = (gid / wh) % n;
-	const uint b = gid / (wh * n);
-	const uint base = b * outputs + anchor * wh * entries;
-	const uint idx = base + loc;
+	dst[gid] = src[gid];
+}
 
-	const uint row = loc / w;
-	const uint col = loc - row * w;
-
-	const uint bias_idx = (mask != nullptr) ? (uint)mask[anchor] : anchor;
-	const uint bias_base = bias_idx * 2u;
-	const float bw = biases[bias_base];
-	const float bh = biases[bias_base + 1u];
-
-	const float x = data[idx + 0u * wh];
-	const float y = data[idx + 1u * wh];
-	const float tw = data[idx + 2u * wh];
-	const float th = data[idx + 3u * wh];
-
-	const float bx = (float(col) + x) / float(w);
-	const float by = (float(row) + y) / float(h);
-	float bw_out = 0.0f;
-	float bh_out = 0.0f;
-
-	if (new_coords == 0u)
+kernel void buffer_axpy(device const float *x [[buffer(0)]],
+	device float *y [[buffer(1)]],
+	constant float &alpha [[buffer(2)]],
+	constant uint &total [[buffer(3)]],
+	uint gid [[thread_position_in_grid]])
+{
+	if (gid >= total)
 	{
-		bw_out = exp(tw) * bw / float(netw);
-		bh_out = exp(th) * bh / float(neth);
+		return;
+	}
+	y[gid] += alpha * x[gid];
+}
+
+kernel void buffer_scal(device float *x [[buffer(0)]],
+	constant float &alpha [[buffer(1)]],
+	constant uint &total [[buffer(2)]],
+	uint gid [[thread_position_in_grid]])
+{
+	if (gid >= total)
+	{
+		return;
+	}
+	x[gid] *= alpha;
+}
+
+kernel void sgd_update_weights(device float *parameters [[buffer(0)]],
+	device float *updates [[buffer(1)]],
+	constant float &rate_over_batch [[buffer(2)]],
+	constant float &momentum [[buffer(3)]],
+	constant float &decay_term [[buffer(4)]],
+	constant uint &total [[buffer(5)]],
+	uint gid [[thread_position_in_grid]])
+{
+	if (gid >= total)
+	{
+		return;
+	}
+	float update = isfinite(updates[gid]) ? updates[gid] : 0.0f;
+	float parameter = isfinite(parameters[gid]) ? parameters[gid] : 1.0f / float(gid + 1u);
+	update += decay_term * parameter;
+	parameter += rate_over_batch * update;
+	parameters[gid] = parameter;
+	updates[gid] = momentum * update;
+}
+
+kernel void sgd_update_parameter(device float *parameters [[buffer(0)]],
+	device float *updates [[buffer(1)]],
+	constant float &rate_over_batch [[buffer(2)]],
+	constant float &momentum [[buffer(3)]],
+	constant uint &total [[buffer(4)]],
+	uint gid [[thread_position_in_grid]])
+{
+	if (gid >= total)
+	{
+		return;
+	}
+	const float update = updates[gid];
+	parameters[gid] += rate_over_batch * update;
+	updates[gid] = momentum * update;
+}
+
+inline float apple_logistic_fn(float x)
+{
+	return 1.0f / (1.0f + exp(-x));
+}
+
+struct apple_yolo_plain_params
+{
+	uint batch;
+	uint w;
+	uint h;
+	uint n;
+	uint total;
+	uint classes;
+	uint outputs;
+	uint truths;
+	uint truth_size;
+	uint max_boxes;
+	uint net_w;
+	uint net_h;
+	uint new_coords;
+	uint objectness_smooth;
+	float scale_x_y;
+	float ignore_thresh;
+	float truth_thresh;
+	float iou_thresh;
+	float obj_normalizer;
+	float cls_normalizer;
+	float iou_normalizer;
+	float max_delta;
+};
+
+struct apple_yolo_plain_loss_stats
+{
+	float total_sq;
+	float class_sq;
+	float iou_loss;
+	float iou_sum;
+	float count;
+	float rewritten;
+};
+
+inline uint apple_yolo_spatial(constant apple_yolo_plain_params &p)
+{
+	return p.w * p.h;
+}
+
+inline uint apple_yolo_entry_index(constant apple_yolo_plain_params &p, uint b, uint n, uint loc, uint entry)
+{
+	return b * p.outputs + n * apple_yolo_spatial(p) * (p.classes + 5u) + entry * apple_yolo_spatial(p) + loc;
+}
+
+inline float4 apple_yolo_box(device const float *output,
+	device const float *biases,
+	constant apple_yolo_plain_params &p,
+	uint anchor,
+	uint box_index,
+	uint cell_x,
+	uint cell_y)
+{
+	const uint stride = apple_yolo_spatial(p);
+	float4 box;
+	box.x = (float(cell_x) + output[box_index + 0u * stride]) / float(p.w);
+	box.y = (float(cell_y) + output[box_index + 1u * stride]) / float(p.h);
+	if (p.new_coords != 0u)
+	{
+		const float w = output[box_index + 2u * stride];
+		const float h = output[box_index + 3u * stride];
+		box.z = w * w * 4.0f * biases[2u * anchor] / float(p.net_w);
+		box.w = h * h * 4.0f * biases[2u * anchor + 1u] / float(p.net_h);
 	}
 	else
 	{
-		const float tw2 = tw * tw;
-		const float th2 = th * th;
-		bw_out = tw2 * 4.0f * bw / float(netw);
-		bh_out = th2 * 4.0f * bh / float(neth);
+		box.z = exp(output[box_index + 2u * stride]) * biases[2u * anchor] / float(p.net_w);
+		box.w = exp(output[box_index + 3u * stride]) * biases[2u * anchor + 1u] / float(p.net_h);
 	}
-
-	boxes[gid] = float4(bx, by, bw_out, bh_out);
+	return box;
 }
 
-kernel void yolo_candidates_kernel(device const float *data [[buffer(0)]],
-	device uint *indices [[buffer(1)]],
-	device atomic_uint *count [[buffer(2)]],
-	constant uint &w [[buffer(3)]],
-	constant uint &h [[buffer(4)]],
-	constant uint &entries [[buffer(5)]],
-	constant uint &n [[buffer(6)]],
-	constant uint &batch [[buffer(7)]],
-	constant uint &outputs [[buffer(8)]],
-	constant float &thresh [[buffer(9)]],
-	constant uint &max_candidates [[buffer(10)]],
+inline float apple_yolo_overlap(float x1, float w1, float x2, float w2)
+{
+	const float l1 = x1 - w1 * 0.5f;
+	const float l2 = x2 - w2 * 0.5f;
+	const float left = max(l1, l2);
+	const float r1 = x1 + w1 * 0.5f;
+	const float r2 = x2 + w2 * 0.5f;
+	const float right = min(r1, r2);
+	return right - left;
+}
+
+inline float apple_yolo_intersection(float4 a, float4 b)
+{
+	const float w = apple_yolo_overlap(a.x, a.z, b.x, b.z);
+	if (w <= 0.0f)
+	{
+		return 0.0f;
+	}
+	const float h = apple_yolo_overlap(a.y, a.w, b.y, b.w);
+	if (h <= 0.0f)
+	{
+		return 0.0f;
+	}
+	return w * h;
+}
+
+inline float apple_yolo_iou(float4 a, float4 b)
+{
+	if (!isfinite(a.x) || !isfinite(a.y) || !isfinite(a.z) || !isfinite(a.w) ||
+		!isfinite(b.x) || !isfinite(b.y) || !isfinite(b.z) || !isfinite(b.w))
+	{
+		return 0.0f;
+	}
+	const float intersection = apple_yolo_intersection(a, b);
+	if (!isfinite(intersection) || intersection <= 0.0f)
+	{
+		return 0.0f;
+	}
+	const float u = a.z * a.w + b.z * b.w - intersection;
+	if (!isfinite(u) || u <= 0.0f)
+	{
+		return 0.0f;
+	}
+	const float value = intersection / u;
+	return isfinite(value) ? value : 0.0f;
+}
+
+inline float4 apple_yolo_ciou_delta(float4 pred, float4 truth)
+{
+	if (!isfinite(pred.x) || !isfinite(pred.y) || !isfinite(pred.z) || !isfinite(pred.w) ||
+		!isfinite(truth.x) || !isfinite(truth.y) || !isfinite(truth.z) || !isfinite(truth.w))
+	{
+		return float4(0.0f);
+	}
+	const float pred_t0 = pred.y - pred.w * 0.5f;
+	const float pred_b0 = pred.y + pred.w * 0.5f;
+	const float pred_l0 = pred.x - pred.z * 0.5f;
+	const float pred_r0 = pred.x + pred.z * 0.5f;
+	const float pred_t = min(pred_t0, pred_b0);
+	const float pred_b = max(pred_t0, pred_b0);
+	const float pred_l = min(pred_l0, pred_r0);
+	const float pred_r = max(pred_l0, pred_r0);
+	const float truth_t = truth.y - truth.w * 0.5f;
+	const float truth_b = truth.y + truth.w * 0.5f;
+	const float truth_l = truth.x - truth.z * 0.5f;
+	const float truth_r = truth.x + truth.z * 0.5f;
+
+	const float X = (pred_b - pred_t) * (pred_r - pred_l);
+	const float Xhat = (truth_b - truth_t) * (truth_r - truth_l);
+	const float Ih = min(pred_b, truth_b) - max(pred_t, truth_t);
+	const float Iw = min(pred_r, truth_r) - max(pred_l, truth_l);
+	const float I = Iw * Ih;
+	const float U = X + Xhat - I;
+	const float S = (pred.x - truth.x) * (pred.x - truth.x) + (pred.y - truth.y) * (pred.y - truth.y);
+
+	const float dX_wrt_t = -1.0f * (pred_r - pred_l);
+	const float dX_wrt_b = pred_r - pred_l;
+	const float dX_wrt_l = -1.0f * (pred_b - pred_t);
+	const float dX_wrt_r = pred_b - pred_t;
+
+	const float dI_wrt_t = pred_t > truth_t ? (-1.0f * Iw) : 0.0f;
+	const float dI_wrt_b = pred_b < truth_b ? Iw : 0.0f;
+	const float dI_wrt_l = pred_l > truth_l ? (-1.0f * Ih) : 0.0f;
+	const float dI_wrt_r = pred_r < truth_r ? Ih : 0.0f;
+
+	const float dU_wrt_t = dX_wrt_t - dI_wrt_t;
+	const float dU_wrt_b = dX_wrt_b - dI_wrt_b;
+	const float dU_wrt_l = dX_wrt_l - dI_wrt_l;
+	const float dU_wrt_r = dX_wrt_r - dI_wrt_r;
+
+	float p_dt = 0.0f;
+	float p_db = 0.0f;
+	float p_dl = 0.0f;
+	float p_dr = 0.0f;
+	if (U > 0.0f)
+	{
+		const float uu = U * U;
+		p_dt = ((U * dI_wrt_t) - (I * dU_wrt_t)) / uu;
+		p_db = ((U * dI_wrt_b) - (I * dU_wrt_b)) / uu;
+		p_dl = ((U * dI_wrt_l) - (I * dU_wrt_l)) / uu;
+		p_dr = ((U * dI_wrt_r) - (I * dU_wrt_r)) / uu;
+	}
+
+	const float p_dt0 = p_dt;
+	const float p_db0 = p_db;
+	const float p_dl0 = p_dl;
+	const float p_dr0 = p_dr;
+	p_dt = pred_t0 < pred_b0 ? p_dt0 : p_db0;
+	p_db = pred_t0 < pred_b0 ? p_db0 : p_dt0;
+	p_dl = pred_l0 < pred_r0 ? p_dl0 : p_dr0;
+	p_dr = pred_l0 < pred_r0 ? p_dr0 : p_dl0;
+
+	const float Ct = min(pred.y - pred.w * 0.5f, truth.y - truth.w * 0.5f);
+	const float Cb = max(pred.y + pred.w * 0.5f, truth.y + truth.w * 0.5f);
+	const float Cl = min(pred.x - pred.z * 0.5f, truth.x - truth.z * 0.5f);
+	const float Cr = max(pred.x + pred.z * 0.5f, truth.x + truth.z * 0.5f);
+	const float Cw = Cr - Cl;
+	const float Ch = Cb - Ct;
+	const float C = Cw * Cw + Ch * Ch;
+
+	const float dCt_dx = 0.0f;
+	const float dCt_dy = pred_t < truth_t ? 1.0f : 0.0f;
+	const float dCt_dw = 0.0f;
+	const float dCt_dh = pred_t < truth_t ? -0.5f : 0.0f;
+
+	const float dCb_dx = 0.0f;
+	const float dCb_dy = pred_b > truth_b ? 1.0f : 0.0f;
+	const float dCb_dw = 0.0f;
+	const float dCb_dh = pred_b > truth_b ? 0.5f : 0.0f;
+
+	const float dCl_dx = pred_l < truth_l ? 1.0f : 0.0f;
+	const float dCl_dy = 0.0f;
+	const float dCl_dw = pred_l < truth_l ? -0.5f : 0.0f;
+	const float dCl_dh = 0.0f;
+
+	const float dCr_dx = pred_r > truth_r ? 1.0f : 0.0f;
+	const float dCr_dy = 0.0f;
+	const float dCr_dw = pred_r > truth_r ? 0.5f : 0.0f;
+	const float dCr_dh = 0.0f;
+
+	const float dCw_dx = dCr_dx - dCl_dx;
+	const float dCw_dy = dCr_dy - dCl_dy;
+	const float dCw_dw = dCr_dw - dCl_dw;
+	const float dCw_dh = dCr_dh - dCl_dh;
+
+	const float dCh_dx = dCb_dx - dCt_dx;
+	const float dCh_dy = dCb_dy - dCt_dy;
+	const float dCh_dw = dCb_dw - dCt_dw;
+	const float dCh_dh = dCb_dh - dCt_dh;
+
+	float p_dx = p_dl + p_dr;
+	float p_dy = p_dt + p_db;
+	float p_dw = p_dr - p_dl;
+	float p_dh = p_db - p_dt;
+
+	const float ar_gt = truth.z / truth.w;
+	const float ar_pred = pred.z / pred.w;
+	const float pi = 3.14159265358979323846f;
+	const float ar_diff = atan(ar_gt) - atan(ar_pred);
+	const float ar_loss = 4.0f / (pi * pi) * ar_diff * ar_diff;
+	const float iou_ratio = U != 0.0f ? I / U : 0.0f;
+	const float alpha = ar_loss / (1.0f - iou_ratio + ar_loss + 0.000001f);
+	const float ar_dw = 8.0f / (pi * pi) * ar_diff * pred.w;
+	const float ar_dh = -8.0f / (pi * pi) * ar_diff * pred.z;
+
+	if (C > 0.0f)
+	{
+		const float cc = C * C;
+		p_dx += (2.0f * (truth.x - pred.x) * C - (2.0f * Cw * dCw_dx + 2.0f * Ch * dCh_dx) * S) / cc;
+		p_dy += (2.0f * (truth.y - pred.y) * C - (2.0f * Cw * dCw_dy + 2.0f * Ch * dCh_dy) * S) / cc;
+		p_dw += (2.0f * Cw * dCw_dw + 2.0f * Ch * dCh_dw) * S / cc + alpha * ar_dw;
+		p_dh += (2.0f * Cw * dCw_dh + 2.0f * Ch * dCh_dh) * S / cc + alpha * ar_dh;
+	}
+	if (Iw <= 0.0f || Ih <= 0.0f)
+	{
+		const float cc = C * C;
+		p_dx = (2.0f * (truth.x - pred.x) * C - (2.0f * Cw * dCw_dx + 2.0f * Ch * dCh_dx) * S) / cc;
+		p_dy = (2.0f * (truth.y - pred.y) * C - (2.0f * Cw * dCw_dy + 2.0f * Ch * dCh_dy) * S) / cc;
+		p_dw = (2.0f * Cw * dCw_dw + 2.0f * Ch * dCh_dw) * S / cc + alpha * ar_dw;
+		p_dh = (2.0f * Cw * dCw_dh + 2.0f * Ch * dCh_dh) * S / cc + alpha * ar_dh;
+	}
+
+	return float4(p_dx, p_dy, p_dw, p_dh);
+}
+
+inline float apple_yolo_clean_delta(float value, float max_delta)
+{
+	if (!isfinite(value))
+	{
+		return 0.0f;
+	}
+	if (max_delta < 3.4028234663852886e38f)
+	{
+		value = clamp(value, -max_delta, max_delta);
+	}
+	return value;
+}
+
+inline float apple_yolo_clean_output(float value)
+{
+	return isfinite(value) ? value : 0.0f;
+}
+
+inline float apple_yolo_objectness_delta(float normalizer, float target, float output)
+{
+	const float value = normalizer * (target - output);
+	return isfinite(value) ? value : 0.0f;
+}
+
+inline void apple_yolo_assign_class_delta(device const float *output,
+	device float *delta,
+	constant apple_yolo_plain_params &p,
+	uint b,
+	uint n,
+	uint loc,
+	int class_id)
+{
+	const uint target_class_index = apple_yolo_entry_index(p, b, n, loc, 5u + uint(class_id));
+	if (delta[target_class_index] != 0.0f)
+	{
+		const float result_delta = 1.0f - output[target_class_index];
+		delta[target_class_index] = isfinite(result_delta) ? result_delta : delta[target_class_index];
+		return;
+	}
+
+	for (uint c = 0; c < p.classes; ++c)
+	{
+		const uint class_index = apple_yolo_entry_index(p, b, n, loc, 5u + c);
+		const float y_true = int(c) == class_id ? 1.0f : 0.0f;
+		const float result_delta = y_true - output[class_index];
+		delta[class_index] = isfinite(result_delta) ? result_delta : delta[class_index];
+	}
+}
+
+inline void apple_yolo_add_ciou_delta(float4 truth,
+	device float *output,
+	device float *delta,
+	device const float *biases,
+	constant apple_yolo_plain_params &p,
+	uint anchor,
+	uint box_index,
+	uint cell_x,
+	uint cell_y,
+	float scale)
+{
+	float4 pred = apple_yolo_box(output, biases, p, anchor, box_index, cell_x, cell_y);
+	if (pred.z == 0.0f)
+	{
+		pred.z = 1.0f;
+	}
+	if (pred.w == 0.0f)
+	{
+		pred.w = 1.0f;
+	}
+
+	float4 d = apple_yolo_ciou_delta(pred, truth);
+	const uint stride = apple_yolo_spatial(p);
+	if (p.new_coords == 0u)
+	{
+		d.z *= exp(output[box_index + 2u * stride]);
+		d.w *= exp(output[box_index + 3u * stride]);
+	}
+	d *= p.iou_normalizer;
+
+	delta[box_index + 0u * stride] += apple_yolo_clean_delta(d.x, p.max_delta);
+	delta[box_index + 1u * stride] += apple_yolo_clean_delta(d.y, p.max_delta);
+	delta[box_index + 2u * stride] += apple_yolo_clean_delta(d.z, p.max_delta);
+	delta[box_index + 3u * stride] += apple_yolo_clean_delta(d.w, p.max_delta);
+	(void)scale;
+}
+
+inline void apple_yolo_apply_class_delta(device const float *output,
+	device float *delta,
+	constant apple_yolo_plain_params &p,
+	uint b,
+	uint n,
+	uint loc,
+	int class_id)
+{
+	const uint target_index = apple_yolo_entry_index(p, b, n, loc, 5u + uint(class_id));
+	if (delta[target_index] != 0.0f)
+	{
+		delta[target_index] = 1.0f - output[target_index];
+		return;
+	}
+	for (uint c = 0; c < p.classes; ++c)
+	{
+		const uint class_index = apple_yolo_entry_index(p, b, n, loc, 5u + c);
+		delta[class_index] = (int(c) == class_id ? 1.0f : 0.0f) - output[class_index];
+	}
+}
+
+kernel void yolo_plain_activate_base_delta(
+	device const float *input [[buffer(0)]],
+	device float *output [[buffer(1)]],
+	device float *delta [[buffer(2)]],
+	device int *labels [[buffer(3)]],
+	device int *class_ids [[buffer(4)]],
+	constant apple_yolo_plain_params &p [[buffer(5)]],
 	uint gid [[thread_position_in_grid]])
 {
-	const uint wh = w * h;
-	const uint total = wh * n * batch;
-	if (gid >= total || wh == 0u || n == 0u)
+	const uint spatial = apple_yolo_spatial(p);
+	const uint predictions = p.batch * p.n * spatial;
+	if (gid >= predictions)
 	{
 		return;
 	}
-	const uint loc = gid % wh;
-	const uint anchor = (gid / wh) % n;
-	const uint b = gid / (wh * n);
-	const uint base = b * outputs + anchor * wh * entries;
-	const uint obj_index = base + 4u * wh + loc;
-	const float objectness = data[obj_index];
-	if (objectness > thresh)
+
+	const uint b = gid / (p.n * spatial);
+	const uint rem = gid - b * p.n * spatial;
+	const uint n = rem / spatial;
+	const uint loc = rem - n * spatial;
+	const uint box_index = apple_yolo_entry_index(p, b, n, loc, 0u);
+	const uint obj_index = apple_yolo_entry_index(p, b, n, loc, 4u);
+
+	for (uint entry = 0; entry < p.classes + 5u; ++entry)
 	{
-		const uint idx = atomic_fetch_add_explicit(count, 1u, memory_order_relaxed);
-		if (idx < max_candidates)
+		const uint index = apple_yolo_entry_index(p, b, n, loc, entry);
+		output[index] = input[index];
+		delta[index] = 0.0f;
+	}
+
+	if (p.new_coords != 0u)
+	{
+		output[box_index + 0u * spatial] = output[box_index + 0u * spatial] * p.scale_x_y - 0.5f * (p.scale_x_y - 1.0f);
+		output[box_index + 1u * spatial] = output[box_index + 1u * spatial] * p.scale_x_y - 0.5f * (p.scale_x_y - 1.0f);
+	}
+	else
+	{
+		output[box_index + 0u * spatial] = apple_logistic_fn(output[box_index + 0u * spatial]) * p.scale_x_y - 0.5f * (p.scale_x_y - 1.0f);
+		output[box_index + 1u * spatial] = apple_logistic_fn(output[box_index + 1u * spatial]) * p.scale_x_y - 0.5f * (p.scale_x_y - 1.0f);
+		output[obj_index] = apple_yolo_clean_output(apple_logistic_fn(output[obj_index]));
+		for (uint c = 0; c < p.classes; ++c)
 		{
-			indices[idx] = gid;
+			const uint class_index = apple_yolo_entry_index(p, b, n, loc, 5u + c);
+			output[class_index] = apple_logistic_fn(output[class_index]);
+		}
+	}
+	delta[obj_index] = apple_yolo_objectness_delta(p.obj_normalizer, 0.0f, output[obj_index]);
+	labels[gid] = -1;
+	class_ids[gid] = -1;
+}
+
+kernel void yolo_plain_ignore_delta(
+	device const float *output [[buffer(0)]],
+	device float *delta [[buffer(1)]],
+	device const float *truth [[buffer(2)]],
+	device const float *biases [[buffer(3)]],
+	device const int *mask [[buffer(4)]],
+	constant apple_yolo_plain_params &p [[buffer(5)]],
+	uint gid [[thread_position_in_grid]])
+{
+	const uint spatial = apple_yolo_spatial(p);
+	const uint predictions = p.batch * p.n * spatial;
+	if (gid >= predictions)
+	{
+		return;
+	}
+
+	const uint b = gid / (p.n * spatial);
+	const uint rem = gid - b * p.n * spatial;
+	const uint n = rem / spatial;
+	const uint loc = rem - n * spatial;
+	const uint cell_y = loc / p.w;
+	const uint cell_x = loc - cell_y * p.w;
+	const uint box_index = apple_yolo_entry_index(p, b, n, loc, 0u);
+	const uint obj_index = apple_yolo_entry_index(p, b, n, loc, 4u);
+	const uint anchor = uint(mask[n]);
+	const float4 pred = apple_yolo_box(output, biases, p, anchor, box_index, cell_x, cell_y);
+	bool class_match = false;
+	for (uint c = 0; c < p.classes; ++c)
+	{
+		if (output[apple_yolo_entry_index(p, b, n, loc, 5u + c)] > 0.25f)
+		{
+			class_match = true;
+			break;
+		}
+	}
+
+	float best_match_iou = 0.0f;
+	for (uint t = 0; t < p.max_boxes; ++t)
+	{
+		const uint truth_index = b * p.truths + t * p.truth_size;
+		const float4 truth_box = float4(truth[truth_index + 0u], truth[truth_index + 1u], truth[truth_index + 2u], truth[truth_index + 3u]);
+		if (truth_box.x == 0.0f)
+		{
+			break;
+		}
+		const int class_id = int(truth[truth_index + 4u]);
+		if (class_id < 0 || class_id >= int(p.classes))
+		{
+			continue;
+		}
+
+		const float iou = apple_yolo_iou(pred, truth_box);
+		if (class_match && iou > best_match_iou)
+		{
+			best_match_iou = iou;
+		}
+	}
+
+	if (best_match_iou > p.ignore_thresh)
+	{
+		if (p.objectness_smooth != 0u)
+		{
+			const float delta_obj = apple_yolo_objectness_delta(p.obj_normalizer, best_match_iou, output[obj_index]);
+			if (delta_obj > delta[obj_index])
+			{
+				delta[obj_index] = delta_obj;
+			}
+		}
+		else
+		{
+			delta[obj_index] = 0.0f;
 		}
 	}
 }
 
-kernel void nms_suppress_kernel(device const float4 *boxes [[buffer(0)]],
-	device float *scores [[buffer(1)]],
-	device const uint *order [[buffer(2)]],
-	constant uint &count [[buffer(3)]],
-	constant uint &base [[buffer(4)]],
-	constant float &thresh [[buffer(5)]],
-	uint gid [[thread_position_in_grid]])
+kernel void yolo_plain_assign_truth_delta(
+	device float *output [[buffer(0)]],
+	device float *delta [[buffer(1)]],
+	device const float *truth [[buffer(2)]],
+	device const float *biases [[buffer(3)]],
+	device const int *mask [[buffer(4)]],
+	device int *labels [[buffer(5)]],
+	device int *class_ids [[buffer(6)]],
+	device apple_yolo_plain_loss_stats *stats [[buffer(7)]],
+	constant apple_yolo_plain_params &p [[buffer(8)]],
+	uint b [[thread_position_in_grid]])
 {
-	const uint j = base + 1u + gid;
-	if (j >= count)
+	if (b >= p.batch)
 	{
 		return;
 	}
-	const uint idx_i = order[base];
-	const uint idx_j = order[j];
+	const uint spatial = apple_yolo_spatial(p);
+	float iou_loss = 0.0f;
+	float iou_sum = 0.0f;
+	float count = 0.0f;
+	float rewritten = 0.0f;
 
-	const float score_i = scores[idx_i];
-	if (score_i <= 0.0f)
+	for (uint t = 0; t < p.max_boxes; ++t)
 	{
-		return;
-	}
-	const float score_j = scores[idx_j];
-	if (score_j <= 0.0f)
-	{
-		return;
+		const uint truth_index = b * p.truths + t * p.truth_size;
+		const float4 truth_box = float4(truth[truth_index + 0u], truth[truth_index + 1u], truth[truth_index + 2u], truth[truth_index + 3u]);
+		if (truth_box.x == 0.0f)
+		{
+			break;
+		}
+		const int class_id = int(truth[truth_index + 4u]);
+		if (class_id < 0 || class_id >= int(p.classes) ||
+			truth_box.x < 0.0f || truth_box.y < 0.0f || truth_box.x > 1.0f || truth_box.y > 1.0f ||
+			truth_box.z < 0.0f || truth_box.w < 0.0f)
+		{
+			continue;
+		}
+
+		float best_iou = 0.0f;
+		uint best_n = 0u;
+		const float4 truth_shift = float4(0.0f, 0.0f, truth_box.z, truth_box.w);
+		for (uint n = 0; n < p.total; ++n)
+		{
+			const float4 pred = float4(0.0f, 0.0f, biases[2u * n] / float(p.net_w), biases[2u * n + 1u] / float(p.net_h));
+			const float iou = apple_yolo_iou(pred, truth_shift);
+			if (iou > best_iou)
+			{
+				best_iou = iou;
+				best_n = n;
+			}
+		}
+
+		const uint cell_x = min(uint(truth_box.x * float(p.w)), p.w - 1u);
+		const uint cell_y = min(uint(truth_box.y * float(p.h)), p.h - 1u);
+		const uint loc = cell_y * p.w + cell_x;
+
+		int mask_index = -1;
+		for (uint n = 0; n < p.n; ++n)
+		{
+			if (uint(mask[n]) == best_n)
+			{
+				mask_index = int(n);
+				break;
+			}
+		}
+		if (mask_index >= 0)
+		{
+			const uint n = uint(mask_index);
+			const uint box_index = apple_yolo_entry_index(p, b, n, loc, 0u);
+			const bool box_delta_was_set =
+				delta[box_index + 0u * spatial] != 0.0f ||
+				delta[box_index + 1u * spatial] != 0.0f ||
+				delta[box_index + 2u * spatial] != 0.0f ||
+				delta[box_index + 3u * spatial] != 0.0f;
+			const float4 pred_box = apple_yolo_box(output, biases, p, best_n, box_index, cell_x, cell_y);
+			const float assigned_iou = apple_yolo_iou(pred_box, truth_box);
+			apple_yolo_add_ciou_delta(truth_box, output, delta, biases, p, best_n, box_index, cell_x, cell_y, 2.0f - truth_box.z * truth_box.w);
+			iou_sum += assigned_iou;
+			iou_loss += 1.0f - assigned_iou;
+			count += 1.0f;
+			rewritten += box_delta_was_set ? 1.0f : 0.0f;
+
+			const uint obj_index = apple_yolo_entry_index(p, b, n, loc, 4u);
+			const float delta_obj = apple_yolo_objectness_delta(p.obj_normalizer, 1.0f, output[obj_index]);
+			if (p.objectness_smooth != 0u)
+			{
+				if (delta[obj_index] == 0.0f)
+				{
+					delta[obj_index] = delta_obj;
+				}
+			}
+			else
+			{
+				delta[obj_index] = delta_obj;
+			}
+
+			apple_yolo_assign_class_delta(output, delta, p, b, n, loc, class_id);
+
+			const uint truth_out_index = b * p.n * spatial + n * spatial + loc;
+			labels[truth_out_index] = p.truth_size > 5u ? int(truth[truth_index + 5u]) : 0;
+			class_ids[truth_out_index] = class_id;
+		}
+
+		if (p.iou_thresh < 1.0f)
+		{
+			for (uint anchor_candidate = 0; anchor_candidate < p.total; ++anchor_candidate)
+			{
+				if (anchor_candidate == best_n)
+				{
+					continue;
+				}
+				int mask_n = -1;
+				for (uint mask_candidate = 0; mask_candidate < p.n; ++mask_candidate)
+				{
+					if (uint(mask[mask_candidate]) == anchor_candidate)
+					{
+						mask_n = int(mask_candidate);
+						break;
+					}
+				}
+				if (mask_n < 0)
+				{
+					continue;
+				}
+
+				const float4 anchor_box = float4(0.0f, 0.0f,
+					biases[2u * anchor_candidate] / float(p.net_w),
+					biases[2u * anchor_candidate + 1u] / float(p.net_h));
+				const float anchor_iou = apple_yolo_iou(anchor_box, truth_shift);
+				if (anchor_iou <= p.iou_thresh)
+				{
+					continue;
+				}
+
+				const uint extra_n = uint(mask_n);
+				const uint extra_box_index = apple_yolo_entry_index(p, b, extra_n, loc, 0u);
+				const bool extra_box_delta_was_set =
+					delta[extra_box_index + 0u * spatial] != 0.0f ||
+					delta[extra_box_index + 1u * spatial] != 0.0f ||
+					delta[extra_box_index + 2u * spatial] != 0.0f ||
+					delta[extra_box_index + 3u * spatial] != 0.0f;
+				const float4 extra_pred_box = apple_yolo_box(output, biases, p, anchor_candidate, extra_box_index, cell_x, cell_y);
+				const float extra_iou = apple_yolo_iou(extra_pred_box, truth_box);
+				apple_yolo_add_ciou_delta(truth_box, output, delta, biases, p, anchor_candidate, extra_box_index, cell_x, cell_y, 2.0f - truth_box.z * truth_box.w);
+				iou_sum += extra_iou;
+				iou_loss += 1.0f - extra_iou;
+				count += 1.0f;
+				rewritten += extra_box_delta_was_set ? 1.0f : 0.0f;
+
+				const uint extra_obj_index = apple_yolo_entry_index(p, b, extra_n, loc, 4u);
+				const float extra_delta_obj = apple_yolo_objectness_delta(p.obj_normalizer, 1.0f, output[extra_obj_index]);
+				if (p.objectness_smooth != 0u)
+				{
+					if (delta[extra_obj_index] == 0.0f)
+					{
+						delta[extra_obj_index] = extra_delta_obj;
+					}
+				}
+				else
+				{
+					delta[extra_obj_index] = extra_delta_obj;
+				}
+
+				apple_yolo_assign_class_delta(output, delta, p, b, extra_n, loc, class_id);
+			}
+		}
 	}
 
-	const float4 a = boxes[idx_i];
-	const float4 b = boxes[idx_j];
-
-	const float ax1 = a.x - a.z * 0.5f;
-	const float ay1 = a.y - a.w * 0.5f;
-	const float ax2 = a.x + a.z * 0.5f;
-	const float ay2 = a.y + a.w * 0.5f;
-	const float bx1 = b.x - b.z * 0.5f;
-	const float by1 = b.y - b.w * 0.5f;
-	const float bx2 = b.x + b.z * 0.5f;
-	const float by2 = b.y + b.w * 0.5f;
-
-	const float iw = max(0.0f, min(ax2, bx2) - max(ax1, bx1));
-	const float ih = max(0.0f, min(ay2, by2) - max(ay1, by1));
-	const float inter = iw * ih;
-	const float area_a = a.z * a.w;
-	const float area_b = b.z * b.w;
-	const float uni = area_a + area_b - inter;
-	if (uni <= 0.0f)
-	{
-		return;
-	}
-	const float iou = inter / uni;
-	if (iou > thresh)
-	{
-		scores[idx_j] = 0.0f;
-	}
+	stats[b].iou_loss += iou_loss;
+	stats[b].iou_sum += iou_sum;
+	stats[b].count += count;
+	stats[b].rewritten += rewritten;
 }
 
-kernel void buffer_scale(device float *data [[buffer(0)]],
-	constant float &scale [[buffer(1)]],
+kernel void yolo_plain_average_thresh_deltas(
+	device float *delta [[buffer(0)]],
+	constant apple_yolo_plain_params &p [[buffer(1)]],
 	uint gid [[thread_position_in_grid]])
 {
-	data[gid] *= scale;
+	if (p.iou_thresh >= 1.0f)
+	{
+		return;
+	}
+	const uint spatial = apple_yolo_spatial(p);
+	const uint predictions = p.batch * p.n * spatial;
+	if (gid >= predictions)
+	{
+		return;
+	}
+
+	const uint b = gid / (p.n * spatial);
+	const uint rem = gid - b * p.n * spatial;
+	const uint n = rem / spatial;
+	const uint loc = rem - n * spatial;
+	const uint obj_index = apple_yolo_entry_index(p, b, n, loc, 4u);
+	if (delta[obj_index] == 0.0f)
+	{
+		return;
+	}
+
+	uint classes_in_one_box = 0u;
+	for (uint c = 0; c < p.classes; ++c)
+	{
+		const uint class_index = apple_yolo_entry_index(p, b, n, loc, 5u + c);
+		if (delta[class_index] > 0.0f)
+		{
+			++classes_in_one_box;
+		}
+	}
+	if (classes_in_one_box == 0u)
+	{
+		return;
+	}
+
+	const float scale = 1.0f / float(classes_in_one_box);
+	const uint box_index = apple_yolo_entry_index(p, b, n, loc, 0u);
+	delta[box_index + 0u * spatial] *= scale;
+	delta[box_index + 1u * spatial] *= scale;
+	delta[box_index + 2u * spatial] *= scale;
+	delta[box_index + 3u * spatial] *= scale;
+}
+
+kernel void yolo_plain_batch_loss_stats(
+	device const float *delta [[buffer(0)]],
+	device apple_yolo_plain_loss_stats *stats [[buffer(1)]],
+	constant apple_yolo_plain_params &p [[buffer(2)]],
+	uint b [[thread_position_in_grid]])
+{
+	if (b >= p.batch)
+	{
+		return;
+	}
+	const uint spatial = apple_yolo_spatial(p);
+	float class_sq = 0.0f;
+	for (uint n = 0; n < p.n; ++n)
+	{
+		for (uint entry = 0; entry < p.classes + 5u; ++entry)
+		{
+			for (uint loc = 0; loc < spatial; ++loc)
+			{
+				const float raw_delta = delta[apple_yolo_entry_index(p, b, n, loc, entry)];
+				const float d = isfinite(raw_delta) ? raw_delta : 0.0f;
+				const float sq = d * d;
+				if (entry >= 4u)
+				{
+					class_sq += sq;
+				}
+			}
+		}
+	}
+	stats[b].total_sq = 0.0f;
+	stats[b].class_sq = p.obj_normalizer * class_sq;
+}
+
+
+kernel void bn_rolling_update_kernel(device float *rolling_mean [[buffer(0)]],
+	device float *rolling_variance [[buffer(1)]],
+	device const float *mean [[buffer(2)]],
+	device const float *variance [[buffer(3)]],
+	constant float &keep [[buffer(4)]],
+	constant float &add [[buffer(5)]],
+	constant uint &channels [[buffer(6)]],
+	uint gid [[thread_position_in_grid]])
+{
+	if (gid >= channels)
+	{
+		return;
+	}
+	rolling_mean[gid] = rolling_mean[gid] * keep + mean[gid] * add;
+	rolling_variance[gid] = rolling_variance[gid] * keep + variance[gid] * add;
 }
 )METAL";
 
@@ -1317,19 +1803,21 @@ kernel void buffer_scale(device float *data [[buffer(0)]],
 			return cache.library != nil;
 		}
 
-		NSError *error = nil;
 		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+		options.languageVersion = MTLLanguageVersion4_0;
+		options.mathMode = MTLMathModeRelaxed;
+		options.mathFloatingPointFunctions = MTLMathFloatingPointFunctionsPrecise;
+		NSError *error = nil;
 		cache.library = [device newLibraryWithSource:@(kMetalKernelSource) options:options error:&error];
+		objc_release_if_needed(options);
 		if (!cache.library)
 		{
 			cache.failed = true;
-			if (error)
-			{
-				std::fprintf(stderr, "[Metal] kernel library compile failed: %s\n",
-					error.localizedDescription.UTF8String);
-			}
+			cache.error = "Metal library compilation failed: " + ns_error_string(error);
 			return false;
 		}
+		cache.library.label = @"Darknet runtime kernels";
+		cache.error.clear();
 		return true;
 	}
 
@@ -1354,28 +1842,26 @@ kernel void buffer_scale(device float *data [[buffer(0)]],
 		id<MTLFunction> fn = [cache.library newFunctionWithName:@(kernel_name)];
 		if (!fn)
 		{
-			std::fprintf(stderr, "[Metal] kernel function not found: %s\n", kernel_name);
+			cache.error = std::string("Metal function not found: ") + kernel_name;
 			return nil;
 		}
-		NSError *error = nil;
+	NSError *error = nil;
 	id<MTLComputePipelineState> pipeline = [device newComputePipelineStateWithFunction:fn error:&error];
 	if (!pipeline)
-		{
-			if (error)
-			{
-				std::fprintf(stderr, "[Metal] kernel pipeline failed (%s): %s\n",
-					kernel_name, error.localizedDescription.UTF8String);
-			}
-			return nil;
-		}
+	{
+		cache.error = std::string("Metal pipeline creation failed for ") + kernel_name + ": " + ns_error_string(error);
+		return nil;
+	}
 	cache.pipelines.emplace(kernel_name, ObjcStrong(pipeline));
+	cache.error.clear();
 	return pipeline;
 }
 
-	/** \brief Acquire a command buffer for a dispatch, auto-committing if created here. */
+	/// Acquire a command buffer for a dispatch, auto-committing if created here.
 	bool begin_dispatch(__strong id<MTLCommandBuffer> & command_buffer, bool & auto_commit, void *external_buffer)
 	{
 		auto_commit = false;
+		thread_ctx.error.clear();
 		if (external_buffer)
 		{
 			command_buffer = (__bridge id<MTLCommandBuffer>)external_buffer;
@@ -1396,17 +1882,19 @@ kernel void buffer_scale(device float *data [[buffer(0)]],
 		return true;
 	}
 
-	/** \brief Commit/wait if this dispatch created the command buffer. */
-	void end_dispatch(id<MTLCommandBuffer> command_buffer, bool auto_commit)
+	/// Commit and wait if this dispatch created the command buffer.
+	bool end_dispatch(id<MTLCommandBuffer> command_buffer, bool auto_commit)
 	{
 		if (!auto_commit)
 		{
-			return;
+			return true;
 		}
 		[command_buffer commit];
 		[command_buffer waitUntilCompleted];
+		const bool ok = command_buffer_succeeded(command_buffer);
 		thread_ctx.command_buffer = nil;
 		thread_ctx.owns_command_buffer = false;
+		return ok;
 	}
 }
 
@@ -1414,22 +1902,43 @@ bool metal_is_available()
 {
 	auto & ctx = get_context();
 	std::scoped_lock lock(ctx.mutex);
-	if (ctx.device)
+	if (ctx.device && ctx.queue)
 	{
 		return true;
 	}
-	ctx.device = MTLCreateSystemDefaultDevice();
-	if (!ctx.device)
-	{
-		return false;
-	}
-	ctx.queue = [ctx.device newCommandQueue];
-	if (!ctx.queue)
+	ctx.device = (__bridge id<MTLDevice>)Darknet::Apple::runtime_metal_device_handle();
+	ctx.queue = (__bridge id<MTLCommandQueue>)Darknet::Apple::runtime_metal_command_queue_handle();
+	if (!ctx.device || !ctx.queue)
 	{
 		ctx.device = nil;
+		ctx.queue = nil;
 		return false;
 	}
 	return true;
+}
+
+bool metal_kernel_available(const char *kernel_name)
+{
+	if (!kernel_name || !metal_is_available())
+	{
+		return false;
+	}
+	auto & ctx = get_context();
+	@autoreleasepool
+	{
+		return get_pipeline(kernel_name, ctx.device) != nil;
+	}
+}
+
+std::string metal_last_error()
+{
+	if (!thread_ctx.error.empty())
+	{
+		return thread_ctx.error;
+	}
+	auto &cache = get_kernel_cache();
+	std::scoped_lock lock(cache.mutex);
+	return cache.error;
 }
 
 bool metal_init()
@@ -1437,15 +1946,7 @@ bool metal_init()
 	return metal_is_available();
 }
 
-void metal_shutdown()
-{
-	auto & ctx = get_context();
-	std::scoped_lock lock(ctx.mutex);
-	ctx.queue = nil;
-	ctx.device = nil;
-}
-
-/** \brief Begin a thread-local command buffer to batch multiple dispatches. */
+/// Begin a thread-local command buffer to batch multiple dispatches.
 void metal_begin_frame()
 {
 	if (!metal_is_available())
@@ -1459,10 +1960,11 @@ void metal_begin_frame()
 	auto & ctx = get_context();
 	std::scoped_lock lock(ctx.mutex);
 	thread_ctx.command_buffer = [ctx.queue commandBuffer];
+	thread_ctx.command_buffer.label = @"Darknet Metal frame";
 	thread_ctx.owns_command_buffer = true;
 }
 
-/** \brief Commit and wait for the thread-local command buffer. */
+/// Commit and wait for the thread-local command buffer.
 void metal_end_frame()
 {
 	if (!thread_ctx.command_buffer || !thread_ctx.owns_command_buffer)
@@ -1471,11 +1973,12 @@ void metal_end_frame()
 	}
 	[thread_ctx.command_buffer commit];
 	[thread_ctx.command_buffer waitUntilCompleted];
+	(void)command_buffer_succeeded(thread_ctx.command_buffer);
 	thread_ctx.command_buffer = nil;
 	thread_ctx.owns_command_buffer = false;
 }
 
-/** \brief Commit and wait for outstanding thread-local work, if any. */
+/// Commit and wait for outstanding thread-local work, if any.
 void metal_flush()
 {
 	if (!thread_ctx.command_buffer || !thread_ctx.owns_command_buffer)
@@ -1484,6 +1987,7 @@ void metal_flush()
 	}
 	[thread_ctx.command_buffer commit];
 	[thread_ctx.command_buffer waitUntilCompleted];
+	(void)command_buffer_succeeded(thread_ctx.command_buffer);
 	thread_ctx.command_buffer = nil;
 	thread_ctx.owns_command_buffer = false;
 }
@@ -1597,67 +2101,186 @@ bool metal_dispatch_1d(const char *kernel_name,
 	{
 		return false;
 	}
-	id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
-	if (!pipeline)
+	@autoreleasepool
 	{
-		end_dispatch(command_buffer, auto_commit);
+		id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
+		if (!pipeline)
+		{
+			end_dispatch(command_buffer, auto_commit);
+			return false;
+		}
+		const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
+		if (threads_per_group > max_threads)
+		{
+			end_dispatch(command_buffer, auto_commit);
+			return false;
+		}
+
+		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+		if (!encoder)
+		{
+			end_dispatch(command_buffer, auto_commit);
+			return false;
+		}
+		encoder.label = @(kernel_name);
+		[encoder setComputePipelineState:pipeline];
+
+		for (size_t i = 0; i < texture_count; ++i)
+		{
+			id<MTLTexture> texture = textures && textures[i].handle ? (__bridge id<MTLTexture>)textures[i].handle : nil;
+			if (texture)
+			{
+				[encoder setTexture:texture atIndex:i];
+			}
+		}
+
+		size_t buffer_index = 0;
+		for (size_t i = 0; i < buffer_count; ++i)
+		{
+			if (!buffers || !buffers[i].buffer || !buffers[i].buffer->handle)
+			{
+				continue;
+			}
+			id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)buffers[i].buffer->handle;
+			[encoder setBuffer:buffer offset:buffers[i].offset atIndex:buffer_index];
+			++buffer_index;
+		}
+
+		for (size_t i = 0; i < bytes_count; ++i)
+		{
+			if (!bytes || !bytes[i].bytes || bytes[i].length == 0)
+			{
+				continue;
+			}
+			[encoder setBytes:bytes[i].bytes length:bytes[i].length atIndex:buffer_index];
+			++buffer_index;
+		}
+
+		const MTLSize grid = MTLSizeMake(threads, 1, 1);
+		const MTLSize group = MTLSizeMake(threads_per_group, 1, 1);
+		[encoder dispatchThreads:grid threadsPerThreadgroup:group];
+		[encoder endEncoding];
+
+		return end_dispatch(command_buffer, auto_commit);
+	}
+}
+
+bool metal_dispatch_1d_with_encoder(const char *kernel_name,
+	size_t threads, size_t threads_per_group,
+	const MetalDispatchTexture *textures, size_t texture_count,
+	const MetalDispatchBuffer *buffers, size_t buffer_count,
+	const MetalDispatchBytes *bytes, size_t bytes_count,
+	void *encoder_handle)
+{
+	if (!kernel_name || threads == 0 || threads_per_group == 0 || !encoder_handle)
+	{
 		return false;
 	}
-	const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
-	if (threads_per_group > max_threads)
+	if (!metal_is_available())
 	{
-		std::fprintf(stderr, "[Metal] threadgroup too large for %s (%zu > %lu)\n",
-			kernel_name, threads_per_group, static_cast<unsigned long>(max_threads));
-		end_dispatch(command_buffer, auto_commit);
 		return false;
 	}
-
-	id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-	if (!encoder)
+	auto & ctx = get_context();
+	@autoreleasepool
 	{
-		end_dispatch(command_buffer, auto_commit);
-		return false;
-	}
-	[encoder setComputePipelineState:pipeline];
-
-	for (size_t i = 0; i < texture_count; ++i)
-	{
-		id<MTLTexture> texture = textures && textures[i].handle ? (__bridge id<MTLTexture>)textures[i].handle : nil;
-		if (texture)
+		id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
+		if (!pipeline)
 		{
-			[encoder setTexture:texture atIndex:i];
+			return false;
+		}
+		const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
+		if (threads_per_group > max_threads)
+		{
+			return false;
+		}
+
+		id<MTLComputeCommandEncoder> encoder = (__bridge id<MTLComputeCommandEncoder>)encoder_handle;
+		if (!encoder)
+		{
+			return false;
+		}
+		encoder.label = @(kernel_name);
+		[encoder setComputePipelineState:pipeline];
+
+		for (size_t i = 0; i < texture_count; ++i)
+		{
+			id<MTLTexture> texture = textures && textures[i].handle ? (__bridge id<MTLTexture>)textures[i].handle : nil;
+			if (texture)
+			{
+				[encoder setTexture:texture atIndex:i];
+			}
+		}
+
+		size_t buffer_index = 0;
+		for (size_t i = 0; i < buffer_count; ++i)
+		{
+			if (!buffers || !buffers[i].buffer || !buffers[i].buffer->handle)
+			{
+				continue;
+			}
+			id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)buffers[i].buffer->handle;
+			[encoder setBuffer:buffer offset:buffers[i].offset atIndex:buffer_index];
+			++buffer_index;
+		}
+
+		for (size_t i = 0; i < bytes_count; ++i)
+		{
+			if (!bytes || !bytes[i].bytes || bytes[i].length == 0)
+			{
+				continue;
+			}
+			[encoder setBytes:bytes[i].bytes length:bytes[i].length atIndex:buffer_index];
+			++buffer_index;
+		}
+
+		const MTLSize grid = MTLSizeMake(threads, 1, 1);
+		const MTLSize group = MTLSizeMake(threads_per_group, 1, 1);
+		[encoder dispatchThreads:grid threadsPerThreadgroup:group];
+		return true;
+	}
+}
+
+void * metal_begin_compute_encoder(void *command_buffer_handle)
+{
+	if (!command_buffer_handle || !metal_is_available())
+	{
+		return nullptr;
+	}
+
+	@autoreleasepool
+	{
+		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
+		if (!command_buffer)
+		{
+			return nullptr;
+		}
+
+		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+		if (!encoder)
+		{
+			return nullptr;
+		}
+		CFRetain((__bridge CFTypeRef)encoder);
+		return (__bridge void *)encoder;
+	}
+}
+
+void metal_end_compute_encoder(void *encoder_handle)
+{
+	if (!encoder_handle)
+	{
+		return;
+	}
+
+	@autoreleasepool
+	{
+		id<MTLComputeCommandEncoder> encoder = (__bridge id<MTLComputeCommandEncoder>)encoder_handle;
+		if (encoder)
+		{
+			[encoder endEncoding];
+			CFRelease((__bridge CFTypeRef)encoder);
 		}
 	}
-
-	size_t buffer_index = 0;
-	for (size_t i = 0; i < buffer_count; ++i)
-	{
-		if (!buffers || !buffers[i].buffer || !buffers[i].buffer->handle)
-		{
-			continue;
-		}
-		id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)buffers[i].buffer->handle;
-		[encoder setBuffer:buffer offset:buffers[i].offset atIndex:buffer_index];
-		++buffer_index;
-	}
-
-	for (size_t i = 0; i < bytes_count; ++i)
-	{
-		if (!bytes || !bytes[i].bytes || bytes[i].length == 0)
-		{
-			continue;
-		}
-		[encoder setBytes:bytes[i].bytes length:bytes[i].length atIndex:buffer_index];
-		++buffer_index;
-	}
-
-	const MTLSize grid = MTLSizeMake(threads, 1, 1);
-	const MTLSize group = MTLSizeMake(threads_per_group, 1, 1);
-	[encoder dispatchThreads:grid threadsPerThreadgroup:group];
-	[encoder endEncoding];
-
-	end_dispatch(command_buffer, auto_commit);
-	return true;
 }
 
 bool metal_dispatch_2d(const char *kernel_name,
@@ -1683,74 +2306,75 @@ bool metal_dispatch_2d(const char *kernel_name,
 	{
 		return false;
 	}
-	id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
-	if (!pipeline)
+	@autoreleasepool
 	{
-		end_dispatch(command_buffer, auto_commit);
-		return false;
-	}
-	const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
-	const size_t group_threads = threads_per_group_x * threads_per_group_y;
-	if (threads_per_group_x == 0 || threads_per_group_y == 0 || group_threads > max_threads)
-	{
-		std::fprintf(stderr, "[Metal] threadgroup too large for %s (%zu > %lu)\n",
-			kernel_name, group_threads, static_cast<unsigned long>(max_threads));
-		end_dispatch(command_buffer, auto_commit);
-		return false;
-	}
-
-	id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-	if (!encoder)
-	{
-		end_dispatch(command_buffer, auto_commit);
-		return false;
-	}
-	[encoder setComputePipelineState:pipeline];
-
-	NSUInteger depth = 1;
-	for (size_t i = 0; i < texture_count; ++i)
-	{
-		id<MTLTexture> texture = textures && textures[i].handle ? (__bridge id<MTLTexture>)textures[i].handle : nil;
-		if (texture)
+		id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
+		if (!pipeline)
 		{
-			[encoder setTexture:texture atIndex:i];
-			if (texture.arrayLength > depth)
+			end_dispatch(command_buffer, auto_commit);
+			return false;
+		}
+		const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
+		const size_t group_threads = threads_per_group_x * threads_per_group_y;
+		if (threads_per_group_x == 0 || threads_per_group_y == 0 || group_threads > max_threads)
+		{
+			end_dispatch(command_buffer, auto_commit);
+			return false;
+		}
+
+		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+		if (!encoder)
+		{
+			end_dispatch(command_buffer, auto_commit);
+			return false;
+		}
+		encoder.label = @(kernel_name);
+		[encoder setComputePipelineState:pipeline];
+
+		NSUInteger depth = 1;
+		for (size_t i = 0; i < texture_count; ++i)
+		{
+			id<MTLTexture> texture = textures && textures[i].handle ? (__bridge id<MTLTexture>)textures[i].handle : nil;
+			if (texture)
 			{
-				depth = texture.arrayLength;
+				[encoder setTexture:texture atIndex:i];
+				if (texture.arrayLength > depth)
+				{
+					depth = texture.arrayLength;
+				}
 			}
 		}
-	}
 
-	size_t buffer_index = 0;
-	for (size_t i = 0; i < buffer_count; ++i)
-	{
-		if (!buffers || !buffers[i].buffer || !buffers[i].buffer->handle)
+		size_t buffer_index = 0;
+		for (size_t i = 0; i < buffer_count; ++i)
 		{
-			continue;
+			if (!buffers || !buffers[i].buffer || !buffers[i].buffer->handle)
+			{
+				continue;
+			}
+			id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)buffers[i].buffer->handle;
+			[encoder setBuffer:buffer offset:buffers[i].offset atIndex:buffer_index];
+			++buffer_index;
 		}
-		id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)buffers[i].buffer->handle;
-		[encoder setBuffer:buffer offset:buffers[i].offset atIndex:buffer_index];
-		++buffer_index;
-	}
 
-	for (size_t i = 0; i < bytes_count; ++i)
-	{
-		if (!bytes || !bytes[i].bytes || bytes[i].length == 0)
+		for (size_t i = 0; i < bytes_count; ++i)
 		{
-			continue;
+			if (!bytes || !bytes[i].bytes || bytes[i].length == 0)
+			{
+				continue;
+			}
+			[encoder setBytes:bytes[i].bytes length:bytes[i].length atIndex:buffer_index];
+			++buffer_index;
 		}
-		[encoder setBytes:bytes[i].bytes length:bytes[i].length atIndex:buffer_index];
-		++buffer_index;
+
+		const MTLSize grid = MTLSizeMake(width, height, depth);
+		const MTLSize group = MTLSizeMake(threads_per_group_x, threads_per_group_y, 1);
+		[encoder dispatchThreads:grid threadsPerThreadgroup:group];
+		[encoder endEncoding];
+
+			return end_dispatch(command_buffer, auto_commit);
+		}
 	}
-
-	const MTLSize grid = MTLSizeMake(width, height, depth);
-	const MTLSize group = MTLSizeMake(threads_per_group_x, threads_per_group_y, 1);
-	[encoder dispatchThreads:grid threadsPerThreadgroup:group];
-	[encoder endEncoding];
-
-	end_dispatch(command_buffer, auto_commit);
-	return true;
-}
 
 bool metal_dispatch_texture_kernel(const char *kernel_name,
 	void *grid_texture_handle,
@@ -1781,46 +2405,6 @@ bool metal_dispatch_texture_kernel(const char *kernel_name,
 		buffers, buffer_count,
 		bytes, bytes_count,
 		command_buffer_handle);
-}
-
-bool metal_self_test()
-{
-	if (!metal_is_available())
-	{
-		return false;
-	}
-
-	MetalBuffer buffer;
-	if (!metal_buffer_alloc(sizeof(float) * 4, &buffer))
-	{
-		return false;
-	}
-
-	float values[4] = { 1.0f, 2.0f, 3.0f, 4.0f };
-	if (!metal_buffer_upload(&buffer, 0, values, sizeof(values)))
-	{
-		metal_buffer_free(&buffer);
-		return false;
-	}
-
-	const float scale = 2.0f;
-	MetalDispatchBuffer buffers[] = { { &buffer, 0 } };
-	MetalDispatchBytes bytes[] = { { &scale, sizeof(scale) } };
-	if (!metal_dispatch_1d("buffer_scale", 4, 4, nullptr, 0, buffers, 1, bytes, 1, nullptr))
-	{
-		metal_buffer_free(&buffer);
-		return false;
-	}
-
-	float output[4] = {};
-	if (!metal_buffer_download(&buffer, 0, output, sizeof(output)))
-	{
-		metal_buffer_free(&buffer);
-		return false;
-	}
-
-	metal_buffer_free(&buffer);
-	return output[0] == 2.0f && output[1] == 4.0f && output[2] == 6.0f && output[3] == 8.0f;
 }
 
 #endif

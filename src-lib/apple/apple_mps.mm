@@ -1,16 +1,32 @@
 #include "darknet_internal.hpp"
 #include "darknet_layers.hpp"
 #include "apple_mps.hpp"
+#include "apple_backend.hpp"
+#include "apple_training.hpp"
+#include "apple_training_internal.hpp"
+#include "apple_objc.hpp"
 #include "metal_backend.hpp"
+#include "convolutional_layer.hpp"
 #include "gemm.hpp"
+#include "im2col.hpp"
+#include "weights.hpp"
 
 #ifdef DARKNET_USE_MPS
 
 #import <Metal/Metal.h>
 #import <MetalPerformanceShaders/MetalPerformanceShaders.h>
+#import <CoreFoundation/CoreFoundation.h>
 
+#include <algorithm>
+#include <atomic>
+#include <cctype>
+#include <chrono>
+#include <cmath>
 #include <cstring>
+#include <limits>
 #include <memory>
+#include <sstream>
+#include <unordered_map>
 #include <unordered_set>
 
 @interface MpsBatchNormDataSource : NSObject <MPSCNNBatchNormalizationDataSource>
@@ -101,24 +117,206 @@
 }
 @end
 
+@interface MpsConvolutionDataSource : NSObject <MPSCNNConvolutionDataSource>
+{
+@private
+	MPSCNNConvolutionDescriptor *convolution_descriptor;
+	std::vector<float> kernel_weights;
+	std::vector<float> convolution_biases;
+}
+- (instancetype)initWithDescriptor:(MPSCNNConvolutionDescriptor *)descriptor
+	weights:(const float *)weights
+	weightCount:(NSUInteger)weight_count
+	biasTerms:(const float *)bias_terms
+	biasCount:(NSUInteger)bias_count;
+@end
+
+@implementation MpsConvolutionDataSource
+- (instancetype)initWithDescriptor:(MPSCNNConvolutionDescriptor *)descriptor
+	weights:(const float *)weights
+	weightCount:(NSUInteger)weight_count
+	biasTerms:(const float *)bias_terms
+	biasCount:(NSUInteger)bias_count
+{
+	self = [super init];
+	if (self)
+	{
+		if (!descriptor || !weights || weight_count == 0)
+		{
+			return nil;
+		}
+		convolution_descriptor = descriptor;
+		kernel_weights.assign(weights, weights + weight_count);
+		if (bias_terms && bias_count > 0)
+		{
+			convolution_biases.assign(bias_terms, bias_terms + bias_count);
+		}
+	}
+	return self;
+}
+
+- (MPSDataType)dataType
+{
+	return MPSDataTypeFloat32;
+}
+
+- (MPSCNNConvolutionDescriptor *)descriptor
+{
+	return convolution_descriptor;
+}
+
+- (void *)weights
+{
+	return kernel_weights.data();
+}
+
+- (float *)biasTerms
+{
+	return convolution_biases.empty() ? nullptr : convolution_biases.data();
+}
+
+- (BOOL)load
+{
+	return YES;
+}
+
+- (void)purge
+{
+}
+
+- (NSString *)label
+{
+	return @"darknet_convolution";
+}
+
+- (MPSCNNConvolutionWeightsLayout)weightsLayout
+{
+	return MPSCNNConvolutionWeightsLayoutOHWI;
+}
+
+- (MPSDataType)kernelWeightsDataType
+{
+	// Match the legacy initializer, which converted float weights to FP16.
+	return MPSDataTypeFloat16;
+}
+
+- (id)copyWithZone:(NSZone *)zone
+{
+	(void)zone;
+	return self;
+}
+
+- (instancetype)copyWithZone:(NSZone *)zone device:(id<MTLDevice>)device
+{
+	(void)zone;
+	(void)device;
+	return self;
+}
+@end
+
 namespace
 {
+	MPSNNNeuronDescriptor *native_neuron_descriptor(ACTIVATION activation);
+	using Darknet::Apple::Detail::ObjcStrong;
+	using Darknet::Apple::Detail::objc_release_if_needed;
+	void sync_mirrored_shared_buffers();
+
 	struct MpsContext
 	{
-		id<MTLDevice> device = nil;
-		id<MTLCommandQueue> queue = nil;
+		__unsafe_unretained id<MTLDevice> device = nil;
+		__unsafe_unretained id<MTLCommandQueue> queue = nil;
 		bool ready = false;
-		id<MTLBuffer> bufferA = nil;
-		id<MTLBuffer> bufferB = nil;
-		id<MTLBuffer> bufferC = nil;
-		size_t bufferA_bytes = 0;
-		size_t bufferB_bytes = 0;
-		size_t bufferC_bytes = 0;
+		std::string init_reason = "Apple MPS initialization has not run yet";
 	};
 
 	struct MpsCommandBufferState
 	{
 		id<MTLCommandBuffer> last_buffer = nil;
+
+		~MpsCommandBufferState()
+		{
+			if (last_buffer)
+			{
+				[last_buffer waitUntilCompleted];
+				sync_mirrored_shared_buffers();
+				objc_release_if_needed(last_buffer);
+				last_buffer = nil;
+			}
+		}
+	};
+
+	struct MpsMatrixOpKey
+	{
+		bool transpose_a = false;
+		bool transpose_b = false;
+		NSUInteger rows = 0;
+		NSUInteger cols = 0;
+		NSUInteger inner = 0;
+		NSUInteger batch_size = 0;
+		float alpha = 0.0f;
+		float beta = 0.0f;
+
+		bool operator==(const MpsMatrixOpKey & other) const
+		{
+			return transpose_a == other.transpose_a &&
+				transpose_b == other.transpose_b &&
+				rows == other.rows &&
+				cols == other.cols &&
+				inner == other.inner &&
+				batch_size == other.batch_size &&
+				alpha == other.alpha &&
+				beta == other.beta;
+		}
+	};
+
+	struct MpsMatrixOpKeyHash
+	{
+		size_t operator()(const MpsMatrixOpKey & key) const noexcept
+		{
+			size_t value = std::hash<bool>{}(key.transpose_a);
+				value ^= std::hash<bool>{}(key.transpose_b) << 1U;
+				value ^= std::hash<NSUInteger>{}(key.rows) << 2U;
+				value ^= std::hash<NSUInteger>{}(key.cols) << 3U;
+				value ^= std::hash<NSUInteger>{}(key.inner) << 4U;
+				value ^= std::hash<NSUInteger>{}(key.batch_size) << 5U;
+				value ^= std::hash<float>{}(key.alpha) << 6U;
+				value ^= std::hash<float>{}(key.beta) << 7U;
+				return value;
+			}
+		};
+
+	struct MpsMatrixDescriptorKey
+	{
+		NSUInteger rows = 0;
+		NSUInteger cols = 0;
+		NSUInteger matrices = 1;
+		NSUInteger row_bytes = 0;
+		NSUInteger matrix_bytes = 0;
+		MPSDataType data_type = MPSDataTypeInvalid;
+
+		bool operator==(const MpsMatrixDescriptorKey & other) const
+		{
+			return rows == other.rows &&
+				cols == other.cols &&
+				matrices == other.matrices &&
+				row_bytes == other.row_bytes &&
+				matrix_bytes == other.matrix_bytes &&
+				data_type == other.data_type;
+		}
+	};
+
+	struct MpsMatrixDescriptorKeyHash
+	{
+		size_t operator()(const MpsMatrixDescriptorKey & key) const noexcept
+		{
+			size_t value = std::hash<NSUInteger>{}(key.rows);
+			value ^= std::hash<NSUInteger>{}(key.cols) << 1U;
+			value ^= std::hash<NSUInteger>{}(key.matrices) << 2U;
+			value ^= std::hash<NSUInteger>{}(key.row_bytes) << 3U;
+			value ^= std::hash<NSUInteger>{}(key.matrix_bytes) << 4U;
+			value ^= std::hash<int>{}(static_cast<int>(key.data_type)) << 5U;
+			return value;
+		}
 	};
 
 	MpsContext & get_mps_context()
@@ -129,12 +327,26 @@ namespace
 		{
 			@autoreleasepool
 			{
-				ctx.device = MTLCreateSystemDefaultDevice();
-				if (ctx.device && MPSSupportsMTLDevice(ctx.device))
+				const auto & runtime = Darknet::Apple::runtime_info();
+				ctx.device = (__bridge id<MTLDevice>)Darknet::Apple::runtime_metal_device_handle();
+				if (!ctx.device)
 				{
-					ctx.queue = [ctx.device newCommandQueue];
-					ctx.ready = (ctx.queue != nil);
+					ctx.init_reason = runtime.reason.empty() ? "canonical Metal runtime has no device" : runtime.reason;
+					return;
 				}
+				if (!MPSSupportsMTLDevice(ctx.device))
+				{
+					ctx.init_reason = "MPSSupportsMTLDevice() returned false";
+					return;
+				}
+				ctx.queue = (__bridge id<MTLCommandQueue>)Darknet::Apple::runtime_metal_command_queue_handle();
+				ctx.ready = (ctx.queue != nil);
+				if (!ctx.ready)
+				{
+					ctx.init_reason = runtime.reason.empty() ? "canonical Metal runtime has no command queue" : runtime.reason;
+					return;
+				}
+				ctx.init_reason = "ok";
 			}
 		});
 		return ctx;
@@ -158,48 +370,290 @@ namespace
 			return;
 		}
 		auto & state = get_mps_command_buffer_state();
+		if (state.last_buffer == buffer)
+		{
+			return;
+		}
+		// Every inference submission uses the canonical serial queue. Retaining
+		// only the newest command buffer is sufficient: completion of that buffer
+		// also establishes completion of all earlier submissions on the queue.
+		objc_release_if_needed(state.last_buffer);
+#if !__has_feature(objc_arc)
+		[buffer retain];
+#endif
 		state.last_buffer = buffer;
 	}
 
-	void wait_mps_command_buffer_if_needed()
+	bool wait_mps_command_buffer_if_needed(const char **reason = nullptr)
 	{
 		auto & state = get_mps_command_buffer_state();
 		if (!state.last_buffer)
 		{
-			return;
+			return true;
 		}
-		[state.last_buffer waitUntilCompleted];
+		id<MTLCommandBuffer> buffer = state.last_buffer;
 		state.last_buffer = nil;
+		[buffer waitUntilCompleted];
+		const bool completed = buffer.status == MTLCommandBufferStatusCompleted;
+		if (!completed)
+		{
+			std::string failure = "MPS command buffer execution failed";
+			NSString *description = buffer.error.localizedDescription;
+			if (description.UTF8String)
+			{
+				failure += ": ";
+				failure += description.UTF8String;
+			}
+			if (reason)
+			{
+				*reason = "MPS command buffer execution failed";
+			}
+			sync_mirrored_shared_buffers();
+			objc_release_if_needed(buffer);
+			darknet_fatal_error(DARKNET_LOC, "%s", failure.c_str());
+		}
+		sync_mirrored_shared_buffers();
+		objc_release_if_needed(buffer);
+		return true;
 	}
 
-	std::mutex & get_mps_gemm_mutex()
+	std::unordered_map<MpsMatrixOpKey, ObjcStrong, MpsMatrixOpKeyHash> & get_matrix_op_cache()
+	{
+		static std::unordered_map<MpsMatrixOpKey, ObjcStrong, MpsMatrixOpKeyHash> cache;
+		return cache;
+	}
+
+	std::unordered_map<MpsMatrixDescriptorKey, ObjcStrong, MpsMatrixDescriptorKeyHash> & get_matrix_descriptor_cache()
+	{
+		static std::unordered_map<MpsMatrixDescriptorKey, ObjcStrong, MpsMatrixDescriptorKeyHash> cache;
+		return cache;
+	}
+
+	std::mutex & get_matrix_op_mutex()
 	{
 		static std::mutex mutex;
 		return mutex;
 	}
 
-	bool ensure_buffer(__strong id<MTLBuffer> & buffer, size_t & current_bytes, size_t required_bytes, id<MTLDevice> device)
+	std::mutex & get_matrix_descriptor_mutex()
 	{
-		if (required_bytes == 0)
+		static std::mutex mutex;
+		return mutex;
+	}
+
+	void sync_mirrored_shared_buffers()
+	{
+		Darknet::Apple::TrainingDetail::sync_all_training_shared_buffers_to_host();
+	}
+
+	struct MpsCallBuffer
+	{
+		id<MTLBuffer> buffer = nil;
+		bool aliases_host = false;
+
+		bool initialize(id<MTLDevice> device, void *host, const size_t bytes, const bool allow_alias)
+		{
+			if (!device || !host || bytes == 0)
+			{
+				return false;
+			}
+
+			if (allow_alias && Darknet::Apple::Detail::no_copy_buffer_eligible(host, bytes))
+			{
+				buffer = [device newBufferWithBytesNoCopy:host
+					length:bytes
+					options:MTLResourceStorageModeShared
+					deallocator:nil];
+				aliases_host = buffer != nil;
+			}
+
+			if (!buffer)
+			{
+				buffer = [device newBufferWithLength:bytes options:MTLResourceStorageModeShared];
+				if (buffer)
+				{
+					std::memcpy(buffer.contents, host, bytes);
+				}
+			}
+			return buffer != nil;
+		}
+
+		void copy_to_host(void *host, const size_t bytes) const
+		{
+			if (!aliases_host)
+			{
+				std::memcpy(host, buffer.contents, bytes);
+			}
+		}
+	};
+
+	MPSMatrixMultiplication * get_matrix_op(MpsContext & ctx, bool transpose_a, bool transpose_b,
+		NSUInteger rows, NSUInteger cols, NSUInteger inner, NSUInteger batch_size, float alpha, float beta)
+	{
+		if (!ctx.ready)
+		{
+			return nil;
+		}
+
+		const MpsMatrixOpKey key{transpose_a, transpose_b, rows, cols, inner, batch_size, alpha, beta};
+		{
+			std::scoped_lock lock(get_matrix_op_mutex());
+			auto & cache = get_matrix_op_cache();
+			auto it = cache.find(key);
+			if (it != cache.end())
+			{
+				return (MPSMatrixMultiplication *)it->second.get();
+			}
+		}
+
+		MPSMatrixMultiplication *op = [[MPSMatrixMultiplication alloc]
+			initWithDevice:ctx.device
+			transposeLeft:transpose_a
+			transposeRight:transpose_b
+			resultRows:rows
+			resultColumns:cols
+			interiorColumns:inner
+			alpha:static_cast<double>(alpha)
+			beta:static_cast<double>(beta)];
+		if (!op)
+		{
+			return nil;
+		}
+		if (batch_size > 0)
+		{
+			op.batchStart = 0;
+			op.batchSize = batch_size;
+		}
+
+		std::scoped_lock lock(get_matrix_op_mutex());
+		auto & cache = get_matrix_op_cache();
+		auto [it, inserted] = cache.emplace(key, ObjcStrong(op));
+		objc_release_if_needed(op);
+		if (!inserted)
+		{
+			return (MPSMatrixMultiplication *)it->second.get();
+		}
+		return op;
+	}
+
+	MPSMatrixDescriptor * get_matrix_descriptor(NSUInteger rows,
+		NSUInteger cols,
+		NSUInteger matrices,
+		NSUInteger row_bytes,
+		NSUInteger matrix_bytes,
+		MPSDataType data_type)
+	{
+		const MpsMatrixDescriptorKey key{rows, cols, matrices, row_bytes, matrix_bytes, data_type};
+		{
+			std::scoped_lock lock(get_matrix_descriptor_mutex());
+			auto & cache = get_matrix_descriptor_cache();
+			auto it = cache.find(key);
+			if (it != cache.end())
+			{
+				return (MPSMatrixDescriptor *)it->second.get();
+			}
+		}
+
+		MPSMatrixDescriptor *desc = nil;
+		if (matrices <= 1)
+		{
+			desc = [MPSMatrixDescriptor matrixDescriptorWithRows:rows
+				columns:cols
+				rowBytes:row_bytes
+				dataType:data_type];
+		}
+		else
+		{
+			desc = [MPSMatrixDescriptor matrixDescriptorWithRows:rows
+				columns:cols
+				matrices:matrices
+				rowBytes:row_bytes
+				matrixBytes:matrix_bytes
+				dataType:data_type];
+		}
+		if (!desc)
+		{
+			return nil;
+		}
+
+		std::scoped_lock lock(get_matrix_descriptor_mutex());
+		auto & cache = get_matrix_descriptor_cache();
+		auto [it, inserted] = cache.emplace(key, ObjcStrong(desc));
+		if (!inserted)
+		{
+			return (MPSMatrixDescriptor *)it->second.get();
+		}
+		return desc;
+	}
+
+	bool encode_matrix_multiply(MpsContext & ctx,
+		id<MTLCommandBuffer> command_buffer,
+		bool transpose_a, bool transpose_b,
+		int M, int N, int K,
+		float alpha, float beta,
+		id<MTLBuffer> buffer_a, int lda,
+		id<MTLBuffer> buffer_b, int ldb,
+		id<MTLBuffer> buffer_c, int ldc)
+	{
+		if (!ctx.ready || !command_buffer || !buffer_a || !buffer_b || !buffer_c || M <= 0 || N <= 0 || K <= 0)
 		{
 			return false;
 		}
-		if (!buffer || required_bytes > current_bytes)
+
+		const NSUInteger a_rows = (transpose_a ? K : M);
+		const NSUInteger a_cols = (transpose_a ? M : K);
+		const NSUInteger b_rows = (transpose_b ? N : K);
+		const NSUInteger b_cols = (transpose_b ? K : N);
+		const NSUInteger c_rows = static_cast<NSUInteger>(M);
+		const NSUInteger c_cols = static_cast<NSUInteger>(N);
+
+		const NSUInteger a_row_bytes = static_cast<NSUInteger>(lda) * sizeof(float);
+		const NSUInteger b_row_bytes = static_cast<NSUInteger>(ldb) * sizeof(float);
+		const NSUInteger c_row_bytes = static_cast<NSUInteger>(ldc) * sizeof(float);
+
+		@autoreleasepool
 		{
-			buffer = [device newBufferWithLength:required_bytes options:MTLResourceStorageModeShared];
-			current_bytes = buffer ? required_bytes : 0;
+			MPSMatrixDescriptor *desc_a = get_matrix_descriptor(a_rows, a_cols, 1, a_row_bytes, a_rows * a_row_bytes, MPSDataTypeFloat32);
+			MPSMatrixDescriptor *desc_b = get_matrix_descriptor(b_rows, b_cols, 1, b_row_bytes, b_rows * b_row_bytes, MPSDataTypeFloat32);
+			MPSMatrixDescriptor *desc_c = get_matrix_descriptor(c_rows, c_cols, 1, c_row_bytes, c_rows * c_row_bytes, MPSDataTypeFloat32);
+			if (!desc_a || !desc_b || !desc_c)
+			{
+				return false;
+			}
+
+			MPSMatrix *matrix_a = [[MPSMatrix alloc] initWithBuffer:buffer_a offset:0 descriptor:desc_a];
+			MPSMatrix *matrix_b = [[MPSMatrix alloc] initWithBuffer:buffer_b offset:0 descriptor:desc_b];
+			MPSMatrix *matrix_c = [[MPSMatrix alloc] initWithBuffer:buffer_c offset:0 descriptor:desc_c];
+			if (!matrix_a || !matrix_b || !matrix_c)
+			{
+				objc_release_if_needed(matrix_a);
+				objc_release_if_needed(matrix_b);
+				objc_release_if_needed(matrix_c);
+				return false;
+			}
+
+			MPSMatrixMultiplication *op = get_matrix_op(ctx, transpose_a, transpose_b, c_rows, c_cols,
+				static_cast<NSUInteger>(K), 0, alpha, beta);
+			if (!op)
+			{
+				objc_release_if_needed(matrix_a);
+				objc_release_if_needed(matrix_b);
+				objc_release_if_needed(matrix_c);
+				return false;
+			}
+
+			[op encodeToCommandBuffer:command_buffer leftMatrix:matrix_a rightMatrix:matrix_b resultMatrix:matrix_c];
+			objc_release_if_needed(matrix_a);
+			objc_release_if_needed(matrix_b);
+			objc_release_if_needed(matrix_c);
+			return true;
 		}
-		return buffer != nil;
 	}
 
 	struct MpsConvCache
 	{
 		MPSCNNConvolution *conv = nil;
-		MPSCNNNeuron *neuron = nil;
-		MPSCNNBatchNormalization *batchnorm = nil;
-		MpsBatchNormDataSource *batchnorm_source = nil;
-		std::vector<float> weights;
-		std::vector<float> biases;
+		MpsConvolutionDataSource *data_source = nil;
 		int size = 0;
 		int c = 0;
 		int n = 0;
@@ -210,7 +664,8 @@ namespace
 		int pad = 0;
 		bool batch_normalize = false;
 		ACTIVATION activation = LINEAR;
-		float leaky_alpha = 0.0f;
+		bool activation_fused = false;
+		uint64_t parameter_generation = 0;
 		MPSImage *input_image = nil;
 		MPSImage *output_image = nil;
 		int input_w = 0;
@@ -266,11 +721,12 @@ namespace
 	{
 		MPSCNNBatchNormalization *batchnorm = nil;
 		MpsBatchNormDataSource *batchnorm_source = nil;
-		MPSCNNNeuron *neuron = nil;
 		ACTIVATION activation = LINEAR;
-		float leaky_alpha = 0.0f;
+		bool activation_fused = false;
 		bool batch_normalize = false;
 		int outputs = 0;
+		uint64_t parameter_generation = 0;
+		MPSImage *intermediate_image = nil;
 		MPSImage *output_image = nil;
 		int output_w = 0;
 		int output_h = 0;
@@ -281,32 +737,12 @@ namespace
 	struct MpsAddCache
 	{
 		MPSCNNAdd *add = nil;
-		MPSCNNNeuron *neuron = nil;
 		ACTIVATION activation = LINEAR;
-		float leaky_alpha = 0.0f;
 		MPSImage *output_image = nil;
 		int output_w = 0;
 		int output_h = 0;
 		int output_c = 0;
 		int output_batch = 0;
-	};
-
-	struct MpsWeightedAddCache
-	{
-		MPSCNNNeuron *neuron = nil;
-		ACTIVATION activation = LINEAR;
-		float leaky_alpha = 0.0f;
-		MPSImage *output_image = nil;
-		int output_w = 0;
-		int output_h = 0;
-		int output_c = 0;
-		int output_batch = 0;
-		MetalBuffer weights_in;
-		MetalBuffer weights_add;
-		const float *weights_ptr = nullptr;
-		int weights_channels = 0;
-		bool weights_ready = false;
-		WEIGHTS_NORMALIZATION_T weights_norm = NO_NORMALIZATION;
 	};
 
 	struct MpsRouteCache
@@ -351,76 +787,80 @@ namespace
 
 	struct MpsSoftmaxCache
 	{
-		MetalBuffer input_buffer;
-		MetalBuffer output_buffer;
+		MetalBufferOwner input_buffer;
+		MetalBufferOwner output_buffer;
 		size_t bytes = 0;
 	};
 
+	struct MpsInferenceContext
+	{
+		std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsConvCache>> convolution;
+		std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsPoolCache>> pooling;
+		std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsGlobalAvgPoolCache>> global_avgpool;
+		std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsConnectedCache>> connected;
+		std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsAddCache>> add;
+		std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsRouteCache>> route;
+		std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsUpsampleCache>> upsample;
+		std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsReorgCache>> reorg;
+		std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsSoftmaxCache>> softmax;
+		std::unordered_set<const Darknet::Layer *> deferred;
+	};
+
+	MpsInferenceContext & get_mps_inference_context()
+	{
+		thread_local MpsInferenceContext context;
+		return context;
+	}
+
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsConvCache>> & get_mps_conv_cache()
 	{
-		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsConvCache>> cache;
-		return cache;
+		return get_mps_inference_context().convolution;
 	}
 
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsPoolCache>> & get_mps_pool_cache()
 	{
-		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsPoolCache>> cache;
-		return cache;
+		return get_mps_inference_context().pooling;
 	}
 
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsGlobalAvgPoolCache>> & get_mps_global_avgpool_cache()
 	{
-		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsGlobalAvgPoolCache>> cache;
-		return cache;
+		return get_mps_inference_context().global_avgpool;
 	}
 
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsConnectedCache>> & get_mps_connected_cache()
 	{
-		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsConnectedCache>> cache;
-		return cache;
+		return get_mps_inference_context().connected;
 	}
 
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsAddCache>> & get_mps_add_cache()
 	{
-		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsAddCache>> cache;
-		return cache;
-	}
-
-	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsWeightedAddCache>> & get_mps_weighted_add_cache()
-	{
-		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsWeightedAddCache>> cache;
-		return cache;
+		return get_mps_inference_context().add;
 	}
 
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsRouteCache>> & get_mps_route_cache()
 	{
-		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsRouteCache>> cache;
-		return cache;
+		return get_mps_inference_context().route;
 	}
 
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsUpsampleCache>> & get_mps_upsample_cache()
 	{
-		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsUpsampleCache>> cache;
-		return cache;
+		return get_mps_inference_context().upsample;
 	}
 
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsReorgCache>> & get_mps_reorg_cache()
 	{
-		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsReorgCache>> cache;
-		return cache;
+		return get_mps_inference_context().reorg;
 	}
 
 	std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsSoftmaxCache>> & get_mps_softmax_cache()
 	{
-		thread_local std::unordered_map<const Darknet::Layer *, std::unique_ptr<MpsSoftmaxCache>> cache;
-		return cache;
+		return get_mps_inference_context().softmax;
 	}
 
-	/** \brief Tracks layers with deferred readback to reduce CPU syncs. \ingroup mps_backend */
+	/// Tracks layers with deferred readback to reduce CPU syncs.
 	std::unordered_set<const Darknet::Layer *> & get_mps_deferred_layers()
 	{
-		thread_local std::unordered_set<const Darknet::Layer *> deferred;
-		return deferred;
+		return get_mps_inference_context().deferred;
 	}
 
 	void reset_conv_images(MpsConvCache & cache);
@@ -428,18 +868,21 @@ namespace
 	void reset_global_avgpool_images(MpsGlobalAvgPoolCache & cache);
 	void reset_connected_images(MpsConnectedCache & cache);
 	void reset_add_images(MpsAddCache & cache);
-	void reset_route_images(MpsRouteCache & cache);
-	void reset_upsample_images(MpsUpsampleCache & cache);
-	void reset_reorg_images(MpsReorgCache & cache);
 
-	bool mps_supports_grouped_conv()
+	std::atomic<uint64_t> & parameter_generation()
 	{
-		return [MPSCNNConvolutionDescriptor instancesRespondToSelector:@selector(setGroups:)];
+		static std::atomic<uint64_t> generation{1};
+		return generation;
 	}
 
-	bool mps_supports_dilated_conv()
+	uint64_t current_parameter_generation()
 	{
-		return [MPSCNNConvolutionDescriptor instancesRespondToSelector:@selector(setDilationRateX:)];
+		return parameter_generation().load(std::memory_order_acquire);
+	}
+
+	void advance_parameter_generation()
+	{
+		parameter_generation().fetch_add(1, std::memory_order_acq_rel);
 	}
 
 	bool cache_matches_layer(const MpsConvCache & cache, const Darknet::Layer & l)
@@ -454,7 +897,8 @@ namespace
 			cache.dilation == l.dilation &&
 			cache.pad == l.pad &&
 			cache.batch_normalize == (l.batch_normalize != 0) &&
-			cache.activation == l.activation;
+			cache.activation == l.activation &&
+			cache.parameter_generation == current_parameter_generation();
 	}
 
 	void reset_conv_images(MpsConvCache & cache)
@@ -501,6 +945,7 @@ namespace
 
 	void reset_connected_images(MpsConnectedCache & cache)
 	{
+		cache.intermediate_image = nil;
 		cache.output_image = nil;
 		cache.output_w = 0;
 		cache.output_h = 0;
@@ -517,53 +962,23 @@ namespace
 		cache.output_batch = 0;
 	}
 
-	void reset_route_images(MpsRouteCache & cache)
+	void invalidate_layer_cache_impl(const Darknet::Layer *layer)
 	{
-		cache.output_image = nil;
-		cache.output_w = 0;
-		cache.output_h = 0;
-		cache.output_c = 0;
-		cache.output_batch = 0;
-	}
+		if (!layer)
+		{
+			return;
+		}
 
-	void reset_weighted_add_images(MpsWeightedAddCache & cache)
-	{
-		cache.output_image = nil;
-		cache.output_w = 0;
-		cache.output_h = 0;
-		cache.output_c = 0;
-		cache.output_batch = 0;
-	}
-
-	void reset_upsample_images(MpsUpsampleCache & cache)
-	{
-		cache.input_image = nil;
-		cache.output_image = nil;
-		cache.input_w = 0;
-		cache.input_h = 0;
-		cache.input_c = 0;
-		cache.input_batch = 0;
-		cache.output_w = 0;
-		cache.output_h = 0;
-		cache.output_c = 0;
-		cache.output_batch = 0;
-		cache.stride = 0;
-		cache.scale = 0.0f;
-	}
-
-	void reset_reorg_images(MpsReorgCache & cache)
-	{
-		cache.input_image = nil;
-		cache.output_image = nil;
-		cache.input_w = 0;
-		cache.input_h = 0;
-		cache.input_c = 0;
-		cache.input_batch = 0;
-		cache.output_w = 0;
-		cache.output_h = 0;
-		cache.output_c = 0;
-		cache.output_batch = 0;
-		cache.stride = 0;
+		get_mps_conv_cache().erase(layer);
+		get_mps_pool_cache().erase(layer);
+		get_mps_global_avgpool_cache().erase(layer);
+		get_mps_connected_cache().erase(layer);
+		get_mps_add_cache().erase(layer);
+		get_mps_route_cache().erase(layer);
+		get_mps_upsample_cache().erase(layer);
+		get_mps_reorg_cache().erase(layer);
+		get_mps_softmax_cache().erase(layer);
+		get_mps_deferred_layers().erase(layer);
 	}
 
 	bool cache_matches_add(const MpsAddCache & cache, const Darknet::Layer & l)
@@ -606,48 +1021,6 @@ namespace
 		return cache.output_image != nil;
 	}
 
-	bool cache_matches_weighted_add(const MpsWeightedAddCache & cache, const Darknet::Layer & l)
-	{
-		return cache.activation == l.activation &&
-			cache.weights_norm == l.weights_normalization;
-	}
-
-	bool ensure_weighted_add_output_image(MpsWeightedAddCache & cache, const Darknet::Layer & l, id<MTLDevice> device)
-	{
-		if (!device)
-		{
-			return false;
-		}
-
-		const int out_w = l.out_w;
-		const int out_h = l.out_h;
-		const int out_c = l.out_c;
-		const int batch = l.batch;
-
-		if (!cache.output_image ||
-			cache.output_w != out_w ||
-			cache.output_h != out_h ||
-			cache.output_c != out_c ||
-			cache.output_batch != batch)
-		{
-			MPSImageDescriptor *output_desc = [MPSImageDescriptor imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatFloat32
-				width:static_cast<NSUInteger>(out_w)
-				height:static_cast<NSUInteger>(out_h)
-				featureChannels:static_cast<NSUInteger>(out_c)
-				numberOfImages:static_cast<NSUInteger>(batch)
-				usage:(MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite)];
-			cache.output_image = [[MPSImage alloc] initWithDevice:device imageDescriptor:output_desc];
-			cache.output_w = out_w;
-			cache.output_h = out_h;
-			cache.output_c = out_c;
-			cache.output_batch = batch;
-		}
-
-		return cache.output_image != nil;
-	}
-
-	MPSCNNNeuron *build_neuron(ACTIVATION activation, id<MTLDevice> device, float *alpha_out);
-
 	bool build_add_cache(MpsAddCache & cache, const Darknet::Layer & l, id<MTLDevice> device)
 	{
 		if (!device)
@@ -657,34 +1030,8 @@ namespace
 
 		cache.add = [[MPSCNNAdd alloc] initWithDevice:device];
 		cache.activation = l.activation;
-		cache.neuron = build_neuron(l.activation, device, &cache.leaky_alpha);
 		reset_add_images(cache);
 		return cache.add != nil;
-	}
-
-	bool build_weighted_add_cache(MpsWeightedAddCache & cache, const Darknet::Layer & l, id<MTLDevice> device)
-	{
-		if (!device)
-		{
-			return false;
-		}
-
-		cache.activation = l.activation;
-		cache.weights_norm = l.weights_normalization;
-		cache.neuron = build_neuron(l.activation, device, &cache.leaky_alpha);
-		reset_weighted_add_images(cache);
-		if (cache.weights_in.handle)
-		{
-			metal_buffer_free(&cache.weights_in);
-		}
-		if (cache.weights_add.handle)
-		{
-			metal_buffer_free(&cache.weights_add);
-		}
-		cache.weights_ptr = nullptr;
-		cache.weights_channels = 0;
-		cache.weights_ready = false;
-		return true;
 	}
 
 	bool ensure_route_output_image(MpsRouteCache & cache, const Darknet::Layer & l, id<MTLDevice> device)
@@ -876,6 +1223,8 @@ namespace
 		size_t bytes_count = 0;
 		switch (activation)
 		{
+			case RELU: kernel_name = "relu_kernel"; break;
+			case LEAKY: kernel_name = "leaky_kernel"; break;
 			case SWISH: kernel_name = "swish_kernel"; break;
 			case MISH: kernel_name = "mish_kernel"; break;
 			case HARD_MISH: kernel_name = "hard_mish_kernel"; break;
@@ -1073,57 +1422,28 @@ namespace
 		}
 	}
 
-	void pack_weights_hwio(const Darknet::Layer & l, std::vector<float> & packed)
+
+	MPSNNNeuronDescriptor *native_neuron_descriptor(ACTIVATION activation)
 	{
-		const int in_channels = l.c / l.groups;
-		const int kernel_area = l.size * l.size;
-		const size_t total = static_cast<size_t>(l.n) * kernel_area * in_channels;
-		packed.assign(total, 0.0f);
-
-		for (int oc = 0; oc < l.n; ++oc)
-		{
-			for (int ic = 0; ic < in_channels; ++ic)
-			{
-				for (int ky = 0; ky < l.size; ++ky)
-				{
-					for (int kx = 0; kx < l.size; ++kx)
-					{
-						const size_t src = static_cast<size_t>(((oc * in_channels + ic) * l.size + ky) * l.size + kx);
-						const size_t dst = static_cast<size_t>(((ky * l.size + kx) * in_channels + ic) * l.n + oc);
-						packed[dst] = l.weights[src];
-					}
-				}
-			}
-		}
-	}
-
-	MPSCNNNeuron *build_neuron(ACTIVATION activation, id<MTLDevice> device, float *alpha_out)
-	{
-		if (!device)
-		{
-			return nil;
-		}
-
-		if (alpha_out)
-		{
-			*alpha_out = 0.0f;
-		}
-
 		switch (activation)
 		{
 			case RELU:
-			{
-				return [[MPSCNNNeuronReLU alloc] initWithDevice:device a:0.0f];
-			}
+				return [MPSNNNeuronDescriptor cnnNeuronDescriptorWithType:MPSCNNNeuronTypeReLU a:0.0f];
 			case LEAKY:
-			{
-				const float alpha = 0.1f;
-				if (alpha_out)
-				{
-					*alpha_out = alpha;
-				}
-				return [[MPSCNNNeuronReLU alloc] initWithDevice:device a:alpha];
-			}
+				return [MPSNNNeuronDescriptor cnnNeuronDescriptorWithType:MPSCNNNeuronTypeReLU a:0.1f];
+			case RELIE:
+				return [MPSNNNeuronDescriptor cnnNeuronDescriptorWithType:MPSCNNNeuronTypeReLU a:0.01f];
+			case LOGISTIC:
+				return [MPSNNNeuronDescriptor cnnNeuronDescriptorWithType:MPSCNNNeuronTypeSigmoid];
+			case LOGGY:
+				// 2 * sigmoid(x) - 1 is exactly tanh(x / 2).
+				return [MPSNNNeuronDescriptor cnnNeuronDescriptorWithType:MPSCNNNeuronTypeTanH a:1.0f b:0.5f];
+			case TANH:
+				return [MPSNNNeuronDescriptor cnnNeuronDescriptorWithType:MPSCNNNeuronTypeTanH a:1.0f b:1.0f];
+			case RELU6:
+				return [MPSNNNeuronDescriptor cnnNeuronDescriptorWithType:MPSCNNNeuronTypeReLUN a:0.0f b:6.0f];
+			case ELU:
+				return [MPSNNNeuronDescriptor cnnNeuronDescriptorWithType:MPSCNNNeuronTypeELU a:1.0f];
 			case LINEAR:
 				return nil;
 			default:
@@ -1166,7 +1486,7 @@ namespace
 
 	bool build_conv_cache(MpsConvCache & cache, const Darknet::Layer & l, id<MTLDevice> device)
 	{
-		if (!device)
+		if (!device || !l.weights || l.size <= 0 || l.c <= 0 || l.n <= 0 || l.dilation <= 0)
 		{
 			return false;
 		}
@@ -1176,51 +1496,84 @@ namespace
 			return false;
 		}
 
-		const int in_channels = l.c / l.groups;
-		pack_weights_ohwi(l, cache.weights);
+		const bool depthwise = (l.groups == l.c && l.n == l.c);
+		const int channels_per_group = l.c / l.groups;
+		const int outputs_per_group = l.n / l.groups;
+		if (l.groups > 1 && !depthwise &&
+			((channels_per_group % 4) != 0 || (outputs_per_group % 4) != 0))
+		{
+			return false;
+		}
 
-		cache.biases.assign(static_cast<size_t>(l.n), 0.0f);
+		std::vector<float> packed_weights;
+		pack_weights_ohwi(l, packed_weights);
+		std::vector<float> biases(static_cast<size_t>(l.n), 0.0f);
 		if (!l.batch_normalize && l.biases)
 		{
 			for (int i = 0; i < l.n; ++i)
 			{
-				cache.biases[i] = l.biases[i];
+				biases[i] = l.biases[i];
 			}
 		}
 
-	MPSCNNConvolutionDescriptor *desc = [MPSCNNConvolutionDescriptor cnnConvolutionDescriptorWithKernelWidth:l.size
-		kernelHeight:l.size
-		inputFeatureChannels:in_channels
-		outputFeatureChannels:l.n];
-	desc.strideInPixelsX = l.stride_x;
-	desc.strideInPixelsY = l.stride_y;
-
-	if (l.groups > 1)
-	{
-		if (!mps_supports_grouped_conv())
+		MPSCNNConvolutionDescriptor *desc = nil;
+		if (depthwise)
+		{
+			desc = [MPSCNNDepthWiseConvolutionDescriptor cnnConvolutionDescriptorWithKernelWidth:l.size
+				kernelHeight:l.size
+				inputFeatureChannels:l.c
+				outputFeatureChannels:l.n];
+		}
+		else
+		{
+			desc = [MPSCNNConvolutionDescriptor cnnConvolutionDescriptorWithKernelWidth:l.size
+				kernelHeight:l.size
+				inputFeatureChannels:l.c
+				outputFeatureChannels:l.n];
+			desc.groups = l.groups;
+		}
+		if (!desc)
 		{
 			return false;
 		}
-		desc.groups = l.groups;
-	}
 
-	if (l.dilation != 1 && ![desc respondsToSelector:@selector(setDilationRateX:)])
-	{
-		return false;
-	}
-
-	if ([desc respondsToSelector:@selector(setDilationRateX:)])
-	{
+		desc.strideInPixelsX = l.stride_x;
+		desc.strideInPixelsY = l.stride_y;
 		desc.dilationRateX = l.dilation;
 		desc.dilationRateY = l.dilation;
-	}
 
-		cache.conv = [[MPSCNNConvolution alloc] initWithDevice:device
-			convolutionDescriptor:desc
-			kernelWeights:cache.weights.data()
-			biasTerms:cache.biases.data()
-			flags:MPSCNNConvolutionFlagsNone];
+		if (l.batch_normalize)
+		{
+			if (!l.scales || !l.biases || !l.rolling_mean || !l.rolling_variance)
+			{
+				return false;
+			}
+			[desc setBatchNormalizationParametersForInferenceWithMean:l.rolling_mean
+				variance:l.rolling_variance
+				gamma:l.scales
+				beta:l.biases
+				epsilon:0.00001f];
+		}
 
+		MPSNNNeuronDescriptor *neuron = native_neuron_descriptor(l.activation);
+		if (neuron)
+		{
+			desc.fusedNeuronDescriptor = neuron;
+		}
+
+		const NSUInteger weight_count = static_cast<NSUInteger>(packed_weights.size());
+		cache.data_source = [[MpsConvolutionDataSource alloc]
+			initWithDescriptor:desc
+			weights:packed_weights.data()
+			weightCount:weight_count
+			biasTerms:biases.data()
+			biasCount:static_cast<NSUInteger>(biases.size())];
+		if (!cache.data_source)
+		{
+			return false;
+		}
+
+		cache.conv = [[MPSCNNConvolution alloc] initWithDevice:device weights:cache.data_source];
 		if (!cache.conv)
 		{
 			return false;
@@ -1230,33 +1583,6 @@ namespace
 		const int offset = (l.size / 2) - l.pad;
 		const MPSOffset mps_offset = { offset, offset, 0 };
 		cache.conv.offset = mps_offset;
-
-		cache.neuron = nil;
-		cache.leaky_alpha = 0.0f;
-		cache.batchnorm = nil;
-		cache.batchnorm_source = nil;
-
-		if (l.batch_normalize)
-		{
-			if (!l.scales || !l.biases || !l.rolling_mean || !l.rolling_variance)
-			{
-				return false;
-			}
-			cache.batchnorm_source = [[MpsBatchNormDataSource alloc]
-				initWithChannels:static_cast<NSUInteger>(l.n)
-				gamma:l.scales
-				beta:l.biases
-				mean:l.rolling_mean
-				variance:l.rolling_variance
-				epsilon:0.00001f];
-			cache.batchnorm = [[MPSCNNBatchNormalization alloc] initWithDevice:device dataSource:cache.batchnorm_source];
-			if (!cache.batchnorm)
-			{
-				return false;
-			}
-		}
-
-		cache.neuron = build_neuron(l.activation, device, &cache.leaky_alpha);
 
 		cache.size = l.size;
 		cache.c = l.c;
@@ -1268,6 +1594,8 @@ namespace
 		cache.pad = l.pad;
 		cache.batch_normalize = (l.batch_normalize != 0);
 		cache.activation = l.activation;
+		cache.activation_fused = (neuron != nil);
+		cache.parameter_generation = current_parameter_generation();
 		reset_conv_images(cache);
 
 		return true;
@@ -1287,6 +1615,11 @@ namespace
 		const int out_w = l.out_w;
 		const int out_h = l.out_h;
 		const int out_c = l.n;
+		const bool output_shape_changed = (!cache.output_image ||
+			cache.output_w != out_w ||
+			cache.output_h != out_h ||
+			cache.output_c != out_c ||
+			cache.output_batch != batch);
 
 		if (need_input)
 		{
@@ -1318,11 +1651,7 @@ namespace
 			cache.input_batch = 0;
 		}
 
-		if (!cache.output_image ||
-			cache.output_w != out_w ||
-			cache.output_h != out_h ||
-			cache.output_c != out_c ||
-			cache.output_batch != batch)
+		if (output_shape_changed)
 		{
 			MPSImageDescriptor *output_desc = [MPSImageDescriptor imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatFloat32
 				width:static_cast<NSUInteger>(out_w)
@@ -1379,7 +1708,7 @@ namespace
 			return false;
 		}
 
-		cache.pool.edgeMode = MPSImageEdgeModeZero;
+		cache.pool.edgeMode = MPSImageEdgeModeClamp;
 		const int offset = (l.size / 2) - (l.pad / 2);
 		const MPSOffset mps_offset = { offset, offset, 0 };
 		cache.pool.offset = mps_offset;
@@ -1577,7 +1906,8 @@ namespace
 	{
 		return cache.outputs == l.outputs &&
 			cache.batch_normalize == (l.batch_normalize != 0) &&
-			cache.activation == l.activation;
+			cache.activation == l.activation &&
+			cache.parameter_generation == current_parameter_generation();
 	}
 
 	bool build_connected_cache(MpsConnectedCache & cache, const Darknet::Layer & l, id<MTLDevice> device)
@@ -1589,8 +1919,7 @@ namespace
 
 		cache.batchnorm = nil;
 		cache.batchnorm_source = nil;
-		cache.neuron = nil;
-		cache.leaky_alpha = 0.0f;
+		cache.activation_fused = false;
 
 		if (l.batch_normalize)
 		{
@@ -1604,19 +1933,21 @@ namespace
 				mean:l.rolling_mean
 				variance:l.rolling_variance
 				epsilon:0.00001f];
+			MPSNNNeuronDescriptor *neuron = native_neuron_descriptor(l.activation);
 			cache.batchnorm = [[MPSCNNBatchNormalization alloc] initWithDevice:device
-				dataSource:cache.batchnorm_source];
+				dataSource:cache.batchnorm_source
+				fusedNeuronDescriptor:neuron];
 			if (!cache.batchnorm)
 			{
 				return false;
 			}
+			cache.activation_fused = (neuron != nil);
 		}
-
-		cache.neuron = build_neuron(l.activation, device, &cache.leaky_alpha);
 
 		cache.outputs = l.outputs;
 		cache.batch_normalize = (l.batch_normalize != 0);
 		cache.activation = l.activation;
+		cache.parameter_generation = current_parameter_generation();
 		reset_connected_images(cache);
 
 		return true;
@@ -1633,12 +1964,13 @@ namespace
 		const int out_c = l.outputs;
 		const int out_w = l.out_w;
 		const int out_h = l.out_h;
-
-		if (!cache.output_image ||
+		const bool output_shape_changed = (!cache.output_image ||
 			cache.output_w != out_w ||
 			cache.output_h != out_h ||
 			cache.output_c != out_c ||
-			cache.output_batch != batch)
+			cache.output_batch != batch);
+
+		if (output_shape_changed)
 		{
 			MPSImageDescriptor *output_desc = [MPSImageDescriptor imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatFloat32
 				width:static_cast<NSUInteger>(out_w)
@@ -1653,7 +1985,25 @@ namespace
 			cache.output_batch = batch;
 		}
 
-		return cache.output_image != nil;
+		if (cache.batchnorm)
+		{
+			if (output_shape_changed || !cache.intermediate_image)
+			{
+				MPSImageDescriptor *intermediate_desc = [MPSImageDescriptor imageDescriptorWithChannelFormat:MPSImageFeatureChannelFormatFloat32
+					width:static_cast<NSUInteger>(out_w)
+					height:static_cast<NSUInteger>(out_h)
+					featureChannels:static_cast<NSUInteger>(out_c)
+					numberOfImages:static_cast<NSUInteger>(batch)
+					usage:(MTLTextureUsageShaderRead | MTLTextureUsageShaderWrite)];
+				cache.intermediate_image = [[MPSImage alloc] initWithDevice:device imageDescriptor:intermediate_desc];
+			}
+		}
+		else
+		{
+			cache.intermediate_image = nil;
+		}
+
+		return cache.output_image != nil && (!cache.batchnorm || cache.intermediate_image != nil);
 	}
 
 	MPSImage *get_cached_output_image(const Darknet::Layer *layer, int w, int h, int c, int batch)
@@ -1824,14 +2174,36 @@ bool mps_is_available()
 	return get_mps_context().ready;
 }
 
+bool mps_runtime_available(const char **reason)
+{
+	auto & ctx = get_mps_context();
+	if (reason)
+	{
+		*reason = (ctx.ready ? "ok" : ctx.init_reason.c_str());
+	}
+	return ctx.ready;
+}
+
+bool mps_training_device_count_supported(const int ngpus, std::string *reason)
+{
+	if (ngpus == 1)
+	{
+		if (reason) *reason = "ok";
+		return true;
+	}
+	if (reason)
+	{
+		*reason = "Apple MPSGraph training supports exactly one GPU/device; received ngpus=" + std::to_string(ngpus);
+	}
+	return false;
+}
+
 bool mps_gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 	float *A, int lda,
 	float *B, int ldb,
 	float BETA,
 	float *C, int ldc)
 {
-	std::scoped_lock<std::mutex> lock(get_mps_gemm_mutex());
-
 	auto & ctx = get_mps_context();
 	if (!ctx.ready)
 	{
@@ -1841,6 +2213,10 @@ bool mps_gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 	if (M <= 0 || N <= 0)
 	{
 		return true;
+	}
+	if (!C || ldc < N)
+	{
+		return false;
 	}
 	if (K <= 0)
 	{
@@ -1856,13 +2232,14 @@ bool mps_gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 		}
 		return true;
 	}
+	if (!A || !B || lda < (TA ? M : K) || ldb < (TB ? K : N))
+	{
+		return false;
+	}
 
 	const NSUInteger a_rows = (TA ? K : M);
-	const NSUInteger a_cols = (TA ? M : K);
 	const NSUInteger b_rows = (TB ? N : K);
-	const NSUInteger b_cols = (TB ? K : N);
 	const NSUInteger c_rows = static_cast<NSUInteger>(M);
-	const NSUInteger c_cols = static_cast<NSUInteger>(N);
 
 	const NSUInteger a_row_bytes = static_cast<NSUInteger>(lda) * sizeof(float);
 	const NSUInteger b_row_bytes = static_cast<NSUInteger>(ldb) * sizeof(float);
@@ -1874,38 +2251,15 @@ bool mps_gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 
 	@autoreleasepool
 	{
-		if (!ensure_buffer(ctx.bufferA, ctx.bufferA_bytes, a_bytes, ctx.device) ||
-			!ensure_buffer(ctx.bufferB, ctx.bufferB_bytes, b_bytes, ctx.device) ||
-			!ensure_buffer(ctx.bufferC, ctx.bufferC_bytes, c_bytes, ctx.device))
+		MpsCallBuffer buffer_a;
+		MpsCallBuffer buffer_b;
+		MpsCallBuffer buffer_c;
+		if (!buffer_a.initialize(ctx.device, A, a_bytes, true) ||
+			!buffer_b.initialize(ctx.device, B, b_bytes, true) ||
+			!buffer_c.initialize(ctx.device, C, c_bytes, false))
 		{
 			return false;
 		}
-
-		std::memcpy([ctx.bufferA contents], A, a_bytes);
-		std::memcpy([ctx.bufferB contents], B, b_bytes);
-		std::memcpy([ctx.bufferC contents], C, c_bytes);
-
-		if (!ctx.bufferA || !ctx.bufferB || !ctx.bufferC)
-		{
-			return false;
-		}
-
-		MPSMatrixDescriptor *descA = [MPSMatrixDescriptor matrixDescriptorWithRows:a_rows
-			columns:a_cols
-			rowBytes:a_row_bytes
-			dataType:MPSDataTypeFloat32];
-		MPSMatrixDescriptor *descB = [MPSMatrixDescriptor matrixDescriptorWithRows:b_rows
-			columns:b_cols
-			rowBytes:b_row_bytes
-			dataType:MPSDataTypeFloat32];
-		MPSMatrixDescriptor *descC = [MPSMatrixDescriptor matrixDescriptorWithRows:c_rows
-			columns:c_cols
-			rowBytes:c_row_bytes
-			dataType:MPSDataTypeFloat32];
-
-		MPSMatrix *matrixA = [[MPSMatrix alloc] initWithBuffer:ctx.bufferA descriptor:descA];
-		MPSMatrix *matrixB = [[MPSMatrix alloc] initWithBuffer:ctx.bufferB descriptor:descB];
-		MPSMatrix *matrixC = [[MPSMatrix alloc] initWithBuffer:ctx.bufferC descriptor:descC];
 
 		id<MTLCommandBuffer> command_buffer = [ctx.queue commandBuffer];
 		if (!command_buffer)
@@ -1913,21 +2267,19 @@ bool mps_gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 			return false;
 		}
 
-		MPSMatrixMultiplication *gemm = [[MPSMatrixMultiplication alloc]
-			initWithDevice:ctx.device
-			transposeLeft:(TA != 0)
-			transposeRight:(TB != 0)
-			resultRows:c_rows
-			resultColumns:c_cols
-			interiorColumns:static_cast<NSUInteger>(K)
-			alpha:static_cast<double>(ALPHA)
-			beta:static_cast<double>(BETA)];
+		if (!encode_matrix_multiply(ctx, command_buffer, TA != 0, TB != 0, M, N, K, ALPHA, BETA,
+				buffer_a.buffer, lda, buffer_b.buffer, ldb, buffer_c.buffer, ldc))
+		{
+			return false;
+		}
 
-		[gemm encodeToCommandBuffer:command_buffer leftMatrix:matrixA rightMatrix:matrixB resultMatrix:matrixC];
 		[command_buffer commit];
 		[command_buffer waitUntilCompleted];
-
-		std::memcpy(C, [ctx.bufferC contents], c_bytes);
+		if (command_buffer.status != MTLCommandBufferStatusCompleted)
+		{
+			return false;
+		}
+		buffer_c.copy_to_host(C, c_bytes);
 	}
 
 	return true;
@@ -1958,11 +2310,13 @@ bool mps_layer_can_run(const Darknet::Layer & l, bool train)
 			{
 				return false;
 			}
-			if (l.groups > 1 && !mps_supports_grouped_conv())
+			const bool depthwise = (l.groups == l.c && l.n == l.c);
+			if (l.groups > 1 && !depthwise &&
+				(((l.c / l.groups) % 4) != 0 || ((l.n / l.groups) % 4) != 0))
 			{
 				return false;
 			}
-			if (l.dilation != 1 && !mps_supports_dilated_conv())
+			if (l.dilation <= 0)
 			{
 				return false;
 			}
@@ -2133,14 +2487,6 @@ bool mps_should_defer_readback(const Darknet::NetworkState &state)
 	return false;
 }
 
-void mps_flush_deferred_output(const Darknet::Layer *layer)
-{
-	if (layer && mps_is_output_deferred(layer))
-	{
-		mps_flush_output_if_needed(layer, layer->output);
-	}
-}
-
 bool mps_is_output_deferred(const Darknet::Layer *layer)
 {
 	if (!layer)
@@ -2152,41 +2498,152 @@ bool mps_is_output_deferred(const Darknet::Layer *layer)
 	return deferred.find(layer) != deferred.end();
 }
 
+namespace
+{
+	bool try_materialize_mps_output(const Darknet::Layer *layer, float *output, std::string *reason)
+	{
+		if (!layer)
+		{
+			return true;
+		}
+
+		auto & deferred = get_mps_deferred_layers();
+		auto it = deferred.find(layer);
+		if (it == deferred.end())
+		{
+			return true;
+		}
+		if (!output)
+		{
+			if (reason) *reason = "host output buffer is null";
+			return false;
+		}
+
+		auto & ctx = get_mps_context();
+		if (!ctx.ready)
+		{
+			if (reason) *reason = ctx.init_reason.empty() ? "MPS runtime is unavailable" : ctx.init_reason;
+			return false;
+		}
+
+		const char *wait_reason = nullptr;
+		if (!wait_mps_command_buffer_if_needed(&wait_reason))
+		{
+			if (reason) *reason = wait_reason ? wait_reason : "MPS command buffer execution failed";
+			return false;
+		}
+
+		MPSImage *output_image = get_cached_output_image(layer, layer->out_w, layer->out_h, layer->out_c, layer->batch);
+		if (!output_image)
+		{
+			if (reason) *reason = "deferred MPS output image is unavailable";
+			return false;
+		}
+
+		@autoreleasepool
+		{
+			if (!read_mps_output_image(output_image, layer->out_w, layer->out_h, layer->out_c, layer->batch, output))
+			{
+				if (reason) *reason = "failed to read deferred MPS output image";
+				return false;
+			}
+		}
+
+		deferred.erase(it);
+		return true;
+	}
+}
+
+void mps_materialize_output(const Darknet::Layer *layer, float *output)
+{
+	std::string reason;
+	if (!try_materialize_mps_output(layer, output ? output : (layer ? layer->output : nullptr), &reason))
+	{
+		const int layer_index = layer ? layer->index : -1;
+		darknet_fatal_error(DARKNET_LOC, "cannot materialize Apple MPS output for layer #%d: %s",
+			layer_index, reason.c_str());
+	}
+}
+
+void mps_flush_deferred_output(const Darknet::Layer *layer)
+{
+	mps_materialize_output(layer);
+}
+
 void mps_flush_output_if_needed(const Darknet::Layer *layer, float *output)
 {
-	if (!layer || !output)
-	{
-		return;
-	}
+	mps_materialize_output(layer, output);
+}
 
-	auto & deferred = get_mps_deferred_layers();
-	auto it = deferred.find(layer);
-	if (it == deferred.end())
-	{
-		return;
-	}
-
-	auto & ctx = get_mps_context();
-	if (!ctx.ready)
-	{
-		deferred.erase(it);
-		return;
-	}
-
+void mps_invalidate_layer_cache(const Darknet::Layer *layer)
+{
 	wait_mps_command_buffer_if_needed();
-
-	MPSImage *output_image = get_cached_output_image(layer, layer->out_w, layer->out_h, layer->out_c, layer->batch);
-	if (!output_image)
+	invalidate_layer_cache_impl(layer);
+	advance_parameter_generation();
+	if (layer)
 	{
-		deferred.erase(it);
+		Darknet::Apple::TrainingDetail::invalidate_layer_training_storage(*layer);
+	}
+}
+
+void mps_notify_layer_parameters_updated_cpu(const Darknet::Layer *layer)
+{
+	if (!layer)
+	{
 		return;
 	}
 
-	@autoreleasepool
+	Darknet::Apple::TrainingDetail::note_layer_training_parameters_updated_cpu(*layer);
+	advance_parameter_generation();
+}
+
+void mps_notify_layer_parameters_updated_gpu(const Darknet::Layer *layer)
+{
+	if (!layer)
 	{
-		read_mps_output_image(output_image, layer->out_w, layer->out_h, layer->out_c, layer->batch, output);
+		return;
 	}
-	deferred.erase(it);
+
+	Darknet::Apple::TrainingDetail::note_layer_training_parameters_updated_gpu(*layer);
+	advance_parameter_generation();
+}
+
+void mps_notify_layer_optimizer_state_updated_cpu(const Darknet::Layer *layer)
+{
+	if (layer)
+	{
+		Darknet::Apple::TrainingDetail::note_layer_training_optimizer_state_updated_cpu(*layer);
+	}
+}
+
+void mps_notify_layer_optimizer_state_updated_gpu(const Darknet::Layer *layer)
+{
+	if (layer)
+	{
+		Darknet::Apple::TrainingDetail::note_layer_training_optimizer_state_updated_gpu(*layer);
+	}
+}
+
+void mps_notify_layer_running_stats_updated_cpu(const Darknet::Layer *layer)
+{
+	if (!layer)
+	{
+		return;
+	}
+
+	Darknet::Apple::TrainingDetail::note_layer_training_running_stats_updated_cpu(*layer);
+	advance_parameter_generation();
+}
+
+void mps_notify_layer_running_stats_updated_gpu(const Darknet::Layer *layer)
+{
+	if (!layer)
+	{
+		return;
+	}
+
+	Darknet::Apple::TrainingDetail::note_layer_training_running_stats_updated_gpu(*layer);
+	advance_parameter_generation();
 }
 
 bool mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
@@ -2212,9 +2669,11 @@ bool mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *pre
 		return false;
 	}
 
-	if (l.groups > 1 && !mps_supports_grouped_conv())
+	const bool depthwise = (l.groups == l.c && l.n == l.c);
+	if (l.groups > 1 && !depthwise &&
+		(((l.c / l.groups) % 4) != 0 || ((l.n / l.groups) % 4) != 0))
 	{
-		if (reason) *reason = "grouped convolution not supported";
+		if (reason) *reason = "grouped convolution channels must be multiples of four";
 		return false;
 	}
 
@@ -2241,10 +2700,7 @@ bool mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *pre
 	{
 		if (!build_conv_cache(cache, l, ctx.device))
 		{
-			if (reason)
-			{
-				*reason = (l.dilation != 1) ? "dilation not supported" : "failed to build convolution";
-			}
+			if (reason) *reason = "failed to build convolution";
 			return false;
 		}
 	}
@@ -2308,18 +2764,9 @@ bool mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *pre
 		}
 
 		[cache.conv encodeToCommandBuffer:command_buffer sourceImage:input_image destinationImage:output_image];
-		if (cache.batchnorm)
-		{
-			[cache.batchnorm encodeToCommandBuffer:command_buffer sourceImage:output_image destinationImage:output_image];
-		}
 		bool activation_done = false;
 		const char *status = "ok";
-		if (cache.neuron)
-		{
-			[cache.neuron encodeToCommandBuffer:command_buffer sourceImage:output_image destinationImage:output_image];
-			activation_done = true;
-		}
-		else if (l.activation == LINEAR)
+		if (cache.activation_fused || l.activation == LINEAR)
 		{
 			activation_done = true;
 		}
@@ -2340,8 +2787,15 @@ bool mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *pre
 		const bool should_defer = defer_readback && activation_done;
 		if (!should_defer)
 		{
-			wait_mps_command_buffer_if_needed();
-			read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
+			if (!wait_mps_command_buffer_if_needed(reason))
+			{
+				return false;
+			}
+			if (!read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
+			{
+				if (reason) *reason = "failed to read MPS output";
+				return false;
+			}
 		}
 		else
 		{
@@ -2480,8 +2934,15 @@ bool mps_maxpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 
 		if (!defer_readback)
 		{
-			wait_mps_command_buffer_if_needed();
-			read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
+			if (!wait_mps_command_buffer_if_needed(reason))
+			{
+				return false;
+			}
+			if (!read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
+			{
+				if (reason) *reason = "failed to read MPS output";
+				return false;
+			}
 		}
 		else
 		{
@@ -2615,8 +3076,15 @@ bool mps_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 
 		if (!defer_readback)
 		{
-			wait_mps_command_buffer_if_needed();
-			read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
+			if (!wait_mps_command_buffer_if_needed(reason))
+			{
+				return false;
+			}
+			if (!read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
+			{
+				if (reason) *reason = "failed to read MPS output";
+				return false;
+			}
 		}
 		else
 		{
@@ -2745,8 +3213,15 @@ bool mps_global_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *
 
 		if (!defer_readback)
 		{
-			wait_mps_command_buffer_if_needed();
-			read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
+			if (!wait_mps_command_buffer_if_needed(reason))
+			{
+				return false;
+			}
+			if (!read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
+			{
+				if (reason) *reason = "failed to read MPS output";
+				return false;
+			}
 		}
 		else
 		{
@@ -2885,8 +3360,15 @@ bool mps_reorg_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 
 		if (!defer_readback)
 		{
-			wait_mps_command_buffer_if_needed();
-			read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
+			if (!wait_mps_command_buffer_if_needed(reason))
+			{
+				return false;
+			}
+			if (!read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
+			{
+				if (reason) *reason = "failed to read MPS output";
+				return false;
+			}
 		}
 		else
 		{
@@ -2938,7 +3420,7 @@ bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 
 	if (prev && input == prev->output)
 	{
-		mps_flush_deferred_output(prev);
+		mps_materialize_output(prev);
 	}
 
 	fill_cpu(l.outputs*l.batch, 0, output, 1);
@@ -2980,6 +3462,7 @@ bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 		}
 
 		MPSImage *output_image = cache.output_image;
+		MPSImage *gemm_output_image = cache.batchnorm ? cache.intermediate_image : output_image;
 		const NSUInteger batch = static_cast<NSUInteger>(l.batch);
 		const NSUInteger out_channels = static_cast<NSUInteger>(l.outputs);
 		const NSUInteger out_w = static_cast<NSUInteger>(l.out_w);
@@ -2994,7 +3477,7 @@ bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 		for (NSUInteger b = 0; b < batch; ++b)
 		{
 			const float *output_ptr = output + b * l.outputs;
-			[output_image writeBytes:output_ptr
+			[gemm_output_image writeBytes:output_ptr
 				dataLayout:MPSDataLayoutFeatureChannelsxHeightxWidth
 				bytesPerRow:output_bytes_per_row
 				region:out_region
@@ -3011,17 +3494,12 @@ bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 
 		if (cache.batchnorm)
 		{
-			[cache.batchnorm encodeToCommandBuffer:command_buffer sourceImage:output_image destinationImage:output_image];
+			[cache.batchnorm encodeToCommandBuffer:command_buffer sourceImage:gemm_output_image destinationImage:output_image];
 		}
 
 		bool activation_done = false;
 		const char *status = "ok";
-		if (cache.neuron)
-		{
-			[cache.neuron encodeToCommandBuffer:command_buffer sourceImage:output_image destinationImage:output_image];
-			activation_done = true;
-		}
-		else if (l.activation == LINEAR)
+		if (cache.activation_fused || l.activation == LINEAR)
 		{
 			activation_done = true;
 		}
@@ -3043,8 +3521,15 @@ bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 		const bool should_defer = defer_readback && activation_done;
 		if (!should_defer)
 		{
-			wait_mps_command_buffer_if_needed();
-			read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
+			if (!wait_mps_command_buffer_if_needed(reason))
+			{
+				return false;
+			}
+			if (!read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
+			{
+				if (reason) *reason = "failed to read MPS output";
+				return false;
+			}
 		}
 		else
 		{
@@ -3093,11 +3578,9 @@ bool mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	}
 	auto & cache = *cache_ptr;
 
-	if (cache.bytes != bytes || !cache.input_buffer.handle || !cache.output_buffer.handle)
+	if (cache.bytes != bytes || !cache.input_buffer || !cache.output_buffer)
 	{
-		metal_buffer_free(&cache.input_buffer);
-		metal_buffer_free(&cache.output_buffer);
-		if (!metal_buffer_alloc(bytes, &cache.input_buffer) || !metal_buffer_alloc(bytes, &cache.output_buffer))
+		if (!cache.input_buffer.allocate(bytes) || !cache.output_buffer.allocate(bytes))
 		{
 			if (reason) *reason = "failed to allocate softmax buffers";
 			return false;
@@ -3106,9 +3589,9 @@ bool mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	}
 
 	float *input_ptr = nullptr;
-	if (cache.input_buffer.handle)
+	if (cache.input_buffer)
 	{
-		id<MTLBuffer> buf = (__bridge id<MTLBuffer>)cache.input_buffer.handle;
+		id<MTLBuffer> buf = (__bridge id<MTLBuffer>)cache.input_buffer.get()->handle;
 		input_ptr = static_cast<float *>([buf contents]);
 	}
 	if (!input_ptr)
@@ -3123,6 +3606,10 @@ bool mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 		MPSImage *image = get_cached_output_image(prev, prev->out_w, prev->out_h, prev->out_c, prev->batch);
 		if (image)
 		{
+			if (!wait_mps_command_buffer_if_needed(reason))
+			{
+				return false;
+			}
 			if (!read_mps_output_image(image, prev->out_w, prev->out_h, prev->out_c, prev->batch, input_ptr))
 			{
 				if (reason) *reason = "failed to read MPS softmax input";
@@ -3133,7 +3620,7 @@ bool mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	}
 	if (!filled_from_mps)
 	{
-		if (!metal_buffer_upload(&cache.input_buffer, 0, input, bytes))
+		if (!cache.input_buffer.upload(0, input, bytes))
 		{
 			if (reason) *reason = "failed to upload softmax input";
 			return false;
@@ -3156,8 +3643,8 @@ bool mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const size_t threads_per_group = (threads < 256) ? threads : 256;
 
 	MetalDispatchBuffer buffers[] = {
-		{ &cache.input_buffer, 0 },
-		{ &cache.output_buffer, 0 }
+		{ cache.input_buffer.get(), 0 },
+		{ cache.output_buffer.get(), 0 }
 	};
 	MetalDispatchBytes bytes_args[] = {
 		{ &n, sizeof(n) },
@@ -3179,7 +3666,7 @@ bool mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 		return false;
 	}
 
-	if (!metal_buffer_download(&cache.output_buffer, 0, output, bytes))
+	if (!cache.output_buffer.download(0, output, bytes))
 	{
 		if (reason) *reason = "failed to download softmax output";
 		return false;
@@ -3206,24 +3693,9 @@ bool mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *prev, 
 		*activation_applied = false;
 	}
 
-	if (!from || l.n != 1 || !l.input_sizes || l.input_sizes[0] != l.outputs)
+	if (!from || l.n != 1 || l.nweights != 0 || !l.input_sizes || l.input_sizes[0] != l.outputs)
 	{
 		if (reason) *reason = "unsupported shortcut";
-		return false;
-	}
-
-	const bool has_weights = (l.nweights > 0 && l.weights && l.weights_type != NO_WEIGHTS);
-	const bool norm_supported = (l.weights_normalization == NO_NORMALIZATION ||
-		l.weights_normalization == RELU_NORMALIZATION ||
-		l.weights_normalization == SOFTMAX_NORMALIZATION);
-	const bool per_feature = (l.weights_type == PER_FEATURE && l.nweights == (l.n + 1) &&
-		norm_supported);
-	const bool per_channel = (l.weights_type == PER_CHANNEL && l.nweights == (l.n + 1) * l.c &&
-		norm_supported);
-	const bool supported_weights = (!has_weights) || per_feature || per_channel;
-	if (!supported_weights)
-	{
-		if (reason) *reason = "unsupported shortcut weights";
 		return false;
 	}
 
@@ -3245,110 +3717,25 @@ bool mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *prev, 
 		return false;
 	}
 
-	if (!has_weights)
+	auto & cache_map = get_mps_add_cache();
+	auto & cache_ptr = cache_map[&l];
+	if (!cache_ptr)
 	{
-		auto & cache_map = get_mps_add_cache();
-		auto & cache_ptr = cache_map[&l];
-		if (!cache_ptr)
-		{
-			cache_ptr = std::make_unique<MpsAddCache>();
-		}
-		auto & cache = *cache_ptr;
-		if (!cache_matches_add(cache, l))
-		{
-			if (!build_add_cache(cache, l, ctx.device))
-			{
-				if (reason) *reason = "failed to build add";
-				return false;
-			}
-		}
-
-		@autoreleasepool
-		{
-			if (!ensure_add_output_image(cache, l, ctx.device))
-			{
-				if (reason) *reason = "failed to allocate MPSImage";
-				return false;
-			}
-
-			id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
-			if (!command_buffer)
-			{
-				if (reason) *reason = "failed to create command buffer";
-				return false;
-			}
-
-			[cache.add encodeToCommandBuffer:command_buffer
-				primaryImage:primary_image
-				secondaryImage:secondary_image
-				destinationImage:cache.output_image];
-			bool activation_done = false;
-			const char *status = "ok";
-			if (cache.neuron)
-			{
-				[cache.neuron encodeToCommandBuffer:command_buffer sourceImage:cache.output_image destinationImage:cache.output_image];
-				activation_done = true;
-			}
-		else if (l.activation == LINEAR)
-		{
-			activation_done = true;
-		}
-		else
-		{
-			if (encode_mps_activation(command_buffer, cache.output_image, l.activation, nullptr))
-			{
-				activation_done = true;
-			}
-				else
-				{
-					status = "activation fallback";
-				}
-			}
-			[command_buffer commit];
-			track_mps_command_buffer(command_buffer);
-
-			const bool should_defer = defer_readback && activation_done;
-			if (!should_defer)
-			{
-				wait_mps_command_buffer_if_needed();
-				read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
-			}
-			else
-			{
-				deferred.insert(&l);
-			}
-
-			if (activation_applied)
-			{
-				*activation_applied = activation_done;
-			}
-
-			if (reason) *reason = status;
-
-		}
-
-		return true;
+		cache_ptr = std::make_unique<MpsAddCache>();
 	}
-
-	auto & weighted_cache_map = get_mps_weighted_add_cache();
-	auto & weighted_cache_ptr = weighted_cache_map[&l];
-	if (!weighted_cache_ptr)
+	auto & cache = *cache_ptr;
+	if (!cache_matches_add(cache, l))
 	{
-		weighted_cache_ptr = std::make_unique<MpsWeightedAddCache>();
-	}
-	auto & weighted_cache = *weighted_cache_ptr;
-	if (!cache_matches_weighted_add(weighted_cache, l))
-	{
-		if (!build_weighted_add_cache(weighted_cache, l, ctx.device))
+		if (!build_add_cache(cache, l, ctx.device))
 		{
-			if (reason) *reason = "failed to build weighted add";
+			if (reason) *reason = "failed to build add";
 			return false;
 		}
 	}
 
 	@autoreleasepool
 	{
-		if (!ensure_weighted_add_output_image(weighted_cache, l, ctx.device))
+		if (!ensure_add_output_image(cache, l, ctx.device))
 		{
 			if (reason) *reason = "failed to allocate MPSImage";
 			return false;
@@ -3361,146 +3748,23 @@ bool mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *prev, 
 			return false;
 		}
 
-		id<MTLTexture> in_tex = primary_image.texture;
-		id<MTLTexture> add_tex = secondary_image.texture;
-		id<MTLTexture> out_tex = weighted_cache.output_image.texture;
-		if (!in_tex || !add_tex || !out_tex)
-		{
-			if (reason) *reason = "missing shortcut texture";
-			return false;
-		}
-
-	const float w_in = l.weights[0];
-	const float w_add = l.weights[1];
-	const NSUInteger width = out_tex.width;
-	const NSUInteger height = out_tex.height;
-	const NSUInteger depth = out_tex.arrayLength;
-	if (width == 0 || height == 0 || depth == 0)
-	{
-		if (reason) *reason = "invalid shortcut texture size";
-		return false;
-	}
-
-	MetalDispatchTexture textures[] = {
-		{ (__bridge void *)in_tex },
-		{ (__bridge void *)add_tex },
-		{ (__bridge void *)out_tex }
-	};
-	const char *kernel_name = nullptr;
-	if (per_channel)
-	{
-		const int channels = l.out_c;
-		if (!weighted_cache.weights_ready || weighted_cache.weights_ptr != l.weights ||
-			weighted_cache.weights_channels != channels)
-		{
-			metal_buffer_free(&weighted_cache.weights_in);
-			metal_buffer_free(&weighted_cache.weights_add);
-			const size_t bytes = static_cast<size_t>(channels) * sizeof(float);
-			if (!metal_buffer_alloc(bytes, &weighted_cache.weights_in) ||
-				!metal_buffer_alloc(bytes, &weighted_cache.weights_add))
-			{
-				if (reason) *reason = "failed to allocate shortcut weights";
-				return false;
-			}
-			if (!metal_buffer_upload(&weighted_cache.weights_in, 0, l.weights, bytes) ||
-				!metal_buffer_upload(&weighted_cache.weights_add, 0, l.weights + channels, bytes))
-			{
-				if (reason) *reason = "failed to upload shortcut weights";
-				return false;
-			}
-			weighted_cache.weights_ptr = l.weights;
-			weighted_cache.weights_channels = channels;
-			weighted_cache.weights_ready = true;
-		}
-
-		if (l.weights_normalization == RELU_NORMALIZATION)
-		{
-			kernel_name = "shortcut_per_channel_relu_kernel";
-		}
-		else if (l.weights_normalization == SOFTMAX_NORMALIZATION)
-		{
-			kernel_name = "shortcut_per_channel_softmax_kernel";
-		}
-		else
-		{
-			kernel_name = "shortcut_per_channel_kernel";
-		}
-
-		MetalDispatchBuffer buffers[] = {
-			{ &weighted_cache.weights_in, 0 },
-			{ &weighted_cache.weights_add, 0 }
-		};
-		const uint32_t channels_u = static_cast<uint32_t>(channels);
-		MetalDispatchBytes bytes_args[] = {
-			{ &channels_u, sizeof(channels_u) }
-		};
-		if (!metal_dispatch_2d(kernel_name,
-				static_cast<size_t>(width),
-				static_cast<size_t>(height),
-				8, 8,
-				textures, 3,
-				buffers, 2,
-				bytes_args, 1,
-				(__bridge void *)command_buffer))
-		{
-			if (reason) *reason = "failed to dispatch per-channel shortcut";
-			return false;
-		}
-	}
-	else
-	{
-		if (l.weights_normalization == RELU_NORMALIZATION)
-		{
-			kernel_name = "shortcut_weighted_relu_kernel";
-		}
-		else if (l.weights_normalization == SOFTMAX_NORMALIZATION)
-		{
-			kernel_name = "shortcut_weighted_softmax_kernel";
-		}
-		else
-		{
-			kernel_name = "shortcut_weighted_kernel";
-		}
-
-		MetalDispatchBytes bytes_args[] = {
-			{ &w_in, sizeof(w_in) },
-			{ &w_add, sizeof(w_add) }
-		};
-		if (!metal_dispatch_2d(kernel_name,
-				static_cast<size_t>(width),
-				static_cast<size_t>(height),
-				8, 8,
-				textures, 3,
-				nullptr, 0,
-				bytes_args, 2,
-				(__bridge void *)command_buffer))
-		{
-			if (reason) *reason = "failed to dispatch weighted shortcut";
-			return false;
-		}
-	}
-
+		[cache.add encodeToCommandBuffer:command_buffer
+			primaryImage:primary_image
+			secondaryImage:secondary_image
+			destinationImage:cache.output_image];
 		bool activation_done = false;
 		const char *status = "ok";
-		if (weighted_cache.neuron)
+		if (l.activation == LINEAR)
 		{
-			[weighted_cache.neuron encodeToCommandBuffer:command_buffer sourceImage:weighted_cache.output_image destinationImage:weighted_cache.output_image];
 			activation_done = true;
 		}
-		else if (l.activation == LINEAR)
+		else if (encode_mps_activation(command_buffer, cache.output_image, l.activation, nullptr))
 		{
 			activation_done = true;
 		}
 		else
 		{
-			if (encode_mps_activation(command_buffer, weighted_cache.output_image, l.activation, nullptr))
-			{
-				activation_done = true;
-			}
-			else
-			{
-				status = "activation fallback";
-			}
+			status = "activation fallback";
 		}
 
 		[command_buffer commit];
@@ -3509,8 +3773,15 @@ bool mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *prev, 
 		const bool should_defer = defer_readback && activation_done;
 		if (!should_defer)
 		{
-			wait_mps_command_buffer_if_needed();
-			read_mps_output_image(weighted_cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
+			if (!wait_mps_command_buffer_if_needed(reason))
+			{
+				return false;
+			}
+			if (!read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
+			{
+				if (reason) *reason = "failed to read shortcut output";
+				return false;
+			}
 		}
 		else
 		{
@@ -3727,8 +3998,15 @@ bool mps_route_forward(const Darknet::Layer & l, const Darknet::Network & net,
 
 		if (!defer_readback)
 		{
-			wait_mps_command_buffer_if_needed();
-			read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
+			if (!wait_mps_command_buffer_if_needed(reason))
+			{
+				return false;
+			}
+			if (!read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
+			{
+				if (reason) *reason = "failed to read MPS output";
+				return false;
+			}
 		}
 		else
 		{
@@ -3840,8 +4118,15 @@ bool mps_upsample_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 
 		if (!defer_readback)
 		{
-			wait_mps_command_buffer_if_needed();
-			read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output);
+			if (!wait_mps_command_buffer_if_needed(reason))
+			{
+				return false;
+			}
+			if (!read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
+			{
+				if (reason) *reason = "failed to read MPS output";
+				return false;
+			}
 		}
 		else
 		{
@@ -3854,6 +4139,76 @@ bool mps_upsample_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	return true;
 }
 
+bool mps_configure_training_graph(Darknet::Network & net, std::string *reason)
+{
+	return Darknet::Apple::configure_training_graph(net, reason);
+}
+
+bool mps_training_graph_enabled(const Darknet::Network & net)
+{
+	return Darknet::Apple::training_graph_enabled(net);
+}
+
+void mps_invalidate_training_graph(Darknet::Network * net)
+{
+	Darknet::Apple::invalidate_training_graph(net);
+}
+
+float mps_train_network_datum(Darknet::Network & net, float *x, float *y)
+{
+	return Darknet::Apple::train_graph_network_datum(net, x, y);
+}
+
+namespace Darknet::Apple
+{
+	bool training_mps_ready()
+	{
+		return get_mps_context().ready;
+	}
+
+	id<MTLDevice> training_mps_device()
+	{
+		return get_mps_context().device;
+	}
+
+	void * training_mps_command_queue_handle()
+	{
+		return (__bridge void *)get_mps_context().queue;
+	}
+
+	id<MTLCommandBuffer> create_training_command_buffer_handle()
+	{
+		return create_mps_command_buffer(get_mps_context());
+	}
+
+	void wait_for_training_command_buffer()
+	{
+		wait_mps_command_buffer_if_needed();
+	}
+}
+void mps_update_network(Darknet::Network & net)
+{
+	Darknet::Apple::update_training_graph(net);
+}
+
+void mps_sync_training_host_state(Darknet::Network & net, bool sync_rolling_stats, bool sync_parameters)
+{
+	Darknet::Apple::sync_training_host_state(net, sync_rolling_stats, sync_parameters, nullptr);
+}
+
+void mps_prepare_network_for_inference(Darknet::Network & net)
+{
+	if (mps_training_graph_enabled(net))
+	{
+		mps_sync_training_host_state(net, true, true);
+	}
+}
+
+bool mps_prepare_validation_network(Darknet::Network & training, Darknet::Network & validation, std::string *reason)
+{
+	return Darknet::Apple::prepare_validation_network(training, validation, reason);
+}
+
 void Darknet::show_mps_info()
 {
 	TAT(TATPARMS);
@@ -3863,7 +4218,13 @@ void Darknet::show_mps_info()
 
 	if (!ctx.ready)
 	{
-		*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kBrightRed, "Apple MPS not available") << std::endl;
+		*cfg_and_state.output
+			<< Darknet::in_colour(Darknet::EColour::kBrightRed, "Apple MPS not available");
+		if (!ctx.init_reason.empty() && ctx.init_reason != "ok")
+		{
+			*cfg_and_state.output << ": " << ctx.init_reason;
+		}
+		*cfg_and_state.output << std::endl;
 		return;
 	}
 
@@ -3871,14 +4232,10 @@ void Darknet::show_mps_info()
 	const char *name = device_name ? [device_name UTF8String] : "unknown";
 	*cfg_and_state.output << "Apple MPS device: " << Darknet::in_colour(Darknet::EColour::kBrightGreen, name);
 
-	if ([ctx.device respondsToSelector:@selector(recommendedMaxWorkingSetSize)])
-	{
-		size_t working_set = static_cast<size_t>([ctx.device recommendedMaxWorkingSetSize]);
-		*cfg_and_state.output << ", " << Darknet::in_colour(Darknet::EColour::kYellow, size_to_IEC_string(working_set));
-	}
+	size_t working_set = static_cast<size_t>(ctx.device.recommendedMaxWorkingSetSize);
+	*cfg_and_state.output << ", " << Darknet::in_colour(Darknet::EColour::kYellow, size_to_IEC_string(working_set));
 
 	*cfg_and_state.output << std::endl;
-
 }
 
 #endif // DARKNET_USE_MPS

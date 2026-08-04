@@ -1,6 +1,5 @@
 #include "darknet_internal.hpp"
 
-
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
@@ -238,6 +237,10 @@ void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 
 	state.workspace = net.workspace;
 
+#ifdef DARKNET_USE_MPS
+	if (!state.train) mps_prepare_network_for_inference(net);
+#endif
+
 	for (int i = 0; i < net.n; ++i)
 	{
 		state.index = i;
@@ -393,17 +396,26 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 	{
 #endif
 
-		Darknet::NetworkState state={0};
-		*net.seen += net.batch;
-		state.index = 0;
-		state.net = net;
-		state.input = x;
-		state.delta = 0;
-		state.truth = y;
-		state.train = 1;
-		forward_network(net, state);
-		backward_network(net, state);
-		error = get_network_cost(net);
+#ifdef DARKNET_USE_MPS
+		if (mps_training_graph_enabled(net))
+		{
+			error = mps_train_network_datum(net, x, y);
+		}
+		else
+#endif
+		{
+			Darknet::NetworkState state={0};
+			*net.seen += net.batch;
+			state.index = 0;
+			state.net = net;
+			state.input = x;
+			state.delta = 0;
+			state.truth = y;
+			state.train = 1;
+			forward_network(net, state);
+			backward_network(net, state);
+			error = get_network_cost(net);
+		}
 
 #ifdef DARKNET_GPU
 	}
@@ -478,6 +490,13 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 #ifdef DARKNET_GPU
 	update_network_gpu(net);
 #else   // DARKNET_GPU
+#ifdef DARKNET_USE_MPS
+	if (mps_training_graph_enabled(net))
+	{
+		mps_update_network(net);
+	}
+	else
+#endif
 	update_network(net);
 #endif  // DARKNET_GPU
 
@@ -637,6 +656,11 @@ int resize_network(Darknet::Network * net, int w, int h)
 {
 	TAT(TATPARMS);
 
+#ifdef DARKNET_USE_MPS
+	// Apple training graphs are scoped to the current network shape.
+	mps_invalidate_training_graph(net);
+#endif
+
 #ifdef DARKNET_GPU
 	cuda_set_device(net->gpu_index);
 	if (cfg_and_state.gpu_index >= 0)
@@ -729,6 +753,15 @@ int resize_network(Darknet::Network * net, int w, int h)
 		}
 		//if(l.type == AVGPOOL) break;
 	}
+
+#ifdef DARKNET_USE_MPS
+	for (int i = 0; i < net->n; ++i)
+	{
+		// Inference caches are keyed by layer address and tensor shape, so
+		// only the resized network's layer entries need to be dropped.
+		mps_invalidate_layer_cache(&net->layers[i]);
+	}
+#endif
 
 	*cfg_and_state.output << "GPU #" << net->gpu_index << ": allocating workspace: " << Darknet::size_to_IEC_string(workspace_size);
 #ifdef DARKNET_GPU
@@ -1622,6 +1655,12 @@ void free_network_ptr(DarknetNetworkPtr ptr)
 void free_network(Darknet::Network & net)
 {
 	TAT(TATPARMS);
+
+#ifdef DARKNET_USE_MPS
+	// Apple graph-training resources can reference buffers backed by layer and
+	// workspace storage, so drop them before freeing the network internals.
+	mps_invalidate_training_graph(&net);
+#endif
 
 	for (int i = 0; i < net.n; ++i)
 	{

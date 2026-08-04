@@ -2,6 +2,10 @@
 #include "option_list.hpp"
 #include "data.hpp"
 
+#ifdef DARKNET_USE_MPS
+#include "apple/apple_mps.hpp"
+#endif
+
 
 #ifndef __COMPAR_FN_T
 #define __COMPAR_FN_T
@@ -160,24 +164,34 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 {
 	TAT(TATPARMS);
 
-	#ifndef DARKNET_GPU
-	*cfg_and_state.output << std::endl;
-	Darknet::display_warning_msg("THIS VERSION OF DARKNET WAS NOT BUILT TO RUN ON A GPU!");
-	*cfg_and_state.output															<< std::endl
-		<< ""																		<< std::endl
-		<< "While you can attempt to train a network using your CPU, it is not"		<< std::endl
-		<< "recommended, and the output is highly unlikely to work.  Additionally,"	<< std::endl
-		<< "training with a CPU versus a GPU would take an extremely long time."	<< std::endl
-		<< ""																		<< std::endl
-		<< "Are you certain you want to proceed with training on a CPU?"			<< std::endl
-		<< ""																		<< std::endl
-		<< "Type \"yes\" to begin training, or anything else to quit:  "			<< std::flush;
+	bool using_mps_training_backend = false;
 
-	std::string prompt;
-	std::cin >> prompt;
-	if (prompt != "yes")
+	#ifndef DARKNET_GPU
 	{
-		darknet_fatal_error(DARKNET_LOC, "Cancel the attempt to train a neural network using a CPU.");
+#ifdef DARKNET_USE_MPS
+		using_mps_training_backend = mps_runtime_available(nullptr);
+#endif
+		if (!using_mps_training_backend)
+		{
+			*cfg_and_state.output << std::endl;
+			Darknet::display_warning_msg("THIS VERSION OF DARKNET WAS NOT BUILT TO RUN ON A GPU!");
+			*cfg_and_state.output															<< std::endl
+				<< ""																		<< std::endl
+				<< "While you can attempt to train a network using your CPU, it is not"		<< std::endl
+				<< "recommended, and the output is highly unlikely to work.  Additionally,"	<< std::endl
+				<< "training with a CPU versus a GPU would take an extremely long time."	<< std::endl
+				<< ""																		<< std::endl
+				<< "Are you certain you want to proceed with training on a CPU?"			<< std::endl
+				<< ""																		<< std::endl
+				<< "Type \"yes\" to begin training, or anything else to quit:  "			<< std::flush;
+
+			std::string prompt;
+			std::cin >> prompt;
+			if (prompt != "yes")
+			{
+				darknet_fatal_error(DARKNET_LOC, "Cancel the attempt to train a neural network using a CPU.");
+			}
+		}
 	}
 	#endif
 
@@ -205,10 +219,15 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		net_map = parse_network_cfg_custom(cfgfile, 1, 1);
 		net_map.benchmark_layers = benchmark_layers;
 
-		// free memory unnecessary arrays
-		for (int k = 0; k < net_map.n - 1; ++k)
+		// Apple graph validation keeps dedicated layer allocations so copying
+		// synced training weights into the mAP network cannot alias live graph
+		// buffers.  Non-Apple builds keep the existing memory-saving path.
+		if (!using_mps_training_backend)
 		{
-			free_layer_custom(net_map.layers[k], 1);
+			for (int k = 0; k < net_map.n - 1; ++k)
+			{
+				free_layer_custom(net_map.layers[k], 1);
+			}
 		}
 	}
 
@@ -254,6 +273,29 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	}
 
 	Darknet::Network & net = nets[0];
+
+#ifdef DARKNET_USE_MPS
+	if (using_mps_training_backend)
+	{
+		// Apple training is intentionally fail-fast: supported graph segments
+		// must be scoped fp32 fixed-size tiny YOLO graphs.  Configure after cfg
+		// parsing so unsupported networks do not silently fall back to CPU.
+		std::string mps_graph_reason;
+		if (mps_configure_training_graph(net, &mps_graph_reason))
+		{
+			*cfg_and_state.output
+				<< "Apple training backend: "
+				<< Darknet::in_colour(Darknet::EColour::kBrightGreen, "MPSGraph enabled")
+				<< std::endl;
+		}
+		else
+		{
+			darknet_fatal_error(DARKNET_LOC,
+				"Apple MPSGraph training is unavailable for this network: %s",
+				mps_graph_reason.empty() ? "unsupported Apple training graph" : mps_graph_reason.c_str());
+		}
+	}
+#endif
 
 	const std::string disabled = Darknet::format_in_colour("DISABLED", Darknet::EColour::kBrightRed, 0);
 	if (calc_map)
@@ -350,7 +392,6 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	args.d = &buffer;
 	args.type = DETECTION_DATA; // this is the only place in the code where this type is used
 	args.threads = 64;    // 16 or 64 -- see several lines below where this is set to 6 * GPUs
-
 	args.angle = net.angle;
 	args.gaussian_noise = net.gaussian_noise;
 	args.blur = net.blur;
@@ -659,8 +700,22 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 				net = nets[0];
 			}
 
-			/// @todo copy the weights...?
-			copy_weights_net(net, &net_map);
+			if (using_mps_training_backend)
+			{
+#ifdef DARKNET_USE_MPS
+				std::string validation_reason;
+				if (!mps_prepare_validation_network(net, net_map, &validation_reason))
+				{
+					darknet_fatal_error(DARKNET_LOC,
+						"Apple validation-network preparation failed: %s",
+						validation_reason.empty() ? "unknown error" : validation_reason.c_str());
+				}
+#endif
+			}
+			else
+			{
+				copy_weights_net(net, &net_map);
+			}
 
 			iter_map = iteration;
 			mean_average_precision = validate_detector_map(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);
@@ -788,7 +843,13 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 	if (calc_map)
 	{
-		net_map.n = 0;
+		if (!using_mps_training_backend)
+		{
+			// Non-Apple mAP validation aliases training layers into net_map, so
+			// keep the historical workaround that prevents double-freeing them.
+			// Apple MPSGraph keeps dedicated validation buffers and must free them.
+			net_map.n = 0;
+		}
 		free_network(net_map);
 	}
 
@@ -799,6 +860,17 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 void train_detector(const char * datacfg, const char * cfgfile, const char * weightfile, int *gpus, int ngpus, int clear, int dont_show, int calc_map, float thresh, float iou_thresh, int show_imgs, int benchmark_layers, const char * chart_path)
 {
 	TAT(TATPARMS);
+
+#ifdef DARKNET_USE_MPS
+	if (mps_runtime_available(nullptr))
+	{
+		std::string reason;
+		if (!mps_training_device_count_supported(ngpus, &reason))
+		{
+			darknet_fatal_error(DARKNET_LOC, "%s", reason.c_str());
+		}
+	}
+#endif
 
 	const char * weights_fn_ptr = nullptr;
 	std::string weights_fn_str;
