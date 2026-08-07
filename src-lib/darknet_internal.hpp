@@ -42,6 +42,10 @@
 // 3rd-party lib headers
 #include <opencv2/opencv.hpp>
 
+#if DARKNET_HAS_PROTOBUF
+#include "onnx.proto3.pb.h"
+#endif
+
 #ifdef DARKNET_OPENMP
 #include <omp.h>
 #endif

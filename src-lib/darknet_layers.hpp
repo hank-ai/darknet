@@ -53,12 +53,12 @@ namespace Darknet
 		int out_h;	///< output height
 		int out_w;	///< output width
 		int out_c;	///< output channels
-		int n; ///< number of anchors, masks (?), weights (?); for example, with YOLOv4-tiny this is set to @p 3
+		int n; ///< number of anchors, masks (?), weights (?), output channels (?); for example, with YOLOv4-tiny this is set to @p 3
 		int max_boxes;
 		int truth_size;
 		int groups;
 		int group_id;
-		int size;
+		int size; ///< total number of weights; not bytes, but values, so 100 floats is stored as 100, not 100 * sizeof(float)
 		int side;
 		int stride;
 		int stride_x;

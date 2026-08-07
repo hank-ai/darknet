@@ -128,7 +128,15 @@ Darknet::Node & Darknet::Node::init(const std::string & n)
 		node = graph->add_node();
 	}
 
-	name = "N" + std::to_string(counter) + "_" + n;
+	if (n.size() > 0 and n[0] == 'N')
+	{
+		// if the name already starts with "N" then simply re-use that name
+		name = n;
+	}
+	else
+	{
+		name = "N" + std::to_string(counter) + "_" + n;
+	}
 	node->set_name(name);
 	set_output();
 	doc(name);
@@ -193,11 +201,13 @@ Darknet::Node & Darknet::Node::add_input(int idx)
 {
 	TAT(TATPARMS);
 
+#if 0
 	if (idx == -1 and layer_index == 0)
 	{
 		// special case for the very first node in the graph which needs to take input from "frame"
 		return add_input("frame");
 	}
+#endif
 
 	// if the index is positive, then we have an absolute value; otherwise it is relative to the current index
 	if (idx < 0)

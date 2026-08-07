@@ -22,6 +22,7 @@
  * fixed.
  *
  * Stephane Charette, 2025-08-18.
+ * ------------------------------
  *
  * Update:
  *
@@ -31,6 +32,17 @@
  * cases since many assumptions have been made.  If you find a problem, please let me know or submit a PR.
  *
  * Stephane Charette, 2025-11-24.
+ * ------------------------------
+ *
+ * Update:
+ *
+ * The lack of any sort of documentation for how INT8 Q/DQ is supposed to function is not helping with INT8 support.
+ *
+ * I dedicate the Darknet/YOLO ONNX tool to my father, Michel Charette, who passed away in the middle of me writing this
+ * code.  He's the one who inspired me to get into programming in the early 1980s.  I miss you, Dad.
+ *
+ * Stephane Charette, 2026-01-13.
+ * ------------------------------
  */
 
 
@@ -207,10 +219,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		<< "-> doc string ........... " << model.doc_string()					<< std::endl
 		<< "-> type name ............ " << model.GetTypeName()					<< std::endl
 		<< "-> domain ............... " << model.domain()						<< std::endl
-//		<< "-> metadata props size .. " << model.metadata_props_size()			<< std::endl
-//		<< "-> training info size ... " << model.training_info_size()			<< std::endl
-//		<< "-> functions size ....... " << model.functions_size()				<< std::endl
-//		<< "-> configuration size ... " << model.configuration_size()			<< std::endl
+#if 0 // all of these are always zero so don't bother showing
+		<< "-> metadata props size .. " << model.metadata_props_size()			<< std::endl
+		<< "-> training info size ... " << model.training_info_size()			<< std::endl
+		<< "-> functions size ....... " << model.functions_size()				<< std::endl
+		<< "-> configuration size ... " << model.configuration_size()			<< std::endl
+#endif
 		<< "-> producer name ........ " << model.producer_name()				<< std::endl
 		<< "-> producer version ..... " << model.producer_version() << " "		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, "[built " __DATE__ "]") << std::endl
 		<< "-> model version ........ " << model.model_version()				<< std::endl
@@ -234,21 +248,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		*cfg_and_state.output << opset.version() << " " << Darknet::in_colour(Darknet::EColour::kDarkGrey, "[" + ops_date_lookup(opset.version()) + "]") << " ";
 	}
 
-	const auto colour = (bit_size < 32 ? Darknet::EColour::kBrightWhite : Darknet::EColour::kNormal);
-	*cfg_and_state.output << std::endl << "-> exported bit size .... ";
-	if (bit_size == 8)
-	{
-		*cfg_and_state.output << Darknet::in_colour(colour, "8-bit int quantization (Q/DQ)");
-	}
-	else if (bit_size == 16)
-	{
-		*cfg_and_state.output << Darknet::in_colour(colour, "16-bit (half-size) floats");
-	}
-	else
-	{
-		*cfg_and_state.output << Darknet::in_colour(colour, "32-bit floats");
-	}
-	*cfg_and_state.output << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
+	*cfg_and_state.output
+		<< std::endl
+		<< "-> exported bit size .... "
+		<< Darknet::in_colour(Darknet::EColour::kBrightWhite,
+			bit_size == 8	?	"8-bit int quantization (Q/DQ)"	:
+			bit_size == 16	?	"16-bit (half-size) floats"		:
+			bit_size == 32	?	"32-bit floats"					:
+								"unknown (error!)"				)
+		<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -int8 or -fp16 or -fp32]") << std::endl;
 
 	const std::set<std::string> exports_that_use_16_bit_floats =
 	{
@@ -300,7 +308,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 		throw std::runtime_error("INT8, FP16, and FP32 are supported, but bit size is currently set to " + std::to_string(bit_size) + " which is not supported");
 	}
 
-	/* Quickly look through the configuration to see which ONNX opset we should be using:
+	/* Quickly look through the configuration to see which ONNX opset (and IR) we should be using:
 	 *
 	 *		Default:
 	 *			- opset 5, Dec 2017
@@ -310,24 +318,45 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	 *
 	 *		YOLOv4-full:
 	 *			- MISH activation needs opset 18 introduced in December 2022
+	 *
+	 * IR = Intermediate Representation, related to versioning
+	 * https://github.com/onnx/onnx/blob/main/docs/IR.md
+	 * https://github.com/onnx/onnx/blob/main/docs/Versioning.md
+	 * 2019_9_19 aka "6" is the last version prior to introducing training
 	 */
+	auto ir_version = onnx::Version::IR_VERSION_2019_3_18; // == 5 (most compatible)
+//					= onnx::Version::IR_VERSION_2019_9_19; // == 6 (required for INT8 or FP16)
 	opset_version = 5;
 	for (const auto & section : cfg.sections)
 	{
 		if (bit_size == 8 and opset_version < 13)
 		{
-			Darknet::display_warning_msg("Setting opset to 13 due to INT8 quantization.\n");
+			Darknet::display_warning_msg("Increasing opset to 13 due to INT8 quantization.\n");
 			opset_version = 13;
 		}
+		if (bit_size == 8 and ir_version < onnx::Version::IR_VERSION_2019_9_19)
+		{
+			Darknet::display_warning_msg("Increasing IR to 6 due to INT8 quantization.\n");
+			ir_version = onnx::Version::IR_VERSION_2019_9_19; // == 6
+		}
+		if (bit_size == 16 and ir_version < onnx::Version::IR_VERSION_2019_9_19)
+		{
+			Darknet::display_warning_msg("Increasing IR to 6 due to FP16.\n");
+			ir_version = onnx::Version::IR_VERSION_2019_9_19; // == 6
+		}
 
-		if (section.type == Darknet::ELayerType::UPSAMPLE)
+		if (section.type == Darknet::ELayerType::ROUTE and opset_version < 10)
+		{
+			// "Slice" needs at least opset 10
+			Darknet::display_warning_msg("Increasing opset to 10 due to [route] at line #" + std::to_string(section.line_number) + ".\n");
+			opset_version = 10;
+		}
+
+		if (section.type == Darknet::ELayerType::UPSAMPLE and opset_version < 10)
 		{
 			// "Resize" needs at least opset 10
-			if (opset_version < 10)
-			{
-				Darknet::display_warning_msg("Setting opset to 10 due to [upsample] at line #" + std::to_string(section.line_number) + ".\n");
-				opset_version = 10;
-			}
+			Darknet::display_warning_msg("Increasing opset to 10 due to [upsample] at line #" + std::to_string(section.line_number) + ".\n");
+			opset_version = 10;
 		}
 
 		for (const auto & [key, line] : section.lines)
@@ -344,14 +373,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 		}
 	}
 
-	// IR = Intermediate Representation, related to versioning
-	// https://github.com/onnx/onnx/blob/main/docs/IR.md
-	// https://github.com/onnx/onnx/blob/main/docs/Versioning.md
-	// 2019_9_19 aka "6" is the last version prior to introducing training
-	model.set_ir_version(onnx::Version::IR_VERSION_2019_3_18);	// == 5
-//	model.set_ir_version(onnx::Version::IR_VERSION_2019_9_19);	// == 6
-//	model.set_ir_version(onnx::Version::IR_VERSION_2023_5_5);	// == 9 (Mish was introduced in Dec 2022)
-//	model.set_ir_version(onnx::Version::IR_VERSION_2025_05_12); // == 11
+	model.set_ir_version(ir_version);
 
 	// The name of the framework or tool used to generate this model.
 	model.set_producer_name("Darknet/YOLO ONNX Export Tool");
@@ -373,7 +395,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	char buffer[50];
 	std::strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S %z", std::localtime(&tt));
 	model.set_doc_string(
-		"ONNX generated from Darknet/YOLO neural network " +
+		"ONNX generated from Darknet/YOLO " +
 		cfg_fn.filename().string() +
 		" (" +
 		std::to_string(number_of_classes) + " class" + (number_of_classes == 1 ? "" : "es") + ", " +
@@ -488,6 +510,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 	const int w = cfg.net.w;
 
 	populate_input_output_dimensions(input, "frame", b, c, h, w, cfg.network_section.line_number);
+
+	Node::output_per_layer_index[-1] = "frame";
 
 	input->set_doc_string(
 		cfg_fn.filename().string() +
@@ -1545,7 +1569,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(Darknet::CfgSecti
 
 	// see postprocess_yolo_tx_ty() for why new_coords models must not be sigmoided a second time here
 	const bool new_coords			= section.find_int("new_coords", 0) != 0;
-
 	const auto & l					= cfg.net.layers[section.index];
 	const int number_of_masks		= section.find_int_array("mask").size();
 	const int size					= number_of_masks * l.w * l.h;
@@ -1593,7 +1616,6 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_class(Darknet::CfgSe
 
 	// see postprocess_yolo_tx_ty() for why new_coords models must not be sigmoided a second time here
 	const bool new_coords			= section.find_int("new_coords", 0) != 0;
-
 	const auto & l					= cfg.net.layers[section.index];
 	const int number_of_classes		= section.find_int("classes");
 	const int number_of_masks		= section.find_int_array("mask").size();
@@ -1704,15 +1726,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs(const Darknet:
 
 	if (number_of_yolo_layers > 1)
 	{
-		ss << " This output is a combination of ";
-		if (number_of_yolo_layers == 2)
-		{
-			ss << "both YOLO layers.";
-		}
-		else
-		{
-			ss << "all " << number_of_yolo_layers << " YOLO layers.";
-		}
+		ss << " This output is a combination of " << number_of_yolo_layers << " YOLO layers.";
 	}
 
 	auto output = graph->add_output();
@@ -1881,9 +1895,9 @@ Darknet::VStr Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet::VStr & 
 			onnx::TensorProto tensor;
 			if (bit_size == 16)
 			{
-				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT16);
 				std::vector<std::uint16_t> v;
 				v.push_back(Darknet::convert_to_fp16(multiplier[i]));
+				tensor.set_data_type(onnx::TensorProto_DataType_FLOAT16);
 				tensor.set_raw_data(v.data(), v.size() * sizeof(std::uint16_t));
 			}
 			else
@@ -2094,15 +2108,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 	ss << "Output of 4 box coordinates for all " << number_of_boxes << " prediction boxes.";
 	if (number_of_yolo_layers > 1)
 	{
-		ss << " This output is a combination of ";
-		if (number_of_yolo_layers == 2)
-		{
-			ss << "both YOLO layers.";
-		}
-		else
-		{
-			ss << "all " << number_of_yolo_layers << " YOLO layers.";
-		}
+		ss << " This output is a combination of " << number_of_yolo_layers << " YOLO layers.";
 	}
 
 	auto output = graph->add_output();
