@@ -652,6 +652,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 	const int dilation		= 1;
 	const int stride		= section.find_int("stride"	, 2);
 	const int kernel_size	= section.find_int("size"	, 3);
+	const int groups		= section.find_int("groups"	, 1);
 	const int pad			= [&]() -> int
 	{
 		int i = 0;
@@ -666,7 +667,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 	node.type("Conv")
 		.add_input(-1)
 		.add_input("_weights")
-		.add_attribute_INT("group"			, 1							)
+		.add_attribute_INT("group"			, groups					)
 		.add_attribute_INTS("pads"			, {pad, pad, pad, pad}		)
 		.add_attribute_INTS("dilations"		, {dilation, dilation}		)
 		.add_attribute_INTS("kernel_shape"	, {kernel_size, kernel_size})
