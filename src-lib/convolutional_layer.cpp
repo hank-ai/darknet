@@ -394,6 +394,8 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 	CHECK_CUDNN(cudnnSetConvolution2dDescriptor(l->convDesc, l->pad * l->dilation, l->pad * l->dilation, l->stride_y, l->stride_x, l->dilation, l->dilation, CUDNN_CROSS_CORRELATION));    // cudnn 5.1
 #endif
 
+	const bool is_training	= (cfg_and_state.command == "detector" and cfg_and_state.function == "train");
+	const bool is_map		= (cfg_and_state.command == "detector" and cfg_and_state.function == "map");
 
 #if CUDNN_MAJOR >= 8
 
@@ -428,9 +430,6 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 	CHECK_CUDA(cudaGetDeviceProperties(&prop, std::max(0, cfg_and_state.gpu_index)));
 	const auto compu_capability_ver = prop.major * 10 + prop.minor; // e.g., "86" for RTX30xx, or "89" for RTX40xx
 #endif
-
-	const bool is_training	= (cfg_and_state.command == "detector" and cfg_and_state.function == "train");
-	const bool is_map		= (cfg_and_state.command == "detector" and cfg_and_state.function == "map");
 
 	found_conv_algorithm = 0;
 	min_time = 1000000;   // 1000 sec
@@ -660,7 +659,17 @@ void cudnn_convolutional_setup(Darknet::Layer *l, int cudnn_preference, size_t w
 	//if (data_type == CUDNN_DATA_HALF)
 	{
 		// HALF-16 if (data_type == CUDNN_DATA_HALF)
-		l->fw_algo16 = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
+		// IMPLICIT_PRECOMP_GEMM can cause cuDNN BAD_PARAM during training and mAP
+		// (see the comment above the FP32 algo selector). Fallback to
+		// IMPLICIT_GEMM.
+		if (is_training or is_map)
+		{
+			l->fw_algo16 = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM;
+		}
+		else
+		{
+			l->fw_algo16 = CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM;
+		}
 		l->bd_algo16 = CUDNN_CONVOLUTION_BWD_DATA_ALGO_1;
 		l->bf_algo16 = CUDNN_CONVOLUTION_BWD_FILTER_ALGO_1;
 
