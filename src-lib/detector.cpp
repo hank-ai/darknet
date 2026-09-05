@@ -164,36 +164,46 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 {
 	TAT(TATPARMS);
 
-	bool using_mps_training_backend = false;
+	bool verify_user_wants_to_train = false;
+	bool keep_validation_layer_buffers = false;
 
-	#ifndef DARKNET_GPU
-	{
-#ifdef DARKNET_USE_MPS
-		using_mps_training_backend = Darknet::Apple::mps_runtime_available();
+#ifndef DARKNET_GPU
+	verify_user_wants_to_train = true;
 #endif
-		if (not using_mps_training_backend)
-		{
-			*cfg_and_state.output << std::endl;
-			Darknet::display_warning_msg("THIS VERSION OF DARKNET WAS NOT BUILT TO RUN ON A GPU!");
-			*cfg_and_state.output															<< std::endl
-				<< ""																		<< std::endl
-				<< "While you can attempt to train a network using your CPU, it is not"		<< std::endl
-				<< "recommended, and the output is highly unlikely to work.  Additionally,"	<< std::endl
-				<< "training with a CPU versus a GPU would take an extremely long time."	<< std::endl
-				<< ""																		<< std::endl
-				<< "Are you certain you want to proceed with training on a CPU?"			<< std::endl
-				<< ""																		<< std::endl
-				<< "Type \"yes\" to begin training, or anything else to quit:  "			<< std::flush;
 
-			std::string prompt;
-			std::cin >> prompt;
-			if (prompt != "yes")
-			{
-				darknet_fatal_error(DARKNET_LOC, "Cancel the attempt to train a neural network using a CPU.");
-			}
+#ifdef DARKNET_USE_MPS
+	bool using_mps_training_backend = false;
+#ifndef DARKNET_GPU
+	using_mps_training_backend = Darknet::Apple::mps_runtime_available();
+#endif
+	if (using_mps_training_backend)
+	{
+		verify_user_wants_to_train = false;
+		keep_validation_layer_buffers = true;
+	}
+#endif
+
+	if (verify_user_wants_to_train)
+	{
+		*cfg_and_state.output << std::endl;
+		Darknet::display_warning_msg("THIS VERSION OF DARKNET WAS NOT BUILT TO RUN ON A GPU!");
+		*cfg_and_state.output															<< std::endl
+			<< ""																		<< std::endl
+			<< "While you can attempt to train a network using your CPU, it is not"		<< std::endl
+			<< "recommended, and the output is highly unlikely to work.  Additionally,"	<< std::endl
+			<< "training with a CPU versus a GPU would take an extremely long time."	<< std::endl
+			<< ""																		<< std::endl
+			<< "Are you certain you want to proceed with training on a CPU?"			<< std::endl
+			<< ""																		<< std::endl
+			<< "Type \"yes\" to begin training, or anything else to quit:  "			<< std::flush;
+
+		std::string prompt;
+		std::cin >> prompt;
+		if (prompt != "yes")
+		{
+			darknet_fatal_error(DARKNET_LOC, "Cancel the attempt to train a neural network using a CPU.");
 		}
 	}
-	#endif
 
 //	const std::filesystem::path & datacfg		= cfg_and_state.data_filename;
 //	const std::filesystem::path & cfgfile		= cfg_and_state.cfg_filename;
@@ -219,10 +229,9 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		net_map = parse_network_cfg_custom(cfgfile, 1, 1);
 		net_map.benchmark_layers = benchmark_layers;
 
-		// Apple graph validation keeps dedicated layer allocations so copying
-		// synced training weights into the mAP network cannot alias live graph
-		// buffers.  Non-Apple builds keep the existing memory-saving path.
-		if (not using_mps_training_backend)
+		// Apple validation copies values into its own buffers, so keep those allocations.
+		// The shared-layer path replaces them with training-layer storage instead.
+		if (not keep_validation_layer_buffers)
 		{
 			for (int k = 0; k < net_map.n - 1; ++k)
 			{
@@ -700,9 +709,14 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 				net = nets[0];
 			}
 
+			// Apple training may still have GPU updates pending. Wait for them and copy
+			// the latest parameters and batch-normalization statistics into net_map's
+			// dedicated buffers. Other paths use copy_weights_net(), which shares the
+			// training layers' storage; keep_validation_layer_buffers controls the
+			// matching allocation and cleanup above and below.
+#ifdef DARKNET_USE_MPS
 			if (using_mps_training_backend)
 			{
-#ifdef DARKNET_USE_MPS
 				std::string validation_reason;
 				if (not Darknet::Apple::mps_prepare_validation_network(net, net_map, validation_reason))
 				{
@@ -710,12 +724,14 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 						"Apple validation-network preparation failed: %s",
 						validation_reason.empty() ? "unknown error" : validation_reason.c_str());
 				}
-#endif
 			}
 			else
 			{
 				copy_weights_net(net, &net_map);
 			}
+#else
+			copy_weights_net(net, &net_map);
+#endif
 
 			iter_map = iteration;
 			mean_average_precision = validate_detector_map(datacfg, cfgfile, weightfile, thresh, iou_thresh, 0, net.letter_box, &net_map);
@@ -843,11 +859,10 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 	if (calc_map)
 	{
-		if (not using_mps_training_backend)
+		if (not keep_validation_layer_buffers)
 		{
-			// Non-Apple mAP validation aliases training layers into net_map, so
-			// keep the historical workaround that prevents double-freeing them.
-			// Apple MPSGraph keeps dedicated validation buffers and must free them.
+			// Shared validation layers belong to the training network and must not
+			// be freed twice. Dedicated validation buffers are freed normally.
 			net_map.n = 0;
 		}
 		free_network(net_map);
