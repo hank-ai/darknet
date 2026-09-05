@@ -74,7 +74,7 @@ namespace Darknet
 
 				explicit operator bool() const
 				{
-					return buffer_handle != nullptr && bytes > 0;
+					return buffer_handle != nullptr and bytes > 0;
 				}
 			};
 
@@ -136,7 +136,7 @@ namespace Darknet
 					return compiled ? (backward ? compiled->backward : compiled->forward) : empty;
 				}
 
-				bool available() const { return compiled && phase().executable.get(); }
+				bool available() const { return compiled and phase().executable.get(); }
 				void * executable_handle() const { return (__bridge void *)phase().executable.get(); }
 				const std::vector<MPSGraphTensorPlan> & feed_plans() const { return phase().feed_plans; }
 				const std::vector<MPSGraphTensorPlan> & result_plans() const { return phase().result_plans; }
@@ -209,7 +209,7 @@ namespace Darknet
 			{
 				std::string label = "layer_" + std::to_string(tensor_plan.owner_layer_index) + "_" +
 					tensor_binding_label(tensor_plan.binding_kind);
-				if (tensor_plan.source_layer_index >= 0 && tensor_plan.source_layer_index != tensor_plan.owner_layer_index)
+				if (tensor_plan.source_layer_index >= 0 and tensor_plan.source_layer_index != tensor_plan.owner_layer_index)
 				{
 					label += "_src_" + std::to_string(tensor_plan.source_layer_index);
 				}

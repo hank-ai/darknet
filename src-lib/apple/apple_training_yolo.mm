@@ -42,8 +42,8 @@ namespace Darknet::Apple::TrainingDetail
 				reason = "adversarial YOLO loss is not in the Apple GPU-loss scope";
 				return false;
 			}
-			if (net.badlabels_rejection_percentage ||
-				net.num_sigmas_reject_badlabels ||
+			if (net.badlabels_rejection_percentage or
+				net.num_sigmas_reject_badlabels or
 				net.equidistant_point)
 			{
 				reason = "bad-label rejection and equidistant-point filtering are CPU YOLO loss features";
@@ -53,7 +53,7 @@ namespace Darknet::Apple::TrainingDetail
 			for (int i = 0; i < net.n; ++i)
 			{
 				const Layer & layer = net.layers[i];
-				if (!is_detector_head_layer_type(layer.type) || !training_is_terminal_detector_head(net, i))
+				if (not is_detector_head_layer_type(layer.type) or not training_is_terminal_detector_head(net, i))
 				{
 					continue;
 				}
@@ -67,7 +67,7 @@ namespace Darknet::Apple::TrainingDetail
 					reason = "onlyforward YOLO heads do not run the CUDA/CPU training loss";
 					return false;
 				}
-				if (layer.iou_thresh < 1.0f && layer.iou_thresh_kind != IOU)
+				if (layer.iou_thresh < 1.0f and layer.iou_thresh_kind != IOU)
 				{
 					reason = "Apple GPU YOLO loss supports iou_thresh<1 only with iou_thresh_kind=iou";
 					return false;
@@ -126,7 +126,7 @@ namespace Darknet::Apple::TrainingDetail
 
 		bool validate_gpu_yolo_truth_buffer(const Network & net, const float *truth, std::string & reason)
 		{
-			if (!truth)
+			if (not truth)
 			{
 				reason = "Apple GPU YOLO loss requires a truth buffer";
 				return false;
@@ -135,11 +135,11 @@ namespace Darknet::Apple::TrainingDetail
 			for (int layer_index = 0; layer_index < net.n; ++layer_index)
 			{
 				const Layer & layer = net.layers[layer_index];
-				if (!is_detector_head_layer_type(layer.type) || !training_is_terminal_detector_head(net, layer_index))
+				if (not is_detector_head_layer_type(layer.type) or not training_is_terminal_detector_head(net, layer_index))
 				{
 					continue;
 				}
-				if (layer.truth_size <= 4 || layer.truths <= 0 || layer.max_boxes <= 0 || layer.batch <= 0)
+				if (layer.truth_size <= 4 or layer.truths <= 0 or layer.max_boxes <= 0 or layer.batch <= 0)
 				{
 					std::ostringstream oss;
 					oss << "YOLO layer #" << layer_index << " has invalid truth geometry";
@@ -153,7 +153,7 @@ namespace Darknet::Apple::TrainingDetail
 					{
 						const int truth_index = b * layer.truths + t * layer.truth_size;
 						const float x = truth[truth_index + 0];
-						if (!x)
+						if (not x)
 						{
 							break;
 						}
@@ -161,15 +161,15 @@ namespace Darknet::Apple::TrainingDetail
 						const float w = truth[truth_index + 2];
 						const float h = truth[truth_index + 3];
 						const float raw_class_id = truth[truth_index + 4];
-						if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(w) ||
-							!std::isfinite(h) || !std::isfinite(raw_class_id))
+						if (not std::isfinite(x) or not std::isfinite(y) or not std::isfinite(w) or
+							not std::isfinite(h) or not std::isfinite(raw_class_id))
 						{
 							reason = "non-finite YOLO truth value at batch " + std::to_string(b) +
 								", truth " + std::to_string(t) + ", layer #" + std::to_string(layer_index);
 							return false;
 						}
 						const int class_id = static_cast<int>(raw_class_id);
-						if (class_id >= layer.classes || class_id < 0)
+						if (class_id >= layer.classes or class_id < 0)
 						{
 							std::ostringstream oss;
 							oss << "invalid class ID #" << class_id
@@ -179,7 +179,7 @@ namespace Darknet::Apple::TrainingDetail
 							reason = oss.str();
 							return false;
 						}
-						if (x < 0.0f || y < 0.0f || x >= 1.0f || y >= 1.0f || w <= 0.0f || h <= 0.0f)
+						if (x < 0.0f or y < 0.0f or x >= 1.0f or y >= 1.0f or w <= 0.0f or h <= 0.0f)
 						{
 							std::ostringstream oss;
 							oss << "invalid coordinates, width, or height for Apple GPU YOLO loss"
@@ -298,7 +298,7 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			std::scoped_lock lock(gpu_yolo_loss_stats_buffer_mutex());
 			auto & cache = gpu_yolo_loss_stats_buffer_cache();
-			if (net && cache.network != net)
+			if (net and cache.network != net)
 			{
 				return;
 			}
@@ -311,7 +311,7 @@ namespace Darknet::Apple::TrainingDetail
 			MetalBuffer *buffer,
 			std::string & reason)
 		{
-			if (!buffer || bytes == 0)
+			if (not buffer or bytes == 0)
 			{
 				reason = "GPU YOLO loss stats buffer request is invalid";
 				return false;
@@ -319,9 +319,9 @@ namespace Darknet::Apple::TrainingDetail
 
 			std::scoped_lock lock(gpu_yolo_loss_stats_buffer_mutex());
 			auto & entry = gpu_yolo_loss_stats_buffer_cache();
-			const bool identity_matches = entry.network == &net &&
-				entry.details_identity == net.details && entry.layers_identity == net.layers;
-			if (entry.network && !identity_matches)
+			const bool identity_matches = entry.network == &net and
+				entry.details_identity == net.details and entry.layers_identity == net.layers;
+			if (entry.network and not identity_matches)
 			{
 				metal_buffer_free(&entry.buffer);
 				entry = {};
@@ -329,10 +329,10 @@ namespace Darknet::Apple::TrainingDetail
 			entry.network = &net;
 			entry.details_identity = net.details;
 			entry.layers_identity = net.layers;
-			if (!entry.buffer.handle || entry.bytes < bytes)
+			if (not entry.buffer.handle or entry.bytes < bytes)
 			{
 				metal_buffer_free(&entry.buffer);
-				if (!metal_buffer_alloc(bytes, &entry.buffer))
+				if (not metal_buffer_alloc(bytes, &entry.buffer))
 				{
 					entry.bytes = 0;
 					reason = "GPU YOLO loss failed to allocate stats buffer";
@@ -356,7 +356,7 @@ namespace Darknet::Apple::TrainingDetail
 			for (int i = 0; i < net.n; ++i)
 			{
 				const Layer & layer = net.layers[i];
-				if (!is_detector_head_layer_type(layer.type) || !training_is_terminal_detector_head(net, i))
+				if (not is_detector_head_layer_type(layer.type) or not training_is_terminal_detector_head(net, i))
 				{
 					continue;
 				}
@@ -381,11 +381,11 @@ namespace Darknet::Apple::TrainingDetail
 				reason = "no terminal YOLO heads found";
 				return false;
 			}
-			if (!cached_gpu_yolo_loss_stats_buffer(net, total_stats_bytes, &readbacks.stats_buffer, reason))
+			if (not cached_gpu_yolo_loss_stats_buffer(net, total_stats_bytes, &readbacks.stats_buffer, reason))
 			{
 				return false;
 			}
-			if (!metal_buffer_fill(&readbacks.stats_buffer, 0, 0, total_stats_bytes))
+			if (not metal_buffer_fill(&readbacks.stats_buffer, 0, 0, total_stats_bytes))
 			{
 				reason = "GPU YOLO loss failed to clear stats buffer";
 				return false;
@@ -404,7 +404,7 @@ namespace Darknet::Apple::TrainingDetail
 
 		bool dispatch_clear_training_layer_delta_with_encoder(Layer & layer, void *encoder_handle, std::string & reason)
 		{
-			if (!layer.delta)
+			if (not layer.delta)
 			{
 				return true;
 			}
@@ -416,7 +416,7 @@ namespace Darknet::Apple::TrainingDetail
 
 			TrainingBufferView delta_view{};
 			const size_t delta_bytes = bytes_for_float_count(item_count);
-			if (!load_required_training_view(layer.delta,
+			if (not load_required_training_view(layer.delta,
 				delta_bytes,
 				TrainingBufferAccess::kWrite,
 				"layer delta",
@@ -436,7 +436,7 @@ namespace Darknet::Apple::TrainingDetail
 				{&zero, sizeof(zero)},
 				{&total, sizeof(total)},
 			};
-			if (!dispatch_training_kernel_1d_with_encoder("buffer_fill_float",
+			if (not dispatch_training_kernel_1d_with_encoder("buffer_fill_float",
 				static_cast<size_t>(item_count),
 				buffers, 1,
 				bytes, 2,
@@ -455,7 +455,7 @@ namespace Darknet::Apple::TrainingDetail
 			for (int i = 0; i < net.n; ++i)
 			{
 				Layer & layer = net.layers[i];
-				if (!is_detector_head_layer_type(layer.type) || !training_is_terminal_detector_head(net, i))
+				if (not is_detector_head_layer_type(layer.type) or not training_is_terminal_detector_head(net, i))
 				{
 					continue;
 				}
@@ -468,11 +468,11 @@ namespace Darknet::Apple::TrainingDetail
 				// preceding layer, so the backward graph only needs that boundary
 				// delta buffer zeroed before the GPU YOLO loss writes into it.
 				const int boundary_layer_index = i - 1;
-				if (!cleared_layers.insert(boundary_layer_index).second)
+				if (not cleared_layers.insert(boundary_layer_index).second)
 				{
 					continue;
 				}
-				if (!dispatch_clear_training_layer_delta_with_encoder(net.layers[boundary_layer_index], encoder_handle, reason))
+				if (not dispatch_clear_training_layer_delta_with_encoder(net.layers[boundary_layer_index], encoder_handle, reason))
 				{
 					if (reason.empty())
 					{
@@ -490,7 +490,7 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			for (const auto & tensor_plan : bundle.result_plans())
 			{
-				if (tensor_plan.owner_layer_index == layer_index && tensor_plan.binding_kind == binding_kind)
+				if (tensor_plan.owner_layer_index == layer_index and tensor_plan.binding_kind == binding_kind)
 				{
 					return &tensor_plan;
 				}
@@ -505,15 +505,15 @@ namespace Darknet::Apple::TrainingDetail
 			size_t *offset,
 			std::string & reason)
 		{
-			if (!buffer || !offset)
+			if (not buffer or not offset)
 			{
 				reason = std::string(not label.empty() ? label : "graph tensor") + " dispatch output is unavailable";
 				return false;
 			}
 
 			MPSGraphBufferBridge bridge;
-			if (!training_graph_tensor_storage_bridge(bundle, tensor_plan, bridge, reason) ||
-				!bridge.buffer_handle ||
+			if (not training_graph_tensor_storage_bridge(bundle, tensor_plan, bridge, reason) or
+				not bridge.buffer_handle or
 				bridge.bytes < tensor_plan.bytes)
 			{
 				if (reason.empty())
@@ -536,7 +536,7 @@ namespace Darknet::Apple::TrainingDetail
 			size_t *offset,
 			std::string & reason)
 		{
-			if (!tensor_plan.materialize_to_darknet_buffer)
+			if (not tensor_plan.materialize_to_darknet_buffer)
 			{
 				return graph_storage_dispatch_buffer(bundle, tensor_plan, label, buffer, offset, reason);
 			}
@@ -556,7 +556,7 @@ namespace Darknet::Apple::TrainingDetail
 			}
 
 			TrainingBufferView view{};
-			if (!load_required_training_view(ptr,
+			if (not load_required_training_view(ptr,
 				tensor_plan.bytes,
 				TrainingBufferAccess::kRead,
 				label,
@@ -573,7 +573,7 @@ namespace Darknet::Apple::TrainingDetail
 		bool dispatch_update_running_batchnorm_stats_with_encoder(Network & net, void *encoder_handle, std::string & reason)
 		{
 			const auto bundle = training_graph_executable_bundle(&net, false);
-			if (!bundle.available())
+			if (not bundle.available())
 			{
 				reason = bundle.reason().empty() ? "MPSGraph forward bundle is unavailable" : bundle.reason();
 				return false;
@@ -582,21 +582,21 @@ namespace Darknet::Apple::TrainingDetail
 			for (int i = 0; i < net.n; ++i)
 			{
 				Layer & layer = net.layers[i];
-				if (layer.type != Darknet::ELayerType::CONVOLUTIONAL || !layer.batch_normalize)
+				if (layer.type != Darknet::ELayerType::CONVOLUTIONAL or not layer.batch_normalize)
 				{
 					continue;
 				}
 
 				const int channels = layer.n;
 				const size_t bytes = bytes_for_float_count(channels);
-				if (channels <= 0 || bytes == 0)
+				if (channels <= 0 or bytes == 0)
 				{
 					continue;
 				}
 
 				const auto *mean_plan = find_forward_result_plan(bundle, i, MPSGraphTensorBindingKind::kBatchMeanTape);
 				const auto *variance_plan = find_forward_result_plan(bundle, i, MPSGraphTensorBindingKind::kBatchVarianceTape);
-				if (!mean_plan || !variance_plan)
+				if (not mean_plan or not variance_plan)
 				{
 					reason = "batch-normalization graph mean/variance tapes are missing for layer #" + std::to_string(i);
 					return false;
@@ -605,19 +605,19 @@ namespace Darknet::Apple::TrainingDetail
 				TrainingBufferView rolling_mean_view{};
 				TrainingBufferView rolling_variance_view{};
 				TrainingBufferView unbiased_variance_view{};
-				if (!load_required_training_view(layer.rolling_mean,
+				if (not load_required_training_view(layer.rolling_mean,
 						bytes,
 						TrainingBufferAccess::kReadWrite,
 						"rolling mean",
 						rolling_mean_view,
-						reason) ||
-					!load_required_training_view(layer.rolling_variance,
+						reason) or
+					not load_required_training_view(layer.rolling_variance,
 						bytes,
 						TrainingBufferAccess::kReadWrite,
 						"rolling variance",
 						rolling_variance_view,
-						reason) ||
-					!load_required_training_view(layer.variance_delta,
+						reason) or
+					not load_required_training_view(layer.variance_delta,
 						bytes,
 						TrainingBufferAccess::kWrite,
 						"unbiased variance scratch",
@@ -631,8 +631,8 @@ namespace Darknet::Apple::TrainingDetail
 				MetalBuffer variance_buffer{};
 				size_t mean_offset = 0;
 				size_t variance_offset = 0;
-				if (!batchnorm_stats_dispatch_buffer(bundle, layer, *mean_plan, "batch mean", &mean_buffer, &mean_offset, reason) ||
-					!batchnorm_stats_dispatch_buffer(bundle, layer, *variance_plan, "batch variance", &variance_buffer, &variance_offset, reason))
+				if (not batchnorm_stats_dispatch_buffer(bundle, layer, *mean_plan, "batch mean", &mean_buffer, &mean_offset, reason) or
+					not batchnorm_stats_dispatch_buffer(bundle, layer, *variance_plan, "batch variance", &variance_buffer, &variance_offset, reason))
 				{
 					return false;
 				}
@@ -648,7 +648,7 @@ namespace Darknet::Apple::TrainingDetail
 				const MetalDispatchBytes copy_bytes[] = {
 					{&total, sizeof(total)},
 				};
-				if (!dispatch_training_kernel_1d_with_encoder("buffer_copy",
+				if (not dispatch_training_kernel_1d_with_encoder("buffer_copy",
 					static_cast<size_t>(channels),
 					copy_buffers, 2,
 					copy_bytes, 1,
@@ -668,7 +668,7 @@ namespace Darknet::Apple::TrainingDetail
 					{&unbiased_scale, sizeof(unbiased_scale)},
 					{&total, sizeof(total)},
 				};
-				if (!dispatch_training_kernel_1d_with_encoder("buffer_scal",
+				if (not dispatch_training_kernel_1d_with_encoder("buffer_scal",
 					static_cast<size_t>(channels),
 					scale_buffers, 1,
 					scale_bytes, 2,
@@ -690,7 +690,7 @@ namespace Darknet::Apple::TrainingDetail
 					{&add, sizeof(add)},
 					{&total, sizeof(total)},
 				};
-				if (!dispatch_training_kernel_1d_with_encoder("bn_rolling_update_kernel",
+				if (not dispatch_training_kernel_1d_with_encoder("bn_rolling_update_kernel",
 					static_cast<size_t>(channels),
 					buffers, 4,
 					kernel_bytes, 3,
@@ -714,12 +714,12 @@ namespace Darknet::Apple::TrainingDetail
 			AppleYoloPlainLossReadbacks & readbacks,
 			std::string & reason)
 		{
-			if (!detector_input || !prev_delta || !truth)
+			if (not detector_input or not prev_delta or not truth)
 			{
 				reason = "GPU YOLO loss requires detector input, previous-layer delta, and truth buffers";
 				return false;
 			}
-			if (!layer.output || !layer.delta || !layer.biases || !layer.mask || !layer.labels || !layer.class_ids)
+			if (not layer.output or not layer.delta or not layer.biases or not layer.mask or not layer.labels or not layer.class_ids)
 			{
 				reason = "GPU YOLO loss requires YOLO output, delta, biases, mask, labels, and class-id buffers";
 				return false;
@@ -750,32 +750,32 @@ namespace Darknet::Apple::TrainingDetail
 			TrainingBufferView mask_view{};
 			TrainingBufferView labels_view{};
 			TrainingBufferView class_ids_view{};
-			if (!load_required_training_view(detector_input, head_bytes, TrainingBufferAccess::kRead,
-					"YOLO detector input", detector_input_view, reason) ||
-				!load_required_training_view(layer.output, head_bytes, TrainingBufferAccess::kWrite,
-					"YOLO output", output_view, reason) ||
-				!load_required_training_view(layer.delta, head_bytes, TrainingBufferAccess::kWrite,
-					"YOLO delta", delta_view, reason) ||
-				!load_required_training_view(prev_delta, head_bytes, TrainingBufferAccess::kReadWrite,
-					"YOLO previous-layer delta", prev_delta_view, reason) ||
-				!load_required_training_view(truth, truth_bytes, TrainingBufferAccess::kRead,
-					"YOLO truth", truth_view, reason) ||
-				!load_required_training_view(layer.biases, bias_bytes, TrainingBufferAccess::kRead,
-					"YOLO biases", biases_view, reason) ||
-				!load_required_training_view(layer.mask, mask_bytes, TrainingBufferAccess::kRead,
-					"YOLO mask", mask_view, reason) ||
-				!load_required_training_view(layer.labels, labels_bytes, TrainingBufferAccess::kWrite,
-					"YOLO labels", labels_view, reason) ||
-				!load_required_training_view(layer.class_ids, labels_bytes, TrainingBufferAccess::kWrite,
+			if (not load_required_training_view(detector_input, head_bytes, TrainingBufferAccess::kRead,
+					"YOLO detector input", detector_input_view, reason) or
+				not load_required_training_view(layer.output, head_bytes, TrainingBufferAccess::kWrite,
+					"YOLO output", output_view, reason) or
+				not load_required_training_view(layer.delta, head_bytes, TrainingBufferAccess::kWrite,
+					"YOLO delta", delta_view, reason) or
+				not load_required_training_view(prev_delta, head_bytes, TrainingBufferAccess::kReadWrite,
+					"YOLO previous-layer delta", prev_delta_view, reason) or
+				not load_required_training_view(truth, truth_bytes, TrainingBufferAccess::kRead,
+					"YOLO truth", truth_view, reason) or
+				not load_required_training_view(layer.biases, bias_bytes, TrainingBufferAccess::kRead,
+					"YOLO biases", biases_view, reason) or
+				not load_required_training_view(layer.mask, mask_bytes, TrainingBufferAccess::kRead,
+					"YOLO mask", mask_view, reason) or
+				not load_required_training_view(layer.labels, labels_bytes, TrainingBufferAccess::kWrite,
+					"YOLO labels", labels_view, reason) or
+				not load_required_training_view(layer.class_ids, labels_bytes, TrainingBufferAccess::kWrite,
 					"YOLO class IDs", class_ids_view, reason))
 			{
 				return false;
 			}
 
 			const size_t stats_bytes = gpu_yolo_loss_stats_bytes_for_layer(layer);
-			if (!readbacks.stats_buffer.handle ||
-				stats_bytes == 0 ||
-				readbacks.next_stats_offset > readbacks.stats_bytes ||
+			if (not readbacks.stats_buffer.handle or
+				stats_bytes == 0 or
+				readbacks.next_stats_offset > readbacks.stats_bytes or
 				stats_bytes > readbacks.stats_bytes - readbacks.next_stats_offset)
 			{
 				reason = "GPU YOLO loss stats buffer is incomplete";
@@ -830,7 +830,7 @@ namespace Darknet::Apple::TrainingDetail
 				{&labels_buffer, labels_view.offset},
 				{&class_ids_buffer, class_ids_view.offset},
 			};
-			if (!dispatch_training_kernel_1d_with_encoder("yolo_plain_activate_base_delta",
+			if (not dispatch_training_kernel_1d_with_encoder("yolo_plain_activate_base_delta",
 				prediction_count,
 				base_buffers, 5,
 				params_bytes, 1,
@@ -847,7 +847,7 @@ namespace Darknet::Apple::TrainingDetail
 				{&biases_buffer, biases_view.offset},
 				{&mask_buffer, mask_view.offset},
 			};
-			if (!dispatch_training_kernel_1d_with_encoder("yolo_plain_ignore_delta",
+			if (not dispatch_training_kernel_1d_with_encoder("yolo_plain_ignore_delta",
 				prediction_count,
 				ignore_buffers, 5,
 				params_bytes, 1,
@@ -867,7 +867,7 @@ namespace Darknet::Apple::TrainingDetail
 				{&class_ids_buffer, class_ids_view.offset},
 				{&stats_buffer, stats_offset},
 			};
-			if (!dispatch_training_kernel_1d_with_encoder("yolo_plain_assign_truth_delta",
+			if (not dispatch_training_kernel_1d_with_encoder("yolo_plain_assign_truth_delta",
 				static_cast<size_t>(layer.batch),
 				assign_buffers, 8,
 				params_bytes, 1,
@@ -882,7 +882,7 @@ namespace Darknet::Apple::TrainingDetail
 				const MetalDispatchBuffer average_buffers[] = {
 					{&delta_buffer, delta_view.offset},
 				};
-				if (!dispatch_training_kernel_1d_with_encoder("yolo_plain_average_thresh_deltas",
+				if (not dispatch_training_kernel_1d_with_encoder("yolo_plain_average_thresh_deltas",
 					prediction_count,
 					average_buffers, 1,
 					params_bytes, 1,
@@ -897,7 +897,7 @@ namespace Darknet::Apple::TrainingDetail
 				{&delta_buffer, delta_view.offset},
 				{&stats_buffer, stats_offset},
 			};
-			if (!dispatch_training_kernel_1d_with_encoder("yolo_plain_batch_loss_stats",
+			if (not dispatch_training_kernel_1d_with_encoder("yolo_plain_batch_loss_stats",
 				static_cast<size_t>(layer.batch),
 				stats_buffers, 2,
 				params_bytes, 1,
@@ -917,7 +917,7 @@ namespace Darknet::Apple::TrainingDetail
 				{&delta_buffer, delta_view.offset},
 				{&prev_delta_buffer, prev_delta_view.offset},
 			};
-			if (!dispatch_training_kernel_1d_with_encoder("buffer_axpy",
+			if (not dispatch_training_kernel_1d_with_encoder("buffer_axpy",
 				total,
 				axpy_buffers, 2,
 				axpy_bytes, 2,
@@ -947,7 +947,7 @@ namespace Darknet::Apple::TrainingDetail
 			AppleYoloPlainLossReadbacks & readbacks,
 			std::string & reason)
 		{
-			if (!readbacks.stats_buffer.handle || readbacks.stats_bytes == 0 || readbacks.entries.empty())
+			if (not readbacks.stats_buffer.handle or readbacks.stats_bytes == 0 or readbacks.entries.empty())
 			{
 				reason = "GPU YOLO loss stats readback is incomplete";
 				release_gpu_yolo_loss_readbacks(readbacks);
@@ -961,7 +961,7 @@ namespace Darknet::Apple::TrainingDetail
 			}
 
 			std::vector<AppleYoloPlainLossStats> all_stats(readbacks.stats_bytes / sizeof(AppleYoloPlainLossStats));
-			if (!metal_buffer_download(&readbacks.stats_buffer, 0, all_stats.data(), readbacks.stats_bytes))
+			if (not metal_buffer_download(&readbacks.stats_buffer, 0, all_stats.data(), readbacks.stats_bytes))
 			{
 				reason = "failed to read GPU YOLO loss stats";
 				release_gpu_yolo_loss_readbacks(readbacks);
@@ -970,11 +970,11 @@ namespace Darknet::Apple::TrainingDetail
 
 			for (auto & readback : readbacks.entries)
 			{
-				if (!readback.layer ||
-					readback.stats_bytes == 0 ||
-					readback.stats_offset % sizeof(AppleYoloPlainLossStats) != 0 ||
-					readback.stats_bytes % sizeof(AppleYoloPlainLossStats) != 0 ||
-					readback.stats_offset > readbacks.stats_bytes ||
+				if (not readback.layer or
+					readback.stats_bytes == 0 or
+					readback.stats_offset % sizeof(AppleYoloPlainLossStats) != 0 or
+					readback.stats_bytes % sizeof(AppleYoloPlainLossStats) != 0 or
+					readback.stats_offset > readbacks.stats_bytes or
 					readback.stats_bytes > readbacks.stats_bytes - readback.stats_offset)
 				{
 					reason = "GPU YOLO loss stats readback is incomplete";
@@ -1039,7 +1039,7 @@ namespace Darknet::Apple::TrainingDetail
 				return false;
 			};
 
-			if (!prepare_gpu_yolo_loss_readbacks(net, readbacks, reason))
+			if (not prepare_gpu_yolo_loss_readbacks(net, readbacks, reason))
 			{
 				return fail_with_pending_command_buffer();
 			}
@@ -1054,14 +1054,14 @@ namespace Darknet::Apple::TrainingDetail
 			}
 
 			void *& active_command_buffer_handle = command_buffer_handle;
-			if (!ensure_training_command_buffer(active_command_buffer_handle))
+			if (not ensure_training_command_buffer(active_command_buffer_handle))
 			{
 				reason = "failed to allocate GPU YOLO loss command buffer";
 				return fail_with_pending_command_buffer();
 			}
 			void *command_buffer = active_command_buffer_handle;
 			void *encoder_handle = metal_begin_compute_encoder(command_buffer);
-			if (!encoder_handle)
+			if (not encoder_handle)
 			{
 				reason = "failed to allocate GPU YOLO loss compute encoder";
 				commit_and_wait_training_command_buffer(active_command_buffer_handle, nullptr, nullptr);
@@ -1071,7 +1071,7 @@ namespace Darknet::Apple::TrainingDetail
 			bool encoder_open = true;
 			auto close_encoder = [&encoder_handle, &encoder_open]()
 			{
-				if (encoder_open && encoder_handle)
+				if (encoder_open and encoder_handle)
 				{
 					metal_end_compute_encoder(encoder_handle);
 					encoder_handle = nullptr;
@@ -1082,15 +1082,15 @@ namespace Darknet::Apple::TrainingDetail
 			auto & stats = training_iteration_stats();
 			const auto start = std::chrono::high_resolution_clock::now();
 			const bool clear_ok = dispatch_clear_yolo_boundary_deltas_with_encoder(net, encoder_handle, reason);
-			if (!clear_ok)
+			if (not clear_ok)
 			{
 				close_encoder();
 				commit_and_wait_training_command_buffer(active_command_buffer_handle, nullptr, nullptr);
 				release_gpu_yolo_loss_readbacks(readbacks);
 				return false;
 			}
-			if (update_rolling_stats_on_gpu &&
-				!dispatch_update_running_batchnorm_stats_with_encoder(net, encoder_handle, reason))
+			if (update_rolling_stats_on_gpu and
+				not dispatch_update_running_batchnorm_stats_with_encoder(net, encoder_handle, reason))
 			{
 				close_encoder();
 				commit_and_wait_training_command_buffer(active_command_buffer_handle, nullptr, nullptr);
@@ -1102,7 +1102,7 @@ namespace Darknet::Apple::TrainingDetail
 			for (int i = 0; i < net.n; ++i)
 			{
 				Layer & layer = net.layers[i];
-				if (!is_detector_head_layer_type(layer.type) || !training_is_terminal_detector_head(net, i))
+				if (not is_detector_head_layer_type(layer.type) or not training_is_terminal_detector_head(net, i))
 				{
 					continue;
 				}
@@ -1116,7 +1116,7 @@ namespace Darknet::Apple::TrainingDetail
 				}
 
 				Layer & prev = net.layers[i - 1];
-				if (!dispatch_gpu_yolo_plain_loss_layer(net, layer, prev.output, prev.delta, state.truth, encoder_handle, readbacks, reason))
+				if (not dispatch_gpu_yolo_plain_loss_layer(net, layer, prev.output, prev.delta, state.truth, encoder_handle, readbacks, reason))
 				{
 					close_encoder();
 					commit_and_wait_training_command_buffer(active_command_buffer_handle, nullptr, nullptr);
@@ -1151,7 +1151,7 @@ namespace Darknet::Apple::TrainingDetail
 			// MPSGraph forward/backward and these YOLO kernels now use the same
 			// training queue, so Metal queue order makes the deltas visible to
 			// backward without blocking the CPU here.
-			if (!commit_training_command_buffer(active_command_buffer_handle, nullptr))
+			if (not commit_training_command_buffer(active_command_buffer_handle, nullptr))
 			{
 				reason = "GPU YOLO loss command buffer failed";
 				release_gpu_yolo_loss_readbacks(readbacks);
@@ -1192,7 +1192,7 @@ namespace Darknet::Apple::TrainingDetail
 		state.workspace = net.workspace;
 
 		std::string truth_reason;
-		if (!validate_gpu_yolo_truth_buffer(net, y, truth_reason))
+		if (not validate_gpu_yolo_truth_buffer(net, y, truth_reason))
 		{
 			darknet_fatal_error(DARKNET_LOC,
 				"Apple GPU YOLO loss truth validation failed: %s",
@@ -1202,14 +1202,14 @@ namespace Darknet::Apple::TrainingDetail
 		AppleYoloPlainLossReadbacks gpu_yolo_loss_readbacks;
 		std::string graph_reason;
 		void *forward_encoded_command_buffer = nullptr;
-		if (!run_training_graph_forward_probe(net,
+		if (not run_training_graph_forward_probe(net,
 			state,
 			graph_reason,
 			forward_encoded_command_buffer))
 		{
 			darknet_fatal_error(DARKNET_LOC, "Apple training graph forward failed: %s", graph_reason.c_str());
 		}
-		if (!run_training_graph_gpu_yolo_loss(net,
+		if (not run_training_graph_gpu_yolo_loss(net,
 			state,
 			gpu_yolo_loss_readbacks,
 			true,
@@ -1219,21 +1219,21 @@ namespace Darknet::Apple::TrainingDetail
 			darknet_fatal_error(DARKNET_LOC, "Apple GPU YOLO loss bridge failed: %s", graph_reason.c_str());
 		}
 
-		if (!run_training_graph_terminal_backward(net, x, graph_reason))
+		if (not run_training_graph_terminal_backward(net, x, graph_reason))
 		{
 			release_gpu_yolo_loss_readbacks(gpu_yolo_loss_readbacks);
 			darknet_fatal_error(DARKNET_LOC, "Apple training graph backward failed: %s", graph_reason.c_str());
 		}
 		double backward_wait_ms = 0.0;
 		backward_wait_ms += wait_for_training_update_command_buffer();
-		if (const std::string asynchronous_error = take_training_execution_error(); !asynchronous_error.empty())
+		if (const std::string asynchronous_error = take_training_execution_error(); not asynchronous_error.empty())
 		{
 			release_gpu_yolo_loss_readbacks(gpu_yolo_loss_readbacks);
 			darknet_fatal_error(DARKNET_LOC, "Apple training graph execution failed: %s", asynchronous_error.c_str());
 		}
 		stats.backward_run_ms += backward_wait_ms;
 		const auto stats_start = std::chrono::high_resolution_clock::now();
-		if (!collect_gpu_yolo_loss_stats(net, gpu_yolo_loss_readbacks, graph_reason))
+		if (not collect_gpu_yolo_loss_stats(net, gpu_yolo_loss_readbacks, graph_reason))
 		{
 			darknet_fatal_error(DARKNET_LOC, "Apple GPU YOLO loss stats readback failed: %s", graph_reason.c_str());
 		}

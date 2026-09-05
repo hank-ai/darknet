@@ -22,8 +22,8 @@ namespace Darknet::Apple::Detail
 	inline bool no_copy_buffer_eligible(const void *ptr, const size_t bytes)
 	{
 		const long page_size = sysconf(_SC_PAGESIZE);
-		return ptr && bytes > 0 && page_size > 0 &&
-			(reinterpret_cast<uintptr_t>(ptr) % static_cast<size_t>(page_size)) == 0 &&
+		return ptr and bytes > 0 and page_size > 0 and
+			(reinterpret_cast<uintptr_t>(ptr) % static_cast<size_t>(page_size)) == 0 and
 			(bytes % static_cast<size_t>(page_size)) == 0;
 	}
 
@@ -103,7 +103,7 @@ namespace Darknet::Apple::Detail
 
 	inline void objc_release_if_needed(id object)
 	{
-#if !__has_feature(objc_arc)
+#if not __has_feature(objc_arc)
 		[object release];
 #else
 		(void)object;

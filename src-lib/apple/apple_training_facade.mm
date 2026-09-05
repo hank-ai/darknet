@@ -70,7 +70,7 @@ namespace Darknet::Apple
 	bool configure_training_graph(Network & net, std::string & reason)
 	{
 		std::string graph_reason;
-		if (!configure_training_graph_engine(net, graph_reason))
+		if (not configure_training_graph_engine(net, graph_reason))
 		{
 			invalidate_training_buffers(net);
 			invalidate_training_graph_engine(net);
@@ -79,7 +79,7 @@ namespace Darknet::Apple
 		}
 
 		std::string buffer_reason;
-		if (!prepare_training_buffers(net, buffer_reason))
+		if (not prepare_training_buffers(net, buffer_reason))
 		{
 			invalidate_training_buffers(net);
 			invalidate_training_graph_engine(net);
@@ -113,13 +113,13 @@ namespace Darknet::Apple
 
 	bool prepare_validation_network(Network & training, Network & validation, std::string & reason)
 	{
-		if (&training == &validation || !training.layers || !validation.layers ||
-			training.n <= 0 || training.n != validation.n)
+		if (&training == &validation or not training.layers or not validation.layers or
+			training.n <= 0 or training.n != validation.n)
 		{
 			reason = "validation requires a distinct network with matching layers";
 			return false;
 		}
-		if (!training_graph_engine_enabled(training))
+		if (not training_graph_engine_enabled(training))
 		{
 			reason = "Apple training graph is not configured for the source network";
 			return false;
@@ -133,7 +133,7 @@ namespace Darknet::Apple
 		};
 		const auto storage_is_dedicated = [](const float *src, const float *dst, const int count)
 		{
-			return !src || count <= 0 || (dst && dst != src);
+			return not src or count <= 0 or (dst and dst != src);
 		};
 
 		// Validate the entire destination before copying so a configuration error
@@ -143,12 +143,12 @@ namespace Darknet::Apple
 			const Layer &src = training.layers[i];
 			const Layer &dst = validation.layers[i];
 			const int channels = channel_count(src);
-			if (src.type != dst.type || src.nweights != dst.nweights ||
-				!storage_is_dedicated(src.weights, dst.weights, src.nweights) ||
-				!storage_is_dedicated(src.biases, dst.biases, channels) ||
-				!storage_is_dedicated(src.scales, dst.scales, channels) ||
-				!storage_is_dedicated(src.rolling_mean, dst.rolling_mean, channels) ||
-				!storage_is_dedicated(src.rolling_variance, dst.rolling_variance, channels))
+			if (src.type != dst.type or src.nweights != dst.nweights or
+				not storage_is_dedicated(src.weights, dst.weights, src.nweights) or
+				not storage_is_dedicated(src.biases, dst.biases, channels) or
+				not storage_is_dedicated(src.scales, dst.scales, channels) or
+				not storage_is_dedicated(src.rolling_mean, dst.rolling_mean, channels) or
+				not storage_is_dedicated(src.rolling_variance, dst.rolling_variance, channels))
 			{
 				reason = "validation layer #" + std::to_string(i) +
 					" does not have compatible dedicated parameter storage";
@@ -159,7 +159,7 @@ namespace Darknet::Apple
 		sync_training_layers_to_host(training, true, true);
 		const auto copy = [](const float *src, float *dst, const int count)
 		{
-			if (src && dst && count > 0)
+			if (src and dst and count > 0)
 			{
 				std::memcpy(dst, src, static_cast<size_t>(count) * sizeof(float));
 			}
@@ -183,11 +183,11 @@ namespace Darknet::Apple
 
 	float train_graph_network_datum(Network & net, const FloatBufferView & input, const FloatBufferView & truth)
 	{
-		if (!training_graph_engine_enabled(net))
+		if (not training_graph_engine_enabled(net))
 		{
 			const auto info = build_training_graph_info(net);
 			const std::string reason =
-				!info.reason.empty() ? info.reason : "Apple graph training is not configured";
+				not info.reason.empty() ? info.reason : "Apple graph training is not configured";
 			darknet_fatal_error(DARKNET_LOC,
 				"Apple training requires the graph engine. graph_reason=%s",
 				reason.c_str());
@@ -198,11 +198,11 @@ namespace Darknet::Apple
 
 	void update_training_graph(Network & net)
 	{
-		if (!training_graph_engine_enabled(net))
+		if (not training_graph_engine_enabled(net))
 		{
 			const auto info = build_training_graph_info(net);
 			const std::string reason =
-				!info.reason.empty() ? info.reason : "Apple graph training is not configured";
+				not info.reason.empty() ? info.reason : "Apple graph training is not configured";
 			darknet_fatal_error(DARKNET_LOC,
 				"Apple training updates require the graph engine. graph_reason=%s",
 				reason.c_str());
@@ -224,7 +224,7 @@ namespace Darknet::Apple
 				continue;
 			}
 			l.t = get_current_batch(net);
-			if (!training_update_gate_open(l.burnin_update,
+			if (not training_update_gate_open(l.burnin_update,
 				net.burn_in,
 				l.train_only_bn != 0,
 				l.update != nullptr,
@@ -236,7 +236,7 @@ namespace Darknet::Apple
 			const std::string layer_type = to_string(l.type);
 
 			std::string optimizer_reason;
-			if (!training_optimizer_update_layer(net, l, update_batch, rate, commands, optimizer_reason))
+			if (not training_optimizer_update_layer(net, l, update_batch, rate, commands, optimizer_reason))
 			{
 				darknet_fatal_error(DARKNET_LOC,
 					"Apple GPU optimizer update failed at layer %d (%s): %s",
@@ -259,7 +259,7 @@ namespace Darknet::Apple
 			// observes the updated weights without blocking the CPU here.
 			// The submission helper consumes this additional retain.
 			void *submission = (void *)CFBridgingRetain(commands.command_buffer);
-			if (!commit_training_command_buffer(submission, nullptr))
+			if (not commit_training_command_buffer(submission, nullptr))
 			{
 				darknet_fatal_error(DARKNET_LOC,
 					"Apple GPU optimizer update submission failed after %d layer update(s)",

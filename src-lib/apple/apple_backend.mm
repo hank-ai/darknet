@@ -29,7 +29,7 @@ namespace Darknet::Apple
 		std::string string_or_unknown(NSString *value)
 		{
 			const char *cstr = value ? value.UTF8String : nullptr;
-			return (cstr && *cstr) ? cstr : "unknown";
+			return (cstr and *cstr) ? cstr : "unknown";
 		}
 
 		void initialize_runtime_state()
@@ -39,7 +39,7 @@ namespace Darknet::Apple
 
 			state.device = MTLCreateSystemDefaultDevice();
 			state.info.metal_available = state.device != nil;
-			if (!state.device)
+			if (not state.device)
 			{
 				state.info.reason = "MTLCreateSystemDefaultDevice() returned nil";
 				return;
@@ -49,8 +49,8 @@ namespace Darknet::Apple
 			state.info.recommended_max_working_set_size =
 				static_cast<size_t>(state.device.recommendedMaxWorkingSetSize);
 
-			if (!state.device.hasUnifiedMemory ||
-				![state.device supportsFamily:MTLGPUFamilyApple7])
+			if (not state.device.hasUnifiedMemory or
+				not [state.device supportsFamily:MTLGPUFamilyApple7])
 			{
 				state.info.reason = "Apple GPU acceleration requires an Apple7-or-newer unified-memory GPU";
 				return;
@@ -58,7 +58,7 @@ namespace Darknet::Apple
 
 			state.command_queue = [state.device newCommandQueue];
 			state.info.metal_command_queue_available = state.command_queue != nil;
-			state.info.apple_gpu_runtime_available = state.info.metal_available && state.info.metal_command_queue_available;
+			state.info.apple_gpu_runtime_available = state.info.metal_available and state.info.metal_command_queue_available;
 			state.info.reason = state.info.apple_gpu_runtime_available ? "ok" : "failed to create MTLCommandQueue";
 		}
 	}

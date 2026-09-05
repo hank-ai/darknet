@@ -173,8 +173,8 @@ namespace Darknet::Apple::TrainingDetail
 
 			bool matches(const Network *candidate) const
 			{
-				return candidate && network == candidate &&
-					details_identity == candidate->details &&
+				return candidate and network == candidate and
+					details_identity == candidate->details and
 					layers_identity == candidate->layers;
 			}
 
@@ -223,7 +223,7 @@ namespace Darknet::Apple::TrainingDetail
 
 		std::string error_description(NSError *error)
 		{
-			if (!error)
+			if (not error)
 			{
 				return {};
 			}
@@ -256,7 +256,7 @@ namespace Darknet::Apple::TrainingDetail
 
 			void record_training_update_command_buffer(id<MTLCommandBuffer> command_buffer)
 			{
-				if (!command_buffer)
+				if (not command_buffer)
 				{
 					return;
 				}
@@ -274,7 +274,7 @@ namespace Darknet::Apple::TrainingDetail
 					pending_command_buffer = std::move(session.pending_update_command_buffer);
 				}
 				id<MTLCommandBuffer> buffer = (id<MTLCommandBuffer>)pending_command_buffer.get();
-				if (!buffer)
+				if (not buffer)
 				{
 					return 0.0;
 				}
@@ -284,7 +284,7 @@ namespace Darknet::Apple::TrainingDetail
 				{
 					std::string message = "asynchronous optimizer command buffer failed";
 					const std::string detail = error_description(buffer.error);
-					if (!detail.empty()) message += ": " + detail;
+					if (not detail.empty()) message += ": " + detail;
 					record_training_execution_error(message);
 				}
 				return std::chrono::duration<double, std::milli>(
@@ -330,7 +330,7 @@ namespace Darknet::Apple::TrainingDetail
 				return false;
 			}
 			const std::string asynchronous_error = take_training_execution_error();
-			if (!asynchronous_error.empty())
+			if (not asynchronous_error.empty())
 			{
 				reason = asynchronous_error;
 				return false;
@@ -377,8 +377,8 @@ namespace Darknet::Apple::TrainingDetail
 			auto & storage = compiled.tensor_storage[tensor_plan.storage_index];
 			if (storage.buffer.get())
 			{
-				if (storage.bridge.bytes != std::max<size_t>(1, tensor_plan.bytes) ||
-					storage.bridge.data_type != bridge_data_type_for_tensor_plan(tensor_plan) ||
+				if (storage.bridge.bytes != std::max<size_t>(1, tensor_plan.bytes) or
+					storage.bridge.data_type != bridge_data_type_for_tensor_plan(tensor_plan) or
 					storage.bridge.shape != tensor_plan.shape_nchw)
 				{
 					reason = "MPSGraph tensor storage identity has inconsistent metadata: " + tensor_debug_label(tensor_plan);
@@ -389,7 +389,7 @@ namespace Darknet::Apple::TrainingDetail
 			}
 
 			id<MTLDevice> device = (__bridge id<MTLDevice>)runtime_metal_device_handle();
-			if (!device)
+			if (not device)
 			{
 				reason = "Metal device is unavailable for MPSGraph tensor storage";
 				return false;
@@ -397,7 +397,7 @@ namespace Darknet::Apple::TrainingDetail
 
 			const NSUInteger length = static_cast<NSUInteger>(std::max<size_t>(1, tensor_plan.bytes));
 			id<MTLBuffer> buffer = [device newBufferWithLength:length options:MTLResourceStorageModePrivate];
-			if (!buffer)
+			if (not buffer)
 			{
 				reason = "failed to allocate private MPSGraph tensor storage for " + tensor_debug_label(tensor_plan);
 				return false;
@@ -447,7 +447,7 @@ namespace Darknet::Apple::TrainingDetail
 			size_t *bytes,
 			std::string & reason)
 		{
-			if (!bytes)
+			if (not bytes)
 			{
 				reason = "forward feed outputs are unavailable";
 				return false;
@@ -472,7 +472,7 @@ namespace Darknet::Apple::TrainingDetail
 					reason = "unsupported forward feed binding " + tensor_debug_label(tensor_plan);
 					return false;
 			}
-			if (!ptr)
+			if (not ptr)
 			{
 				reason = "forward feed buffer is unavailable for " + tensor_debug_label(tensor_plan);
 				return false;
@@ -487,7 +487,7 @@ namespace Darknet::Apple::TrainingDetail
 			size_t *bytes,
 			std::string & reason)
 		{
-			if (!bytes)
+			if (not bytes)
 			{
 				reason = "forward result outputs are unavailable";
 				return false;
@@ -528,7 +528,7 @@ namespace Darknet::Apple::TrainingDetail
 					reason = "unsupported forward result binding " + tensor_debug_label(tensor_plan);
 					return false;
 			}
-			if (!ptr)
+			if (not ptr)
 			{
 				reason = "forward result buffer is unavailable for " + tensor_debug_label(tensor_plan);
 				return false;
@@ -544,7 +544,7 @@ namespace Darknet::Apple::TrainingDetail
 			MPSGraphBufferBridge & bridge,
 			std::string & reason)
 		{
-			if (!make_training_graph_buffer_bridge(ptr, bytes, tensor_plan.shape_nchw, access, bridge, reason))
+			if (not make_training_graph_buffer_bridge(ptr, bytes, tensor_plan.shape_nchw, access, bridge, reason))
 			{
 				return false;
 			}
@@ -565,7 +565,7 @@ namespace Darknet::Apple::TrainingDetail
 			size_t *bytes,
 			std::string & reason)
 		{
-			if (!bytes)
+			if (not bytes)
 			{
 				reason = "backward feed outputs are unavailable";
 				return false;
@@ -625,7 +625,7 @@ namespace Darknet::Apple::TrainingDetail
 					reason = "unsupported backward feed binding " + tensor_debug_label(tensor_plan);
 					return false;
 			}
-			if (!ptr)
+			if (not ptr)
 			{
 				reason = "backward feed buffer is unavailable for " + tensor_debug_label(tensor_plan);
 				return false;
@@ -640,7 +640,7 @@ namespace Darknet::Apple::TrainingDetail
 			size_t *bytes,
 			std::string & reason)
 		{
-			if (!bytes)
+			if (not bytes)
 			{
 				reason = "backward result outputs are unavailable";
 				return false;
@@ -671,7 +671,7 @@ namespace Darknet::Apple::TrainingDetail
 					reason = "unsupported backward result binding " + tensor_debug_label(tensor_plan);
 					return false;
 			}
-			if (!ptr)
+			if (not ptr)
 			{
 				reason = "backward result buffer is unavailable for " + tensor_debug_label(tensor_plan);
 				return false;
@@ -689,9 +689,9 @@ namespace Darknet::Apple::TrainingDetail
 
 				bool operator==(const TensorStorageIdentity & other) const
 				{
-					return binding_kind == other.binding_kind &&
-						owner_layer_index == other.owner_layer_index &&
-						source_layer_index == other.source_layer_index &&
+					return binding_kind == other.binding_kind and
+						owner_layer_index == other.owner_layer_index and
+						source_layer_index == other.source_layer_index and
 						data_type == other.data_type;
 				}
 			};
@@ -738,7 +738,7 @@ namespace Darknet::Apple::TrainingDetail
 						{
 							++next_index;
 						}
-						else if (it->second.bytes != plan.bytes || it->second.shape != plan.shape_nchw)
+						else if (it->second.bytes != plan.bytes or it->second.shape != plan.shape_nchw)
 						{
 							reason = "inconsistent compiled tensor identity for " + tensor_debug_label(plan);
 							return false;
@@ -747,9 +747,9 @@ namespace Darknet::Apple::TrainingDetail
 					}
 					return true;
 				};
-				return assign(build.forward_feed_plans) &&
-					assign(build.forward_result_plans) &&
-					assign(build.backward_feed_plans) &&
+				return assign(build.forward_feed_plans) and
+					assign(build.forward_result_plans) and
+					assign(build.backward_feed_plans) and
 					assign(build.backward_result_plans);
 			}
 
@@ -757,14 +757,14 @@ namespace Darknet::Apple::TrainingDetail
 			{
 				auto & session = training_session();
 				std::scoped_lock lock(session.mutex);
-				if (!session.matches(&net))
+				if (not session.matches(&net))
 				{
 					reason = "Apple training session identity changed during graph compilation";
 					return false;
 				}
 				auto & entry = session.cache;
 				const auto plan_key = training_graph_plan_fingerprint(plan);
-				if (entry.compiled && entry.compiled->fingerprint == plan_key)
+				if (entry.compiled and entry.compiled->fingerprint == plan_key)
 				{
 					reason = "ok";
 					return true;
@@ -772,11 +772,11 @@ namespace Darknet::Apple::TrainingDetail
 
 				cache_detail::release_cache_entry(entry);
 				auto build = build_training_graph_executables(net, plan);
-				const bool cache_ready = build.forward_ready && build.backward_ready;
+				const bool cache_ready = build.forward_ready and build.backward_ready;
 				std::string compile_reason = build.reason.empty()
 					? (cache_ready ? "ok" : "MPSGraph executable build did not produce both executables")
 					: build.reason;
-				if (!cache_ready || !assign_tensor_storage_indices(build, compile_reason))
+				if (not cache_ready or not assign_tensor_storage_indices(build, compile_reason))
 				{
 					reason = compile_reason;
 					return false;
@@ -794,7 +794,7 @@ namespace Darknet::Apple::TrainingDetail
 				for (const auto & tensor_plan : compiled->forward.result_plans)
 				{
 					std::string storage_reason;
-					if (!ensure_tensor_storage(*compiled, tensor_plan, storage_reason))
+					if (not ensure_tensor_storage(*compiled, tensor_plan, storage_reason))
 					{
 						reason = storage_reason;
 						return false;
@@ -803,7 +803,7 @@ namespace Darknet::Apple::TrainingDetail
 				for (const auto & tensor_plan : compiled->backward.result_plans)
 				{
 					std::string storage_reason;
-					if (!ensure_tensor_storage(*compiled, tensor_plan, storage_reason))
+					if (not ensure_tensor_storage(*compiled, tensor_plan, storage_reason))
 					{
 						reason = storage_reason;
 						return false;
@@ -816,7 +816,7 @@ namespace Darknet::Apple::TrainingDetail
 
 			MPSGraphExecutableBundle training_graph_executable_bundle(const Network * net, const bool backward)
 			{
-				if (!net)
+				if (not net)
 				{
 					return {};
 				}
@@ -832,13 +832,13 @@ namespace Darknet::Apple::TrainingDetail
 				std::string & reason)
 			{
 				const auto & compiled = bundle.compiled;
-				if (!compiled || tensor_plan.storage_index >= compiled->tensor_storage.size())
+				if (not compiled or tensor_plan.storage_index >= compiled->tensor_storage.size())
 				{
 					reason = "MPSGraph tensor storage is unavailable for " + tensor_debug_label(tensor_plan);
 					return false;
 				}
 				const auto & storage = compiled->tensor_storage[tensor_plan.storage_index];
-				if (!storage.buffer.get())
+				if (not storage.buffer.get())
 				{
 					reason = "MPSGraph tensor storage is unavailable for " + tensor_debug_label(tensor_plan);
 					return false;
@@ -853,7 +853,7 @@ namespace Darknet::Apple::TrainingDetail
 			{
 				const auto & runtime = initialize_runtime();
 				TrainingGraphInfo info;
-				info.runtime_ready = runtime.metal_available && runtime.metal_command_queue_available;
+				info.runtime_ready = runtime.metal_available and runtime.metal_command_queue_available;
 				{
 					auto & session = training_session();
 					std::scoped_lock lock(session.mutex);
@@ -867,7 +867,7 @@ namespace Darknet::Apple::TrainingDetail
 						info.reason = "Apple training graph is not configured for this network";
 					}
 				}
-				if (!info.runtime_ready && (info.reason.empty() || info.reason == "ok"))
+				if (not info.runtime_ready and (info.reason.empty() or info.reason == "ok"))
 				{
 					info.reason = runtime.metal_available ? "Apple Metal command queue unavailable" :
 						(runtime.reason.empty() ? "Apple runtime unavailable" : runtime.reason);
@@ -882,7 +882,7 @@ namespace Darknet::Apple::TrainingDetail
 			bool training_graph_runtime_available_impl(std::string & reason)
 		{
 			const auto & runtime = initialize_runtime();
-			const bool ready = runtime.metal_available && runtime.metal_command_queue_available;
+			const bool ready = runtime.metal_available and runtime.metal_command_queue_available;
 			reason = ready ? "ok" : (runtime.reason.empty() ? "Metal runtime unavailable for MPSGraph" : runtime.reason);
 			return ready;
 		}
@@ -894,7 +894,7 @@ namespace Darknet::Apple::TrainingDetail
 			wait_for_training_update_command_buffer();
 			auto & session = training_session();
 			std::scoped_lock lock(session.mutex);
-			if (session.network && !session.matches(&net))
+			if (session.network and not session.matches(&net))
 			{
 				// A matching Network address with different owned storage is a reused
 				// object, not the active session. Drain it before binding the new one.
@@ -909,7 +909,7 @@ namespace Darknet::Apple::TrainingDetail
 					return false;
 				}
 			}
-			if (!session.network)
+			if (not session.network)
 			{
 				session.bind(net);
 			}
@@ -918,14 +918,14 @@ namespace Darknet::Apple::TrainingDetail
 
 			session.plan = build_training_graph_plan(net);
 			const auto & plan = session.plan;
-			if (!plan.supported)
+			if (not plan.supported)
 			{
 				state.reason = plan.reason;
 				reason = state.reason;
 				return false;
 			}
 			std::string host_consumer_reason;
-			if (!host_parameter_consumers_supported_by_current_contract(net, host_consumer_reason))
+			if (not host_parameter_consumers_supported_by_current_contract(net, host_consumer_reason))
 			{
 				state.reason = host_consumer_reason;
 				state.enabled = false;
@@ -933,14 +933,14 @@ namespace Darknet::Apple::TrainingDetail
 				return false;
 			}
 			std::string runtime_reason;
-			if (!training_graph_runtime_available_impl(runtime_reason))
+			if (not training_graph_runtime_available_impl(runtime_reason))
 			{
 				state.reason = runtime_reason;
 				reason = state.reason;
 				return false;
 			}
 			std::string gpu_loss_reason;
-			if (!gpu_yolo_loss_supported_by_current_contract(net, gpu_loss_reason))
+			if (not gpu_yolo_loss_supported_by_current_contract(net, gpu_loss_reason))
 			{
 				state.reason = gpu_loss_reason;
 				state.enabled = false;
@@ -949,7 +949,7 @@ namespace Darknet::Apple::TrainingDetail
 			}
 
 			std::string cache_reason;
-			if (!ensure_training_graph_cache(net, plan, cache_reason))
+			if (not ensure_training_graph_cache(net, plan, cache_reason))
 			{
 				state.reason = cache_reason;
 				state.enabled = false;
@@ -967,7 +967,7 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			auto & session = training_session();
 			std::scoped_lock lock(session.mutex);
-			return session.matches(&net) && session.graph.enabled;
+			return session.matches(&net) and session.graph.enabled;
 		}
 
 		bool run_training_graph_forward_probe(Network & net,
@@ -976,19 +976,19 @@ namespace Darknet::Apple::TrainingDetail
 			void *& encoded_command_buffer_handle, const bool encode_to_command_buffer)
 		{
 			const auto bundle = training_graph_executable_bundle(&net, false);
-		if (!bundle.available())
+		if (not bundle.available())
 		{
 			reason = bundle.reason().empty() ? "MPSGraph forward executable is unavailable" : bundle.reason();
 			return false;
 		}
-		if (bundle.feed_plans().empty() || bundle.result_plans().empty())
+		if (bundle.feed_plans().empty() or bundle.result_plans().empty())
 		{
 			reason = "MPSGraph forward bundle is missing feed or result metadata";
 			return false;
 		}
 
 		id<MTLCommandQueue> command_queue = (__bridge id<MTLCommandQueue>)training_mps_command_queue_handle();
-		if (!command_queue)
+		if (not command_queue)
 		{
 			reason = "Metal command queue is unavailable for MPSGraph forward execution";
 			return false;
@@ -1016,15 +1016,15 @@ namespace Darknet::Apple::TrainingDetail
 				size_t bytes = 0;
 				MPSGraphBufferBridge bridge;
 				std::string bridge_reason;
-				if (!resolve_forward_feed_pointer(net, state, tensor_plan, ptr, &bytes, bridge_reason) ||
-					!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kRead, bridge, bridge_reason))
+				if (not resolve_forward_feed_pointer(net, state, tensor_plan, ptr, &bytes, bridge_reason) or
+					not bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kRead, bridge, bridge_reason))
 				{
 					cleanup();
 					reason = bridge_reason;
 					return false;
 				}
 				void *tensor_data_handle = nullptr;
-				if (!make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
+				if (not make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
 				{
 					cleanup();
 					reason = bridge_reason;
@@ -1040,7 +1040,7 @@ namespace Darknet::Apple::TrainingDetail
 				std::string bridge_reason;
 				if (uses_graph_owned_storage(tensor_plan))
 				{
-					if (!training_graph_tensor_storage_bridge(bundle, tensor_plan, bridge, bridge_reason))
+					if (not training_graph_tensor_storage_bridge(bundle, tensor_plan, bridge, bridge_reason))
 					{
 						cleanup();
 						reason = bridge_reason;
@@ -1051,8 +1051,8 @@ namespace Darknet::Apple::TrainingDetail
 				{
 					const void *ptr = nullptr;
 					size_t bytes = 0;
-					if (!resolve_forward_result_pointer(net, tensor_plan, ptr, &bytes, bridge_reason) ||
-						!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kWrite, bridge, bridge_reason))
+					if (not resolve_forward_result_pointer(net, tensor_plan, ptr, &bytes, bridge_reason) or
+						not bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kWrite, bridge, bridge_reason))
 					{
 						cleanup();
 						reason = bridge_reason;
@@ -1060,7 +1060,7 @@ namespace Darknet::Apple::TrainingDetail
 					}
 				}
 				void *tensor_data_handle = nullptr;
-				if (!make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
+				if (not make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
 				{
 					cleanup();
 					reason = bridge_reason;
@@ -1075,11 +1075,11 @@ namespace Darknet::Apple::TrainingDetail
 			MPSGraphExecutableExecutionDescriptor *execution_descriptor = make_execution_descriptor(
 				@"apple_training_forward",
 				results.count,
-				!encode_to_command_buffer);
+				not encode_to_command_buffer);
 			if (encode_to_command_buffer)
 			{
 				MPSCommandBuffer *mps_command_buffer = [MPSCommandBuffer commandBufferFromCommandQueue:command_queue];
-				if (!mps_command_buffer)
+				if (not mps_command_buffer)
 				{
 					cleanup();
 					reason = "failed to allocate MPSGraph command buffer";
@@ -1091,7 +1091,7 @@ namespace Darknet::Apple::TrainingDetail
 					resultsArray:results
 					executionDescriptor:execution_descriptor];
 				const auto end = std::chrono::high_resolution_clock::now();
-				if (!validate_bound_execution_results(run_results, results, "MPSGraph forward encode", reason))
+				if (not validate_bound_execution_results(run_results, results, "MPSGraph forward encode", reason))
 				{
 					cleanup();
 					return false;
@@ -1107,7 +1107,7 @@ namespace Darknet::Apple::TrainingDetail
 					resultsArray:results
 					executionDescriptor:execution_descriptor];
 				const auto end = std::chrono::high_resolution_clock::now();
-				if (!validate_bound_execution_results(run_results, results, "MPSGraph forward run", reason))
+				if (not validate_bound_execution_results(run_results, results, "MPSGraph forward run", reason))
 				{
 					cleanup();
 					return false;
@@ -1130,14 +1130,14 @@ namespace Darknet::Apple::TrainingDetail
 			void *& command_buffer_handle,
 			std::string & reason)
 		{
-			if (!ensure_training_command_buffer(command_buffer_handle))
+			if (not ensure_training_command_buffer(command_buffer_handle))
 			{
 				reason = "failed to allocate gradient accumulation command buffer";
 				return false;
 			}
 			id<MTLCommandBuffer> metal_command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
 			void *encoder = metal_begin_compute_encoder((__bridge void *)metal_command_buffer);
-			if (!encoder)
+			if (not encoder)
 			{
 				commit_and_wait_training_command_buffer(command_buffer_handle, nullptr, nullptr);
 				reason = "failed to create gradient accumulation encoder";
@@ -1149,7 +1149,7 @@ namespace Darknet::Apple::TrainingDetail
 			for (size_t result_index = 0; result_index < result_plans.size(); ++result_index)
 			{
 				const auto & tensor_plan = result_plans[result_index];
-				if (tensor_plan.owner_layer_index < 0 || tensor_plan.owner_layer_index >= net.n)
+				if (tensor_plan.owner_layer_index < 0 or tensor_plan.owner_layer_index >= net.n)
 				{
 					continue;
 				}
@@ -1172,9 +1172,9 @@ namespace Darknet::Apple::TrainingDetail
 
 				MPSGraphBufferBridge source_bridge;
 				TrainingBufferView destination_view;
-				if (!destination || tensor_plan.bytes == 0 ||
-					result_index >= result_bridges.size() ||
-					!load_required_training_view(destination,
+				if (not destination or tensor_plan.bytes == 0 or
+					result_index >= result_bridges.size() or
+					not load_required_training_view(destination,
 						tensor_plan.bytes,
 						TrainingBufferAccess::kReadWrite,
 						"gradient update",
@@ -1188,7 +1188,7 @@ namespace Darknet::Apple::TrainingDetail
 				source_bridge = result_bridges[result_index];
 				id<MTLBuffer> source = source_bridge.buffer_handle;
 				id<MTLBuffer> destination_buffer = destination_view.buffer_handle;
-				if (!source || !destination_buffer || source_bridge.offset + tensor_plan.bytes > source_bridge.bytes ||
+				if (not source or not destination_buffer or source_bridge.offset + tensor_plan.bytes > source_bridge.bytes or
 					destination_view.offset + tensor_plan.bytes > destination_view.bytes)
 				{
 					metal_end_compute_encoder(encoder);
@@ -1208,7 +1208,7 @@ namespace Darknet::Apple::TrainingDetail
 					{&alpha, sizeof(alpha)},
 					{&total, sizeof(total)},
 				};
-				if (!dispatch_training_kernel_1d_with_encoder("buffer_axpy",
+				if (not dispatch_training_kernel_1d_with_encoder("buffer_axpy",
 					total,
 					buffers, 2,
 					bytes, 2,
@@ -1231,7 +1231,7 @@ namespace Darknet::Apple::TrainingDetail
 				return false;
 			}
 			Detail::ObjcStrong pending_gradient_copy(metal_command_buffer);
-			if (!commit_training_command_buffer(command_buffer_handle, nullptr))
+			if (not commit_training_command_buffer(command_buffer_handle, nullptr))
 			{
 				reason = "failed to commit gradient accumulation command buffer";
 				return false;
@@ -1245,19 +1245,19 @@ namespace Darknet::Apple::TrainingDetail
 			std::string & reason)
 		{
 			const auto bundle = training_graph_executable_bundle(&net, true);
-		if (!bundle.available())
+		if (not bundle.available())
 		{
 			reason = bundle.reason().empty() ? "MPSGraph backward executable is unavailable" : bundle.reason();
 			return false;
 		}
-		if (bundle.feed_plans().empty() || bundle.result_plans().empty())
+		if (bundle.feed_plans().empty() or bundle.result_plans().empty())
 		{
 			reason = "MPSGraph backward bundle is missing feed or result metadata";
 			return false;
 		}
 
 			id<MTLCommandQueue> command_queue = (__bridge id<MTLCommandQueue>)training_mps_command_queue_handle();
-			if (!command_queue)
+			if (not command_queue)
 			{
 				reason = "Metal command queue is unavailable for MPSGraph backward execution";
 				return false;
@@ -1285,12 +1285,12 @@ namespace Darknet::Apple::TrainingDetail
 				MPSGraphBufferBridge bridge;
 				std::string bridge_reason;
 				const bool feed_uses_graph_storage =
-					uses_graph_owned_storage(tensor_plan) &&
-					tensor_plan.binding_kind != MPSGraphTensorBindingKind::kNetworkInput &&
+					uses_graph_owned_storage(tensor_plan) and
+					tensor_plan.binding_kind != MPSGraphTensorBindingKind::kNetworkInput and
 					tensor_plan.binding_kind != MPSGraphTensorBindingKind::kYoloBoundaryDelta;
 				if (feed_uses_graph_storage)
 				{
-					if (!training_graph_tensor_storage_bridge(bundle, tensor_plan, bridge, bridge_reason))
+					if (not training_graph_tensor_storage_bridge(bundle, tensor_plan, bridge, bridge_reason))
 					{
 						cleanup();
 						reason = bridge_reason;
@@ -1301,8 +1301,8 @@ namespace Darknet::Apple::TrainingDetail
 				{
 					const void *ptr = nullptr;
 					size_t bytes = 0;
-					if (!resolve_backward_feed_pointer(net, network_input, tensor_plan, ptr, &bytes, bridge_reason) ||
-						!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kRead, bridge, bridge_reason))
+					if (not resolve_backward_feed_pointer(net, network_input, tensor_plan, ptr, &bytes, bridge_reason) or
+						not bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kRead, bridge, bridge_reason))
 					{
 						cleanup();
 						reason = bridge_reason;
@@ -1310,7 +1310,7 @@ namespace Darknet::Apple::TrainingDetail
 					}
 				}
 				void *tensor_data_handle = nullptr;
-				if (!make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
+				if (not make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
 				{
 					cleanup();
 					reason = bridge_reason;
@@ -1326,7 +1326,7 @@ namespace Darknet::Apple::TrainingDetail
 				std::string bridge_reason;
 				if (uses_graph_owned_storage(tensor_plan))
 				{
-					if (!training_graph_tensor_storage_bridge(bundle, tensor_plan, bridge, bridge_reason))
+					if (not training_graph_tensor_storage_bridge(bundle, tensor_plan, bridge, bridge_reason))
 					{
 						cleanup();
 						reason = bridge_reason;
@@ -1337,8 +1337,8 @@ namespace Darknet::Apple::TrainingDetail
 				{
 					const void *ptr = nullptr;
 					size_t bytes = 0;
-					if (!resolve_backward_result_pointer(net, tensor_plan, ptr, &bytes, bridge_reason) ||
-						!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kWrite, bridge, bridge_reason))
+					if (not resolve_backward_result_pointer(net, tensor_plan, ptr, &bytes, bridge_reason) or
+						not bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kWrite, bridge, bridge_reason))
 					{
 						cleanup();
 						reason = bridge_reason;
@@ -1347,7 +1347,7 @@ namespace Darknet::Apple::TrainingDetail
 				}
 				result_bridges.push_back(bridge);
 				void *tensor_data_handle = nullptr;
-				if (!make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
+				if (not make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
 				{
 					cleanup();
 					reason = bridge_reason;
@@ -1358,7 +1358,7 @@ namespace Darknet::Apple::TrainingDetail
 			}
 
 				MPSCommandBuffer *mps_command_buffer = [MPSCommandBuffer commandBufferFromCommandQueue:command_queue];
-				if (!mps_command_buffer)
+				if (not mps_command_buffer)
 				{
 					cleanup();
 					reason = "failed to allocate backward MPSGraph command buffer";
@@ -1375,7 +1375,7 @@ namespace Darknet::Apple::TrainingDetail
 					resultsArray:results
 					executionDescriptor:execution_descriptor];
 				const auto end = std::chrono::high_resolution_clock::now();
-				if (!validate_bound_execution_results(run_results, results, "MPSGraph backward encode", reason))
+				if (not validate_bound_execution_results(run_results, results, "MPSGraph backward encode", reason))
 				{
 					commit_and_wait_training_command_buffer(backward_command_buffer, nullptr, nullptr);
 					cleanup();
@@ -1383,7 +1383,7 @@ namespace Darknet::Apple::TrainingDetail
 				}
 				const double backward_encode_ms = std::chrono::duration<double, std::milli>(end - start).count();
 				training_iteration_stats().backward_encode_ms += backward_encode_ms;
-				if (!commit_graph_gradient_results(net, bundle, result_bridges, backward_command_buffer, reason))
+				if (not commit_graph_gradient_results(net, bundle, result_bridges, backward_command_buffer, reason))
 				{
 					cleanup();
 					return false;

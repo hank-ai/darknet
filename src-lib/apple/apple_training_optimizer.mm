@@ -35,7 +35,7 @@ namespace Darknet::Apple::TrainingDetail
 			size_t bytes_count,
 			void *encoder_handle)
 		{
-			if (kernel_name.empty() || threads == 0 || !encoder_handle)
+			if (kernel_name.empty() or threads == 0 or not encoder_handle)
 			{
 				return false;
 			}
@@ -54,7 +54,7 @@ namespace Darknet::Apple::TrainingDetail
 			const TrainingBufferAccess access,
 			TrainingBufferView & view)
 		{
-			return ptr && count > 0 && get_training_buffer_view(
+			return ptr and count > 0 and get_training_buffer_view(
 				ptr,
 				static_cast<size_t>(count) * sizeof(float),
 				access,
@@ -65,8 +65,8 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			TrainingBufferView parameter_view;
 			TrainingBufferView update_view;
-			if (!load_training_view(parameter, count, TrainingBufferAccess::kRead, parameter_view) ||
-				!load_training_view(updates, count, TrainingBufferAccess::kRead, update_view))
+			if (not load_training_view(parameter, count, TrainingBufferAccess::kRead, parameter_view) or
+				not load_training_view(updates, count, TrainingBufferAccess::kRead, update_view))
 			{
 				reason = std::string(label) + "_buffer_unavailable";
 				return false;
@@ -93,8 +93,8 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			TrainingBufferView parameter_view;
 			TrainingBufferView update_view;
-			if (!load_training_view(parameter, step.count, TrainingBufferAccess::kReadWrite, parameter_view) ||
-				!load_training_view(updates, step.count, TrainingBufferAccess::kReadWrite, update_view))
+			if (not load_training_view(parameter, step.count, TrainingBufferAccess::kReadWrite, parameter_view) or
+				not load_training_view(updates, step.count, TrainingBufferAccess::kReadWrite, update_view))
 			{
 				return false;
 			}
@@ -129,16 +129,16 @@ namespace Darknet::Apple::TrainingDetail
 
 		bool optimizer_preflight_update_layer(const Layer & layer, std::string & reason)
 		{
-			if (!metal_kernel_available("sgd_update_weights") || !metal_kernel_available("sgd_update_parameter"))
+			if (not metal_kernel_available("sgd_update_weights") or not metal_kernel_available("sgd_update_parameter"))
 			{
 				reason = "optimizer_kernel_unavailable";
 				return false;
 			}
 
 			bool has_trainable_buffers = false;
-			if (layer.weights && layer.weight_updates && layer.nweights > 0)
+			if (layer.weights and layer.weight_updates and layer.nweights > 0)
 			{
-				if (!optimizer_parameter_views_available("weight_update", layer.weights, layer.weight_updates, layer.nweights, reason))
+				if (not optimizer_parameter_views_available("weight_update", layer.weights, layer.weight_updates, layer.nweights, reason))
 				{
 					return false;
 				}
@@ -146,25 +146,25 @@ namespace Darknet::Apple::TrainingDetail
 			}
 
 			const int channel_count = channel_count_for_optimizer(layer);
-			if (layer.biases && layer.bias_updates && channel_count > 0)
+			if (layer.biases and layer.bias_updates and channel_count > 0)
 			{
-				if (!optimizer_parameter_views_available("bias_update", layer.biases, layer.bias_updates, channel_count, reason))
+				if (not optimizer_parameter_views_available("bias_update", layer.biases, layer.bias_updates, channel_count, reason))
 				{
 					return false;
 				}
 				has_trainable_buffers = true;
 			}
 
-			if (layer.scales && layer.scale_updates && channel_count > 0)
+			if (layer.scales and layer.scale_updates and channel_count > 0)
 			{
-				if (!optimizer_parameter_views_available("scale_update", layer.scales, layer.scale_updates, channel_count, reason))
+				if (not optimizer_parameter_views_available("scale_update", layer.scales, layer.scale_updates, channel_count, reason))
 				{
 					return false;
 				}
 				has_trainable_buffers = true;
 			}
 
-			if (!has_trainable_buffers)
+			if (not has_trainable_buffers)
 			{
 				reason = "missing_trainable_buffers";
 				return false;
@@ -195,12 +195,12 @@ namespace Darknet::Apple::TrainingDetail
 	{
 		reason = {};
 
-		if (!is_optimizer_gpu_eligible(net, layer))
+		if (not is_optimizer_gpu_eligible(net, layer))
 		{
 			reason = "layer_type_requires_cpu";
 			return false;
 		}
-		if (!optimizer_preflight_update_layer(layer, reason))
+		if (not optimizer_preflight_update_layer(layer, reason))
 		{
 			return false;
 		}
@@ -230,10 +230,10 @@ namespace Darknet::Apple::TrainingDetail
 		void *optimizer_encoder = (__bridge void *)commands.encoder;
 
 		bool updated_any = false;
-		if (layer.weights && layer.weight_updates && layer.nweights > 0)
+		if (layer.weights and layer.weight_updates and layer.nweights > 0)
 		{
 			const TrainingSgdStep step{layer.nweights, rate_over_batch, net.momentum, weight_decay_term};
-			if (!update_parameter_with_encoder(layer.weights, layer.weight_updates,
+			if (not update_parameter_with_encoder(layer.weights, layer.weight_updates,
 				step,
 				true,
 				optimizer_encoder))
@@ -245,10 +245,10 @@ namespace Darknet::Apple::TrainingDetail
 		}
 
 		const int channel_count = channel_count_for_optimizer(layer);
-		if (layer.biases && layer.bias_updates && channel_count > 0)
+		if (layer.biases and layer.bias_updates and channel_count > 0)
 		{
 			const TrainingSgdStep step{channel_count, rate_over_batch, net.momentum, 0.0f};
-			if (!update_parameter_with_encoder(layer.biases, layer.bias_updates,
+			if (not update_parameter_with_encoder(layer.biases, layer.bias_updates,
 				step,
 				false,
 				optimizer_encoder))
@@ -259,10 +259,10 @@ namespace Darknet::Apple::TrainingDetail
 			updated_any = true;
 		}
 
-		if (layer.scales && layer.scale_updates && channel_count > 0)
+		if (layer.scales and layer.scale_updates and channel_count > 0)
 		{
 			const TrainingSgdStep step{channel_count, rate_over_batch, net.momentum, 0.0f};
-			if (!update_parameter_with_encoder(layer.scales, layer.scale_updates,
+			if (not update_parameter_with_encoder(layer.scales, layer.scale_updates,
 				step,
 				false,
 				optimizer_encoder))
@@ -273,7 +273,7 @@ namespace Darknet::Apple::TrainingDetail
 			updated_any = true;
 		}
 
-		if (!updated_any)
+		if (not updated_any)
 		{
 			reason = "missing_trainable_buffers";
 			return false;

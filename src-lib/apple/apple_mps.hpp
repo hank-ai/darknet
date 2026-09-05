@@ -77,6 +77,10 @@ namespace Darknet
 
 		/** Try to execute convolution forward using MPS.
 		 *
+		 * @param [in] l Convolution layer to execute.
+		 * @param [in] prev Previous layer, or @p nullptr when no previous layer is supplied.
+		 * @param [in] input Host input data when not using a previous layer's deferred GPU output.
+		 * @param [out] output Host output storage, populated when readback is not deferred.
 		 * @param [in] defer_readback If @p true, output may remain on GPU for a subsequent MPS layer.
 		 * @param [out] activation_applied Set to @p true if MPS applied the activation.
 		 * @param [out] reason Fallback reason string when returning @p false.

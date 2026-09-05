@@ -98,12 +98,12 @@ namespace Darknet::Apple::TrainingDetail
 		TrainingBufferView & view,
 		std::string & reason)
 	{
-		if (!ptr || bytes == 0)
+		if (not ptr or bytes == 0)
 		{
 			reason = std::string(not label.empty() ? label : "buffer") + " is unavailable";
 			return false;
 		}
-		if (!get_training_buffer_view(ptr, bytes, access, view))
+		if (not get_training_buffer_view(ptr, bytes, access, view))
 		{
 			reason = std::string(not label.empty() ? label : "buffer") + " does not have a Metal buffer view";
 			return false;
@@ -120,14 +120,14 @@ namespace Darknet::Apple::TrainingDetail
 		void *encoder_handle,
 		std::string & reason)
 	{
-		if (kernel_name.empty() || threads == 0 || !encoder_handle)
+		if (kernel_name.empty() or threads == 0 or not encoder_handle)
 		{
 			reason = std::string("invalid dispatch state for ") +
 				(not kernel_name.empty() ? kernel_name : "Apple training kernel");
 			return false;
 		}
 
-		if (!metal_dispatch_1d_with_encoder(kernel_name,
+		if (not metal_dispatch_1d_with_encoder(kernel_name,
 			threads,
 			std::min<size_t>(threads, 256),
 			nullptr, 0,
@@ -144,7 +144,7 @@ namespace Darknet::Apple::TrainingDetail
 
 	bool upload_host_contents_if_needed(SharedBufferEntry & entry, const void *ptr, const TrainingBufferAccess access)
 	{
-		if (!access_reads(access) || entry.coherency != SharedBufferCoherency::kHostNewer)
+		if (not access_reads(access) or entry.coherency != SharedBufferCoherency::kHostNewer)
 		{
 			return true;
 		}
@@ -152,7 +152,7 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			id<MTLBuffer> buffer = (id<MTLBuffer>)entry.buffer.get();
 			void *contents = buffer ? [buffer contents] : nullptr;
-			if (!contents || !ptr || entry.bytes == 0)
+			if (not contents or not ptr or entry.bytes == 0)
 			{
 				return false;
 			}
@@ -167,8 +167,8 @@ namespace Darknet::Apple::TrainingDetail
 		const size_t bytes,
 		const TrainingBufferAccess access)
 	{
-		if (!entry.buffer.get() || entry.bytes != bytes ||
-			!upload_host_contents_if_needed(entry, ptr, access))
+		if (not entry.buffer.get() or entry.bytes != bytes or
+			not upload_host_contents_if_needed(entry, ptr, access))
 		{
 			return false;
 		}
@@ -183,7 +183,7 @@ namespace Darknet::Apple::TrainingDetail
 	{
 		auto & cache = shared_buffer_cache();
 		const auto it = cache.find(ptr);
-		if (it == cache.end() || it->second.bytes != bytes || !it->second.buffer.get())
+		if (it == cache.end() or it->second.bytes != bytes or not it->second.buffer.get())
 		{
 			return {};
 		}
@@ -196,18 +196,18 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			return true;
 		}
-		if (!entry.mirrored)
+		if (not entry.mirrored)
 		{
 			entry.coherency = SharedBufferCoherency::kCoherent;
 			return true;
 		}
 		id<MTLBuffer> buffer = (id<MTLBuffer>)entry.buffer.get();
-		if (!buffer || !ptr || entry.bytes == 0)
+		if (not buffer or not ptr or entry.bytes == 0)
 		{
 			return false;
 		}
 		void *contents = [buffer contents];
-		if (!contents)
+		if (not contents)
 		{
 			return false;
 		}
@@ -259,12 +259,12 @@ namespace Darknet::Apple::TrainingDetail
 		const bool sync_parameters,
 		const bool sync_optimizer_state)
 	{
-		if (sync_parameters && layer.weights && layer.nweights > 0)
+		if (sync_parameters and layer.weights and layer.nweights > 0)
 		{
 			sync_training_shared_buffer_entry(layer.weights, bytes_for_floats(layer.nweights));
 		}
 
-		if (sync_optimizer_state && layer.weight_updates && layer.nweights > 0)
+		if (sync_optimizer_state and layer.weight_updates and layer.nweights > 0)
 		{
 			sync_training_shared_buffer_entry(layer.weight_updates, bytes_for_floats(layer.nweights));
 		}
@@ -275,23 +275,23 @@ namespace Darknet::Apple::TrainingDetail
 			return;
 		}
 
-		if (sync_parameters && layer.biases)
+		if (sync_parameters and layer.biases)
 		{
 			sync_training_shared_buffer_entry(layer.biases, bytes_for_floats(channel_count));
 		}
-		if (sync_parameters && layer.scales)
+		if (sync_parameters and layer.scales)
 		{
 			sync_training_shared_buffer_entry(layer.scales, bytes_for_floats(channel_count));
 		}
-		if (sync_optimizer_state && layer.bias_updates)
+		if (sync_optimizer_state and layer.bias_updates)
 		{
 			sync_training_shared_buffer_entry(layer.bias_updates, bytes_for_floats(channel_count));
 		}
-		if (sync_optimizer_state && layer.scale_updates)
+		if (sync_optimizer_state and layer.scale_updates)
 		{
 			sync_training_shared_buffer_entry(layer.scale_updates, bytes_for_floats(channel_count));
 		}
-		if (sync_rolling_stats && layer.batch_normalize)
+		if (sync_rolling_stats and layer.batch_normalize)
 		{
 			if (layer.rolling_mean)
 			{
@@ -341,7 +341,7 @@ namespace Darknet::Apple::TrainingDetail
 
 	bool route_references_layer(const Darknet::Layer & l, const int layer_index)
 	{
-		if (l.type != Darknet::ELayerType::ROUTE || l.n <= 0 || !l.input_layers)
+		if (l.type != Darknet::ELayerType::ROUTE or l.n <= 0 or not l.input_layers)
 		{
 			return false;
 		}
@@ -357,12 +357,12 @@ namespace Darknet::Apple::TrainingDetail
 
 	bool is_terminal_detector_head(const Darknet::Network & net, const int layer_index)
 	{
-		if (layer_index < 0 || layer_index >= net.n)
+		if (layer_index < 0 or layer_index >= net.n)
 		{
 			return false;
 		}
 		const auto & l = net.layers[layer_index];
-		if (!is_detector_head_type(l.type))
+		if (not is_detector_head_type(l.type))
 		{
 			return false;
 		}
@@ -371,13 +371,13 @@ namespace Darknet::Apple::TrainingDetail
 			return true;
 		}
 		const auto & next = net.layers[layer_index + 1];
-		return next.type == Darknet::ELayerType::ROUTE && !route_references_layer(next, layer_index);
+		return next.type == Darknet::ELayerType::ROUTE and not route_references_layer(next, layer_index);
 	}
 
 	void maybe_log_training_iteration_stats(const Darknet::Network & net)
 	{
 		auto & cfg_and_state = Darknet::CfgAndState::get();
-		if (!cfg_and_state.is_verbose)
+		if (not cfg_and_state.is_verbose)
 		{
 			return;
 		}
@@ -472,7 +472,7 @@ namespace Darknet::Apple::TrainingDetail
 		const size_t bytes,
 		const TrainingBufferAccess access)
 	{
-		if (!training_mps_ready() || !ptr || bytes == 0)
+		if (not training_mps_ready() or not ptr or bytes == 0)
 		{
 			return {};
 		}
@@ -483,7 +483,7 @@ namespace Darknet::Apple::TrainingDetail
 			auto it = cache.find(ptr);
 			if (it != cache.end())
 			{
-				if (!prepare_shared_buffer_entry_for_access(it->second, ptr, bytes, access))
+				if (not prepare_shared_buffer_entry_for_access(it->second, ptr, bytes, access))
 				{
 					return {};
 				}
@@ -492,7 +492,7 @@ namespace Darknet::Apple::TrainingDetail
 		}
 
 		id<MTLDevice> device = training_mps_device();
-		if (!device)
+		if (not device)
 		{
 			return {};
 		}
@@ -514,12 +514,12 @@ namespace Darknet::Apple::TrainingDetail
 		else
 		{
 			buffer = [device newBufferWithLength:bytes options:MTLResourceStorageModeShared];
-			if (!buffer)
+			if (not buffer)
 			{
 				return {};
 			}
 			void *contents = [buffer contents];
-			if (!contents)
+			if (not contents)
 			{
 				return {};
 			}
@@ -545,7 +545,7 @@ namespace Darknet::Apple::TrainingDetail
 			auto & cache = shared_buffer_cache();
 			auto [it, inserted] = cache.emplace(ptr, std::move(entry));
 			(void)inserted;
-			if (!prepare_shared_buffer_entry_for_access(it->second, ptr, bytes, access))
+			if (not prepare_shared_buffer_entry_for_access(it->second, ptr, bytes, access))
 			{
 				return {};
 			}
@@ -557,7 +557,7 @@ namespace Darknet::Apple::TrainingDetail
 
 	static bool sync_training_shared_buffer_to_host(const void *ptr, const size_t bytes)
 	{
-		if (!ptr || bytes == 0)
+		if (not ptr or bytes == 0)
 		{
 			return false;
 		}
@@ -565,7 +565,7 @@ namespace Darknet::Apple::TrainingDetail
 		std::scoped_lock lock(shared_buffer_mutex());
 		auto & cache = shared_buffer_cache();
 		const auto it = cache.find(ptr);
-		if (it == cache.end() || it->second.bytes != bytes)
+		if (it == cache.end() or it->second.bytes != bytes)
 		{
 			return false;
 		}
@@ -584,7 +584,7 @@ namespace Darknet::Apple::TrainingDetail
 
 	void note_training_shared_buffer_updated_from_host(const void *ptr)
 	{
-		if (!ptr)
+		if (not ptr)
 		{
 			return;
 		}
@@ -599,7 +599,7 @@ namespace Darknet::Apple::TrainingDetail
 
 	void note_training_shared_buffer_updated_from_gpu(const void *ptr)
 	{
-		if (!ptr)
+		if (not ptr)
 		{
 			return;
 		}
@@ -614,7 +614,7 @@ namespace Darknet::Apple::TrainingDetail
 
 	void erase_training_shared_buffer_storage(const void *ptr)
 	{
-		if (!ptr)
+		if (not ptr)
 		{
 			return;
 		}
@@ -635,7 +635,7 @@ namespace Darknet::Apple::TrainingDetail
 	bool prepare_training_buffers(Network & net, std::string & reason)
 	{
 		(void)net;
-		if (!training_mps_ready())
+		if (not training_mps_ready())
 		{
 			reason = "Apple MPS runtime is unavailable";
 			return false;
@@ -654,7 +654,7 @@ namespace Darknet::Apple::TrainingDetail
 		// released. The legacy MPS wait does not cover this command buffer.
 		wait_for_training_update_command_buffer();
 		const std::string asynchronous_error = take_training_execution_error();
-		if (!asynchronous_error.empty())
+		if (not asynchronous_error.empty())
 		{
 			darknet_fatal_error(DARKNET_LOC, "Apple training synchronization failed: %s", asynchronous_error.c_str());
 		}
@@ -672,14 +672,14 @@ namespace Darknet::Apple::TrainingDetail
 		const TrainingBufferAccess access,
 		TrainingBufferView & view)
 	{
-		if (!ptr || bytes == 0)
+		if (not ptr or bytes == 0)
 		{
 			view = {};
 			return false;
 		}
 
 		const auto shared_view = training_shared_buffer_view(ptr, bytes, access);
-		if (!shared_view)
+		if (not shared_view)
 		{
 			view = {};
 			return false;
@@ -694,7 +694,7 @@ namespace Darknet::Apple::TrainingDetail
 		MPSGraphBufferBridge & bridge,
 		std::string & reason)
 	{
-		if (!view)
+		if (not view)
 		{
 			reason = "training buffer view is unavailable";
 			return false;
@@ -715,7 +715,7 @@ namespace Darknet::Apple::TrainingDetail
 		std::string & reason)
 	{
 		TrainingBufferView view{};
-		if (!get_training_buffer_view(ptr, bytes, access, view))
+		if (not get_training_buffer_view(ptr, bytes, access, view))
 		{
 			reason = "training tensor does not have a shared Metal buffer view";
 			return false;
@@ -727,7 +727,7 @@ namespace Darknet::Apple::TrainingDetail
 		{
 
 		id<MTLBuffer> buffer = bridge.buffer_handle;
-		if (!buffer)
+		if (not buffer)
 		{
 			reason = "buffer bridge Metal buffer handle is invalid";
 			return false;
@@ -744,7 +744,7 @@ namespace Darknet::Apple::TrainingDetail
 			MPSGraphTensorData *tensor_data = [[MPSGraphTensorData alloc] initWithMTLBuffer:buffer
 				shape:shape_from_vector(bridge.shape)
 				dataType:data_type_for_bridge(bridge)];
-			if (!tensor_data)
+			if (not tensor_data)
 			{
 				reason = "failed to create MPSGraphTensorData from Metal buffer";
 				return false;
@@ -759,7 +759,7 @@ namespace Darknet::Apple::TrainingDetail
 
 	void release_training_graph_tensor_data_handle(void *tensor_data_handle)
 	{
-		if (!tensor_data_handle)
+		if (not tensor_data_handle)
 			{
 				return;
 			}
@@ -768,16 +768,16 @@ namespace Darknet::Apple::TrainingDetail
 
 	bool ensure_training_command_buffer(void *& command_buffer_handle)
 	{
-		if (!training_mps_ready())
+		if (not training_mps_ready())
 		{
 			return false;
 		}
 
 		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
-		if (!command_buffer)
+		if (not command_buffer)
 		{
 			command_buffer = create_training_command_buffer_handle();
-			if (!command_buffer)
+			if (not command_buffer)
 			{
 				return false;
 			}
@@ -794,7 +794,7 @@ namespace Darknet::Apple::TrainingDetail
 	{
 
 		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
-		if (!command_buffer)
+		if (not command_buffer)
 		{
 			return true;
 		}
@@ -814,7 +814,7 @@ namespace Darknet::Apple::TrainingDetail
 					message += " (" + std::string(completed.label.UTF8String) + ")";
 				}
 				const std::string detail = error_description(completed.error);
-				if (!detail.empty()) message += ": " + detail;
+				if (not detail.empty()) message += ": " + detail;
 				record_training_execution_error(message);
 			}
 		}];
@@ -828,7 +828,7 @@ namespace Darknet::Apple::TrainingDetail
 	{
 
 		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
-		if (!command_buffer)
+		if (not command_buffer)
 		{
 			return true;
 		}
@@ -847,11 +847,11 @@ namespace Darknet::Apple::TrainingDetail
 			*wait_ms += std::chrono::duration<double, std::milli>(t2 - t1).count();
 		}
 		const bool completed = command_buffer.status == MTLCommandBufferStatusCompleted;
-		if (!completed)
+		if (not completed)
 		{
 			std::string message = "Metal command buffer execution failed";
 			const std::string detail = error_description(command_buffer.error);
-			if (!detail.empty()) message += ": " + detail;
+			if (not detail.empty()) message += ": " + detail;
 			record_training_execution_error(message);
 		}
 		CFRelease((CFTypeRef)command_buffer_handle);
@@ -868,7 +868,7 @@ namespace Darknet::Apple::TrainingDetail
 	{
 		const double update_wait_ms = wait_for_training_update_command_buffer();
 		const std::string asynchronous_error = take_training_execution_error();
-		if (!asynchronous_error.empty())
+		if (not asynchronous_error.empty())
 		{
 			darknet_fatal_error(DARKNET_LOC, "Apple training synchronization failed: %s", asynchronous_error.c_str());
 		}
@@ -876,7 +876,7 @@ namespace Darknet::Apple::TrainingDetail
 		for (int i = 0; i < net.n; ++i)
 		{
 			const auto & l = net.layers[i];
-			if (l.type == Darknet::ELayerType::CONVOLUTIONAL || l.type == Darknet::ELayerType::CONNECTED)
+			if (l.type == Darknet::ELayerType::CONVOLUTIONAL or l.type == Darknet::ELayerType::CONNECTED)
 			{
 				sync_layer_training_cpu_inputs_to_host(
 					l,

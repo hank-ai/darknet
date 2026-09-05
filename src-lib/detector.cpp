@@ -171,7 +171,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 #ifdef DARKNET_USE_MPS
 		using_mps_training_backend = Darknet::Apple::mps_runtime_available();
 #endif
-		if (!using_mps_training_backend)
+		if (not using_mps_training_backend)
 		{
 			*cfg_and_state.output << std::endl;
 			Darknet::display_warning_msg("THIS VERSION OF DARKNET WAS NOT BUILT TO RUN ON A GPU!");
@@ -222,7 +222,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		// Apple graph validation keeps dedicated layer allocations so copying
 		// synced training weights into the mAP network cannot alias live graph
 		// buffers.  Non-Apple builds keep the existing memory-saving path.
-		if (!using_mps_training_backend)
+		if (not using_mps_training_backend)
 		{
 			for (int k = 0; k < net_map.n - 1; ++k)
 			{
@@ -704,7 +704,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			{
 #ifdef DARKNET_USE_MPS
 				std::string validation_reason;
-				if (!Darknet::Apple::mps_prepare_validation_network(net, net_map, validation_reason))
+				if (not Darknet::Apple::mps_prepare_validation_network(net, net_map, validation_reason))
 				{
 					darknet_fatal_error(DARKNET_LOC,
 						"Apple validation-network preparation failed: %s",
@@ -843,7 +843,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 
 	if (calc_map)
 	{
-		if (!using_mps_training_backend)
+		if (not using_mps_training_backend)
 		{
 			// Non-Apple mAP validation aliases training layers into net_map, so
 			// keep the historical workaround that prevents double-freeing them.
@@ -865,7 +865,7 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	if (Darknet::Apple::mps_runtime_available())
 	{
 		std::string reason;
-		if (!Darknet::Apple::mps_training_device_count_supported(ngpus, reason))
+		if (not Darknet::Apple::mps_training_device_count_supported(ngpus, reason))
 		{
 			darknet_fatal_error(DARKNET_LOC, "%s", reason.c_str());
 		}

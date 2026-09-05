@@ -1,5 +1,6 @@
 #include "darknet_internal.hpp"
 
+
 namespace
 {
 	static auto & cfg_and_state = Darknet::CfgAndState::get();
@@ -238,7 +239,10 @@ void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 	state.workspace = net.workspace;
 
 #ifdef DARKNET_USE_MPS
-	if (!state.train) Darknet::Apple::mps_prepare_network_for_inference(net);
+	if (not state.train)
+	{
+		Darknet::Apple::mps_prepare_network_for_inference(net);
+	}
 #endif
 
 	for (int i = 0; i < net.n; ++i)

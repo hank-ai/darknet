@@ -27,8 +27,8 @@ namespace Darknet::Apple
 		const int dont_update,
 		const int iteration)
 	{
-		return !(burnin_update && burnin_update * burn_in > iteration) &&
-			!train_only_bn && has_update && dont_update < iteration;
+		return not (burnin_update and burnin_update * burn_in > iteration) and
+			not train_only_bn and has_update and dont_update < iteration;
 	}
 
 }

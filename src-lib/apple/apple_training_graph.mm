@@ -119,7 +119,7 @@ namespace Darknet::Apple::TrainingDetail
 			const MPSGraphTensorDataType data_type,
 			const std::string & debug_name)
 		{
-			if (!graph || !tensor)
+			if (not graph or not tensor)
 			{
 				return tensor;
 			}
@@ -191,7 +191,7 @@ namespace Darknet::Apple::TrainingDetail
 			std::vector<MPSGraphTensorPlan> *ordered_plans,
 			std::string & reason)
 		{
-			if (!ordered_plans)
+			if (not ordered_plans)
 			{
 				reason = "missing destination for MPSGraph tensor-plan ordering";
 				return false;
@@ -202,7 +202,7 @@ namespace Darknet::Apple::TrainingDetail
 				reason = std::string(label) + " tensor and plan counts differ before executable ordering";
 				return false;
 			}
-			if (!executable_tensors || executable_tensors.count != planned_tensors.size())
+			if (not executable_tensors or executable_tensors.count != planned_tensors.size())
 			{
 				std::ostringstream oss;
 				oss << label << " executable tensor count mismatch: executable="
@@ -219,7 +219,7 @@ namespace Darknet::Apple::TrainingDetail
 				bool matched = false;
 				for (size_t idx = 0; idx < planned_tensors.size(); ++idx)
 				{
-					if (!used[idx] && planned_tensors[idx] == tensor)
+					if (not used[idx] and planned_tensors[idx] == tensor)
 					{
 						used[idx] = 1;
 						ordered_plans->push_back(planned_plans[idx]);
@@ -227,7 +227,7 @@ namespace Darknet::Apple::TrainingDetail
 						break;
 					}
 				}
-				if (!matched)
+				if (not matched)
 				{
 					reason = std::string("MPSGraph executable returned an unknown ") + label + " tensor";
 					return false;
@@ -305,7 +305,7 @@ namespace Darknet::Apple::TrainingDetail
 
 		void append_forward_result(ForwardBuildState & state, MPSGraphTensor *tensor, const MPSGraphTensorPlan & tensor_plan)
 		{
-			if (!tensor)
+			if (not tensor)
 			{
 				return;
 			}
@@ -316,7 +316,7 @@ namespace Darknet::Apple::TrainingDetail
 					tensor_data_type_label(tensor_plan.data_type) + ":" +
 					shape_key(tensor_plan.shape_nchw) + ":" +
 					tensor_debug_label(tensor_plan);
-			if (!state.forward_result_keys.insert(key).second)
+			if (not state.forward_result_keys.insert(key).second)
 			{
 				return;
 			}
@@ -335,7 +335,7 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			for (const auto & tensor_plan : plan.boundary_tensors)
 			{
-				if (tensor_plan.binding_kind == binding_kind &&
+				if (tensor_plan.binding_kind == binding_kind and
 					tensor_plan.owner_layer_index == owner_layer_index)
 				{
 					return &tensor_plan;
@@ -396,7 +396,7 @@ namespace Darknet::Apple::TrainingDetail
 				return nil;
 			}
 
-			if (node.op_kind == MPSGraphNodeKind::kRouteConcat || node.op_kind == MPSGraphNodeKind::kRouteGroupSlice)
+			if (node.op_kind == MPSGraphNodeKind::kRouteConcat or node.op_kind == MPSGraphNodeKind::kRouteGroupSlice)
 			{
 				return nil;
 			}
@@ -423,7 +423,7 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			for (const auto & tensor_plan : node.tensors)
 			{
-				if (!tensor_plan.forward_result)
+				if (not tensor_plan.forward_result)
 				{
 					continue;
 				}
@@ -465,7 +465,7 @@ namespace Darknet::Apple::TrainingDetail
 			std::string & reason)
 		{
 			MPSGraphTensor *source = source_tensor_for_node(state, net, node, reason);
-			if (!source)
+			if (not source)
 			{
 				return false;
 			}
@@ -483,7 +483,7 @@ namespace Darknet::Apple::TrainingDetail
 				return nullptr;
 			};
 			const auto *weights_plan = tensor_plan_for(MPSGraphTensorBindingKind::kWeights);
-			if (!weights_plan)
+			if (not weights_plan)
 			{
 				reason = "weight tensor plan is unavailable for layer #" + std::to_string(node.darknet_layer_index);
 				return false;
@@ -510,7 +510,7 @@ namespace Darknet::Apple::TrainingDetail
 				paddingStyle:MPSGraphPaddingStyleExplicit
 				dataLayout:MPSGraphTensorNamedDataLayoutNCHW
 				weightsLayout:MPSGraphTensorNamedDataLayoutOIHW];
-			if (!descriptor)
+			if (not descriptor)
 			{
 				reason = "failed to create convolution descriptor for layer #" + std::to_string(node.darknet_layer_index);
 				return false;
@@ -532,7 +532,7 @@ namespace Darknet::Apple::TrainingDetail
 			{
 				const auto *gamma_plan = tensor_plan_for(MPSGraphTensorBindingKind::kBatchNormScale);
 				const auto *beta_plan = tensor_plan_for(MPSGraphTensorBindingKind::kBias);
-				if (!gamma_plan || !beta_plan)
+				if (not gamma_plan or not beta_plan)
 				{
 					reason = "batchnorm parameter tensor plan is unavailable for layer #" + std::to_string(node.darknet_layer_index);
 					return false;
@@ -579,7 +579,7 @@ namespace Darknet::Apple::TrainingDetail
 			else if (layer.biases)
 			{
 				const auto *bias_plan = tensor_plan_for(MPSGraphTensorBindingKind::kBias);
-				if (!bias_plan)
+				if (not bias_plan)
 				{
 					reason = "bias tensor plan is unavailable for layer #" + std::to_string(node.darknet_layer_index);
 					return false;
@@ -611,7 +611,7 @@ namespace Darknet::Apple::TrainingDetail
 						break;
 			}
 
-			if (!append_forward_tape_targets(state, node, nil, output, batchnorm_input, batch_mean, batch_variance, batchnorm_output, activation_tape))
+			if (not append_forward_tape_targets(state, node, nil, output, batchnorm_input, batch_mean, batch_variance, batchnorm_output, activation_tape))
 			{
 				return false;
 			}
@@ -654,7 +654,7 @@ namespace Darknet::Apple::TrainingDetail
 			}
 			state.output_by_layer[node.darknet_layer_index] = output;
 			if (const auto *output_plan = find_tensor_plan(node, MPSGraphTensorBindingKind::kLayerOutput);
-				output_plan && output_plan->forward_result)
+				output_plan and output_plan->forward_result)
 			{
 				append_forward_result(state, output, *output_plan);
 			}
@@ -686,7 +686,7 @@ namespace Darknet::Apple::TrainingDetail
 				name:ns_string(node_debug_label(node) + ":slice")];
 			state.output_by_layer[node.darknet_layer_index] = output;
 			if (const auto *output_plan = find_tensor_plan(node, MPSGraphTensorBindingKind::kLayerOutput);
-				output_plan && output_plan->forward_result)
+				output_plan and output_plan->forward_result)
 			{
 				append_forward_result(state, output, *output_plan);
 			}
@@ -699,7 +699,7 @@ namespace Darknet::Apple::TrainingDetail
 			std::string & reason)
 		{
 			MPSGraphTensor *source = source_tensor_for_node(state, net, node, reason);
-			if (!source)
+			if (not source)
 			{
 				return false;
 			}
@@ -729,14 +729,14 @@ namespace Darknet::Apple::TrainingDetail
 				return false;
 			}
 
-			if (!append_forward_tape_targets(state, node, nil, results[0], nil, nil, nil, nil, nil))
+			if (not append_forward_tape_targets(state, node, nil, results[0], nil, nil, nil, nil, nil))
 			{
 				return false;
 			}
 			state.output_by_layer[node.darknet_layer_index] = results[0];
 			for (const auto & tensor_plan : node.tensors)
 			{
-				if (tensor_plan.binding_kind == MPSGraphTensorBindingKind::kMaxPoolIndicesTape && tensor_plan.forward_result)
+				if (tensor_plan.binding_kind == MPSGraphTensorBindingKind::kMaxPoolIndicesTape and tensor_plan.forward_result)
 				{
 					append_forward_result(state, results[1], tensor_plan);
 				}
@@ -750,7 +750,7 @@ namespace Darknet::Apple::TrainingDetail
 			std::string & reason)
 		{
 			MPSGraphTensor *source = source_tensor_for_node(state, net, node, reason);
-			if (!source)
+			if (not source)
 			{
 				return false;
 			}
@@ -770,7 +770,7 @@ namespace Darknet::Apple::TrainingDetail
 				name:ns_string(node_debug_label(node) + ":upsample_shape")];
 			state.output_by_layer[node.darknet_layer_index] = output;
 			if (const auto *output_plan = find_tensor_plan(node, MPSGraphTensorBindingKind::kLayerOutput);
-				output_plan && output_plan->forward_result)
+				output_plan and output_plan->forward_result)
 			{
 				append_forward_result(state, output, *output_plan);
 			}
@@ -782,14 +782,14 @@ namespace Darknet::Apple::TrainingDetail
 			MPSGraphExecutableBuildResult result;
 
 			id<MTLDevice> device = (__bridge id<MTLDevice>)runtime_metal_device_handle();
-			if (!device)
+			if (not device)
 			{
 				result.reason = "Metal device unavailable for MPSGraph compile";
 				return result;
 			}
 
 			MPSGraphDevice *graph_device = [MPSGraphDevice deviceWithMTLDevice:device];
-			if (!graph_device)
+			if (not graph_device)
 			{
 				result.reason = "failed to create MPSGraph device";
 				return result;
@@ -827,7 +827,7 @@ namespace Darknet::Apple::TrainingDetail
 							ok = true;
 							break;
 					}
-					if (!ok)
+					if (not ok)
 					{
 						result.reason = reason.empty() ? ("failed to lower " + node_debug_label(node)) : reason;
 						return result;
@@ -845,7 +845,7 @@ namespace Darknet::Apple::TrainingDetail
 					const auto *boundary_plan = find_boundary_tensor_plan(plan,
 						MPSGraphTensorBindingKind::kYoloBoundaryOutput,
 						layer_index);
-					if (!boundary_plan)
+					if (not boundary_plan)
 					{
 						result.reason = "missing boundary tensor plan for terminal output layer #" + std::to_string(layer_index);
 						return result;
@@ -855,7 +855,7 @@ namespace Darknet::Apple::TrainingDetail
 						*boundary_plan);
 				}
 
-				if (state.forward_targets.count == 0 || state.feed_shapes.count == 0)
+				if (state.forward_targets.count == 0 or state.feed_shapes.count == 0)
 				{
 					result.reason = "forward graph did not produce targets or feeds";
 					return result;
@@ -870,7 +870,7 @@ namespace Darknet::Apple::TrainingDetail
 					targetTensors:state.forward_targets
 					targetOperations:nil
 					compilationDescriptor:compilation_descriptor];
-				if (!forward_executable)
+				if (not forward_executable)
 				{
 					result.reason = "MPSGraph forward executable compilation failed";
 					return result;
@@ -880,13 +880,13 @@ namespace Darknet::Apple::TrainingDetail
 				std::string order_reason;
 				std::vector<MPSGraphTensorPlan> ordered_forward_feed_plans;
 				std::vector<MPSGraphTensorPlan> ordered_forward_result_plans;
-				if (!order_tensor_plans_for_executable(forward_executable.feedTensors,
+				if (not order_tensor_plans_for_executable(forward_executable.feedTensors,
 						state.forward_feed_tensors,
 						state.forward_feed_plans,
 						"forward feed",
 						&ordered_forward_feed_plans,
-						order_reason) ||
-					!order_tensor_plans_for_executable(forward_executable.targetTensors,
+						order_reason) or
+					not order_tensor_plans_for_executable(forward_executable.targetTensors,
 						state.forward_result_tensors,
 						state.forward_result_plans,
 						"forward target",
@@ -911,14 +911,14 @@ namespace Darknet::Apple::TrainingDetail
 			MPSGraphExecutableBuildResult result;
 
 			id<MTLDevice> device = (__bridge id<MTLDevice>)runtime_metal_device_handle();
-			if (!device)
+			if (not device)
 			{
 				result.reason = "Metal device unavailable for MPSGraph backward compile";
 				return result;
 			}
 
 			MPSGraphDevice *graph_device = [MPSGraphDevice deviceWithMTLDevice:device];
-			if (!graph_device)
+			if (not graph_device)
 			{
 				result.reason = "failed to create MPSGraph device for backward compile";
 				return result;
@@ -970,7 +970,7 @@ namespace Darknet::Apple::TrainingDetail
 					MPSGraphTensor *gradient,
 					const std::string &name)
 				{
-					if (!gradient || layer_index < 0)
+					if (not gradient or layer_index < 0)
 					{
 						return;
 					}
@@ -990,7 +990,7 @@ namespace Darknet::Apple::TrainingDetail
 					const size_t bytes,
 					MPSGraphTensor *input_grad)
 				{
-					if (!input_grad)
+					if (not input_grad)
 					{
 						return;
 					}
@@ -1031,9 +1031,9 @@ namespace Darknet::Apple::TrainingDetail
 				{
 					const int layer_index = node.darknet_layer_index;
 					const Layer &layer = net.layers[layer_index];
-						if (node.op_kind != MPSGraphNodeKind::kConvBnAct ||
-							(node.activation != MPSGraphActivationKind::kLinear &&
-								node.activation != MPSGraphActivationKind::kLeaky &&
+						if (node.op_kind != MPSGraphNodeKind::kConvBnAct or
+							(node.activation != MPSGraphActivationKind::kLinear and
+								node.activation != MPSGraphActivationKind::kLeaky and
 								node.activation != MPSGraphActivationKind::kLogistic))
 					{
 						reason =
@@ -1044,13 +1044,13 @@ namespace Darknet::Apple::TrainingDetail
 						return false;
 					}
 
-					if (!incoming_delta && !seed_from_yolo_boundary)
+					if (not incoming_delta and not seed_from_yolo_boundary)
 					{
 						reason = "conv backward has no incoming gradient for layer #" + std::to_string(layer_index);
 						return false;
 					}
 
-					const int source_layer_index = !node.input_node_indices.empty()
+					const int source_layer_index = not node.input_node_indices.empty()
 						? node.input_node_indices.front()
 						: layer_index - 1;
 					const MPSGraphNodePlan *source_node = source_layer_index >= 0
@@ -1063,11 +1063,11 @@ namespace Darknet::Apple::TrainingDetail
 					const auto *weights_plan = find_tensor_plan(node, MPSGraphTensorBindingKind::kWeights);
 					const auto *weight_grad_plan = find_tensor_plan(node, MPSGraphTensorBindingKind::kWeightGrad);
 					const auto *bias_grad_plan = find_tensor_plan(node, MPSGraphTensorBindingKind::kBiasGrad);
-					if (!source_plan && network_input_plan)
+					if (not source_plan and network_input_plan)
 					{
 						source_plan = network_input_plan;
 					}
-					if (!source_plan || !weights_plan || !weight_grad_plan || !bias_grad_plan)
+					if (not source_plan or not weights_plan or not weight_grad_plan or not bias_grad_plan)
 					{
 						reason = "conv backward plans are incomplete for layer #" + std::to_string(layer_index);
 						return false;
@@ -1076,7 +1076,7 @@ namespace Darknet::Apple::TrainingDetail
 					if (seed_from_yolo_boundary)
 					{
 						const auto *delta_plan = find_boundary_tensor_plan(plan, MPSGraphTensorBindingKind::kYoloBoundaryDelta, layer_index);
-						if (!delta_plan)
+						if (not delta_plan)
 						{
 							reason = "missing YOLO boundary delta plan for layer #" + std::to_string(layer_index);
 							return false;
@@ -1099,17 +1099,17 @@ namespace Darknet::Apple::TrainingDetail
 						*weights_plan);
 					MPSGraphTensor *delta_after_activation = incoming_delta;
 						MPSGraphTensor *scale_grad = nil;
-						if (node.activation == MPSGraphActivationKind::kLeaky ||
+						if (node.activation == MPSGraphActivationKind::kLeaky or
 							node.activation == MPSGraphActivationKind::kLogistic)
 					{
 						const MPSGraphTensorPlan *activation_tape_plan =
 							find_tensor_plan(node, MPSGraphTensorBindingKind::kLayerOutput);
-						if (!activation_tape_plan && seed_from_yolo_boundary)
+						if (not activation_tape_plan and seed_from_yolo_boundary)
 						{
 							activation_tape_plan = find_boundary_tensor_plan(
 								plan, MPSGraphTensorBindingKind::kYoloBoundaryOutput, layer_index);
 						}
-						if (!activation_tape_plan)
+						if (not activation_tape_plan)
 						{
 							reason = "missing activation tape plan for layer #" + std::to_string(layer_index);
 							return false;
@@ -1166,8 +1166,8 @@ namespace Darknet::Apple::TrainingDetail
 						const auto *batch_input_plan = find_tensor_plan(node, MPSGraphTensorBindingKind::kBatchNormInputTape);
 						const auto *batch_mean_plan = find_tensor_plan(node, MPSGraphTensorBindingKind::kBatchMeanTape);
 						const auto *batch_variance_plan = find_tensor_plan(node, MPSGraphTensorBindingKind::kBatchVarianceTape);
-						if (!scale_plan || !scale_grad_plan || !batch_input_plan || !batch_mean_plan ||
-							!batch_variance_plan)
+						if (not scale_plan or not scale_grad_plan or not batch_input_plan or not batch_mean_plan or
+							not batch_variance_plan)
 						{
 							reason = "batchnorm backward plans are incomplete for layer #" + std::to_string(layer_index);
 							return false;
@@ -1252,7 +1252,7 @@ namespace Darknet::Apple::TrainingDetail
 						paddingStyle:MPSGraphPaddingStyleExplicit
 						dataLayout:MPSGraphTensorNamedDataLayoutNCHW
 						weightsLayout:MPSGraphTensorNamedDataLayoutOIHW];
-					if (!descriptor)
+					if (not descriptor)
 					{
 						reason = "failed to create backward convolution descriptor for layer #" + std::to_string(layer_index);
 						return false;
@@ -1281,12 +1281,12 @@ namespace Darknet::Apple::TrainingDetail
 					std::string & reason) -> bool
 				{
 					const int layer_index = node.darknet_layer_index;
-					if (!incoming_delta || node.op_kind != MPSGraphNodeKind::kMaxPool)
+					if (not incoming_delta or node.op_kind != MPSGraphNodeKind::kMaxPool)
 					{
 						reason = "maxpool backward expects maxpool node";
 						return false;
 					}
-					const int source_layer_index = !node.input_node_indices.empty()
+					const int source_layer_index = not node.input_node_indices.empty()
 						? node.input_node_indices.front()
 						: layer_index - 1;
 					if (source_layer_index < 0)
@@ -1295,7 +1295,7 @@ namespace Darknet::Apple::TrainingDetail
 						return false;
 					}
 					const auto *indices_plan = find_tensor_plan(node, MPSGraphTensorBindingKind::kMaxPoolIndicesTape);
-					if (!indices_plan)
+					if (not indices_plan)
 					{
 						reason = "missing maxpool indices plan for layer #" + std::to_string(layer_index);
 						return false;
@@ -1317,7 +1317,7 @@ namespace Darknet::Apple::TrainingDetail
 						paddingBottom:node.pad_bottom
 						paddingStyle:MPSGraphPaddingStyleExplicit
 						dataLayout:MPSGraphTensorNamedDataLayoutNCHW];
-					if (!descriptor)
+					if (not descriptor)
 					{
 						reason = "failed to create maxpool backward descriptor for layer #" + std::to_string(layer_index);
 						return false;
@@ -1346,12 +1346,12 @@ namespace Darknet::Apple::TrainingDetail
 					std::string & reason) -> bool
 				{
 					const int layer_index = node.darknet_layer_index;
-					if (!incoming_delta || node.op_kind != MPSGraphNodeKind::kUpsample)
+					if (not incoming_delta or node.op_kind != MPSGraphNodeKind::kUpsample)
 					{
 						reason = "upsample backward expects upsample node";
 						return false;
 					}
-					const int source_layer_index = !node.input_node_indices.empty()
+					const int source_layer_index = not node.input_node_indices.empty()
 						? node.input_node_indices.front()
 						: layer_index - 1;
 					if (source_layer_index < 0)
@@ -1363,7 +1363,7 @@ namespace Darknet::Apple::TrainingDetail
 					const std::vector<int64_t> source_shape = source_node
 						? source_node->output_shape_nchw
 						: output_shape_for_layer(net.layers[source_layer_index]);
-					if (source_shape.size() != 4 || node.upsample_scale <= 0)
+					if (source_shape.size() != 4 or node.upsample_scale <= 0)
 					{
 						reason = "upsample backward requires a rank-4 source and positive scale";
 						return false;
@@ -1393,7 +1393,7 @@ namespace Darknet::Apple::TrainingDetail
 					std::string & reason) -> bool
 				{
 					const int layer_index = node.darknet_layer_index;
-					if (!incoming_delta || node.op_kind != MPSGraphNodeKind::kRouteGroupSlice || node.input_node_indices.empty())
+					if (not incoming_delta or node.op_kind != MPSGraphNodeKind::kRouteGroupSlice or node.input_node_indices.empty())
 					{
 						reason = "route-group backward expects a sliced route node";
 						return false;
@@ -1435,7 +1435,7 @@ namespace Darknet::Apple::TrainingDetail
 					std::string & reason) -> bool
 				{
 					const int layer_index = node.darknet_layer_index;
-					if (!incoming_delta || node.op_kind != MPSGraphNodeKind::kRouteConcat || node.input_node_indices.empty())
+					if (not incoming_delta or node.op_kind != MPSGraphNodeKind::kRouteConcat or node.input_node_indices.empty())
 					{
 						reason = "route-concat backward expects concat route node";
 						return false;
@@ -1474,9 +1474,9 @@ namespace Darknet::Apple::TrainingDetail
 						incoming_delta = grad_it->second;
 					}
 					const bool seed_from_yolo_boundary =
-						incoming_delta == nil &&
+						incoming_delta == nil and
 						std::find(plan.terminal_output_layers.begin(), plan.terminal_output_layers.end(), node.darknet_layer_index) != plan.terminal_output_layers.end();
-					if (!incoming_delta && !seed_from_yolo_boundary)
+					if (not incoming_delta and not seed_from_yolo_boundary)
 					{
 						continue;
 					}
@@ -1487,12 +1487,12 @@ namespace Darknet::Apple::TrainingDetail
 						case MPSGraphNodeKind::kConvBnAct:
 						{
 							MPSGraphTensor *input_grad = nil;
-							if (!build_conv_backward(node, incoming_delta, seed_from_yolo_boundary, &input_grad, build_reason))
+							if (not build_conv_backward(node, incoming_delta, seed_from_yolo_boundary, &input_grad, build_reason))
 							{
 								result.reason = build_reason;
 								return result;
 							}
-							const int source_layer_index = !node.input_node_indices.empty()
+							const int source_layer_index = not node.input_node_indices.empty()
 								? node.input_node_indices.front()
 								: node.darknet_layer_index - 1;
 							if (source_layer_index >= 0)
@@ -1510,28 +1510,28 @@ namespace Darknet::Apple::TrainingDetail
 							break;
 						}
 						case MPSGraphNodeKind::kRouteConcat:
-							if (!build_route_concat_backward(node, incoming_delta, build_reason))
+							if (not build_route_concat_backward(node, incoming_delta, build_reason))
 							{
 								result.reason = build_reason;
 								return result;
 							}
 							break;
 						case MPSGraphNodeKind::kRouteGroupSlice:
-							if (!build_route_group_slice_backward(node, incoming_delta, build_reason))
+							if (not build_route_group_slice_backward(node, incoming_delta, build_reason))
 							{
 								result.reason = build_reason;
 								return result;
 							}
 							break;
 						case MPSGraphNodeKind::kMaxPool:
-							if (!build_maxpool_backward(node, incoming_delta, build_reason))
+							if (not build_maxpool_backward(node, incoming_delta, build_reason))
 							{
 								result.reason = build_reason;
 								return result;
 							}
 							break;
 						case MPSGraphNodeKind::kUpsample:
-							if (!build_upsample_backward(node, incoming_delta, build_reason))
+							if (not build_upsample_backward(node, incoming_delta, build_reason))
 							{
 								result.reason = build_reason;
 								return result;
@@ -1541,7 +1541,7 @@ namespace Darknet::Apple::TrainingDetail
 							break;
 					}
 				}
-				if (state.backward_targets.count == 0 || state.feed_shapes.count == 0)
+				if (state.backward_targets.count == 0 or state.feed_shapes.count == 0)
 				{
 					result.reason = "backward graph did not produce targets or feeds";
 					return result;
@@ -1556,7 +1556,7 @@ namespace Darknet::Apple::TrainingDetail
 					targetTensors:state.backward_targets
 					targetOperations:nil
 					compilationDescriptor:compilation_descriptor];
-				if (!backward_executable)
+				if (not backward_executable)
 				{
 					result.reason = "MPSGraph backward executable compilation failed";
 					return result;
@@ -1566,13 +1566,13 @@ namespace Darknet::Apple::TrainingDetail
 				std::string order_reason;
 				std::vector<MPSGraphTensorPlan> ordered_backward_feed_plans;
 				std::vector<MPSGraphTensorPlan> ordered_backward_result_plans;
-				if (!order_tensor_plans_for_executable(backward_executable.feedTensors,
+				if (not order_tensor_plans_for_executable(backward_executable.feedTensors,
 						state.backward_feed_tensors,
 						state.backward_feed_plans,
 						"backward feed",
 						&ordered_backward_feed_plans,
-						order_reason) ||
-					!order_tensor_plans_for_executable(backward_executable.targetTensors,
+						order_reason) or
+					not order_tensor_plans_for_executable(backward_executable.targetTensors,
 						state.backward_result_tensors,
 						state.backward_result_plans,
 						"backward target",
@@ -1595,14 +1595,14 @@ namespace Darknet::Apple::TrainingDetail
 
 		MPSGraphExecutableBuildResult build_training_graph_executables(Network & net, const MPSGraphSegmentPlan & plan)
 		{
-			if (!plan.supported)
+			if (not plan.supported)
 			{
 			MPSGraphExecutableBuildResult result;
 			result.reason = plan.reason.empty() ? "MPSGraph plan is unsupported" : plan.reason;
 			return result;
 		}
 		auto result = build_forward_executable(net, plan);
-		if (!result.forward_ready)
+		if (not result.forward_ready)
 		{
 			return result;
 		}

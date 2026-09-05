@@ -12,6 +12,11 @@
 #error "metal_backend.hpp is private to builds with Apple MPS enabled"
 #endif
 
+/** @defgroup metal_backend Metal Backend
+ * Metal compute wrapper used by the Apple backend.
+ * @{
+ */
+
 /** Non-owning view of an opaque Metal buffer. */
 struct MetalBufferView
 {
@@ -191,3 +196,5 @@ private:
 
 	MetalBufferView buffer_;
 };
+
+/** @} */
