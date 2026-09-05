@@ -390,42 +390,40 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 	TAT(TATPARMS);
 
 	float error = 0.0f;
+	bool train_on_cpu = true;
 
 #ifdef DARKNET_GPU
-	if(cfg_and_state.gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		error = train_network_datum_gpu(net, x, y);
+		train_on_cpu = false;
 	}
-	else
-	{
 #endif
 
 #ifdef DARKNET_USE_MPS
-		if (Darknet::Apple::mps_training_graph_enabled(net))
-		{
-			error = Darknet::Apple::mps_train_network_datum(net,
-				{x, static_cast<size_t>(net.batch) * net.inputs},
-				{y, static_cast<size_t>(net.batch) * net.layers[net.n - 1].truths});
-		}
-		else
-#endif
-		{
-			Darknet::NetworkState state={0};
-			*net.seen += net.batch;
-			state.index = 0;
-			state.net = net;
-			state.input = x;
-			state.delta = 0;
-			state.truth = y;
-			state.train = 1;
-			forward_network(net, state);
-			backward_network(net, state);
-			error = get_network_cost(net);
-		}
-
-#ifdef DARKNET_GPU
+	if (train_on_cpu and Darknet::Apple::mps_training_graph_enabled(net))
+	{
+		error = Darknet::Apple::mps_train_network_datum(net,
+			{x, static_cast<size_t>(net.batch) * net.inputs},
+			{y, static_cast<size_t>(net.batch) * net.layers[net.n - 1].truths});
+		train_on_cpu = false;
 	}
 #endif
+
+	if (train_on_cpu)
+	{
+		Darknet::NetworkState state={0};
+		*net.seen += net.batch;
+		state.index = 0;
+		state.net = net;
+		state.input = x;
+		state.delta = 0;
+		state.truth = y;
+		state.train = 1;
+		forward_network(net, state);
+		backward_network(net, state);
+		error = get_network_cost(net);
+	}
 
 	show_rewritten_bbox(net);
 
@@ -464,19 +462,6 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 	int batch = net.batch;
 	int n = d.X.rows / batch;
 
-#ifdef DARKNET_USE_MPS
-	if (Darknet::Apple::mps_training_graph_enabled(net))
-	{
-		std::string reason;
-		if (not Darknet::Apple::validate_training_data_views(net,
-			{X, static_cast<size_t>(batch) * d.X.cols},
-			{y, static_cast<size_t>(batch) * d.y.cols}, reason))
-		{
-			darknet_fatal_error(DARKNET_LOC, "Invalid Apple training data: %s", reason.c_str());
-		}
-	}
-#endif
-
 	float sum = 0;
 #ifdef DARKNET_GPU
 	if (cfg_and_state.gpu_index >= 0 and not net.adversarial_lr)
@@ -488,6 +473,19 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 	{
 		float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
 		float* y = (float*)xcalloc(batch * d.y.cols, sizeof(float));
+
+#ifdef DARKNET_USE_MPS
+		if (Darknet::Apple::mps_training_graph_enabled(net))
+		{
+			std::string reason;
+			if (not Darknet::Apple::validate_training_data_views(net,
+				{X, static_cast<size_t>(batch) * d.X.cols},
+				{y, static_cast<size_t>(batch) * d.y.cols}, reason))
+			{
+				darknet_fatal_error(DARKNET_LOC, "Invalid Apple training data: %s", reason.c_str());
+			}
+		}
+#endif
 
 		for (int i = 0; i < n; ++i)
 		{
@@ -508,16 +506,18 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 	(*net.cur_iteration) += 1;
 #ifdef DARKNET_GPU
 	update_network_gpu(net);
-#else   // DARKNET_GPU
-#ifdef DARKNET_USE_MPS
+#elif defined(DARKNET_USE_MPS)
 	if (Darknet::Apple::mps_training_graph_enabled(net))
 	{
 		Darknet::Apple::mps_update_network(net);
 	}
 	else
-#endif
+	{
+		update_network(net);
+	}
+#else
 	update_network(net);
-#endif  // DARKNET_GPU
+#endif
 
 	int ema_start_point = net.max_batches / 2;
 
