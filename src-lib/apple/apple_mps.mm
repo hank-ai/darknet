@@ -2169,12 +2169,12 @@ namespace
 	}
 }
 
-bool mps_is_available()
+bool Darknet::Apple::mps_is_available()
 {
 	return get_mps_context().ready;
 }
 
-bool mps_runtime_available(const char **reason)
+bool Darknet::Apple::mps_runtime_available(const char **reason)
 {
 	auto & ctx = get_mps_context();
 	if (reason)
@@ -2184,7 +2184,7 @@ bool mps_runtime_available(const char **reason)
 	return ctx.ready;
 }
 
-bool mps_training_device_count_supported(const int ngpus, std::string *reason)
+bool Darknet::Apple::mps_training_device_count_supported(const int ngpus, std::string *reason)
 {
 	if (ngpus == 1)
 	{
@@ -2198,7 +2198,7 @@ bool mps_training_device_count_supported(const int ngpus, std::string *reason)
 	return false;
 }
 
-bool mps_gemm(int TA, int TB, int M, int N, int K, float ALPHA,
+bool Darknet::Apple::mps_gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 	float *A, int lda,
 	float *B, int ldb,
 	float BETA,
@@ -2285,7 +2285,7 @@ bool mps_gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 	return true;
 }
 
-bool mps_layer_can_run(const Darknet::Layer & l, bool train)
+bool Darknet::Apple::mps_layer_can_run(const Darknet::Layer & l, bool train)
 {
 	if (train)
 	{
@@ -2468,7 +2468,7 @@ bool mps_layer_can_run(const Darknet::Layer & l, bool train)
 	return false;
 }
 
-const Darknet::Layer *mps_prev_layer(const Darknet::NetworkState &state)
+const Darknet::Layer *Darknet::Apple::mps_prev_layer(const Darknet::NetworkState &state)
 {
 	if (state.net.layers && state.index > 0)
 	{
@@ -2477,17 +2477,17 @@ const Darknet::Layer *mps_prev_layer(const Darknet::NetworkState &state)
 	return nullptr;
 }
 
-bool mps_should_defer_readback(const Darknet::NetworkState &state)
+bool Darknet::Apple::mps_should_defer_readback(const Darknet::NetworkState &state)
 {
 	if (state.net.layers && (state.index + 1) < state.net.n)
 	{
 		const Darknet::Layer & next = state.net.layers[state.index + 1];
-		return mps_layer_can_run(next, state.train);
+		return Darknet::Apple::mps_layer_can_run(next, state.train);
 	}
 	return false;
 }
 
-bool mps_is_output_deferred(const Darknet::Layer *layer)
+bool Darknet::Apple::mps_is_output_deferred(const Darknet::Layer *layer)
 {
 	if (!layer)
 	{
@@ -2554,7 +2554,7 @@ namespace
 	}
 }
 
-void mps_materialize_output(const Darknet::Layer *layer, float *output)
+void Darknet::Apple::mps_materialize_output(const Darknet::Layer *layer, float *output)
 {
 	std::string reason;
 	if (!try_materialize_mps_output(layer, output ? output : (layer ? layer->output : nullptr), &reason))
@@ -2565,17 +2565,17 @@ void mps_materialize_output(const Darknet::Layer *layer, float *output)
 	}
 }
 
-void mps_flush_deferred_output(const Darknet::Layer *layer)
+void Darknet::Apple::mps_flush_deferred_output(const Darknet::Layer *layer)
 {
-	mps_materialize_output(layer);
+	Darknet::Apple::mps_materialize_output(layer);
 }
 
-void mps_flush_output_if_needed(const Darknet::Layer *layer, float *output)
+void Darknet::Apple::mps_flush_output_if_needed(const Darknet::Layer *layer, float *output)
 {
-	mps_materialize_output(layer, output);
+	Darknet::Apple::mps_materialize_output(layer, output);
 }
 
-void mps_invalidate_layer_cache(const Darknet::Layer *layer)
+void Darknet::Apple::mps_invalidate_layer_cache(const Darknet::Layer *layer)
 {
 	wait_mps_command_buffer_if_needed();
 	invalidate_layer_cache_impl(layer);
@@ -2586,7 +2586,7 @@ void mps_invalidate_layer_cache(const Darknet::Layer *layer)
 	}
 }
 
-void mps_notify_layer_parameters_updated_cpu(const Darknet::Layer *layer)
+void Darknet::Apple::mps_notify_layer_parameters_updated_cpu(const Darknet::Layer *layer)
 {
 	if (!layer)
 	{
@@ -2597,7 +2597,7 @@ void mps_notify_layer_parameters_updated_cpu(const Darknet::Layer *layer)
 	advance_parameter_generation();
 }
 
-void mps_notify_layer_parameters_updated_gpu(const Darknet::Layer *layer)
+void Darknet::Apple::mps_notify_layer_parameters_updated_gpu(const Darknet::Layer *layer)
 {
 	if (!layer)
 	{
@@ -2608,7 +2608,7 @@ void mps_notify_layer_parameters_updated_gpu(const Darknet::Layer *layer)
 	advance_parameter_generation();
 }
 
-void mps_notify_layer_optimizer_state_updated_cpu(const Darknet::Layer *layer)
+void Darknet::Apple::mps_notify_layer_optimizer_state_updated_cpu(const Darknet::Layer *layer)
 {
 	if (layer)
 	{
@@ -2616,7 +2616,7 @@ void mps_notify_layer_optimizer_state_updated_cpu(const Darknet::Layer *layer)
 	}
 }
 
-void mps_notify_layer_optimizer_state_updated_gpu(const Darknet::Layer *layer)
+void Darknet::Apple::mps_notify_layer_optimizer_state_updated_gpu(const Darknet::Layer *layer)
 {
 	if (layer)
 	{
@@ -2624,7 +2624,7 @@ void mps_notify_layer_optimizer_state_updated_gpu(const Darknet::Layer *layer)
 	}
 }
 
-void mps_notify_layer_running_stats_updated_cpu(const Darknet::Layer *layer)
+void Darknet::Apple::mps_notify_layer_running_stats_updated_cpu(const Darknet::Layer *layer)
 {
 	if (!layer)
 	{
@@ -2635,7 +2635,7 @@ void mps_notify_layer_running_stats_updated_cpu(const Darknet::Layer *layer)
 	advance_parameter_generation();
 }
 
-void mps_notify_layer_running_stats_updated_gpu(const Darknet::Layer *layer)
+void Darknet::Apple::mps_notify_layer_running_stats_updated_gpu(const Darknet::Layer *layer)
 {
 	if (!layer)
 	{
@@ -2646,7 +2646,7 @@ void mps_notify_layer_running_stats_updated_gpu(const Darknet::Layer *layer)
 	advance_parameter_generation();
 }
 
-bool mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+bool Darknet::Apple::mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason)
 {
 	auto & ctx = get_mps_context();
@@ -2813,7 +2813,7 @@ bool mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *pre
 	return true;
 }
 
-bool mps_maxpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+bool Darknet::Apple::mps_maxpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason)
 {
 	auto & ctx = get_mps_context();
@@ -2955,7 +2955,7 @@ bool mps_maxpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	return true;
 }
 
-bool mps_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+bool Darknet::Apple::mps_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason)
 {
 	auto & ctx = get_mps_context();
@@ -3097,7 +3097,7 @@ bool mps_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	return true;
 }
 
-bool mps_global_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+bool Darknet::Apple::mps_global_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason)
 {
 	auto & ctx = get_mps_context();
@@ -3233,7 +3233,7 @@ bool mps_global_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *
 	return true;
 }
 
-bool mps_reorg_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+bool Darknet::Apple::mps_reorg_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason)
 {
 	auto & ctx = get_mps_context();
@@ -3380,7 +3380,7 @@ bool mps_reorg_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	return true;
 }
 
-bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+bool Darknet::Apple::mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason)
 {
 	auto & ctx = get_mps_context();
@@ -3420,7 +3420,7 @@ bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 
 	if (prev && input == prev->output)
 	{
-		mps_materialize_output(prev);
+		Darknet::Apple::mps_materialize_output(prev);
 	}
 
 	fill_cpu(l.outputs*l.batch, 0, output, 1);
@@ -3547,7 +3547,7 @@ bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	return true;
 }
 
-bool mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+bool Darknet::Apple::mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, const char **reason)
 {
 	auto & ctx = get_mps_context();
@@ -3676,7 +3676,7 @@ bool mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	return true;
 }
 
-bool mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *prev, const Darknet::Layer *from,
+bool Darknet::Apple::mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *prev, const Darknet::Layer *from,
 	const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason)
 {
 	auto & ctx = get_mps_context();
@@ -3799,7 +3799,7 @@ bool mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *prev, 
 	return true;
 }
 
-bool mps_route_forward(const Darknet::Layer & l, const Darknet::Network & net,
+bool Darknet::Apple::mps_route_forward(const Darknet::Layer & l, const Darknet::Network & net,
 	float *output, bool defer_readback, const char **reason)
 {
 	auto & ctx = get_mps_context();
@@ -4019,7 +4019,7 @@ bool mps_route_forward(const Darknet::Layer & l, const Darknet::Network & net,
 	return true;
 }
 
-bool mps_upsample_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
+bool Darknet::Apple::mps_upsample_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	const float *input, float *output, bool defer_readback, const char **reason)
 {
 	auto & ctx = get_mps_context();
@@ -4139,22 +4139,22 @@ bool mps_upsample_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
 	return true;
 }
 
-bool mps_configure_training_graph(Darknet::Network & net, std::string *reason)
+bool Darknet::Apple::mps_configure_training_graph(Darknet::Network & net, std::string *reason)
 {
 	return Darknet::Apple::configure_training_graph(net, reason);
 }
 
-bool mps_training_graph_enabled(const Darknet::Network & net)
+bool Darknet::Apple::mps_training_graph_enabled(const Darknet::Network & net)
 {
 	return Darknet::Apple::training_graph_enabled(net);
 }
 
-void mps_invalidate_training_graph(Darknet::Network * net)
+void Darknet::Apple::mps_invalidate_training_graph(Darknet::Network * net)
 {
 	Darknet::Apple::invalidate_training_graph(net);
 }
 
-float mps_train_network_datum(Darknet::Network & net, float *x, float *y)
+float Darknet::Apple::mps_train_network_datum(Darknet::Network & net, float *x, float *y)
 {
 	return Darknet::Apple::train_graph_network_datum(net, x, y);
 }
@@ -4186,30 +4186,30 @@ namespace Darknet::Apple
 		wait_mps_command_buffer_if_needed();
 	}
 }
-void mps_update_network(Darknet::Network & net)
+void Darknet::Apple::mps_update_network(Darknet::Network & net)
 {
 	Darknet::Apple::update_training_graph(net);
 }
 
-void mps_sync_training_host_state(Darknet::Network & net, bool sync_rolling_stats, bool sync_parameters)
+void Darknet::Apple::mps_sync_training_host_state(Darknet::Network & net, bool sync_rolling_stats, bool sync_parameters)
 {
 	Darknet::Apple::sync_training_host_state(net, sync_rolling_stats, sync_parameters, nullptr);
 }
 
-void mps_prepare_network_for_inference(Darknet::Network & net)
+void Darknet::Apple::mps_prepare_network_for_inference(Darknet::Network & net)
 {
-	if (mps_training_graph_enabled(net))
+	if (Darknet::Apple::mps_training_graph_enabled(net))
 	{
-		mps_sync_training_host_state(net, true, true);
+		Darknet::Apple::mps_sync_training_host_state(net, true, true);
 	}
 }
 
-bool mps_prepare_validation_network(Darknet::Network & training, Darknet::Network & validation, std::string *reason)
+bool Darknet::Apple::mps_prepare_validation_network(Darknet::Network & training, Darknet::Network & validation, std::string *reason)
 {
 	return Darknet::Apple::prepare_validation_network(training, validation, reason);
 }
 
-void Darknet::show_mps_info()
+void Darknet::Apple::show_mps_info()
 {
 	TAT(TATPARMS);
 

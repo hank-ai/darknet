@@ -714,7 +714,7 @@ namespace Darknet::Apple::TrainingDetail
 				{
 					return false;
 				}
-				mps_notify_layer_running_stats_updated_gpu(&layer);
+				Darknet::Apple::mps_notify_layer_running_stats_updated_gpu(&layer);
 			}
 
 			return true;

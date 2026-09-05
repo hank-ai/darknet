@@ -89,8 +89,8 @@ void forward_route_layer(Darknet::Layer & l, Darknet::NetworkState state)
 #ifdef DARKNET_USE_MPS
 	if (not state.train)
 	{
-		bool defer_readback = mps_should_defer_readback(state);
-		if (mps_route_forward(l, state.net, l.output, defer_readback, nullptr))
+		bool defer_readback = Darknet::Apple::mps_should_defer_readback(state);
+		if (Darknet::Apple::mps_route_forward(l, state.net, l.output, defer_readback, nullptr))
 		{
 			return;
 		}
@@ -102,7 +102,7 @@ void forward_route_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	{
 		int index = l.input_layers[i];
 #ifdef DARKNET_USE_MPS
-		mps_flush_deferred_output(&state.net.layers[index]);
+		Darknet::Apple::mps_flush_deferred_output(&state.net.layers[index]);
 #endif
 		float *input = state.net.layers[index].output;
 		int input_size = l.input_sizes[i];

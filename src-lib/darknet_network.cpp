@@ -238,7 +238,7 @@ void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 	state.workspace = net.workspace;
 
 #ifdef DARKNET_USE_MPS
-	if (!state.train) mps_prepare_network_for_inference(net);
+	if (!state.train) Darknet::Apple::mps_prepare_network_for_inference(net);
 #endif
 
 	for (int i = 0; i < net.n; ++i)
@@ -253,9 +253,9 @@ void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 		if (i > 0)
 		{
 			Darknet::Layer & prev = net.layers[i - 1];
-			if (mps_is_output_deferred(&prev) and not mps_layer_can_run(l, state.train))
+			if (Darknet::Apple::mps_is_output_deferred(&prev) and not Darknet::Apple::mps_layer_can_run(l, state.train))
 			{
-				mps_flush_output_if_needed(&prev, prev.output);
+				Darknet::Apple::mps_flush_output_if_needed(&prev, prev.output);
 			}
 		}
 #endif
@@ -266,9 +266,9 @@ void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 	if (net.n > 0)
 	{
 		Darknet::Layer & last = net.layers[net.n - 1];
-		if (mps_is_output_deferred(&last))
+		if (Darknet::Apple::mps_is_output_deferred(&last))
 		{
-			mps_flush_output_if_needed(&last, last.output);
+			Darknet::Apple::mps_flush_output_if_needed(&last, last.output);
 		}
 	}
 #endif
@@ -397,9 +397,9 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 #endif
 
 #ifdef DARKNET_USE_MPS
-		if (mps_training_graph_enabled(net))
+		if (Darknet::Apple::mps_training_graph_enabled(net))
 		{
-			error = mps_train_network_datum(net, x, y);
+			error = Darknet::Apple::mps_train_network_datum(net, x, y);
 		}
 		else
 #endif
@@ -491,9 +491,9 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 	update_network_gpu(net);
 #else   // DARKNET_GPU
 #ifdef DARKNET_USE_MPS
-	if (mps_training_graph_enabled(net))
+	if (Darknet::Apple::mps_training_graph_enabled(net))
 	{
-		mps_update_network(net);
+		Darknet::Apple::mps_update_network(net);
 	}
 	else
 #endif
@@ -658,7 +658,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 
 #ifdef DARKNET_USE_MPS
 	// Apple training graphs are scoped to the current network shape.
-	mps_invalidate_training_graph(net);
+	Darknet::Apple::mps_invalidate_training_graph(net);
 #endif
 
 #ifdef DARKNET_GPU
@@ -759,7 +759,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 	{
 		// Inference caches are keyed by layer address and tensor shape, so
 		// only the resized network's layer entries need to be dropped.
-		mps_invalidate_layer_cache(&net->layers[i]);
+		Darknet::Apple::mps_invalidate_layer_cache(&net->layers[i]);
 	}
 #endif
 
@@ -1659,7 +1659,7 @@ void free_network(Darknet::Network & net)
 #ifdef DARKNET_USE_MPS
 	// Apple graph-training resources can reference buffers backed by layer and
 	// workspace storage, so drop them before freeing the network internals.
-	mps_invalidate_training_graph(&net);
+	Darknet::Apple::mps_invalidate_training_graph(&net);
 #endif
 
 	for (int i = 0; i < net.n; ++i)

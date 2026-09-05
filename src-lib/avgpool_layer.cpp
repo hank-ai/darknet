@@ -56,13 +56,13 @@ void forward_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	/// @brief MPS global avgpool fast path for inference; falls back to CPU if unsupported.
 	if (not state.train)
 	{
-		const Darknet::Layer *prev = mps_prev_layer(state);
-		bool defer_readback = mps_should_defer_readback(state);
-		if (mps_global_avgpool_forward(l, prev, state.input, l.output, defer_readback, nullptr))
+		const Darknet::Layer *prev = Darknet::Apple::mps_prev_layer(state);
+		bool defer_readback = Darknet::Apple::mps_should_defer_readback(state);
+		if (Darknet::Apple::mps_global_avgpool_forward(l, prev, state.input, l.output, defer_readback, nullptr))
 		{
 			return;
 		}
-		mps_flush_deferred_output(prev);
+		Darknet::Apple::mps_flush_deferred_output(prev);
 	}
 #endif
 

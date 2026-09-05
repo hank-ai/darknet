@@ -319,7 +319,7 @@ void Darknet::show_version_info()
 	#elif defined(DARKNET_GPU_CUDA)
 		show_cuda_cudnn_info();
 	#elif defined(DARKNET_USE_MPS)
-		Darknet::show_mps_info();
+		Darknet::Apple::show_mps_info();
 	#else
 		Darknet::display_warning_msg("Darknet is compiled to use the CPU.");
 		*cfg_and_state.output << "  GPU is " << Darknet::in_colour(Darknet::EColour::kBrightRed, "disabled") << "." << std::endl;

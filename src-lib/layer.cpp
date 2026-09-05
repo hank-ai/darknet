@@ -117,7 +117,7 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 #ifdef DARKNET_USE_MPS
 	// Apple caches are keyed by this Layer address.  Shared-layer proxies do
 	// not own weights, but their own cache entries still die with the proxy.
-	mps_invalidate_layer_cache(&l);
+	Darknet::Apple::mps_invalidate_layer_cache(&l);
 #endif
 
 	if (l.share_layer != nullptr)

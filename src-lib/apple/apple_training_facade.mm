@@ -130,7 +130,7 @@ namespace Darknet::Apple
 			copy(src.scales, dst.scales, channels);
 			copy(src.rolling_mean, dst.rolling_mean, channels);
 			copy(src.rolling_variance, dst.rolling_variance, channels);
-			mps_invalidate_layer_cache(&dst);
+			Darknet::Apple::mps_invalidate_layer_cache(&dst);
 		}
 
 		if (reason) *reason = "ok";

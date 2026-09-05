@@ -297,8 +297,8 @@ namespace Darknet::Apple::TrainingDetail
 		}
 
 		finish_encoder();
-		mps_notify_layer_parameters_updated_gpu(&layer);
-		mps_notify_layer_optimizer_state_updated_gpu(&layer);
+		Darknet::Apple::mps_notify_layer_parameters_updated_gpu(&layer);
+		Darknet::Apple::mps_notify_layer_optimizer_state_updated_gpu(&layer);
 		if (reason) *reason = "gpu_sgd";
 		return true;
 	}

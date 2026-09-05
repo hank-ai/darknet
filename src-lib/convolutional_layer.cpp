@@ -1450,10 +1450,10 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 #ifdef DARKNET_USE_MPS
 	if (not state.train and not l.binary and not l.xnor)
 	{
-		const Darknet::Layer *prev = mps_prev_layer(state);
-		bool defer_readback = mps_should_defer_readback(state);
+		const Darknet::Layer *prev = Darknet::Apple::mps_prev_layer(state);
+		bool defer_readback = Darknet::Apple::mps_should_defer_readback(state);
 		bool activation_applied = false;
-		if (mps_convolution_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, nullptr))
+		if (Darknet::Apple::mps_convolution_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, nullptr))
 		{
 			if (not activation_applied)
 			{
@@ -1484,7 +1484,7 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 
 			return;
 		}
-		mps_flush_deferred_output(prev);
+		Darknet::Apple::mps_flush_deferred_output(prev);
 	}
 #endif
 

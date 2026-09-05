@@ -244,12 +244,12 @@ void save_weights_upto(Darknet::Network & net, const char *filename, int cutoff,
 #endif
 
 #ifdef DARKNET_USE_MPS
-	if (mps_training_graph_enabled(net))
+	if (Darknet::Apple::mps_training_graph_enabled(net))
 	{
 		// Apple MPSGraph training keeps the newest optimizer state in
 		// graph-owned GPU buffers.  Synchronize before the generic Darknet
 		// weight writer serializes host pointers.
-		mps_sync_training_host_state(net, true, true);
+		Darknet::Apple::mps_sync_training_host_state(net, true, true);
 	}
 #endif
 
