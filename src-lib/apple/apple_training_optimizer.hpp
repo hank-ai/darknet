@@ -12,7 +12,7 @@ namespace Darknet::Apple
 
 	inline float training_sgd_rate_over_batch(const float learning_rate, const float learning_rate_scale, const int update_batch)
 	{
-		return update_batch > 0 ? (learning_rate * learning_rate_scale) / static_cast<float>(update_batch) : 0.0f;
+		return update_batch > 0 ? (learning_rate * learning_rate_scale) / update_batch : 0.0f;
 	}
 
 	inline float training_sgd_decay_term(const float decay, const int update_batch, const bool apply_decay)

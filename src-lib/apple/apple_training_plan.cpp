@@ -1,13 +1,8 @@
 #include "apple_training_plan.hpp"
 
 #include "darknet_internal.hpp"
-#include "darknet_enums.hpp"
-#include "darknet_layers.hpp"
-#include "darknet_network.hpp"
 
 #include <algorithm>
-#include <cstdint>
-#include <cmath>
 
 namespace Darknet::Apple
 {
@@ -254,7 +249,7 @@ namespace Darknet::Apple
 			return true;
 		}
 
-		bool layer_supported(const Network & net, const int layer_index, const Layer & l, std::string & reason)
+		bool layer_supported(const Layer & l, std::string & reason)
 		{
 			if (l.onlyforward)
 			{
@@ -275,9 +270,6 @@ namespace Darknet::Apple
 			{
 				case Darknet::ELayerType::CONVOLUTIONAL: return conv_supported(l, reason);
 				case Darknet::ELayerType::SHORTCUT:
-					(void)net;
-					(void)layer_index;
-					(void)l;
 					reason = "shortcut layers are not supported by Apple MPSGraph training";
 					return false;
 				case Darknet::ELayerType::ROUTE: return route_supported(l, reason);
@@ -539,7 +531,7 @@ namespace Darknet::Apple
 		{
 			const Layer & l = net.layers[i];
 			std::string reason;
-			if (not layer_supported(net, i, l, reason))
+			if (not layer_supported(l, reason))
 			{
 				plan.reason =
 					"layer #" + std::to_string(i) +
