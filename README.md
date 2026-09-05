@@ -300,8 +300,10 @@ If this is a new Homebrew install and `brew` is not found, open a new terminal w
 Install the required build tools and libraries:
 
 ```sh
-brew install cmake opencv
+brew install cmake opencv protobuf
 ```
+
+The `protobuf` dependency enables the ONNX export tool, which CMake includes automatically when Protocol Buffers is available.
 
 If you previously installed Darknet into `/usr/local`, remove its old headers and libraries before configuring the new build:
 
