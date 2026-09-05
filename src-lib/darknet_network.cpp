@@ -399,7 +399,9 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 #ifdef DARKNET_USE_MPS
 		if (Darknet::Apple::mps_training_graph_enabled(net))
 		{
-			error = Darknet::Apple::mps_train_network_datum(net, x, y);
+			error = Darknet::Apple::mps_train_network_datum(net,
+				{x, static_cast<size_t>(net.batch) * net.inputs},
+				{y, static_cast<size_t>(net.batch) * net.layers[net.n - 1].truths});
 		}
 		else
 #endif
@@ -457,6 +459,19 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 
 	int batch = net.batch;
 	int n = d.X.rows / batch;
+
+#ifdef DARKNET_USE_MPS
+	if (Darknet::Apple::mps_training_graph_enabled(net))
+	{
+		std::string reason;
+		if (not Darknet::Apple::validate_training_data_views(net,
+			{X, static_cast<size_t>(batch) * d.X.cols},
+			{y, static_cast<size_t>(batch) * d.y.cols}, reason))
+		{
+			darknet_fatal_error(DARKNET_LOC, "Invalid Apple training data: %s", reason.c_str());
+		}
+	}
+#endif
 
 	float sum = 0;
 #ifdef DARKNET_GPU
@@ -658,7 +673,7 @@ int resize_network(Darknet::Network * net, int w, int h)
 
 #ifdef DARKNET_USE_MPS
 	// Apple training graphs are scoped to the current network shape.
-	Darknet::Apple::mps_invalidate_training_graph(net);
+	Darknet::Apple::mps_invalidate_training_graph(*net);
 #endif
 
 #ifdef DARKNET_GPU
@@ -1659,7 +1674,7 @@ void free_network(Darknet::Network & net)
 #ifdef DARKNET_USE_MPS
 	// Apple graph-training resources can reference buffers backed by layer and
 	// workspace storage, so drop them before freeing the network internals.
-	Darknet::Apple::mps_invalidate_training_graph(&net);
+	Darknet::Apple::mps_invalidate_training_graph(net);
 #endif
 
 	for (int i = 0; i < net.n; ++i)

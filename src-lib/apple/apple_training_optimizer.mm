@@ -24,7 +24,7 @@ namespace Darknet::Apple::TrainingDetail
 
 		MetalBuffer wrap_training_buffer(const TrainingBufferView & view)
 		{
-			return {view.buffer_handle, view.offset + view.bytes};
+			return {(__bridge void *)view.buffer_handle, view.offset + view.bytes};
 		}
 
 		bool dispatch_optimizer_kernel_1d_with_encoder(const std::string & kernel_name,
@@ -190,8 +190,7 @@ namespace Darknet::Apple::TrainingDetail
 		Layer & layer,
 		const int update_batch,
 		const float learning_rate,
-		void *& command_buffer_handle,
-		void *& encoder_handle,
+		TrainingOptimizerCommands & commands,
 		std::string & reason)
 	{
 		reason = {};
@@ -205,28 +204,30 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			return false;
 		}
-		if (!ensure_training_command_buffer(command_buffer_handle))
+		if (not commands.command_buffer)
+		{
+			commands.command_buffer = create_training_command_buffer_handle();
+			commands.command_buffer.label = @"darknet.training.optimizer";
+		}
+		if (not commands.command_buffer)
 		{
 			reason = "no_command_buffer";
 			return false;
 		}
 
-		void *command_buffer = command_buffer_handle;
 		const float loss_scale = net.loss_scale != 0.0f ? net.loss_scale : 1.0f;
 		const float rate_over_batch = training_sgd_rate_over_batch(learning_rate / loss_scale, layer.learning_rate_scale, update_batch);
 		const float weight_decay_term = training_sgd_decay_term(net.decay * loss_scale, update_batch, layer.type == ELayerType::CONVOLUTIONAL);
-		// The caller owns and closes the shared encoder.
-		void *optimizer_encoder = encoder_handle;
-		if (!optimizer_encoder)
+		if (not commands.encoder)
 		{
-			optimizer_encoder = metal_begin_compute_encoder(command_buffer);
-			encoder_handle = optimizer_encoder;
+			commands.encoder = [commands.command_buffer computeCommandEncoder];
 		}
-		if (!optimizer_encoder)
+		if (not commands.encoder)
 		{
 			reason = "no_compute_encoder";
 			return false;
 		}
+		void *optimizer_encoder = (__bridge void *)commands.encoder;
 
 		bool updated_any = false;
 		if (layer.weights && layer.weight_updates && layer.nweights > 0)

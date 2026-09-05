@@ -9,6 +9,7 @@
 #include <string>
 
 #include "apple_backend.hpp"
+#include "apple_training_data.hpp"
 
 #ifndef DARKNET_USE_MPS
 #error "apple_mps.hpp is private to builds with Apple MPS enabled"
@@ -46,13 +47,13 @@ namespace Darknet
 		bool mps_training_graph_enabled(const Darknet::Network & net);
 
 		/// Train one datum using the MPS training graph path.
-		float mps_train_network_datum(Darknet::Network & net, float *x, float *y);
+		float mps_train_network_datum(Darknet::Network & net, const FloatBufferView & input, const FloatBufferView & truth);
 
 		/// Apply MPS-owned network updates after a training step.
 		void mps_update_network(Darknet::Network & net);
 
 		/// Synchronize MPS-owned training state and optionally parameters back to host buffers.
-		void mps_sync_training_host_state(Darknet::Network & net, bool sync_rolling_stats, bool sync_parameters);
+		void mps_sync_training_host_state(Darknet::Network & net, const bool sync_rolling_stats, const bool sync_parameters);
 
 		/// Materialize graph-owned state before the network enters host-backed inference.
 		void mps_prepare_network_for_inference(Darknet::Network & net);
@@ -61,7 +62,7 @@ namespace Darknet
 		bool mps_prepare_validation_network(Darknet::Network & training, Darknet::Network & validation, std::string & reason);
 
 		/// Invalidate cached MPS training graph state for @p net.
-		void mps_invalidate_training_graph(Darknet::Network * net);
+		void mps_invalidate_training_graph(Darknet::Network & net);
 
 		/** Try to execute GEMM using MPS.
 		 *
@@ -186,7 +187,7 @@ namespace Darknet
 
 
 		/// Return @p true if @p l can run through MPS for the requested mode.
-		bool mps_layer_can_run(const Darknet::Layer & l, bool train);
+		bool mps_layer_can_run(const Darknet::Layer & l, const bool train);
 
 		/// Return @p true if this layer currently owns a deferred GPU output.
 		bool mps_is_output_deferred(const Darknet::Layer *layer);

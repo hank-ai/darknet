@@ -2282,7 +2282,7 @@ bool Darknet::Apple::mps_gemm(int TA, int TB, int M, int N, int K, float ALPHA,
 	return true;
 }
 
-bool Darknet::Apple::mps_layer_can_run(const Darknet::Layer & l, bool train)
+bool Darknet::Apple::mps_layer_can_run(const Darknet::Layer & l, const bool train)
 {
 	if (train)
 	{
@@ -4146,14 +4146,14 @@ bool Darknet::Apple::mps_training_graph_enabled(const Darknet::Network & net)
 	return Darknet::Apple::training_graph_enabled(net);
 }
 
-void Darknet::Apple::mps_invalidate_training_graph(Darknet::Network * net)
+void Darknet::Apple::mps_invalidate_training_graph(Darknet::Network & net)
 {
 	Darknet::Apple::invalidate_training_graph(net);
 }
 
-float Darknet::Apple::mps_train_network_datum(Darknet::Network & net, float *x, float *y)
+float Darknet::Apple::mps_train_network_datum(Darknet::Network & net, const FloatBufferView & input, const FloatBufferView & truth)
 {
-	return Darknet::Apple::train_graph_network_datum(net, x, y);
+	return Darknet::Apple::train_graph_network_datum(net, input, truth);
 }
 
 namespace Darknet::Apple
@@ -4188,9 +4188,9 @@ void Darknet::Apple::mps_update_network(Darknet::Network & net)
 	Darknet::Apple::update_training_graph(net);
 }
 
-void Darknet::Apple::mps_sync_training_host_state(Darknet::Network & net, bool sync_rolling_stats, bool sync_parameters)
+void Darknet::Apple::mps_sync_training_host_state(Darknet::Network & net, const bool sync_rolling_stats, const bool sync_parameters)
 {
-	Darknet::Apple::sync_training_host_state(net, sync_rolling_stats, sync_parameters, nullptr);
+	Darknet::Apple::sync_training_host_state(net, sync_rolling_stats, sync_parameters);
 }
 
 void Darknet::Apple::mps_prepare_network_for_inference(Darknet::Network & net)

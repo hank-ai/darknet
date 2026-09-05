@@ -399,7 +399,7 @@ namespace Darknet::Apple::TrainingDetail
 
 		MetalBuffer metal_buffer_from_training_view(const TrainingBufferView & view)
 		{
-			return {view.buffer_handle, view.offset + view.bytes};
+			return {(__bridge void *)view.buffer_handle, view.offset + view.bytes};
 		}
 
 		bool dispatch_clear_training_layer_delta_with_encoder(Layer & layer, void *encoder_handle, std::string & reason)
@@ -523,7 +523,7 @@ namespace Darknet::Apple::TrainingDetail
 				return false;
 			}
 
-			*buffer = {bridge.buffer_handle, bridge.offset + bridge.bytes};
+			*buffer = {(__bridge void *)bridge.buffer_handle, bridge.offset + bridge.bytes};
 			*offset = bridge.offset;
 			return true;
 		}
@@ -1164,8 +1164,15 @@ namespace Darknet::Apple::TrainingDetail
 			return true;
 		}
 
-	float train_training_graph_datum(Network & net, float *x, float *y)
+	float train_training_graph_datum(Network & net, const FloatBufferView & input, const FloatBufferView & truth)
 	{
+		std::string data_reason;
+		if (not validate_training_data_views(net, input, truth, data_reason))
+		{
+			darknet_fatal_error(DARKNET_LOC, "Invalid Apple training data: %s", data_reason.c_str());
+		}
+		float *x = input.data();
+		float *y = truth.data();
 		begin_training_iteration(net);
 		auto & stats = training_iteration_stats();
 		// X/y are owned by the generic train loop and freed after this outer
@@ -1218,7 +1225,7 @@ namespace Darknet::Apple::TrainingDetail
 			darknet_fatal_error(DARKNET_LOC, "Apple training graph backward failed: %s", graph_reason.c_str());
 		}
 		double backward_wait_ms = 0.0;
-		wait_for_training_update_command_buffer(&backward_wait_ms);
+		backward_wait_ms += wait_for_training_update_command_buffer();
 		if (const std::string asynchronous_error = take_training_execution_error(); !asynchronous_error.empty())
 		{
 			release_gpu_yolo_loss_readbacks(gpu_yolo_loss_readbacks);

@@ -12,6 +12,7 @@
 #include <chrono>
 #include <cstring>
 #include <string>
+#include <limits>
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
@@ -20,13 +21,59 @@ namespace Darknet::Apple
 {
 	using namespace TrainingDetail;
 
+	bool validate_training_data_views(const Network & net, const FloatBufferView & input,
+		const FloatBufferView & truth, std::string & reason)
+	{
+		const auto element_count = [](const int batch, const int elements) -> size_t
+		{
+			if (batch <= 0 or elements <= 0 or
+				static_cast<size_t>(elements) > std::numeric_limits<size_t>::max() / sizeof(float) / static_cast<size_t>(batch))
+			{
+				return 0;
+			}
+			return static_cast<size_t>(batch) * static_cast<size_t>(elements);
+		};
+		const size_t inputs = element_count(net.batch, net.inputs);
+		if (inputs == 0 or not input.data() or input.size() < inputs)
+		{
+			reason = "input buffer is missing, too small, or has invalid geometry";
+			return false;
+		}
+		if (not net.layers or net.n <= 0)
+		{
+			reason = "training network has no layers";
+			return false;
+		}
+		size_t truths = 0;
+		for (int i = 0; i < net.n; ++i)
+		{
+			const auto & layer = net.layers[i];
+			if (layer.type != ELayerType::YOLO) continue;
+			const size_t count = element_count(layer.batch, layer.truths);
+			const size_t box_elements = element_count(layer.max_boxes, layer.truth_size);
+			if (count == 0 or box_elements == 0 or box_elements > static_cast<size_t>(layer.truths))
+			{
+				reason = "YOLO truth geometry exceeds its declared buffer size";
+				return false;
+			}
+			truths = std::max(truths, count);
+		}
+		if (truths == 0 or not truth.data() or truth.size() < truths)
+		{
+			reason = "truth buffer is missing or too small for the YOLO heads";
+			return false;
+		}
+		reason = "ok";
+		return true;
+	}
+
 	bool configure_training_graph(Network & net, std::string & reason)
 	{
 		std::string graph_reason;
 		if (!configure_training_graph_engine(net, graph_reason))
 		{
-			invalidate_training_buffers(&net);
-			invalidate_training_graph_engine(&net);
+			invalidate_training_buffers(net);
+			invalidate_training_graph_engine(net);
 			reason = graph_reason.empty() ? "Apple training graph is unavailable" : graph_reason;
 			return false;
 		}
@@ -34,8 +81,8 @@ namespace Darknet::Apple
 		std::string buffer_reason;
 		if (!prepare_training_buffers(net, buffer_reason))
 		{
-			invalidate_training_buffers(&net);
-			invalidate_training_graph_engine(&net);
+			invalidate_training_buffers(net);
+			invalidate_training_graph_engine(net);
 			reason = buffer_reason.empty() ? "Apple training graph runtime buffers are unavailable" : buffer_reason;
 			return false;
 		}
@@ -48,9 +95,9 @@ namespace Darknet::Apple
 		return training_graph_engine_enabled(net);
 	}
 
-	void invalidate_training_graph(Network * net)
+	void invalidate_training_graph(Network & net)
 	{
-		if (!net || !training_graph_engine_enabled(*net))
+		if (not training_graph_engine_enabled(net))
 		{
 			return;
 		}
@@ -59,9 +106,9 @@ namespace Darknet::Apple
 		invalidate_training_graph_engine(net);
 	}
 
-	void sync_training_host_state(Network & net, bool sync_rolling_stats, bool sync_parameters, double *wait_ms)
+	double sync_training_host_state(Network & net, const bool sync_rolling_stats, const bool sync_parameters)
 	{
-		sync_training_layers_to_host(net, wait_ms, sync_rolling_stats, sync_parameters);
+		return sync_training_layers_to_host(net, sync_rolling_stats, sync_parameters);
 	}
 
 	bool prepare_validation_network(Network & training, Network & validation, std::string & reason)
@@ -109,7 +156,7 @@ namespace Darknet::Apple
 			}
 		}
 
-		sync_training_layers_to_host(training, nullptr, true, true);
+		sync_training_layers_to_host(training, true, true);
 		const auto copy = [](const float *src, float *dst, const int count)
 		{
 			if (src && dst && count > 0)
@@ -134,11 +181,11 @@ namespace Darknet::Apple
 		return true;
 	}
 
-	float train_graph_network_datum(Network & net, float *x, float *y)
+	float train_graph_network_datum(Network & net, const FloatBufferView & input, const FloatBufferView & truth)
 	{
 		if (!training_graph_engine_enabled(net))
 		{
-			const auto info = build_training_graph_info(&net);
+			const auto info = build_training_graph_info(net);
 			const std::string reason =
 				!info.reason.empty() ? info.reason : "Apple graph training is not configured";
 			darknet_fatal_error(DARKNET_LOC,
@@ -146,14 +193,14 @@ namespace Darknet::Apple
 				reason.c_str());
 		}
 
-		return train_training_graph_datum(net, x, y);
+		return train_training_graph_datum(net, input, truth);
 	}
 
 	void update_training_graph(Network & net)
 	{
 		if (!training_graph_engine_enabled(net))
 		{
-			const auto info = build_training_graph_info(&net);
+			const auto info = build_training_graph_info(net);
 			const std::string reason =
 				!info.reason.empty() ? info.reason : "Apple graph training is not configured";
 			darknet_fatal_error(DARKNET_LOC,
@@ -165,8 +212,7 @@ namespace Darknet::Apple
 		const int iteration_num = (*net.seen) / (net.batch * net.subdivisions);
 		const int update_batch = net.batch * net.subdivisions * get_sequence_value(net);
 		const float rate = get_current_rate(net);
-		void *optimizer_command_buffer = nullptr;
-		void *optimizer_encoder = nullptr;
+		TrainingOptimizerCommands commands;
 		double update_wait_ms = 0.0;
 		int gpu_update_count = 0;
 
@@ -190,7 +236,7 @@ namespace Darknet::Apple
 			const std::string layer_type = to_string(l.type);
 
 			std::string optimizer_reason;
-			if (!training_optimizer_update_layer(net, l, update_batch, rate, optimizer_command_buffer, optimizer_encoder, optimizer_reason))
+			if (!training_optimizer_update_layer(net, l, update_batch, rate, commands, optimizer_reason))
 			{
 				darknet_fatal_error(DARKNET_LOC,
 					"Apple GPU optimizer update failed at layer %d (%s): %s",
@@ -201,24 +247,25 @@ namespace Darknet::Apple
 			++gpu_update_count;
 		}
 
-		if (optimizer_encoder)
+		if (commands.encoder)
 		{
-			metal_end_compute_encoder(optimizer_encoder);
-			optimizer_encoder = nullptr;
+			[commands.encoder endEncoding];
+			commands.encoder = nil;
 		}
 		if (gpu_update_count > 0)
 		{
 			// Apple-only queue ordering: GPU optimizer kernels and the next
 			// MPSGraph forward use the same training queue, so the next batch
 			// observes the updated weights without blocking the CPU here.
-			Detail::ObjcStrong pending_update((__bridge id<MTLCommandBuffer>)optimizer_command_buffer);
-			if (!commit_training_command_buffer(optimizer_command_buffer, nullptr))
+			// The submission helper consumes this additional retain.
+			void *submission = (void *)CFBridgingRetain(commands.command_buffer);
+			if (!commit_training_command_buffer(submission, nullptr))
 			{
 				darknet_fatal_error(DARKNET_LOC,
 					"Apple GPU optimizer update submission failed after %d layer update(s)",
 					gpu_update_count);
 			}
-			record_training_update_command_buffer((id<MTLCommandBuffer>)pending_update.get());
+			record_training_update_command_buffer(commands.command_buffer);
 		}
 
 		const auto update_end = std::chrono::high_resolution_clock::now();
@@ -226,7 +273,7 @@ namespace Darknet::Apple
 		finalize_training_iteration(net, update_encode_ms, update_wait_ms);
 	}
 
-	TrainingGraphInfo build_training_graph_info(const Network * net)
+	TrainingGraphInfo build_training_graph_info(const Network & net)
 	{
 		return training_graph_info_snapshot(net);
 	}

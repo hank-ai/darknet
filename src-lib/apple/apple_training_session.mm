@@ -265,7 +265,7 @@ namespace Darknet::Apple::TrainingDetail
 				session.pending_update_command_buffer = Detail::ObjcStrong(command_buffer);
 			}
 
-			void wait_for_training_update_command_buffer(double *wait_ms)
+			double wait_for_training_update_command_buffer()
 			{
 				Detail::ObjcStrong pending_command_buffer;
 				{
@@ -276,7 +276,7 @@ namespace Darknet::Apple::TrainingDetail
 				id<MTLCommandBuffer> buffer = (id<MTLCommandBuffer>)pending_command_buffer.get();
 				if (!buffer)
 				{
-					return;
+					return 0.0;
 				}
 				const auto start = std::chrono::high_resolution_clock::now();
 				[buffer waitUntilCompleted];
@@ -287,11 +287,8 @@ namespace Darknet::Apple::TrainingDetail
 					if (!detail.empty()) message += ": " + detail;
 					record_training_execution_error(message);
 				}
-				if (wait_ms)
-				{
-					*wait_ms += std::chrono::duration<double, std::milli>(
-						std::chrono::high_resolution_clock::now() - start).count();
-				}
+				return std::chrono::duration<double, std::milli>(
+					std::chrono::high_resolution_clock::now() - start).count();
 			}
 
 			MPSGraphExecutableExecutionDescriptor *make_execution_descriptor(
@@ -407,7 +404,7 @@ namespace Darknet::Apple::TrainingDetail
 			}
 
 			storage.buffer = Detail::ObjcStrong(buffer);
-			storage.bridge.buffer_handle = nullptr;
+			storage.bridge.buffer_handle = nil;
 			storage.bridge.offset = 0;
 			storage.bridge.bytes = static_cast<size_t>(length);
 			storage.bridge.data_type = bridge_data_type_for_tensor_plan(tensor_plan);
@@ -847,21 +844,20 @@ namespace Darknet::Apple::TrainingDetail
 					return false;
 				}
 				bridge = storage.bridge;
-				bridge.buffer_handle = (__bridge void *)storage.buffer.get();
+				bridge.buffer_handle = (id<MTLBuffer>)storage.buffer.get();
 				reason = "ok";
 				return true;
 			}
 
-			TrainingGraphInfo training_graph_info_snapshot(const Network * net)
+			TrainingGraphInfo training_graph_info_snapshot(const Network & net)
 			{
 				const auto & runtime = initialize_runtime();
 				TrainingGraphInfo info;
 				info.runtime_ready = runtime.metal_available && runtime.metal_command_queue_available;
-				if (net)
 				{
 					auto & session = training_session();
 					std::scoped_lock lock(session.mutex);
-					if (session.matches(net))
+					if (session.matches(&net))
 					{
 						info.graph_supported = session.graph.enabled;
 						info.reason = session.graph.reason;
@@ -878,8 +874,7 @@ namespace Darknet::Apple::TrainingDetail
 				}
 				else if (info.reason.empty())
 				{
-					info.reason = net ? "ok" :
-						(runtime.reason.empty() ? "Apple training graph is not configured" : runtime.reason);
+					info.reason = "ok";
 				}
 				return info;
 			}
@@ -896,7 +891,7 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			// Metal waits include completion handlers.  Drain outside session.mutex
 			// because a failure handler records its error under that mutex.
-			wait_for_training_update_command_buffer(nullptr);
+			wait_for_training_update_command_buffer();
 			auto & session = training_session();
 			std::scoped_lock lock(session.mutex);
 			if (session.network && !session.matches(&net))
@@ -1191,8 +1186,8 @@ namespace Darknet::Apple::TrainingDetail
 					return false;
 				}
 				source_bridge = result_bridges[result_index];
-				id<MTLBuffer> source = (__bridge id<MTLBuffer>)source_bridge.buffer_handle;
-				id<MTLBuffer> destination_buffer = (__bridge id<MTLBuffer>)destination_view.buffer_handle;
+				id<MTLBuffer> source = source_bridge.buffer_handle;
+				id<MTLBuffer> destination_buffer = destination_view.buffer_handle;
 				if (!source || !destination_buffer || source_bridge.offset + tensor_plan.bytes > source_bridge.bytes ||
 					destination_view.offset + tensor_plan.bytes > destination_view.bytes)
 				{
@@ -1201,8 +1196,8 @@ namespace Darknet::Apple::TrainingDetail
 					reason = "gradient copy buffer range is invalid";
 					return false;
 				}
-				const MetalBuffer source_buffer{source_bridge.buffer_handle, source_bridge.bytes};
-				const MetalBuffer wrapped_destination{destination_view.buffer_handle, destination_view.bytes};
+				const MetalBuffer source_buffer{(__bridge void *)source_bridge.buffer_handle, source_bridge.bytes};
+				const MetalBuffer wrapped_destination{(__bridge void *)destination_view.buffer_handle, destination_view.bytes};
 				const MetalDispatchBuffer buffers[] = {
 					{&source_buffer, source_bridge.offset},
 					{&wrapped_destination, destination_view.offset},
@@ -1400,14 +1395,14 @@ namespace Darknet::Apple::TrainingDetail
 			return true;
 		}
 
-		void invalidate_training_graph_engine(Network * net)
+		void invalidate_training_graph_engine(Network & net)
 		{
 			// See configure_training_graph_engine(): never wait for Metal callbacks
 			// while holding the session mutex they use for error publication.
-			wait_for_training_update_command_buffer(nullptr);
+			wait_for_training_update_command_buffer();
 			auto & session = training_session();
 			std::scoped_lock lock(session.mutex);
-			if (!net || session.network == net)
+			if (session.network == &net)
 			{
 				session.release_owned_resources();
 			}

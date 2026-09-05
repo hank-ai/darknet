@@ -646,17 +646,13 @@ namespace Darknet::Apple::TrainingDetail
 		return true;
 	}
 
-	void invalidate_training_buffers(Network * net)
+	void invalidate_training_buffers(Network & net)
 	{
-		if (!net)
-		{
-			return;
-		}
 
 		// Optimizer submissions are asynchronous and retain no-copy views into
 		// Darknet arrays. They must finish before any cache or network storage is
 		// released. The legacy MPS wait does not cover this command buffer.
-		wait_for_training_update_command_buffer(nullptr);
+		wait_for_training_update_command_buffer();
 		const std::string asynchronous_error = take_training_execution_error();
 		if (!asynchronous_error.empty())
 		{
@@ -689,7 +685,7 @@ namespace Darknet::Apple::TrainingDetail
 			return false;
 		}
 
-		view = {(__bridge void *)shared_view.buffer, shared_view.offset, shared_view.bytes};
+		view = {shared_view.buffer, shared_view.offset, shared_view.bytes};
 		return true;
 	}
 
@@ -730,7 +726,7 @@ namespace Darknet::Apple::TrainingDetail
 		bool make_training_graph_tensor_data_handle(const MPSGraphBufferBridge & bridge, void *& tensor_data_handle, std::string & reason)
 		{
 
-		id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)bridge.buffer_handle;
+		id<MTLBuffer> buffer = bridge.buffer_handle;
 		if (!buffer)
 		{
 			reason = "buffer bridge Metal buffer handle is invalid";
@@ -868,9 +864,9 @@ namespace Darknet::Apple::TrainingDetail
 		return is_terminal_detector_head(net, layer_index);
 	}
 
-	void sync_training_layers_to_host(Network & net, double *wait_ms, bool sync_rolling_stats, bool sync_parameters)
+	double sync_training_layers_to_host(Network & net, const bool sync_rolling_stats, const bool sync_parameters)
 	{
-		wait_for_training_update_command_buffer(wait_ms);
+		const double update_wait_ms = wait_for_training_update_command_buffer();
 		const std::string asynchronous_error = take_training_execution_error();
 		if (!asynchronous_error.empty())
 		{
@@ -889,10 +885,8 @@ namespace Darknet::Apple::TrainingDetail
 					l.train != 0);
 			}
 		}
-		if (wait_ms)
-		{
-			*wait_ms += std::chrono::duration<double, std::milli>(std::chrono::high_resolution_clock::now() - sync_start).count();
-		}
+		return update_wait_ms + std::chrono::duration<double, std::milli>(
+			std::chrono::high_resolution_clock::now() - sync_start).count();
 	}
 
 	void finalize_training_iteration(Network & net, double update_encode_ms, double update_wait_ms)
