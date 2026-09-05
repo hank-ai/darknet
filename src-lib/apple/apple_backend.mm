@@ -50,9 +50,9 @@ namespace Darknet::Apple
 				static_cast<size_t>(state.device.recommendedMaxWorkingSetSize);
 
 			if (not state.device.hasUnifiedMemory or
-				not [state.device supportsFamily:MTLGPUFamilyApple7])
+				not[state.device supportsFamily:MTLGPUFamilyApple7])
 			{
-				state.info.reason = "Apple GPU acceleration requires an Apple7-or-newer unified-memory GPU";
+				state.info.reason = "GPU acceleration requires a Mac with Apple silicon (M1 or newer)";
 				return;
 			}
 
@@ -75,14 +75,14 @@ namespace Darknet::Apple
 		return initialize_runtime();
 	}
 
-	void * runtime_metal_device_handle()
+	void *runtime_metal_device_handle()
 	{
 		auto & state = runtime_state();
 		(void)initialize_runtime();
 		return (__bridge void *)state.device;
 	}
 
-	void * runtime_metal_command_queue_handle()
+	void *runtime_metal_command_queue_handle()
 	{
 		auto & state = runtime_state();
 		(void)initialize_runtime();

@@ -72,16 +72,16 @@ namespace Darknet::Apple
 		std::string graph_reason;
 		if (not configure_training_graph_engine(net, graph_reason))
 		{
-			invalidate_training_buffers(net);
+			invalidate_training_buffers();
 			invalidate_training_graph_engine(net);
 			reason = graph_reason.empty() ? "Apple training graph is unavailable" : graph_reason;
 			return false;
 		}
 
 		std::string buffer_reason;
-		if (not prepare_training_buffers(net, buffer_reason))
+		if (not wait_for_training_runtime(buffer_reason))
 		{
-			invalidate_training_buffers(net);
+			invalidate_training_buffers();
 			invalidate_training_graph_engine(net);
 			reason = buffer_reason.empty() ? "Apple training graph runtime buffers are unavailable" : buffer_reason;
 			return false;
@@ -102,7 +102,7 @@ namespace Darknet::Apple
 			return;
 		}
 
-		invalidate_training_buffers(net);
+		invalidate_training_buffers();
 		invalidate_training_graph_engine(net);
 	}
 
@@ -125,7 +125,7 @@ namespace Darknet::Apple
 			return false;
 		}
 
-		const auto channel_count = [](const Layer &layer)
+		const auto channel_count = [](const Layer & layer)
 		{
 			if (layer.type == ELayerType::CONVOLUTIONAL) return layer.n;
 			if (layer.type == ELayerType::CONNECTED) return layer.outputs;
@@ -140,10 +140,15 @@ namespace Darknet::Apple
 		// cannot leave a partially refreshed validation network.
 		for (int i = 0; i < training.n; ++i)
 		{
-			const Layer &src = training.layers[i];
-			const Layer &dst = validation.layers[i];
+			const Layer & src = training.layers[i];
+			const Layer & dst = validation.layers[i];
 			const int channels = channel_count(src);
-			if (src.type != dst.type or src.nweights != dst.nweights or
+			const bool convolution_geometry_matches = src.type != ELayerType::CONVOLUTIONAL or
+				(src.c == dst.c and src.n == dst.n and src.groups == dst.groups and src.size == dst.size);
+			const bool connected_geometry_matches = src.type != ELayerType::CONNECTED or src.inputs == dst.inputs;
+			if (src.type != dst.type or src.nweights != dst.nweights or channels != channel_count(dst) or
+				src.batch_normalize != dst.batch_normalize or not convolution_geometry_matches or
+				not connected_geometry_matches or
 				not storage_is_dedicated(src.weights, dst.weights, src.nweights) or
 				not storage_is_dedicated(src.biases, dst.biases, channels) or
 				not storage_is_dedicated(src.scales, dst.scales, channels) or
@@ -166,8 +171,8 @@ namespace Darknet::Apple
 		};
 		for (int i = 0; i < training.n; ++i)
 		{
-			const Layer &src = training.layers[i];
-			Layer &dst = validation.layers[i];
+			const Layer & src = training.layers[i];
+			Layer & dst = validation.layers[i];
 			const int channels = channel_count(src);
 			copy(src.weights, dst.weights, src.nweights);
 			copy(src.biases, dst.biases, channels);
@@ -225,11 +230,11 @@ namespace Darknet::Apple
 			}
 			l.t = get_current_batch(net);
 			if (not training_update_gate_open(l.burnin_update,
-				net.burn_in,
-				l.train_only_bn != 0,
-				l.update != nullptr,
-				l.dont_update,
-				iteration_num))
+					net.burn_in,
+					l.train_only_bn != 0,
+					l.update != nullptr,
+					l.dont_update,
+					iteration_num))
 			{
 				continue;
 			}
@@ -257,14 +262,8 @@ namespace Darknet::Apple
 			// Apple-only queue ordering: GPU optimizer kernels and the next
 			// MPSGraph forward use the same training queue, so the next batch
 			// observes the updated weights without blocking the CPU here.
-			// The submission helper consumes this additional retain.
-			void *submission = (void *)CFBridgingRetain(commands.command_buffer);
-			if (not commit_training_command_buffer(submission, nullptr))
-			{
-				darknet_fatal_error(DARKNET_LOC,
-					"Apple GPU optimizer update submission failed after %d layer update(s)",
-					gpu_update_count);
-			}
+			id<MTLCommandBuffer> submission = commands.command_buffer;
+			commit_training_command_buffer(submission);
 			record_training_update_command_buffer(commands.command_buffer);
 		}
 

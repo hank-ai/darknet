@@ -5,48 +5,19 @@
 #include "darknet_cfg_and_state.hpp"
 #include "metal_backend.hpp"
 
-#include <algorithm>
-#include <cmath>
-#include <limits>
-#include <mutex>
-#include <sstream>
-#include <unordered_map>
 
 namespace Darknet::Apple::TrainingDetail
 {
 	namespace
 	{
-		bool is_optimizer_gpu_eligible(const Network & net, const Layer & layer)
+		bool is_optimizer_gpu_eligible(const Layer & layer)
 		{
-			(void)net;
 			return layer.type == ELayerType::CONVOLUTIONAL;
 		}
 
 		MetalBuffer wrap_training_buffer(const TrainingBufferView & view)
 		{
 			return {(__bridge void *)view.buffer_handle, view.offset + view.bytes};
-		}
-
-		bool dispatch_optimizer_kernel_1d_with_encoder(const std::string & kernel_name,
-			size_t threads,
-			const MetalDispatchBuffer *buffers,
-			size_t buffer_count,
-			const MetalDispatchBytes *bytes,
-			size_t bytes_count,
-			void *encoder_handle)
-		{
-			if (kernel_name.empty() or threads == 0 or not encoder_handle)
-			{
-				return false;
-			}
-
-			return metal_dispatch_1d_with_encoder(kernel_name,
-				threads,
-				std::min<size_t>(threads, 256),
-				nullptr, 0,
-				buffers, buffer_count,
-				bytes, bytes_count,
-				encoder_handle);
 		}
 
 		bool load_training_view(float *ptr,
@@ -89,7 +60,7 @@ namespace Darknet::Apple::TrainingDetail
 			float *updates,
 			const TrainingSgdStep & step,
 			const bool sanitize_weights,
-			void *encoder_handle)
+			id<MTLComputeCommandEncoder> encoder_handle, std::string & reason)
 		{
 			TrainingBufferView parameter_view;
 			TrainingBufferView update_view;
@@ -114,8 +85,8 @@ namespace Darknet::Apple::TrainingDetail
 					{&step.decay_term, sizeof(step.decay_term)},
 					{&total, sizeof(total)},
 				};
-				return dispatch_optimizer_kernel_1d_with_encoder(
-					"sgd_update_weights", total, buffers, 2, bytes, 4, encoder_handle);
+				return dispatch_training_kernel_1d_with_encoder(
+					"sgd_update_weights", total, buffers, 2, bytes, 4, encoder_handle, reason);
 			}
 
 			const MetalDispatchBytes bytes[] = {
@@ -123,8 +94,8 @@ namespace Darknet::Apple::TrainingDetail
 				{&step.momentum, sizeof(step.momentum)},
 				{&total, sizeof(total)},
 			};
-			return dispatch_optimizer_kernel_1d_with_encoder(
-				"sgd_update_parameter", total, buffers, 2, bytes, 3, encoder_handle);
+			return dispatch_training_kernel_1d_with_encoder(
+				"sgd_update_parameter", total, buffers, 2, bytes, 3, encoder_handle, reason);
 		}
 
 		bool optimizer_preflight_update_layer(const Layer & layer, std::string & reason)
@@ -174,15 +145,13 @@ namespace Darknet::Apple::TrainingDetail
 
 	}
 
-	std::string training_optimizer_summary(const Network & net)
+	std::string training_optimizer_summary()
 	{
-		(void)net;
 		return "gpu_sgd";
 	}
 
-	std::string training_precision_summary(const Network & net)
+	std::string training_precision_summary()
 	{
-		(void)net;
 		return "fp32";
 	}
 
@@ -195,7 +164,7 @@ namespace Darknet::Apple::TrainingDetail
 	{
 		reason = {};
 
-		if (not is_optimizer_gpu_eligible(net, layer))
+		if (not is_optimizer_gpu_eligible(layer))
 		{
 			reason = "layer_type_requires_cpu";
 			return false;
@@ -227,16 +196,16 @@ namespace Darknet::Apple::TrainingDetail
 			reason = "no_compute_encoder";
 			return false;
 		}
-		void *optimizer_encoder = (__bridge void *)commands.encoder;
+		id<MTLComputeCommandEncoder> optimizer_encoder = commands.encoder;
 
 		bool updated_any = false;
 		if (layer.weights and layer.weight_updates and layer.nweights > 0)
 		{
 			const TrainingSgdStep step{layer.nweights, rate_over_batch, net.momentum, weight_decay_term};
 			if (not update_parameter_with_encoder(layer.weights, layer.weight_updates,
-				step,
-				true,
-				optimizer_encoder))
+					step,
+					true,
+					optimizer_encoder, reason))
 			{
 				reason = "weight_update_encode_failed";
 				return false;
@@ -249,9 +218,9 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			const TrainingSgdStep step{channel_count, rate_over_batch, net.momentum, 0.0f};
 			if (not update_parameter_with_encoder(layer.biases, layer.bias_updates,
-				step,
-				false,
-				optimizer_encoder))
+					step,
+					false,
+					optimizer_encoder, reason))
 			{
 				reason = "bias_update_encode_failed";
 				return false;
@@ -263,9 +232,9 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			const TrainingSgdStep step{channel_count, rate_over_batch, net.momentum, 0.0f};
 			if (not update_parameter_with_encoder(layer.scales, layer.scale_updates,
-				step,
-				false,
-				optimizer_encoder))
+					step,
+					false,
+					optimizer_encoder, reason))
 			{
 				reason = "scale_update_encode_failed";
 				return false;

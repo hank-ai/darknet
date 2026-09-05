@@ -12,75 +12,77 @@
 #include <string>
 #include <cstring>
 
-namespace
+namespace Darknet::Apple
 {
+	namespace
+	{
 	using Darknet::Apple::Detail::ObjcStrong;
 	using Darknet::Apple::Detail::objc_release_if_needed;
 
 	/// Non-owning references to the canonical device/queue shared across threads.
-	struct MetalContext
-	{
-		__unsafe_unretained id<MTLDevice> device = nil;
-		__unsafe_unretained id<MTLCommandQueue> queue = nil;
-		std::mutex mutex;
-	};
-
-	MetalContext & get_context()
-	{
-		static MetalContext ctx;
-		return ctx;
-	}
-
-	/// Thread-local command buffer state for batched dispatch.
-	struct MetalThreadContext
-	{
-		id<MTLCommandBuffer> command_buffer = nil;
-		bool owns_command_buffer = false;
-		std::string error;
-	};
-
-	thread_local MetalThreadContext thread_ctx;
-
-	/// Thread-safe cache of the Metal library and pipeline states.
-	struct MetalKernelCache
-	{
-		id<MTLLibrary> library = nil;
-		std::unordered_map<std::string, ObjcStrong> pipelines;
-		std::mutex mutex;
-		bool failed = false;
-		std::string error;
-	};
-
-	std::string ns_error_string(NSError *error)
-	{
-		if (not error)
+		struct MetalContext
 		{
-			return {};
-		}
-		NSString *description = error.localizedDescription;
-		const char *text = description.UTF8String;
-		return text ? text : "unknown Metal error";
-	}
+			__unsafe_unretained id<MTLDevice> device = nil;
+			__unsafe_unretained id<MTLCommandQueue> queue = nil;
+			std::mutex mutex;
+		};
 
-	bool command_buffer_succeeded(id<MTLCommandBuffer> command_buffer)
-	{
-		if (command_buffer and command_buffer.status == MTLCommandBufferStatusCompleted)
+		MetalContext & get_context()
 		{
-			return true;
+			static MetalContext ctx;
+			return ctx;
 		}
-		thread_ctx.error = command_buffer
-			? "Metal command buffer failed: " + ns_error_string(command_buffer.error)
-			: "Metal command buffer is unavailable";
-		return false;
-	}
 
-	MetalKernelCache & get_kernel_cache()
-	{
-		static MetalKernelCache cache;
-		return cache;
-	}
+		/// Thread-local command buffer state for batched dispatch.
+		struct MetalThreadContext
+		{
+			id<MTLCommandBuffer> command_buffer = nil;
+			bool owns_command_buffer = false;
+			std::string error;
+		};
 
-	static const char *kMetalKernelSource = R"METAL(
+		thread_local MetalThreadContext thread_ctx;
+
+		/// Thread-safe cache of the Metal library and pipeline states.
+		struct MetalKernelCache
+		{
+			id<MTLLibrary> library = nil;
+			std::unordered_map<std::string, ObjcStrong> pipelines;
+			std::mutex mutex;
+			bool failed = false;
+			std::string error;
+		};
+
+		std::string ns_error_string(NSError *error)
+		{
+			if (not error)
+			{
+				return {};
+			}
+			NSString *description = error.localizedDescription;
+			const char *text = description.UTF8String;
+			return text ? text : "unknown Metal error";
+		}
+
+		bool command_buffer_succeeded(id<MTLCommandBuffer> command_buffer)
+		{
+			if (command_buffer and command_buffer.status == MTLCommandBufferStatusCompleted)
+			{
+				return true;
+			}
+			thread_ctx.error = command_buffer
+				? "Metal command buffer failed: " + ns_error_string(command_buffer.error)
+				: "Metal command buffer is unavailable";
+			return false;
+		}
+
+		MetalKernelCache & get_kernel_cache()
+		{
+			static MetalKernelCache cache;
+			return cache;
+		}
+
+		static const char *kMetalKernelSource = R"METAL(
 #include <metal_stdlib>
 using namespace metal;
 
@@ -1376,27 +1378,6 @@ inline void apple_yolo_add_ciou_delta(float4 truth,
 	(void)scale;
 }
 
-inline void apple_yolo_apply_class_delta(device const float *output,
-	device float *delta,
-	constant apple_yolo_plain_params &p,
-	uint b,
-	uint n,
-	uint loc,
-	int class_id)
-{
-	const uint target_index = apple_yolo_entry_index(p, b, n, loc, 5u + uint(class_id));
-	if (delta[target_index] != 0.0f)
-	{
-		delta[target_index] = 1.0f - output[target_index];
-		return;
-	}
-	for (uint c = 0; c < p.classes; ++c)
-	{
-		const uint class_index = apple_yolo_entry_index(p, b, n, loc, 5u + c);
-		delta[class_index] = (int(c) == class_id ? 1.0f : 0.0f) - output[class_index];
-	}
-}
-
 kernel void yolo_plain_activate_base_delta(
 	device const float *input [[buffer(0)]],
 	device float *output [[buffer(1)]],
@@ -1796,615 +1777,606 @@ kernel void bn_rolling_update_kernel(device float *rolling_mean [[buffer(0)]],
 }
 )METAL";
 
-	bool ensure_library(id<MTLDevice> device, MetalKernelCache & cache)
-	{
-		if (cache.library or cache.failed)
+		bool ensure_library(id<MTLDevice> device, MetalKernelCache & cache)
 		{
-			return cache.library != nil;
+			if (cache.library or cache.failed)
+			{
+				return cache.library != nil;
+			}
+
+			MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
+			options.languageVersion = MTLLanguageVersion4_0;
+			options.mathMode = MTLMathModeRelaxed;
+			options.mathFloatingPointFunctions = MTLMathFloatingPointFunctionsPrecise;
+			NSError *error = nil;
+			cache.library = [device newLibraryWithSource:@(kMetalKernelSource) options:options error:&error];
+			objc_release_if_needed(options);
+			if (not cache.library)
+			{
+				cache.failed = true;
+				cache.error = "Metal library compilation failed: " + ns_error_string(error);
+				return false;
+			}
+			cache.library.label = @"Darknet runtime kernels";
+			cache.error.clear();
+			return true;
 		}
 
-		MTLCompileOptions *options = [[MTLCompileOptions alloc] init];
-		options.languageVersion = MTLLanguageVersion4_0;
-		options.mathMode = MTLMathModeRelaxed;
-		options.mathFloatingPointFunctions = MTLMathFloatingPointFunctionsPrecise;
-		NSError *error = nil;
-		cache.library = [device newLibraryWithSource:@(kMetalKernelSource) options:options error:&error];
-		objc_release_if_needed(options);
-		if (not cache.library)
+		id<MTLComputePipelineState> get_pipeline(const std::string & kernel_name, id<MTLDevice> device)
 		{
-			cache.failed = true;
-			cache.error = "Metal library compilation failed: " + ns_error_string(error);
+			if (kernel_name.empty() or not device)
+			{
+				return nil;
+			}
+
+			auto & cache = get_kernel_cache();
+			std::scoped_lock lock(cache.mutex);
+			auto it = cache.pipelines.find(kernel_name);
+			if (it != cache.pipelines.end())
+			{
+				return (id<MTLComputePipelineState>)it->second.get();
+			}
+			if (not ensure_library(device, cache))
+			{
+				return nil;
+			}
+			id<MTLFunction> fn = [cache.library newFunctionWithName:@(kernel_name.c_str())];
+			if (not fn)
+			{
+				cache.error = std::string("Metal function not found: ") + kernel_name;
+				return nil;
+			}
+			NSError *error = nil;
+			id<MTLComputePipelineState> pipeline = [device newComputePipelineStateWithFunction:fn error:&error];
+			if (not pipeline)
+			{
+				cache.error = std::string("Metal pipeline creation failed for ") + kernel_name + ": " + ns_error_string(error);
+				return nil;
+			}
+			cache.pipelines.emplace(kernel_name, ObjcStrong(pipeline));
+			cache.error.clear();
+			return pipeline;
+		}
+
+		// MPS uses a plain 2D texture for a single image with <= 4 channels.
+		// Every texture kernel in this library expects a 2D array. A one-slice
+		// view shares the original storage, including writes, without a copy.
+		id<MTLTexture> array_texture(const MetalDispatchTexture & binding)
+		{
+			id<MTLTexture> texture = (__bridge id<MTLTexture>)binding.handle;
+			if (texture.textureType == MTLTextureType2D)
+			{
+				texture = [texture newTextureViewWithPixelFormat:texture.pixelFormat
+					textureType:MTLTextureType2DArray
+					levels:NSMakeRange(0, texture.mipmapLevelCount)
+					slices:NSMakeRange(0, 1)];
+			}
+			if (not texture or texture.textureType != MTLTextureType2DArray)
+			{
+				thread_ctx.error = "Metal kernel requires a 2D or 2D-array texture";
+				return nil;
+			}
+			return texture;
+		}
+
+		/// Acquire a command buffer for a dispatch, auto-committing if created here.
+		bool begin_dispatch(__strong id<MTLCommandBuffer> & command_buffer, bool & auto_commit, void *external_buffer)
+		{
+			auto_commit = false;
+			thread_ctx.error.clear();
+			if (external_buffer)
+			{
+				command_buffer = (__bridge id<MTLCommandBuffer>)external_buffer;
+				return command_buffer != nil;
+			}
+			if (thread_ctx.command_buffer)
+			{
+				command_buffer = thread_ctx.command_buffer;
+				return true;
+			}
+			metal_begin_frame();
+			if (not thread_ctx.command_buffer)
+			{
+				return false;
+			}
+			command_buffer = thread_ctx.command_buffer;
+			auto_commit = true;
+			return true;
+		}
+
+		/// Commit and wait if this dispatch created the command buffer.
+		bool end_dispatch(id<MTLCommandBuffer> command_buffer, const bool auto_commit)
+		{
+			if (not auto_commit)
+			{
+				return true;
+			}
+			[command_buffer commit];
+			[command_buffer waitUntilCompleted];
+			const bool ok = command_buffer_succeeded(command_buffer);
+			thread_ctx.command_buffer = nil;
+			thread_ctx.owns_command_buffer = false;
+			return ok;
+		}
+	}
+
+bool metal_is_available()
+	{
+		auto & ctx = get_context();
+		std::scoped_lock lock(ctx.mutex);
+		if (ctx.device and ctx.queue)
+		{
+			return true;
+		}
+		ctx.device = (__bridge id<MTLDevice>)Darknet::Apple::runtime_metal_device_handle();
+		ctx.queue = (__bridge id<MTLCommandQueue>)Darknet::Apple::runtime_metal_command_queue_handle();
+		if (not ctx.device or not ctx.queue)
+		{
+			ctx.device = nil;
+			ctx.queue = nil;
 			return false;
 		}
-		cache.library.label = @"Darknet runtime kernels";
-		cache.error.clear();
 		return true;
 	}
 
-	id<MTLComputePipelineState> get_pipeline(const std::string & kernel_name, id<MTLDevice> device)
+	bool metal_kernel_available(const std::string & kernel_name)
 	{
-		if (kernel_name.empty() or not device)
+		if (kernel_name.empty() or not metal_is_available())
 		{
-			return nil;
+			return false;
 		}
+		auto & ctx = get_context();
+		@autoreleasepool
+		{
+			return get_pipeline(kernel_name, ctx.device) != nil;
+		}
+	}
 
+	std::string metal_last_error()
+	{
+		if (not thread_ctx.error.empty())
+		{
+			return thread_ctx.error;
+		}
 		auto & cache = get_kernel_cache();
 		std::scoped_lock lock(cache.mutex);
-	auto it = cache.pipelines.find(kernel_name);
-	if (it != cache.pipelines.end())
-	{
-		return (id<MTLComputePipelineState>)it->second.get();
+		return cache.error;
 	}
-		if (not ensure_library(device, cache))
-		{
-			return nil;
-		}
-		id<MTLFunction> fn = [cache.library newFunctionWithName:@(kernel_name.c_str())];
-		if (not fn)
-		{
-			cache.error = std::string("Metal function not found: ") + kernel_name;
-			return nil;
-		}
-	NSError *error = nil;
-	id<MTLComputePipelineState> pipeline = [device newComputePipelineStateWithFunction:fn error:&error];
-	if (not pipeline)
-	{
-		cache.error = std::string("Metal pipeline creation failed for ") + kernel_name + ": " + ns_error_string(error);
-		return nil;
-	}
-	cache.pipelines.emplace(kernel_name, ObjcStrong(pipeline));
-	cache.error.clear();
-	return pipeline;
-}
 
-	/// Acquire a command buffer for a dispatch, auto-committing if created here.
-	bool begin_dispatch(__strong id<MTLCommandBuffer> & command_buffer, bool & auto_commit, void *external_buffer)
+	bool metal_init()
 	{
-		auto_commit = false;
-		thread_ctx.error.clear();
-		if (external_buffer)
+		return metal_is_available();
+	}
+
+	/// Begin a thread-local command buffer to batch multiple dispatches.
+	void metal_begin_frame()
+	{
+		if (not metal_is_available())
 		{
-			command_buffer = (__bridge id<MTLCommandBuffer>)external_buffer;
-			return command_buffer != nil;
+			return;
 		}
 		if (thread_ctx.command_buffer)
 		{
-			command_buffer = thread_ctx.command_buffer;
-			return true;
+			return;
 		}
-		metal_begin_frame();
-		if (not thread_ctx.command_buffer)
+		auto & ctx = get_context();
+		std::scoped_lock lock(ctx.mutex);
+		thread_ctx.command_buffer = [ctx.queue commandBuffer];
+		thread_ctx.command_buffer.label = @"Darknet Metal frame";
+		thread_ctx.owns_command_buffer = true;
+	}
+
+	/// Commit and wait for the thread-local command buffer.
+	void metal_end_frame()
+	{
+		if (not thread_ctx.command_buffer or not thread_ctx.owns_command_buffer)
+		{
+			return;
+		}
+		[thread_ctx.command_buffer commit];
+		[thread_ctx.command_buffer waitUntilCompleted];
+		(void)command_buffer_succeeded(thread_ctx.command_buffer);
+		thread_ctx.command_buffer = nil;
+		thread_ctx.owns_command_buffer = false;
+	}
+
+	/// Commit and wait for outstanding thread-local work, if any.
+	void metal_flush()
+	{
+		if (not thread_ctx.command_buffer or not thread_ctx.owns_command_buffer)
+		{
+			return;
+		}
+		[thread_ctx.command_buffer commit];
+		[thread_ctx.command_buffer waitUntilCompleted];
+		(void)command_buffer_succeeded(thread_ctx.command_buffer);
+		thread_ctx.command_buffer = nil;
+		thread_ctx.owns_command_buffer = false;
+	}
+
+	bool metal_buffer_alloc(const size_t size, MetalBuffer *out)
+	{
+		if (not out or size == 0)
 		{
 			return false;
 		}
-		command_buffer = thread_ctx.command_buffer;
-		auto_commit = true;
-		return true;
-	}
-
-	/// Commit and wait if this dispatch created the command buffer.
-	bool end_dispatch(id<MTLCommandBuffer> command_buffer, bool auto_commit)
-	{
-		if (not auto_commit)
+		if (not metal_is_available())
 		{
-			return true;
+			return false;
 		}
-		[command_buffer commit];
-		[command_buffer waitUntilCompleted];
-		const bool ok = command_buffer_succeeded(command_buffer);
-		thread_ctx.command_buffer = nil;
-		thread_ctx.owns_command_buffer = false;
-		return ok;
-	}
-}
+		auto & ctx = get_context();
+		std::scoped_lock lock(ctx.mutex);
+		id<MTLBuffer> buffer = [ctx.device newBufferWithLength:size options:MTLResourceStorageModeShared];
+		if (not buffer)
+		{
+			return false;
+		}
+#if __has_feature(objc_arc)
+		out->handle = (__bridge_retained void *)buffer;
+#else
+		out->handle = buffer;
+	} // namespace Darknet::Apple
 
-bool metal_is_available()
-{
-	auto & ctx = get_context();
-	std::scoped_lock lock(ctx.mutex);
-	if (ctx.device and ctx.queue)
-	{
+#endif
+		out->size = size;
 		return true;
 	}
-	ctx.device = (__bridge id<MTLDevice>)Darknet::Apple::runtime_metal_device_handle();
-	ctx.queue = (__bridge id<MTLCommandQueue>)Darknet::Apple::runtime_metal_command_queue_handle();
-	if (not ctx.device or not ctx.queue)
-	{
-		ctx.device = nil;
-		ctx.queue = nil;
-		return false;
-	}
-	return true;
-}
 
-bool metal_kernel_available(const std::string & kernel_name)
-{
-	if (kernel_name.empty() or not metal_is_available())
+	void metal_buffer_free(MetalBuffer *buffer)
 	{
-		return false;
-	}
-	auto & ctx = get_context();
-	@autoreleasepool
-	{
-		return get_pipeline(kernel_name, ctx.device) != nil;
-	}
-}
-
-std::string metal_last_error()
-{
-	if (not thread_ctx.error.empty())
-	{
-		return thread_ctx.error;
-	}
-	auto &cache = get_kernel_cache();
-	std::scoped_lock lock(cache.mutex);
-	return cache.error;
-}
-
-bool metal_init()
-{
-	return metal_is_available();
-}
-
-/// Begin a thread-local command buffer to batch multiple dispatches.
-void metal_begin_frame()
-{
-	if (not metal_is_available())
-	{
-		return;
-	}
-	if (thread_ctx.command_buffer)
-	{
-		return;
-	}
-	auto & ctx = get_context();
-	std::scoped_lock lock(ctx.mutex);
-	thread_ctx.command_buffer = [ctx.queue commandBuffer];
-	thread_ctx.command_buffer.label = @"Darknet Metal frame";
-	thread_ctx.owns_command_buffer = true;
-}
-
-/// Commit and wait for the thread-local command buffer.
-void metal_end_frame()
-{
-	if (not thread_ctx.command_buffer or not thread_ctx.owns_command_buffer)
-	{
-		return;
-	}
-	[thread_ctx.command_buffer commit];
-	[thread_ctx.command_buffer waitUntilCompleted];
-	(void)command_buffer_succeeded(thread_ctx.command_buffer);
-	thread_ctx.command_buffer = nil;
-	thread_ctx.owns_command_buffer = false;
-}
-
-/// Commit and wait for outstanding thread-local work, if any.
-void metal_flush()
-{
-	if (not thread_ctx.command_buffer or not thread_ctx.owns_command_buffer)
-	{
-		return;
-	}
-	[thread_ctx.command_buffer commit];
-	[thread_ctx.command_buffer waitUntilCompleted];
-	(void)command_buffer_succeeded(thread_ctx.command_buffer);
-	thread_ctx.command_buffer = nil;
-	thread_ctx.owns_command_buffer = false;
-}
-
-bool metal_buffer_alloc(size_t size, MetalBuffer *out)
-{
-	if (not out or size == 0)
-	{
-		return false;
-	}
-	if (not metal_is_available())
-	{
-		return false;
-	}
-	auto & ctx = get_context();
-	std::scoped_lock lock(ctx.mutex);
-	id<MTLBuffer> buffer = [ctx.device newBufferWithLength:size options:MTLResourceStorageModeShared];
-	if (not buffer)
-	{
-		return false;
-	}
+		if (not buffer or not buffer->handle)
+		{
+			return;
+		}
 #if __has_feature(objc_arc)
-	out->handle = (__bridge_retained void *)buffer;
-#else
-	out->handle = buffer;
-#endif
-	out->size = size;
-	return true;
-}
-
-void metal_buffer_free(MetalBuffer *buffer)
-{
-	if (not buffer or not buffer->handle)
-	{
-		return;
-	}
-#if __has_feature(objc_arc)
-	__unused id<MTLBuffer> buf = (__bridge_transfer id<MTLBuffer>)buffer->handle;
+		__unused id<MTLBuffer> buf = (__bridge_transfer id<MTLBuffer>)buffer->handle;
 #else
 	id<MTLBuffer> buf = (id<MTLBuffer>)buffer->handle;
 	[buf release];
+} // namespace Darknet::Apple
+
 #endif
-	buffer->handle = nullptr;
-	buffer->size = 0;
-}
+		buffer->handle = nullptr;
+		buffer->size = 0;
+	}
 
-bool metal_buffer_upload(const MetalBuffer *buffer, size_t offset, const void *data, size_t length)
-{
-	if (not buffer or not buffer->handle or not data or length == 0)
+	bool metal_buffer_upload(const MetalBuffer *buffer, const size_t offset, const void *data, const size_t length)
 	{
-		return false;
-	}
-	if (offset + length > buffer->size)
-	{
-		return false;
-	}
-	id<MTLBuffer> buf = (__bridge id<MTLBuffer>)buffer->handle;
-	std::memcpy(static_cast<uint8_t *>([buf contents]) + offset, data, length);
-	return true;
-}
-
-bool metal_buffer_download(const MetalBuffer *buffer, size_t offset, void *data, size_t length)
-{
-	if (not buffer or not buffer->handle or not data or length == 0)
-	{
-		return false;
-	}
-	if (offset + length > buffer->size)
-	{
-		return false;
-	}
-	id<MTLBuffer> buf = (__bridge id<MTLBuffer>)buffer->handle;
-	std::memcpy(data, static_cast<uint8_t *>([buf contents]) + offset, length);
-	return true;
-}
-
-bool metal_buffer_fill(const MetalBuffer *buffer, size_t offset, uint8_t value, size_t length)
-{
-	if (not buffer or not buffer->handle or length == 0)
-	{
-		return false;
-	}
-	if (offset + length > buffer->size)
-	{
-		return false;
-	}
-	id<MTLBuffer> buf = (__bridge id<MTLBuffer>)buffer->handle;
-	std::memset(static_cast<uint8_t *>([buf contents]) + offset, value, length);
-	return true;
-}
-
-bool metal_dispatch_1d(const std::string & kernel_name,
-	size_t threads, size_t threads_per_group,
-	const MetalDispatchTexture *textures, size_t texture_count,
-	const MetalDispatchBuffer *buffers, size_t buffer_count,
-	const MetalDispatchBytes *bytes, size_t bytes_count,
-	void *command_buffer_handle)
-{
-	if (kernel_name.empty() or threads == 0 or threads_per_group == 0)
-	{
-		return false;
-	}
-	if (not metal_is_available())
-	{
-		return false;
-	}
-	auto & ctx = get_context();
-	id<MTLCommandBuffer> command_buffer = nil;
-	bool auto_commit = false;
-	if (not begin_dispatch(command_buffer, auto_commit, command_buffer_handle))
-	{
-		return false;
-	}
-	@autoreleasepool
-	{
-		id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
-		if (not pipeline)
-		{
-			end_dispatch(command_buffer, auto_commit);
-			return false;
-		}
-		const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
-		if (threads_per_group > max_threads)
-		{
-			end_dispatch(command_buffer, auto_commit);
-			return false;
-		}
-
-		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-		if (not encoder)
-		{
-			end_dispatch(command_buffer, auto_commit);
-			return false;
-		}
-		encoder.label = @(kernel_name.c_str());
-		[encoder setComputePipelineState:pipeline];
-
-		for (size_t i = 0; i < texture_count; ++i)
-		{
-			id<MTLTexture> texture = textures and textures[i].handle ? (__bridge id<MTLTexture>)textures[i].handle : nil;
-			if (texture)
-			{
-				[encoder setTexture:texture atIndex:i];
-			}
-		}
-
-		size_t buffer_index = 0;
-		for (size_t i = 0; i < buffer_count; ++i)
-		{
-			if (not buffers or not buffers[i].buffer or not buffers[i].buffer->handle)
-			{
-				continue;
-			}
-			id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)buffers[i].buffer->handle;
-			[encoder setBuffer:buffer offset:buffers[i].offset atIndex:buffer_index];
-			++buffer_index;
-		}
-
-		for (size_t i = 0; i < bytes_count; ++i)
-		{
-			if (not bytes or not bytes[i].bytes or bytes[i].length == 0)
-			{
-				continue;
-			}
-			[encoder setBytes:bytes[i].bytes length:bytes[i].length atIndex:buffer_index];
-			++buffer_index;
-		}
-
-		const MTLSize grid = MTLSizeMake(threads, 1, 1);
-		const MTLSize group = MTLSizeMake(threads_per_group, 1, 1);
-		[encoder dispatchThreads:grid threadsPerThreadgroup:group];
-		[encoder endEncoding];
-
-		return end_dispatch(command_buffer, auto_commit);
-	}
-}
-
-bool metal_dispatch_1d_with_encoder(const std::string & kernel_name,
-	size_t threads, size_t threads_per_group,
-	const MetalDispatchTexture *textures, size_t texture_count,
-	const MetalDispatchBuffer *buffers, size_t buffer_count,
-	const MetalDispatchBytes *bytes, size_t bytes_count,
-	void *encoder_handle)
-{
-	if (kernel_name.empty() or threads == 0 or threads_per_group == 0 or not encoder_handle)
-	{
-		return false;
-	}
-	if (not metal_is_available())
-	{
-		return false;
-	}
-	auto & ctx = get_context();
-	@autoreleasepool
-	{
-		id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
-		if (not pipeline)
+		if (not buffer or not buffer->handle or not data or length == 0)
 		{
 			return false;
 		}
-		const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
-		if (threads_per_group > max_threads)
+		if (offset + length > buffer->size)
 		{
 			return false;
 		}
-
-		id<MTLComputeCommandEncoder> encoder = (__bridge id<MTLComputeCommandEncoder>)encoder_handle;
-		if (not encoder)
-		{
-			return false;
-		}
-		encoder.label = @(kernel_name.c_str());
-		[encoder setComputePipelineState:pipeline];
-
-		for (size_t i = 0; i < texture_count; ++i)
-		{
-			id<MTLTexture> texture = textures and textures[i].handle ? (__bridge id<MTLTexture>)textures[i].handle : nil;
-			if (texture)
-			{
-				[encoder setTexture:texture atIndex:i];
-			}
-		}
-
-		size_t buffer_index = 0;
-		for (size_t i = 0; i < buffer_count; ++i)
-		{
-			if (not buffers or not buffers[i].buffer or not buffers[i].buffer->handle)
-			{
-				continue;
-			}
-			id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)buffers[i].buffer->handle;
-			[encoder setBuffer:buffer offset:buffers[i].offset atIndex:buffer_index];
-			++buffer_index;
-		}
-
-		for (size_t i = 0; i < bytes_count; ++i)
-		{
-			if (not bytes or not bytes[i].bytes or bytes[i].length == 0)
-			{
-				continue;
-			}
-			[encoder setBytes:bytes[i].bytes length:bytes[i].length atIndex:buffer_index];
-			++buffer_index;
-		}
-
-		const MTLSize grid = MTLSizeMake(threads, 1, 1);
-		const MTLSize group = MTLSizeMake(threads_per_group, 1, 1);
-		[encoder dispatchThreads:grid threadsPerThreadgroup:group];
+		id<MTLBuffer> buf = (__bridge id<MTLBuffer>)buffer->handle;
+		std::memcpy(static_cast<uint8_t *>([buf contents]) + offset, data, length);
 		return true;
 	}
-}
 
-void * metal_begin_compute_encoder(void *command_buffer_handle)
-{
-	if (not command_buffer_handle or not metal_is_available())
+	bool metal_buffer_download(const MetalBuffer *buffer, const size_t offset, void *data, const size_t length)
 	{
-		return nullptr;
-	}
-
-	@autoreleasepool
-	{
-		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
-		if (not command_buffer)
+		if (not buffer or not buffer->handle or not data or length == 0)
 		{
-			return nullptr;
-		}
-
-		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-		if (not encoder)
-		{
-			return nullptr;
-		}
-		CFRetain((__bridge CFTypeRef)encoder);
-		return (__bridge void *)encoder;
-	}
-}
-
-void metal_end_compute_encoder(void *encoder_handle)
-{
-	if (not encoder_handle)
-	{
-		return;
-	}
-
-	@autoreleasepool
-	{
-		id<MTLComputeCommandEncoder> encoder = (__bridge id<MTLComputeCommandEncoder>)encoder_handle;
-		if (encoder)
-		{
-			[encoder endEncoding];
-			CFRelease((__bridge CFTypeRef)encoder);
-		}
-	}
-}
-
-bool metal_dispatch_2d(const std::string & kernel_name,
-	size_t width, size_t height,
-	size_t threads_per_group_x, size_t threads_per_group_y,
-	const MetalDispatchTexture *textures, size_t texture_count,
-	const MetalDispatchBuffer *buffers, size_t buffer_count,
-	const MetalDispatchBytes *bytes, size_t bytes_count,
-	void *command_buffer_handle)
-{
-	if (kernel_name.empty() or width == 0 or height == 0)
-	{
-		return false;
-	}
-	if (not metal_is_available())
-	{
-		return false;
-	}
-	auto & ctx = get_context();
-	id<MTLCommandBuffer> command_buffer = nil;
-	bool auto_commit = false;
-	if (not begin_dispatch(command_buffer, auto_commit, command_buffer_handle))
-	{
-		return false;
-	}
-	@autoreleasepool
-	{
-		id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
-		if (not pipeline)
-		{
-			end_dispatch(command_buffer, auto_commit);
 			return false;
 		}
-		const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
-		const size_t group_threads = threads_per_group_x * threads_per_group_y;
-		if (threads_per_group_x == 0 or threads_per_group_y == 0 or group_threads > max_threads)
+		if (offset + length > buffer->size)
 		{
-			end_dispatch(command_buffer, auto_commit);
 			return false;
 		}
+		id<MTLBuffer> buf = (__bridge id<MTLBuffer>)buffer->handle;
+		std::memcpy(data, static_cast<uint8_t *>([buf contents]) + offset, length);
+		return true;
+	}
 
-		id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
-		if (not encoder)
+	bool metal_buffer_fill(const MetalBuffer *buffer, const size_t offset, uint8_t value, const size_t length)
+	{
+		if (not buffer or not buffer->handle or length == 0)
 		{
-			end_dispatch(command_buffer, auto_commit);
 			return false;
 		}
-		encoder.label = @(kernel_name.c_str());
-		[encoder setComputePipelineState:pipeline];
-
-		NSUInteger depth = 1;
-		for (size_t i = 0; i < texture_count; ++i)
+		if (offset + length > buffer->size)
 		{
-			id<MTLTexture> texture = textures and textures[i].handle ? (__bridge id<MTLTexture>)textures[i].handle : nil;
-			if (texture)
+			return false;
+		}
+		id<MTLBuffer> buf = (__bridge id<MTLBuffer>)buffer->handle;
+		std::memset(static_cast<uint8_t *>([buf contents]) + offset, value, length);
+		return true;
+	}
+
+	bool metal_dispatch_1d(const std::string & kernel_name,
+		const size_t threads, const size_t threads_per_group,
+		const MetalDispatchTexture *textures, const size_t texture_count,
+		const MetalDispatchBuffer *buffers, const size_t buffer_count,
+		const MetalDispatchBytes *bytes, const size_t bytes_count,
+		void *command_buffer_handle)
+	{
+		if (kernel_name.empty() or threads == 0 or threads_per_group == 0)
+		{
+			return false;
+		}
+		if (not metal_is_available())
+		{
+			return false;
+		}
+		auto & ctx = get_context();
+		id<MTLCommandBuffer> command_buffer = nil;
+		bool auto_commit = false;
+		if (not begin_dispatch(command_buffer, auto_commit, command_buffer_handle))
+		{
+			return false;
+		}
+		@autoreleasepool
+		{
+			id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
+			if (not pipeline)
 			{
+				end_dispatch(command_buffer, auto_commit);
+				return false;
+			}
+			const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
+			if (threads_per_group > max_threads)
+			{
+				end_dispatch(command_buffer, auto_commit);
+				return false;
+			}
+
+			id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+			if (not encoder)
+			{
+				end_dispatch(command_buffer, auto_commit);
+				return false;
+			}
+			encoder.label = @(kernel_name.c_str());
+			[encoder setComputePipelineState:pipeline];
+
+			for (size_t i = 0; i < texture_count; ++i)
+			{
+				id<MTLTexture> texture = textures ? array_texture(textures[i]) : nil;
+				if (not texture)
+				{
+					[encoder endEncoding];
+					end_dispatch(command_buffer, auto_commit);
+					return false;
+				}
+				[encoder setTexture:texture atIndex:i];
+			}
+
+			size_t buffer_index = 0;
+			for (size_t i = 0; i < buffer_count; ++i)
+			{
+				if (not buffers or not buffers[i].buffer or not buffers[i].buffer->handle)
+				{
+					continue;
+				}
+				id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)buffers[i].buffer->handle;
+				[encoder setBuffer:buffer offset:buffers[i].offset atIndex:buffer_index];
+				++buffer_index;
+			}
+
+			for (size_t i = 0; i < bytes_count; ++i)
+			{
+				if (not bytes or not bytes[i].bytes or bytes[i].length == 0)
+				{
+					continue;
+				}
+				[encoder setBytes:bytes[i].bytes length:bytes[i].length atIndex:buffer_index];
+				++buffer_index;
+			}
+
+			const MTLSize grid = MTLSizeMake(threads, 1, 1);
+			const MTLSize group = MTLSizeMake(threads_per_group, 1, 1);
+			[encoder dispatchThreads:grid threadsPerThreadgroup:group];
+			[encoder endEncoding];
+
+			return end_dispatch(command_buffer, auto_commit);
+		}
+	}
+
+	bool metal_dispatch_1d_with_encoder(const std::string & kernel_name,
+		const size_t threads, const size_t threads_per_group,
+		const MetalDispatchTexture *textures, const size_t texture_count,
+		const MetalDispatchBuffer *buffers, const size_t buffer_count,
+		const MetalDispatchBytes *bytes, const size_t bytes_count,
+		void *encoder_handle)
+	{
+		if (kernel_name.empty() or threads == 0 or threads_per_group == 0 or not encoder_handle)
+		{
+			return false;
+		}
+		if (not metal_is_available())
+		{
+			return false;
+		}
+		auto & ctx = get_context();
+		@autoreleasepool
+		{
+			id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
+			if (not pipeline)
+			{
+				return false;
+			}
+			const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
+			if (threads_per_group > max_threads)
+			{
+				return false;
+			}
+
+			id<MTLComputeCommandEncoder> encoder = (__bridge id<MTLComputeCommandEncoder>)encoder_handle;
+			if (not encoder)
+			{
+				return false;
+			}
+			encoder.label = @(kernel_name.c_str());
+			[encoder setComputePipelineState:pipeline];
+
+			for (size_t i = 0; i < texture_count; ++i)
+			{
+				id<MTLTexture> texture = textures ? array_texture(textures[i]) : nil;
+				if (not texture)
+				{
+					return false;
+				}
+				[encoder setTexture:texture atIndex:i];
+			}
+
+			size_t buffer_index = 0;
+			for (size_t i = 0; i < buffer_count; ++i)
+			{
+				if (not buffers or not buffers[i].buffer or not buffers[i].buffer->handle)
+				{
+					continue;
+				}
+				id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)buffers[i].buffer->handle;
+				[encoder setBuffer:buffer offset:buffers[i].offset atIndex:buffer_index];
+				++buffer_index;
+			}
+
+			for (size_t i = 0; i < bytes_count; ++i)
+			{
+				if (not bytes or not bytes[i].bytes or bytes[i].length == 0)
+				{
+					continue;
+				}
+				[encoder setBytes:bytes[i].bytes length:bytes[i].length atIndex:buffer_index];
+				++buffer_index;
+			}
+
+			const MTLSize grid = MTLSizeMake(threads, 1, 1);
+			const MTLSize group = MTLSizeMake(threads_per_group, 1, 1);
+			[encoder dispatchThreads:grid threadsPerThreadgroup:group];
+			return true;
+		}
+	}
+
+	bool metal_dispatch_2d(const std::string & kernel_name,
+		const size_t width, const size_t height,
+		const size_t threads_per_group_x, const size_t threads_per_group_y,
+		const MetalDispatchTexture *textures, const size_t texture_count,
+		const MetalDispatchBuffer *buffers, const size_t buffer_count,
+		const MetalDispatchBytes *bytes, const size_t bytes_count,
+		void *command_buffer_handle)
+	{
+		if (kernel_name.empty() or width == 0 or height == 0)
+		{
+			return false;
+		}
+		if (not metal_is_available())
+		{
+			return false;
+		}
+		auto & ctx = get_context();
+		id<MTLCommandBuffer> command_buffer = nil;
+		bool auto_commit = false;
+		if (not begin_dispatch(command_buffer, auto_commit, command_buffer_handle))
+		{
+			return false;
+		}
+		@autoreleasepool
+		{
+			id<MTLComputePipelineState> pipeline = get_pipeline(kernel_name, ctx.device);
+			if (not pipeline)
+			{
+				end_dispatch(command_buffer, auto_commit);
+				return false;
+			}
+			const NSUInteger max_threads = pipeline.maxTotalThreadsPerThreadgroup;
+			const size_t group_threads = threads_per_group_x * threads_per_group_y;
+			if (threads_per_group_x == 0 or threads_per_group_y == 0 or group_threads > max_threads)
+			{
+				end_dispatch(command_buffer, auto_commit);
+				return false;
+			}
+
+			id<MTLComputeCommandEncoder> encoder = [command_buffer computeCommandEncoder];
+			if (not encoder)
+			{
+				end_dispatch(command_buffer, auto_commit);
+				return false;
+			}
+			encoder.label = @(kernel_name.c_str());
+			[encoder setComputePipelineState:pipeline];
+
+			NSUInteger depth = 1;
+			for (size_t i = 0; i < texture_count; ++i)
+			{
+				id<MTLTexture> texture = textures ? array_texture(textures[i]) : nil;
+				if (not texture)
+				{
+					[encoder endEncoding];
+					end_dispatch(command_buffer, auto_commit);
+					return false;
+				}
 				[encoder setTexture:texture atIndex:i];
 				if (texture.arrayLength > depth)
 				{
 					depth = texture.arrayLength;
 				}
 			}
-		}
 
-		size_t buffer_index = 0;
-		for (size_t i = 0; i < buffer_count; ++i)
-		{
-			if (not buffers or not buffers[i].buffer or not buffers[i].buffer->handle)
+			size_t buffer_index = 0;
+			for (size_t i = 0; i < buffer_count; ++i)
 			{
-				continue;
+				if (not buffers or not buffers[i].buffer or not buffers[i].buffer->handle)
+				{
+					continue;
+				}
+				id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)buffers[i].buffer->handle;
+				[encoder setBuffer:buffer offset:buffers[i].offset atIndex:buffer_index];
+				++buffer_index;
 			}
-			id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)buffers[i].buffer->handle;
-			[encoder setBuffer:buffer offset:buffers[i].offset atIndex:buffer_index];
-			++buffer_index;
-		}
 
-		for (size_t i = 0; i < bytes_count; ++i)
-		{
-			if (not bytes or not bytes[i].bytes or bytes[i].length == 0)
+			for (size_t i = 0; i < bytes_count; ++i)
 			{
-				continue;
+				if (not bytes or not bytes[i].bytes or bytes[i].length == 0)
+				{
+					continue;
+				}
+				[encoder setBytes:bytes[i].bytes length:bytes[i].length atIndex:buffer_index];
+				++buffer_index;
 			}
-			[encoder setBytes:bytes[i].bytes length:bytes[i].length atIndex:buffer_index];
-			++buffer_index;
-		}
 
-		const MTLSize grid = MTLSizeMake(width, height, depth);
-		const MTLSize group = MTLSizeMake(threads_per_group_x, threads_per_group_y, 1);
-		[encoder dispatchThreads:grid threadsPerThreadgroup:group];
-		[encoder endEncoding];
+			const MTLSize grid = MTLSizeMake(width, height, depth);
+			const MTLSize group = MTLSizeMake(threads_per_group_x, threads_per_group_y, 1);
+			[encoder dispatchThreads:grid threadsPerThreadgroup:group];
+			[encoder endEncoding];
 
 			return end_dispatch(command_buffer, auto_commit);
 		}
 	}
 
-bool metal_dispatch_texture_kernel(const std::string & kernel_name,
-	void *grid_texture_handle,
-	size_t threads_per_group_x, size_t threads_per_group_y,
-	const MetalDispatchTexture *textures, size_t texture_count,
-	const MetalDispatchBuffer *buffers, size_t buffer_count,
-	const MetalDispatchBytes *bytes, size_t bytes_count,
-	void *command_buffer_handle)
-{
-	if (not grid_texture_handle)
+	bool metal_dispatch_texture_kernel(const std::string & kernel_name,
+		void *grid_texture_handle,
+		const size_t threads_per_group_x, const size_t threads_per_group_y,
+		const MetalDispatchTexture *textures, const size_t texture_count,
+		const MetalDispatchBuffer *buffers, const size_t buffer_count,
+		const MetalDispatchBytes *bytes, const size_t bytes_count,
+		void *command_buffer_handle)
 	{
-		return false;
+		if (not grid_texture_handle)
+		{
+			return false;
+		}
+		id<MTLTexture> grid_texture = (__bridge id<MTLTexture>)grid_texture_handle;
+		if (not grid_texture)
+		{
+			return false;
+		}
+		const size_t width = static_cast<size_t>(grid_texture.width);
+		const size_t height = static_cast<size_t>(grid_texture.height);
+		if (width == 0 or height == 0)
+		{
+			return false;
+		}
+		return metal_dispatch_2d(kernel_name, width, height,
+			threads_per_group_x, threads_per_group_y,
+			textures, texture_count,
+			buffers, buffer_count,
+			bytes, bytes_count,
+			command_buffer_handle);
 	}
-	id<MTLTexture> grid_texture = (__bridge id<MTLTexture>)grid_texture_handle;
-	if (not grid_texture)
-	{
-		return false;
-	}
-	const size_t width = static_cast<size_t>(grid_texture.width);
-	const size_t height = static_cast<size_t>(grid_texture.height);
-	if (width == 0 or height == 0)
-	{
-		return false;
-	}
-	return metal_dispatch_2d(kernel_name, width, height,
-		threads_per_group_x, threads_per_group_y,
-		textures, texture_count,
-		buffers, buffer_count,
-		bytes, bytes_count,
-		command_buffer_handle);
-}
+
+} // namespace Darknet::Apple
 
 #endif

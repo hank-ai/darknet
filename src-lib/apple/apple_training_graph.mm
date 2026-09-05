@@ -17,8 +17,8 @@
 
 namespace Darknet::Apple::TrainingDetail
 {
-		namespace
-		{
+	namespace
+	{
 		NSString *ns_string(const std::string & value)
 		{
 			return [NSString stringWithUTF8String:value.c_str()];
@@ -45,8 +45,7 @@ namespace Darknet::Apple::TrainingDetail
 		}
 
 		MPSGraphTensor *add_scalar_constant(MPSGraph *graph,
-			const double value,
-			const std::string &debug_name)
+			const double value)
 		{
 			return [graph constantWithScalar:value
 				dataType:MPSDataTypeFloat32];
@@ -79,11 +78,11 @@ namespace Darknet::Apple::TrainingDetail
 			NSData *data = [NSData dataWithBytes:values.data()
 				length:static_cast<NSUInteger>(values.size() * sizeof(int64_t))];
 			return [graph constantWithData:data
-				shape:shape_from_vector({ static_cast<int64_t>(values.size()) })
+				shape:shape_from_vector({static_cast<int64_t>(values.size())})
 				dataType:MPSDataTypeInt64];
 		}
 
-		NSArray<NSNumber *> * batchnorm_axes_nchw()
+		NSArray<NSNumber *> *batchnorm_axes_nchw()
 		{
 			return @[ @0, @2, @3 ];
 		}
@@ -114,7 +113,7 @@ namespace Darknet::Apple::TrainingDetail
 			return graph_data_type_for_tensor_data_type(tensor_plan.data_type);
 		}
 
-		MPSGraphTensor * cast_tensor_to_data_type(MPSGraph *graph,
+		MPSGraphTensor *cast_tensor_to_data_type(MPSGraph *graph,
 			MPSGraphTensor *tensor,
 			const MPSGraphTensorDataType data_type,
 			const std::string & debug_name)
@@ -129,7 +128,7 @@ namespace Darknet::Apple::TrainingDetail
 				name:ns_string(debug_name)];
 		}
 
-		MPSGraphTensor * cast_tensor_to_tensor_plan(MPSGraph *graph,
+		MPSGraphTensor *cast_tensor_to_tensor_plan(MPSGraph *graph,
 			MPSGraphTensor *tensor,
 			const MPSGraphTensorPlan & tensor_plan,
 			const std::string & debug_name)
@@ -164,7 +163,6 @@ namespace Darknet::Apple::TrainingDetail
 			NSMutableArray<MPSGraphTensor *> *forward_targets = nil;
 			std::unordered_map<int, MPSGraphTensor *> output_by_layer;
 			std::unordered_map<std::string, MPSGraphTensor *> placeholder_by_key;
-			std::unordered_map<std::string, size_t> forward_feed_index_by_key;
 			std::unordered_set<std::string> forward_result_keys;
 			std::vector<MPSGraphTensor *> forward_feed_tensors;
 			std::vector<MPSGraphTensorPlan> forward_feed_plans;
@@ -185,18 +183,13 @@ namespace Darknet::Apple::TrainingDetail
 		};
 
 		bool order_tensor_plans_for_executable(NSArray<MPSGraphTensor *> *executable_tensors,
-			const std::vector<MPSGraphTensor *> &planned_tensors,
-			const std::vector<MPSGraphTensorPlan> &planned_plans,
+			const std::vector<MPSGraphTensor *> & planned_tensors,
+			const std::vector<MPSGraphTensorPlan> & planned_plans,
 			const std::string & label,
-			std::vector<MPSGraphTensorPlan> *ordered_plans,
+			std::vector<MPSGraphTensorPlan> & ordered_plans,
 			std::string & reason)
 		{
-			if (not ordered_plans)
-			{
-				reason = "missing destination for MPSGraph tensor-plan ordering";
-				return false;
-			}
-			ordered_plans->clear();
+			ordered_plans.clear();
 			if (planned_tensors.size() != planned_plans.size())
 			{
 				reason = std::string(label) + " tensor and plan counts differ before executable ordering";
@@ -213,7 +206,7 @@ namespace Darknet::Apple::TrainingDetail
 			}
 
 			std::vector<unsigned char> used(planned_tensors.size(), 0);
-			ordered_plans->reserve(planned_plans.size());
+			ordered_plans.reserve(planned_plans.size());
 			for (MPSGraphTensor *tensor in executable_tensors)
 			{
 				bool matched = false;
@@ -222,7 +215,7 @@ namespace Darknet::Apple::TrainingDetail
 					if (not used[idx] and planned_tensors[idx] == tensor)
 					{
 						used[idx] = 1;
-						ordered_plans->push_back(planned_plans[idx]);
+						ordered_plans.push_back(planned_plans[idx]);
 						matched = true;
 						break;
 					}
@@ -236,7 +229,7 @@ namespace Darknet::Apple::TrainingDetail
 			return true;
 		}
 
-		MPSGraphTensor * add_placeholder(ForwardBuildState & state,
+		MPSGraphTensor *add_placeholder(ForwardBuildState & state,
 			const std::string & key,
 			const std::vector<int64_t> & shape,
 			const std::string & debug_name,
@@ -259,14 +252,13 @@ namespace Darknet::Apple::TrainingDetail
 			state.placeholder_by_key.emplace(key, tensor);
 			if (tensor_plan)
 			{
-				state.forward_feed_index_by_key.emplace(key, state.forward_feed_plans.size());
 				state.forward_feed_tensors.push_back(tensor);
 				state.forward_feed_plans.push_back(*tensor_plan);
 			}
 			return tensor;
 		}
 
-		MPSGraphTensor * add_parameter_placeholder(ForwardBuildState & state,
+		MPSGraphTensor *add_parameter_placeholder(ForwardBuildState & state,
 			const MPSGraphNodePlan & node,
 			const std::string & suffix,
 			const MPSGraphTensorPlan & tensor_plan,
@@ -279,7 +271,7 @@ namespace Darknet::Apple::TrainingDetail
 				&tensor_plan);
 		}
 
-		MPSGraphTensor * add_backward_placeholder(BackwardBuildState & state,
+		MPSGraphTensor *add_backward_placeholder(BackwardBuildState & state,
 			const std::string & key,
 			const std::vector<int64_t> & shape,
 			const std::string & debug_name,
@@ -311,11 +303,11 @@ namespace Darknet::Apple::TrainingDetail
 			}
 			const std::string key =
 				std::to_string(static_cast<int>(tensor_plan.binding_kind)) + ":" +
-					std::to_string(tensor_plan.owner_layer_index) + ":" +
-					std::to_string(tensor_plan.source_layer_index) + ":" +
-					tensor_data_type_label(tensor_plan.data_type) + ":" +
-					shape_key(tensor_plan.shape_nchw) + ":" +
-					tensor_debug_label(tensor_plan);
+				std::to_string(tensor_plan.owner_layer_index) + ":" +
+				std::to_string(tensor_plan.source_layer_index) + ":" +
+				tensor_data_type_label(tensor_plan.data_type) + ":" +
+				shape_key(tensor_plan.shape_nchw) + ":" +
+				tensor_debug_label(tensor_plan);
 			if (not state.forward_result_keys.insert(key).second)
 			{
 				return;
@@ -368,7 +360,7 @@ namespace Darknet::Apple::TrainingDetail
 			return nullptr;
 		}
 
-		MPSGraphTensor * source_tensor_for_node(ForwardBuildState & state,
+		MPSGraphTensor *source_tensor_for_node(ForwardBuildState & state,
 			const Network & net,
 			const MPSGraphNodePlan & node,
 			std::string & reason)
@@ -537,8 +529,8 @@ namespace Darknet::Apple::TrainingDetail
 					reason = "batchnorm parameter tensor plan is unavailable for layer #" + std::to_string(node.darknet_layer_index);
 					return false;
 				}
-				MPSGraphTensor *gamma = add_parameter_placeholder(state, node, "bn_scale", *gamma_plan, { static_cast<int64_t>(layer.n) });
-				MPSGraphTensor *beta = add_parameter_placeholder(state, node, "bias", *beta_plan, { static_cast<int64_t>(layer.n) });
+				MPSGraphTensor *gamma = add_parameter_placeholder(state, node, "bn_scale", *gamma_plan, {static_cast<int64_t>(layer.n)});
+				MPSGraphTensor *beta = add_parameter_placeholder(state, node, "bias", *beta_plan, {static_cast<int64_t>(layer.n)});
 				MPSGraphTensor *gamma_4d = [state.graph reshapeTensor:gamma
 					withShape:shape_for_channel_parameter(layer.n)
 					name:ns_string(node_debug_label(node) + ":gamma_reshape")];
@@ -584,7 +576,7 @@ namespace Darknet::Apple::TrainingDetail
 					reason = "bias tensor plan is unavailable for layer #" + std::to_string(node.darknet_layer_index);
 					return false;
 				}
-				MPSGraphTensor *bias = add_parameter_placeholder(state, node, "bias", *bias_plan, { static_cast<int64_t>(layer.n) });
+				MPSGraphTensor *bias = add_parameter_placeholder(state, node, "bias", *bias_plan, {static_cast<int64_t>(layer.n)});
 				MPSGraphTensor *bias_4d = [state.graph reshapeTensor:bias
 					withShape:shape_for_channel_parameter(layer.n)
 					name:ns_string(node_debug_label(node) + ":bias_reshape")];
@@ -605,10 +597,10 @@ namespace Darknet::Apple::TrainingDetail
 					output = [state.graph sigmoidWithTensor:output
 						name:ns_string(node_debug_label(node) + ":logistic")];
 					activation_tape = output;
-						break;
-					case MPSGraphActivationKind::kLinear:
-					default:
-						break;
+					break;
+				case MPSGraphActivationKind::kLinear:
+				default:
+					break;
 			}
 
 			if (not append_forward_tape_targets(state, node, nil, output, batchnorm_input, batch_mean, batch_variance, batchnorm_output, activation_tape))
@@ -757,7 +749,7 @@ namespace Darknet::Apple::TrainingDetail
 
 			const Layer & layer = net.layers[node.darknet_layer_index];
 			MPSGraphTensor *size_tensor = add_int64_vector_constant(state.graph,
-				{ static_cast<int64_t>(layer.out_h), static_cast<int64_t>(layer.out_w) });
+				{static_cast<int64_t>(layer.out_h), static_cast<int64_t>(layer.out_w)});
 			MPSGraphTensor *output = [state.graph resizeNearestWithTensor:source
 				sizeTensor:size_tensor
 				nearestRoundingMode:MPSGraphResizeNearestRoundingModeFloor
@@ -884,13 +876,13 @@ namespace Darknet::Apple::TrainingDetail
 						state.forward_feed_tensors,
 						state.forward_feed_plans,
 						"forward feed",
-						&ordered_forward_feed_plans,
+						ordered_forward_feed_plans,
 						order_reason) or
 					not order_tensor_plans_for_executable(forward_executable.targetTensors,
 						state.forward_result_tensors,
 						state.forward_result_plans,
 						"forward target",
-						&ordered_forward_result_plans,
+						ordered_forward_result_plans,
 						order_reason))
 				{
 					result.reason = order_reason;
@@ -901,7 +893,7 @@ namespace Darknet::Apple::TrainingDetail
 				result.forward_executable = Detail::ObjcStrong(forward_executable);
 				result.forward_feed_plans = std::move(ordered_forward_feed_plans);
 				result.forward_result_plans = std::move(ordered_forward_result_plans);
-				result.reason = "forward executable compiled; backward executable lowering has not landed yet";
+				result.reason = "forward executable compiled; backward executable unavailable";
 				return result;
 			}
 		}
@@ -932,7 +924,7 @@ namespace Darknet::Apple::TrainingDetail
 				state.feed_shapes = [NSMutableDictionary dictionary];
 				state.backward_targets = [NSMutableArray array];
 				std::unordered_map<int, MPSGraphTensor *> output_grad_by_layer;
-				const auto bytes_for_float_shape = [](const std::vector<int64_t> &shape) -> size_t
+				const auto bytes_for_float_shape = [](const std::vector<int64_t> & shape) -> size_t
 				{
 					size_t elements = 1;
 					for (const auto dim : shape)
@@ -941,13 +933,13 @@ namespace Darknet::Apple::TrainingDetail
 					}
 					return elements * sizeof(float);
 				};
-				const auto reshape_to_channels = [&](MPSGraphTensor *tensor, const int channels, const std::string &name) -> MPSGraphTensor *
+				const auto reshape_to_channels = [&](MPSGraphTensor *tensor, const int channels, const std::string & name) -> MPSGraphTensor *
 				{
 					return [state.graph reshapeTensor:tensor
 						withShape:shape_for_channel_parameter(channels)
 						name:ns_string(name)];
 				};
-				const auto reduce_channels = [&](MPSGraphTensor *tensor, const int channels, const std::string &name) -> MPSGraphTensor *
+				const auto reduce_channels = [&](MPSGraphTensor *tensor, const int channels, const std::string & name) -> MPSGraphTensor *
 				{
 					MPSGraphTensor *reduced = [state.graph reductionSumWithTensor:tensor
 						axes:batchnorm_axes_nchw()
@@ -956,7 +948,7 @@ namespace Darknet::Apple::TrainingDetail
 						withShape:@[ @(channels) ]
 						name:ns_string(name)];
 				};
-				const auto append_backward_result = [&](MPSGraphTensor *tensor, const MPSGraphTensorPlan &plan_tensor)
+				const auto append_backward_result = [&](MPSGraphTensor *tensor, const MPSGraphTensorPlan & plan_tensor)
 				{
 					tensor = cast_tensor_to_tensor_plan(state.graph,
 						tensor,
@@ -967,8 +959,8 @@ namespace Darknet::Apple::TrainingDetail
 					state.backward_result_plans.push_back(plan_tensor);
 				};
 				const auto accumulate_output_grad = [&](const int layer_index,
-					MPSGraphTensor *gradient,
-					const std::string &name)
+														MPSGraphTensor *gradient,
+														const std::string & name)
 				{
 					if (not gradient or layer_index < 0)
 					{
@@ -985,10 +977,10 @@ namespace Darknet::Apple::TrainingDetail
 						name:ns_string(name)];
 				};
 				const auto append_or_accumulate_input_grad = [&](const int source_layer_index,
-					const int consumer_layer_index,
-					const std::vector<int64_t> &shape_nchw,
-					const size_t bytes,
-					MPSGraphTensor *input_grad)
+																 const int consumer_layer_index,
+																 const std::vector<int64_t> & shape_nchw,
+																 const size_t bytes,
+																 MPSGraphTensor *input_grad)
 				{
 					if (not input_grad)
 					{
@@ -1023,18 +1015,18 @@ namespace Darknet::Apple::TrainingDetail
 					input_grad_plan.materialize_to_darknet_buffer = true;
 					append_backward_result(input_grad, input_grad_plan);
 				};
-				const auto build_conv_backward = [&](const MPSGraphNodePlan &node,
-					MPSGraphTensor *incoming_delta,
-					const bool seed_from_yolo_boundary,
-					MPSGraphTensor **input_grad_out,
-					std::string & reason) -> bool
+				const auto build_conv_backward = [&](const MPSGraphNodePlan & node,
+													 MPSGraphTensor *incoming_delta,
+													 const bool seed_from_yolo_boundary,
+													 MPSGraphTensor *__strong & input_grad_out,
+													 std::string & reason) -> bool
 				{
 					const int layer_index = node.darknet_layer_index;
-					const Layer &layer = net.layers[layer_index];
-						if (node.op_kind != MPSGraphNodeKind::kConvBnAct or
-							(node.activation != MPSGraphActivationKind::kLinear and
-								node.activation != MPSGraphActivationKind::kLeaky and
-								node.activation != MPSGraphActivationKind::kLogistic))
+					const Layer & layer = net.layers[layer_index];
+					if (node.op_kind != MPSGraphNodeKind::kConvBnAct or
+						(node.activation != MPSGraphActivationKind::kLinear and
+							node.activation != MPSGraphActivationKind::kLeaky and
+							node.activation != MPSGraphActivationKind::kLogistic))
 					{
 						reason =
 							"conv backward expects supported conv activation at layer #" + std::to_string(layer_index) +
@@ -1098,9 +1090,9 @@ namespace Darknet::Apple::TrainingDetail
 						node_debug_label(node) + ":weights",
 						*weights_plan);
 					MPSGraphTensor *delta_after_activation = incoming_delta;
-						MPSGraphTensor *scale_grad = nil;
-						if (node.activation == MPSGraphActivationKind::kLeaky or
-							node.activation == MPSGraphActivationKind::kLogistic)
+					MPSGraphTensor *scale_grad = nil;
+					if (node.activation == MPSGraphActivationKind::kLeaky or
+						node.activation == MPSGraphActivationKind::kLogistic)
 					{
 						const MPSGraphTensorPlan *activation_tape_plan =
 							find_tensor_plan(node, MPSGraphTensorBindingKind::kLayerOutput);
@@ -1130,8 +1122,7 @@ namespace Darknet::Apple::TrainingDetail
 						{
 							MPSGraphTensor *alpha = add_scalar_constant(
 								state.graph,
-								darknet_leaky_alpha(),
-								node_debug_label(node) + ":alpha");
+								darknet_leaky_alpha());
 							delta_after_activation = [state.graph
 								leakyReLUGradientWithIncomingGradient:incoming_delta
 								sourceTensor:activation_tape
@@ -1143,7 +1134,7 @@ namespace Darknet::Apple::TrainingDetail
 							MPSGraphTensor *activation_grad = nil;
 							if (node.activation == MPSGraphActivationKind::kLogistic)
 							{
-								MPSGraphTensor *one = add_scalar_constant(state.graph, 1.0, node_debug_label(node) + ":logistic_one");
+								MPSGraphTensor *one = add_scalar_constant(state.graph, 1.0);
 								MPSGraphTensor *one_minus_sigmoid = [state.graph subtractionWithPrimaryTensor:one
 									secondaryTensor:activation_tape
 									name:ns_string(node_debug_label(node) + ":logistic_one_minus")];
@@ -1270,15 +1261,12 @@ namespace Darknet::Apple::TrainingDetail
 						name:ns_string(node_debug_label(node) + ":input_grad")];
 					append_backward_result(weight_grad, *weight_grad_plan);
 					append_backward_result(bias_grad, *bias_grad_plan);
-					if (input_grad_out)
-					{
-						*input_grad_out = input_grad;
-					}
+					input_grad_out = input_grad;
 					return true;
 				};
-				const auto build_maxpool_backward = [&](const MPSGraphNodePlan &node,
-					MPSGraphTensor *incoming_delta,
-					std::string & reason) -> bool
+				const auto build_maxpool_backward = [&](const MPSGraphNodePlan & node,
+														MPSGraphTensor *incoming_delta,
+														std::string & reason) -> bool
 				{
 					const int layer_index = node.darknet_layer_index;
 					if (not incoming_delta or node.op_kind != MPSGraphNodeKind::kMaxPool)
@@ -1341,9 +1329,9 @@ namespace Darknet::Apple::TrainingDetail
 						source_grad);
 					return true;
 				};
-				const auto build_upsample_backward = [&](const MPSGraphNodePlan &node,
-					MPSGraphTensor *incoming_delta,
-					std::string & reason) -> bool
+				const auto build_upsample_backward = [&](const MPSGraphNodePlan & node,
+														 MPSGraphTensor *incoming_delta,
+														 std::string & reason) -> bool
 				{
 					const int layer_index = node.darknet_layer_index;
 					if (not incoming_delta or node.op_kind != MPSGraphNodeKind::kUpsample)
@@ -1376,7 +1364,7 @@ namespace Darknet::Apple::TrainingDetail
 						withShape:shape_from_vector(expanded_shape)
 						name:ns_string(node_debug_label(node) + ":delta_blocks")];
 					MPSGraphTensor *source_grad = [state.graph reductionSumWithTensor:expanded_delta
-						axes:@[@3, @5]
+						axes:@[ @3, @5 ]
 						name:ns_string(node_debug_label(node) + ":input_grad_reduce")];
 					source_grad = [state.graph reshapeTensor:source_grad
 						withShape:shape_from_vector(source_shape)
@@ -1388,9 +1376,9 @@ namespace Darknet::Apple::TrainingDetail
 						source_grad);
 					return true;
 				};
-				const auto build_route_group_slice_backward = [&](const MPSGraphNodePlan &node,
-					MPSGraphTensor *incoming_delta,
-					std::string & reason) -> bool
+				const auto build_route_group_slice_backward = [&](const MPSGraphNodePlan & node,
+																  MPSGraphTensor *incoming_delta,
+																  std::string & reason) -> bool
 				{
 					const int layer_index = node.darknet_layer_index;
 					if (not incoming_delta or node.op_kind != MPSGraphNodeKind::kRouteGroupSlice or node.input_node_indices.empty())
@@ -1409,14 +1397,14 @@ namespace Darknet::Apple::TrainingDetail
 					if (leading_channels > 0)
 					{
 						[parts addObject:[state.graph constantWithScalar:0.0
-							shape:@[@(source_shape[0]), @(leading_channels), @(source_shape[2]), @(source_shape[3])]
+							shape:@[ @(source_shape[0]), @(leading_channels), @(source_shape[2]), @(source_shape[3]) ]
 							dataType:MPSDataTypeFloat32]];
 					}
 					[parts addObject:incoming_delta];
 					if (trailing_channels > 0)
 					{
 						[parts addObject:[state.graph constantWithScalar:0.0
-							shape:@[@(source_shape[0]), @(trailing_channels), @(source_shape[2]), @(source_shape[3])]
+							shape:@[ @(source_shape[0]), @(trailing_channels), @(source_shape[2]), @(source_shape[3]) ]
 							dataType:MPSDataTypeFloat32]];
 					}
 					MPSGraphTensor *source_grad = parts.count == 1 ? parts[0] :
@@ -1430,9 +1418,9 @@ namespace Darknet::Apple::TrainingDetail
 						source_grad);
 					return true;
 				};
-				const auto build_route_concat_backward = [&](const MPSGraphNodePlan &node,
-					MPSGraphTensor *incoming_delta,
-					std::string & reason) -> bool
+				const auto build_route_concat_backward = [&](const MPSGraphNodePlan & node,
+															 MPSGraphTensor *incoming_delta,
+															 std::string & reason) -> bool
 				{
 					const int layer_index = node.darknet_layer_index;
 					if (not incoming_delta or node.op_kind != MPSGraphNodeKind::kRouteConcat or node.input_node_indices.empty())
@@ -1454,7 +1442,7 @@ namespace Darknet::Apple::TrainingDetail
 							start:channel_offset
 							length:channel_count
 							name:ns_string(node_debug_label(node) + ":slice_grad_" + std::to_string(input_position) +
-								"_from_" + std::to_string(source_layer_index))];
+																			 "_from_" + std::to_string(source_layer_index))];
 						append_or_accumulate_input_grad(source_layer_index,
 							layer_index,
 							source_shape,
@@ -1466,7 +1454,7 @@ namespace Darknet::Apple::TrainingDetail
 				};
 				for (auto node_it = plan.nodes.rbegin(); node_it != plan.nodes.rend(); ++node_it)
 				{
-					const auto &node = *node_it;
+					const auto & node = *node_it;
 					MPSGraphTensor *incoming_delta = nil;
 					const auto grad_it = output_grad_by_layer.find(node.darknet_layer_index);
 					if (grad_it != output_grad_by_layer.end())
@@ -1487,7 +1475,7 @@ namespace Darknet::Apple::TrainingDetail
 						case MPSGraphNodeKind::kConvBnAct:
 						{
 							MPSGraphTensor *input_grad = nil;
-							if (not build_conv_backward(node, incoming_delta, seed_from_yolo_boundary, &input_grad, build_reason))
+							if (not build_conv_backward(node, incoming_delta, seed_from_yolo_boundary, input_grad, build_reason))
 							{
 								result.reason = build_reason;
 								return result;
@@ -1570,13 +1558,13 @@ namespace Darknet::Apple::TrainingDetail
 						state.backward_feed_tensors,
 						state.backward_feed_plans,
 						"backward feed",
-						&ordered_backward_feed_plans,
+						ordered_backward_feed_plans,
 						order_reason) or
 					not order_tensor_plans_for_executable(backward_executable.targetTensors,
 						state.backward_result_tensors,
 						state.backward_result_plans,
 						"backward target",
-						&ordered_backward_result_plans,
+						ordered_backward_result_plans,
 						order_reason))
 				{
 					result.reason = order_reason;
@@ -1590,13 +1578,13 @@ namespace Darknet::Apple::TrainingDetail
 				result.reason = "MPSGraph backward executable compiled for the supported YOLO graph segment";
 				return result;
 			}
-			}
 		}
+	}
 
 		MPSGraphExecutableBuildResult build_training_graph_executables(Network & net, const MPSGraphSegmentPlan & plan)
+	{
+		if (not plan.supported)
 		{
-			if (not plan.supported)
-			{
 			MPSGraphExecutableBuildResult result;
 			result.reason = plan.reason.empty() ? "MPSGraph plan is unsupported" : plan.reason;
 			return result;
@@ -1620,7 +1608,7 @@ namespace Darknet::Apple::TrainingDetail
 			result.reason = backward.reason.empty()
 				? "terminal-head backward executable lowering did not compile yet"
 				: backward.reason;
-			}
-			return result;
 		}
+		return result;
+	}
 }

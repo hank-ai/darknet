@@ -31,10 +31,10 @@ namespace Darknet::Apple::TrainingDetail
 		}
 	};
 
-	static MpsSharedBufferView training_shared_buffer_view(const void *ptr, size_t bytes, TrainingBufferAccess access);
+	static MpsSharedBufferView training_shared_buffer_view(const TrainingHostBuffer ptr, size_t bytes, TrainingBufferAccess access);
 	static bool sync_training_shared_buffer_to_host(const void *ptr, size_t bytes);
 
-	static MPSShape * shape_from_vector(const std::vector<int64_t> & shape)
+	static MPSShape *shape_from_vector(const std::vector<int64_t> & shape)
 	{
 		NSMutableArray<NSNumber *> *values = [NSMutableArray arrayWithCapacity:shape.size()];
 		for (const auto dim : shape)
@@ -56,18 +56,19 @@ namespace Darknet::Apple::TrainingDetail
 		ObjcStrong buffer;
 		size_t bytes = 0;
 		bool mirrored = false;
+		void *writable_host = nullptr;
 		SharedBufferCoherency coherency = SharedBufferCoherency::kCoherent;
 	};
 
-		MPSDataType data_type_for_bridge(const MPSGraphBufferBridge & bridge)
-		{
+	MPSDataType data_type_for_bridge(const MPSGraphBufferBridge & bridge)
+	{
 		switch (bridge.data_type)
 		{
 			case MPSGraphBridgeDataType::kInt32: return MPSDataTypeInt32;
 			case MPSGraphBridgeDataType::kFloat32:
-				default: return MPSDataTypeFloat32;
-			}
+			default: return MPSDataTypeFloat32;
 		}
+	}
 
 	std::unordered_map<const void *, SharedBufferEntry> & shared_buffer_cache()
 	{
@@ -91,7 +92,7 @@ namespace Darknet::Apple::TrainingDetail
 		return access != TrainingBufferAccess::kRead;
 	}
 
-	bool load_required_training_view(const void *ptr,
+	bool load_required_training_view(const TrainingHostBuffer ptr,
 		const size_t bytes,
 		const TrainingBufferAccess access,
 		const std::string & label,
@@ -117,7 +118,7 @@ namespace Darknet::Apple::TrainingDetail
 		const size_t buffer_count,
 		const MetalDispatchBytes *bytes,
 		const size_t bytes_count,
-		void *encoder_handle,
+		id<MTLComputeCommandEncoder> encoder_handle,
 		std::string & reason)
 	{
 		if (kernel_name.empty() or threads == 0 or not encoder_handle)
@@ -128,12 +129,12 @@ namespace Darknet::Apple::TrainingDetail
 		}
 
 		if (not metal_dispatch_1d_with_encoder(kernel_name,
-			threads,
-			std::min<size_t>(threads, 256),
-			nullptr, 0,
-			buffers, buffer_count,
-			bytes, bytes_count,
-			encoder_handle))
+				threads,
+				std::min<size_t>(threads, 256),
+				nullptr, 0,
+				buffers, buffer_count,
+				bytes, bytes_count,
+				(__bridge void *)encoder_handle))
 		{
 			reason = std::string("failed to dispatch ") +
 				(not kernel_name.empty() ? kernel_name : "Apple training kernel");
@@ -211,7 +212,11 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			return false;
 		}
-		std::memcpy(const_cast<void *>(ptr), contents, entry.bytes);
+		if (not entry.writable_host)
+		{
+			return false;
+		}
+		std::memcpy(entry.writable_host, contents, entry.bytes);
 		entry.coherency = SharedBufferCoherency::kCoherent;
 		return true;
 	}
@@ -393,8 +398,8 @@ namespace Darknet::Apple::TrainingDetail
 			<< " backward=" << (stats.backward_encode_ms + stats.backward_run_ms + stats.backward_bridge_ms) << "ms"
 			<< " update=" << stats.update_encode_ms + stats.update_wait_ms << "ms"
 			<< " submissions=" << stats.command_buffer_submissions
-			<< " precision=" << training_precision_summary(net)
-			<< " optimizer=" << training_optimizer_summary(net)
+			<< " precision=" << training_precision_summary()
+			<< " optimizer=" << training_optimizer_summary()
 			<< " imgs/sec=" << stats.images_per_second
 			<< std::endl;
 	}
@@ -468,11 +473,11 @@ namespace Darknet::Apple::TrainingDetail
 		mark_training_shared_buffer_gpu_dirty(layer.rolling_variance);
 	}
 
-	static MpsSharedBufferView training_shared_buffer_view(const void *ptr,
+	static MpsSharedBufferView training_shared_buffer_view(const TrainingHostBuffer ptr,
 		const size_t bytes,
 		const TrainingBufferAccess access)
 	{
-		if (not training_mps_ready() or not ptr or bytes == 0)
+		if (not training_mps_ready() or not ptr or bytes == 0 or (access_writes(access) and not ptr.writable_data))
 		{
 			return {};
 		}
@@ -480,14 +485,15 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			std::scoped_lock lock(shared_buffer_mutex());
 			auto & cache = shared_buffer_cache();
-			auto it = cache.find(ptr);
+			auto it = cache.find(ptr.data);
 			if (it != cache.end())
 			{
-				if (not prepare_shared_buffer_entry_for_access(it->second, ptr, bytes, access))
+				if (ptr.writable_data) it->second.writable_host = ptr.writable_data;
+				if (not prepare_shared_buffer_entry_for_access(it->second, ptr.data, bytes, access))
 				{
 					return {};
 				}
-				return lookup_shared_buffer_view_locked(ptr, bytes);
+				return lookup_shared_buffer_view_locked(ptr.data, bytes);
 			}
 		}
 
@@ -498,15 +504,16 @@ namespace Darknet::Apple::TrainingDetail
 		}
 
 		id<MTLBuffer> buffer = nil;
-		if (Detail::no_copy_buffer_eligible(ptr, bytes))
+		if (ptr.writable_data and Detail::no_copy_buffer_eligible(ptr.data, bytes))
 		{
-			buffer = [device newBufferWithBytesNoCopy:const_cast<void *>(ptr)
+			buffer = [device newBufferWithBytesNoCopy:ptr.writable_data
 				length:bytes
 				options:MTLResourceStorageModeShared
 				deallocator:nil];
 		}
 		SharedBufferEntry entry;
 		entry.bytes = bytes;
+		entry.writable_host = ptr.writable_data;
 		if (buffer)
 		{
 			entry.buffer = ObjcStrong(buffer);
@@ -523,7 +530,7 @@ namespace Darknet::Apple::TrainingDetail
 			{
 				return {};
 			}
-			std::memcpy(contents, ptr, bytes);
+			std::memcpy(contents, ptr.data, bytes);
 			entry.buffer = ObjcStrong(buffer);
 			entry.mirrored = true;
 
@@ -532,7 +539,7 @@ namespace Darknet::Apple::TrainingDetail
 			{
 				*cfg_and_state.output
 					<< "[Apple train] shared-buffer fallback"
-					<< " ptr=" << ptr
+					<< " ptr=" << ptr.data
 					<< " bytes=" << bytes
 					<< " mode=mirrored-shared"
 					<< std::endl;
@@ -543,13 +550,14 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			std::scoped_lock lock(shared_buffer_mutex());
 			auto & cache = shared_buffer_cache();
-			auto [it, inserted] = cache.emplace(ptr, std::move(entry));
+			auto [it, inserted] = cache.emplace(ptr.data, std::move(entry));
 			(void)inserted;
-			if (not prepare_shared_buffer_entry_for_access(it->second, ptr, bytes, access))
+			if (ptr.writable_data) it->second.writable_host = ptr.writable_data;
+			if (not prepare_shared_buffer_entry_for_access(it->second, ptr.data, bytes, access))
 			{
 				return {};
 			}
-			view = lookup_shared_buffer_view_locked(ptr, bytes);
+			view = lookup_shared_buffer_view_locked(ptr.data, bytes);
 		}
 
 		return view;
@@ -632,9 +640,8 @@ namespace Darknet::Apple::TrainingDetail
 		}
 	}
 
-	bool prepare_training_buffers(Network & net, std::string & reason)
+	bool wait_for_training_runtime(std::string & reason)
 	{
-		(void)net;
 		if (not training_mps_ready())
 		{
 			reason = "Apple MPS runtime is unavailable";
@@ -646,9 +653,8 @@ namespace Darknet::Apple::TrainingDetail
 		return true;
 	}
 
-	void invalidate_training_buffers(Network & net)
+	void invalidate_training_buffers()
 	{
-
 		// Optimizer submissions are asynchronous and retain no-copy views into
 		// Darknet arrays. They must finish before any cache or network storage is
 		// released. The legacy MPS wait does not cover this command buffer.
@@ -667,7 +673,7 @@ namespace Darknet::Apple::TrainingDetail
 		reset_training_buffer_state();
 	}
 
-	bool get_training_buffer_view(const void *ptr,
+	bool get_training_buffer_view(const TrainingHostBuffer ptr,
 		const size_t bytes,
 		const TrainingBufferAccess access,
 		TrainingBufferView & view)
@@ -707,7 +713,7 @@ namespace Darknet::Apple::TrainingDetail
 		return true;
 	}
 
-	bool make_training_graph_buffer_bridge(const void *ptr,
+	bool make_training_graph_buffer_bridge(const TrainingHostBuffer ptr,
 		const size_t bytes,
 		const std::vector<int64_t> & shape,
 		const TrainingBufferAccess access,
@@ -723,9 +729,8 @@ namespace Darknet::Apple::TrainingDetail
 		return make_training_graph_buffer_bridge(view, shape, bridge, reason);
 	}
 
-		bool make_training_graph_tensor_data_handle(const MPSGraphBufferBridge & bridge, void *& tensor_data_handle, std::string & reason)
-		{
-
+	bool make_training_graph_tensor_data(const MPSGraphBufferBridge & bridge, MPSGraphTensorData *__strong & tensor_data_handle, std::string & reason)
+	{
 		id<MTLBuffer> buffer = bridge.buffer_handle;
 		if (not buffer)
 		{
@@ -749,31 +754,21 @@ namespace Darknet::Apple::TrainingDetail
 				reason = "failed to create MPSGraphTensorData from Metal buffer";
 				return false;
 			}
-			CFRetain((__bridge CFTypeRef)tensor_data);
-			tensor_data_handle = (__bridge void *)tensor_data;
+			tensor_data_handle = tensor_data;
 		}
 
-			reason = "ok";
-			return true;
-		}
+		reason = "ok";
+		return true;
+	}
 
-	void release_training_graph_tensor_data_handle(void *tensor_data_handle)
-	{
-		if (not tensor_data_handle)
-			{
-				return;
-			}
-			CFRelease((CFTypeRef)tensor_data_handle);
-		}
-
-	bool ensure_training_command_buffer(void *& command_buffer_handle)
+	bool ensure_training_command_buffer(__strong id<MTLCommandBuffer> & command_buffer_handle)
 	{
 		if (not training_mps_ready())
 		{
 			return false;
 		}
 
-		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
+		id<MTLCommandBuffer> command_buffer = command_buffer_handle;
 		if (not command_buffer)
 		{
 			command_buffer = create_training_command_buffer_handle();
@@ -782,26 +777,18 @@ namespace Darknet::Apple::TrainingDetail
 				return false;
 			}
 			command_buffer.label = @"darknet.training.command_buffer";
-			// The caller stores this Objective-C object as a raw void*. Retain it
-			// until a commit helper releases the handle.
-			command_buffer_handle = (void *)CFBridgingRetain(command_buffer);
+			command_buffer_handle = command_buffer;
 			return true;
 		}
 		return true;
 	}
 
-	bool commit_training_command_buffer(void *& command_buffer_handle, uint64_t *commit_count)
+	void commit_training_command_buffer(__strong id<MTLCommandBuffer> & command_buffer_handle)
 	{
-
-		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
+		id<MTLCommandBuffer> command_buffer = command_buffer_handle;
 		if (not command_buffer)
 		{
-			return true;
-		}
-
-		if (commit_count)
-		{
-			++(*commit_count);
+			return;
 		}
 		++training_iteration_stats().command_buffer_submissions;
 		[command_buffer addCompletedHandler:^(id<MTLCommandBuffer> completed)
@@ -819,33 +806,19 @@ namespace Darknet::Apple::TrainingDetail
 			}
 		}];
 		[command_buffer commit];
-		CFRelease((CFTypeRef)command_buffer_handle);
-		command_buffer_handle = nullptr;
-		return true;
+		command_buffer_handle = nil;
 	}
 
-	bool commit_and_wait_training_command_buffer(void *& command_buffer_handle, double *wait_ms, uint64_t *commit_count)
+	bool commit_and_wait_training_command_buffer(__strong id<MTLCommandBuffer> & command_buffer_handle)
 	{
-
-		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
+		id<MTLCommandBuffer> command_buffer = command_buffer_handle;
 		if (not command_buffer)
 		{
 			return true;
 		}
-
-		const auto t1 = std::chrono::high_resolution_clock::now();
-		if (commit_count)
-		{
-			++(*commit_count);
-		}
 		++training_iteration_stats().command_buffer_submissions;
 		[command_buffer commit];
 		[command_buffer waitUntilCompleted];
-		const auto t2 = std::chrono::high_resolution_clock::now();
-		if (wait_ms)
-		{
-			*wait_ms += std::chrono::duration<double, std::milli>(t2 - t1).count();
-		}
 		const bool completed = command_buffer.status == MTLCommandBufferStatusCompleted;
 		if (not completed)
 		{
@@ -854,12 +827,11 @@ namespace Darknet::Apple::TrainingDetail
 			if (not detail.empty()) message += ": " + detail;
 			record_training_execution_error(message);
 		}
-		CFRelease((CFTypeRef)command_buffer_handle);
-		command_buffer_handle = nullptr;
+		command_buffer_handle = nil;
 		return completed;
 	}
 
-	bool training_is_terminal_detector_head(const Network & net, int layer_index)
+	bool training_is_terminal_detector_head(const Network & net, const int layer_index)
 	{
 		return is_terminal_detector_head(net, layer_index);
 	}
@@ -886,7 +858,7 @@ namespace Darknet::Apple::TrainingDetail
 			}
 		}
 		return update_wait_ms + std::chrono::duration<double, std::milli>(
-			std::chrono::high_resolution_clock::now() - sync_start).count();
+									std::chrono::high_resolution_clock::now() - sync_start).count();
 	}
 
 	void finalize_training_iteration(Network & net, double update_encode_ms, double update_wait_ms)

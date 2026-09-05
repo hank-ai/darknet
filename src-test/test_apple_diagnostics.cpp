@@ -63,17 +63,17 @@ TEST(AppleDiagnostics, LayerFailureDoesNotBorrowDiagnosticStorage)
 
 TEST(AppleDiagnostics, KernelNamesAcceptOwnedAndTemporaryStrings)
 {
-	if (not metal_is_available())
+	if (not Darknet::Apple::metal_is_available())
 	{
 		GTEST_SKIP() << "Apple GPU unavailable";
 	}
 	const std::string missing = "darknet_test_missing_kernel";
-	EXPECT_FALSE(metal_kernel_available(missing));
-	const std::string error = metal_last_error();
+	EXPECT_FALSE(Darknet::Apple::metal_kernel_available(missing));
+	const std::string error = Darknet::Apple::metal_last_error();
 	EXPECT_NE(error.find(missing), std::string::npos);
-	EXPECT_TRUE(metal_kernel_available(std::string("relu_kernel")));
-	EXPECT_TRUE(metal_last_error().empty());
+	EXPECT_TRUE(Darknet::Apple::metal_kernel_available(std::string("relu_kernel")));
+	EXPECT_TRUE(Darknet::Apple::metal_last_error().empty());
 	EXPECT_NE(error.find(missing), std::string::npos);
-	EXPECT_FALSE(metal_kernel_available(std::string{}));
+	EXPECT_FALSE(Darknet::Apple::metal_kernel_available(std::string{}));
 }
 #endif

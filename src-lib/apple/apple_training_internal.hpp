@@ -27,9 +27,14 @@
 
 #import <Foundation/Foundation.h>
 #import <Metal/Metal.h>
+@class MPSGraphTensorData;
+@class MPSGraphExecutable;
 
-struct MetalDispatchBuffer;
-struct MetalDispatchBytes;
+namespace Darknet::Apple
+{
+	struct MetalDispatchBuffer;
+	struct MetalDispatchBytes;
+}
 
 namespace Darknet
 {
@@ -42,7 +47,7 @@ namespace Darknet
 		// Implemented by apple_mps.mm and shared with the training buffer bridge.
 		bool training_mps_ready();
 		id<MTLDevice> training_mps_device();
-		void * training_mps_command_queue_handle();
+		id<MTLCommandQueue> training_mps_command_queue();
 		id<MTLCommandBuffer> create_training_command_buffer_handle();
 		void wait_for_training_command_buffer();
 
@@ -76,6 +81,21 @@ namespace Darknet
 				{
 					return buffer_handle != nullptr and bytes > 0;
 				}
+			};
+
+			/** Borrowed host storage. Const inputs can only be read by the GPU;
+			 * mutable inputs may also receive GPU results and mirrored readback.
+			 */
+			struct TrainingHostBuffer
+			{
+				TrainingHostBuffer() = default;
+				TrainingHostBuffer(std::nullptr_t) {}
+				TrainingHostBuffer(const void *ptr) : data(ptr) {}
+				TrainingHostBuffer(void *ptr) : data(ptr), writable_data(ptr) {}
+
+				explicit operator bool() const { return data != nullptr; }
+				const void *data = nullptr;
+				void *writable_data = nullptr;
 			};
 
 			enum class TrainingBufferAccess
@@ -137,7 +157,7 @@ namespace Darknet
 				}
 
 				bool available() const { return compiled and phase().executable.get(); }
-				void * executable_handle() const { return (__bridge void *)phase().executable.get(); }
+				MPSGraphExecutable *executable() const { return (MPSGraphExecutable *)phase().executable.get(); }
 				const std::vector<MPSGraphTensorPlan> & feed_plans() const { return phase().feed_plans; }
 				const std::vector<MPSGraphTensorPlan> & result_plans() const { return phase().result_plans; }
 				std::string reason() const
@@ -237,8 +257,8 @@ namespace Darknet
 				return stream.str();
 			}
 
-			std::string training_optimizer_summary(const Network & net);
-			std::string training_precision_summary(const Network & net);
+			std::string training_optimizer_summary();
+			std::string training_precision_summary();
 			/** Own the command buffer and encoder shared by one optimizer update. */
 			struct TrainingOptimizerCommands
 			{
@@ -261,20 +281,19 @@ namespace Darknet
 
 			AppleTrainingIterationStats & training_iteration_stats();
 			void begin_training_iteration(Network & net);
-			bool prepare_training_buffers(Network & net, std::string & reason);
-			void invalidate_training_buffers(Network & net);
+			bool wait_for_training_runtime(std::string & reason);
+			void invalidate_training_buffers();
 			void reset_training_buffer_state();
-			bool get_training_buffer_view(const void *ptr, size_t bytes, TrainingBufferAccess access, TrainingBufferView & view);
-			bool load_required_training_view(const void *ptr, size_t bytes, TrainingBufferAccess access,
+			bool get_training_buffer_view(TrainingHostBuffer ptr, size_t bytes, TrainingBufferAccess access, TrainingBufferView & view);
+			bool load_required_training_view(TrainingHostBuffer ptr, size_t bytes, TrainingBufferAccess access,
 				const std::string & label, TrainingBufferView & view, std::string & reason);
 			bool dispatch_training_kernel_1d_with_encoder(const std::string & kernel_name, size_t threads,
 				const MetalDispatchBuffer *buffers, size_t buffer_count,
 				const MetalDispatchBytes *bytes, size_t bytes_count,
-				void *encoder_handle, std::string & reason);
-			bool ensure_training_command_buffer(void *& command_buffer_handle);
-			bool commit_training_command_buffer(void *& command_buffer_handle, uint64_t *commit_count = nullptr);
-			bool commit_and_wait_training_command_buffer(void *& command_buffer_handle, double *wait_ms,
-				uint64_t *commit_count = nullptr);
+				id<MTLComputeCommandEncoder> encoder_handle, std::string & reason);
+			bool ensure_training_command_buffer(__strong id<MTLCommandBuffer> & command_buffer_handle);
+			void commit_training_command_buffer(__strong id<MTLCommandBuffer> & command_buffer_handle);
+			bool commit_and_wait_training_command_buffer(__strong id<MTLCommandBuffer> & command_buffer_handle);
 			void note_training_shared_buffer_updated_from_host(const void *ptr);
 			void note_training_shared_buffer_updated_from_gpu(const void *ptr);
 			void erase_training_shared_buffer_storage(const void *ptr);
@@ -292,37 +311,38 @@ namespace Darknet
 			void finalize_training_iteration(Network & net, double update_encode_ms, double update_wait_ms = 0.0);
 			bool make_training_graph_buffer_bridge(const TrainingBufferView & view,
 				const std::vector<int64_t> & shape, MPSGraphBufferBridge & bridge, std::string & reason);
-			bool make_training_graph_buffer_bridge(const void *ptr, size_t bytes,
+			bool make_training_graph_buffer_bridge(TrainingHostBuffer ptr, size_t bytes,
 				const std::vector<int64_t> & shape, TrainingBufferAccess access,
 				MPSGraphBufferBridge & bridge, std::string & reason);
-			bool make_training_graph_tensor_data_handle(const MPSGraphBufferBridge & bridge,
-				void *& tensor_data_handle, std::string & reason);
-			void release_training_graph_tensor_data_handle(void *tensor_data_handle);
+			bool make_training_graph_tensor_data(const MPSGraphBufferBridge & bridge,
+				MPSGraphTensorData * __strong & tensor_data_handle, std::string & reason);
+
 			std::string error_description(NSError *error);
-			void record_training_execution_error(const std::string &message);
+			void record_training_execution_error(const std::string & message);
 			std::string take_training_execution_error();
 			void record_training_update_command_buffer(id<MTLCommandBuffer> command_buffer);
 			double wait_for_training_update_command_buffer();
 
 			bool host_parameter_consumers_supported_by_current_contract(const Network & net, std::string & reason);
+			bool validate_gpu_yolo_truth_buffer(const Network & net, const float *truth, std::string & reason);
 			bool gpu_yolo_loss_supported_by_current_contract(const Network & net, std::string & reason);
-			void reset_gpu_yolo_loss_stats_buffer_cache(const Network * net = nullptr);
+			void reset_gpu_yolo_loss_stats_buffer_cache(const Network *net = nullptr);
 			float train_training_graph_datum(Network & net, const FloatBufferView & input, const FloatBufferView & truth);
 
 			bool configure_training_graph_engine(Network & net, std::string & reason);
 			bool training_graph_engine_enabled(const Network & net);
 			void invalidate_training_graph_engine(Network & net);
-			bool run_training_graph_forward_probe(Network & net, const NetworkState & state, std::string & reason,
-				void *& encoded_command_buffer_handle, const bool encode_to_command_buffer = true);
+			bool run_training_graph_forward(Network & net, const NetworkState & state, std::string & reason,
+				__strong id<MTLCommandBuffer> & encoded_command_buffer_handle, const bool encode_to_command_buffer = true);
 
-			inline bool run_training_graph_forward_probe(Network & net, const NetworkState & state, std::string & reason)
+			inline bool run_training_graph_forward(Network & net, const NetworkState & state, std::string & reason)
 			{
-				void *command_buffer = nullptr;
-				return run_training_graph_forward_probe(net, state, reason, command_buffer, false);
+				id<MTLCommandBuffer> command_buffer = nil;
+				return run_training_graph_forward(net, state, reason, command_buffer, false);
 			}
 			bool run_training_graph_terminal_backward(Network & net, const float *network_input, std::string & reason);
 			TrainingGraphInfo training_graph_info_snapshot(const Network & net);
-			MPSGraphExecutableBundle training_graph_executable_bundle(const Network * net, bool backward);
+			MPSGraphExecutableBundle training_graph_executable_bundle(const Network *net, bool backward);
 			bool training_graph_tensor_storage_bridge(const MPSGraphExecutableBundle & bundle,
 				const MPSGraphTensorPlan & tensor_plan,
 				MPSGraphBufferBridge & bridge, std::string & reason);
