@@ -15,10 +15,10 @@ namespace Darknet
 	namespace Apple
 	{
 		/// Return @p true if the Apple graph-training runtime can be used.
-		bool training_graph_runtime_available(std::string *reason = nullptr);
+		bool training_graph_runtime_available(std::string & reason);
 
 		/// Build and cache the Apple graph-training resources for @p net.
-		bool configure_training_graph(Network & net, std::string *reason);
+		bool configure_training_graph(Network & net, std::string & reason);
 
 		/// Return @p true if Apple graph training is currently enabled for @p net.
 		bool training_graph_enabled(const Network & net);
@@ -37,7 +37,7 @@ namespace Darknet
 		 * Pending training work is drained before parameters and batch-normalization
 		 * state are copied. The destination layer storage must not alias @p training.
 		 */
-		bool prepare_validation_network(Network & training, Network & validation, std::string *reason = nullptr);
+		bool prepare_validation_network(Network & training, Network & validation, std::string & reason);
 
 		/// Invalidate graph state and cached Apple training resources for a network.
 		void invalidate_training_graph(Network * net);

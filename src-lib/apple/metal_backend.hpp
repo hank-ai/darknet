@@ -73,13 +73,13 @@ bool metal_buffer_download(const MetalBuffer *buffer, size_t offset, void *data,
 bool metal_buffer_fill(const MetalBuffer *buffer, size_t offset, uint8_t value, size_t length);
 
 /// Return @p true if a Metal compute kernel can be compiled.
-bool metal_kernel_available(const char *kernel_name);
+bool metal_kernel_available(const std::string & kernel_name);
 
 /// Return the most recent Metal compilation, pipeline, or submission error.
 std::string metal_last_error();
 
 /// Dispatch a 1D compute kernel.
-bool metal_dispatch_1d(const char *kernel_name,
+bool metal_dispatch_1d(const std::string & kernel_name,
 	size_t threads, size_t threads_per_group,
 	const MetalDispatchTexture *textures, size_t texture_count,
 	const MetalDispatchBuffer *buffers, size_t buffer_count,
@@ -87,7 +87,7 @@ bool metal_dispatch_1d(const char *kernel_name,
 	void *command_buffer);
 
 /// Dispatch a 1D compute kernel using an existing compute encoder.
-bool metal_dispatch_1d_with_encoder(const char *kernel_name,
+bool metal_dispatch_1d_with_encoder(const std::string & kernel_name,
 	size_t threads, size_t threads_per_group,
 	const MetalDispatchTexture *textures, size_t texture_count,
 	const MetalDispatchBuffer *buffers, size_t buffer_count,
@@ -101,7 +101,7 @@ void * metal_begin_compute_encoder(void *command_buffer);
 void metal_end_compute_encoder(void *encoder_handle);
 
 /// Dispatch a 2D compute kernel.
-bool metal_dispatch_2d(const char *kernel_name,
+bool metal_dispatch_2d(const std::string & kernel_name,
 	size_t width, size_t height,
 	size_t threads_per_group_x, size_t threads_per_group_y,
 	const MetalDispatchTexture *textures, size_t texture_count,
@@ -110,7 +110,7 @@ bool metal_dispatch_2d(const char *kernel_name,
 	void *command_buffer);
 
 /// Dispatch a kernel using a texture as the grid shape source.
-bool metal_dispatch_texture_kernel(const char *kernel_name,
+bool metal_dispatch_texture_kernel(const std::string & kernel_name,
 	void *grid_texture_handle,
 	size_t threads_per_group_x, size_t threads_per_group_y,
 	const MetalDispatchTexture *textures, size_t texture_count,

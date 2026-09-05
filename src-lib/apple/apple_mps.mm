@@ -384,7 +384,7 @@ namespace
 		state.last_buffer = buffer;
 	}
 
-	bool wait_mps_command_buffer_if_needed(const char **reason = nullptr)
+	bool wait_mps_command_buffer_if_needed(std::string & reason)
 	{
 		auto & state = get_mps_command_buffer_state();
 		if (!state.last_buffer)
@@ -404,10 +404,7 @@ namespace
 				failure += ": ";
 				failure += description.UTF8String;
 			}
-			if (reason)
-			{
-				*reason = "MPS command buffer execution failed";
-			}
+			reason = "MPS command buffer execution failed";
 			sync_mirrored_shared_buffers();
 			objc_release_if_needed(buffer);
 			darknet_fatal_error(DARKNET_LOC, "%s", failure.c_str());
@@ -415,6 +412,12 @@ namespace
 		sync_mirrored_shared_buffers();
 		objc_release_if_needed(buffer);
 		return true;
+	}
+
+	bool wait_mps_command_buffer_if_needed()
+	{
+		std::string reason;
+		return wait_mps_command_buffer_if_needed(reason);
 	}
 
 	std::unordered_map<MpsMatrixOpKey, ObjcStrong, MpsMatrixOpKeyHash> & get_matrix_op_cache()
@@ -1207,15 +1210,15 @@ namespace
 		return (need_input ? (cache.input_image != nil) : true) && cache.output_image;
 	}
 
-	bool encode_mps_activation(id<MTLCommandBuffer> command_buffer, MPSImage *image, ACTIVATION activation, const char **reason)
+	bool encode_mps_activation(id<MTLCommandBuffer> command_buffer, MPSImage *image, ACTIVATION activation, std::string & reason)
 	{
 		if (!command_buffer || !image)
 		{
-			if (reason) *reason = "invalid activation inputs";
+			reason = "invalid activation inputs";
 			return false;
 		}
 
-		const char *kernel_name = nullptr;
+		std::string kernel_name;
 		uint32_t channels = 0;
 		uint32_t slices_per_image = 0;
 		uint32_t use_max_val = 0;
@@ -1271,20 +1274,20 @@ namespace
 				bytes_count = 3;
 				break;
 			default:
-				if (reason) *reason = "activation not supported";
+				reason = "activation not supported";
 				return false;
 		}
 
 		id<MTLTexture> texture = image.texture;
 		if (!texture)
 		{
-			if (reason) *reason = "missing activation texture";
+			reason = "missing activation texture";
 			return false;
 		}
 
 		if ((bytes_count > 0) && (channels == 0 || slices_per_image == 0))
 		{
-			if (reason) *reason = "activation not supported";
+			reason = "activation not supported";
 			return false;
 		}
 
@@ -1297,24 +1300,24 @@ namespace
 				bytes_count > 0 ? bytes : nullptr, bytes_count,
 				(__bridge void *)command_buffer))
 		{
-			if (reason) *reason = "failed to dispatch activation kernel";
+			reason = "failed to dispatch activation kernel";
 			return false;
 		}
 		return true;
 	}
 
 	bool encode_mps_upsample(id<MTLCommandBuffer> command_buffer, MPSImage *input_image, MPSImage *output_image,
-		int stride, float scale, const char **reason)
+		int stride, float scale, std::string & reason)
 	{
 		if (!command_buffer || !input_image || !output_image)
 		{
-			if (reason) *reason = "invalid upsample inputs";
+			reason = "invalid upsample inputs";
 			return false;
 		}
 
 		if (stride <= 0)
 		{
-			if (reason) *reason = "invalid stride";
+			reason = "invalid stride";
 			return false;
 		}
 
@@ -1322,7 +1325,7 @@ namespace
 		id<MTLTexture> out_tex = output_image.texture;
 		if (!in_tex || !out_tex)
 		{
-			if (reason) *reason = "missing upsample texture";
+			reason = "missing upsample texture";
 			return false;
 		}
 
@@ -1343,7 +1346,7 @@ namespace
 				bytes, 2,
 				(__bridge void *)command_buffer))
 		{
-			if (reason) *reason = "failed to dispatch upsample kernel";
+			reason = "failed to dispatch upsample kernel";
 			return false;
 		}
 
@@ -1351,11 +1354,11 @@ namespace
 	}
 
 	bool encode_metal_pool(id<MTLCommandBuffer> command_buffer, MPSImage *input_image, MPSImage *output_image,
-		const Darknet::Layer & l, bool avgpool, const char **reason)
+		const Darknet::Layer & l, bool avgpool, std::string & reason)
 	{
 		if (!command_buffer || !input_image || !output_image)
 		{
-			if (reason) *reason = "invalid pool inputs";
+			reason = "invalid pool inputs";
 			return false;
 		}
 
@@ -1363,7 +1366,7 @@ namespace
 		id<MTLTexture> out_tex = output_image.texture;
 		if (!in_tex || !out_tex)
 		{
-			if (reason) *reason = "missing pool texture";
+			reason = "missing pool texture";
 			return false;
 		}
 
@@ -1372,7 +1375,7 @@ namespace
 		const uint32_t stride_x = static_cast<uint32_t>(l.stride_x);
 		const uint32_t stride_y = static_cast<uint32_t>(l.stride_y);
 		const int32_t pad = static_cast<int32_t>(l.pad / 2);
-		const char *kernel_name = avgpool ? "avgpool_kernel" : "maxpool_kernel";
+		const std::string & kernel_name = avgpool ? "avgpool_kernel" : "maxpool_kernel";
 		MetalDispatchTexture textures[] = {
 			{ (__bridge void *)in_tex },
 			{ (__bridge void *)out_tex }
@@ -1392,7 +1395,7 @@ namespace
 				bytes, 5,
 				(__bridge void *)command_buffer))
 		{
-			if (reason) *reason = "failed to dispatch pool kernel";
+			reason = "failed to dispatch pool kernel";
 			return false;
 		}
 		return true;
@@ -2174,27 +2177,21 @@ bool Darknet::Apple::mps_is_available()
 	return get_mps_context().ready;
 }
 
-bool Darknet::Apple::mps_runtime_available(const char **reason)
+bool Darknet::Apple::mps_runtime_available(std::string & reason)
 {
 	auto & ctx = get_mps_context();
-	if (reason)
-	{
-		*reason = (ctx.ready ? "ok" : ctx.init_reason.c_str());
-	}
+	reason = (ctx.ready ? "ok" : ctx.init_reason);
 	return ctx.ready;
 }
 
-bool Darknet::Apple::mps_training_device_count_supported(const int ngpus, std::string *reason)
+bool Darknet::Apple::mps_training_device_count_supported(const int ngpus, std::string & reason)
 {
 	if (ngpus == 1)
 	{
-		if (reason) *reason = "ok";
+		reason = "ok";
 		return true;
 	}
-	if (reason)
-	{
-		*reason = "Apple MPSGraph training supports exactly one GPU/device; received ngpus=" + std::to_string(ngpus);
-	}
+	reason = "Apple MPSGraph training supports exactly one GPU/device; received ngpus=" + std::to_string(ngpus);
 	return false;
 }
 
@@ -2500,7 +2497,7 @@ bool Darknet::Apple::mps_is_output_deferred(const Darknet::Layer *layer)
 
 namespace
 {
-	bool try_materialize_mps_output(const Darknet::Layer *layer, float *output, std::string *reason)
+	bool try_materialize_mps_output(const Darknet::Layer *layer, float *output, std::string & reason)
 	{
 		if (!layer)
 		{
@@ -2515,28 +2512,28 @@ namespace
 		}
 		if (!output)
 		{
-			if (reason) *reason = "host output buffer is null";
+			reason = "host output buffer is null";
 			return false;
 		}
 
 		auto & ctx = get_mps_context();
 		if (!ctx.ready)
 		{
-			if (reason) *reason = ctx.init_reason.empty() ? "MPS runtime is unavailable" : ctx.init_reason;
+			reason = ctx.init_reason.empty() ? "MPS runtime is unavailable" : ctx.init_reason;
 			return false;
 		}
 
-		const char *wait_reason = nullptr;
-		if (!wait_mps_command_buffer_if_needed(&wait_reason))
+		std::string wait_reason;
+		if (!wait_mps_command_buffer_if_needed(wait_reason))
 		{
-			if (reason) *reason = wait_reason ? wait_reason : "MPS command buffer execution failed";
+			reason = not wait_reason.empty() ? wait_reason : "MPS command buffer execution failed";
 			return false;
 		}
 
 		MPSImage *output_image = get_cached_output_image(layer, layer->out_w, layer->out_h, layer->out_c, layer->batch);
 		if (!output_image)
 		{
-			if (reason) *reason = "deferred MPS output image is unavailable";
+			reason = "deferred MPS output image is unavailable";
 			return false;
 		}
 
@@ -2544,7 +2541,7 @@ namespace
 		{
 			if (!read_mps_output_image(output_image, layer->out_w, layer->out_h, layer->out_c, layer->batch, output))
 			{
-				if (reason) *reason = "failed to read deferred MPS output image";
+				reason = "failed to read deferred MPS output image";
 				return false;
 			}
 		}
@@ -2557,7 +2554,7 @@ namespace
 void Darknet::Apple::mps_materialize_output(const Darknet::Layer *layer, float *output)
 {
 	std::string reason;
-	if (!try_materialize_mps_output(layer, output ? output : (layer ? layer->output : nullptr), &reason))
+	if (!try_materialize_mps_output(layer, output ? output : (layer ? layer->output : nullptr), reason))
 	{
 		const int layer_index = layer ? layer->index : -1;
 		darknet_fatal_error(DARKNET_LOC, "cannot materialize Apple MPS output for layer #%d: %s",
@@ -2647,14 +2644,14 @@ void Darknet::Apple::mps_notify_layer_running_stats_updated_gpu(const Darknet::L
 }
 
 bool Darknet::Apple::mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-	const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason)
+	const float *input, float *output, bool defer_readback, bool *activation_applied, std::string & reason)
 {
 	auto & ctx = get_mps_context();
 	auto & deferred = get_mps_deferred_layers();
 	deferred.erase(&l);
 	if (!ctx.ready)
 	{
-		if (reason) *reason = "MPS not available";
+		reason = "MPS not available";
 		return false;
 	}
 
@@ -2665,7 +2662,7 @@ bool Darknet::Apple::mps_convolution_forward(const Darknet::Layer & l, const Dar
 
 	if (l.groups <= 0 || (l.c % l.groups) != 0 || (l.n % l.groups) != 0)
 	{
-		if (reason) *reason = "invalid groups";
+		reason = "invalid groups";
 		return false;
 	}
 
@@ -2673,19 +2670,19 @@ bool Darknet::Apple::mps_convolution_forward(const Darknet::Layer & l, const Dar
 	if (l.groups > 1 && !depthwise &&
 		(((l.c / l.groups) % 4) != 0 || ((l.n / l.groups) % 4) != 0))
 	{
-		if (reason) *reason = "grouped convolution channels must be multiples of four";
+		reason = "grouped convolution channels must be multiples of four";
 		return false;
 	}
 
 	if (l.pad < 0 || l.pad > (l.size / 2))
 	{
-		if (reason) *reason = "unsupported padding";
+		reason = "unsupported padding";
 		return false;
 	}
 
 	if (!input || !output)
 	{
-		if (reason) *reason = "null input/output";
+		reason = "null input/output";
 		return false;
 	}
 
@@ -2700,7 +2697,7 @@ bool Darknet::Apple::mps_convolution_forward(const Darknet::Layer & l, const Dar
 	{
 		if (!build_conv_cache(cache, l, ctx.device))
 		{
-			if (reason) *reason = "failed to build convolution";
+			reason = "failed to build convolution";
 			return false;
 		}
 	}
@@ -2720,7 +2717,7 @@ bool Darknet::Apple::mps_convolution_forward(const Darknet::Layer & l, const Dar
 
 		if (!ensure_conv_images(cache, l, ctx.device, need_input))
 		{
-			if (reason) *reason = "failed to allocate MPSImage";
+			reason = "failed to allocate MPSImage";
 			return false;
 		}
 
@@ -2759,20 +2756,20 @@ bool Darknet::Apple::mps_convolution_forward(const Darknet::Layer & l, const Dar
 		id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
 		if (!command_buffer)
 		{
-			if (reason) *reason = "failed to create command buffer";
+			reason = "failed to create command buffer";
 			return false;
 		}
 
 		[cache.conv encodeToCommandBuffer:command_buffer sourceImage:input_image destinationImage:output_image];
 		bool activation_done = false;
-		const char *status = "ok";
+		std::string status = "ok";
 		if (cache.activation_fused || l.activation == LINEAR)
 		{
 			activation_done = true;
 		}
 		else
 		{
-			if (encode_mps_activation(command_buffer, output_image, l.activation, nullptr))
+			if (encode_mps_activation(command_buffer, output_image, l.activation, status))
 			{
 				activation_done = true;
 			}
@@ -2793,7 +2790,7 @@ bool Darknet::Apple::mps_convolution_forward(const Darknet::Layer & l, const Dar
 			}
 			if (!read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
 			{
-				if (reason) *reason = "failed to read MPS output";
+				reason = "failed to read MPS output";
 				return false;
 			}
 		}
@@ -2807,39 +2804,39 @@ bool Darknet::Apple::mps_convolution_forward(const Darknet::Layer & l, const Dar
 			*activation_applied = activation_done;
 		}
 
-		if (reason) *reason = status;
+		reason = status;
 
 	}
 	return true;
 }
 
 bool Darknet::Apple::mps_maxpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-	const float *input, float *output, bool defer_readback, const char **reason)
+	const float *input, float *output, bool defer_readback, std::string & reason)
 {
 	auto & ctx = get_mps_context();
 	auto & deferred = get_mps_deferred_layers();
 	deferred.erase(&l);
 	if (!ctx.ready)
 	{
-		if (reason) *reason = "MPS not available";
+		reason = "MPS not available";
 		return false;
 	}
 
 	if (l.maxpool_depth || l.antialiasing)
 	{
-		if (reason) *reason = "unsupported maxpool mode";
+		reason = "unsupported maxpool mode";
 		return false;
 	}
 
 	if (l.pad < 0)
 	{
-		if (reason) *reason = "padding not supported";
+		reason = "padding not supported";
 		return false;
 	}
 
 	if (!input || !output)
 	{
-		if (reason) *reason = "null input/output";
+		reason = "null input/output";
 		return false;
 	}
 
@@ -2855,7 +2852,7 @@ bool Darknet::Apple::mps_maxpool_forward(const Darknet::Layer & l, const Darknet
 	{
 		if (!build_pool_cache(cache, l, ctx.device, false))
 		{
-			if (reason) *reason = "failed to build pooling";
+			reason = "failed to build pooling";
 			return false;
 		}
 	}
@@ -2875,7 +2872,7 @@ bool Darknet::Apple::mps_maxpool_forward(const Darknet::Layer & l, const Darknet
 
 		if (!ensure_pool_images(cache, l, ctx.device, need_input))
 		{
-			if (reason) *reason = "failed to allocate MPSImage";
+			reason = "failed to allocate MPSImage";
 			return false;
 		}
 
@@ -2914,7 +2911,7 @@ bool Darknet::Apple::mps_maxpool_forward(const Darknet::Layer & l, const Darknet
 		id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
 		if (!command_buffer)
 		{
-			if (reason) *reason = "failed to create command buffer";
+			reason = "failed to create command buffer";
 			return false;
 		}
 
@@ -2940,7 +2937,7 @@ bool Darknet::Apple::mps_maxpool_forward(const Darknet::Layer & l, const Darknet
 			}
 			if (!read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
 			{
-				if (reason) *reason = "failed to read MPS output";
+				reason = "failed to read MPS output";
 				return false;
 			}
 		}
@@ -2951,37 +2948,37 @@ bool Darknet::Apple::mps_maxpool_forward(const Darknet::Layer & l, const Darknet
 
 	}
 
-	if (reason) *reason = "ok";
+	reason = "ok";
 	return true;
 }
 
 bool Darknet::Apple::mps_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-	const float *input, float *output, bool defer_readback, const char **reason)
+	const float *input, float *output, bool defer_readback, std::string & reason)
 {
 	auto & ctx = get_mps_context();
 	auto & deferred = get_mps_deferred_layers();
 	deferred.erase(&l);
 	if (!ctx.ready)
 	{
-		if (reason) *reason = "MPS not available";
+		reason = "MPS not available";
 		return false;
 	}
 
 	if (l.antialiasing)
 	{
-		if (reason) *reason = "antialiasing not supported";
+		reason = "antialiasing not supported";
 		return false;
 	}
 
 	if (l.pad < 0)
 	{
-		if (reason) *reason = "padding not supported";
+		reason = "padding not supported";
 		return false;
 	}
 
 	if (!input || !output)
 	{
-		if (reason) *reason = "null input/output";
+		reason = "null input/output";
 		return false;
 	}
 
@@ -2997,7 +2994,7 @@ bool Darknet::Apple::mps_avgpool_forward(const Darknet::Layer & l, const Darknet
 	{
 		if (!build_pool_cache(cache, l, ctx.device, true))
 		{
-			if (reason) *reason = "failed to build pooling";
+			reason = "failed to build pooling";
 			return false;
 		}
 	}
@@ -3017,7 +3014,7 @@ bool Darknet::Apple::mps_avgpool_forward(const Darknet::Layer & l, const Darknet
 
 		if (!ensure_pool_images(cache, l, ctx.device, need_input))
 		{
-			if (reason) *reason = "failed to allocate MPSImage";
+			reason = "failed to allocate MPSImage";
 			return false;
 		}
 
@@ -3056,7 +3053,7 @@ bool Darknet::Apple::mps_avgpool_forward(const Darknet::Layer & l, const Darknet
 		id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
 		if (!command_buffer)
 		{
-			if (reason) *reason = "failed to create command buffer";
+			reason = "failed to create command buffer";
 			return false;
 		}
 
@@ -3082,7 +3079,7 @@ bool Darknet::Apple::mps_avgpool_forward(const Darknet::Layer & l, const Darknet
 			}
 			if (!read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
 			{
-				if (reason) *reason = "failed to read MPS output";
+				reason = "failed to read MPS output";
 				return false;
 			}
 		}
@@ -3093,43 +3090,43 @@ bool Darknet::Apple::mps_avgpool_forward(const Darknet::Layer & l, const Darknet
 
 	}
 
-	if (reason) *reason = "ok";
+	reason = "ok";
 	return true;
 }
 
 bool Darknet::Apple::mps_global_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-	const float *input, float *output, bool defer_readback, const char **reason)
+	const float *input, float *output, bool defer_readback, std::string & reason)
 {
 	auto & ctx = get_mps_context();
 	auto & deferred = get_mps_deferred_layers();
 	deferred.erase(&l);
 	if (!ctx.ready)
 	{
-		if (reason) *reason = "MPS not available";
+		reason = "MPS not available";
 		return false;
 	}
 
 	if (l.w <= 0 || l.h <= 0)
 	{
-		if (reason) *reason = "invalid avgpool size";
+		reason = "invalid avgpool size";
 		return false;
 	}
 
 	if (l.c <= 0 || l.batch <= 0)
 	{
-		if (reason) *reason = "invalid channel/batch";
+		reason = "invalid channel/batch";
 		return false;
 	}
 
 	if (l.out_w != 1 || l.out_h != 1)
 	{
-		if (reason) *reason = "not global avgpool";
+		reason = "not global avgpool";
 		return false;
 	}
 
 	if (!input || !output)
 	{
-		if (reason) *reason = "null input/output";
+		reason = "null input/output";
 		return false;
 	}
 
@@ -3144,7 +3141,7 @@ bool Darknet::Apple::mps_global_avgpool_forward(const Darknet::Layer & l, const 
 	{
 		if (!build_global_avgpool_cache(cache, l, ctx.device))
 		{
-			if (reason) *reason = "failed to build global avgpool";
+			reason = "failed to build global avgpool";
 			return false;
 		}
 	}
@@ -3164,7 +3161,7 @@ bool Darknet::Apple::mps_global_avgpool_forward(const Darknet::Layer & l, const 
 
 		if (!ensure_global_avgpool_images(cache, l, ctx.device, need_input))
 		{
-			if (reason) *reason = "failed to allocate global avgpool images";
+			reason = "failed to allocate global avgpool images";
 			return false;
 		}
 
@@ -3203,7 +3200,7 @@ bool Darknet::Apple::mps_global_avgpool_forward(const Darknet::Layer & l, const 
 		id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
 		if (!command_buffer)
 		{
-			if (reason) *reason = "failed to create command buffer";
+			reason = "failed to create command buffer";
 			return false;
 		}
 
@@ -3219,7 +3216,7 @@ bool Darknet::Apple::mps_global_avgpool_forward(const Darknet::Layer & l, const 
 			}
 			if (!read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
 			{
-				if (reason) *reason = "failed to read MPS output";
+				reason = "failed to read MPS output";
 				return false;
 			}
 		}
@@ -3229,31 +3226,31 @@ bool Darknet::Apple::mps_global_avgpool_forward(const Darknet::Layer & l, const 
 		}
 	}
 
-	if (reason) *reason = "ok";
+	reason = "ok";
 	return true;
 }
 
 bool Darknet::Apple::mps_reorg_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-	const float *input, float *output, bool defer_readback, const char **reason)
+	const float *input, float *output, bool defer_readback, std::string & reason)
 {
 	auto & ctx = get_mps_context();
 	auto & deferred = get_mps_deferred_layers();
 	deferred.erase(&l);
 	if (!ctx.ready)
 	{
-		if (reason) *reason = "MPS not available";
+		reason = "MPS not available";
 		return false;
 	}
 
 	if (l.stride <= 0)
 	{
-		if (reason) *reason = "invalid stride";
+		reason = "invalid stride";
 		return false;
 	}
 
 	if (!input || !output)
 	{
-		if (reason) *reason = "null input/output";
+		reason = "null input/output";
 		return false;
 	}
 
@@ -3280,7 +3277,7 @@ bool Darknet::Apple::mps_reorg_forward(const Darknet::Layer & l, const Darknet::
 
 		if (!ensure_reorg_images(cache, l, ctx.device, need_input))
 		{
-			if (reason) *reason = "failed to allocate reorg images";
+			reason = "failed to allocate reorg images";
 			return false;
 		}
 
@@ -3318,7 +3315,7 @@ bool Darknet::Apple::mps_reorg_forward(const Darknet::Layer & l, const Darknet::
 		id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
 		if (!command_buffer)
 		{
-			if (reason) *reason = "failed to create command buffer";
+			reason = "failed to create command buffer";
 			return false;
 		}
 
@@ -3326,7 +3323,7 @@ bool Darknet::Apple::mps_reorg_forward(const Darknet::Layer & l, const Darknet::
 		id<MTLTexture> out_tex = cache.output_image.texture;
 		if (!in_tex || !out_tex)
 		{
-			if (reason) *reason = "missing reorg texture";
+			reason = "missing reorg texture";
 			return false;
 		}
 
@@ -3342,7 +3339,7 @@ bool Darknet::Apple::mps_reorg_forward(const Darknet::Layer & l, const Darknet::
 			{ &out_channels_u, sizeof(out_channels_u) },
 			{ &stride_u, sizeof(stride_u) }
 		};
-		const char *kernel_name = l.reverse ? "reorg_reverse_kernel" : "reorg_forward_kernel";
+		const std::string & kernel_name = l.reverse ? "reorg_reverse_kernel" : "reorg_forward_kernel";
 		if (!metal_dispatch_texture_kernel(kernel_name,
 				(__bridge void *)out_tex,
 				8, 8,
@@ -3351,7 +3348,7 @@ bool Darknet::Apple::mps_reorg_forward(const Darknet::Layer & l, const Darknet::
 				bytes, 3,
 				(__bridge void *)command_buffer))
 		{
-			if (reason) *reason = "failed to dispatch reorg kernel";
+			reason = "failed to dispatch reorg kernel";
 			return false;
 		}
 
@@ -3366,7 +3363,7 @@ bool Darknet::Apple::mps_reorg_forward(const Darknet::Layer & l, const Darknet::
 			}
 			if (!read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
 			{
-				if (reason) *reason = "failed to read MPS output";
+				reason = "failed to read MPS output";
 				return false;
 			}
 		}
@@ -3376,31 +3373,31 @@ bool Darknet::Apple::mps_reorg_forward(const Darknet::Layer & l, const Darknet::
 		}
 	}
 
-	if (reason) *reason = "ok";
+	reason = "ok";
 	return true;
 }
 
 bool Darknet::Apple::mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-	const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason)
+	const float *input, float *output, bool defer_readback, bool *activation_applied, std::string & reason)
 {
 	auto & ctx = get_mps_context();
 	auto & deferred = get_mps_deferred_layers();
 	deferred.erase(&l);
 	if (!ctx.ready)
 	{
-		if (reason) *reason = "MPS not available";
+		reason = "MPS not available";
 		return false;
 	}
 
 	if (!input || !output)
 	{
-		if (reason) *reason = "null input/output";
+		reason = "null input/output";
 		return false;
 	}
 
 	if (l.inputs <= 0 || l.outputs <= 0 || l.batch <= 0)
 	{
-		if (reason) *reason = "invalid connected size";
+		reason = "invalid connected size";
 		return false;
 	}
 
@@ -3409,12 +3406,12 @@ bool Darknet::Apple::mps_connected_forward(const Darknet::Layer & l, const Darkn
 	const bool activation_supported = mps_activation_supported(l.activation);
 	if (!needs_batchnorm && !needs_activation)
 	{
-		if (reason) *reason = "no MPS work";
+		reason = "no MPS work";
 		return false;
 	}
 	if (!needs_batchnorm && needs_activation && !activation_supported)
 	{
-		if (reason) *reason = "activation not supported";
+		reason = "activation not supported";
 		return false;
 	}
 
@@ -3448,7 +3445,7 @@ bool Darknet::Apple::mps_connected_forward(const Darknet::Layer & l, const Darkn
 	{
 		if (!build_connected_cache(cache, l, ctx.device))
 		{
-			if (reason) *reason = "failed to build connected cache";
+			reason = "failed to build connected cache";
 			return false;
 		}
 	}
@@ -3457,7 +3454,7 @@ bool Darknet::Apple::mps_connected_forward(const Darknet::Layer & l, const Darkn
 	{
 		if (!ensure_connected_images(cache, l, ctx.device))
 		{
-			if (reason) *reason = "failed to allocate connected images";
+			reason = "failed to allocate connected images";
 			return false;
 		}
 
@@ -3488,7 +3485,7 @@ bool Darknet::Apple::mps_connected_forward(const Darknet::Layer & l, const Darkn
 		id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
 		if (!command_buffer)
 		{
-			if (reason) *reason = "failed to create command buffer";
+			reason = "failed to create command buffer";
 			return false;
 		}
 
@@ -3498,14 +3495,14 @@ bool Darknet::Apple::mps_connected_forward(const Darknet::Layer & l, const Darkn
 		}
 
 		bool activation_done = false;
-		const char *status = "ok";
+		std::string status = "ok";
 		if (cache.activation_fused || l.activation == LINEAR)
 		{
 			activation_done = true;
 		}
 		else
 		{
-			if (encode_mps_activation(command_buffer, output_image, l.activation, nullptr))
+			if (encode_mps_activation(command_buffer, output_image, l.activation, status))
 			{
 				activation_done = true;
 			}
@@ -3527,7 +3524,7 @@ bool Darknet::Apple::mps_connected_forward(const Darknet::Layer & l, const Darkn
 			}
 			if (!read_mps_output_image(output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
 			{
-				if (reason) *reason = "failed to read MPS output";
+				reason = "failed to read MPS output";
 				return false;
 			}
 		}
@@ -3541,31 +3538,31 @@ bool Darknet::Apple::mps_connected_forward(const Darknet::Layer & l, const Darkn
 			*activation_applied = activation_done;
 		}
 
-		if (reason) *reason = status;
+		reason = status;
 	}
 
 	return true;
 }
 
 bool Darknet::Apple::mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-	const float *input, float *output, const char **reason)
+	const float *input, float *output, std::string & reason)
 {
 	auto & ctx = get_mps_context();
 	if (!ctx.ready)
 	{
-		if (reason) *reason = "MPS not available";
+		reason = "MPS not available";
 		return false;
 	}
 
 	if (l.softmax_tree || l.spatial)
 	{
-		if (reason) *reason = "softmax mode not supported";
+		reason = "softmax mode not supported";
 		return false;
 	}
 
 	if (!input || !output)
 	{
-		if (reason) *reason = "null input/output";
+		reason = "null input/output";
 		return false;
 	}
 
@@ -3582,7 +3579,7 @@ bool Darknet::Apple::mps_softmax_forward(const Darknet::Layer & l, const Darknet
 	{
 		if (!cache.input_buffer.allocate(bytes) || !cache.output_buffer.allocate(bytes))
 		{
-			if (reason) *reason = "failed to allocate softmax buffers";
+			reason = "failed to allocate softmax buffers";
 			return false;
 		}
 		cache.bytes = bytes;
@@ -3596,7 +3593,7 @@ bool Darknet::Apple::mps_softmax_forward(const Darknet::Layer & l, const Darknet
 	}
 	if (!input_ptr)
 	{
-		if (reason) *reason = "softmax input map failed";
+		reason = "softmax input map failed";
 		return false;
 	}
 
@@ -3612,7 +3609,7 @@ bool Darknet::Apple::mps_softmax_forward(const Darknet::Layer & l, const Darknet
 			}
 			if (!read_mps_output_image(image, prev->out_w, prev->out_h, prev->out_c, prev->batch, input_ptr))
 			{
-				if (reason) *reason = "failed to read MPS softmax input";
+				reason = "failed to read MPS softmax input";
 				return false;
 			}
 			filled_from_mps = true;
@@ -3622,7 +3619,7 @@ bool Darknet::Apple::mps_softmax_forward(const Darknet::Layer & l, const Darknet
 	{
 		if (!cache.input_buffer.upload(0, input, bytes))
 		{
-			if (reason) *reason = "failed to upload softmax input";
+			reason = "failed to upload softmax input";
 			return false;
 		}
 	}
@@ -3637,7 +3634,7 @@ bool Darknet::Apple::mps_softmax_forward(const Darknet::Layer & l, const Darknet
 	const size_t threads = static_cast<size_t>(n) * batch * groups;
 	if (threads == 0)
 	{
-		if (reason) *reason = "softmax size invalid";
+		reason = "softmax size invalid";
 		return false;
 	}
 	const size_t threads_per_group = (threads < 256) ? threads : 256;
@@ -3662,29 +3659,29 @@ bool Darknet::Apple::mps_softmax_forward(const Darknet::Layer & l, const Darknet
 			bytes_args, 7,
 			nullptr))
 	{
-		if (reason) *reason = "failed to dispatch softmax";
+		reason = "failed to dispatch softmax";
 		return false;
 	}
 
 	if (!cache.output_buffer.download(0, output, bytes))
 	{
-		if (reason) *reason = "failed to download softmax output";
+		reason = "failed to download softmax output";
 		return false;
 	}
 
-	if (reason) *reason = "ok";
+	reason = "ok";
 	return true;
 }
 
 bool Darknet::Apple::mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *prev, const Darknet::Layer *from,
-	const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason)
+	const float *input, float *output, bool defer_readback, bool *activation_applied, std::string & reason)
 {
 	auto & ctx = get_mps_context();
 	auto & deferred = get_mps_deferred_layers();
 	deferred.erase(&l);
 	if (!ctx.ready)
 	{
-		if (reason) *reason = "MPS not available";
+		reason = "MPS not available";
 		return false;
 	}
 
@@ -3695,13 +3692,13 @@ bool Darknet::Apple::mps_shortcut_forward(const Darknet::Layer & l, const Darkne
 
 	if (!from || l.n != 1 || l.nweights != 0 || !l.input_sizes || l.input_sizes[0] != l.outputs)
 	{
-		if (reason) *reason = "unsupported shortcut";
+		reason = "unsupported shortcut";
 		return false;
 	}
 
 	if (!input || !output)
 	{
-		if (reason) *reason = "null input/output";
+		reason = "null input/output";
 		return false;
 	}
 
@@ -3713,7 +3710,7 @@ bool Darknet::Apple::mps_shortcut_forward(const Darknet::Layer & l, const Darkne
 	MPSImage *secondary_image = get_cached_output_image(from, l.w, l.h, l.c, l.batch);
 	if (!primary_image || !secondary_image)
 	{
-		if (reason) *reason = "missing MPS input";
+		reason = "missing MPS input";
 		return false;
 	}
 
@@ -3728,7 +3725,7 @@ bool Darknet::Apple::mps_shortcut_forward(const Darknet::Layer & l, const Darkne
 	{
 		if (!build_add_cache(cache, l, ctx.device))
 		{
-			if (reason) *reason = "failed to build add";
+			reason = "failed to build add";
 			return false;
 		}
 	}
@@ -3737,14 +3734,14 @@ bool Darknet::Apple::mps_shortcut_forward(const Darknet::Layer & l, const Darkne
 	{
 		if (!ensure_add_output_image(cache, l, ctx.device))
 		{
-			if (reason) *reason = "failed to allocate MPSImage";
+			reason = "failed to allocate MPSImage";
 			return false;
 		}
 
 		id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
 		if (!command_buffer)
 		{
-			if (reason) *reason = "failed to create command buffer";
+			reason = "failed to create command buffer";
 			return false;
 		}
 
@@ -3753,12 +3750,12 @@ bool Darknet::Apple::mps_shortcut_forward(const Darknet::Layer & l, const Darkne
 			secondaryImage:secondary_image
 			destinationImage:cache.output_image];
 		bool activation_done = false;
-		const char *status = "ok";
+		std::string status = "ok";
 		if (l.activation == LINEAR)
 		{
 			activation_done = true;
 		}
-		else if (encode_mps_activation(command_buffer, cache.output_image, l.activation, nullptr))
+		else if (encode_mps_activation(command_buffer, cache.output_image, l.activation, status))
 		{
 			activation_done = true;
 		}
@@ -3779,7 +3776,7 @@ bool Darknet::Apple::mps_shortcut_forward(const Darknet::Layer & l, const Darkne
 			}
 			if (!read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
 			{
-				if (reason) *reason = "failed to read shortcut output";
+				reason = "failed to read shortcut output";
 				return false;
 			}
 		}
@@ -3793,51 +3790,51 @@ bool Darknet::Apple::mps_shortcut_forward(const Darknet::Layer & l, const Darkne
 			*activation_applied = activation_done;
 		}
 
-		if (reason) *reason = status;
+		reason = status;
 	}
 
 	return true;
 }
 
 bool Darknet::Apple::mps_route_forward(const Darknet::Layer & l, const Darknet::Network & net,
-	float *output, bool defer_readback, const char **reason)
+	float *output, bool defer_readback, std::string & reason)
 {
 	auto & ctx = get_mps_context();
 	auto & deferred = get_mps_deferred_layers();
 	deferred.erase(&l);
 	if (!ctx.ready)
 	{
-		if (reason) *reason = "MPS not available";
+		reason = "MPS not available";
 		return false;
 	}
 
 	if (!output)
 	{
-		if (reason) *reason = "null output";
+		reason = "null output";
 		return false;
 	}
 
 	if (!net.layers || net.n <= 0)
 	{
-		if (reason) *reason = "missing network layers";
+		reason = "missing network layers";
 		return false;
 	}
 
 	if (l.n <= 0 || !l.input_layers || !l.input_sizes)
 	{
-		if (reason) *reason = "missing route inputs";
+		reason = "missing route inputs";
 		return false;
 	}
 
 	if (l.groups <= 0 || l.group_id < 0 || l.group_id >= l.groups)
 	{
-		if (reason) *reason = "invalid route groups";
+		reason = "invalid route groups";
 		return false;
 	}
 
 	if (l.out_c <= 0)
 	{
-		if (reason) *reason = "route channels invalid";
+		reason = "route channels invalid";
 		return false;
 	}
 
@@ -3860,42 +3857,42 @@ bool Darknet::Apple::mps_route_forward(const Darknet::Layer & l, const Darknet::
 		const int index = l.input_layers[i];
 		if (index < 0 || index >= net.n)
 		{
-			if (reason) *reason = "route input out of range";
+			reason = "route input out of range";
 			return false;
 		}
 		const Darknet::Layer & src = net.layers[index];
 		if (src.out_w != l.out_w || src.out_h != l.out_h)
 		{
-			if (reason) *reason = "route input size mismatch";
+			reason = "route input size mismatch";
 			return false;
 		}
 		if (src.batch != l.batch)
 		{
-			if (reason) *reason = "route input batch mismatch";
+			reason = "route input batch mismatch";
 			return false;
 		}
 		if (src.out_c <= 0)
 		{
-			if (reason) *reason = "route input channels invalid";
+			reason = "route input channels invalid";
 			return false;
 		}
 		if ((src.out_c % l.groups) != 0)
 		{
-			if (reason) *reason = "route input groups mismatch";
+			reason = "route input groups mismatch";
 			return false;
 		}
 
 		const int part_c = src.out_c / l.groups;
 		if (part_c <= 0)
 		{
-			if (reason) *reason = "route group channels invalid";
+			reason = "route group channels invalid";
 			return false;
 		}
 
 		MPSImage *image = get_cached_output_image(&src, src.out_w, src.out_h, src.out_c, src.batch);
 		if (!image)
 		{
-			if (reason) *reason = "missing MPS input";
+			reason = "missing MPS input";
 			return false;
 		}
 		const int input_offset = part_c * l.group_id;
@@ -3905,7 +3902,7 @@ bool Darknet::Apple::mps_route_forward(const Darknet::Layer & l, const Darknet::
 
 	if (total_channels != l.out_c)
 	{
-		if (reason) *reason = "route channel mismatch";
+		reason = "route channel mismatch";
 		return false;
 	}
 
@@ -3921,14 +3918,14 @@ bool Darknet::Apple::mps_route_forward(const Darknet::Layer & l, const Darknet::
 	{
 		if (!ensure_route_output_image(cache, l, ctx.device))
 		{
-			if (reason) *reason = "failed to allocate route output";
+			reason = "failed to allocate route output";
 			return false;
 		}
 
 		id<MTLTexture> dst_texture = cache.output_image.texture;
 		if (!dst_texture)
 		{
-			if (reason) *reason = "missing output texture";
+			reason = "missing output texture";
 			return false;
 		}
 
@@ -3936,7 +3933,7 @@ bool Darknet::Apple::mps_route_forward(const Darknet::Layer & l, const Darknet::
 		{
 			if (!entry.image || !entry.image.texture)
 			{
-				if (reason) *reason = "missing input texture";
+				reason = "missing input texture";
 				return false;
 			}
 		}
@@ -3944,7 +3941,7 @@ bool Darknet::Apple::mps_route_forward(const Darknet::Layer & l, const Darknet::
 		id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
 		if (!command_buffer)
 		{
-			if (reason) *reason = "failed to create command buffer";
+			reason = "failed to create command buffer";
 			return false;
 		}
 
@@ -3959,7 +3956,7 @@ bool Darknet::Apple::mps_route_forward(const Darknet::Layer & l, const Darknet::
 				nullptr, 0,
 				(__bridge void *)command_buffer))
 		{
-			if (reason) *reason = "failed to clear route output";
+			reason = "failed to clear route output";
 			return false;
 		}
 
@@ -3989,7 +3986,7 @@ bool Darknet::Apple::mps_route_forward(const Darknet::Layer & l, const Darknet::
 					bytes, 5,
 					(__bridge void *)command_buffer))
 			{
-				if (reason) *reason = "failed to encode route copy";
+				reason = "failed to encode route copy";
 				return false;
 			}
 		}
@@ -4004,7 +4001,7 @@ bool Darknet::Apple::mps_route_forward(const Darknet::Layer & l, const Darknet::
 			}
 			if (!read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
 			{
-				if (reason) *reason = "failed to read MPS output";
+				reason = "failed to read MPS output";
 				return false;
 			}
 		}
@@ -4015,31 +4012,31 @@ bool Darknet::Apple::mps_route_forward(const Darknet::Layer & l, const Darknet::
 
 	}
 
-	if (reason) *reason = "ok";
+	reason = "ok";
 	return true;
 }
 
 bool Darknet::Apple::mps_upsample_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-	const float *input, float *output, bool defer_readback, const char **reason)
+	const float *input, float *output, bool defer_readback, std::string & reason)
 {
 	auto & ctx = get_mps_context();
 	auto & deferred = get_mps_deferred_layers();
 	deferred.erase(&l);
 	if (!ctx.ready)
 	{
-		if (reason) *reason = "MPS not available";
+		reason = "MPS not available";
 		return false;
 	}
 
 	if (l.reverse || l.stride <= 0)
 	{
-		if (reason) *reason = "unsupported upsample";
+		reason = "unsupported upsample";
 		return false;
 	}
 
 	if (!input || !output)
 	{
-		if (reason) *reason = "null input/output";
+		reason = "null input/output";
 		return false;
 	}
 
@@ -4066,7 +4063,7 @@ bool Darknet::Apple::mps_upsample_forward(const Darknet::Layer & l, const Darkne
 
 		if (!ensure_upsample_images(cache, l, ctx.device, need_input))
 		{
-			if (reason) *reason = "failed to allocate upsample images";
+			reason = "failed to allocate upsample images";
 			return false;
 		}
 
@@ -4104,7 +4101,7 @@ bool Darknet::Apple::mps_upsample_forward(const Darknet::Layer & l, const Darkne
 		id<MTLCommandBuffer> command_buffer = create_mps_command_buffer(ctx);
 		if (!command_buffer)
 		{
-			if (reason) *reason = "failed to create command buffer";
+			reason = "failed to create command buffer";
 			return false;
 		}
 
@@ -4124,7 +4121,7 @@ bool Darknet::Apple::mps_upsample_forward(const Darknet::Layer & l, const Darkne
 			}
 			if (!read_mps_output_image(cache.output_image, l.out_w, l.out_h, l.out_c, l.batch, output))
 			{
-				if (reason) *reason = "failed to read MPS output";
+				reason = "failed to read MPS output";
 				return false;
 			}
 		}
@@ -4135,11 +4132,11 @@ bool Darknet::Apple::mps_upsample_forward(const Darknet::Layer & l, const Darkne
 
 	}
 
-	if (reason && !*reason) *reason = "ok";
+	reason = "ok";
 	return true;
 }
 
-bool Darknet::Apple::mps_configure_training_graph(Darknet::Network & net, std::string *reason)
+bool Darknet::Apple::mps_configure_training_graph(Darknet::Network & net, std::string & reason)
 {
 	return Darknet::Apple::configure_training_graph(net, reason);
 }
@@ -4204,7 +4201,7 @@ void Darknet::Apple::mps_prepare_network_for_inference(Darknet::Network & net)
 	}
 }
 
-bool Darknet::Apple::mps_prepare_validation_network(Darknet::Network & training, Darknet::Network & validation, std::string *reason)
+bool Darknet::Apple::mps_prepare_validation_network(Darknet::Network & training, Darknet::Network & validation, std::string & reason)
 {
 	return Darknet::Apple::prepare_validation_network(training, validation, reason);
 }

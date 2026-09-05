@@ -189,7 +189,8 @@ void forward_connected_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		const Darknet::Layer *prev = Darknet::Apple::mps_prev_layer(state);
 		bool defer_readback = Darknet::Apple::mps_should_defer_readback(state);
 		bool activation_applied = false;
-		if (Darknet::Apple::mps_connected_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, nullptr))
+		std::string reason;
+		if (Darknet::Apple::mps_connected_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, reason))
 		{
 			if (not activation_applied)
 			{

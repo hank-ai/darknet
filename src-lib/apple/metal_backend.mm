@@ -1821,9 +1821,9 @@ kernel void bn_rolling_update_kernel(device float *rolling_mean [[buffer(0)]],
 		return true;
 	}
 
-	id<MTLComputePipelineState> get_pipeline(const char *kernel_name, id<MTLDevice> device)
+	id<MTLComputePipelineState> get_pipeline(const std::string & kernel_name, id<MTLDevice> device)
 	{
-		if (!kernel_name || !device)
+		if (kernel_name.empty() || !device)
 		{
 			return nil;
 		}
@@ -1839,7 +1839,7 @@ kernel void bn_rolling_update_kernel(device float *rolling_mean [[buffer(0)]],
 		{
 			return nil;
 		}
-		id<MTLFunction> fn = [cache.library newFunctionWithName:@(kernel_name)];
+		id<MTLFunction> fn = [cache.library newFunctionWithName:@(kernel_name.c_str())];
 		if (!fn)
 		{
 			cache.error = std::string("Metal function not found: ") + kernel_name;
@@ -1917,9 +1917,9 @@ bool metal_is_available()
 	return true;
 }
 
-bool metal_kernel_available(const char *kernel_name)
+bool metal_kernel_available(const std::string & kernel_name)
 {
-	if (!kernel_name || !metal_is_available())
+	if (kernel_name.empty() || !metal_is_available())
 	{
 		return false;
 	}
@@ -2079,14 +2079,14 @@ bool metal_buffer_fill(const MetalBuffer *buffer, size_t offset, uint8_t value, 
 	return true;
 }
 
-bool metal_dispatch_1d(const char *kernel_name,
+bool metal_dispatch_1d(const std::string & kernel_name,
 	size_t threads, size_t threads_per_group,
 	const MetalDispatchTexture *textures, size_t texture_count,
 	const MetalDispatchBuffer *buffers, size_t buffer_count,
 	const MetalDispatchBytes *bytes, size_t bytes_count,
 	void *command_buffer_handle)
 {
-	if (!kernel_name || threads == 0 || threads_per_group == 0)
+	if (kernel_name.empty() || threads == 0 || threads_per_group == 0)
 	{
 		return false;
 	}
@@ -2122,7 +2122,7 @@ bool metal_dispatch_1d(const char *kernel_name,
 			end_dispatch(command_buffer, auto_commit);
 			return false;
 		}
-		encoder.label = @(kernel_name);
+		encoder.label = @(kernel_name.c_str());
 		[encoder setComputePipelineState:pipeline];
 
 		for (size_t i = 0; i < texture_count; ++i)
@@ -2165,14 +2165,14 @@ bool metal_dispatch_1d(const char *kernel_name,
 	}
 }
 
-bool metal_dispatch_1d_with_encoder(const char *kernel_name,
+bool metal_dispatch_1d_with_encoder(const std::string & kernel_name,
 	size_t threads, size_t threads_per_group,
 	const MetalDispatchTexture *textures, size_t texture_count,
 	const MetalDispatchBuffer *buffers, size_t buffer_count,
 	const MetalDispatchBytes *bytes, size_t bytes_count,
 	void *encoder_handle)
 {
-	if (!kernel_name || threads == 0 || threads_per_group == 0 || !encoder_handle)
+	if (kernel_name.empty() || threads == 0 || threads_per_group == 0 || !encoder_handle)
 	{
 		return false;
 	}
@@ -2199,7 +2199,7 @@ bool metal_dispatch_1d_with_encoder(const char *kernel_name,
 		{
 			return false;
 		}
-		encoder.label = @(kernel_name);
+		encoder.label = @(kernel_name.c_str());
 		[encoder setComputePipelineState:pipeline];
 
 		for (size_t i = 0; i < texture_count; ++i)
@@ -2283,7 +2283,7 @@ void metal_end_compute_encoder(void *encoder_handle)
 	}
 }
 
-bool metal_dispatch_2d(const char *kernel_name,
+bool metal_dispatch_2d(const std::string & kernel_name,
 	size_t width, size_t height,
 	size_t threads_per_group_x, size_t threads_per_group_y,
 	const MetalDispatchTexture *textures, size_t texture_count,
@@ -2291,7 +2291,7 @@ bool metal_dispatch_2d(const char *kernel_name,
 	const MetalDispatchBytes *bytes, size_t bytes_count,
 	void *command_buffer_handle)
 {
-	if (!kernel_name || width == 0 || height == 0)
+	if (kernel_name.empty() || width == 0 || height == 0)
 	{
 		return false;
 	}
@@ -2328,7 +2328,7 @@ bool metal_dispatch_2d(const char *kernel_name,
 			end_dispatch(command_buffer, auto_commit);
 			return false;
 		}
-		encoder.label = @(kernel_name);
+		encoder.label = @(kernel_name.c_str());
 		[encoder setComputePipelineState:pipeline];
 
 		NSUInteger depth = 1;
@@ -2376,7 +2376,7 @@ bool metal_dispatch_2d(const char *kernel_name,
 		}
 	}
 
-bool metal_dispatch_texture_kernel(const char *kernel_name,
+bool metal_dispatch_texture_kernel(const std::string & kernel_name,
 	void *grid_texture_handle,
 	size_t threads_per_group_x, size_t threads_per_group_y,
 	const MetalDispatchTexture *textures, size_t texture_count,

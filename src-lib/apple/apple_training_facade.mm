@@ -20,26 +20,26 @@ namespace Darknet::Apple
 {
 	using namespace TrainingDetail;
 
-	bool configure_training_graph(Network & net, std::string *reason)
+	bool configure_training_graph(Network & net, std::string & reason)
 	{
 		std::string graph_reason;
-		if (!configure_training_graph_engine(net, &graph_reason))
+		if (!configure_training_graph_engine(net, graph_reason))
 		{
 			invalidate_training_buffers(&net);
 			invalidate_training_graph_engine(&net);
-			if (reason) *reason = graph_reason.empty() ? "Apple training graph is unavailable" : graph_reason;
+			reason = graph_reason.empty() ? "Apple training graph is unavailable" : graph_reason;
 			return false;
 		}
 
 		std::string buffer_reason;
-		if (!prepare_training_buffers(net, &buffer_reason))
+		if (!prepare_training_buffers(net, buffer_reason))
 		{
 			invalidate_training_buffers(&net);
 			invalidate_training_graph_engine(&net);
-			if (reason) *reason = buffer_reason.empty() ? "Apple training graph runtime buffers are unavailable" : buffer_reason;
+			reason = buffer_reason.empty() ? "Apple training graph runtime buffers are unavailable" : buffer_reason;
 			return false;
 		}
-		if (reason) *reason = "ok";
+		reason = "ok";
 		return true;
 	}
 
@@ -64,17 +64,17 @@ namespace Darknet::Apple
 		sync_training_layers_to_host(net, wait_ms, sync_rolling_stats, sync_parameters);
 	}
 
-	bool prepare_validation_network(Network & training, Network & validation, std::string *reason)
+	bool prepare_validation_network(Network & training, Network & validation, std::string & reason)
 	{
 		if (&training == &validation || !training.layers || !validation.layers ||
 			training.n <= 0 || training.n != validation.n)
 		{
-			if (reason) *reason = "validation requires a distinct network with matching layers";
+			reason = "validation requires a distinct network with matching layers";
 			return false;
 		}
 		if (!training_graph_engine_enabled(training))
 		{
-			if (reason) *reason = "Apple training graph is not configured for the source network";
+			reason = "Apple training graph is not configured for the source network";
 			return false;
 		}
 
@@ -103,11 +103,8 @@ namespace Darknet::Apple
 				!storage_is_dedicated(src.rolling_mean, dst.rolling_mean, channels) ||
 				!storage_is_dedicated(src.rolling_variance, dst.rolling_variance, channels))
 			{
-				if (reason)
-				{
-					*reason = "validation layer #" + std::to_string(i) +
-						" does not have compatible dedicated parameter storage";
-				}
+				reason = "validation layer #" + std::to_string(i) +
+					" does not have compatible dedicated parameter storage";
 				return false;
 			}
 		}
@@ -133,7 +130,7 @@ namespace Darknet::Apple
 			Darknet::Apple::mps_invalidate_layer_cache(&dst);
 		}
 
-		if (reason) *reason = "ok";
+		reason = "ok";
 		return true;
 	}
 
@@ -193,7 +190,7 @@ namespace Darknet::Apple
 			const std::string layer_type = to_string(l.type);
 
 			std::string optimizer_reason;
-			if (!training_optimizer_update_layer(net, l, update_batch, rate, &optimizer_command_buffer, &optimizer_encoder, &optimizer_reason))
+			if (!training_optimizer_update_layer(net, l, update_batch, rate, optimizer_command_buffer, optimizer_encoder, optimizer_reason))
 			{
 				darknet_fatal_error(DARKNET_LOC,
 					"Apple GPU optimizer update failed at layer %d (%s): %s",
@@ -215,7 +212,7 @@ namespace Darknet::Apple
 			// MPSGraph forward use the same training queue, so the next batch
 			// observes the updated weights without blocking the CPU here.
 			Detail::ObjcStrong pending_update((__bridge id<MTLCommandBuffer>)optimizer_command_buffer);
-			if (!commit_training_command_buffer(&optimizer_command_buffer, nullptr))
+			if (!commit_training_command_buffer(optimizer_command_buffer, nullptr))
 			{
 				darknet_fatal_error(DARKNET_LOC,
 					"Apple GPU optimizer update submission failed after %d layer update(s)",

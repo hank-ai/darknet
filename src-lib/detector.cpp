@@ -169,7 +169,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	#ifndef DARKNET_GPU
 	{
 #ifdef DARKNET_USE_MPS
-		using_mps_training_backend = Darknet::Apple::mps_runtime_available(nullptr);
+		using_mps_training_backend = Darknet::Apple::mps_runtime_available();
 #endif
 		if (!using_mps_training_backend)
 		{
@@ -281,7 +281,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 		// must be scoped fp32 fixed-size tiny YOLO graphs.  Configure after cfg
 		// parsing so unsupported networks do not silently fall back to CPU.
 		std::string mps_graph_reason;
-		if (Darknet::Apple::mps_configure_training_graph(net, &mps_graph_reason))
+		if (Darknet::Apple::mps_configure_training_graph(net, mps_graph_reason))
 		{
 			*cfg_and_state.output
 				<< "Apple training backend: "
@@ -704,7 +704,7 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 			{
 #ifdef DARKNET_USE_MPS
 				std::string validation_reason;
-				if (!Darknet::Apple::mps_prepare_validation_network(net, net_map, &validation_reason))
+				if (!Darknet::Apple::mps_prepare_validation_network(net, net_map, validation_reason))
 				{
 					darknet_fatal_error(DARKNET_LOC,
 						"Apple validation-network preparation failed: %s",
@@ -862,10 +862,10 @@ void train_detector(const char * datacfg, const char * cfgfile, const char * wei
 	TAT(TATPARMS);
 
 #ifdef DARKNET_USE_MPS
-	if (Darknet::Apple::mps_runtime_available(nullptr))
+	if (Darknet::Apple::mps_runtime_available())
 	{
 		std::string reason;
-		if (!Darknet::Apple::mps_training_device_count_supported(ngpus, &reason))
+		if (!Darknet::Apple::mps_training_device_count_supported(ngpus, reason))
 		{
 			darknet_fatal_error(DARKNET_LOC, "%s", reason.c_str());
 		}

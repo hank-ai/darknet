@@ -28,13 +28,19 @@ namespace Darknet
 		bool mps_is_available();
 
 		/// Return @p true if the MPS runtime is usable.
-		bool mps_runtime_available(const char **reason);
+		bool mps_runtime_available(std::string & reason);
+
+		inline bool mps_runtime_available()
+		{
+			std::string reason;
+			return mps_runtime_available(reason);
+		}
 
 		/// Return @p true if the requested training device count is supported.
-		bool mps_training_device_count_supported(int ngpus, std::string *reason);
+		bool mps_training_device_count_supported(int ngpus, std::string & reason);
 
 		/// Configure the MPS training graph for @p net.
-		bool mps_configure_training_graph(Darknet::Network & net, std::string *reason);
+		bool mps_configure_training_graph(Darknet::Network & net, std::string & reason);
 
 		/// Return @p true if the MPS training graph is enabled for @p net.
 		bool mps_training_graph_enabled(const Darknet::Network & net);
@@ -52,7 +58,7 @@ namespace Darknet
 		void mps_prepare_network_for_inference(Darknet::Network & net);
 
 		/// Drain training work and copy parameters into a dedicated validation network.
-		bool mps_prepare_validation_network(Darknet::Network & training, Darknet::Network & validation, std::string *reason);
+		bool mps_prepare_validation_network(Darknet::Network & training, Darknet::Network & validation, std::string & reason);
 
 		/// Invalidate cached MPS training graph state for @p net.
 		void mps_invalidate_training_graph(Darknet::Network * net);
@@ -72,105 +78,108 @@ namespace Darknet
 		 *
 		 * @param [in] defer_readback If @p true, output may remain on GPU for a subsequent MPS layer.
 		 * @param [out] activation_applied Set to @p true if MPS applied the activation.
-		 * @param [out] reason Optional fallback reason string when returning @p false.
+		 * @param [out] reason Fallback reason string when returning @p false.
 		 */
 		bool mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason);
+			const float *input, float *output, bool defer_readback, bool *activation_applied, std::string & reason);
 
 		static inline bool mps_convolution_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, const char **reason)
+			const float *input, float *output, std::string & reason)
 		{
 			return mps_convolution_forward(l, prev, input, output, false, nullptr, reason);
 		}
 
-		static inline bool mps_convolution_forward(const Darknet::Layer & l, const float *input, float *output, const char **reason)
+		static inline bool mps_convolution_forward(const Darknet::Layer & l, const float *input, float *output, std::string & reason)
 		{
 			return mps_convolution_forward(l, nullptr, input, output, false, nullptr, reason);
 		}
 
 		static inline bool mps_convolution_forward(const Darknet::Layer & l, const float *input, float *output)
 		{
-			return mps_convolution_forward(l, nullptr, input, output, false, nullptr, nullptr);
+			std::string reason;
+			return mps_convolution_forward(l, nullptr, input, output, false, nullptr, reason);
 		}
 
 		/// Try to execute maxpool forward using MPS.
 		bool mps_maxpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, bool defer_readback, const char **reason);
+			const float *input, float *output, bool defer_readback, std::string & reason);
 
 		/// Try to execute avgpool forward using MPS.
 		bool mps_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, bool defer_readback, const char **reason);
+			const float *input, float *output, bool defer_readback, std::string & reason);
 
 		/// Try to execute global avgpool forward using MPS.
 		bool mps_global_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, bool defer_readback, const char **reason);
+			const float *input, float *output, bool defer_readback, std::string & reason);
 
 		/// Try to execute shortcut add using MPS.
 		bool mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *prev, const Darknet::Layer *from,
-			const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason);
+			const float *input, float *output, bool defer_readback, bool *activation_applied, std::string & reason);
 
 		/// Try to concatenate route inputs using MPS.
 		bool mps_route_forward(const Darknet::Layer & l, const Darknet::Network & net,
-			float *output, bool defer_readback, const char **reason);
+			float *output, bool defer_readback, std::string & reason);
 
 		/// Try to upsample using a Metal kernel on GPU.
 		bool mps_upsample_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, bool defer_readback, const char **reason);
+			const float *input, float *output, bool defer_readback, std::string & reason);
 
 		/// Try to execute reorg using a Metal kernel on GPU.
 		bool mps_reorg_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, bool defer_readback, const char **reason);
+			const float *input, float *output, bool defer_readback, std::string & reason);
 
 		/// Try to execute connected layer forward using MPS, including batchnorm and activation.
 		bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, bool defer_readback, bool *activation_applied, const char **reason);
+			const float *input, float *output, bool defer_readback, bool *activation_applied, std::string & reason);
 
 		/// Try to execute softmax on GPU.
 		bool mps_softmax_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, const char **reason);
+			const float *input, float *output, std::string & reason);
 
 		static inline bool mps_maxpool_forward(const Darknet::Layer & l, const float *input, float *output)
 		{
-			return mps_maxpool_forward(l, nullptr, input, output, false, nullptr);
+			std::string reason;
+			return mps_maxpool_forward(l, nullptr, input, output, false, reason);
 		}
 
 		static inline bool mps_avgpool_forward(const Darknet::Layer & l, const float *input, float *output)
 		{
-			return mps_avgpool_forward(l, nullptr, input, output, false, nullptr);
+			std::string reason;
+			return mps_avgpool_forward(l, nullptr, input, output, false, reason);
 		}
 
 		static inline bool mps_global_avgpool_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, const char **reason)
+			const float *input, float *output, std::string & reason)
 		{
 			return mps_global_avgpool_forward(l, prev, input, output, false, reason);
 		}
 
 		static inline bool mps_shortcut_forward(const Darknet::Layer & l, const Darknet::Layer *from,
-			const float *input, float *output, const char **reason)
+			const float *input, float *output, std::string & reason)
 		{
 			return mps_shortcut_forward(l, nullptr, from, input, output, false, nullptr, reason);
 		}
 
 		static inline bool mps_route_forward(const Darknet::Layer & l, const Darknet::Network & net,
-			float *output, const char **reason)
+			float *output, std::string & reason)
 		{
 			return mps_route_forward(l, net, output, false, reason);
 		}
 
 		static inline bool mps_upsample_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, const char **reason)
+			const float *input, float *output, std::string & reason)
 		{
 			return mps_upsample_forward(l, prev, input, output, false, reason);
 		}
 
 		static inline bool mps_reorg_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, const char **reason)
+			const float *input, float *output, std::string & reason)
 		{
 			return mps_reorg_forward(l, prev, input, output, false, reason);
 		}
 
 		static inline bool mps_connected_forward(const Darknet::Layer & l, const Darknet::Layer *prev,
-			const float *input, float *output, const char **reason)
+			const float *input, float *output, std::string & reason)
 		{
 			return mps_connected_forward(l, prev, input, output, false, nullptr, reason);
 		}

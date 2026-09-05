@@ -90,7 +90,8 @@ void forward_route_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	if (not state.train)
 	{
 		bool defer_readback = Darknet::Apple::mps_should_defer_readback(state);
-		if (Darknet::Apple::mps_route_forward(l, state.net, l.output, defer_readback, nullptr))
+		std::string reason;
+		if (Darknet::Apple::mps_route_forward(l, state.net, l.output, defer_readback, reason))
 		{
 			return;
 		}

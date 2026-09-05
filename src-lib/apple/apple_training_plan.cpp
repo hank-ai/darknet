@@ -86,7 +86,7 @@ namespace Darknet::Apple
 
 		bool activation_requires_tape(const MPSGraphActivationKind activation)
 		{
-			return activation == MPSGraphActivationKind::kLeaky ||
+			return activation == MPSGraphActivationKind::kLeaky or
 				activation == MPSGraphActivationKind::kLogistic;
 		}
 
@@ -111,164 +111,164 @@ namespace Darknet::Apple
 			return plan;
 		}
 
-		bool conv_supported(const Layer & l, std::string *reason)
+		bool conv_supported(const Layer & l, std::string & reason)
 		{
 			if (l.type != Darknet::ELayerType::CONVOLUTIONAL)
 			{
-				if (reason) *reason = "layer is not convolutional";
+				reason = "layer is not convolutional";
 				return false;
 			}
-			if (l.binary || l.xnor || l.deform || l.antialiasing || l.assisted_excitation)
+			if (l.binary or l.xnor or l.deform or l.antialiasing or l.assisted_excitation)
 			{
-				if (reason) *reason = "unsupported convolution variant";
+				reason = "unsupported convolution variant";
 				return false;
 			}
 			if (l.share_layer)
 			{
-				if (reason) *reason = "share_index/shared convolution parameters are not supported";
+				reason = "share_index/shared convolution parameters are not supported";
 				return false;
 			}
 			if (l.coordconv)
 			{
-				if (reason) *reason = "coordconv is not supported";
+				reason = "coordconv is not supported";
 				return false;
 			}
 			if (l.grad_centr)
 			{
-				if (reason) *reason = "grad_centr is not supported";
+				reason = "grad_centr is not supported";
 				return false;
 			}
 			if (l.reverse != 0.0f)
 			{
-				if (reason) *reason = "reverse convolution updates are not supported";
+				reason = "reverse convolution updates are not supported";
 				return false;
 			}
 			if (l.dilation != 1)
 			{
-				if (reason) *reason = "dilated convolution is not supported by Apple MPSGraph training";
+				reason = "dilated convolution is not supported by Apple MPSGraph training";
 				return false;
 			}
-			if (l.groups < 1 || l.c % l.groups != 0 || l.n % l.groups != 0)
+			if (l.groups < 1 or l.c % l.groups != 0 or l.n % l.groups != 0)
 			{
-				if (reason) *reason = "invalid grouped convolution geometry";
+				reason = "invalid grouped convolution geometry";
 				return false;
 			}
-			if (!(l.size == 1 || l.size == 3))
+			if (not (l.size == 1 or l.size == 3))
 			{
-				if (reason) *reason = "only 1x1 and 3x3 conv are supported";
+				reason = "only 1x1 and 3x3 conv are supported";
 				return false;
 			}
-			if (!(l.stride_x == l.stride_y && (l.stride_x == 1 || l.stride_x == 2)))
+			if (not (l.stride_x == l.stride_y and (l.stride_x == 1 or l.stride_x == 2)))
 			{
-				if (reason) *reason = "only stride 1 and stride 2 conv are supported";
+				reason = "only stride 1 and stride 2 conv are supported";
 				return false;
 			}
-			if (!(l.activation == LEAKY || l.activation == LOGISTIC || l.activation == LINEAR))
+			if (not (l.activation == LEAKY or l.activation == LOGISTIC or l.activation == LINEAR))
 			{
-				if (reason) *reason = "only leaky, logistic, and linear activations are supported";
+				reason = "only leaky, logistic, and linear activations are supported";
 				return false;
 			}
-			if (!(l.batch_normalize == 0 || l.batch_normalize == 1))
+			if (not (l.batch_normalize == 0 or l.batch_normalize == 1))
 			{
-				if (reason) *reason = "only batch_normalize=0/1 are supported";
+				reason = "only batch_normalize=0/1 are supported";
 				return false;
 			}
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
-		bool route_supported(const Layer & l, std::string *reason)
+		bool route_supported(const Layer & l, std::string & reason)
 		{
-			if (l.n <= 0 || !l.input_layers)
+			if (l.n <= 0 or not l.input_layers)
 			{
-				if (reason) *reason = "route input layers are unavailable";
+				reason = "route input layers are unavailable";
 				return false;
 			}
-			if (l.groups > 1 && (l.group_id < 0 || l.group_id >= l.groups))
+			if (l.groups > 1 and (l.group_id < 0 or l.group_id >= l.groups))
 			{
-				if (reason) *reason = "invalid route group selection";
+				reason = "invalid route group selection";
 				return false;
 			}
-			if (l.groups > 1 && l.n != 1)
+			if (l.groups > 1 and l.n != 1)
 			{
-				if (reason) *reason = "grouped routes with multiple inputs are not supported by Apple MPSGraph training";
+				reason = "grouped routes with multiple inputs are not supported by Apple MPSGraph training";
 				return false;
 			}
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
-		bool maxpool_supported(const Layer & l, std::string *reason)
+		bool maxpool_supported(const Layer & l, std::string & reason)
 		{
-			if (l.maxpool_depth || l.antialiasing || l.avgpool)
+			if (l.maxpool_depth or l.antialiasing or l.avgpool)
 			{
-				if (reason) *reason = "only plain 2D maxpool is supported";
+				reason = "only plain 2D maxpool is supported";
 				return false;
 			}
 			if (l.maxpool_zero_nonmax)
 			{
-				if (reason) *reason = "maxpool_zero_nonmax is not supported";
+				reason = "maxpool_zero_nonmax is not supported";
 				return false;
 			}
-			if (l.size <= 0 || l.stride_x <= 0 || l.stride_y <= 0)
+			if (l.size <= 0 or l.stride_x <= 0 or l.stride_y <= 0)
 			{
-				if (reason) *reason = "maxpool requires positive size and stride";
+				reason = "maxpool requires positive size and stride";
 				return false;
 			}
 			const int expected_out_w = (l.w + l.pad - l.size) / l.stride_x + 1;
 			const int expected_out_h = (l.h + l.pad - l.size) / l.stride_y + 1;
-			if (expected_out_w != l.out_w || expected_out_h != l.out_h)
+			if (expected_out_w != l.out_w or expected_out_h != l.out_h)
 			{
-				if (reason) *reason = "maxpool output shape does not match Darknet floor semantics";
+				reason = "maxpool output shape does not match Darknet floor semantics";
 				return false;
 			}
 			const bool tiny_downsample =
-				l.size == 2 && l.stride_x == 2 && l.stride_y == 2;
+				l.size == 2 and l.stride_x == 2 and l.stride_y == 2;
 			const bool spp_pool =
-				(l.size == 5 || l.size == 9 || l.size == 13) &&
-				l.stride_x == 1 &&
-				l.stride_y == 1 &&
+				(l.size == 5 or l.size == 9 or l.size == 13) and
+				l.stride_x == 1 and
+				l.stride_y == 1 and
 				l.pad == (l.size - 1);
-			if (!(tiny_downsample || spp_pool))
+			if (not (tiny_downsample or spp_pool))
 			{
-				if (reason) *reason = "only 2x2 stride-2 maxpool and YOLOv4 SPP maxpool are supported";
+				reason = "only 2x2 stride-2 maxpool and YOLOv4 SPP maxpool are supported";
 				return false;
 			}
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
-		bool upsample_supported(const Layer & l, std::string *reason)
+		bool upsample_supported(const Layer & l, std::string & reason)
 		{
-			if (l.reverse || l.stride != 2)
+			if (l.reverse or l.stride != 2)
 			{
-				if (reason) *reason = "only nearest upsample stride=2 is supported";
+				reason = "only nearest upsample stride=2 is supported";
 				return false;
 			}
 			if (std::fabs(l.scale - 1.0f) > 1e-6f)
 			{
-				if (reason) *reason = "upsample scale values other than 1 are not supported";
+				reason = "upsample scale values other than 1 are not supported";
 				return false;
 			}
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
-		bool layer_supported(const Network & net, const int layer_index, const Layer & l, std::string *reason)
+		bool layer_supported(const Network & net, const int layer_index, const Layer & l, std::string & reason)
 		{
 			if (l.onlyforward)
 			{
-				if (reason) *reason = "onlyforward is not supported";
+				reason = "onlyforward is not supported";
 				return false;
 			}
 			if (l.stopbackward)
 			{
-				if (reason) *reason = "stopbackward is not supported";
+				reason = "stopbackward is not supported";
 				return false;
 			}
 			if (l.clip != 0.0f)
 			{
-				if (reason) *reason = "clip is not supported";
+				reason = "clip is not supported";
 				return false;
 			}
 			switch (l.type)
@@ -278,7 +278,7 @@ namespace Darknet::Apple
 					(void)net;
 					(void)layer_index;
 					(void)l;
-					if (reason) *reason = "shortcut layers are not supported by Apple MPSGraph training";
+					reason = "shortcut layers are not supported by Apple MPSGraph training";
 					return false;
 				case Darknet::ELayerType::ROUTE: return route_supported(l, reason);
 				case Darknet::ELayerType::MAXPOOL: return maxpool_supported(l, reason);
@@ -286,43 +286,43 @@ namespace Darknet::Apple
 				case Darknet::ELayerType::YOLO:
 					if (l.embedding_output)
 					{
-						if (reason) *reason = "embedding_layer is not supported";
+						reason = "embedding_layer is not supported";
 						return false;
 					}
 					if (l.focal_loss)
 					{
-						if (reason) *reason = "focal_loss is not supported";
+						reason = "focal_loss is not supported";
 						return false;
 					}
 					if (l.label_smooth_eps != 0.0f)
 					{
-						if (reason) *reason = "label_smooth_eps is not supported";
+						reason = "label_smooth_eps is not supported";
 						return false;
 					}
-					if (l.classes_multipliers || l.map)
+					if (l.classes_multipliers or l.map)
 					{
-						if (reason) *reason = "YOLO class multipliers and remapping are not supported";
+						reason = "YOLO class multipliers and remapping are not supported";
 						return false;
 					}
 					if (l.iou_loss != CIOU)
 					{
-						if (reason) *reason = "only ciou YOLO loss is supported";
+						reason = "only ciou YOLO loss is supported";
 						return false;
 					}
 					if (std::fabs(l.truth_thresh - 1.0f) > 1e-6f)
 					{
-						if (reason) *reason = "truth_thresh values other than 1 are not supported";
+						reason = "truth_thresh values other than 1 are not supported";
 						return false;
 					}
-					if (l.iou_thresh < 1.0f && l.iou_thresh_kind != IOU)
+					if (l.iou_thresh < 1.0f and l.iou_thresh_kind != IOU)
 					{
-						if (reason) *reason = "iou_thresh<1 requires iou_thresh_kind=iou";
+						reason = "iou_thresh<1 requires iou_thresh_kind=iou";
 						return false;
 					}
-					if (reason) *reason = "ok";
+					reason = "ok";
 					return true;
 				default:
-					if (reason) *reason = "layer type is not supported by Apple MPSGraph training";
+					reason = "layer type is not supported by Apple MPSGraph training";
 					return false;
 			}
 		}
@@ -400,7 +400,7 @@ namespace Darknet::Apple
 					node.op_kind = (l.groups > 1) ? MPSGraphNodeKind::kRouteGroupSlice : MPSGraphNodeKind::kRouteConcat;
 					node.groups = std::max(1, l.groups);
 					node.slice_channel_count = l.out_c;
-					if (l.groups > 1 && l.n > 0)
+					if (l.groups > 1 and l.n > 0)
 					{
 						const Layer & src = net.layers[l.input_layers[0]];
 						node.slice_channel_count = src.out_c / node.groups;
@@ -471,7 +471,7 @@ namespace Darknet::Apple
 			}
 			for (const int consumer_index : node.consumer_node_indices)
 			{
-				if (consumer_index < 0 || consumer_index >= static_cast<int>(plan.nodes.size()))
+				if (consumer_index < 0 or consumer_index >= static_cast<int>(plan.nodes.size()))
 				{
 					continue;
 				}
@@ -508,7 +508,7 @@ namespace Darknet::Apple
 			plan.reason = "try_fix_nan is not supported";
 			return plan;
 		}
-		if (net.adversarial || net.adversarial_lr != 0.0f)
+		if (net.adversarial or net.adversarial_lr != 0.0f)
 		{
 			plan.reason = "adversarial training is not supported";
 			return plan;
@@ -518,8 +518,8 @@ namespace Darknet::Apple
 			plan.reason = "dynamic_minibatch is not supported by a static MPSGraph training executable";
 			return plan;
 		}
-		if (net.badlabels_rejection_percentage != 0.0f ||
-			net.num_sigmas_reject_badlabels != 0.0f || net.equidistant_point != 0)
+		if (net.badlabels_rejection_percentage != 0.0f or
+			net.num_sigmas_reject_badlabels != 0.0f or net.equidistant_point != 0)
 		{
 			plan.reason = "bad-label rejection and equidistant-point filtering are not supported";
 			return plan;
@@ -539,7 +539,7 @@ namespace Darknet::Apple
 		{
 			const Layer & l = net.layers[i];
 			std::string reason;
-			if (!layer_supported(net, i, l, &reason))
+			if (not layer_supported(net, i, l, reason))
 			{
 				plan.reason =
 					"layer #" + std::to_string(i) +
@@ -550,14 +550,14 @@ namespace Darknet::Apple
 			if (is_detector_head_layer_type(l.type))
 			{
 				plan.yolo_layers.push_back(i);
-				if (i <= 0 || net.layers[i - 1].type != Darknet::ELayerType::CONVOLUTIONAL)
+				if (i <= 0 or net.layers[i - 1].type != Darknet::ELayerType::CONVOLUTIONAL)
 				{
 					plan.reason = "Apple MPSGraph training requires YOLO heads to be fed directly by convolutional layers";
 					return plan;
 				}
 				for (auto & node : plan.nodes)
 				{
-					if (node.darknet_layer_index == i - 1 &&
+					if (node.darknet_layer_index == i - 1 and
 						node.op_kind == MPSGraphNodeKind::kConvBnAct)
 					{
 						node.segment_output_to_yolo = true;
@@ -589,7 +589,7 @@ namespace Darknet::Apple
 			MPSGraphNodePlan node = build_node_plan(net, i);
 			const auto append_input_occurrence = [&](const int source_layer)
 			{
-				if (source_layer < 0 || source_layer >= i)
+				if (source_layer < 0 or source_layer >= i)
 				{
 					return;
 				}
@@ -597,14 +597,14 @@ namespace Darknet::Apple
 			};
 			for (int input_idx = 0; input_idx < l.n; ++input_idx)
 			{
-				if (!l.input_layers)
+				if (not l.input_layers)
 				{
 					break;
 				}
 				append_input_occurrence(l.input_layers[input_idx]);
 			}
-			if (node.input_node_indices.empty() &&
-				i > 0 &&
+			if (node.input_node_indices.empty() and
+				i > 0 and
 				node.op_kind != MPSGraphNodeKind::kYoloBoundaryOutput)
 			{
 				node.input_node_indices.push_back(i - 1);
@@ -617,7 +617,7 @@ namespace Darknet::Apple
 			plan.reason = "MPSGraph path requires at least one YOLO-family head";
 			return plan;
 		}
-		if (plan.yolo_layers.size() < 2 || plan.yolo_layers.size() > 3)
+		if (plan.yolo_layers.size() < 2 or plan.yolo_layers.size() > 3)
 		{
 			plan.reason = "Only cfgs with two or three YOLO heads are supported.";
 			return plan;
@@ -671,7 +671,7 @@ namespace Darknet::Apple
 				continue;
 			}
 			const bool save_for_backward = node_output_needed_for_backward(plan, node);
-			if (!save_for_backward)
+			if (not save_for_backward)
 			{
 				continue;
 			}

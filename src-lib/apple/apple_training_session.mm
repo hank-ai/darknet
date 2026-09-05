@@ -23,7 +23,7 @@
 
 namespace Darknet::Apple::TrainingDetail
 {
-		const char * activation_kind_label(const MPSGraphActivationKind activation)
+		std::string activation_kind_label(const MPSGraphActivationKind activation)
 		{
 			switch (activation)
 			{
@@ -323,22 +323,19 @@ namespace Darknet::Apple::TrainingDetail
 
 		bool validate_execution_results(NSArray<MPSGraphTensorData *> *results,
 			const NSUInteger expected_result_count,
-			const char *label,
-			std::string *reason)
+			const std::string & label,
+			std::string & reason)
 		{
 			if (results.count != expected_result_count)
 			{
-				if (reason)
-				{
-					*reason = std::string(label) + " returned " + std::to_string(results.count) +
-						" result(s), expected " + std::to_string(expected_result_count);
-				}
+				reason = std::string(label) + " returned " + std::to_string(results.count) +
+					" result(s), expected " + std::to_string(expected_result_count);
 				return false;
 			}
 			const std::string asynchronous_error = take_training_execution_error();
 			if (!asynchronous_error.empty())
 			{
-				if (reason) *reason = asynchronous_error;
+				reason = asynchronous_error;
 				return false;
 			}
 			return true;
@@ -346,8 +343,8 @@ namespace Darknet::Apple::TrainingDetail
 
 		bool validate_bound_execution_results(NSArray<MPSGraphTensorData *> *results,
 			NSArray<MPSGraphTensorData *> *bound_results,
-			const char *label,
-			std::string *reason)
+			const std::string & label,
+			std::string & reason)
 		{
 			return validate_execution_results(results, bound_results.count, label, reason);
 		}
@@ -363,17 +360,17 @@ namespace Darknet::Apple::TrainingDetail
 			}
 		}
 
-		bool ensure_tensor_storage(MPSGraphCompiledExecutables & compiled, const MPSGraphTensorPlan & tensor_plan, std::string *reason)
+		bool ensure_tensor_storage(MPSGraphCompiledExecutables & compiled, const MPSGraphTensorPlan & tensor_plan, std::string & reason)
 		{
 			if (tensor_plan.materialize_to_darknet_buffer)
 			{
-				if (reason) *reason = "ok";
+				reason = "ok";
 				return true;
 			}
 
 			if (tensor_plan.storage_index == std::numeric_limits<size_t>::max())
 			{
-				if (reason) *reason = "MPSGraph tensor has no compiled storage index: " + tensor_debug_label(tensor_plan);
+				reason = "MPSGraph tensor has no compiled storage index: " + tensor_debug_label(tensor_plan);
 				return false;
 			}
 			if (compiled.tensor_storage.size() <= tensor_plan.storage_index)
@@ -387,17 +384,17 @@ namespace Darknet::Apple::TrainingDetail
 					storage.bridge.data_type != bridge_data_type_for_tensor_plan(tensor_plan) ||
 					storage.bridge.shape != tensor_plan.shape_nchw)
 				{
-					if (reason) *reason = "MPSGraph tensor storage identity has inconsistent metadata: " + tensor_debug_label(tensor_plan);
+					reason = "MPSGraph tensor storage identity has inconsistent metadata: " + tensor_debug_label(tensor_plan);
 					return false;
 				}
-				if (reason) *reason = "ok";
+				reason = "ok";
 				return true;
 			}
 
 			id<MTLDevice> device = (__bridge id<MTLDevice>)runtime_metal_device_handle();
 			if (!device)
 			{
-				if (reason) *reason = "Metal device is unavailable for MPSGraph tensor storage";
+				reason = "Metal device is unavailable for MPSGraph tensor storage";
 				return false;
 			}
 
@@ -405,7 +402,7 @@ namespace Darknet::Apple::TrainingDetail
 			id<MTLBuffer> buffer = [device newBufferWithLength:length options:MTLResourceStorageModePrivate];
 			if (!buffer)
 			{
-				if (reason) *reason = "failed to allocate private MPSGraph tensor storage for " + tensor_debug_label(tensor_plan);
+				reason = "failed to allocate private MPSGraph tensor storage for " + tensor_debug_label(tensor_plan);
 				return false;
 			}
 
@@ -415,7 +412,7 @@ namespace Darknet::Apple::TrainingDetail
 			storage.bridge.bytes = static_cast<size_t>(length);
 			storage.bridge.data_type = bridge_data_type_for_tensor_plan(tensor_plan);
 			storage.bridge.shape = tensor_plan.shape_nchw;
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
@@ -449,97 +446,97 @@ namespace Darknet::Apple::TrainingDetail
 		bool resolve_forward_feed_pointer(const Network & net,
 			const Darknet::NetworkState & state,
 			const MPSGraphTensorPlan & tensor_plan,
-			const void **ptr,
+			const void *& ptr,
 			size_t *bytes,
-			std::string *reason)
+			std::string & reason)
 		{
-			if (!ptr || !bytes)
+			if (!bytes)
 			{
-				if (reason) *reason = "forward feed outputs are unavailable";
+				reason = "forward feed outputs are unavailable";
 				return false;
 			}
-			*ptr = nullptr;
+			ptr = nullptr;
 			*bytes = tensor_plan.bytes;
 			switch (tensor_plan.binding_kind)
 			{
 				case MPSGraphTensorBindingKind::kNetworkInput:
-					*ptr = state.input;
+					ptr = state.input;
 					break;
 				case MPSGraphTensorBindingKind::kWeights:
-					*ptr = net.layers[tensor_plan.owner_layer_index].weights;
+					ptr = net.layers[tensor_plan.owner_layer_index].weights;
 					break;
 				case MPSGraphTensorBindingKind::kBias:
-					*ptr = net.layers[tensor_plan.owner_layer_index].biases;
+					ptr = net.layers[tensor_plan.owner_layer_index].biases;
 					break;
 				case MPSGraphTensorBindingKind::kBatchNormScale:
-					*ptr = net.layers[tensor_plan.owner_layer_index].scales;
+					ptr = net.layers[tensor_plan.owner_layer_index].scales;
 					break;
 				default:
-					if (reason) *reason = "unsupported forward feed binding " + tensor_debug_label(tensor_plan);
+					reason = "unsupported forward feed binding " + tensor_debug_label(tensor_plan);
 					return false;
 			}
-			if (!*ptr)
+			if (!ptr)
 			{
-				if (reason) *reason = "forward feed buffer is unavailable for " + tensor_debug_label(tensor_plan);
+				reason = "forward feed buffer is unavailable for " + tensor_debug_label(tensor_plan);
 				return false;
 			}
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
 		bool resolve_forward_result_pointer(Network & net,
 			const MPSGraphTensorPlan & tensor_plan,
-			const void **ptr,
+			const void *& ptr,
 			size_t *bytes,
-			std::string *reason)
+			std::string & reason)
 		{
-			if (!ptr || !bytes)
+			if (!bytes)
 			{
-				if (reason) *reason = "forward result outputs are unavailable";
+				reason = "forward result outputs are unavailable";
 				return false;
 			}
-			*ptr = nullptr;
+			ptr = nullptr;
 			*bytes = tensor_plan.bytes;
 			Layer & layer = net.layers[tensor_plan.owner_layer_index];
 			switch (tensor_plan.binding_kind)
 			{
 				case MPSGraphTensorBindingKind::kLayerOutput:
-					*ptr = layer.output;
+					ptr = layer.output;
 					break;
 				case MPSGraphTensorBindingKind::kYoloBoundaryOutput:
-					*ptr = layer.output;
+					ptr = layer.output;
 					break;
 				case MPSGraphTensorBindingKind::kConvSourceTape:
 					if (tensor_plan.source_layer_index >= 0)
 					{
-						*ptr = net.layers[tensor_plan.source_layer_index].output;
+						ptr = net.layers[tensor_plan.source_layer_index].output;
 					}
 					break;
 				case MPSGraphTensorBindingKind::kBatchNormInputTape:
-					*ptr = layer.x;
+					ptr = layer.x;
 					break;
 				case MPSGraphTensorBindingKind::kBatchMeanTape:
-					*ptr = layer.mean;
+					ptr = layer.mean;
 					break;
 				case MPSGraphTensorBindingKind::kBatchVarianceTape:
-					*ptr = layer.variance;
+					ptr = layer.variance;
 					break;
 				case MPSGraphTensorBindingKind::kBatchNormOutputTape:
-					*ptr = layer.x_norm;
+					ptr = layer.x_norm;
 					break;
 				case MPSGraphTensorBindingKind::kMaxPoolIndicesTape:
-					*ptr = layer.indexes;
+					ptr = layer.indexes;
 					break;
 				default:
-					if (reason) *reason = "unsupported forward result binding " + tensor_debug_label(tensor_plan);
+					reason = "unsupported forward result binding " + tensor_debug_label(tensor_plan);
 					return false;
 			}
-			if (!*ptr)
+			if (!ptr)
 			{
-				if (reason) *reason = "forward result buffer is unavailable for " + tensor_debug_label(tensor_plan);
+				reason = "forward result buffer is unavailable for " + tensor_debug_label(tensor_plan);
 				return false;
 			}
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
@@ -547,142 +544,142 @@ namespace Darknet::Apple::TrainingDetail
 			const size_t bytes,
 			const MPSGraphTensorPlan & tensor_plan,
 			const TrainingBufferAccess access,
-			MPSGraphBufferBridge *bridge,
-			std::string *reason)
+			MPSGraphBufferBridge & bridge,
+			std::string & reason)
 		{
 			if (!make_training_graph_buffer_bridge(ptr, bytes, tensor_plan.shape_nchw, access, bridge, reason))
 			{
 				return false;
 			}
-			bridge->data_type = bridge_data_type_for_tensor_plan(tensor_plan);
-			if (bridge->bytes < tensor_plan.bytes)
+			bridge.data_type = bridge_data_type_for_tensor_plan(tensor_plan);
+			if (bridge.bytes < tensor_plan.bytes)
 			{
-				if (reason) *reason = "bridge for " + tensor_debug_label(tensor_plan) + " is smaller than the tensor plan";
+				reason = "bridge for " + tensor_debug_label(tensor_plan) + " is smaller than the tensor plan";
 				return false;
 			}
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
 		bool resolve_backward_feed_pointer(Network & net,
 			const float *network_input,
 			const MPSGraphTensorPlan & tensor_plan,
-			const void **ptr,
+			const void *& ptr,
 			size_t *bytes,
-			std::string *reason)
+			std::string & reason)
 		{
-			if (!ptr || !bytes)
+			if (!bytes)
 			{
-				if (reason) *reason = "backward feed outputs are unavailable";
+				reason = "backward feed outputs are unavailable";
 				return false;
 			}
-			*ptr = nullptr;
+			ptr = nullptr;
 			*bytes = tensor_plan.bytes;
 			Layer & layer = net.layers[tensor_plan.owner_layer_index];
 			switch (tensor_plan.binding_kind)
 			{
 				case MPSGraphTensorBindingKind::kNetworkInput:
-					*ptr = network_input;
+					ptr = network_input;
 					break;
 				case MPSGraphTensorBindingKind::kLayerOutput:
 				case MPSGraphTensorBindingKind::kYoloBoundaryOutput:
-					*ptr = layer.output;
+					ptr = layer.output;
 					break;
 				case MPSGraphTensorBindingKind::kYoloBoundaryDelta:
-					*ptr = layer.delta;
+					ptr = layer.delta;
 					break;
 				case MPSGraphTensorBindingKind::kConvSourceTape:
 					if (tensor_plan.source_layer_index >= 0)
 					{
-						*ptr = net.layers[tensor_plan.source_layer_index].output;
+						ptr = net.layers[tensor_plan.source_layer_index].output;
 					}
 					break;
 				case MPSGraphTensorBindingKind::kWeights:
-					*ptr = layer.weights;
+					ptr = layer.weights;
 					break;
 				case MPSGraphTensorBindingKind::kWeightGrad:
-					*ptr = layer.weight_updates;
+					ptr = layer.weight_updates;
 					break;
 				case MPSGraphTensorBindingKind::kBiasGrad:
-					*ptr = layer.bias_updates;
+					ptr = layer.bias_updates;
 					break;
 				case MPSGraphTensorBindingKind::kBatchNormScale:
-					*ptr = layer.scales;
+					ptr = layer.scales;
 					break;
 				case MPSGraphTensorBindingKind::kBatchNormScaleGrad:
-					*ptr = layer.scale_updates;
+					ptr = layer.scale_updates;
 					break;
 				case MPSGraphTensorBindingKind::kBatchNormInputTape:
-					*ptr = layer.x;
+					ptr = layer.x;
 					break;
 				case MPSGraphTensorBindingKind::kBatchMeanTape:
-					*ptr = layer.mean;
+					ptr = layer.mean;
 					break;
 				case MPSGraphTensorBindingKind::kBatchVarianceTape:
-					*ptr = layer.variance;
+					ptr = layer.variance;
 					break;
 				case MPSGraphTensorBindingKind::kBatchNormOutputTape:
-					*ptr = layer.x_norm;
+					ptr = layer.x_norm;
 					break;
 				case MPSGraphTensorBindingKind::kMaxPoolIndicesTape:
-					*ptr = layer.indexes;
+					ptr = layer.indexes;
 					break;
 				default:
-					if (reason) *reason = "unsupported backward feed binding " + tensor_debug_label(tensor_plan);
+					reason = "unsupported backward feed binding " + tensor_debug_label(tensor_plan);
 					return false;
 			}
-			if (!*ptr)
+			if (!ptr)
 			{
-				if (reason) *reason = "backward feed buffer is unavailable for " + tensor_debug_label(tensor_plan);
+				reason = "backward feed buffer is unavailable for " + tensor_debug_label(tensor_plan);
 				return false;
 			}
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
 		bool resolve_backward_result_pointer(Network & net,
 			const MPSGraphTensorPlan & tensor_plan,
-			const void **ptr,
+			const void *& ptr,
 			size_t *bytes,
-			std::string *reason)
+			std::string & reason)
 		{
-			if (!ptr || !bytes)
+			if (!bytes)
 			{
-				if (reason) *reason = "backward result outputs are unavailable";
+				reason = "backward result outputs are unavailable";
 				return false;
 			}
-				*ptr = nullptr;
+				ptr = nullptr;
 				*bytes = tensor_plan.bytes;
 			if (tensor_plan.binding_kind == MPSGraphTensorBindingKind::kNetworkInputDelta)
 			{
-				if (reason) *reason = "network-input delta must use graph-owned tensor storage";
+				reason = "network-input delta must use graph-owned tensor storage";
 				return false;
 			}
 			Layer & layer = net.layers[tensor_plan.owner_layer_index];
 			switch (tensor_plan.binding_kind)
 			{
 				case MPSGraphTensorBindingKind::kWeightGrad:
-					*ptr = layer.weight_updates;
+					ptr = layer.weight_updates;
 					break;
 				case MPSGraphTensorBindingKind::kBiasGrad:
-					*ptr = layer.bias_updates;
+					ptr = layer.bias_updates;
 					break;
 				case MPSGraphTensorBindingKind::kBatchNormScaleGrad:
-					*ptr = layer.scale_updates;
+					ptr = layer.scale_updates;
 					break;
 				case MPSGraphTensorBindingKind::kLayerDelta:
-					*ptr = layer.delta;
+					ptr = layer.delta;
 					break;
 				default:
-					if (reason) *reason = "unsupported backward result binding " + tensor_debug_label(tensor_plan);
+					reason = "unsupported backward result binding " + tensor_debug_label(tensor_plan);
 					return false;
 			}
-			if (!*ptr)
+			if (!ptr)
 			{
-				if (reason) *reason = "backward result buffer is unavailable for " + tensor_debug_label(tensor_plan);
+				reason = "backward result buffer is unavailable for " + tensor_debug_label(tensor_plan);
 				return false;
 			}
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
@@ -720,7 +717,7 @@ namespace Darknet::Apple::TrainingDetail
 				std::vector<int64_t> shape;
 			};
 
-			bool assign_tensor_storage_indices(MPSGraphExecutableBuildResult & build, std::string *reason)
+			bool assign_tensor_storage_indices(MPSGraphExecutableBuildResult & build, std::string & reason)
 			{
 				std::unordered_map<TensorStorageIdentity, TensorStorageSlot, TensorStorageIdentityHash> slots;
 				size_t next_index = 0;
@@ -746,7 +743,7 @@ namespace Darknet::Apple::TrainingDetail
 						}
 						else if (it->second.bytes != plan.bytes || it->second.shape != plan.shape_nchw)
 						{
-							if (reason) *reason = "inconsistent compiled tensor identity for " + tensor_debug_label(plan);
+							reason = "inconsistent compiled tensor identity for " + tensor_debug_label(plan);
 							return false;
 						}
 						plan.storage_index = it->second.index;
@@ -759,20 +756,20 @@ namespace Darknet::Apple::TrainingDetail
 					assign(build.backward_result_plans);
 			}
 
-			bool ensure_training_graph_cache(Network & net, const MPSGraphSegmentPlan & plan, std::string *reason)
+			bool ensure_training_graph_cache(Network & net, const MPSGraphSegmentPlan & plan, std::string & reason)
 			{
 				auto & session = training_session();
 				std::scoped_lock lock(session.mutex);
 				if (!session.matches(&net))
 				{
-					if (reason) *reason = "Apple training session identity changed during graph compilation";
+					reason = "Apple training session identity changed during graph compilation";
 					return false;
 				}
 				auto & entry = session.cache;
 				const auto plan_key = training_graph_plan_fingerprint(plan);
 				if (entry.compiled && entry.compiled->fingerprint == plan_key)
 				{
-					if (reason) *reason = "ok";
+					reason = "ok";
 					return true;
 				}
 
@@ -782,9 +779,9 @@ namespace Darknet::Apple::TrainingDetail
 				std::string compile_reason = build.reason.empty()
 					? (cache_ready ? "ok" : "MPSGraph executable build did not produce both executables")
 					: build.reason;
-				if (!cache_ready || !assign_tensor_storage_indices(build, &compile_reason))
+				if (!cache_ready || !assign_tensor_storage_indices(build, compile_reason))
 				{
-					if (reason) *reason = compile_reason;
+					reason = compile_reason;
 					return false;
 				}
 
@@ -800,23 +797,23 @@ namespace Darknet::Apple::TrainingDetail
 				for (const auto & tensor_plan : compiled->forward.result_plans)
 				{
 					std::string storage_reason;
-					if (!ensure_tensor_storage(*compiled, tensor_plan, &storage_reason))
+					if (!ensure_tensor_storage(*compiled, tensor_plan, storage_reason))
 					{
-						if (reason) *reason = storage_reason;
+						reason = storage_reason;
 						return false;
 					}
 				}
 				for (const auto & tensor_plan : compiled->backward.result_plans)
 				{
 					std::string storage_reason;
-					if (!ensure_tensor_storage(*compiled, tensor_plan, &storage_reason))
+					if (!ensure_tensor_storage(*compiled, tensor_plan, storage_reason))
 					{
-						if (reason) *reason = storage_reason;
+						reason = storage_reason;
 						return false;
 					}
 				}
 				entry.compiled = std::move(compiled);
-				if (reason) *reason = compile_reason;
+				reason = compile_reason;
 				return true;
 			}
 
@@ -834,29 +831,24 @@ namespace Darknet::Apple::TrainingDetail
 
 			bool training_graph_tensor_storage_bridge(const MPSGraphExecutableBundle & bundle,
 				const MPSGraphTensorPlan & tensor_plan,
-				MPSGraphBufferBridge *bridge,
-				std::string *reason)
+				MPSGraphBufferBridge & bridge,
+				std::string & reason)
 			{
-				if (!bridge)
-				{
-					if (reason) *reason = "MPSGraph tensor storage outputs are unavailable";
-					return false;
-				}
 				const auto & compiled = bundle.compiled;
 				if (!compiled || tensor_plan.storage_index >= compiled->tensor_storage.size())
 				{
-					if (reason) *reason = "MPSGraph tensor storage is unavailable for " + tensor_debug_label(tensor_plan);
+					reason = "MPSGraph tensor storage is unavailable for " + tensor_debug_label(tensor_plan);
 					return false;
 				}
 				const auto & storage = compiled->tensor_storage[tensor_plan.storage_index];
 				if (!storage.buffer.get())
 				{
-					if (reason) *reason = "MPSGraph tensor storage is unavailable for " + tensor_debug_label(tensor_plan);
+					reason = "MPSGraph tensor storage is unavailable for " + tensor_debug_label(tensor_plan);
 					return false;
 				}
-				*bridge = storage.bridge;
-				bridge->buffer_handle = (__bridge void *)storage.buffer.get();
-				if (reason) *reason = "ok";
+				bridge = storage.bridge;
+				bridge.buffer_handle = (__bridge void *)storage.buffer.get();
+				reason = "ok";
 				return true;
 			}
 
@@ -892,18 +884,15 @@ namespace Darknet::Apple::TrainingDetail
 				return info;
 			}
 
-			bool training_graph_runtime_available_impl(std::string *reason)
+			bool training_graph_runtime_available_impl(std::string & reason)
 		{
 			const auto & runtime = initialize_runtime();
 			const bool ready = runtime.metal_available && runtime.metal_command_queue_available;
-			if (reason)
-			{
-				*reason = ready ? "ok" : (runtime.reason.empty() ? "Metal runtime unavailable for MPSGraph" : runtime.reason);
-			}
+			reason = ready ? "ok" : (runtime.reason.empty() ? "Metal runtime unavailable for MPSGraph" : runtime.reason);
 			return ready;
 		}
 
-		bool configure_training_graph_engine(Network & net, std::string *reason)
+		bool configure_training_graph_engine(Network & net, std::string & reason)
 		{
 			// Metal waits include completion handlers.  Drain outside session.mutex
 			// because a failure handler records its error under that mutex.
@@ -921,7 +910,7 @@ namespace Darknet::Apple::TrainingDetail
 				}
 				else
 				{
-					if (reason) *reason = "Apple graph training already has an active training network";
+					reason = "Apple graph training already has an active training network";
 					return false;
 				}
 			}
@@ -937,45 +926,45 @@ namespace Darknet::Apple::TrainingDetail
 			if (!plan.supported)
 			{
 				state.reason = plan.reason;
-				if (reason) *reason = state.reason;
+				reason = state.reason;
 				return false;
 			}
 			std::string host_consumer_reason;
-			if (!host_parameter_consumers_supported_by_current_contract(net, &host_consumer_reason))
+			if (!host_parameter_consumers_supported_by_current_contract(net, host_consumer_reason))
 			{
 				state.reason = host_consumer_reason;
 				state.enabled = false;
-				if (reason) *reason = state.reason;
+				reason = state.reason;
 				return false;
 			}
 			std::string runtime_reason;
-			if (!training_graph_runtime_available_impl(&runtime_reason))
+			if (!training_graph_runtime_available_impl(runtime_reason))
 			{
 				state.reason = runtime_reason;
-				if (reason) *reason = state.reason;
+				reason = state.reason;
 				return false;
 			}
 			std::string gpu_loss_reason;
-			if (!gpu_yolo_loss_supported_by_current_contract(net, &gpu_loss_reason))
+			if (!gpu_yolo_loss_supported_by_current_contract(net, gpu_loss_reason))
 			{
 				state.reason = gpu_loss_reason;
 				state.enabled = false;
-				if (reason) *reason = state.reason;
+				reason = state.reason;
 				return false;
 			}
 
 			std::string cache_reason;
-			if (!ensure_training_graph_cache(net, plan, &cache_reason))
+			if (!ensure_training_graph_cache(net, plan, cache_reason))
 			{
 				state.reason = cache_reason;
 				state.enabled = false;
-				if (reason) *reason = state.reason;
+				reason = state.reason;
 				return false;
 			}
 
 			state.enabled = true;
 			state.reason = "ok";
-			if (reason) *reason = state.reason;
+			reason = state.reason;
 			return true;
 		}
 
@@ -988,32 +977,28 @@ namespace Darknet::Apple::TrainingDetail
 
 		bool run_training_graph_forward_probe(Network & net,
 			const Darknet::NetworkState & state,
-			std::string *reason,
-			void **encoded_command_buffer_handle)
+			std::string & reason,
+			void *& encoded_command_buffer_handle, const bool encode_to_command_buffer)
 		{
 			const auto bundle = training_graph_executable_bundle(&net, false);
 		if (!bundle.available())
 		{
-			if (reason) *reason = bundle.reason().empty() ? "MPSGraph forward executable is unavailable" : bundle.reason();
+			reason = bundle.reason().empty() ? "MPSGraph forward executable is unavailable" : bundle.reason();
 			return false;
 		}
 		if (bundle.feed_plans().empty() || bundle.result_plans().empty())
 		{
-			if (reason) *reason = "MPSGraph forward bundle is missing feed or result metadata";
+			reason = "MPSGraph forward bundle is missing feed or result metadata";
 			return false;
 		}
 
 		id<MTLCommandQueue> command_queue = (__bridge id<MTLCommandQueue>)training_mps_command_queue_handle();
 		if (!command_queue)
 		{
-			if (reason) *reason = "Metal command queue is unavailable for MPSGraph forward execution";
+			reason = "Metal command queue is unavailable for MPSGraph forward execution";
 			return false;
 		}
-		const bool encode_to_command_buffer = encoded_command_buffer_handle != nullptr;
-		if (encoded_command_buffer_handle)
-		{
-			*encoded_command_buffer_handle = nullptr;
-		}
+		encoded_command_buffer_handle = nullptr;
 
 		@autoreleasepool
 		{
@@ -1036,18 +1021,18 @@ namespace Darknet::Apple::TrainingDetail
 				size_t bytes = 0;
 				MPSGraphBufferBridge bridge;
 				std::string bridge_reason;
-				if (!resolve_forward_feed_pointer(net, state, tensor_plan, &ptr, &bytes, &bridge_reason) ||
-					!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kRead, &bridge, &bridge_reason))
+				if (!resolve_forward_feed_pointer(net, state, tensor_plan, ptr, &bytes, bridge_reason) ||
+					!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kRead, bridge, bridge_reason))
 				{
 					cleanup();
-					if (reason) *reason = bridge_reason;
+					reason = bridge_reason;
 					return false;
 				}
 				void *tensor_data_handle = nullptr;
-				if (!make_training_graph_tensor_data_handle(bridge, &tensor_data_handle, &bridge_reason))
+				if (!make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
 				{
 					cleanup();
-					if (reason) *reason = bridge_reason;
+					reason = bridge_reason;
 					return false;
 				}
 				tensor_data_handles.push_back(tensor_data_handle);
@@ -1060,10 +1045,10 @@ namespace Darknet::Apple::TrainingDetail
 				std::string bridge_reason;
 				if (uses_graph_owned_storage(tensor_plan))
 				{
-					if (!training_graph_tensor_storage_bridge(bundle, tensor_plan, &bridge, &bridge_reason))
+					if (!training_graph_tensor_storage_bridge(bundle, tensor_plan, bridge, bridge_reason))
 					{
 						cleanup();
-						if (reason) *reason = bridge_reason;
+						reason = bridge_reason;
 						return false;
 					}
 				}
@@ -1071,19 +1056,19 @@ namespace Darknet::Apple::TrainingDetail
 				{
 					const void *ptr = nullptr;
 					size_t bytes = 0;
-					if (!resolve_forward_result_pointer(net, tensor_plan, &ptr, &bytes, &bridge_reason) ||
-						!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kWrite, &bridge, &bridge_reason))
+					if (!resolve_forward_result_pointer(net, tensor_plan, ptr, &bytes, bridge_reason) ||
+						!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kWrite, bridge, bridge_reason))
 					{
 						cleanup();
-						if (reason) *reason = bridge_reason;
+						reason = bridge_reason;
 						return false;
 					}
 				}
 				void *tensor_data_handle = nullptr;
-				if (!make_training_graph_tensor_data_handle(bridge, &tensor_data_handle, &bridge_reason))
+				if (!make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
 				{
 					cleanup();
-					if (reason) *reason = bridge_reason;
+					reason = bridge_reason;
 					return false;
 				}
 				tensor_data_handles.push_back(tensor_data_handle);
@@ -1102,7 +1087,7 @@ namespace Darknet::Apple::TrainingDetail
 				if (!mps_command_buffer)
 				{
 					cleanup();
-					if (reason) *reason = "failed to allocate MPSGraph command buffer";
+					reason = "failed to allocate MPSGraph command buffer";
 					return false;
 				}
 				const auto start = std::chrono::high_resolution_clock::now();
@@ -1117,7 +1102,7 @@ namespace Darknet::Apple::TrainingDetail
 					return false;
 				}
 				forward_encode_ms = std::chrono::duration<double, std::milli>(end - start).count();
-				*encoded_command_buffer_handle = (void *)CFBridgingRetain(mps_command_buffer);
+				encoded_command_buffer_handle = (void *)CFBridgingRetain(mps_command_buffer);
 			}
 			else
 			{
@@ -1140,27 +1125,27 @@ namespace Darknet::Apple::TrainingDetail
 			stats.forward_encode_ms += forward_encode_ms;
 			stats.forward_run_ms += forward_run_ms;
 		}
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
 		bool commit_graph_gradient_results(Network & net,
 			const MPSGraphExecutableBundle & bundle,
 			const std::vector<MPSGraphBufferBridge> &result_bridges,
-			void **command_buffer_handle,
-			std::string *reason)
+			void *& command_buffer_handle,
+			std::string & reason)
 		{
-			if (!command_buffer_handle || !ensure_training_command_buffer(command_buffer_handle))
+			if (!ensure_training_command_buffer(command_buffer_handle))
 			{
-				if (reason) *reason = "failed to allocate gradient accumulation command buffer";
+				reason = "failed to allocate gradient accumulation command buffer";
 				return false;
 			}
-			id<MTLCommandBuffer> metal_command_buffer = (__bridge id<MTLCommandBuffer>)*command_buffer_handle;
+			id<MTLCommandBuffer> metal_command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
 			void *encoder = metal_begin_compute_encoder((__bridge void *)metal_command_buffer);
 			if (!encoder)
 			{
 				commit_and_wait_training_command_buffer(command_buffer_handle, nullptr, nullptr);
-				if (reason) *reason = "failed to create gradient accumulation encoder";
+				reason = "failed to create gradient accumulation encoder";
 				return false;
 			}
 
@@ -1198,7 +1183,7 @@ namespace Darknet::Apple::TrainingDetail
 						tensor_plan.bytes,
 						TrainingBufferAccess::kReadWrite,
 						"gradient update",
-						&destination_view,
+						destination_view,
 						reason))
 				{
 					metal_end_compute_encoder(encoder);
@@ -1213,7 +1198,7 @@ namespace Darknet::Apple::TrainingDetail
 				{
 					metal_end_compute_encoder(encoder);
 					commit_and_wait_training_command_buffer(command_buffer_handle, nullptr, nullptr);
-					if (reason) *reason = "gradient copy buffer range is invalid";
+					reason = "gradient copy buffer range is invalid";
 					return false;
 				}
 				const MetalBuffer source_buffer{source_bridge.buffer_handle, source_bridge.bytes};
@@ -1247,13 +1232,13 @@ namespace Darknet::Apple::TrainingDetail
 			if (copied == 0)
 			{
 				commit_and_wait_training_command_buffer(command_buffer_handle, nullptr, nullptr);
-				if (reason) *reason = "backward graph produced no trainable gradients";
+				reason = "backward graph produced no trainable gradients";
 				return false;
 			}
 			Detail::ObjcStrong pending_gradient_copy(metal_command_buffer);
 			if (!commit_training_command_buffer(command_buffer_handle, nullptr))
 			{
-				if (reason) *reason = "failed to commit gradient accumulation command buffer";
+				reason = "failed to commit gradient accumulation command buffer";
 				return false;
 			}
 			record_training_update_command_buffer((id<MTLCommandBuffer>)pending_gradient_copy.get());
@@ -1262,24 +1247,24 @@ namespace Darknet::Apple::TrainingDetail
 
 		bool run_training_graph_terminal_backward(Network & net,
 			const float *network_input,
-			std::string *reason)
+			std::string & reason)
 		{
 			const auto bundle = training_graph_executable_bundle(&net, true);
 		if (!bundle.available())
 		{
-			if (reason) *reason = bundle.reason().empty() ? "MPSGraph backward executable is unavailable" : bundle.reason();
+			reason = bundle.reason().empty() ? "MPSGraph backward executable is unavailable" : bundle.reason();
 			return false;
 		}
 		if (bundle.feed_plans().empty() || bundle.result_plans().empty())
 		{
-			if (reason) *reason = "MPSGraph backward bundle is missing feed or result metadata";
+			reason = "MPSGraph backward bundle is missing feed or result metadata";
 			return false;
 		}
 
 			id<MTLCommandQueue> command_queue = (__bridge id<MTLCommandQueue>)training_mps_command_queue_handle();
 			if (!command_queue)
 			{
-				if (reason) *reason = "Metal command queue is unavailable for MPSGraph backward execution";
+				reason = "Metal command queue is unavailable for MPSGraph backward execution";
 				return false;
 			}
 
@@ -1310,10 +1295,10 @@ namespace Darknet::Apple::TrainingDetail
 					tensor_plan.binding_kind != MPSGraphTensorBindingKind::kYoloBoundaryDelta;
 				if (feed_uses_graph_storage)
 				{
-					if (!training_graph_tensor_storage_bridge(bundle, tensor_plan, &bridge, &bridge_reason))
+					if (!training_graph_tensor_storage_bridge(bundle, tensor_plan, bridge, bridge_reason))
 					{
 						cleanup();
-						if (reason) *reason = bridge_reason;
+						reason = bridge_reason;
 						return false;
 					}
 				}
@@ -1321,19 +1306,19 @@ namespace Darknet::Apple::TrainingDetail
 				{
 					const void *ptr = nullptr;
 					size_t bytes = 0;
-					if (!resolve_backward_feed_pointer(net, network_input, tensor_plan, &ptr, &bytes, &bridge_reason) ||
-						!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kRead, &bridge, &bridge_reason))
+					if (!resolve_backward_feed_pointer(net, network_input, tensor_plan, ptr, &bytes, bridge_reason) ||
+						!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kRead, bridge, bridge_reason))
 					{
 						cleanup();
-						if (reason) *reason = bridge_reason;
+						reason = bridge_reason;
 						return false;
 					}
 				}
 				void *tensor_data_handle = nullptr;
-				if (!make_training_graph_tensor_data_handle(bridge, &tensor_data_handle, &bridge_reason))
+				if (!make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
 				{
 					cleanup();
-					if (reason) *reason = bridge_reason;
+					reason = bridge_reason;
 					return false;
 				}
 				tensor_data_handles.push_back(tensor_data_handle);
@@ -1346,10 +1331,10 @@ namespace Darknet::Apple::TrainingDetail
 				std::string bridge_reason;
 				if (uses_graph_owned_storage(tensor_plan))
 				{
-					if (!training_graph_tensor_storage_bridge(bundle, tensor_plan, &bridge, &bridge_reason))
+					if (!training_graph_tensor_storage_bridge(bundle, tensor_plan, bridge, bridge_reason))
 					{
 						cleanup();
-						if (reason) *reason = bridge_reason;
+						reason = bridge_reason;
 						return false;
 					}
 				}
@@ -1357,20 +1342,20 @@ namespace Darknet::Apple::TrainingDetail
 				{
 					const void *ptr = nullptr;
 					size_t bytes = 0;
-					if (!resolve_backward_result_pointer(net, tensor_plan, &ptr, &bytes, &bridge_reason) ||
-						!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kWrite, &bridge, &bridge_reason))
+					if (!resolve_backward_result_pointer(net, tensor_plan, ptr, &bytes, bridge_reason) ||
+						!bridge_for_forward_tensor(ptr, bytes, tensor_plan, TrainingBufferAccess::kWrite, bridge, bridge_reason))
 					{
 						cleanup();
-						if (reason) *reason = bridge_reason;
+						reason = bridge_reason;
 						return false;
 					}
 				}
 				result_bridges.push_back(bridge);
 				void *tensor_data_handle = nullptr;
-				if (!make_training_graph_tensor_data_handle(bridge, &tensor_data_handle, &bridge_reason))
+				if (!make_training_graph_tensor_data_handle(bridge, tensor_data_handle, bridge_reason))
 				{
 					cleanup();
-					if (reason) *reason = bridge_reason;
+					reason = bridge_reason;
 					return false;
 				}
 				tensor_data_handles.push_back(tensor_data_handle);
@@ -1381,7 +1366,7 @@ namespace Darknet::Apple::TrainingDetail
 				if (!mps_command_buffer)
 				{
 					cleanup();
-					if (reason) *reason = "failed to allocate backward MPSGraph command buffer";
+					reason = "failed to allocate backward MPSGraph command buffer";
 					return false;
 				}
 				void *backward_command_buffer = (void *)CFBridgingRetain(mps_command_buffer);
@@ -1397,13 +1382,13 @@ namespace Darknet::Apple::TrainingDetail
 				const auto end = std::chrono::high_resolution_clock::now();
 				if (!validate_bound_execution_results(run_results, results, "MPSGraph backward encode", reason))
 				{
-					commit_and_wait_training_command_buffer(&backward_command_buffer, nullptr, nullptr);
+					commit_and_wait_training_command_buffer(backward_command_buffer, nullptr, nullptr);
 					cleanup();
 					return false;
 				}
 				const double backward_encode_ms = std::chrono::duration<double, std::milli>(end - start).count();
 				training_iteration_stats().backward_encode_ms += backward_encode_ms;
-				if (!commit_graph_gradient_results(net, bundle, result_bridges, &backward_command_buffer, reason))
+				if (!commit_graph_gradient_results(net, bundle, result_bridges, backward_command_buffer, reason))
 				{
 					cleanup();
 					return false;
@@ -1411,7 +1396,7 @@ namespace Darknet::Apple::TrainingDetail
 				cleanup();
 		}
 
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
@@ -1431,7 +1416,7 @@ namespace Darknet::Apple::TrainingDetail
 
 namespace Darknet::Apple
 {
-	bool training_graph_runtime_available(std::string *reason)
+	bool training_graph_runtime_available(std::string & reason)
 	{
 		return TrainingDetail::training_graph_runtime_available_impl(reason);
 	}

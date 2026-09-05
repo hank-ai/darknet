@@ -310,7 +310,8 @@ void forward_maxpool_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	{
 		const Darknet::Layer *prev = Darknet::Apple::mps_prev_layer(state);
 		bool defer_readback = Darknet::Apple::mps_should_defer_readback(state);
-		if (Darknet::Apple::mps_maxpool_forward(l, prev, state.input, l.output, defer_readback, nullptr))
+		std::string reason;
+		if (Darknet::Apple::mps_maxpool_forward(l, prev, state.input, l.output, defer_readback, reason))
 		{
 			return;
 		}
@@ -441,7 +442,8 @@ void forward_local_avgpool_layer(Darknet::Layer & l, Darknet::NetworkState state
 	{
 		const Darknet::Layer *prev = Darknet::Apple::mps_prev_layer(state);
 		bool defer_readback = Darknet::Apple::mps_should_defer_readback(state);
-		if (Darknet::Apple::mps_avgpool_forward(l, prev, state.input, l.output, defer_readback, nullptr))
+		std::string reason;
+		if (Darknet::Apple::mps_avgpool_forward(l, prev, state.input, l.output, defer_readback, reason))
 		{
 			return;
 		}

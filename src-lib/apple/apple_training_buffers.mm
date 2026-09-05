@@ -94,36 +94,36 @@ namespace Darknet::Apple::TrainingDetail
 	bool load_required_training_view(const void *ptr,
 		const size_t bytes,
 		const TrainingBufferAccess access,
-		const char *label,
-		TrainingBufferView *view,
-		std::string *reason)
+		const std::string & label,
+		TrainingBufferView & view,
+		std::string & reason)
 	{
-		if (!ptr || bytes == 0 || !view)
+		if (!ptr || bytes == 0)
 		{
-			if (reason) *reason = std::string(label ? label : "buffer") + " is unavailable";
+			reason = std::string(not label.empty() ? label : "buffer") + " is unavailable";
 			return false;
 		}
 		if (!get_training_buffer_view(ptr, bytes, access, view))
 		{
-			if (reason) *reason = std::string(label ? label : "buffer") + " does not have a Metal buffer view";
+			reason = std::string(not label.empty() ? label : "buffer") + " does not have a Metal buffer view";
 			return false;
 		}
 		return true;
 	}
 
-	bool dispatch_training_kernel_1d_with_encoder(const char *kernel_name,
+	bool dispatch_training_kernel_1d_with_encoder(const std::string & kernel_name,
 		const size_t threads,
 		const MetalDispatchBuffer *buffers,
 		const size_t buffer_count,
 		const MetalDispatchBytes *bytes,
 		const size_t bytes_count,
 		void *encoder_handle,
-		std::string *reason)
+		std::string & reason)
 	{
-		if (!kernel_name || threads == 0 || !encoder_handle)
+		if (kernel_name.empty() || threads == 0 || !encoder_handle)
 		{
-			if (reason) *reason = std::string("invalid dispatch state for ") +
-				(kernel_name ? kernel_name : "Apple training kernel");
+			reason = std::string("invalid dispatch state for ") +
+				(not kernel_name.empty() ? kernel_name : "Apple training kernel");
 			return false;
 		}
 
@@ -135,8 +135,8 @@ namespace Darknet::Apple::TrainingDetail
 			bytes, bytes_count,
 			encoder_handle))
 		{
-			if (reason) *reason = std::string("failed to dispatch ") +
-				(kernel_name ? kernel_name : "Apple training kernel");
+			reason = std::string("failed to dispatch ") +
+				(not kernel_name.empty() ? kernel_name : "Apple training kernel");
 			return false;
 		}
 		return true;
@@ -632,17 +632,17 @@ namespace Darknet::Apple::TrainingDetail
 		}
 	}
 
-	bool prepare_training_buffers(Network & net, std::string *reason)
+	bool prepare_training_buffers(Network & net, std::string & reason)
 	{
 		(void)net;
 		if (!training_mps_ready())
 		{
-			if (reason) *reason = "Apple MPS runtime is unavailable";
+			reason = "Apple MPS runtime is unavailable";
 			return false;
 		}
 		wait_for_training_command_buffer();
 
-		if (reason) *reason = "ok";
+		reason = "ok";
 		return true;
 	}
 
@@ -674,48 +674,40 @@ namespace Darknet::Apple::TrainingDetail
 	bool get_training_buffer_view(const void *ptr,
 		const size_t bytes,
 		const TrainingBufferAccess access,
-		TrainingBufferView *view)
+		TrainingBufferView & view)
 	{
-		if (!view || !ptr || bytes == 0)
+		if (!ptr || bytes == 0)
 		{
-			if (view)
-			{
-				*view = {};
-			}
+			view = {};
 			return false;
 		}
 
 		const auto shared_view = training_shared_buffer_view(ptr, bytes, access);
 		if (!shared_view)
 		{
-			*view = {};
+			view = {};
 			return false;
 		}
 
-		*view = {(__bridge void *)shared_view.buffer, shared_view.offset, shared_view.bytes};
+		view = {(__bridge void *)shared_view.buffer, shared_view.offset, shared_view.bytes};
 		return true;
 	}
 
 	bool make_training_graph_buffer_bridge(const TrainingBufferView & view,
 		const std::vector<int64_t> & shape,
-		MPSGraphBufferBridge *bridge,
-		std::string *reason)
+		MPSGraphBufferBridge & bridge,
+		std::string & reason)
 	{
-		if (!bridge)
-		{
-			if (reason) *reason = "bridge output is unavailable";
-			return false;
-		}
 		if (!view)
 		{
-			if (reason) *reason = "training buffer view is unavailable";
+			reason = "training buffer view is unavailable";
 			return false;
 		}
-		bridge->buffer_handle = view.buffer_handle;
-		bridge->offset = view.offset;
-		bridge->bytes = view.bytes;
-		bridge->shape = shape;
-		if (reason) *reason = "ok";
+		bridge.buffer_handle = view.buffer_handle;
+		bridge.offset = view.offset;
+		bridge.bytes = view.bytes;
+		bridge.shape = shape;
+		reason = "ok";
 		return true;
 	}
 
@@ -723,43 +715,31 @@ namespace Darknet::Apple::TrainingDetail
 		const size_t bytes,
 		const std::vector<int64_t> & shape,
 		const TrainingBufferAccess access,
-		MPSGraphBufferBridge *bridge,
-		std::string *reason)
+		MPSGraphBufferBridge & bridge,
+		std::string & reason)
 	{
 		TrainingBufferView view{};
-		if (!get_training_buffer_view(ptr, bytes, access, &view))
+		if (!get_training_buffer_view(ptr, bytes, access, view))
 		{
-			if (reason) *reason = "training tensor does not have a shared Metal buffer view";
+			reason = "training tensor does not have a shared Metal buffer view";
 			return false;
 		}
 		return make_training_graph_buffer_bridge(view, shape, bridge, reason);
 	}
 
-		bool make_training_graph_tensor_data_handle(const MPSGraphBufferBridge & bridge, void **tensor_data_handle, std::string *reason)
+		bool make_training_graph_tensor_data_handle(const MPSGraphBufferBridge & bridge, void *& tensor_data_handle, std::string & reason)
 		{
-		if (!tensor_data_handle)
-		{
-			if (reason) *reason = "tensor-data handle output is unavailable";
-			return false;
-			}
-			*tensor_data_handle = nullptr;
-
-			if (!bridge.buffer_handle)
-			{
-			if (reason) *reason = "buffer bridge does not reference a Metal buffer";
-			return false;
-		}
 
 		id<MTLBuffer> buffer = (__bridge id<MTLBuffer>)bridge.buffer_handle;
 		if (!buffer)
 		{
-			if (reason) *reason = "buffer bridge Metal buffer handle is invalid";
+			reason = "buffer bridge Metal buffer handle is invalid";
 			return false;
 		}
 
 		if (bridge.offset != 0)
 		{
-			if (reason) *reason = "MPSGraph tensor-data bridge requires zero buffer offsets";
+			reason = "MPSGraph tensor-data bridge requires zero buffer offsets";
 			return false;
 		}
 
@@ -770,14 +750,14 @@ namespace Darknet::Apple::TrainingDetail
 				dataType:data_type_for_bridge(bridge)];
 			if (!tensor_data)
 			{
-				if (reason) *reason = "failed to create MPSGraphTensorData from Metal buffer";
+				reason = "failed to create MPSGraphTensorData from Metal buffer";
 				return false;
 			}
 			CFRetain((__bridge CFTypeRef)tensor_data);
-			*tensor_data_handle = (__bridge void *)tensor_data;
+			tensor_data_handle = (__bridge void *)tensor_data;
 		}
 
-			if (reason) *reason = "ok";
+			reason = "ok";
 			return true;
 		}
 
@@ -790,18 +770,14 @@ namespace Darknet::Apple::TrainingDetail
 			CFRelease((CFTypeRef)tensor_data_handle);
 		}
 
-	bool ensure_training_command_buffer(void **command_buffer_handle)
+	bool ensure_training_command_buffer(void *& command_buffer_handle)
 	{
-		if (!command_buffer_handle)
-		{
-			return false;
-		}
 		if (!training_mps_ready())
 		{
 			return false;
 		}
 
-		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)*command_buffer_handle;
+		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
 		if (!command_buffer)
 		{
 			command_buffer = create_training_command_buffer_handle();
@@ -812,20 +788,16 @@ namespace Darknet::Apple::TrainingDetail
 			command_buffer.label = @"darknet.training.command_buffer";
 			// The caller stores this Objective-C object as a raw void*. Retain it
 			// until a commit helper releases the handle.
-			*command_buffer_handle = (void *)CFBridgingRetain(command_buffer);
+			command_buffer_handle = (void *)CFBridgingRetain(command_buffer);
 			return true;
 		}
 		return true;
 	}
 
-	bool commit_training_command_buffer(void **command_buffer_handle, uint64_t *commit_count)
+	bool commit_training_command_buffer(void *& command_buffer_handle, uint64_t *commit_count)
 	{
-		if (!command_buffer_handle)
-		{
-			return false;
-		}
 
-		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)*command_buffer_handle;
+		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
 		if (!command_buffer)
 		{
 			return true;
@@ -851,19 +823,15 @@ namespace Darknet::Apple::TrainingDetail
 			}
 		}];
 		[command_buffer commit];
-		CFRelease((CFTypeRef)*command_buffer_handle);
-		*command_buffer_handle = nullptr;
+		CFRelease((CFTypeRef)command_buffer_handle);
+		command_buffer_handle = nullptr;
 		return true;
 	}
 
-	bool commit_and_wait_training_command_buffer(void **command_buffer_handle, double *wait_ms, uint64_t *commit_count)
+	bool commit_and_wait_training_command_buffer(void *& command_buffer_handle, double *wait_ms, uint64_t *commit_count)
 	{
-		if (!command_buffer_handle)
-		{
-			return false;
-		}
 
-		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)*command_buffer_handle;
+		id<MTLCommandBuffer> command_buffer = (__bridge id<MTLCommandBuffer>)command_buffer_handle;
 		if (!command_buffer)
 		{
 			return true;
@@ -890,8 +858,8 @@ namespace Darknet::Apple::TrainingDetail
 			if (!detail.empty()) message += ": " + detail;
 			record_training_execution_error(message);
 		}
-		CFRelease((CFTypeRef)*command_buffer_handle);
-		*command_buffer_handle = nullptr;
+		CFRelease((CFTypeRef)command_buffer_handle);
+		command_buffer_handle = nullptr;
 		return completed;
 	}
 

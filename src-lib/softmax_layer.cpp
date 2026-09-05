@@ -64,7 +64,8 @@ void forward_softmax_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	if (not state.train)
 	{
 		const Darknet::Layer *prev = Darknet::Apple::mps_prev_layer(state);
-		if (Darknet::Apple::mps_softmax_forward(l, prev, state.input, l.output, nullptr))
+		std::string reason;
+		if (Darknet::Apple::mps_softmax_forward(l, prev, state.input, l.output, reason))
 		{
 			return;
 		}

@@ -27,7 +27,7 @@ namespace Darknet::Apple::TrainingDetail
 			return {view.buffer_handle, view.offset + view.bytes};
 		}
 
-		bool dispatch_optimizer_kernel_1d_with_encoder(const char *kernel_name,
+		bool dispatch_optimizer_kernel_1d_with_encoder(const std::string & kernel_name,
 			size_t threads,
 			const MetalDispatchBuffer *buffers,
 			size_t buffer_count,
@@ -35,7 +35,7 @@ namespace Darknet::Apple::TrainingDetail
 			size_t bytes_count,
 			void *encoder_handle)
 		{
-			if (!kernel_name || threads == 0 || !encoder_handle)
+			if (kernel_name.empty() || threads == 0 || !encoder_handle)
 			{
 				return false;
 			}
@@ -52,7 +52,7 @@ namespace Darknet::Apple::TrainingDetail
 		bool load_training_view(float *ptr,
 			const int count,
 			const TrainingBufferAccess access,
-			TrainingBufferView *view)
+			TrainingBufferView & view)
 		{
 			return ptr && count > 0 && get_training_buffer_view(
 				ptr,
@@ -61,14 +61,14 @@ namespace Darknet::Apple::TrainingDetail
 				view);
 		}
 
-		bool optimizer_parameter_views_available(const char *label, float *parameter, float *updates, const int count, std::string *reason)
+		bool optimizer_parameter_views_available(const std::string & label, float *parameter, float *updates, const int count, std::string & reason)
 		{
 			TrainingBufferView parameter_view;
 			TrainingBufferView update_view;
-			if (!load_training_view(parameter, count, TrainingBufferAccess::kRead, &parameter_view) ||
-				!load_training_view(updates, count, TrainingBufferAccess::kRead, &update_view))
+			if (!load_training_view(parameter, count, TrainingBufferAccess::kRead, parameter_view) ||
+				!load_training_view(updates, count, TrainingBufferAccess::kRead, update_view))
 			{
-				if (reason) *reason = std::string(label) + "_buffer_unavailable";
+				reason = std::string(label) + "_buffer_unavailable";
 				return false;
 			}
 			return true;
@@ -93,8 +93,8 @@ namespace Darknet::Apple::TrainingDetail
 		{
 			TrainingBufferView parameter_view;
 			TrainingBufferView update_view;
-			if (!load_training_view(parameter, step.count, TrainingBufferAccess::kReadWrite, &parameter_view) ||
-				!load_training_view(updates, step.count, TrainingBufferAccess::kReadWrite, &update_view))
+			if (!load_training_view(parameter, step.count, TrainingBufferAccess::kReadWrite, parameter_view) ||
+				!load_training_view(updates, step.count, TrainingBufferAccess::kReadWrite, update_view))
 			{
 				return false;
 			}
@@ -127,11 +127,11 @@ namespace Darknet::Apple::TrainingDetail
 				"sgd_update_parameter", total, buffers, 2, bytes, 3, encoder_handle);
 		}
 
-		bool optimizer_preflight_update_layer(const Layer & layer, std::string *reason)
+		bool optimizer_preflight_update_layer(const Layer & layer, std::string & reason)
 		{
 			if (!metal_kernel_available("sgd_update_weights") || !metal_kernel_available("sgd_update_parameter"))
 			{
-				if (reason) *reason = "optimizer_kernel_unavailable";
+				reason = "optimizer_kernel_unavailable";
 				return false;
 			}
 
@@ -166,7 +166,7 @@ namespace Darknet::Apple::TrainingDetail
 
 			if (!has_trainable_buffers)
 			{
-				if (reason) *reason = "missing_trainable_buffers";
+				reason = "missing_trainable_buffers";
 				return false;
 			}
 			return true;
@@ -190,55 +190,41 @@ namespace Darknet::Apple::TrainingDetail
 		Layer & layer,
 		const int update_batch,
 		const float learning_rate,
-		void **command_buffer_handle,
-		void **encoder_handle,
-		std::string *reason)
+		void *& command_buffer_handle,
+		void *& encoder_handle,
+		std::string & reason)
 	{
-		if (reason)
-		{
-			*reason = {};
-		}
+		reason = {};
 
 		if (!is_optimizer_gpu_eligible(net, layer))
 		{
-			if (reason) *reason = "layer_type_requires_cpu";
+			reason = "layer_type_requires_cpu";
 			return false;
 		}
 		if (!optimizer_preflight_update_layer(layer, reason))
 		{
 			return false;
 		}
-		if (!command_buffer_handle || !ensure_training_command_buffer(command_buffer_handle))
+		if (!ensure_training_command_buffer(command_buffer_handle))
 		{
-			if (reason) *reason = "no_command_buffer";
+			reason = "no_command_buffer";
 			return false;
 		}
 
-		void *command_buffer = *command_buffer_handle;
+		void *command_buffer = command_buffer_handle;
 		const float loss_scale = net.loss_scale != 0.0f ? net.loss_scale : 1.0f;
 		const float rate_over_batch = training_sgd_rate_over_batch(learning_rate / loss_scale, layer.learning_rate_scale, update_batch);
 		const float weight_decay_term = training_sgd_decay_term(net.decay * loss_scale, update_batch, layer.type == ELayerType::CONVOLUTIONAL);
-		const bool external_encoder = encoder_handle != nullptr;
-		void *optimizer_encoder = (encoder_handle && *encoder_handle) ? *encoder_handle : nullptr;
-		auto finish_encoder = [&optimizer_encoder, external_encoder]()
-		{
-			if (!external_encoder && optimizer_encoder)
-			{
-				metal_end_compute_encoder(optimizer_encoder);
-				optimizer_encoder = nullptr;
-			}
-		};
+		// The caller owns and closes the shared encoder.
+		void *optimizer_encoder = encoder_handle;
 		if (!optimizer_encoder)
 		{
 			optimizer_encoder = metal_begin_compute_encoder(command_buffer);
-			if (encoder_handle)
-			{
-				*encoder_handle = optimizer_encoder;
-			}
+			encoder_handle = optimizer_encoder;
 		}
 		if (!optimizer_encoder)
 		{
-			if (reason) *reason = "no_compute_encoder";
+			reason = "no_compute_encoder";
 			return false;
 		}
 
@@ -251,8 +237,7 @@ namespace Darknet::Apple::TrainingDetail
 				true,
 				optimizer_encoder))
 			{
-				finish_encoder();
-				if (reason) *reason = "weight_update_encode_failed";
+				reason = "weight_update_encode_failed";
 				return false;
 			}
 			updated_any = true;
@@ -267,8 +252,7 @@ namespace Darknet::Apple::TrainingDetail
 				false,
 				optimizer_encoder))
 			{
-				finish_encoder();
-				if (reason) *reason = "bias_update_encode_failed";
+				reason = "bias_update_encode_failed";
 				return false;
 			}
 			updated_any = true;
@@ -282,8 +266,7 @@ namespace Darknet::Apple::TrainingDetail
 				false,
 				optimizer_encoder))
 			{
-				finish_encoder();
-				if (reason) *reason = "scale_update_encode_failed";
+				reason = "scale_update_encode_failed";
 				return false;
 			}
 			updated_any = true;
@@ -291,15 +274,12 @@ namespace Darknet::Apple::TrainingDetail
 
 		if (!updated_any)
 		{
-			finish_encoder();
-			if (reason) *reason = "missing_trainable_buffers";
+			reason = "missing_trainable_buffers";
 			return false;
 		}
-
-		finish_encoder();
 		Darknet::Apple::mps_notify_layer_parameters_updated_gpu(&layer);
 		Darknet::Apple::mps_notify_layer_optimizer_state_updated_gpu(&layer);
-		if (reason) *reason = "gpu_sgd";
+		reason = "gpu_sgd";
 		return true;
 	}
 }

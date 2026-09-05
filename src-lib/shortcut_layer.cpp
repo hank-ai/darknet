@@ -183,7 +183,8 @@ void forward_shortcut_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		const Darknet::Layer *from = &state.net.layers[l.index];
 		bool defer_readback = Darknet::Apple::mps_should_defer_readback(state);
 		bool activation_applied = false;
-		if (Darknet::Apple::mps_shortcut_forward(l, prev, from, state.input, l.output, defer_readback, &activation_applied, nullptr))
+		std::string reason;
+		if (Darknet::Apple::mps_shortcut_forward(l, prev, from, state.input, l.output, defer_readback, &activation_applied, reason))
 		{
 			if (!activation_applied)
 			{
