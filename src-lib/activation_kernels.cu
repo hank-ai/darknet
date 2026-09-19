@@ -514,6 +514,26 @@ void activate_array_ongpu(float *x, int n, ACTIVATION a)
 	CHECK_CUDA(cudaPeekAtLastError());
 }
 
+__global__ void activate_yolo_output_kernel(const float *input, float *output, int n, int spatial, int entries, float scale_x_y, int new_coords)
+{
+	const int i = blockIdx.x * blockDim.x + threadIdx.x;
+	if (i >= n) return;
+	const int entry = (i / spatial) % entries;	// 0,1 = x,y  2,3 = w,h  4 = objectness  5.. = classes
+	float value = input[i];
+	if (!new_coords && entry != 2 && entry != 3) value = logistic_activate_kernel(value);
+	if (entry < 2) value = value * scale_x_y - 0.5f * (scale_x_y - 1.0f);
+	output[i] = value;
+}
+
+void activate_yolo_output_ongpu(const float *input, float *output, int batch, int n, int w, int h, int classes, float scale_x_y, int new_coords)
+{
+	TAT(TATPARMS);
+
+	const int size = batch * n * w * h * (classes + 5);
+	activate_yolo_output_kernel <<<get_number_of_blocks(size, BLOCK), BLOCK, 0, get_cuda_stream() >>>(input, output, size, w * h, classes + 5, scale_x_y, new_coords);
+	CHECK_CUDA(cudaPeekAtLastError());
+}
+
 void activate_array_swish_ongpu(float *x, int n, float *output_sigmoid_gpu, float *output_gpu)
 {
 	TAT(TATPARMS);

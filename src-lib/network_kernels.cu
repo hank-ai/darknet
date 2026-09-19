@@ -304,6 +304,10 @@ void forward_backward_network_gpu(Darknet::Network & net, float *x, float *y)
 	forward_network_gpu(net, state);
 	//cudaStreamSynchronize(get_cuda_stream());
 	backward_network_gpu(net, state);
+#ifdef DARKNET_GPU_CUDA
+	// one sync for all yolo_gpu=1 heads; publishes their costs before get_network_cost()
+	Darknet::finalize_yolo_training_cuda(net);
+#endif
 
 	if (net.adversarial)
 	{

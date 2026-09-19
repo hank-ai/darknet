@@ -1663,6 +1663,7 @@ Darknet::Layer Darknet::CfgFile::parse_yolo_section(const size_t section_idx)
 	l.scale_x_y = s.find_float("scale_x_y", 1);
 	l.objectness_smooth = s.find_int("objectness_smooth", 0);
 	l.new_coords = s.find_int("new_coords", 0);
+	l.yolo_gpu = s.find_int("yolo_gpu", 0);
 	l.iou_normalizer = s.find_float("iou_normalizer", 0.75);
 	l.obj_normalizer = s.find_float("obj_normalizer", 1);
 	l.cls_normalizer = s.find_float("cls_normalizer", 1);

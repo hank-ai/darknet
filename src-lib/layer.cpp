@@ -119,6 +119,10 @@ void free_layer_custom(Darknet::Layer & l, int keep_cudnn_desc)
 		return;	// don't free shared layers
 	}
 
+#ifdef DARKNET_GPU_CUDA
+	Darknet::release_yolo_training_cuda(l);
+#endif
+
 	if (l.antialiasing)
 	{
 		free_sublayer(l.input_layer);

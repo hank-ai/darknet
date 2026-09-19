@@ -16,3 +16,13 @@ void correct_yolo_boxes(Darknet::Detection *dets, int n, int w, int h, int netw,
 void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 #endif
+
+#ifdef DARKNET_GPU_CUDA
+namespace Darknet
+{
+	/// CUDA YOLO loss for [yolo] yolo_gpu=1.  Queues work only; costs are published by finalize_yolo_training_cuda().
+	void forward_yolo_training_cuda(Darknet::Layer & layer, Darknet::NetworkState state);
+	void finalize_yolo_training_cuda(Darknet::Network & net);
+	void release_yolo_training_cuda(Darknet::Layer & layer);
+}
+#endif

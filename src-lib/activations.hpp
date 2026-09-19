@@ -22,6 +22,8 @@ void activate_array_normalize_channels_softmax(float *x, const int n, int batch,
 void gradient_array_normalize_channels_softmax(float *x, const int n, int batch, int channels, int wh_step, float *delta);
 #ifdef DARKNET_GPU
 void activate_array_ongpu(float *x, int n, ACTIVATION a);
+/// Copy @p input to @p output with the [yolo] activation (logistic on x,y,objectness,classes; x,y scaled by scale_x_y).
+void activate_yolo_output_ongpu(const float *input, float *output, int batch, int n, int w, int h, int classes, float scale_x_y, int new_coords);
 void activate_array_swish_ongpu(float *x, int n, float *output_sigmoid_gpu, float *output_gpu);
 void activate_array_mish_ongpu(float *x, int n, float *activation_input_gpu, float *output_gpu);
 void activate_array_hard_mish_ongpu(float *x, int n, float *activation_input_gpu, float *output_gpu);

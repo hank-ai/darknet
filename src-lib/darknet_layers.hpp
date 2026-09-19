@@ -234,6 +234,7 @@ namespace Darknet
 		float scale_x_y;
 		int objectness_smooth;
 		int new_coords;
+		int yolo_gpu; ///< [yolo] 1 = CUDA loss, 0 = CPU loss (default)
 		int show_details;
 		float max_delta;
 		float uc_normalizer;
@@ -460,6 +461,7 @@ namespace Darknet
 		float * activation_input_gpu;
 		float * loss_gpu;
 		float * delta_gpu;
+		void * yolo_training_gpu_context; ///< yolo_gpu=1 scratch, see yolo_layer.cu
 		float * cos_sim_gpu;
 		float * rand_gpu;
 		float * drop_blocks_scale;
