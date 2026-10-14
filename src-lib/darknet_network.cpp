@@ -27,6 +27,10 @@ Darknet::NetworkDetails::NetworkDetails()
 	annotate_draw_bb						= true;
 	annotate_draw_label						= true;
 
+#ifdef DARKNET_GPU
+	training_state							= nullptr;
+#endif
+
 	return;
 }
 
@@ -385,6 +389,16 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 	}
 #endif
 
+	show_rewritten_bbox(net);
+
+	return error;
+}
+
+
+void show_rewritten_bbox(const Darknet::Network & net)
+{
+	TAT(TATPARMS);
+
 	if (cfg_and_state.is_verbose and *(net.total_bbox) > 0)
 	{
 		*cfg_and_state.output
@@ -392,8 +406,6 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 			<< ", rewritten_bbox=" << 100.0f * float(*(net.rewritten_bbox)) / float(*(net.total_bbox))
 			<< "%" << std::endl;
 	}
-
-	return error;
 }
 
 
@@ -413,20 +425,33 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 
 	int batch = net.batch;
 	int n = d.X.rows / batch;
-	float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
-	float* y = (float*)xcalloc(batch * d.y.cols, sizeof(float));
 
 	float sum = 0;
-	for (int i = 0; i < n; ++i)
+#ifdef DARKNET_GPU
+	if (cfg_and_state.gpu_index >= 0 and not net.adversarial_lr)
 	{
-		get_next_batch(d, batch, i*batch, X, y);
-		net.current_subdivision = i;
-		float err = train_network_datum(net, X, y);
-		sum += err;
-		if (wait_key)
+		sum = train_network_subdivisions_gpu(net, d, wait_key);
+	}
+	else
+#endif
+	{
+		float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
+		float* y = (float*)xcalloc(batch * d.y.cols, sizeof(float));
+
+		for (int i = 0; i < n; ++i)
 		{
-			cv::waitKey(5);
+			get_next_batch(d, batch, i*batch, X, y);
+			net.current_subdivision = i;
+			float err = train_network_datum(net, X, y);
+			sum += err;
+			if (wait_key)
+			{
+				cv::waitKey(5);
+			}
 		}
+
+		free(X);
+		free(y);
 	}
 
 	(*net.cur_iteration) += 1;
@@ -473,9 +498,6 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 		float sim_threshold = 0.4;
 		reject_similar_weights(net, sim_threshold);
 	}
-
-	free(X);
-	free(y);
 
 	return (float)sum/(n*batch);
 }
@@ -1642,6 +1664,9 @@ void free_network(Darknet::Network & net)
 
 	if (net.details) // added in V3 (2024-08-06)
 	{
+#ifdef DARKNET_GPU
+		free_training_state(net);
+#endif
 		delete net.details;
 		net.details = nullptr;
 	}
