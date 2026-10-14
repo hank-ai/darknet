@@ -311,6 +311,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	 *
 	 *		YOLOv4-full:
 	 *			- MISH activation needs opset 18 introduced in December 2022
+	 *
+	 *		[scale_channels] and [sam]:
+	 *			- "Mul" with broadcasting needs opset 7
 	 */
 	opset_version = 5;
 	for (const auto & section : cfg.sections)
@@ -319,6 +322,17 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 		{
 			Darknet::display_warning_msg("Setting opset to 13 due to INT8 quantization.\n");
 			opset_version = 13;
+		}
+
+		if (section.type == Darknet::ELayerType::SCALE_CHANNELS or
+			section.type == Darknet::ELayerType::SAM)
+		{
+			// "Mul" with multidirectional (numpy-style) broadcasting needs at least opset 7
+			if (opset_version < 7)
+			{
+				Darknet::display_warning_msg("Setting opset to 7 due to [" + section.name + "] at line #" + std::to_string(section.line_number) + ".\n");
+				opset_version = 7;
+			}
 		}
 
 		if (section.type == Darknet::ELayerType::UPSAMPLE)
@@ -604,6 +618,21 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 			{
 				// shortcut is in YOLOv4 (full), not in tiny or tiny-3L
 				add_node_shortcut(index, section);
+				break;
+			}
+			case Darknet::ELayerType::AVGPOOL:
+			{
+				add_node_avgpool(index, section);
+				break;
+			}
+			case Darknet::ELayerType::SCALE_CHANNELS:
+			{
+				add_node_scale_channels(index, section);
+				break;
+			}
+			case Darknet::ELayerType::SAM:
+			{
+				add_node_sam(index, section);
 				break;
 			}
 			default:
@@ -1033,6 +1062,77 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_bn(const size_t index, Darkn
 	populate_graph_initializer(l.scales				, l.n, l, node.name + "_bn_scale"		);
 	populate_graph_initializer(l.rolling_mean		, l.n, l, node.name + "_bn_mean"		);
 	populate_graph_initializer(l.rolling_variance	, l.n, l, node.name + "_bn_variance"	);
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::add_node_avgpool(const size_t index, Darknet::CfgSection & section)
+{
+	TAT(TATPARMS);
+
+	// Darknet's [avgpool] always averages over the entire WxH plane and outputs Cx1x1 (see forward_avgpool_layer()),
+	// which is exactly what GlobalAveragePool does.  The output keeps the NCHW layout as N x C x 1 x 1.
+
+	Node node(section);
+	node.type("GlobalAveragePool").add_input(index - 1);
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::add_node_scale_channels(const size_t index, Darknet::CfgSection & section)
+{
+	TAT(TATPARMS);
+
+	/* Darknet multiplies the output of the layer referenced by "from" (N x C x H x W) with the output of the previous
+	 * layer, which is either N x C x 1 x 1 (one scale per channel) or N x 1 x H x W when "scale_wh=1".  Both cases are
+	 * handled by the broadcasting rules of "Mul".  The activation (if any) is applied after the multiplication.
+	 */
+
+	const auto & l = cfg.net.layers[index];
+	const auto & from = cfg.net.layers[l.index];
+	const auto & prev = cfg.net.layers[index - 1];
+	if (l.scale_wh)
+	{
+		if (prev.out_c != 1 or prev.out_w != from.out_w or prev.out_h != from.out_h)
+		{
+			throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": scale_wh=1 needs the previous layer to output 1 x H x W");
+		}
+	}
+	else if (prev.out_w != 1 or prev.out_h != 1 or prev.out_c != from.out_c)
+	{
+		throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": the previous layer must output C x 1 x 1 with C=" + std::to_string(from.out_c));
+	}
+
+	Node node(section);
+	node.type("Mul").add_input(l.index).add_input(index - 1).doc_append(" from=" + std::to_string(l.index) + (l.scale_wh ? " scale_wh=1" : ""));
+
+	check_activation(index, section);
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::add_node_sam(const size_t index, Darknet::CfgSection & section)
+{
+	TAT(TATPARMS);
+
+	// Darknet's [sam] is an element-wise multiplication of the previous layer and the layer referenced by "from",
+	// both of which have the same shape.  The activation (if any) is applied after the multiplication.
+
+	const auto & l = cfg.net.layers[index];
+	const auto & from = cfg.net.layers[l.index];
+	const auto & prev = cfg.net.layers[index - 1];
+	if (prev.outputs != from.outputs)
+	{
+		throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": the previous layer and the \"from\" layer must have the same shape");
+	}
+
+	Node node(section);
+	node.type("Mul").add_input(index - 1).add_input(l.index).doc_append(" from=" + std::to_string(l.index));
+
+	check_activation(index, section);
 
 	return *this;
 }
