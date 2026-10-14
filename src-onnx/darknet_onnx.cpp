@@ -665,19 +665,23 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 {
 	TAT(TATPARMS);
 
-	const int dilation		= 1;
-	const int stride		= section.find_int("stride"	, 2);
-	const int kernel_size	= section.find_int("size"	, 3);
-	const int groups		= section.find_int("groups"	, 1);
-	const int pad			= [&]() -> int
+	const auto & l = cfg.net.layers[index];
+
+	const int groups		= std::max(1, l.groups);
+	const int dilation		= std::max(1, l.dilation);
+	const int kernel_size	= l.size;
+	// Darknet pads by "pad * dilation", see cudnnSetConvolution2dDescriptor() in convolutional_layer.cpp
+	const int pad			= l.pad * dilation;
+
+	if (l.antialiasing)
 	{
-		int i = 0;
-		if (section.find_int("pad", 0))
-		{
-			i = dilation * (kernel_size - 1) / 2;
-		}
-		return i;
-	}();
+		throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": antialiasing is not supported in this version of the ONNX export tool");
+	}
+
+	if (l.c % groups != 0 or l.n % groups != 0)
+	{
+		throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": groups=" + std::to_string(groups) + " must divide both the input channels (" + std::to_string(l.c) + ") and filters (" + std::to_string(l.n) + ")");
+	}
 
 	Node node(section);
 	node.type("Conv")
@@ -687,9 +691,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 		.add_attribute_INTS("pads"			, {pad, pad, pad, pad}		)
 		.add_attribute_INTS("dilations"		, {dilation, dilation}		)
 		.add_attribute_INTS("kernel_shape"	, {kernel_size, kernel_size})
-		.add_attribute_INTS("strides"		, {stride, stride}			);
-
-	const auto & l = cfg.net.layers[index];
+		.add_attribute_INTS("strides"		, {l.stride_y, l.stride_x}	);
 
 	// loosely based on load_convolutional_weights()
 	populate_graph_initializer(l.weights, l.nweights, l, node.name + "_weights");
