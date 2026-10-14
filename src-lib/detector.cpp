@@ -369,6 +369,11 @@ void train_detector_internal(const bool break_after_burn_in, std::string & multi
 	}
 	args.show_imgs = show_imgs;
 	args.threads = 6 * ngpus;   // 3 for - Amazon EC2 Tesla V100: p3.2xlarge (8 logical cores) - p3.16xlarge
+	if (cfg_and_state.get("loadthreads", 0) > 0)
+	{
+		// ...or, machines with many cores can use more threads with the command-line parm "--load-threads 32"
+		args.threads = std::min(cfg_and_state.get_int("loadthreads"), imgs);
+	}
 
 	// This is where we draw the initial blank chart.  That chart is then updated by update_train_loss_chart() at every iteration.
 	Darknet::initialize_new_charts(net);
