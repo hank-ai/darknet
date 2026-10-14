@@ -98,6 +98,14 @@ namespace Darknet
 			/// Whether or not we need to output the post-processing nodes to deal with boxes.
 			bool postprocess_boxes;
 
+			/** Batch size of the "frame" input and of all outputs (`-batch N` on the CLI).  Default is 1.  Zero means
+			 * the batch dimension is dynamic (symbolic name "batch").
+			 */
+			int batch_size;
+
+			/// Human-readable batch size, either the number or "batch" when the batch dimension is dynamic.
+			std::string batch_string() const { return batch_size > 0 ? std::to_string(batch_size) : "batch"; }
+
 			/// The dimensions used in @ref populate_graph_input_frame().
 			std::string input_string;
 
