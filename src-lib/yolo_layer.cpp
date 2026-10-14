@@ -1611,6 +1611,25 @@ int get_yolo_detections_batch(const Darknet::Layer & l, int w, int h, int netw, 
 
 #ifdef DARKNET_GPU
 
+namespace
+{
+	/// Options which share state between the [yolo] layers or write to the console need the CPU part to finish first.
+	/// Everything here is the same for all the [yolo] layers of the network, so they never mix both ways.
+	bool can_run_yolo_cpu_part_in_background(const Darknet::NetworkState & state)
+	{
+		TAT(TATPARMS);
+
+		const auto * training = state.net.details->training_state;
+
+		return training and training->yolo_in_background and state.truth and not cfg_and_state.is_verbose
+			and not state.net.adversarial
+			and not state.net.badlabels_rejection_percentage
+			and not state.net.num_sigmas_reject_badlabels
+			and not state.net.equidistant_point;
+	}
+}
+
+
 void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
@@ -1663,6 +1682,50 @@ void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 		return;
 	}
 
+	if (can_run_yolo_cpu_part_in_background(state))
+	{
+		// copy the outputs and truths to pinned memory and compute the deltas on another thread while this one queues the
+		// next layers; backward_yolo_layer_gpu() waits for the deltas
+		yolo_layer_gpu_finish(state.net, state.index);
+
+		auto & training = *state.net.details->training_state;
+		if (training.truth.empty())
+		{
+			training.truth		.resize(state.net.n, nullptr);
+			training.truth_size	.resize(state.net.n, 0);
+			training.pulled		.resize(state.net.n, nullptr);
+		}
+
+		const int idx = state.index;
+		const size_t truth_size = l.batch * l.truths;
+		if (training.truth_size[idx] != truth_size)
+		{
+			cuda_free_host(training.truth[idx]);
+			CHECK_CUDA(cudaHostAlloc((void**)&training.truth[idx], truth_size * sizeof(float), cudaHostAllocPortable));
+			training.truth_size[idx] = truth_size;
+		}
+		if (training.pulled[idx] == nullptr)
+		{
+			CHECK_CUDA(cudaEventCreateWithFlags(&training.pulled[idx], cudaEventDisableTiming));
+		}
+
+		CHECK_CUDA(cudaMemcpyAsync(l.output, l.output_gpu, l.batch * l.outputs * sizeof(float), cudaMemcpyDeviceToHost, get_cuda_stream()));
+		CHECK_CUDA(cudaMemcpyAsync(training.truth[idx], state.truth, truth_size * sizeof(float), cudaMemcpyDeviceToHost, get_cuda_stream()));
+		CHECK_CUDA(cudaEventRecord(training.pulled[idx], get_cuda_stream()));
+
+		Darknet::NetworkState cpu_state = state;
+		cpu_state.truth = training.truth[idx];
+		cpu_state.input = l.output;
+		const cudaEvent_t pulled = training.pulled[idx];
+		start_background_task(state.net, idx, [&l, cpu_state, pulled]()
+		{
+			CHECK_CUDA(cudaEventSynchronize(pulled));
+			forward_yolo_layer(l, cpu_state);
+		});
+
+		return;
+	}
+
 	// l.output is the input of forward_yolo_layer(), there is no need for another copy
 	cuda_pull_array(l.output_gpu, l.output, l.batch*l.outputs);
 	float * truth_cpu = nullptr;
@@ -1689,9 +1752,23 @@ void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 }
 
+void yolo_layer_gpu_finish(Darknet::Network & net, const int index)
+{
+	TAT(TATPARMS);
+
+	Darknet::Layer & l = net.layers[index];
+	if (l.type == Darknet::ELayerType::YOLO and wait_for_background_task(net, index))
+	{
+		cuda_push_array(l.delta_gpu, l.delta, l.batch * l.outputs);
+	}
+}
+
+
 void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
+
+	yolo_layer_gpu_finish(state.net, state.index);
 
 	axpy_ongpu(l.batch*l.inputs, state.net.loss_scale * l.delta_normalizer, l.delta_gpu, 1, state.delta, 1);
 }

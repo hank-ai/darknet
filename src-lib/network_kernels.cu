@@ -321,6 +321,12 @@ void forward_backward_network_gpu_dev(Darknet::Network & net, float *x_gpu, floa
 	//cudaStreamSynchronize(get_cuda_stream());
 	backward_network_gpu(net, state);
 
+	// normally done by backward_yolo_layer_gpu(), unless the backward pass stopped before a [yolo] layer
+	for (int idx = 0; idx < net.n; ++idx)
+	{
+		yolo_layer_gpu_finish(net, idx);
+	}
+
 	if (net.adversarial)
 	{
 		cuda_free(state.delta);
@@ -399,6 +405,18 @@ namespace
 				CHECK_CUDA(cudaEventCreateWithFlags(&p->copied[k], cudaEventDisableTiming));
 				CHECK_CUDA(cudaEventCreateWithFlags(&p->consumed[k], cudaEventDisableTiming));
 			}
+
+			// the CPU part of the [yolo] layers needs pinned outputs and deltas to run in the background
+			p->yolo_in_background = true;
+			for (int i = 0; i < net.n; ++i)
+			{
+				const auto & l = net.layers[i];
+				if (l.type == Darknet::ELayerType::YOLO and (not l.output_pinned or not l.delta_pinned or l.embedding_output))
+				{
+					p->yolo_in_background = false;
+				}
+			}
+
 			net.details->training_state = p;
 		}
 
@@ -440,6 +458,16 @@ void free_training_state(Darknet::Network & net)
 		return;
 	}
 
+	if (p->worker.joinable())
+	{
+		{
+			std::lock_guard<std::mutex> lock(p->mutex);
+			p->stop = true;
+		}
+		p->cv.notify_all();
+		p->worker.join();
+	}
+
 	// the stream and the events belong to the network's GPU
 	const int device = cuda_get_device();
 	CHECK_CUDA(cudaSetDevice(net.gpu_index));
@@ -452,6 +480,14 @@ void free_training_state(Darknet::Network & net)
 		CHECK_CUDA(cudaEventDestroy(p->copied[k]));
 		CHECK_CUDA(cudaEventDestroy(p->consumed[k]));
 	}
+	for (size_t i = 0; i < p->truth.size(); ++i)
+	{
+		cuda_free_host(p->truth[i]);
+		if (p->pulled[i])
+		{
+			CHECK_CUDA(cudaEventDestroy(p->pulled[i]));
+		}
+	}
 	cuda_free(p->gpu_x1);
 	cuda_free(p->gpu_y1);
 	CHECK_CUDA(cudaStreamDestroy(p->stream));
@@ -459,6 +495,76 @@ void free_training_state(Darknet::Network & net)
 
 	delete p;
 	net.details->training_state = nullptr;
+}
+
+
+namespace
+{
+	void run_background_tasks(Darknet::TrainingState & p, const int device)
+	{
+		TAT(TATPARMS);
+
+		CHECK_CUDA(cudaSetDevice(device));
+
+		std::unique_lock<std::mutex> lock(p.mutex);
+		while (true)
+		{
+			p.cv.wait(lock, [&p]() { return p.stop or not p.tasks.empty(); });
+			if (p.stop)
+			{
+				return;
+			}
+
+			auto [index, task] = std::move(p.tasks.front());
+			p.tasks.pop_front();
+			lock.unlock();
+			task();
+			lock.lock();
+			p.done.insert(index);
+			p.cv.notify_all();
+		}
+	}
+}
+
+
+void start_background_task(Darknet::Network & net, const int layer_index, std::function<void()> task)
+{
+	TAT(TATPARMS);
+
+	auto & p = *net.details->training_state;
+
+	std::lock_guard<std::mutex> lock(p.mutex);
+	if (not p.worker.joinable())
+	{
+		p.worker = std::thread(run_background_tasks, std::ref(p), net.gpu_index);
+	}
+
+	p.pending.insert(layer_index);
+	p.tasks.emplace_back(layer_index, std::move(task));
+	p.cv.notify_all();
+}
+
+
+bool wait_for_background_task(Darknet::Network & net, const int layer_index)
+{
+	TAT(TATPARMS);
+
+	auto * p = net.details->training_state;
+	if (p == nullptr)
+	{
+		return false;
+	}
+
+	std::unique_lock<std::mutex> lock(p->mutex);
+	if (p->pending.count(layer_index) == 0)
+	{
+		return false;
+	}
+	p->cv.wait(lock, [p, layer_index]() { return p->done.count(layer_index) > 0; });
+	p->done.erase(layer_index);
+	p->pending.erase(layer_index);
+
+	return true;
 }
 
 
