@@ -16,7 +16,132 @@ namespace
 		float tot_iou_loss;
 		int count;
 		int class_count;
+		int total_bbox;
+		int rewritten_bbox;
 	};
+
+
+	/// Threads used by forward_yolo_layer() during training, shared by all GPUs.  The caller of @ref run() also works.
+	class YoloThreadPool final
+	{
+		public:
+
+			YoloThreadPool()
+			{
+				const int n = std::max(1, static_cast<int>(std::thread::hardware_concurrency()) - 1);
+				for (int i = 0; i < n; ++i)
+				{
+					workers.emplace_back([this]() { work(); });
+				}
+			}
+
+			~YoloThreadPool()
+			{
+				{
+					std::lock_guard<std::mutex> lock(mutex);
+					stop = true;
+				}
+				cv_work.notify_all();
+				for (auto & t : workers)
+				{
+					t.join();
+				}
+			}
+
+			int size() const
+			{
+				return static_cast<int>(workers.size()) + 1;
+			}
+
+			/// Call @p fn with every index from 0 to @p count - 1 (in any order, on any thread) and wait until all are done.
+			void run(const int count, const std::function<void(int)> & fn)
+			{
+				TAT(TATPARMS);
+
+				if (count <= 0)
+				{
+					return;
+				}
+
+				Job job{&fn, count, 0, 0};
+
+				std::unique_lock<std::mutex> lock(mutex);
+				jobs.push_back(&job);
+				cv_work.notify_all();
+				while (job.next < job.count)
+				{
+					const int i = take(job);
+					lock.unlock();
+					fn(i);
+					lock.lock();
+					++job.done;
+				}
+				cv_done.wait(lock, [&job]() { return job.done == job.count; });
+			}
+
+		private:
+
+			struct Job
+			{
+				const std::function<void(int)> * fn;
+				int count;
+				int next;	///< the next index to hand out
+				int done;	///< the number of indexes done
+			};
+
+			/// The mutex must be locked, and @p job must have indexes left.
+			int take(Job & job)
+			{
+				const int i = job.next++;
+				if (job.next == job.count)
+				{
+					jobs.erase(std::find(jobs.begin(), jobs.end(), &job));
+				}
+				return i;
+			}
+
+			void work()
+			{
+				std::unique_lock<std::mutex> lock(mutex);
+				while (true)
+				{
+					cv_work.wait(lock, [this]() { return stop or not jobs.empty(); });
+					if (stop)
+					{
+						return;
+					}
+
+					Job & job = *jobs.front();
+					const int i = take(job);
+					lock.unlock();
+					(*job.fn)(i);
+					lock.lock();
+					++job.done;
+					if (job.done == job.count)
+					{
+						// once the mutex is unlocked, run() returns and the job no longer exists
+						cv_done.notify_all();
+					}
+				}
+			}
+
+			std::mutex mutex;
+			std::condition_variable cv_work;
+			std::condition_variable cv_done;
+			std::deque<Job *> jobs;
+			Darknet::VThreads workers;
+			bool stop = false;
+	};
+
+
+	YoloThreadPool & yolo_thread_pool()
+	{
+		TAT(TATPARMS);
+
+		static YoloThreadPool pool;
+
+		return pool;
+	}
 
 
 	static inline Darknet::Box get_yolo_box(const float * x, const float * biases, const int n, const int index, const int i, const int j, const int lw, const int lh, const int w, const int h, const int stride, const int new_coords)
@@ -504,18 +629,36 @@ void resize_yolo_layer(Darknet::Layer * l, int w, int h)
 }
 
 
-void process_batch(void* ptr)
+/* The work forward_yolo_layer() does for image "b" during training is split in 3 parts:
+ *
+ * - process_batch_cells() compares each prediction with all of the truths, and only writes to that prediction's
+ *   outputs and deltas, so the rows of cells can be done in parallel;
+ * - process_batch_truths() then goes through the truths in order (they may overwrite the deltas of any cell);
+ * - process_batch_average() is done once all the truths of the image are done, and can again be done in parallel.
+ */
+static void process_batch_cells(train_yolo_args * args, const int first_row, const int last_row, int & total_bbox, int & rewritten_bbox)
 {
 	TAT_COMMENT(TATPARMS, "complicated");
 
-	train_yolo_args *args = (train_yolo_args*)ptr;
 	const Darknet::Layer & l = *args->l;
-	Darknet::NetworkState state = args->state;
-	int b = args->b;
+	const Darknet::NetworkState & state = args->state;
+	const int b = args->b;
 
-	float avg_cat = 0.0f;
+	// clear this group's rows of the deltas, labels and class ids
+	const int cells = (last_row - first_row) * l.w;
+	for (int n = 0; n < l.n; ++n)
+	{
+		for (int entry = 0; entry < 4 + 1 + l.classes; ++entry)
+		{
+			const int index = yolo_entry_index(l, b, n * l.w * l.h + first_row * l.w, entry);
+			memset(l.delta + index, 0, cells * sizeof(float));
+		}
+		const int index = (b * l.n + n) * l.w * l.h + first_row * l.w;
+		std::fill(l.labels + index, l.labels + index + cells, -1);
+		std::fill(l.class_ids + index, l.class_ids + index + cells, -1);
+	}
 
-	for (int j = 0; j < l.h; ++j)
+	for (int j = first_row; j < last_row; ++j)
 	{
 		for (int i = 0; i < l.w; ++i)
 		{
@@ -650,12 +793,24 @@ void process_batch(void* ptr)
 						l.delta[class_index + stride * class_id] = class_multiplier * (iou_multiplier - l.output[class_index + stride * class_id]);
 					}
 					Darknet::Box truth = float_to_box_stride(state.truth + best_t * l.truth_size + b * l.truths, 1);
-					delta_yolo_box(truth, l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
-					(*state.net.total_bbox)++;
+					delta_yolo_box(truth, l.output, l.biases, l.mask[n], box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, &rewritten_bbox, l.new_coords);
+					total_bbox++;
 				}
 			}
 		}
 	}
+}
+
+
+static void process_batch_truths(train_yolo_args * args)
+{
+	TAT_COMMENT(TATPARMS, "complicated");
+
+	const Darknet::Layer & l = *args->l;
+	const Darknet::NetworkState & state = args->state;
+	const int b = args->b;
+
+	float avg_cat = 0.0f;
 
 	for (int t = 0; t < l.max_boxes; ++t)
 	{
@@ -705,8 +860,8 @@ void process_batch(void* ptr)
 
 			int box_index = yolo_entry_index(l, b, mask_n2 * l.w * l.h + j * l.w + i, 0);
 			const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
-			ious all_ious = delta_yolo_box(truth, l.output, l.biases, best_n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
-			(*state.net.total_bbox)++;
+			ious all_ious = delta_yolo_box(truth, l.output, l.biases, best_n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, &args->rewritten_bbox, l.new_coords);
+			args->total_bbox++;
 
 			const int truth_in_index = t * l.truth_size + b * l.truths + 5;
 			const int track_id = state.truth[truth_in_index];
@@ -763,8 +918,8 @@ void process_batch(void* ptr)
 
 					int box_index = yolo_entry_index(l, b, mask_n * l.w * l.h + j * l.w + i, 0);
 					const float class_multiplier = (l.classes_multipliers) ? l.classes_multipliers[class_id] : 1.0f;
-					ious all_ious = delta_yolo_box(truth, l.output, l.biases, n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, state.net.rewritten_bbox, l.new_coords);
-					(*state.net.total_bbox)++;
+					ious all_ious = delta_yolo_box(truth, l.output, l.biases, n, box_index, i, j, l.w, l.h, state.net.w, state.net.h, l.delta, (2 - truth.w * truth.h), l.w * l.h, l.iou_normalizer * class_multiplier, l.iou_loss, 1, l.max_delta, &args->rewritten_bbox, l.new_coords);
+					args->total_bbox++;
 
 					// range is 0 <= 1
 					args->tot_iou += all_ious.iou;
@@ -795,11 +950,20 @@ void process_batch(void* ptr)
 			}
 		}
 	}
+}
+
+
+static void process_batch_average(train_yolo_args * args, const int first_row, const int last_row)
+{
+	TAT_COMMENT(TATPARMS, "complicated");
+
+	const Darknet::Layer & l = *args->l;
+	const int b = args->b;
 
 	if (l.iou_thresh < 1.0f)
 	{
 		// averages the deltas obtained by the function: delta_yolo_box()_accumulate
-		for (int j = 0; j < l.h; ++j)
+		for (int j = first_row; j < last_row; ++j)
 		{
 			for (int i = 0; i < l.w; ++i)
 			{
@@ -858,19 +1022,6 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		return;
 	}
 
-	// delta is zeroed
-	memset(l.delta, 0, l.outputs * l.batch * sizeof(float));
-
-	for (int i = 0; i < l.batch * l.w*l.h*l.n; ++i)
-	{
-		l.labels[i] = -1;
-	}
-
-	for (int i = 0; i < l.batch * l.w*l.h*l.n; ++i)
-	{
-		l.class_ids[i] = -1;
-	}
-
 	//float avg_iou = 0;
 	float tot_iou = 0;
 	//float tot_giou = 0;
@@ -889,10 +1040,6 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	int class_count = 0;
 	*(l.cost) = 0;
 
-	int num_threads = l.batch;
-	Darknet::VThreads threads;
-	threads.reserve(num_threads);
-
 	struct train_yolo_args * yolo_args = (train_yolo_args*)xcalloc(l.batch, sizeof(struct train_yolo_args));
 
 	for (int b = 0; b < l.batch; b++)
@@ -906,19 +1053,46 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		yolo_args[b].tot_giou_loss = 0;
 		yolo_args[b].count = 0;
 		yolo_args[b].class_count = 0;
-
-		threads.emplace_back(process_batch, &(yolo_args[b]));
+		yolo_args[b].total_bbox = 0;
+		yolo_args[b].rewritten_bbox = 0;
 	}
+
+	// split each image into enough groups of rows to keep all the threads busy
+	auto & pool = yolo_thread_pool();
+	const int parts = std::min(l.h, std::max(1, 2 * pool.size() / l.batch));
+	std::vector<int> total_bbox(l.batch * parts, 0);
+	std::vector<int> rewritten_bbox(l.batch * parts, 0);
+	pool.run(l.batch * parts, [&](int i)
+	{
+		const int b = i / parts;
+		const int part = i % parts;
+		process_batch_cells(&yolo_args[b], l.h * part / parts, l.h * (part + 1) / parts, total_bbox[i], rewritten_bbox[i]);
+	});
+	pool.run(l.batch, [&](int b)
+	{
+		process_batch_truths(&yolo_args[b]);
+	});
+	pool.run(l.batch * parts, [&](int i)
+	{
+		const int b = i / parts;
+		const int part = i % parts;
+		process_batch_average(&yolo_args[b], l.h * part / parts, l.h * (part + 1) / parts);
+	});
 
 	for (int b = 0; b < l.batch; b++)
 	{
-		threads[b].join();
-
 		tot_iou += yolo_args[b].tot_iou;
 		tot_iou_loss += yolo_args[b].tot_iou_loss;
 		tot_giou_loss += yolo_args[b].tot_giou_loss;
 		count += yolo_args[b].count;
 		class_count += yolo_args[b].class_count;
+		*state.net.total_bbox += yolo_args[b].total_bbox;
+		*state.net.rewritten_bbox += yolo_args[b].rewritten_bbox;
+	}
+	for (int i = 0; i < l.batch * parts; ++i)
+	{
+		*state.net.total_bbox += total_bbox[i];
+		*state.net.rewritten_bbox += rewritten_bbox[i];
 	}
 
 	free(yolo_args);
