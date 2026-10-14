@@ -530,6 +530,7 @@ void process_batch(void* ptr)
 				//int best_match_t = 0;
 				float best_iou = 0;
 				int best_t = 0;
+				int class_id_match = -1; // not yet known
 
 				for (int t = 0; t < l.max_boxes; ++t)
 				{
@@ -550,13 +551,20 @@ void process_batch(void* ptr)
 					{
 						l.output[obj_index] = 0;
 					}
-					int class_id_match = compare_yolo_class(l.output, l.classes, class_index, l.w * l.h, objectness, class_id, 0.25f);
 
 					float iou = box_iou(pred, truth);
-					if (iou > best_match_iou && class_id_match == 1)
+					if (iou > best_match_iou)
 					{
-						best_match_iou = iou;
-						//best_match_t = t;
+						// the result only depends on this prediction's class probabilities, so it is computed at most once
+						if (class_id_match < 0)
+						{
+							class_id_match = compare_yolo_class(l.output, l.classes, class_index, l.w * l.h, objectness, class_id, 0.25f);
+						}
+						if (class_id_match == 1)
+						{
+							best_match_iou = iou;
+							//best_match_t = t;
+						}
 					}
 					if (iou > best_iou)
 					{
@@ -1071,30 +1079,20 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 		class_count = 1;
 	}
 
-	int stride = l.w*l.h;
-	float* no_iou_loss_delta = (float *)calloc(l.batch * l.outputs, sizeof(float));
-	memcpy(no_iou_loss_delta, l.delta, l.batch * l.outputs * sizeof(float));
-
-	for (int b = 0; b < l.batch; ++b)
+	// classification loss: all deltas except the 4 box coordinates
+	const int stride = l.w*l.h;
+	const int entries = stride * (4 + 1 + l.classes);
+	float sum = 0.0f;
+	for (int i = 0; i < l.batch * l.n; ++i)
 	{
-		for (int j = 0; j < l.h; ++j)
+		const float * delta = l.delta + i * entries;
+		for (int k = 4 * stride; k < entries; ++k)
 		{
-			for (int i = 0; i < l.w; ++i)
-			{
-				for (int n = 0; n < l.n; ++n)
-				{
-					int index = yolo_entry_index(l, b, n*l.w*l.h + j*l.w + i, 0);
-					no_iou_loss_delta[index + 0 * stride] = 0;
-					no_iou_loss_delta[index + 1 * stride] = 0;
-					no_iou_loss_delta[index + 2 * stride] = 0;
-					no_iou_loss_delta[index + 3 * stride] = 0;
-				}
-			}
+			sum += delta[k] * delta[k];
 		}
 	}
 
-	float classification_loss = l.obj_normalizer * pow(mag_array(no_iou_loss_delta, l.outputs * l.batch), 2);
-	free(no_iou_loss_delta);
+	float classification_loss = l.obj_normalizer * sum;
 	float loss = pow(mag_array(l.delta, l.outputs * l.batch), 2);
 	float iou_loss = loss - classification_loss;
 
