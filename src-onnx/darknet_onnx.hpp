@@ -54,6 +54,9 @@ namespace Darknet
 			ONNXExport & add_node_yolo			(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_resize		(const size_t index, Darknet::CfgSection & section);
 			ONNXExport & add_node_bn			(const size_t index, Darknet::CfgSection & section);
+			ONNXExport & add_node_avgpool		(const size_t index, Darknet::CfgSection & section);
+			ONNXExport & add_node_scale_channels(const size_t index, Darknet::CfgSection & section);
+			ONNXExport & add_node_sam			(const size_t index, Darknet::CfgSection & section);
 
 			ONNXExport & populate_graph_initializer(const float * f, const size_t n, const Darknet::Layer & l, const std::string & name, const bool simple = false);
 			ONNXExport & build_model();
