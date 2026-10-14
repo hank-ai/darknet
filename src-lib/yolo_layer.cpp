@@ -827,7 +827,10 @@ void forward_yolo_layer(Darknet::Layer & l, Darknet::NetworkState state)
 {
 	TAT(TATPARMS);
 
-	memcpy(l.output, state.input, l.outputs * l.batch * sizeof(float));
+	if (l.output != state.input)
+	{
+		memcpy(l.output, state.input, l.outputs * l.batch * sizeof(float));
+	}
 
 #ifndef DARKNET_GPU
 	for (int b = 0; b < l.batch; ++b)
@@ -1486,9 +1489,8 @@ void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 		return;
 	}
 
-	float *in_cpu = (float *)xcalloc(l.batch*l.inputs, sizeof(float));
+	// l.output is the input of forward_yolo_layer(), there is no need for another copy
 	cuda_pull_array(l.output_gpu, l.output, l.batch*l.outputs);
-	memcpy(in_cpu, l.output, l.batch * l.outputs * sizeof(float));
 	float * truth_cpu = nullptr;
 
 	if (state.truth)
@@ -1502,12 +1504,11 @@ void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 //	cpu_state.index = state.index;
 //	cpu_state.train = state.train;
 	cpu_state.truth = truth_cpu;
-	cpu_state.input = in_cpu;
+	cpu_state.input = l.output;
 	forward_yolo_layer(l, cpu_state);
 	//forward_yolo_layer(l, state);
 	cuda_push_array(l.delta_gpu, l.delta, l.batch * l.outputs);
 
-	free(in_cpu);
 	if (cpu_state.truth)
 	{
 		free(cpu_state.truth);
