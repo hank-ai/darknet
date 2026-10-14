@@ -252,9 +252,6 @@ void forward_backward_network_gpu(Darknet::Network & net, float *x, float *y)
 {
 	TAT(TATPARMS);
 
-	Darknet::NetworkState state;
-	state.index = 0;
-	state.net = net;
 	int x_size = get_network_input_size(net)*net.batch;
 	int y_size = get_network_output_size(net)*net.batch;
 	if (net.layers[net.n-1].truths)
@@ -271,13 +268,32 @@ void forward_backward_network_gpu(Darknet::Network & net, float *x, float *y)
 		cuda_push_array(*net.input_gpu, x, x_size);
 		cuda_push_array(*net.truth_gpu, y, y_size);
 	}
-	state.input = *net.input_gpu;
+
+	forward_backward_network_gpu_dev(net, *net.input_gpu, *net.truth_gpu);
+
+	if (net.adversarial)
+	{
+		cuda_pull_array(*net.input_gpu, x, x_size);
+	}
+}
+
+void forward_backward_network_gpu_dev(Darknet::Network & net, float *x_gpu, float *y_gpu)
+{
+	TAT(TATPARMS);
+
+	// same as forward_backward_network_gpu() but the input and the truth are already on the GPU
+
+	Darknet::NetworkState state;
+	state.index = 0;
+	state.net = net;
+	int x_size = get_network_input_size(net)*net.batch;
+	state.input = x_gpu;
 	state.delta = 0;
 	if (net.adversarial)
 	{
 		state.delta = cuda_make_array(NULL, x_size);
 	}
-	state.truth = *net.truth_gpu;
+	state.truth = y_gpu;
 	state.train = 1;
 #if defined(CUDNN_HALF) && defined(CUDNN)
 	int i;
@@ -305,10 +321,15 @@ void forward_backward_network_gpu(Darknet::Network & net, float *x, float *y)
 	//cudaStreamSynchronize(get_cuda_stream());
 	backward_network_gpu(net, state);
 
+	// normally done by backward_yolo_layer_gpu(), unless the backward pass stopped before a [yolo] layer
+	for (int idx = 0; idx < net.n; ++idx)
+	{
+		yolo_layer_gpu_finish(net, idx);
+	}
+
 	if (net.adversarial)
 	{
 		cuda_free(state.delta);
-		cuda_pull_array(*net.input_gpu, x, x_size);
 	}
 }
 
@@ -366,6 +387,242 @@ float train_network_datum_gpu(Darknet::Network & net, float *x, float *y)
 	float error = get_network_cost(net);
 
 	return error;
+}
+
+
+namespace
+{
+	Darknet::TrainingState & get_training_state(Darknet::Network & net, const size_t x_size, const size_t y_size)
+	{
+		TAT(TATPARMS);
+
+		if (net.details->training_state == nullptr)
+		{
+			auto * p = new Darknet::TrainingState;
+			CHECK_CUDA(cudaStreamCreateWithFlags(&p->stream, cudaStreamNonBlocking));
+			for (int k = 0; k < 2; ++k)
+			{
+				CHECK_CUDA(cudaEventCreateWithFlags(&p->copied[k], cudaEventDisableTiming));
+				CHECK_CUDA(cudaEventCreateWithFlags(&p->consumed[k], cudaEventDisableTiming));
+			}
+
+			// the CPU part of the [yolo] layers needs pinned outputs and deltas to run in the background
+			p->yolo_in_background = true;
+			for (int i = 0; i < net.n; ++i)
+			{
+				const auto & l = net.layers[i];
+				if (l.type == Darknet::ELayerType::YOLO and (not l.output_pinned or not l.delta_pinned or l.embedding_output))
+				{
+					p->yolo_in_background = false;
+				}
+			}
+
+			net.details->training_state = p;
+		}
+
+		auto & p = *net.details->training_state;
+		if (p.x_size != x_size or p.y_size != y_size)
+		{
+			// first call, or the network was resized
+			CHECK_CUDA(cudaStreamSynchronize(p.stream));
+			CHECK_CUDA(cudaStreamSynchronize(get_cuda_stream()));
+			for (int k = 0; k < 2; ++k)
+			{
+				cuda_free_host(p.host_x[k]);
+				cuda_free_host(p.host_y[k]);
+				CHECK_CUDA(cudaHostAlloc((void**)&p.host_x[k], x_size * sizeof(float), cudaHostAllocPortable));
+				CHECK_CUDA(cudaHostAlloc((void**)&p.host_y[k], y_size * sizeof(float), cudaHostAllocPortable));
+				memset(p.host_x[k], 0, x_size * sizeof(float));
+				memset(p.host_y[k], 0, y_size * sizeof(float));
+			}
+			cuda_free(p.gpu_x1);
+			cuda_free(p.gpu_y1);
+			p.gpu_x1 = cuda_make_array(NULL, x_size);
+			p.gpu_y1 = cuda_make_array(NULL, y_size);
+			p.x_size = x_size;
+			p.y_size = y_size;
+		}
+
+		return p;
+	}
+}
+
+
+void free_training_state(Darknet::Network & net)
+{
+	TAT(TATPARMS);
+
+	auto * p = net.details->training_state;
+	if (p == nullptr)
+	{
+		return;
+	}
+
+	if (p->worker.joinable())
+	{
+		{
+			std::lock_guard<std::mutex> lock(p->mutex);
+			p->stop = true;
+		}
+		p->cv.notify_all();
+		p->worker.join();
+	}
+
+	// the stream and the events belong to the network's GPU
+	const int device = cuda_get_device();
+	CHECK_CUDA(cudaSetDevice(net.gpu_index));
+
+	CHECK_CUDA(cudaStreamSynchronize(p->stream));
+	for (int k = 0; k < 2; ++k)
+	{
+		cuda_free_host(p->host_x[k]);
+		cuda_free_host(p->host_y[k]);
+		CHECK_CUDA(cudaEventDestroy(p->copied[k]));
+		CHECK_CUDA(cudaEventDestroy(p->consumed[k]));
+	}
+	for (size_t i = 0; i < p->truth.size(); ++i)
+	{
+		cuda_free_host(p->truth[i]);
+		if (p->pulled[i])
+		{
+			CHECK_CUDA(cudaEventDestroy(p->pulled[i]));
+		}
+	}
+	cuda_free(p->gpu_x1);
+	cuda_free(p->gpu_y1);
+	CHECK_CUDA(cudaStreamDestroy(p->stream));
+	CHECK_CUDA(cudaSetDevice(device));
+
+	delete p;
+	net.details->training_state = nullptr;
+}
+
+
+namespace
+{
+	void run_background_tasks(Darknet::TrainingState & p, const int device)
+	{
+		TAT(TATPARMS);
+
+		CHECK_CUDA(cudaSetDevice(device));
+
+		std::unique_lock<std::mutex> lock(p.mutex);
+		while (true)
+		{
+			p.cv.wait(lock, [&p]() { return p.stop or not p.tasks.empty(); });
+			if (p.stop)
+			{
+				return;
+			}
+
+			auto [index, task] = std::move(p.tasks.front());
+			p.tasks.pop_front();
+			lock.unlock();
+			task();
+			lock.lock();
+			p.done.insert(index);
+			p.cv.notify_all();
+		}
+	}
+}
+
+
+void start_background_task(Darknet::Network & net, const int layer_index, std::function<void()> task)
+{
+	TAT(TATPARMS);
+
+	auto & p = *net.details->training_state;
+
+	std::lock_guard<std::mutex> lock(p.mutex);
+	if (not p.worker.joinable())
+	{
+		p.worker = std::thread(run_background_tasks, std::ref(p), net.gpu_index);
+	}
+
+	p.pending.insert(layer_index);
+	p.tasks.emplace_back(layer_index, std::move(task));
+	p.cv.notify_all();
+}
+
+
+bool wait_for_background_task(Darknet::Network & net, const int layer_index)
+{
+	TAT(TATPARMS);
+
+	auto * p = net.details->training_state;
+	if (p == nullptr)
+	{
+		return false;
+	}
+
+	std::unique_lock<std::mutex> lock(p->mutex);
+	if (p->pending.count(layer_index) == 0)
+	{
+		return false;
+	}
+	p->cv.wait(lock, [p, layer_index]() { return p->done.count(layer_index) > 0; });
+	p->done.erase(layer_index);
+	p->pending.erase(layer_index);
+
+	return true;
+}
+
+
+float train_network_subdivisions_gpu(Darknet::Network & net, data d, int wait_key)
+{
+	TAT(TATPARMS);
+
+	// same as the loop in train_network_waitkey(), but the upload of mini-batch #i+1 overlaps the work on mini-batch #i
+
+	const int batch = net.batch;
+	const int n = d.X.rows / batch;
+	size_t x_size = get_network_input_size(net) * batch;
+	size_t y_size = get_network_output_size(net) * batch;
+	if (net.layers[net.n - 1].truths)
+	{
+		y_size = net.layers[net.n - 1].truths * batch;
+	}
+	if (!*net.input_gpu)
+	{
+		*net.input_gpu = cuda_make_array(NULL, x_size);
+		*net.truth_gpu = cuda_make_array(NULL, y_size);
+	}
+
+	// the host buffers must also be large enough for get_next_batch()
+	auto & p = get_training_state(net, std::max(x_size, (size_t)batch * d.X.cols), std::max(y_size, (size_t)batch * d.y.cols));
+	float * gpu_x[2] = {*net.input_gpu, p.gpu_x1};
+	float * gpu_y[2] = {*net.truth_gpu, p.gpu_y1};
+
+	float sum = 0.0f;
+	for (int i = 0; i < n; ++i)
+	{
+		const int k = i % 2;
+
+		CHECK_CUDA(cudaEventSynchronize(p.copied[k]));
+		get_next_batch(d, batch, i * batch, p.host_x[k], p.host_y[k]);
+
+		CHECK_CUDA(cudaStreamWaitEvent(p.stream, p.consumed[k], 0));
+		CHECK_CUDA(cudaMemcpyAsync(gpu_x[k], p.host_x[k], x_size * sizeof(float), cudaMemcpyHostToDevice, p.stream));
+		CHECK_CUDA(cudaMemcpyAsync(gpu_y[k], p.host_y[k], y_size * sizeof(float), cudaMemcpyHostToDevice, p.stream));
+		CHECK_CUDA(cudaEventRecord(p.copied[k], p.stream));
+		CHECK_CUDA(cudaStreamWaitEvent(get_cuda_stream(), p.copied[k], 0));
+
+		// see train_network_datum() and train_network_datum_gpu()
+		net.current_subdivision = i;
+		*net.seen += batch;
+		forward_backward_network_gpu_dev(net, gpu_x[k], gpu_y[k]);
+		CHECK_CUDA(cudaEventRecord(p.consumed[k], get_cuda_stream()));
+		sum += get_network_cost(net);
+
+		show_rewritten_bbox(net);
+
+		if (wait_key)
+		{
+			cv::waitKey(5);
+		}
+	}
+
+	return sum;
 }
 
 
