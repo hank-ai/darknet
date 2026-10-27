@@ -114,7 +114,8 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 	graph(nullptr),
 	bit_size(32),
 	fuse_batchnorm(true),
-	postprocess_boxes(true)
+	postprocess_boxes(true),
+	batch_size(1)
 {
 	TAT(TATPARMS);
 	*cfg_and_state.output											<< std::endl
@@ -188,6 +189,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 		postprocess_boxes = false;
 	}
 
+	batch_size = cfg_and_state.get("batch", 1);
+	if (batch_size < 0)
+	{
+		throw std::invalid_argument("invalid batch size " + std::to_string(batch_size) + " (use 0 for a dynamic batch dimension)");
+	}
+
 	if (cfg_and_state.is_set("fp32"))
 	{
 		bit_size = 32;
@@ -230,6 +237,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		<< "-> model version ........ " << model.model_version()				<< std::endl
 		<< "-> batchnorm fused ...... " << (fuse_batchnorm		? "yes" : "no")	<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fuse or -dontfuse]") << std::endl
 		<< "-> post-process boxes ... " << (postprocess_boxes	? "yes" : "no")	<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -boxes or -noboxes]") << std::endl
+		<< "-> batch size ........... " << (batch_size > 0 ? std::to_string(batch_size) : "dynamic") << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [set with -batch N]") << std::endl
 		<< "-> has graph ............ " << (model.has_graph()	? "yes" : "no")	<< std::endl
 		<< "-> graph name ........... " << graph->name()						<< std::endl
 		<< "-> graph input size ..... " << graph->input_size()	<< " "			<< Darknet::in_colour(Darknet::EColour::kDarkGrey, input_string)	<< std::endl
@@ -469,7 +477,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx
 
 	// n
 	auto dim = shape->add_dim();
-	dim->set_dim_value(v1);
+	if (v1 > 0)
+	{
+		dim->set_dim_value(v1);
+	}
+	else
+	{
+		// dynamic batch size
+		dim->set_dim_param("batch");
+	}
 
 	// other values are optional
 
@@ -504,7 +520,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 
 	auto input = graph->add_input();
 
-	const int b = 1;
+	const int b = batch_size;
 	const int c = cfg.net.c;
 	const int h = cfg.net.h;
 	const int w = cfg.net.w;
@@ -516,7 +532,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 	input->set_doc_string(
 		cfg_fn.filename().string() +
 		" line #"	+ std::to_string(cfg.network_section.line_number) +
-		" [b=1,"
+		" [b="		+ batch_string() + ","
 		" c="		+ std::to_string(c) + ","
 		" h="		+ std::to_string(h) + ","
 		" w="		+ std::to_string(w) + "]"
@@ -524,7 +540,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 
 	input_string =
 		"[\"frame\""
-		" B=" + std::to_string(b) +
+		" B=" + batch_string() +
 		" C=" + std::to_string(c) +
 		" H=" + std::to_string(h) +
 		" W=" + std::to_string(w) +
@@ -547,9 +563,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_YOLO_output()
 		if (section.type == Darknet::ELayerType::YOLO)
 		{
 			auto output = graph->add_output();
-			populate_input_output_dimensions(output, Node::get_output_for_layer_index(idx), 1, l.c, l.h, l.w, section.line_number);
+			populate_input_output_dimensions(output, Node::get_output_for_layer_index(idx), batch_size, l.c, l.h, l.w, section.line_number);
 			output->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(idx) + "]");
-			output_string += "[\"" + output->name() + "\" B=1 C=" + std::to_string(l.c) + " H=" + std::to_string(l.h) + " W=" + std::to_string(l.w) + "] ";
+			output_string += "[\"" + output->name() + "\" B=" + batch_string() + " C=" + std::to_string(l.c) + " H=" + std::to_string(l.h) + " W=" + std::to_string(l.w) + "] ";
 		}
 	}
 
@@ -1573,7 +1589,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(Darknet::CfgSecti
 	const auto & l					= cfg.net.layers[section.index];
 	const int number_of_masks		= section.find_int_array("mask").size();
 	const int size					= number_of_masks * l.w * l.h;
-	VInt reshape_vector				= {1, size};
+	// 0 = copy the batch dimension from the input (dynamic batch)
+	VInt reshape_vector				= {batch_size, size};
 
 	for (const auto & name : v)
 	{
@@ -1620,7 +1637,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_class(Darknet::CfgSe
 	const auto & l					= cfg.net.layers[section.index];
 	const int number_of_classes		= section.find_int("classes");
 	const int number_of_masks		= section.find_int_array("mask").size();
-	VInt reshape_vector				= {1, number_of_masks, number_of_classes, l.w * l.h};
+	VInt reshape_vector				= {batch_size, number_of_masks, number_of_classes, l.w * l.h};
 
 	for (const auto & name : v)
 	{
@@ -1636,7 +1653,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_class(Darknet::CfgSe
 		Node transpose(section, "_transpose_class");
 		transpose.type("Transpose").add_input(reshape1.output).add_attribute_INTS("perm", {0, 1, 3, 2});
 
-		reshape_vector = {1, number_of_masks * l.w * l.h, number_of_classes};
+		reshape_vector = {batch_size, number_of_masks * l.w * l.h, number_of_classes};
 		const auto const_shape_2 = Node(section, reshape_vector).output;
 		Node reshape2(section, "_reshape_class");
 		reshape2.type("Reshape").add_input(transpose.output).add_input(const_shape_2);
@@ -1731,11 +1748,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs(const Darknet:
 	}
 
 	auto output = graph->add_output();
-	populate_input_output_dimensions(output, "confs", 1, number_of_boxes, number_of_classes);
+	populate_input_output_dimensions(output, "confs", batch_size, number_of_boxes, number_of_classes);
 	output->set_doc_string(ss.str());
 	node.doc(ss.str());
 
-	output_string += "[\"confs\" B=1 C=" + std::to_string(number_of_boxes) + " H=" + std::to_string(number_of_classes) + "] ";
+	output_string += "[\"confs\" B=" + batch_string() + " C=" + std::to_string(number_of_boxes) + " H=" + std::to_string(number_of_classes) + "] ";
 
 	return *this;
 }
@@ -1999,7 +2016,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 		const int number_of_masks = section.find_int_array("mask").size();
 		const int size = number_of_masks * l.w * l.h;
 		number_of_boxes += size;
-		VInt reshape_vector = {1, size, 1};
+		VInt reshape_vector = {batch_size, size, 1};
 
 		for (const auto & name : {lhs, rhs})
 		{
@@ -2113,11 +2130,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 	}
 
 	auto output = graph->add_output();
-	populate_input_output_dimensions(output, "boxes", 1, number_of_boxes, 1, 4);
+	populate_input_output_dimensions(output, "boxes", batch_size, number_of_boxes, 1, 4);
 	output->set_doc_string(ss.str());
 	node.doc(ss.str());
 
-	output_string += "[\"boxes\" B=1 C=" + std::to_string(number_of_boxes) + " H=1 W=4] ";
+	output_string += "[\"boxes\" B=" + batch_string() + " C=" + std::to_string(number_of_boxes) + " H=1 W=4] ";
 
 	return *this;
 }
