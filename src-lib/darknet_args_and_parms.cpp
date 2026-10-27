@@ -175,6 +175,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("nms"		, "nmsthresh"	, 0.45f	, "The NMS (non-maximal suppression) threshold."),
 
 		ArgsAndParms("saveweights", "", 0, "How often the .weights are saved during training.  For example, this could be set to \"500\" to save the weights every 500 iteration."),
+		ArgsAndParms("loadthreads", "", 0, "The number of threads used to load images during training.  The default is 6 per GPU.  For example, this could be set to \"32\" on a machine with many cores."),
 
 		ArgsAndParms("avgframes"			), //-- takes an int  3
 		ArgsAndParms("benchmark"			),
