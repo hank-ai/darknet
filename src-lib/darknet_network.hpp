@@ -9,6 +9,45 @@
 
 namespace Darknet
 {
+#ifdef DARKNET_GPU
+	/** Things which belong to one network while it trains on a GPU:
+	 *
+	 * - pinned host memory, a second GPU buffer, a CUDA stream and events which @ref train_network_subdivisions_gpu()
+	 *   uses to upload the next mini-batch while the GPU works on the current one (GPU buffer #0 is the network's own
+	 *   @p input_gpu and @p truth_gpu);
+	 * - a thread which computes the [yolo] deltas while the GPU continues, see @ref start_background_task().
+	 */
+	struct TrainingState
+	{
+		size_t x_size			= 0;
+		size_t y_size			= 0;
+		float * host_x[2]		= {nullptr, nullptr};
+		float * host_y[2]		= {nullptr, nullptr};
+		float * gpu_x1			= nullptr;
+		float * gpu_y1			= nullptr;
+		cudaStream_t stream		= nullptr;				///< used for the uploads
+		cudaEvent_t copied[2]	= {nullptr, nullptr};	///< the upload from host buffer #k is done
+		cudaEvent_t consumed[2]	= {nullptr, nullptr};	///< the GPU is done with the mini-batch in GPU buffer #k
+
+		/// Whether the CPU part of the [yolo] layers runs on @ref worker.  Decided once for all the [yolo] layers.
+		bool yolo_in_background	= false;
+		std::thread worker;
+		std::mutex mutex;
+		std::condition_variable cv;
+		std::deque<std::pair<int, std::function<void()>>> tasks;	///< layer index and task
+		SInt pending;												///< layer indexes with a task, until @ref wait_for_background_task()
+		SInt done;													///< layer indexes with a task which has finished
+		bool stop				= false;
+
+		/// @{ Per layer:  pinned copy of the truths, and an event recorded once the outputs and truths are on the CPU.
+		std::vector<float *> truth;
+		std::vector<size_t> truth_size;
+		std::vector<cudaEvent_t> pulled;
+		/// @}
+	};
+#endif
+
+
 	/** A place to store other details related to the neural network which we cannot easily add to the usual
 	 * @ref Darknet::Network structure.  These are typically C++ objects, or things added post %Darknet V3 (2024-08).
 	 *
@@ -139,6 +178,16 @@ namespace Darknet
 			 * @since 2024-10-07
 			 */
 			SInt classes_to_ignore;
+
+#ifdef DARKNET_GPU
+			/** Created the first time the network is trained on a GPU.
+			 *
+			 * @see @ref free_training_state()
+			 *
+			 * @since 2026-10-14
+			 */
+			TrainingState * training_state;
+#endif
 	};
 
 
@@ -304,6 +353,15 @@ void forward_network_gpu(Darknet::Network & net, Darknet::NetworkState state);
 void backward_network_gpu(Darknet::Network & net, Darknet::NetworkState state);
 void update_network_gpu(Darknet::Network & net);
 void forward_backward_network_gpu(Darknet::Network & net, float *x, float *y);
+void forward_backward_network_gpu_dev(Darknet::Network & net, float *x_gpu, float *y_gpu);
+float train_network_subdivisions_gpu(Darknet::Network & net, data d, int wait_key);
+void free_training_state(Darknet::Network & net);
+
+/// Run @p task on the network's background thread.  Tasks run one at a time, in order.  Needs @ref Darknet::TrainingState.
+void start_background_task(Darknet::Network & net, const int layer_index, std::function<void()> task);
+
+/// Wait for the task started for this layer.  Returns @p false if there was none.
+bool wait_for_background_task(Darknet::Network & net, const int layer_index);
 #endif
 
 /** Think of this as the constructor for the @ref Darknet::Network object.
@@ -338,6 +396,9 @@ float train_network(Darknet::Network & net, data d);
 float train_network_waitkey(Darknet::Network & net, data d, int wait_key);
 float train_network_batch(Darknet::Network & net, data d, int n);
 float train_network_datum(Darknet::Network & net, float *x, float *y);
+
+/// Log the number of rewritten bounding boxes (verbose mode only).
+void show_rewritten_bbox(const Darknet::Network & net);
 
 matrix network_predict_data(Darknet::Network & net, data test);
 float * get_network_output(Darknet::Network & net);
