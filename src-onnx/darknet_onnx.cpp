@@ -716,13 +716,37 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_shortcut(const size_t index,
 {
 	TAT(TATPARMS);
 
-	Node node(section);
-	node.type("Add").add_input(index - 1).add_input(section.find_int("from"));
-
-#if 0 /// @todo V5: unused?  Do we have weights for shortcuts?
 	const auto & l = cfg.net.layers[index];
-	populate_graph_initializer(l.weights, l.nweights, l, node.name + "_weights");
-#endif
+	if (l.weights_type != WEIGHTS_TYPE_T::NO_WEIGHTS)
+	{
+		throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": weighted shortcuts (weights_type=...) are not supported in this version of the ONNX export tool");
+	}
+
+	// "from" may be a list of layers; Darknet then adds the previous layer and *all* of the listed layers
+	const auto from = section.find_int_array("from");
+	for (int idx : from)
+	{
+		const int absolute_idx = (idx < 0 ? idx + static_cast<int>(index) : idx);
+		const auto & f = cfg.net.layers[absolute_idx];
+		if (f.out_w != l.out_w or f.out_h != l.out_h or f.out_c != l.out_c)
+		{
+			throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": layer #" + std::to_string(absolute_idx) + " has a different shape, which is not supported in this version of the ONNX export tool");
+		}
+	}
+
+	Node node(section);
+	if (from.size() == 1)
+	{
+		node.type("Add").add_input(index - 1).add_input(from[0]);
+	}
+	else
+	{
+		node.type("Sum").add_input(index - 1);
+		for (int idx : from)
+		{
+			node.add_input(idx);
+		}
+	}
 
 	check_activation(index, section);
 
