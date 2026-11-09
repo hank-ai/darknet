@@ -1,0 +1,140 @@
+name: CUDA inference (simulated H100)
+
+# Optional, non-required check. The hosted runners have no GPU, so this builds
+# Darknet with CUDA and runs `darknet detector test` on a simulated NVIDIA H100
+# (https://github.com/pantheongpu/pantheonsim), then compares the detections
+# with a CPU-only build of the same commit. A simulator cannot reproduce
+# hardware-specific behavior or timing, so it complements real-GPU testing and
+# does not replace it.
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "src-lib/**"
+      - "src-cli/**"
+      - "cfg/**"
+      - "CM_*.cmake"
+      - "CMakeLists.txt"
+      - ".github/gpu-sim/**"
+      - ".github/workflows/gpu-sim.yml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  cuda-sim:
+    name: CUDA 13.0, simulated H100
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout (full history for 'git describe')
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      # The version string comes from 'git describe --tags'. Use the same
+      # fallback tag as the other jobs when the repository has no tags.
+      - name: Ensure a tag exists for versioning
+        run: |
+          git fetch --tags --force --prune || true
+          if ! git describe --tags --abbrev=0 >/dev/null 2>&1; then
+            git tag -f v0.0
+          fi
+          git describe --tags --always --long
+
+      - name: Set up the simulated GPU and CUDA toolkit
+        uses: pantheongpu/setup-pantheonsim@ca87fe3143b29166822b923d6050945c5179408c # v0.1.5
+        with:
+          gpu: nvidia/h100
+          cuda-toolkit: "13.0"
+
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ninja-build libopencv-dev libopenblas64-openmp-dev
+
+      # The simulator runs PTX only (90-virtual) and needs a shared CUDA runtime.
+      - name: Configure the CUDA build
+        run: |
+          cmake -B build-cuda -S . -GNinja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DCMAKE_CUDA_COMPILER=/usr/local/cuda-13.0/bin/nvcc \
+                -DCUDAToolkit_ROOT=/usr/local/cuda-13.0 \
+                -DDARKNET_CUDA_ARCHITECTURES=90-virtual \
+                -DCMAKE_CUDA_RUNTIME_LIBRARY=Shared
+
+      - name: Build Darknet with CUDA
+        run: cmake --build build-cuda -j3 --target darknetcli
+
+      # Reference build of the same commit without CUDA.
+      - name: Build Darknet for CPU
+        run: |
+          cmake -B build-cpu -S . -GNinja \
+                -DCMAKE_BUILD_TYPE=Release \
+                -DDARKNET_TRY_CUDA=OFF \
+                -DDARKNET_TRY_ROCM=OFF
+          cmake --build build-cpu -j3 --target darknetcli
+
+      - name: Restore pre-trained weights
+        id: weights
+        uses: actions/cache@v4
+        with:
+          path: weights
+          key: darknet-weights-v2.0-yolov3-tiny-yolov4-tiny-yolov7-tiny
+
+      - name: Download pre-trained weights
+        if: steps.weights.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p weights
+          for w in yolov3-tiny yolov4-tiny yolov7-tiny; do
+            wget -q -O weights/$w.weights \
+              https://github.com/hank-ai/darknet/releases/download/v2.0/$w.weights
+          done
+
+      - name: Verify the weights
+        run: |
+          cd weights
+          sha256sum -c <<'EOF'
+          dccea06f59b781ec1234ddf8d1e94b9519a97f4245748a7d4db75d5b7080a42c  yolov3-tiny.weights
+          cf9fbfd0f6d4869b35762f56100f50ed05268084078805f0e7989efe5bb8ca87  yolov4-tiny.weights
+          06be302b1564f2e2c3e1db1f5ec02477ac05d0ae82405a8c1b2b8e4111101b66  yolov7-tiny.weights
+          EOF
+
+      # CPU and CUDA detections must agree. yolov7-tiny is run on the simulated GPU
+      # only: its CPU and CUDA code paths differ by a few percentage points in
+      # confidence even on real hardware, so it only has to find the dog.
+      - name: Run detector test on CPU and on the simulated H100
+        run: |
+          mkdir -p out
+          fail=0
+          detect() { # label net image command...
+            local label=$1 net=$2 img=$3; shift 3
+            "$@" -nocolour detector test cfg/coco.data cfg/$net.cfg weights/$net.weights \
+                 artwork/$img.jpg -dont_show -ext_output > out/$net-$img.$label.log 2>&1 || {
+              echo "::error::$label run failed for $net on $img"; tail -n 20 out/$net-$img.$label.log; return 1; }
+            grep -P '^\S.*\tc=[0-9.]+%\tx=' out/$net-$img.$label.log > out/$net-$img.$label.det || true
+          }
+          for net in yolov4-tiny yolov3-tiny; do
+            for img in dog eagle giraffe horses person; do
+              echo "::group::$net $img"
+              detect cpu $net $img ./build-cpu/src-cli/darknet || fail=1
+              detect gpu $net $img vgpu run ./build-cuda/src-cli/darknet || fail=1
+              python3 .github/gpu-sim/compare_detections.py "$net $img" \
+                out/$net-$img.cpu.det out/$net-$img.gpu.det || fail=1
+              echo "::endgroup::"
+            done
+          done
+          echo "::group::yolov7-tiny dog (simulated GPU only)"
+          detect gpu yolov7-tiny dog vgpu run ./build-cuda/src-cli/darknet || fail=1
+          cat out/yolov7-tiny-dog.gpu.det
+          grep -q '^dog' out/yolov7-tiny-dog.gpu.det || { echo "::error::no dog found by yolov7-tiny"; fail=1; }
+          echo "::endgroup::"
+          exit $fail
