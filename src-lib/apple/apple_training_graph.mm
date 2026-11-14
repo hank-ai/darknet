@@ -854,7 +854,7 @@ namespace Darknet::Apple::TrainingDetail
 				}
 
 				MPSGraphCompilationDescriptor *compilation_descriptor = [[MPSGraphCompilationDescriptor alloc] init];
-				compilation_descriptor.optimizationLevel = MPSGraphOptimizationLevel1;
+				compilation_descriptor.optimizationLevel = MPSGraphOptimizationLevel0;
 				compilation_descriptor.waitForCompilationCompletion = YES;
 				compilation_descriptor.reducedPrecisionFastMath = MPSGraphReducedPrecisionFastMathNone;
 				MPSGraphExecutable *forward_executable = [state.graph compileWithDevice:graph_device
@@ -1536,7 +1536,7 @@ namespace Darknet::Apple::TrainingDetail
 				}
 
 				MPSGraphCompilationDescriptor *compilation_descriptor = [[MPSGraphCompilationDescriptor alloc] init];
-				compilation_descriptor.optimizationLevel = MPSGraphOptimizationLevel1;
+				compilation_descriptor.optimizationLevel = MPSGraphOptimizationLevel0;
 				compilation_descriptor.waitForCompilationCompletion = YES;
 				compilation_descriptor.reducedPrecisionFastMath = MPSGraphReducedPrecisionFastMathNone;
 				MPSGraphExecutable *backward_executable = [state.graph compileWithDevice:graph_device
