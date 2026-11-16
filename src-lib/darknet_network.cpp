@@ -1947,8 +1947,32 @@ void copy_weights_net(const Darknet::Network & net_train, Darknet::Network * net
 		Darknet::Layer *l = &(net_train.layers[k]);
 		Darknet::Layer tmp_layer;
 		copy_cudnn_descriptors(net_map->layers[k], &tmp_layer);
+
+		// The cuDNN algorithms were chosen for net_map's own tensor descriptors (batch=1) and net_map's workspace was sized for
+		// them.  Copying the training layer's algorithms (chosen for the training batch) can need a bigger workspace than
+		// net_map has, which makes cuDNN write past the end of it.  So keep net_map's own algorithms and workspace size.
+		const size_t map_workspace_size = net_map->layers[k].workspace_size;
+#ifdef CUDNN
+		const auto map_fw_algo		= net_map->layers[k].fw_algo;
+		const auto map_fw_algo16	= net_map->layers[k].fw_algo16;
+		const auto map_bd_algo		= net_map->layers[k].bd_algo;
+		const auto map_bd_algo16	= net_map->layers[k].bd_algo16;
+		const auto map_bf_algo		= net_map->layers[k].bf_algo;
+		const auto map_bf_algo16	= net_map->layers[k].bf_algo16;
+#endif
+
 		net_map->layers[k] = net_train.layers[k];
 		copy_cudnn_descriptors(tmp_layer, &net_map->layers[k]);
+
+		net_map->layers[k].workspace_size = map_workspace_size;
+#ifdef CUDNN
+		net_map->layers[k].fw_algo		= map_fw_algo;
+		net_map->layers[k].fw_algo16	= map_fw_algo16;
+		net_map->layers[k].bd_algo		= map_bd_algo;
+		net_map->layers[k].bd_algo16	= map_bd_algo16;
+		net_map->layers[k].bf_algo		= map_bf_algo;
+		net_map->layers[k].bf_algo16	= map_bf_algo16;
+#endif
 
 		if (l->type == Darknet::ELayerType::CRNN)
 		{
