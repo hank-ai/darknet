@@ -114,7 +114,8 @@ Darknet::ONNXExport::ONNXExport(const std::filesystem::path & cfg_filename, cons
 	graph(nullptr),
 	bit_size(32),
 	fuse_batchnorm(true),
-	postprocess_boxes(true)
+	postprocess_boxes(true),
+	batch_size(1)
 {
 	TAT(TATPARMS);
 	*cfg_and_state.output											<< std::endl
@@ -188,6 +189,12 @@ Darknet::ONNXExport & Darknet::ONNXExport::load_network()
 		postprocess_boxes = false;
 	}
 
+	batch_size = cfg_and_state.get("batch", 1);
+	if (batch_size < 0)
+	{
+		throw std::invalid_argument("invalid batch size " + std::to_string(batch_size) + " (use 0 for a dynamic batch dimension)");
+	}
+
 	if (cfg_and_state.is_set("fp32"))
 	{
 		bit_size = 32;
@@ -230,6 +237,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::display_summary()
 		<< "-> model version ........ " << model.model_version()				<< std::endl
 		<< "-> batchnorm fused ...... " << (fuse_batchnorm		? "yes" : "no")	<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -fuse or -dontfuse]") << std::endl
 		<< "-> post-process boxes ... " << (postprocess_boxes	? "yes" : "no")	<< Darknet::in_colour(Darknet::EColour::kDarkGrey, " [toggle with -boxes or -noboxes]") << std::endl
+		<< "-> batch size ........... " << (batch_size > 0 ? std::to_string(batch_size) : "dynamic") << Darknet::in_colour(Darknet::EColour::kDarkGrey, " [set with -batch N]") << std::endl
 		<< "-> has graph ............ " << (model.has_graph()	? "yes" : "no")	<< std::endl
 		<< "-> graph name ........... " << graph->name()						<< std::endl
 		<< "-> graph input size ..... " << graph->input_size()	<< " "			<< Darknet::in_colour(Darknet::EColour::kDarkGrey, input_string)	<< std::endl
@@ -319,6 +327,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 	 *		YOLOv4-full:
 	 *			- MISH activation needs opset 18 introduced in December 2022
 	 *
+	 *		[scale_channels] and [sam]:
+	 *			- "Mul" with broadcasting needs opset 7
+	 *
 	 * IR = Intermediate Representation, related to versioning
 	 * https://github.com/onnx/onnx/blob/main/docs/IR.md
 	 * https://github.com/onnx/onnx/blob/main/docs/Versioning.md
@@ -343,6 +354,13 @@ Darknet::ONNXExport & Darknet::ONNXExport::initialize_model()
 		{
 			Darknet::display_warning_msg("Increasing IR to 6 due to FP16.\n");
 			ir_version = onnx::Version::IR_VERSION_2019_9_19; // == 6
+		}
+
+		if ((section.type == Darknet::ELayerType::SCALE_CHANNELS or section.type == Darknet::ELayerType::SAM) and opset_version < 7)
+		{
+			// "Mul" with multidirectional (numpy-style) broadcasting needs at least opset 7
+			Darknet::display_warning_msg("Increasing opset to 7 due to [" + section.name + "] at line #" + std::to_string(section.line_number) + ".\n");
+			opset_version = 7;
 		}
 
 		if (section.type == Darknet::ELayerType::ROUTE and opset_version < 10)
@@ -469,7 +487,15 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_input_output_dimensions(onnx
 
 	// n
 	auto dim = shape->add_dim();
-	dim->set_dim_value(v1);
+	if (v1 > 0)
+	{
+		dim->set_dim_value(v1);
+	}
+	else
+	{
+		// dynamic batch size
+		dim->set_dim_param("batch");
+	}
 
 	// other values are optional
 
@@ -504,7 +530,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 
 	auto input = graph->add_input();
 
-	const int b = 1;
+	const int b = batch_size;
 	const int c = cfg.net.c;
 	const int h = cfg.net.h;
 	const int w = cfg.net.w;
@@ -516,7 +542,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 	input->set_doc_string(
 		cfg_fn.filename().string() +
 		" line #"	+ std::to_string(cfg.network_section.line_number) +
-		" [b=1,"
+		" [b="		+ batch_string() + ","
 		" c="		+ std::to_string(c) + ","
 		" h="		+ std::to_string(h) + ","
 		" w="		+ std::to_string(w) + "]"
@@ -524,7 +550,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_input_frame()
 
 	input_string =
 		"[\"frame\""
-		" B=" + std::to_string(b) +
+		" B=" + batch_string() +
 		" C=" + std::to_string(c) +
 		" H=" + std::to_string(h) +
 		" W=" + std::to_string(w) +
@@ -547,9 +573,9 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_YOLO_output()
 		if (section.type == Darknet::ELayerType::YOLO)
 		{
 			auto output = graph->add_output();
-			populate_input_output_dimensions(output, Node::get_output_for_layer_index(idx), 1, l.c, l.h, l.w, section.line_number);
+			populate_input_output_dimensions(output, Node::get_output_for_layer_index(idx), batch_size, l.c, l.h, l.w, section.line_number);
 			output->set_doc_string(cfg_fn.filename().string() + " line #" + std::to_string(section.line_number) + " [" + Darknet::to_string(section.type) + ", layer #" + std::to_string(idx) + "]");
-			output_string += "[\"" + output->name() + "\" B=1 C=" + std::to_string(l.c) + " H=" + std::to_string(l.h) + " W=" + std::to_string(l.w) + "] ";
+			output_string += "[\"" + output->name() + "\" B=" + batch_string() + " C=" + std::to_string(l.c) + " H=" + std::to_string(l.h) + " W=" + std::to_string(l.w) + "] ";
 		}
 	}
 
@@ -632,6 +658,21 @@ Darknet::ONNXExport & Darknet::ONNXExport::populate_graph_nodes()
 				add_node_shortcut(index, section);
 				break;
 			}
+			case Darknet::ELayerType::AVGPOOL:
+			{
+				add_node_avgpool(index, section);
+				break;
+			}
+			case Darknet::ELayerType::SCALE_CHANNELS:
+			{
+				add_node_scale_channels(index, section);
+				break;
+			}
+			case Darknet::ELayerType::SAM:
+			{
+				add_node_sam(index, section);
+				break;
+			}
 			default:
 			{
 				throw std::invalid_argument("layer type " + Darknet::to_string(section.type) + " in " + cfg_fn.string() + ":" + std::to_string(section.line_number) + " is not supported in this version of the Darknet/YOLO ONNX export tool.");
@@ -649,19 +690,23 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 {
 	TAT(TATPARMS);
 
-	const int dilation		= 1;
-	const int stride		= section.find_int("stride"	, 2);
-	const int kernel_size	= section.find_int("size"	, 3);
-	const int groups		= section.find_int("groups"	, 1);
-	const int pad			= [&]() -> int
+	const auto & l = cfg.net.layers[index];
+
+	const int groups		= std::max(1, l.groups);
+	const int dilation		= std::max(1, l.dilation);
+	const int kernel_size	= l.size;
+	// Darknet pads by "pad * dilation", see cudnnSetConvolution2dDescriptor() in convolutional_layer.cpp
+	const int pad			= l.pad * dilation;
+
+	if (l.antialiasing)
 	{
-		int i = 0;
-		if (section.find_int("pad", 0))
-		{
-			i = dilation * (kernel_size - 1) / 2;
-		}
-		return i;
-	}();
+		throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": antialiasing is not supported in this version of the ONNX export tool");
+	}
+
+	if (l.c % groups != 0 or l.n % groups != 0)
+	{
+		throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": groups=" + std::to_string(groups) + " must divide both the input channels (" + std::to_string(l.c) + ") and filters (" + std::to_string(l.n) + ")");
+	}
 
 	Node node(section);
 	node.type("Conv")
@@ -671,9 +716,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_conv(const size_t index, Dar
 		.add_attribute_INTS("pads"			, {pad, pad, pad, pad}		)
 		.add_attribute_INTS("dilations"		, {dilation, dilation}		)
 		.add_attribute_INTS("kernel_shape"	, {kernel_size, kernel_size})
-		.add_attribute_INTS("strides"		, {stride, stride}			);
-
-	const auto & l = cfg.net.layers[index];
+		.add_attribute_INTS("strides"		, {l.stride_y, l.stride_x}	);
 
 	// loosely based on load_convolutional_weights()
 	populate_graph_initializer(l.weights, l.nweights, l, node.name + "_weights");
@@ -700,13 +743,37 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_shortcut(const size_t index,
 {
 	TAT(TATPARMS);
 
-	Node node(section);
-	node.type("Add").add_input(index - 1).add_input(section.find_int("from"));
-
-#if 0 /// @todo V5: unused?  Do we have weights for shortcuts?
 	const auto & l = cfg.net.layers[index];
-	populate_graph_initializer(l.weights, l.nweights, l, node.name + "_weights");
-#endif
+	if (l.weights_type != WEIGHTS_TYPE_T::NO_WEIGHTS)
+	{
+		throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": weighted shortcuts (weights_type=...) are not supported in this version of the ONNX export tool");
+	}
+
+	// "from" may be a list of layers; Darknet then adds the previous layer and *all* of the listed layers
+	const auto from = section.find_int_array("from");
+	for (int idx : from)
+	{
+		const int absolute_idx = (idx < 0 ? idx + static_cast<int>(index) : idx);
+		const auto & f = cfg.net.layers[absolute_idx];
+		if (f.out_w != l.out_w or f.out_h != l.out_h or f.out_c != l.out_c)
+		{
+			throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": layer #" + std::to_string(absolute_idx) + " has a different shape, which is not supported in this version of the ONNX export tool");
+		}
+	}
+
+	Node node(section);
+	if (from.size() == 1)
+	{
+		node.type("Add").add_input(index - 1).add_input(from[0]);
+	}
+	else
+	{
+		node.type("Sum").add_input(index - 1);
+		for (int idx : from)
+		{
+			node.add_input(idx);
+		}
+	}
 
 	check_activation(index, section);
 
@@ -1101,6 +1168,77 @@ Darknet::ONNXExport & Darknet::ONNXExport::add_node_bn(const size_t index, Darkn
 	populate_graph_initializer(l.scales				, l.n, l, node.name + "_bn_scale"		);
 	populate_graph_initializer(l.rolling_mean		, l.n, l, node.name + "_bn_mean"		);
 	populate_graph_initializer(l.rolling_variance	, l.n, l, node.name + "_bn_variance"	);
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::add_node_avgpool(const size_t index, Darknet::CfgSection & section)
+{
+	TAT(TATPARMS);
+
+	// Darknet's [avgpool] always averages over the entire WxH plane and outputs Cx1x1 (see forward_avgpool_layer()),
+	// which is exactly what GlobalAveragePool does.  The output keeps the NCHW layout as N x C x 1 x 1.
+
+	Node node(section);
+	node.type("GlobalAveragePool").add_input(index - 1);
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::add_node_scale_channels(const size_t index, Darknet::CfgSection & section)
+{
+	TAT(TATPARMS);
+
+	/* Darknet multiplies the output of the layer referenced by "from" (N x C x H x W) with the output of the previous
+	 * layer, which is either N x C x 1 x 1 (one scale per channel) or N x 1 x H x W when "scale_wh=1".  Both cases are
+	 * handled by the broadcasting rules of "Mul".  The activation (if any) is applied after the multiplication.
+	 */
+
+	const auto & l = cfg.net.layers[index];
+	const auto & from = cfg.net.layers[l.index];
+	const auto & prev = cfg.net.layers[index - 1];
+	if (l.scale_wh)
+	{
+		if (prev.out_c != 1 or prev.out_w != from.out_w or prev.out_h != from.out_h)
+		{
+			throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": scale_wh=1 needs the previous layer to output 1 x H x W");
+		}
+	}
+	else if (prev.out_w != 1 or prev.out_h != 1 or prev.out_c != from.out_c)
+	{
+		throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": the previous layer must output C x 1 x 1 with C=" + std::to_string(from.out_c));
+	}
+
+	Node node(section);
+	node.type("Mul").add_input(l.index).add_input(index - 1).doc_append(" from=" + std::to_string(l.index) + (l.scale_wh ? " scale_wh=1" : ""));
+
+	check_activation(index, section);
+
+	return *this;
+}
+
+
+Darknet::ONNXExport & Darknet::ONNXExport::add_node_sam(const size_t index, Darknet::CfgSection & section)
+{
+	TAT(TATPARMS);
+
+	// Darknet's [sam] is an element-wise multiplication of the previous layer and the layer referenced by "from",
+	// both of which have the same shape.  The activation (if any) is applied after the multiplication.
+
+	const auto & l = cfg.net.layers[index];
+	const auto & from = cfg.net.layers[l.index];
+	const auto & prev = cfg.net.layers[index - 1];
+	if (prev.outputs != from.outputs)
+	{
+		throw std::invalid_argument(cfg_fn.string() + ": " + Darknet::to_string(section.type) + " on line #" + std::to_string(section.line_number) + ": the previous layer and the \"from\" layer must have the same shape");
+	}
+
+	Node node(section);
+	node.type("Mul").add_input(index - 1).add_input(l.index).doc_append(" from=" + std::to_string(l.index));
+
+	check_activation(index, section);
 
 	return *this;
 }
@@ -1573,7 +1711,8 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_to(Darknet::CfgSecti
 	const auto & l					= cfg.net.layers[section.index];
 	const int number_of_masks		= section.find_int_array("mask").size();
 	const int size					= number_of_masks * l.w * l.h;
-	VInt reshape_vector				= {1, size};
+	// 0 = copy the batch dimension from the input (dynamic batch)
+	VInt reshape_vector				= {batch_size, size};
 
 	for (const auto & name : v)
 	{
@@ -1620,7 +1759,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_class(Darknet::CfgSe
 	const auto & l					= cfg.net.layers[section.index];
 	const int number_of_classes		= section.find_int("classes");
 	const int number_of_masks		= section.find_int_array("mask").size();
-	VInt reshape_vector				= {1, number_of_masks, number_of_classes, l.w * l.h};
+	VInt reshape_vector				= {batch_size, number_of_masks, number_of_classes, l.w * l.h};
 
 	for (const auto & name : v)
 	{
@@ -1636,7 +1775,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_class(Darknet::CfgSe
 		Node transpose(section, "_transpose_class");
 		transpose.type("Transpose").add_input(reshape1.output).add_attribute_INTS("perm", {0, 1, 3, 2});
 
-		reshape_vector = {1, number_of_masks * l.w * l.h, number_of_classes};
+		reshape_vector = {batch_size, number_of_masks * l.w * l.h, number_of_classes};
 		const auto const_shape_2 = Node(section, reshape_vector).output;
 		Node reshape2(section, "_reshape_class");
 		reshape2.type("Reshape").add_input(transpose.output).add_input(const_shape_2);
@@ -1731,11 +1870,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_confs(const Darknet:
 	}
 
 	auto output = graph->add_output();
-	populate_input_output_dimensions(output, "confs", 1, number_of_boxes, number_of_classes);
+	populate_input_output_dimensions(output, "confs", batch_size, number_of_boxes, number_of_classes);
 	output->set_doc_string(ss.str());
 	node.doc(ss.str());
 
-	output_string += "[\"confs\" B=1 C=" + std::to_string(number_of_boxes) + " H=" + std::to_string(number_of_classes) + "] ";
+	output_string += "[\"confs\" B=" + batch_string() + " C=" + std::to_string(number_of_boxes) + " H=" + std::to_string(number_of_classes) + "] ";
 
 	return *this;
 }
@@ -1999,7 +2138,7 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 		const int number_of_masks = section.find_int_array("mask").size();
 		const int size = number_of_masks * l.w * l.h;
 		number_of_boxes += size;
-		VInt reshape_vector = {1, size, 1};
+		VInt reshape_vector = {batch_size, size, 1};
 
 		for (const auto & name : {lhs, rhs})
 		{
@@ -2113,11 +2252,11 @@ Darknet::ONNXExport & Darknet::ONNXExport::postprocess_yolo_boxes(const Darknet:
 	}
 
 	auto output = graph->add_output();
-	populate_input_output_dimensions(output, "boxes", 1, number_of_boxes, 1, 4);
+	populate_input_output_dimensions(output, "boxes", batch_size, number_of_boxes, 1, 4);
 	output->set_doc_string(ss.str());
 	node.doc(ss.str());
 
-	output_string += "[\"boxes\" B=1 C=" + std::to_string(number_of_boxes) + " H=1 W=4] ";
+	output_string += "[\"boxes\" B=" + batch_string() + " C=" + std::to_string(number_of_boxes) + " H=1 W=4] ";
 
 	return *this;
 }

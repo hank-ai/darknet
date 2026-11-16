@@ -238,7 +238,7 @@ int convolutional_out_height(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
-	return (l.h + 2 * l.pad - l.size) / l.stride_y + 1;
+	return (l.h + 2 * l.pad * l.dilation - (l.size - 1) * l.dilation - 1) / l.stride_y + 1;
 }
 
 
@@ -246,7 +246,7 @@ int convolutional_out_width(const Darknet::Layer & l)
 {
 	TAT(TATPARMS);
 
-	return (l.w + 2 * l.pad - l.size) / l.stride_x + 1;
+	return (l.w + 2 * l.pad * l.dilation - (l.size - 1) * l.dilation - 1) / l.stride_x + 1;
 }
 
 
@@ -1450,10 +1450,11 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 #ifdef DARKNET_USE_MPS
 	if (not state.train and not l.binary and not l.xnor)
 	{
-		const Darknet::Layer *prev = mps_prev_layer(state);
-		bool defer_readback = mps_should_defer_readback(state);
+		const Darknet::Layer *prev = Darknet::Apple::mps_prev_layer(state);
+		bool defer_readback = Darknet::Apple::mps_should_defer_readback(state);
 		bool activation_applied = false;
-		if (mps_convolution_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, nullptr))
+		std::string reason;
+		if (Darknet::Apple::mps_convolution_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, reason))
 		{
 			if (not activation_applied)
 			{
@@ -1479,12 +1480,14 @@ void forward_convolutional_layer(Darknet::Layer & l, Darknet::NetworkState state
 				s.net = state.net;
 				s.input = l.output;
 				forward_convolutional_layer(*(l.input_layer), s);
+				// The blur can itself defer its output; this host copy consumes it now.
+				Darknet::Apple::mps_flush_deferred_output(l.input_layer);
 				memcpy(l.output, l.input_layer->output, l.input_layer->outputs * l.input_layer->batch * sizeof(float));
 			}
 
 			return;
 		}
-		mps_flush_deferred_output(prev);
+		Darknet::Apple::mps_flush_deferred_output(prev);
 	}
 #endif
 

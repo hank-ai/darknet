@@ -27,6 +27,10 @@ Darknet::NetworkDetails::NetworkDetails()
 	annotate_draw_bb						= true;
 	annotate_draw_label						= true;
 
+#ifdef DARKNET_GPU
+	training_state							= nullptr;
+#endif
+
 	return;
 }
 
@@ -234,6 +238,13 @@ void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 
 	state.workspace = net.workspace;
 
+#ifdef DARKNET_USE_MPS
+	if (not state.train)
+	{
+		Darknet::Apple::mps_prepare_network_for_inference(net);
+	}
+#endif
+
 	for (int i = 0; i < net.n; ++i)
 	{
 		state.index = i;
@@ -246,9 +257,9 @@ void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 		if (i > 0)
 		{
 			Darknet::Layer & prev = net.layers[i - 1];
-			if (mps_is_output_deferred(&prev) and not mps_layer_can_run(l, state.train))
+			if (Darknet::Apple::mps_is_output_deferred(&prev) and not Darknet::Apple::mps_layer_can_run(l, state.train))
 			{
-				mps_flush_output_if_needed(&prev, prev.output);
+				Darknet::Apple::mps_flush_output_if_needed(&prev, prev.output);
 			}
 		}
 #endif
@@ -259,9 +270,9 @@ void forward_network(Darknet::Network & net, Darknet::NetworkState state)
 	if (net.n > 0)
 	{
 		Darknet::Layer & last = net.layers[net.n - 1];
-		if (mps_is_output_deferred(&last))
+		if (Darknet::Apple::mps_is_output_deferred(&last))
 		{
-			mps_flush_output_if_needed(&last, last.output);
+			Darknet::Apple::mps_flush_output_if_needed(&last, last.output);
 		}
 	}
 #endif
@@ -379,16 +390,28 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 	TAT(TATPARMS);
 
 	float error = 0.0f;
+	bool train_on_cpu = true;
 
 #ifdef DARKNET_GPU
-	if(cfg_and_state.gpu_index >= 0)
+	if (cfg_and_state.gpu_index >= 0)
 	{
 		error = train_network_datum_gpu(net, x, y);
+		train_on_cpu = false;
 	}
-	else
-	{
 #endif
 
+#ifdef DARKNET_USE_MPS
+	if (train_on_cpu and Darknet::Apple::mps_training_graph_enabled(net))
+	{
+		error = Darknet::Apple::mps_train_network_datum(net,
+			{x, static_cast<size_t>(net.batch) * net.inputs},
+			{y, static_cast<size_t>(net.batch) * net.layers[net.n - 1].truths});
+		train_on_cpu = false;
+	}
+#endif
+
+	if (train_on_cpu)
+	{
 		Darknet::NetworkState state={0};
 		*net.seen += net.batch;
 		state.index = 0;
@@ -400,10 +423,17 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 		forward_network(net, state);
 		backward_network(net, state);
 		error = get_network_cost(net);
-
-#ifdef DARKNET_GPU
 	}
-#endif
+
+	show_rewritten_bbox(net);
+
+	return error;
+}
+
+
+void show_rewritten_bbox(const Darknet::Network & net)
+{
+	TAT(TATPARMS);
 
 	if (cfg_and_state.is_verbose and *(net.total_bbox) > 0)
 	{
@@ -412,8 +442,6 @@ float train_network_datum(Darknet::Network & net, float *x, float *y)
 			<< ", rewritten_bbox=" << 100.0f * float(*(net.rewritten_bbox)) / float(*(net.total_bbox))
 			<< "%" << std::endl;
 	}
-
-	return error;
 }
 
 
@@ -433,28 +461,63 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 
 	int batch = net.batch;
 	int n = d.X.rows / batch;
-	float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
-	float* y = (float*)xcalloc(batch * d.y.cols, sizeof(float));
 
 	float sum = 0;
-	for (int i = 0; i < n; ++i)
+#ifdef DARKNET_GPU
+	if (cfg_and_state.gpu_index >= 0 and not net.adversarial_lr)
 	{
-		get_next_batch(d, batch, i*batch, X, y);
-		net.current_subdivision = i;
-		float err = train_network_datum(net, X, y);
-		sum += err;
-		if (wait_key)
+		sum = train_network_subdivisions_gpu(net, d, wait_key);
+	}
+	else
+#endif
+	{
+		float* X = (float*)xcalloc(batch * d.X.cols, sizeof(float));
+		float* y = (float*)xcalloc(batch * d.y.cols, sizeof(float));
+
+#ifdef DARKNET_USE_MPS
+		if (Darknet::Apple::mps_training_graph_enabled(net))
 		{
-			cv::waitKey(5);
+			std::string reason;
+			if (not Darknet::Apple::validate_training_data_views(net,
+				{X, static_cast<size_t>(batch) * d.X.cols},
+				{y, static_cast<size_t>(batch) * d.y.cols}, reason))
+			{
+				darknet_fatal_error(DARKNET_LOC, "Invalid Apple training data: %s", reason.c_str());
+			}
 		}
+#endif
+
+		for (int i = 0; i < n; ++i)
+		{
+			get_next_batch(d, batch, i*batch, X, y);
+			net.current_subdivision = i;
+			float err = train_network_datum(net, X, y);
+			sum += err;
+			if (wait_key)
+			{
+				cv::waitKey(5);
+			}
+		}
+
+		free(X);
+		free(y);
 	}
 
 	(*net.cur_iteration) += 1;
 #ifdef DARKNET_GPU
 	update_network_gpu(net);
-#else   // DARKNET_GPU
+#elif defined(DARKNET_USE_MPS)
+	if (Darknet::Apple::mps_training_graph_enabled(net))
+	{
+		Darknet::Apple::mps_update_network(net);
+	}
+	else
+	{
+		update_network(net);
+	}
+#else
 	update_network(net);
-#endif  // DARKNET_GPU
+#endif
 
 	int ema_start_point = net.max_batches / 2;
 
@@ -493,9 +556,6 @@ float train_network_waitkey(Darknet::Network & net, data d, int wait_key)
 		float sim_threshold = 0.4;
 		reject_similar_weights(net, sim_threshold);
 	}
-
-	free(X);
-	free(y);
 
 	return (float)sum/(n*batch);
 }
@@ -615,6 +675,11 @@ int resize_network(Darknet::Network * net, int w, int h)
 {
 	TAT(TATPARMS);
 
+#ifdef DARKNET_USE_MPS
+	// Apple training graphs are scoped to the current network shape.
+	Darknet::Apple::mps_invalidate_training_graph(*net);
+#endif
+
 #ifdef DARKNET_GPU
 	cuda_set_device(net->gpu_index);
 	if (cfg_and_state.gpu_index >= 0)
@@ -707,6 +772,15 @@ int resize_network(Darknet::Network * net, int w, int h)
 		}
 		//if(l.type == AVGPOOL) break;
 	}
+
+#ifdef DARKNET_USE_MPS
+	for (int i = 0; i < net->n; ++i)
+	{
+		// Inference caches are keyed by layer address and tensor shape, so
+		// only the resized network's layer entries need to be dropped.
+		Darknet::Apple::mps_invalidate_layer_cache(&net->layers[i]);
+	}
+#endif
 
 	*cfg_and_state.output << "GPU #" << net->gpu_index << ": allocating workspace: " << Darknet::size_to_IEC_string(workspace_size);
 #ifdef DARKNET_GPU
@@ -1601,6 +1675,12 @@ void free_network(Darknet::Network & net)
 {
 	TAT(TATPARMS);
 
+#ifdef DARKNET_USE_MPS
+	// Apple graph-training resources can reference buffers backed by layer and
+	// workspace storage, so drop them before freeing the network internals.
+	Darknet::Apple::mps_invalidate_training_graph(net);
+#endif
+
 	for (int i = 0; i < net.n; ++i)
 	{
 		free_layer(net.layers[i]);
@@ -1662,6 +1742,9 @@ void free_network(Darknet::Network & net)
 
 	if (net.details) // added in V3 (2024-08-06)
 	{
+#ifdef DARKNET_GPU
+		free_training_state(net);
+#endif
 		delete net.details;
 		net.details = nullptr;
 	}

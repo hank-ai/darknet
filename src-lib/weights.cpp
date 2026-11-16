@@ -232,7 +232,7 @@ void save_connected_weights(Darknet::Layer & l, FILE *fp)
 	}
 }
 
-void save_weights_upto(const Darknet::Network & net, const char *filename, int cutoff, int save_ema)
+void save_weights_upto(Darknet::Network & net, const char *filename, int cutoff, int save_ema)
 {
 	TAT(TATPARMS);
 
@@ -240,6 +240,16 @@ void save_weights_upto(const Darknet::Network & net, const char *filename, int c
 	if (net.gpu_index >= 0)
 	{
 		cuda_set_device(net.gpu_index);
+	}
+#endif
+
+#ifdef DARKNET_USE_MPS
+	if (Darknet::Apple::mps_training_graph_enabled(net))
+	{
+		// Apple MPSGraph training keeps the newest optimizer state in
+		// graph-owned GPU buffers.  Synchronize before the generic Darknet
+		// weight writer serializes host pointers.
+		Darknet::Apple::mps_sync_training_host_state(net, true, true);
 	}
 #endif
 
@@ -311,7 +321,7 @@ void save_weights_upto(const Darknet::Network & net, const char *filename, int c
 }
 
 
-void save_weights(const Darknet::Network & net, const char *filename)
+void save_weights(Darknet::Network & net, const char *filename)
 {
 	TAT(TATPARMS);
 

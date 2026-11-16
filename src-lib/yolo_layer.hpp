@@ -15,6 +15,9 @@ void correct_yolo_boxes(Darknet::Detection *dets, int n, int w, int h, int netw,
 #ifdef DARKNET_GPU
 void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
 void backward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state);
+
+/// Wait for the deltas of a [yolo] layer computed in the background (if any) and upload them.
+void yolo_layer_gpu_finish(Darknet::Network & net, const int index);
 #endif
 
 #ifdef DARKNET_GPU_CUDA

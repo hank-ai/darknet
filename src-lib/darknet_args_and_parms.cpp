@@ -159,6 +159,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("int8"			, ArgsAndParms::EType::kParameter	, "Quantize convolution weights to INT8 with ONNX Q/DQ nodes when saving the ONNX file."),
 		ArgsAndParms("fp16"			, ArgsAndParms::EType::kParameter	, "Convert to FP16 (16-bit floats) when saving the ONNX file."),
 		ArgsAndParms("fp32"			, ArgsAndParms::EType::kParameter	, "Use FP32 (32-bit floats) when saving the ONNX file.  This is the default."),
+		ArgsAndParms("batch"		, ""								, 1, "Batch size of the ONNX input and outputs.  Default is 1.  Use 0 for a dynamic batch dimension."),
 
 		// I originally didn't know about "show_details" when I implemented "verbose".
 		ArgsAndParms("verbose"		, "show_details"					, "Logs more verbose messages."),
@@ -175,6 +176,7 @@ const Darknet::SArgsAndParms & Darknet::get_all_possible_arguments()
 		ArgsAndParms("nms"		, "nmsthresh"	, 0.45f	, "The NMS (non-maximal suppression) threshold."),
 
 		ArgsAndParms("saveweights", "", 0, "How often the .weights are saved during training.  For example, this could be set to \"500\" to save the weights every 500 iteration."),
+		ArgsAndParms("loadthreads", "", 0, "The number of threads used to load images during training.  The default is 6 per GPU.  For example, this could be set to \"32\" on a machine with many cores."),
 
 		ArgsAndParms("avgframes"			), //-- takes an int  3
 		ArgsAndParms("benchmark"			),

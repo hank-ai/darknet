@@ -179,11 +179,12 @@ void forward_shortcut_layer(Darknet::Layer & l, Darknet::NetworkState state)
 #ifdef DARKNET_USE_MPS
 	if (not state.train and l.nweights == 0 and l.n == 1 and l.input_sizes and l.input_sizes[0] == l.outputs)
 	{
-		const Darknet::Layer *prev = mps_prev_layer(state);
+		const Darknet::Layer *prev = Darknet::Apple::mps_prev_layer(state);
 		const Darknet::Layer *from = &state.net.layers[l.index];
-		bool defer_readback = mps_should_defer_readback(state);
+		bool defer_readback = Darknet::Apple::mps_should_defer_readback(state);
 		bool activation_applied = false;
-		if (mps_shortcut_forward(l, prev, from, state.input, l.output, defer_readback, &activation_applied, nullptr))
+		std::string reason;
+		if (Darknet::Apple::mps_shortcut_forward(l, prev, from, state.input, l.output, defer_readback, &activation_applied, reason))
 		{
 			if (!activation_applied)
 			{
@@ -193,14 +194,14 @@ void forward_shortcut_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			}
 			return;
 		}
-		mps_flush_deferred_output(prev);
-		mps_flush_deferred_output(from);
+		Darknet::Apple::mps_flush_deferred_output(prev);
+		Darknet::Apple::mps_flush_deferred_output(from);
 	}
 
 	for (int i = 0; i < l.n; ++i)
 	{
 		int index = l.input_layers[i];
-		mps_flush_deferred_output(&state.net.layers[index]);
+		Darknet::Apple::mps_flush_deferred_output(&state.net.layers[index]);
 	}
 #endif
 

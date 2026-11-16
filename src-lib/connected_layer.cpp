@@ -186,10 +186,11 @@ void forward_connected_layer(Darknet::Layer & l, Darknet::NetworkState state)
 	/// @brief MPS connected-layer fast path for batchnorm/activation; falls back to CPU if unsupported.
 	if (not state.train)
 	{
-		const Darknet::Layer *prev = mps_prev_layer(state);
-		bool defer_readback = mps_should_defer_readback(state);
+		const Darknet::Layer *prev = Darknet::Apple::mps_prev_layer(state);
+		bool defer_readback = Darknet::Apple::mps_should_defer_readback(state);
 		bool activation_applied = false;
-		if (mps_connected_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, nullptr))
+		std::string reason;
+		if (Darknet::Apple::mps_connected_forward(l, prev, state.input, l.output, defer_readback, &activation_applied, reason))
 		{
 			if (not activation_applied)
 			{
@@ -197,7 +198,7 @@ void forward_connected_layer(Darknet::Layer & l, Darknet::NetworkState state)
 			}
 			return;
 		}
-		mps_flush_deferred_output(prev);
+		Darknet::Apple::mps_flush_deferred_output(prev);
 	}
 #endif
 
