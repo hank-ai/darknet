@@ -234,7 +234,7 @@ namespace Darknet
 		float scale_x_y;
 		int objectness_smooth;
 		int new_coords;
-		int yolo_gpu; ///< [yolo] 1 = CUDA loss, 0 = CPU loss (default)
+		int yolo_gpu; ///< [yolo] 1 = CUDA loss (default), 0 = CPU loss
 		int show_details;
 		float max_delta;
 		float uc_normalizer;
