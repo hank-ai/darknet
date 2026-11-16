@@ -586,6 +586,10 @@ void resize_yolo_layer(Darknet::Layer * l, int w, int h)
 {
 	TAT(TATPARMS);
 
+#ifdef DARKNET_GPU_CUDA
+	Darknet::release_yolo_training_cuda(*l);	// shape-dependent, recreated lazily
+#endif
+
 	l->w = w;
 	l->h = h;
 
@@ -1641,6 +1645,9 @@ void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 	}
 
 	//copy_ongpu(l.batch*l.inputs, state.input, 1, l.output_gpu, 1);
+#ifdef DARKNET_GPU_CUDA
+	activate_yolo_output_ongpu(state.input, l.output_gpu, l.batch, l.n, l.w, l.h, l.classes, l.scale_x_y, l.new_coords);
+#else
 	simple_copy_ongpu(l.batch*l.inputs, state.input, l.output_gpu);
 	for (int b = 0; b < l.batch; ++b)
 	{
@@ -1669,6 +1676,7 @@ void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 			}
 		}
 	}
+#endif
 
 	if (!state.train || l.onlyforward)
 	{
@@ -1681,6 +1689,14 @@ void forward_yolo_layer_gpu(Darknet::Layer & l, Darknet::NetworkState state)
 		CHECK_CUDA(cudaPeekAtLastError());
 		return;
 	}
+
+#ifdef DARKNET_GPU_CUDA
+	if (l.yolo_gpu)
+	{
+		Darknet::forward_yolo_training_cuda(l, state);
+		return;
+	}
+#endif
 
 	if (can_run_yolo_cpu_part_in_background(state))
 	{
