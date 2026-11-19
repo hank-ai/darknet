@@ -317,9 +317,11 @@ On Apple silicon, clone, build, and install Darknet. For Intel Macs, use the [CP
 git clone https://codeberg.org/CCodeRun/darknet.git
 cd darknet
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_MPS=ON
-cmake --build build --parallel
+cmake --build build --parallel 4
 sudo cmake --install build --prefix /usr/local
 ```
+
+The four-job limit reduces memory pressure during compilation on 8 GB Macs.
 
 Test the installed command:
 
@@ -354,7 +356,7 @@ Install Command Line Tools, Homebrew, CMake, and OpenCV as described above, then
 git clone https://codeberg.org/CCodeRun/darknet.git
 cd darknet
 cmake -S . -B build-cpu -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_MPS=OFF -DDARKNET_TRY_OPENBLAS=ON
-cmake --build build-cpu --parallel
+cmake --build build-cpu --parallel 4
 sudo cmake --install build-cpu --prefix /usr/local
 ```
 

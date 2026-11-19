@@ -58,7 +58,7 @@ Install the dependencies and follow any instructions for removing an older insta
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_MPS=ON
-cmake --build build --parallel
+cmake --build build --parallel 4
 sudo cmake --install build --prefix /usr/local
 ```
 
@@ -69,7 +69,7 @@ Intel Macs do not currently support Darknet MPS acceleration. Build without Appl
 ```sh
 brew install openblas
 cmake -S . -B build-cpu -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_MPS=OFF -DDARKNET_TRY_OPENBLAS=ON
-cmake --build build-cpu --parallel
+cmake --build build-cpu --parallel 4
 sudo cmake --install build-cpu --prefix /usr/local
 ```
 
