@@ -12,8 +12,12 @@
 	- [Google Colab](#google-colab)
 	- [WSL](#wsl)
 	- [Linux CMake Method](#linux-cmake-method)
-	- [macOS CMake Method](#macos-cmake-method)
-		- [Intel Macs (CPU-only)](#intel-macs-cpu-only)
+	- [Building Darknet on macOS](#building-darknet-on-macos)
+		- [1. Install the prerequisites](#1-install-the-prerequisites)
+		- [2. Get the source](#2-get-the-source)
+		- [3. Configure the build](#3-configure-the-build)
+		- [4. Build, install, and verify](#4-build-install-and-verify)
+		- [Upgrading an existing installation](#upgrading-an-existing-installation)
 	- [Windows CMake Method](#windows-cmake-method)
 	- [Docker](#docker)
 - [Using Darknet](#using-darknet)
@@ -161,7 +165,7 @@ Select one of the following build types:
 * [Google Colab](#google-colab)
 * [WSL](#wsl)
 * [Linux](#linux-cmake-method)
-* [MacOS](#macos-cmake-method)
+* [macOS](#building-darknet-on-macos)
 * [Windows](#windows-cmake-method)
 * [Docker](#docker)
 
@@ -264,103 +268,124 @@ You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run t
 > [!CAUTION]
 > **If you don't have `/usr/bin/darknet`** then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file as described above.
 
-## macOS CMake Method
+<a name="macos-cmake-method"></a>
 
-> [!IMPORTANT]
-> Apple GPU acceleration with Metal/MPS requires an Apple silicon Mac (M1 or newer), macOS 26 or newer, and developer tools with the macOS 26 SDK or newer. CPU-only macOS builds retain their previous deployment compatibility when configured with `DARKNET_TRY_MPS=OFF`.
+## Building Darknet on macOS
 
-The recommended Mac install is:
+Apple silicon Macs use Metal/MPS GPU acceleration by default. GPU support requires macOS 26 or newer and the macOS 26 SDK or newer. Intel Macs use the CPU-only build. You can also choose a CPU-only build on Apple silicon.
 
-1. build Darknet from source with CMake;
-2. install it into `/usr/local`;
-3. run `darknet` from any new terminal window.
+### 1. Install the prerequisites
 
-For both Apple Silicon and Intel Macs, begin with:
-
-Install Xcode Command Line Tools:
+If you haven’t installed the Xcode Command Line Tools, run this command and wait for installation to finish:
 
 ```sh
 xcode-select --install
 ```
 
-For Apple GPU support, check that the selected tools provide macOS SDK 26.0 or newer. Intel Mac users can skip this check. Update Xcode or Command Line Tools if needed:
+For an Apple GPU build, check that the selected SDK is **26.0 or newer**:
 
 ```sh
 xcrun --sdk macosx --show-sdk-version
 ```
 
-Install Homebrew if it is not already installed:
-
-```sh
-/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-```
-
-If this is a new Homebrew install and `brew` is not found, open a new terminal window or follow the `brew shellenv` command printed by the Homebrew installer.
-
-Install the required build tools and libraries:
+Install the build dependencies with Homebrew. If you need to install Homebrew first, follow the [Homebrew installation instructions](https://brew.sh/).
 
 ```sh
 brew install cmake opencv protobuf
 ```
 
-The `protobuf` dependency enables the ONNX export tool, which CMake includes automatically when Protocol Buffers is available.
-
-If you previously installed Darknet into `/usr/local`, remove its old headers and libraries before configuring the new build:
-
-```sh
-sudo rm -f /usr/local/include/darknet*.h /usr/local/lib/libdarknet.dylib /usr/local/lib/libdarknet.so
-```
-
-On Apple silicon, clone, build, and install Darknet. For Intel Macs, use the [CPU-only instructions below](#intel-macs-cpu-only) instead:
+### 2. Get the source
 
 ```sh
 git clone https://codeberg.org/CCodeRun/darknet.git
 cd darknet
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_MPS=ON
-cmake --build build --parallel 4
-sudo cmake --install build --prefix /usr/local
+mkdir build
+cd build
 ```
 
-The four-job limit reduces memory pressure during compilation on 8 GB Macs.
+### 3. Configure the build
 
-Test the installed command:
+Choose the configuration for your Mac.
+
+**Apple silicon with GPU acceleration**
 
 ```sh
-darknet version
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
 ```
 
-Installing into `/usr/local` adds these files:
+<a name="intel-macs-cpu-only"></a>
 
-* `/usr/local/bin/darknet` and the `darknet_*` helper CLI tools.
-* `/usr/local/lib/libdarknet.dylib`.
-* `/usr/local/include/darknet*...` headers for developers.
-* `/usr/local/cfg/...` configuration templates.
-
-> [!CAUTION]
-> **If `darknet version` fails with "command not found"** then either Darknet was built but not installed, or your terminal has not picked up `/usr/local/bin`.  Re-run `sudo cmake --install build --prefix /usr/local`, then open a new terminal and try again.
-
-### Intel Macs (CPU-only)
-
-Intel Macs currently do not support Darknet's MPS acceleration. Build with `DARKNET_TRY_MPS=OFF` to run on the CPU. The macOS 26 and SDK 26 requirements for Apple GPU acceleration do not apply to this build.
+**Intel Mac or CPU-only Apple silicon**
 
 > [!TIP]
-> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase performance:
+> If you are building a CPU-only version of Darknet, you may want to install OpenBLAS to increase inference performance. You can optionally install it from Homebrew with the command below.
 
 ```sh
 brew install openblas
 ```
-
-Install Command Line Tools, Homebrew, CMake, and OpenCV as described above, then run:
-
-```sh
-git clone https://codeberg.org/CCodeRun/darknet.git
-cd darknet
-cmake -S . -B build-cpu -DCMAKE_BUILD_TYPE=Release -DDARKNET_TRY_MPS=OFF -DDARKNET_TRY_OPENBLAS=ON
-cmake --build build-cpu --parallel 4
-sudo cmake --install build-cpu --prefix /usr/local
+```
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DDARKNET_TRY_MPS=OFF ..
 ```
 
-Check the installation with `darknet version`. These CPU-only instructions can also be used on Apple silicon Macs.
+### 4. Build, install, and verify
+
+```sh
+make -j 4
+sudo make install
+darknet version
+```
+
+> [!CAUTION]
+> If you have a Mac with 8GB of RAM, please do not increase the make -j number above 4, as that may cause the build to become very slow.
+
+Installing Darknet into /usr/local adds the following files:
+- /usr/local/bin/ contains the darknet command and the darknet_* helper tools. Run ``darknet version`` to verify the installation.
+- /usr/local/include/ contains the Darknet API headers, including darknet.h and darknet.hpp.
+- /usr/local/lib/libdarknet.dylib is the shared library used by applications that link to Darknet.
+- /usr/local/cfg/ contains the .cfg network configuration templates and .names class label files.
+
+For a GPU build, `darknet version` shows your chip name on the `Apple MPS device:` line. Here is an example from an M4 Pro:
+
+```text
+Darknet V6 "Winston" v6.0-93-g8bec33cf [v6-dev] [Nov 20 2026]
+Apple MPS device: Apple M4 Pro, 17.8 GiB
+Protobuf 7.36.2, OpenCV 5.1.0
+```
+
+For a CPU-only build, `darknet version` reports `Darknet is compiled to use the CPU.`
+
+### Upgrading an existing installation
+
+Start in your existing `darknet` source directory. Pull the latest changes and remove the two files that CMake checks for before configuring:
+
+```sh
+git pull
+sudo rm -f /usr/local/include/darknet.h /usr/local/lib/libdarknet.so
+mkdir -p build
+cd build
+```
+
+Run the configure command for your Mac.
+
+**Apple silicon with GPU acceleration**
+
+```sh
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
+```
+
+**Intel Mac or CPU-only Apple silicon**
+
+```sh
+cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DDARKNET_TRY_MPS=OFF ..
+```
+
+Then build and install the updated version:
+
+```sh
+make -j 4
+sudo make install
+darknet version
+```
 
 ## Windows CMake Method
 
@@ -742,7 +767,10 @@ Last updated 2026-08-07:
 * [X] ONNX export tool
 * [X] re-write function that calculates mAP (mean average precision)
 * [X] support both FP32 and FP16 with the ONNX export tool
-* [X] support for MacOS MPS (Metal Performance Shaders), inference only
+* [X] support for MacOS MPS (Metal Performance Shaders), inference and a limited subset of training support (yolov4-tiny, yolov4-tiny-3l, yolov7-tiny)
+  * [ ] Add support for mixed precision training (done, pending testing)
+  * [ ] Unlock features required for the full sized Yolo models (in progress)
+
 
 ## Short-term goals
 
@@ -761,6 +789,7 @@ Last updated 2026-08-07:
 * [ ] add support for N-channel images where N > 3 (e.g., images with an additional depth or thermal channel)
 * [ ] on-going code cleanup **(in progress)**
 * [ ] add support for 8-bit quantization in the ONNX export tool
+* [ ] Full parity of Apple MPS training with CUDA.
 
 ## Long-term goals
 
