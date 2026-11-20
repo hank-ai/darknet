@@ -12,12 +12,7 @@
 	- [Google Colab](#google-colab)
 	- [WSL](#wsl)
 	- [Linux CMake Method](#linux-cmake-method)
-	- [Building Darknet on macOS](#building-darknet-on-macos)
-		- [1. Install the prerequisites](#1-install-the-prerequisites)
-		- [2. Get the source](#2-get-the-source)
-		- [3. Configure the build](#3-configure-the-build)
-		- [4. Build, install, and verify](#4-build-install-and-verify)
-		- [Upgrading an existing installation](#upgrading-an-existing-installation)
+	- [macOS CMake Method](#macos-cmake-method)
 	- [Windows CMake Method](#windows-cmake-method)
 	- [Docker](#docker)
 - [Using Darknet](#using-darknet)
@@ -165,7 +160,7 @@ Select one of the following build types:
 * [Google Colab](#google-colab)
 * [WSL](#wsl)
 * [Linux](#linux-cmake-method)
-* [macOS](#building-darknet-on-macos)
+* [macOS](#macos-cmake-method)
 * [Windows](#windows-cmake-method)
 * [Docker](#docker)
 
@@ -268,9 +263,7 @@ You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run t
 > [!CAUTION]
 > **If you don't have `/usr/bin/darknet`** then this means you _did not_ install it, you only built it!  Make sure you install the `.deb` or `.rpm` file as described above.
 
-<a name="macos-cmake-method"></a>
-
-## Building Darknet on macOS
+## macOS CMake Method
 
 Apple silicon Macs use Metal/MPS GPU acceleration by default. GPU support requires macOS 26 or newer and the macOS 26 SDK or newer. Intel Macs use the CPU-only build. You can also choose a CPU-only build on Apple silicon.
 
