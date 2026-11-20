@@ -265,7 +265,7 @@ You are now done!  Darknet has been built and installed into `/usr/bin/`.  Run t
 
 ## macOS CMake Method
 
-Apple silicon Macs use Metal/MPS GPU acceleration by default. GPU support requires macOS 26 or newer and the macOS 26 SDK or newer. Intel Macs use the CPU-only build. You can also choose a CPU-only build on Apple silicon.
+Apple silicon Macs use Metal/MPS GPU acceleration by default. All M-series Macs are supported, as well as the Macbook Neo with the A-series processor. GPU support requires macOS 26 or newer and the macOS 26 SDK or newer. Intel Macs can currently only use the CPU-only build. You can also choose a CPU-only build on Apple silicon. If you are still on macOS 15 or earlier, you must also configure Darknet for the CPU-only build.
 
 ### 1. Install the prerequisites
 
@@ -316,6 +316,8 @@ cmake -DCMAKE_INSTALL_PREFIX=/usr/local ..
 ```sh
 brew install openblas
 ```
+Configure Cmake to build for CPU. Install Openblas before you run this step so it gets picked up if you want it.
+
 ```
 cmake -DCMAKE_INSTALL_PREFIX=/usr/local -DDARKNET_TRY_MPS=OFF ..
 ```
