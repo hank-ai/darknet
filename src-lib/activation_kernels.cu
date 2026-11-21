@@ -516,12 +516,23 @@ void activate_array_ongpu(float *x, int n, ACTIVATION a)
 
 __global__ void activate_yolo_output_kernel(const float *input, float *output, int n, int spatial, int entries, float scale_x_y, int new_coords)
 {
+	TAT(TATPARMS);
+
 	const int i = blockIdx.x * blockDim.x + threadIdx.x;
-	if (i >= n) return;
+	if (i >= n)
+	{
+		return;
+	}
 	const int entry = (i / spatial) % entries;	// 0,1 = x,y  2,3 = w,h  4 = objectness  5.. = classes
 	float value = input[i];
-	if (!new_coords && entry != 2 && entry != 3) value = logistic_activate_kernel(value);
-	if (entry < 2) value = value * scale_x_y - 0.5f * (scale_x_y - 1.0f);
+	if (not new_coords and entry != 2 and entry != 3)
+	{
+		value = logistic_activate_kernel(value);
+	}
+	if (entry < 2)
+	{
+		value = value * scale_x_y - 0.5f * (scale_x_y - 1.0f);
+	}
 	output[i] = value;
 }
 
